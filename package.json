@@ -1,0 +1,25 @@
+{
+  "name": "hashi",
+  "version": "1.0.0",
+  "description": "Hashi - Homelab orchestration for Pangolin, Hetzner DNS, and Gatus",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^9.3.1",
+    "@fastify/formbody": "^7.4.0",
+    "@fastify/static": "^7.0.4",
+    "@fastify/websocket": "^10.0.1",
+    "bcrypt": "^5.1.1",
+    "dns-packet": "^5.6.1",
+    "fastify": "^4.28.1",
+    "js-yaml": "^4.1.0",
+    "node-cron": "^3.0.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

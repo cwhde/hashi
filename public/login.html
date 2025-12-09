@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hashi - Login</title>
+  <link rel="icon" type="image/webp" href="https://static.juzo.io/icon/default/icon.webp">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="auth-container">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <img src="https://static.juzo.io/logo/4k/logo_w_bd.png" alt="juzo.io">
+      </div>
+      
+      <h1 class="auth-title">Welcome Back</h1>
+      <p class="auth-subtitle">Sign in to manage DNS synchronization</p>
+      
+      <div id="error" class="auth-error"></div>
+      
+      <form id="login-form">
+        <div class="form-group">
+          <label class="form-label" for="username">Username</label>
+          <input type="text" id="username" name="username" class="form-input" required autocomplete="username">
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <input type="password" id="password" name="password" class="form-input" required autocomplete="current-password">
+        </div>
+        
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">
+          Sign In
+        </button>
+      </form>
+    </div>
+  </div>
+  
+  <script>
+    const form = document.getElementById('login-form');
+    const errorDiv = document.getElementById('error');
+    
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      
+      errorDiv.classList.remove('visible');
+      
+      try {
+        const response = await fetch('/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          window.location.href = '/';
+        } else {
+          errorDiv.textContent = data.error || 'Login failed';
+          errorDiv.classList.add('visible');
+        }
+      } catch (err) {
+        errorDiv.textContent = 'Network error. Please try again.';
+        errorDiv.classList.add('visible');
+      }
+    });
+  </script>
+</body>
+</html>

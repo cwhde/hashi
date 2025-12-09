@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hashi - Register</title>
+  <link rel="icon" type="image/webp" href="https://static.juzo.io/icon/default/icon.webp">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="auth-container">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <img src="https://static.juzo.io/logo/4k/logo_w_bd.png" alt="juzo.io">
+      </div>
+      
+      <h1 class="auth-title">Create Account</h1>
+      <p class="auth-subtitle">Set up your admin account for DNS Sync</p>
+      
+      <div id="error" class="auth-error"></div>
+      
+      <form id="register-form">
+        <div class="form-group">
+          <label class="form-label" for="username">Username</label>
+          <input type="text" id="username" name="username" class="form-input" required minlength="3" autocomplete="username">
+          <p class="form-hint">At least 3 characters</p>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <input type="password" id="password" name="password" class="form-input" required minlength="8" autocomplete="new-password">
+          <p class="form-hint">At least 8 characters</p>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label" for="confirm-password">Confirm Password</label>
+          <input type="password" id="confirm-password" name="confirm-password" class="form-input" required autocomplete="new-password">
+        </div>
+        
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">
+          Create Account
+        </button>
+      </form>
+    </div>
+  </div>
+  
+  <script>
+    const form = document.getElementById('register-form');
+    const errorDiv = document.getElementById('error');
+    
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      const confirmPassword = document.getElementById('confirm-password').value;
+      
+      errorDiv.classList.remove('visible');
+      
+      if (password !== confirmPassword) {
+        errorDiv.textContent = 'Passwords do not match';
+        errorDiv.classList.add('visible');
+        return;
+      }
+      
+      try {
+        const response = await fetch('/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          globalThis.location.href = '/login.html';
+        } else {
+          errorDiv.textContent = data.error || 'Registration failed';
+          errorDiv.classList.add('visible');
+        }
+      } catch (err) {
+        console.error('Registration error:', err);
+        errorDiv.textContent = 'Network error. Please try again.';
+        errorDiv.classList.add('visible');
+      }
+    });
+  </script>
+</body>
+</html>

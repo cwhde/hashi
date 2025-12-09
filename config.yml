@@ -1,0 +1,32 @@
+general:
+  domain: "example.com"
+  topology_source: "hosts.example.com"
+  resolver_ip: "9.9.9.9"
+  gatus_output_path: "/gatus/endpoints.yaml"
+  loop_interval: 300
+  name_overrides: {}
+  ignore_subdomains: []
+  keep_subdomains: []
+apis:
+  pangolin:
+    base_url: "https://pangolin.example.com/api/v1"
+    auth_token: "your_pangolin_token_here"
+    org_id: ""
+  hetzner:
+    auth_token: "your_hetzner_token_here"
+    zone_id: ""
+gatus_defaults:
+  interval: "5m"
+  client:
+    timeout: "10s"
+  alerts:
+    - type: email
+      to: "admin@example.com"
+      failure-threshold: 5
+      success-threshold: 2
+      send-on-resolved: true
+  allowed_http_codes: [200]
+  subdomain_http_codes: {}
+  subdomain_port_overrides: {}
+  skip_technical_cnames: true
+  aggressive_host_filtering: false

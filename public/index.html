@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hashi - Dashboard</title>
+  <link rel="icon" type="image/webp" href="https://static.juzo.io/icon/default/icon.webp">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-logo">
+      <img src="https://static.juzo.io/logo/4k/logo_w_bd.png" alt="juzo.io">
+    </div>
+    <div class="header-actions">
+      <button class="btn-logout" onclick="logout()">Logout</button>
+    </div>
+  </header>
+  
+  <!-- Main Content -->
+  <main class="container">
+    <!-- Status Card -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">Sync Status</h2>
+        <button id="sync-btn" class="btn btn-primary" onclick="triggerSync()">
+          <span id="sync-btn-text">Sync Now</span>
+          <span id="sync-spinner" class="spinner" style="display: none;"></span>
+        </button>
+      </div>
+      
+      <div class="status-grid">
+        <div class="status-item">
+          <span class="status-label">Status</span>
+          <span class="status-value">
+            <span id="status-indicator" class="status-indicator idle"></span>
+            <span id="status-text">IDLE</span>
+          </span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">Last Run</span>
+          <span id="last-run" class="status-value">-</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">Next Run</span>
+          <span id="next-run" class="status-value">-</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">Last Result</span>
+          <span id="last-result" class="status-value">-</span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Tabs -->
+    <div class="card">
+      <div class="tabs">
+        <button class="tab active" data-tab="logs">Logs</button>
+        <button class="tab" data-tab="history">History</button>
+        <button class="tab" data-tab="settings">Settings</button>
+      </div>
+      
+      <!-- Logs Tab -->
+      <div id="logs-tab" class="tab-content active">
+        <div class="log-viewer">
+          <div class="log-controls">
+            <div class="log-filters">
+              <button class="log-filter active" data-level="all">All</button>
+              <button class="log-filter" data-level="INFO">Info</button>
+              <button class="log-filter" data-level="WARN">Warn</button>
+              <button class="log-filter" data-level="ERROR">Error</button>
+              <button class="log-filter" data-level="DEBUG">Debug</button>
+            </div>
+            <button class="btn btn-secondary" onclick="clearLogs()" style="padding: 0.25rem 0.75rem; font-size: 0.75rem;">Clear</button>
+          </div>
+          <div id="log-entries" class="log-entries">
+            <!-- Log entries will be inserted here -->
+          </div>
+        </div>
+      </div>
+      
+      <!-- History Tab -->
+      <div id="history-tab" class="tab-content">
+        <div id="history-list" class="history-list">
+          <!-- History items will be inserted here -->
+        </div>
+      </div>
+      
+      <!-- Settings Tab -->
+      <div id="settings-tab" class="tab-content">
+        <form id="settings-form" class="settings-form">
+          <!-- General Settings -->
+          <div class="settings-section">
+            <h3 class="settings-section-title">General</h3>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="domain">Domain</label>
+                <input type="text" id="domain" name="domain" class="form-input" placeholder="example.com">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="topology_source">Topology Source</label>
+                <input type="text" id="topology_source" name="topology_source" class="form-input" placeholder="hosts.example.com">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="resolver_ip">DNS Resolver IP</label>
+                <input type="text" id="resolver_ip" name="resolver_ip" class="form-input" placeholder="9.9.9.9">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="loop_interval">Sync Interval (seconds)</label>
+                <input type="number" id="loop_interval" name="loop_interval" class="form-input" placeholder="300" min="30">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="gatus_output_path">Gatus Output Path</label>
+              <input type="text" id="gatus_output_path" name="gatus_output_path" class="form-input" placeholder="/gatus/endpoints.yaml">
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="keep_subdomains">Keep Subdomains</label>
+                <input type="text" id="keep_subdomains" name="keep_subdomains" class="form-input" placeholder="gateway, captcha">
+                <p class="form-hint">Comma-separated list of subdomains to preserve</p>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="ignore_subdomains">Ignore Subdomains</label>
+                <input type="text" id="ignore_subdomains" name="ignore_subdomains" class="form-input" placeholder="@, www">
+                <p class="form-hint">Comma-separated list of subdomains to ignore</p>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="name_overrides">Name Overrides</label>
+              <textarea id="name_overrides" name="name_overrides" class="form-input" rows="4" placeholder="mail: webmail&#10;gateway: pangolin&#10;static: assets cdn"></textarea>
+              <p class="form-hint">YAML format - subdomain: display_name (one per line)</p>
+            </div>
+          </div>
+          
+          <!-- Pangolin API -->
+          <div class="settings-section">
+            <h3 class="settings-section-title">Pangolin API</h3>
+            <div class="form-group">
+              <label class="form-label" for="pangolin_base_url">Base URL</label>
+              <input type="url" id="pangolin_base_url" name="pangolin_base_url" class="form-input" placeholder="https://pangolin.example.com/api/v1">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="pangolin_auth_token">
+                Auth Token
+                <span id="pangolin-test-result" class="test-result"></span>
+              </label>
+              <div style="display: flex; gap: 0.5rem;">
+                <input type="password" id="pangolin_auth_token" name="pangolin_auth_token" class="form-input" placeholder="Leave empty to keep current">
+                <button type="button" class="btn btn-secondary" onclick="testPangolin()">Test</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="pangolin_org_id">Organization ID (optional)</label>
+              <input type="text" id="pangolin_org_id" name="pangolin_org_id" class="form-input" placeholder="Auto-detect if empty">
+            </div>
+          </div>
+          
+          <!-- Hetzner API -->
+          <div class="settings-section">
+            <h3 class="settings-section-title">Hetzner DNS API</h3>
+            <div class="form-group">
+              <label class="form-label" for="hetzner_auth_token">
+                Auth Token
+                <span id="hetzner-test-result" class="test-result"></span>
+              </label>
+              <div style="display: flex; gap: 0.5rem;">
+                <input type="password" id="hetzner_auth_token" name="hetzner_auth_token" class="form-input" placeholder="Leave empty to keep current">
+                <button type="button" class="btn btn-secondary" onclick="testHetzner()">Test</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="hetzner_zone_id">Zone ID (optional)</label>
+              <input type="text" id="hetzner_zone_id" name="hetzner_zone_id" class="form-input" placeholder="Auto-detect if empty">
+            </div>
+          </div>
+          
+          <!-- Gatus Defaults -->
+          <div class="settings-section">
+            <h3 class="settings-section-title">Gatus Defaults</h3>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label" for="gatus_interval">Check Interval</label>
+                <input type="text" id="gatus_interval" name="gatus_interval" class="form-input" placeholder="5m">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="gatus_timeout">Timeout</label>
+                <input type="text" id="gatus_timeout" name="gatus_timeout" class="form-input" placeholder="10s">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="allowed_http_codes">Allowed HTTP Codes</label>
+              <input type="text" id="allowed_http_codes" name="allowed_http_codes" class="form-input" placeholder="200, 201">
+              <p class="form-hint">Comma-separated list of acceptable HTTP status codes</p>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="subdomain_http_codes">Subdomain HTTP Codes</label>
+              <textarea id="subdomain_http_codes" name="subdomain_http_codes" class="form-input" rows="4" placeholder="404: api.gateway, mesh, captcha&#10;401: sync.ns, fra2.cs"></textarea>
+              <p class="form-hint">Format: HTTP_CODE: subdomain1, subdomain2 (one code per line)</p>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="subdomain_port_overrides">Subdomain Port Overrides</label>
+              <textarea id="subdomain_port_overrides" name="subdomain_port_overrides" class="form-input" rows="3" placeholder="gateway: 443&#10;static: 443"></textarea>
+              <p class="form-hint">YAML format - subdomain: port (one per line)</p>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">
+                  <input type="checkbox" id="skip_technical_cnames" name="skip_technical_cnames">
+                  Skip Technical CNAMEs
+                </label>
+                <p class="form-hint">Skip entries with on.* or via.* patterns</p>
+              </div>
+              <div class="form-group">
+                <label class="form-label">
+                  <input type="checkbox" id="aggressive_host_filtering" name="aggressive_host_filtering">
+                  Aggressive Host Filtering
+                </label>
+                <p class="form-hint">Skip entries containing any hostname</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Gatus Alerts -->
+          <div class="settings-section">
+            <h3 class="settings-section-title">Gatus Alerts</h3>
+            <div class="form-group">
+              <label class="form-label" for="alerts_config">Alert Configuration</label>
+              <textarea id="alerts_config" name="alerts_config" class="form-input" rows="8" placeholder="- type: email&#10;  to: admin@example.com&#10;  failure-threshold: 5&#10;  success-threshold: 2&#10;  send-on-resolved: true"></textarea>
+              <p class="form-hint">YAML format - array of alert configurations</p>
+            </div>
+          </div>
+          
+          <!-- Form Actions -->
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" onclick="restoreConfig()">Restore Backup</button>
+            <div style="display: flex; gap: 0.5rem;">
+              <button type="button" class="btn btn-secondary" onclick="loadConfig()">Reset</button>
+              <button type="submit" class="btn btn-primary">Apply Changes</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+  
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+  
+  <!-- History Modal -->
+  <div id="history-modal" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">Run Details</h3>
+        <button class="modal-close" onclick="closeHistoryModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="modal-log-entries" class="log-entries" style="padding: 0.5rem;"></div>
+      </div>
+    </div>
+  </div>
+  
+  <script src="/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+version: "3.8"
+services:
+  hashi:
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "npm install --production && node server.js"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./hashi:/app
+      - ./config.yml:/app/config.yml
+      - ./logs:/app/logs
+      # Mount your Gatus endpoints file location
+      # - /path/to/gatus/endpoints.yaml:/gatus/endpoints.yaml
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
