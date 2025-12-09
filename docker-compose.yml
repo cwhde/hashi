@@ -1,17 +1,21 @@
 version: "3.8"
 services:
   hashi:
-    image: node:20-alpine
-    working_dir: /app
-    command: sh -c "npm install --production && node server.js"
+    image: git.juzo.io/juzo/hashi:latest
+    container_name: hashi
     ports:
       - "3000:3000"
     volumes:
-      - ./hashi:/app
-      - ./config.yml:/app/config.yml
+      - ./config.yml:/app/config.yml:ro
       - ./logs:/app/logs
       # Mount your Gatus endpoints file location
       # - /path/to/gatus/endpoints.yaml:/gatus/endpoints.yaml
     environment:
       - NODE_ENV=production
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/auth/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s

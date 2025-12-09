@@ -38,12 +38,34 @@ The name reflects the system's core purpose: acting as a bridge between three di
 
 ### Using Docker Compose (Recommended)
 
-1. Ensure your `config.yml` is in the same directory
+1. Create your `config.yml` in the same directory (see Configuration section)
 2. Run:
    ```bash
    docker-compose up -d
    ```
 3. Access the web interface at `http://localhost:3000`
+
+The image is automatically pulled from `git.juzo.io/juzo/hashi:latest`.
+
+### Using Docker directly
+
+```bash
+docker run -d \
+  --name hashi \
+  -p 3000:3000 \
+  -v $(pwd)/config.yml:/app/config.yml:ro \
+  -v $(pwd)/logs:/app/logs \
+  git.juzo.io/juzo/hashi:latest
+```
+
+### Building locally (Development)
+
+If you want to build the image locally:
+
+```bash
+docker build -t hashi:local -f docker/Dockerfile .
+docker run -d --name hashi -p 3000:3000 -v $(pwd)/config.yml:/app/config.yml:ro hashi:local
+```
 
 ### Manual Installation
 
@@ -146,6 +168,12 @@ gatus_defaults:
 hashi/
 ├── package.json
 ├── server.js
+├── docker/
+│   ├── Dockerfile
+│   └── .dockerignore
+├── .gitea/
+│   └── workflows/
+│       └── docker-build.yml
 ├── src/
 │   ├── core/           # Business logic (ported from script.py)
 │   │   ├── config.js
@@ -171,10 +199,29 @@ hashi/
 │   ├── register.html
 │   ├── css/style.css
 │   └── js/app.js
+├── docker-compose.yml
 ├── config.yml
 └── logs/
     └── sync-history.jsonl
 ```
+
+## Docker Image
+
+The Docker image is automatically built and published to `git.juzo.io/juzo/hashi` on every push to the main branch (for relevant file changes).
+
+### Available Tags
+
+- `latest` - Latest build from main branch
+- `<sha>` - Specific commit SHA
+- `<version>` - Semantic version tags (when released)
+
+### CI/CD
+
+The Gitea Actions workflow:
+- Builds multi-platform images (amd64, arm64)
+- Uses layer caching for faster builds
+- Only triggers on relevant file changes (not README, etc.)
+- Can be manually triggered via workflow dispatch
 
 ## License
 

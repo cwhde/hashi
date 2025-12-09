@@ -1,0 +1,39 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+*.md
+LICENSE
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Node
+node_modules
+
+# Logs and runtime data
+logs/
+*.log
+
+# Config files (should be mounted at runtime)
+config.yml
+
+# Docker files (not needed in image)
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+
+# CI/CD
+.gitea/
+.github/
+
+# Testing
+test/
+tests/
+*.test.js
+*.spec.js
+coverage/
