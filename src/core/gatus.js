@@ -315,15 +315,16 @@ export class GatusConfigGenerator {
   /**
    * Generate complete Gatus configuration.
    * Direct port from script.py generate_config
-   * @param {Array} pangolinEntries - Pangolin entries
+   * @param {Array} pangolinEntries - Pangolin entries (HTTP resources with domains)
    * @param {Array} hetznerEntries - Hetzner entries
+   * @param {Array} rawResources - Raw TCP/UDP resources without domains
    * @returns {Promise<Object>}
    */
-  async generateConfig(pangolinEntries, hetznerEntries) {
+  async generateConfig(pangolinEntries, hetznerEntries, rawResources = []) {
     const endpoints = [];
     const pangolinSubdomains = new Set();
     
-    // Process Pangolin entries
+    // Process Pangolin entries (HTTP resources with domains)
     for (const entry of pangolinEntries) {
       const name = entry.name || entry.domain || 'Unknown';
       const domain = entry.domain || '';
@@ -354,6 +355,46 @@ export class GatusConfigGenerator {
         group,
         useInsecureTls: useInsecure,
         subdomain,
+      });
+      
+      endpoints.push(endpoint);
+    }
+    
+    // Process raw resources (TCP/UDP port forwards without domains)
+    for (const raw of rawResources) {
+      const name = raw.name || 'Unknown';
+      const targetIp = raw.target || '';
+      const port = raw.port || 0;
+      let protocol = (raw.protocol || 'tcp').toLowerCase();
+      
+      if (this.shouldSkipEndpoint(name)) {
+        continue;
+      }
+      
+      if (!targetIp || !port) {
+        continue;
+      }
+      
+      // For raw resources, detect protocol based on port if not explicitly tcp/udp
+      // Use standard port detection for better monitoring
+      if (protocol === 'tcp' || protocol === 'udp') {
+        // Check if we can infer a more specific protocol from the port
+        const detectedProtocol = GatusConfigGenerator.PORT_PROTOCOLS[port];
+        if (detectedProtocol && detectedProtocol !== 'tcp' && detectedProtocol !== 'udp') {
+          protocol = detectedProtocol;
+        }
+      }
+      
+      // Try to determine group from IP
+      const group = this.getGroupForTarget(targetIp, name);
+      
+      const endpoint = this.generateEndpoint({
+        name,
+        host: targetIp,
+        port,
+        protocol,
+        group,
+        subdomain: '',
       });
       
       endpoints.push(endpoint);
