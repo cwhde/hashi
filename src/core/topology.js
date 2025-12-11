@@ -13,7 +13,7 @@ export class TopologyResolver {
     this.resolverIp = resolverIp;
     this.domain = domain;
     // Default cache path - can be overridden via config
-    this.cachePath = cachePath || '/data/topology-cache.json';
+    this.cachePath = cachePath || '/app/logs/topology-cache.json';
   }
 
   /**

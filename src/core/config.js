@@ -96,7 +96,7 @@ export class Config {
   }
 
   get topologyCachePath() {
-    return this.config.general?.topology_cache_path || '/data/topology-cache.json';
+    return this.config.general?.topology_cache_path || '/app/logs/topology-cache.json';
   }
 
   // Pangolin API settings
