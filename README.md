@@ -104,6 +104,7 @@ auth:
 general:
   domain: "example.com"
   topology_source: "hosts.example.com"
+  topology_cache_path: "/data/topology-cache.json"
   resolver_ip: "9.9.9.9"
   gatus_output_path: "/gatus/endpoints.yaml"
   loop_interval: 300

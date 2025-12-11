@@ -17,23 +17,24 @@ export class DNSSync {
   constructor(config, logger) {
     this.config = config;
     this.logger = logger;
-    
+
     this.topology = new TopologyResolver(
       config.topologySource,
       config.resolverIp,
-      config.domain
+      config.domain,
+      config.topologyCachePath
     );
-    
+
     this.pangolin = new PangolinAPI(
       config.pangolinBaseUrl,
       config.pangolinAuthToken
     );
-    
+
     this.hetzner = new HetznerDNS(
       config.hetznerAuthToken,
       config.hetznerZoneId
     );
-    
+
     this.gatusGenerator = new GatusConfigGenerator(config);
   }
 
@@ -42,23 +43,24 @@ export class DNSSync {
    */
   reloadConfig() {
     this.config.reload();
-    
+
     this.topology = new TopologyResolver(
       this.config.topologySource,
       this.config.resolverIp,
-      this.config.domain
+      this.config.domain,
+      this.config.topologyCachePath
     );
-    
+
     this.pangolin = new PangolinAPI(
       this.config.pangolinBaseUrl,
       this.config.pangolinAuthToken
     );
-    
+
     this.hetzner = new HetznerDNS(
       this.config.hetznerAuthToken,
       this.config.hetznerZoneId
     );
-    
+
     this.gatusGenerator = new GatusConfigGenerator(this.config);
   }
 
@@ -71,78 +73,85 @@ export class DNSSync {
     // Get topology mapping
     this.logger.info('Getting host-to-subnet mapping from topology...');
     const hostMapping = await this.topology.getHostSubnetMapping(this.logger);
-    
-    if (Object.keys(hostMapping).length === 0) {
-      this.logger.warn('No host-to-subnet mapping available');
+
+    // null indicates a query failure (timeout, network error, etc.)
+    // Empty object {} indicates successful query with no results
+    if (hostMapping === null) {
+      this.logger.error('Topology query failed - aborting sync to prevent data loss');
+      throw new Error('Topology query failed - cannot determine host-to-subnet mappings');
     }
-    
+
+    if (Object.keys(hostMapping).length === 0) {
+      this.logger.warn('No host-to-subnet mapping available (empty result)');
+    }
+
     this.logger.info(`Host mappings: ${JSON.stringify(hostMapping)}`);
-    
+
     // Get Pangolin org ID
     this.logger.info('Getting Pangolin organization ID...');
     const orgId = await this.pangolin.getOrgId(this.config.pangolinOrgId, this.logger);
-    
+
     if (!orgId) {
       this.logger.error('Failed to get Pangolin org ID, cannot continue');
       return { pairs: [], rawResources: [], hostMapping };
     }
-    
+
     // Get all resources
     this.logger.info(`Listing resources for org ${orgId}...`);
     const resources = await this.pangolin.listResources(orgId, this.logger);
     this.logger.info(`Found ${resources.length} Pangolin resources`);
-    
+
     if (resources.length === 0) {
       this.logger.warn('No resources found in Pangolin');
       return { pairs: [], rawResources: [], hostMapping };
     }
-    
+
     const pairs = [];
     const rawResources = [];
-    
+
     for (let i = 0; i < resources.length; i++) {
       const resource = resources[i];
       const resourceId = resource.resourceId || resource.id;
       const resourceName = resource.name || 'Unknown';
-      
+
       this.logger.debug(`Processing resource ${i + 1}/${resources.length}: ${resourceName} (ID: ${resourceId})`);
-      
+
       // Check if this is a raw resource (no domain, tcp/udp port forward)
       const isHttpResource = resource.http !== false;
       let domain = resource.fullDomain || resource.domain || resource.subdomain || '';
-      
+
       if (!domain && !isHttpResource) {
         // This is a raw TCP/UDP resource without a domain - handle it for Gatus monitoring
         this.logger.debug(`Resource ${resourceName} is a raw (non-HTTP) resource without domain`);
-        
+
         // Fetch targets from API
         let targets = await this.pangolin.getResourceTargets(resourceId, this.logger);
         if (targets.length === 0) {
           targets = resource.targets || [];
         }
-        
+
         if (targets.length === 0) {
           this.logger.debug(`Raw resource ${resourceName} has no targets, skipping`);
           continue;
         }
-        
+
         // Use first enabled target
         const target = targets.find(t => t.enabled !== false) || targets[0];
         const targetIp = target.ip || '';
         const targetPort = target.port || 0;
-        
+
         if (!targetIp || !targetPort) {
           this.logger.debug(`Raw resource ${resourceName} has no valid target IP/port, skipping`);
           continue;
         }
-        
+
         // Determine protocol for raw resource - use resource's protocol field or detect from port
         let protocol = (resource.protocol || '').toLowerCase();
         if (protocol !== 'tcp' && protocol !== 'udp') {
           // Fallback to standard port detection
           protocol = 'tcp';
         }
-        
+
         rawResources.push({
           name: resourceName,
           target: targetIp,
@@ -150,46 +159,46 @@ export class DNSSync {
           protocol: protocol,
           proxyPort: resource.proxyPort || targetPort,
         });
-        
+
         this.logger.info(`Raw resource ${resourceName} -> ${targetIp}:${targetPort} (Proto: ${protocol})`);
         continue;
       }
-      
+
       if (!domain) {
         this.logger.debug(`Resource ${resourceName} has no domain field and is HTTP, skipping`);
         continue;
       }
-      
+
       // Ensure domain includes the base domain
       if (!domain.endsWith(this.config.domain)) {
         domain = `${domain}.${this.config.domain}`;
       }
-      
+
       // Fetch targets from API
       this.logger.debug(`Fetching targets for resource ${resourceId}...`);
       let targets = await this.pangolin.getResourceTargets(resourceId, this.logger);
-      
+
       if (targets.length === 0) {
         // Fallback to embedded targets
         targets = resource.targets || [];
         this.logger.debug(`No targets from API, using ${targets.length} embedded targets`);
       }
-      
+
       if (targets.length === 0) {
         this.logger.debug(`Resource ${resourceName} has no targets, skipping`);
         continue;
       }
-      
+
       // Use first enabled target
       let target = targets.find(t => t.enabled !== false) || targets[0];
-      
+
       const targetIp = target.ip || '';
       const targetPort = target.port || 443;
-      
+
       // Determine protocol
       let targetProtocol;
       const targetMethod = (target.method || '').toLowerCase();
-      
+
       if (targetMethod === 'http' || targetMethod === 'https') {
         targetProtocol = targetMethod;
       } else {
@@ -204,23 +213,23 @@ export class DNSSync {
           targetProtocol = 'tcp';
         }
       }
-      
+
       if (!targetIp) {
         this.logger.debug('Target has no IP, skipping');
         continue;
       }
-      
+
       // Get CNAME for this IP (may be null if no host mapping available)
       const cname = this.topology.getCnameForIp(targetIp, hostMapping);
       if (!cname) {
         // No CNAME mapping, but we can still monitor via Gatus using the domain directly
         this.logger.debug(`No subnet match for ${resourceName} with IP ${targetIp}, will monitor domain directly`);
       }
-      
+
       // Extract subdomain
       const subdomain = domain.replace(`.${this.config.domain}`, '');
       const isRoot = subdomain === this.config.domain || subdomain === '';
-      
+
       pairs.push({
         name: resourceName,
         domain,
@@ -233,14 +242,14 @@ export class DNSSync {
         port: targetPort,
         protocol: targetProtocol,
       });
-      
+
       if (cname) {
         this.logger.info(`Mapped ${domain} -> ${cname}.${this.config.domain} (IP: ${targetIp}, Proto: ${targetProtocol})`);
       } else {
         this.logger.info(`Resource ${domain} (IP: ${targetIp}, Proto: ${targetProtocol}) - no CNAME mapping, Gatus only`);
       }
     }
-    
+
     this.logger.info(`Total pairs created: ${pairs.length}, raw resources: ${rawResources.length}`);
     return { pairs, rawResources, hostMapping };
   }
@@ -257,47 +266,47 @@ export class DNSSync {
     if (!zoneId) {
       return [];
     }
-    
+
     // Get current DNS records
     const currentRecords = await this.hetzner.listRecords(zoneId, this.logger);
     this.logger.info(`Found ${currentRecords.length} existing DNS records`);
-    
+
     // Build lookup of current CNAME records pointing to on.*
     const currentCnames = new Map();
-    
+
     for (const record of currentRecords) {
       if (record.type !== 'CNAME') continue;
-      
+
       const name = record.name || '';
       const value = (record.value || '').replace(/\.$/, '');
-      
+
       if (value.startsWith('on.') || value.includes('.on.')) {
         currentCnames.set(name, { value, id: record.id });
       }
     }
-    
+
     this.logger.info(`Found ${currentCnames.size} existing on.* CNAME records`);
-    
+
     // Build expected records from Pangolin
     const expectedCnames = new Map();
-    
+
     for (const pair of pangolinPairs) {
       const subdomain = pair.subdomain;
       const cnameTarget = pair.cname_full;
       const isRoot = pair.is_root;
-      
+
       // Skip entries without CNAME mapping (no DNS record needed)
       if (!cnameTarget) {
         this.logger.debug(`Skipping DNS for ${subdomain}: no CNAME mapping`);
         continue;
       }
-      
+
       // Check ignore list
       if (this.config.ignoreSubdomains.includes(subdomain)) {
         this.logger.info(`Skipping ignored subdomain: ${subdomain}`);
         continue;
       }
-      
+
       // Skip root domain if in ignore list
       if (isRoot && (
         this.config.ignoreSubdomains.includes('@') ||
@@ -307,13 +316,13 @@ export class DNSSync {
         this.logger.info('Skipping root domain (ignored)');
         continue;
       }
-      
+
       const recordName = isRoot ? '@' : subdomain;
       expectedCnames.set(recordName, cnameTarget);
     }
-    
+
     const keptSubdomains = this.config.keepSubdomains;
-    
+
     // Delete orphaned records
     for (const [name, { value, id }] of currentCnames) {
       if (!expectedCnames.has(name)) {
@@ -321,17 +330,17 @@ export class DNSSync {
           this.logger.info(`Skipping deletion of explicitly kept subdomain: ${name}`);
           continue;
         }
-        
+
         this.logger.info(`Deleting orphaned CNAME: ${name} -> ${value}`);
         await this.hetzner.deleteRecord(id, this.logger, zoneId);
       }
     }
-    
+
     // Update or create records
     for (const [name, target] of expectedCnames) {
       const current = currentCnames.get(name);
       const targetClean = target.replace(/\.$/, '');
-      
+
       if (current) {
         if (current.value !== targetClean) {
           this.logger.info(`Updating CNAME: ${name} (${current.value} -> ${targetClean})`);
@@ -344,7 +353,7 @@ export class DNSSync {
         await this.hetzner.createRecord(zoneId, name, 'CNAME', target, 3600, this.logger);
       }
     }
-    
+
     // Return refreshed records
     return this.hetzner.listRecords(zoneId, this.logger);
   }
@@ -366,30 +375,30 @@ export class DNSSync {
       port: pair.port,
       protocol: pair.protocol,
     }));
-    
+
     // Prepare Hetzner entries
     const pangolinSubdomains = new Set(pangolinPairs.map(p => p.subdomain));
-    
+
     const hetznerEntries = [];
     for (const record of hetznerRecords) {
       const recordType = record.type || '';
       const name = record.name || '';
       const value = (record.value || '').replace(/\.$/, '');
-      
+
       if (recordType !== 'A' && recordType !== 'CNAME') continue;
       if (pangolinSubdomains.has(name)) continue;
-      
+
       if (name.startsWith('on.') && !this.config.keepSubdomains.includes(name)) {
         continue;
       }
-      
+
       hetznerEntries.push({
         name,
         type: recordType,
         value,
       });
     }
-    
+
     return this.gatusGenerator.generateConfig(pangolinEntries, hetznerEntries, rawResources);
   }
 
@@ -402,7 +411,7 @@ export class DNSSync {
   writeGatusConfig(config) {
     const outputPath = this.config.gatusOutputPath;
     const newContent = yaml.dump(config, { lineWidth: -1, noRefs: true });
-    
+
     // Check if file exists and compare
     try {
       const existingContent = fs.readFileSync(outputPath, 'utf8');
@@ -413,7 +422,7 @@ export class DNSSync {
     } catch {
       // File doesn't exist
     }
-    
+
     // Write to temp file first, then move (use same directory to avoid EXDEV cross-device error)
     let tmpPath = null;
     try {
@@ -421,14 +430,14 @@ export class DNSSync {
       if (dir && dir !== '.') {
         fs.mkdirSync(dir, { recursive: true });
       }
-      
+
       // Create temp file in the SAME directory as output to avoid cross-device rename issues
       tmpPath = path.join(dir, `gatus-${Date.now()}.yaml.tmp`);
       fs.writeFileSync(tmpPath, newContent, 'utf8');
-      
+
       // Use fs.renameSync for atomic move (works when on same filesystem)
       fs.renameSync(tmpPath, outputPath);
-      
+
       this.logger.info(`Wrote Gatus configuration to ${outputPath}`);
       return true;
     } catch (error) {
@@ -458,48 +467,48 @@ export class DNSSync {
       gatusEndpoints: 0,
       errors: [],
     };
-    
+
     try {
       this.logger.info('Starting DNS sync cycle');
-      
+
       // Step 1: Get Pangolin domain-to-CNAME pairs and raw resources
       this.logger.info('Step 1: Fetching Pangolin resources...');
       const { pairs: pangolinPairs, rawResources, hostMapping } = await this.getPangolinDomainCnamePairs();
       summary.pangolinMappings = pangolinPairs.length;
       summary.rawResources = rawResources.length;
       this.logger.info(`Found ${pangolinPairs.length} Pangolin domain mappings, ${rawResources.length} raw resources`);
-      
+
       // Update Gatus generator with host mapping
       this.gatusGenerator.updateHostMapping(hostMapping);
-      
+
       if (pangolinPairs.length > 0) {
         for (const pair of pangolinPairs) {
           this.logger.debug(`  - ${pair.domain} -> ${pair.cname_full || 'no CNAME'} (resource: ${pair.resource_name})`);
         }
       }
-      
+
       if (rawResources.length > 0) {
         for (const raw of rawResources) {
           this.logger.debug(`  - Raw: ${raw.name} -> ${raw.target}:${raw.port} (${raw.protocol})`);
         }
       }
-      
+
       // Step 2: Sync Hetzner DNS (only for pairs with CNAME mappings)
       this.logger.info('Step 2: Synchronizing Hetzner DNS...');
       const hetznerRecords = await this.syncHetznerDns(pangolinPairs);
       summary.dnsRecords = hetznerRecords.length;
       this.logger.info(`DNS sync complete, ${hetznerRecords.length} total records`);
-      
+
       // Step 3: Generate and write Gatus config (includes both HTTP and raw resources)
       this.logger.info('Step 3: Generating Gatus configuration...');
       const gatusConfig = await this.generateGatusConfig(pangolinPairs, rawResources, hetznerRecords);
       summary.gatusEndpoints = gatusConfig.endpoints?.length || 0;
       this.logger.info(`Generated ${summary.gatusEndpoints} Gatus endpoints`);
       this.writeGatusConfig(gatusConfig);
-      
+
       this.logger.success('DNS sync cycle completed successfully');
       return { success: true, summary };
-      
+
     } catch (error) {
       this.logger.error(`DNS sync cycle failed: ${error.message}`);
       this.logger.error(`Stack trace: ${error.stack}`);

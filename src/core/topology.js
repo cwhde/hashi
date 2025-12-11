@@ -3,13 +3,17 @@
  * Direct port from script.py lines 95-167
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
 import { queryTXT } from '../utils/dns.js';
 
 export class TopologyResolver {
-  constructor(topologySource, resolverIp, domain) {
+  constructor(topologySource, resolverIp, domain, cachePath = null) {
     this.topologySource = topologySource;
     this.resolverIp = resolverIp;
     this.domain = domain;
+    // Default cache path - can be overridden via config
+    this.cachePath = cachePath || '/data/topology-cache.json';
   }
 
   /**
@@ -20,14 +24,14 @@ export class TopologyResolver {
   ipToSubnet(ip) {
     const parts = ip.split('.');
     if (parts.length !== 4) return null;
-    
+
     const valid = parts.every(part => {
       const num = Number.parseInt(part, 10);
       return !Number.isNaN(num) && num >= 0 && num <= 255;
     });
-    
+
     if (!valid) return null;
-    
+
     // Convert to /24 subnet
     return `${parts[0]}.${parts[1]}.${parts[2]}.0/24`;
   }
@@ -41,12 +45,12 @@ export class TopologyResolver {
   ipInSubnet(ip, subnet) {
     const [subnetIp, prefixStr] = subnet.split('/');
     const prefix = Number.parseInt(prefixStr, 10);
-    
+
     const ipNum = this.ipToNumber(ip);
     const subnetNum = this.ipToNumber(subnetIp);
-    
+
     if (ipNum === null || subnetNum === null) return false;
-    
+
     const mask = ~((1 << (32 - prefix)) - 1) >>> 0;
     return (ipNum & mask) === (subnetNum & mask);
   }
@@ -59,7 +63,7 @@ export class TopologyResolver {
   ipToNumber(ip) {
     const parts = ip.split('.');
     if (parts.length !== 4) return null;
-    
+
     let num = 0;
     for (const part of parts) {
       const val = Number.parseInt(part, 10);
@@ -70,29 +74,73 @@ export class TopologyResolver {
   }
 
   /**
+   * Load cached topology data from file.
+   * @param {function} logger - Logger function
+   * @returns {Object|null} - Cached mapping or null if not available
+   */
+  loadCache(logger) {
+    try {
+      if (!fs.existsSync(this.cachePath)) {
+        return null;
+      }
+      const content = fs.readFileSync(this.cachePath, 'utf8');
+      const cache = JSON.parse(content);
+      logger.debug(`Loaded topology cache from ${this.cachePath} (${Object.keys(cache.mapping || {}).length} entries)`);
+      return cache;
+    } catch (error) {
+      logger.warn(`Failed to load topology cache: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Save topology data to cache file.
+   * @param {Object} mapping - Host-to-subnet mapping
+   * @param {string} rawData - Raw TXT record data
+   * @param {function} logger - Logger function
+   */
+  saveCache(mapping, rawData, logger) {
+    try {
+      const dir = path.dirname(this.cachePath);
+      if (dir && dir !== '.') {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      const cache = {
+        mapping,
+        rawData,
+        timestamp: new Date().toISOString(),
+      };
+      fs.writeFileSync(this.cachePath, JSON.stringify(cache, null, 2), 'utf8');
+      logger.debug(`Saved topology cache to ${this.cachePath}`);
+    } catch (error) {
+      logger.warn(`Failed to save topology cache: ${error.message}`);
+    }
+  }
+
+  /**
    * Query the topology source and return a mapping of CNAME prefixes to /24 subnets.
    * @param {function} logger - Logger function
-   * @returns {Promise<Object>} - Map of "on.<hostname>" to "/24 subnet"
+   * @returns {Promise<Object|null>} - Map of "on.<hostname>" to "/24 subnet", or null on failure
    */
   async getHostSubnetMapping(logger) {
     try {
       logger.info(`Querying TXT record for ${this.topologySource} via ${this.resolverIp}`);
-      
+
       const txtData = await queryTXT(this.topologySource, this.resolverIp);
       logger.info(`Received topology data: ${txtData}`);
-      
+
       // Parse format: "hostname:ip,hostname2:ip2,..."
       const mapping = {};
       const entries = txtData.split(',');
-      
+
       for (const entry of entries) {
         const trimmed = entry.trim();
         if (!trimmed.includes(':')) continue;
-        
+
         const [hostname, ip] = trimmed.split(':', 2);
         const cleanHostname = hostname.trim();
         const cleanIp = ip.trim();
-        
+
         const subnet = this.ipToSubnet(cleanIp);
         if (subnet) {
           const cnamePrefix = `on.${cleanHostname}`;
@@ -102,13 +150,27 @@ export class TopologyResolver {
           logger.warn(`Invalid IP address ${cleanIp} for host ${cleanHostname}`);
         }
       }
-      
+
       logger.info(`Resolved ${Object.keys(mapping).length} host-to-subnet mappings`);
+
+      // Save successful result to cache
+      this.saveCache(mapping, txtData, logger);
+
       return mapping;
-      
+
     } catch (error) {
       logger.error(`Error querying topology: ${error.message}`);
-      return {};
+
+      // Try to load from cache
+      const cache = this.loadCache(logger);
+      if (cache && cache.mapping && Object.keys(cache.mapping).length > 0) {
+        logger.warn(`Using cached topology data from ${cache.timestamp}`);
+        return cache.mapping;
+      }
+
+      // No cache available - return null to indicate failure
+      logger.error('No cached topology data available');
+      return null;
     }
   }
 

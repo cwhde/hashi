@@ -29,7 +29,7 @@ export class Config {
   }
 
   save() {
-    const content = yaml.dump(this.config, { 
+    const content = yaml.dump(this.config, {
       lineWidth: -1,
       noRefs: true,
       quotingType: '"',
@@ -95,6 +95,10 @@ export class Config {
     return this.config.general?.ignore_subdomains || [];
   }
 
+  get topologyCachePath() {
+    return this.config.general?.topology_cache_path || '/data/topology-cache.json';
+  }
+
   // Pangolin API settings
   get pangolinBaseUrl() {
     return this.config.apis?.pangolin?.base_url || '';
@@ -150,7 +154,7 @@ export class Config {
   // Get config for API response (with masked sensitive fields)
   toJSON(maskSensitive = true) {
     const config = JSON.parse(JSON.stringify(this.config));
-    
+
     if (maskSensitive) {
       // Mask sensitive fields
       if (config.apis?.pangolin?.auth_token) {
@@ -166,7 +170,7 @@ export class Config {
         delete config.auth.password;
       }
     }
-    
+
     return config;
   }
 
@@ -188,7 +192,7 @@ export class Config {
         }
       }
     };
-    
+
     merge(this.config, partial);
   }
 }
