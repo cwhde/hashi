@@ -25,11 +25,11 @@ export class PangolinAPI {
         ...options.headers,
       },
     });
-    
+
     if (!response.ok) {
       throw new Error(`Pangolin API error: ${response.status} ${response.statusText}`);
     }
-    
+
     return response.json();
   }
 
@@ -40,11 +40,11 @@ export class PangolinAPI {
    */
   async listOrgs(logger) {
     logger.info(`Fetching organizations from ${this.baseUrl}/orgs`);
-    
+
     try {
       const data = await this.request('/orgs');
       logger.debug(`Response data: ${JSON.stringify(data)}`);
-      
+
       // Handle various API response formats
       let orgs = [];
       if (Array.isArray(data)) {
@@ -61,14 +61,14 @@ export class PangolinAPI {
           orgs = data.orgs;
         }
       }
-      
+
       logger.info(`Found ${orgs.length} organization(s)`);
       for (const org of orgs) {
         const orgId = org.orgId || org.id || 'unknown';
         const name = org.name || 'unnamed';
         logger.debug(`  Org: ${orgId} - ${name}`);
       }
-      
+
       return orgs;
     } catch (error) {
       logger.error(`Failed to list organizations: ${error.message}`);
@@ -87,15 +87,15 @@ export class PangolinAPI {
       logger.info(`Using specified org_id: ${specifiedOrgId}`);
       return specifiedOrgId;
     }
-    
+
     logger.info('No org_id specified, listing organizations...');
     const orgs = await this.listOrgs(logger);
-    
+
     if (orgs.length > 0) {
       const firstOrg = orgs[0];
       logger.debug(`First org data: ${JSON.stringify(firstOrg)}`);
       const orgId = firstOrg.orgId || firstOrg.id || firstOrg.org_id;
-      
+
       if (orgId) {
         logger.info(`Using first organization: ${orgId}`);
         return orgId;
@@ -103,41 +103,60 @@ export class PangolinAPI {
       logger.error(`Could not extract org ID from org data: ${JSON.stringify(firstOrg)}`);
       return null;
     }
-    
+
     logger.error('No organizations found');
     return null;
   }
 
   /**
-   * List all resources for an organization.
+   * List all resources for an organization, handling pagination automatically.
    * @param {string} orgId - Organization ID
    * @param {function} logger - Logger function
    * @returns {Promise<Array>}
    */
   async listResources(orgId, logger) {
-    const url = `/org/${orgId}/resources`;
-    logger.info(`Fetching resources from ${this.baseUrl}${url}`);
-    
+    const basePath = `/org/${orgId}/resources`;
+    logger.info(`Fetching resources from ${this.baseUrl}${basePath}`);
+
     try {
-      const data = await this.request(url);
-      logger.debug(`Response status: OK`);
-      
-      // Handle various API response formats
-      let resources = [];
-      if (Array.isArray(data)) {
-        resources = data;
-      } else if (typeof data === 'object') {
-        if (data.data?.resources) {
-          resources = data.data.resources;
-        } else if (Array.isArray(data.data)) {
-          resources = data.data;
-        } else if (data.resources) {
-          resources = data.resources;
+      const allResources = [];
+      let page = 1;
+      const pageSize = 1000;
+
+      while (true) {
+        const url = `${basePath}?page=${page}&pageSize=${pageSize}`;
+        const data = await this.request(url);
+        logger.debug(`Response status: OK (page ${page})`);
+
+        // Handle various API response formats
+        let resources = [];
+        let total = null;
+        if (Array.isArray(data)) {
+          resources = data;
+        } else if (typeof data === 'object') {
+          if (data.data?.resources) {
+            resources = data.data.resources;
+            total = data.data.pagination?.total ?? null;
+          } else if (Array.isArray(data.data)) {
+            resources = data.data;
+          } else if (data.resources) {
+            resources = data.resources;
+            total = data.pagination?.total ?? null;
+          }
         }
+
+        allResources.push(...resources);
+
+        // Stop if we've collected everything or got an empty page
+        if (resources.length === 0) break;
+        if (total !== null && allResources.length >= total) break;
+        if (resources.length < pageSize) break;
+
+        page++;
       }
-      
-      logger.info(`Found ${resources.length} resource(s)`);
-      return resources;
+
+      logger.info(`Found ${allResources.length} resource(s)`);
+      return allResources;
     } catch (error) {
       logger.error(`Failed to list resources for org ${orgId}: ${error.message}`);
       return [];
@@ -153,7 +172,7 @@ export class PangolinAPI {
   async getResourceTargets(resourceId, logger) {
     try {
       const data = await this.request(`/resource/${resourceId}/targets`);
-      
+
       // Handle nested format
       if (Array.isArray(data)) {
         return data;
@@ -169,7 +188,7 @@ export class PangolinAPI {
           return data.targets;
         }
       }
-      
+
       return [];
     } catch (error) {
       logger.error(`Failed to get targets for resource ${resourceId}: ${error.message}`);
