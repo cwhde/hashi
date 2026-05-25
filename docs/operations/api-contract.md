@@ -81,3 +81,66 @@ CI should verify that committed `openapi/hashi.json` and `web/src/lib/api/schema
 - `GET /api/vault/secrets`
 - `POST /api/vault/secrets`
 - `POST /api/vault/verify-unlock`
+
+### DNS (Phase 3)
+
+- `POST /api/dns/providers/hetzner/validate`
+- `GET /api/dns/connections`
+- `POST /api/dns/connections/hetzner`
+- `POST /api/dns/connections/{id}/validate`
+- `GET /api/dns/connections/{id}/records/provider`
+- `POST /api/dns/connections/{id}/import/preview`
+- `POST /api/dns/connections/{id}/import/apply`
+- `POST /api/dns/connections/{id}/sync/plan`
+- `POST /api/dns/connections/{id}/sync/apply`
+- `GET /api/dns/records`
+
+### Connections / SSH (Phase 4)
+
+- `GET /api/connections`
+- `POST /api/connections/ssh`
+- `POST /api/connections/{id}/validate`
+- `POST /api/connections/{id}/write`
+
+### Traefik (Phase 5)
+
+- `GET /api/traefik/render`
+
+### Resources (Phase 6)
+
+- `GET /api/resources`
+- `POST /api/resources`
+- `PUT /api/resources/{id}`
+- `DELETE /api/resources/{id}`
+
+### Firewall (Phase 7)
+
+- `POST /api/firewall/render`
+
+### Status & public (Phase 8)
+
+- `GET /api/status/endpoints`
+- `GET /api/public/status`
+- `GET /api/public/apps`
+
+### Edge auth (Phase 9)
+
+- `GET /api/edge-auth/forward`
+
+### Security (Phase 10)
+
+- `GET /api/security/dashboard`
+
+### AdGuard (Phase 11)
+
+- `GET /api/adguard/rewrites`
+
+### Pulse (Phase 12)
+
+- `GET /api/pulse/agents`
+- `POST /api/pulse/{agentId}/heartbeat`
+
+### Scripts & notifications (Phase 13)
+
+- `GET /api/scripts`
+- `GET /api/settings/notifications/providers`

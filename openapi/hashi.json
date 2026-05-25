@@ -25,6 +25,132 @@
         }
       }
     },
+    "/api/public/status": {
+      "get": {
+        "tags": [
+          "Public"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PublicStatusItemResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/public/apps": {
+      "get": {
+        "tags": [
+          "Public"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ResourceResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/edge-auth/forward": {
+      "get": {
+        "tags": [
+          "EdgeAuth"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EdgeAuthForwardResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/scripts": {
+      "get": {
+        "tags": [
+          "Scripts"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ScriptResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/notifications/providers": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NotificationProviderResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/adguard/rewrites": {
+      "get": {
+        "tags": [
+          "AdGuard"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/setup/status": {
       "get": {
         "tags": [
@@ -825,6 +951,246 @@
           }
         }
       }
+    },
+    "/api/resources": {
+      "get": {
+        "tags": [
+          "Resources"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ResourceResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Resources"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateResourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/resources/{id}": {
+      "put": {
+        "tags": [
+          "Resources"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateResourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Resources"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/traefik/render": {
+      "get": {
+        "tags": [
+          "Traefik"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraefikRenderResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/firewall/render": {
+      "post": {
+        "tags": [
+          "Firewall"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FirewallRenderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirewallRenderResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/status/endpoints": {
+      "get": {
+        "tags": [
+          "Status"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MonitorEndpointResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/security/dashboard": {
+      "get": {
+        "tags": [
+          "Security"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecurityDashboardResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pulse/agents": {
+      "get": {
+        "tags": [
+          "Pulse"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PulseAgentResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pulse/{agentId}/heartbeat": {
+      "post": {
+        "tags": [
+          "Pulse"
+        ],
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PulseHeartbeatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -976,6 +1342,53 @@
           }
         }
       },
+      "CreateResourceRequest": {
+        "required": [
+          "name",
+          "kind",
+          "domain",
+          "targetScheme",
+          "targetHost",
+          "targetPort",
+          "dashboardEnabled",
+          "statusEnabled"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "domain": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "targetScheme": {
+            "type": "string"
+          },
+          "targetHost": {
+            "type": "string"
+          },
+          "targetPort": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "dashboardEnabled": {
+            "type": "boolean"
+          },
+          "statusEnabled": {
+            "type": "boolean"
+          }
+        }
+      },
       "CreateSshConnectionRequest": {
         "required": [
           "name",
@@ -1119,6 +1532,65 @@
           },
           "confirmDestructive": {
             "type": "boolean"
+          }
+        }
+      },
+      "EdgeAuthForwardResponse": {
+        "required": [
+          "decision",
+          "redirectUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "decision": {
+            "type": "string"
+          },
+          "redirectUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "FirewallRenderRequest": {
+        "required": [
+          "name",
+          "domain",
+          "managedSubnets",
+          "linkedTraefikHost",
+          "internalTraefikIp"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "managedSubnets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "linkedTraefikHost": {
+            "type": "string"
+          },
+          "internalTraefikIp": {
+            "type": "string"
+          }
+        }
+      },
+      "FirewallRenderResponse": {
+        "required": [
+          "script"
+        ],
+        "type": "object",
+        "properties": {
+          "script": {
+            "type": "string"
           }
         }
       },
@@ -1277,6 +1749,80 @@
           }
         }
       },
+      "MonitorEndpointResponse": {
+        "required": [
+          "id",
+          "name",
+          "url",
+          "checkType",
+          "enabled",
+          "status",
+          "lastCheckedAtUtc",
+          "lastLatencyMs"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "checkType": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string"
+          },
+          "lastCheckedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lastLatencyMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "NotificationProviderResponse": {
+        "required": [
+          "id",
+          "name",
+          "type",
+          "enabled"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
       "PasskeyLoginCompleteRequest": {
         "required": [
           "assertion",
@@ -1318,6 +1864,88 @@
           }
         }
       },
+      "PublicStatusItemResponse": {
+        "required": [
+          "name",
+          "status",
+          "lastLatencyMs"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "lastLatencyMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "PulseAgentResponse": {
+        "required": [
+          "id",
+          "name",
+          "status",
+          "lastSeenAtUtc",
+          "lastPublicIp"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "lastSeenAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lastPublicIp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PulseHeartbeatRequest": {
+        "required": [
+          "version",
+          "hostname",
+          "privateIpv4Candidates"
+        ],
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string"
+          },
+          "hostname": {
+            "type": "string"
+          },
+          "privateIpv4Candidates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "RemoteWriteRequest": {
         "required": [
           "remotePath",
@@ -1350,6 +1978,94 @@
             "type": "string"
           },
           "password": {
+            "type": "string"
+          }
+        }
+      },
+      "ResourceResponse": {
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "kind",
+          "enabled",
+          "isSystem",
+          "domain",
+          "targetScheme",
+          "targetHost",
+          "targetPort",
+          "dashboardEnabled",
+          "statusEnabled"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "isSystem": {
+            "type": "boolean"
+          },
+          "domain": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "targetScheme": {
+            "type": "string"
+          },
+          "targetHost": {
+            "type": "string"
+          },
+          "targetPort": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "dashboardEnabled": {
+            "type": "boolean"
+          },
+          "statusEnabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ScriptResponse": {
+        "required": [
+          "id",
+          "name",
+          "enabled",
+          "description"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "description": {
             "type": "string"
           }
         }
@@ -1400,6 +2116,47 @@
           },
           "plaintextBase64": {
             "type": "string"
+          }
+        }
+      },
+      "SecurityDashboardResponse": {
+        "required": [
+          "allowed",
+          "blocked",
+          "challenged",
+          "topBlockedIps"
+        ],
+        "type": "object",
+        "properties": {
+          "allowed": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "blocked": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "challenged": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "topBlockedIps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -1456,6 +2213,91 @@
               "string"
             ],
             "format": "date-time"
+          }
+        }
+      },
+      "TraefikRenderResponse": {
+        "required": [
+          "staticConfigYaml",
+          "dynamicHttpYaml",
+          "contentHash"
+        ],
+        "type": "object",
+        "properties": {
+          "staticConfigYaml": {
+            "type": "string"
+          },
+          "dynamicHttpYaml": {
+            "type": "string"
+          },
+          "contentHash": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateResourceRequest": {
+        "required": [
+          "name",
+          "enabled",
+          "domain",
+          "targetScheme",
+          "targetHost",
+          "targetPort",
+          "dashboardEnabled",
+          "statusEnabled"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "enabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "domain": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "targetScheme": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "targetHost": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "targetPort": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "dashboardEnabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "statusEnabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           }
         }
       },
@@ -1560,10 +2402,22 @@
       "name": "Health"
     },
     {
-      "name": "Setup"
+      "name": "Public"
+    },
+    {
+      "name": "EdgeAuth"
+    },
+    {
+      "name": "Scripts"
     },
     {
       "name": "Settings"
+    },
+    {
+      "name": "AdGuard"
+    },
+    {
+      "name": "Setup"
     },
     {
       "name": "Activity"
@@ -1579,6 +2433,24 @@
     },
     {
       "name": "Connections"
+    },
+    {
+      "name": "Resources"
+    },
+    {
+      "name": "Traefik"
+    },
+    {
+      "name": "Firewall"
+    },
+    {
+      "name": "Status"
+    },
+    {
+      "name": "Security"
+    },
+    {
+      "name": "Pulse"
     }
   ]
 }
