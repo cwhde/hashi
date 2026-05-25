@@ -17,6 +17,12 @@ public sealed record SshValidationResponse(
     string? PackageManager,
     string? Error);
 
-public sealed record RemoteWriteRequest(string RemotePath, string ContentBase64);
+public sealed record RemoteWriteRequest(
+    string RemotePath,
+    string ContentBase64,
+    string Host,
+    int Port,
+    string Username,
+    string Password);
 
 public sealed record RemoteWriteResponse(bool Succeeded, string RemotePath, string? Error);

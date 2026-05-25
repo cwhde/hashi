@@ -74,19 +74,24 @@ public static class ConnectionEndpoints
 
         group.MapPost("/{connectionId:guid}/write", async Task<IResult> (
             Guid connectionId,
-            CreateSshConnectionRequest auth,
             RemoteWriteRequest request,
             SshConnectionService connections,
             CancellationToken ct) =>
         {
-            if (string.IsNullOrWhiteSpace(auth.Password))
+            if (string.IsNullOrWhiteSpace(request.Password))
             {
                 return TypedResults.BadRequest(new ApiErrorResponse("Password auth required for remote write in current MVP."));
             }
 
-            var settings = new SshConnectionSettings(auth.Host, auth.Port <= 0 ? 22 : auth.Port, auth.Username, OsFamily.Unknown, null, null);
+            var settings = new SshConnectionSettings(
+                request.Host,
+                request.Port <= 0 ? 22 : request.Port,
+                request.Username,
+                OsFamily.Unknown,
+                null,
+                null);
             var content = Convert.FromBase64String(request.ContentBase64);
-            var result = await connections.WriteAtomicAsync(connectionId, settings, auth.Password, request.RemotePath, content, ct);
+            var result = await connections.WriteAtomicAsync(connectionId, settings, request.Password, request.RemotePath, content, ct);
             return TypedResults.Ok(new RemoteWriteResponse(result.Succeeded, result.RemotePath, result.Error));
         });
 
