@@ -1,6 +1,9 @@
 using Fido2NetLib;
+using Hashi.Core.Dns;
 using Hashi.Infrastructure.Auth;
+using Hashi.Infrastructure.Dns;
 using Hashi.Infrastructure.Persistence;
+using Hashi.Infrastructure.Providers.Dns;
 using Hashi.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -22,6 +25,11 @@ public static class DependencyInjection
         services.AddSingleton<VaultSessionState>();
         services.AddSingleton<ServiceSyncVaultState>();
 
+        services.AddHttpClient("hetzner-dns", client =>
+        {
+            client.BaseAddress = new Uri("https://dns.hetzner.com/api/v1/");
+        });
+
         services.AddScoped<SetupStateService>();
         services.AddScoped<AuditService>();
         services.AddScoped<AppSettingsService>();
@@ -31,6 +39,8 @@ public static class DependencyInjection
         services.AddScoped<SecretRecordService>();
         services.AddScoped<SetupCompletionService>();
         services.AddScoped<WebAuthnChallengeStore>();
+        services.AddScoped<DnsConnectionService>();
+        services.AddSingleton<IDnsProviderFactory, DnsProviderFactory>();
 
         services.AddHostedService<ServiceSyncVaultBootstrapper>();
 

@@ -66,4 +66,28 @@ public sealed class SecretRecordService(
                 x.UpdatedAtUtc))
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<byte[]?> DecryptForAdminAsync(Guid secretId, CancellationToken cancellationToken = default)
+    {
+        if (!session.IsUnlocked)
+        {
+            return null;
+        }
+
+        var entity = await db.SecretRecords.AsNoTracking().SingleOrDefaultAsync(x => x.Id == secretId, cancellationToken);
+        if (entity is null)
+        {
+            return null;
+        }
+
+        var dek = AesGcmCipher.Decrypt(entity.AdminWrappedDekBlob, session.GetRootKeyOrThrow());
+        try
+        {
+            return AesGcmCipher.Decrypt(entity.CiphertextBlob, dek);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(dek);
+        }
+    }
 }

@@ -23,6 +23,14 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
 
     public DbSet<SecretRecordEntity> SecretRecords => Set<SecretRecordEntity>();
 
+    public DbSet<ConnectionEntity> Connections => Set<ConnectionEntity>();
+
+    public DbSet<DnsZoneEntity> DnsZones => Set<DnsZoneEntity>();
+
+    public DbSet<DnsRecordEntity> DnsRecords => Set<DnsRecordEntity>();
+
+    public DbSet<DnsImportDecisionEntity> DnsImportDecisions => Set<DnsImportDecisionEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AppSettingsEntity>(entity =>
@@ -100,6 +108,50 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.Property(x => x.Purpose).HasMaxLength(64);
             entity.Property(x => x.Label).HasMaxLength(256);
             entity.HasIndex(x => x.Purpose);
+        });
+
+        modelBuilder.Entity<ConnectionEntity>(entity =>
+        {
+            entity.ToTable("connections");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).HasMaxLength(128);
+            entity.Property(x => x.Type).HasMaxLength(64);
+            entity.Property(x => x.HealthState).HasMaxLength(32);
+            entity.Property(x => x.DeletionPolicy).HasMaxLength(32);
+            entity.HasIndex(x => x.Type);
+        });
+
+        modelBuilder.Entity<DnsZoneEntity>(entity =>
+        {
+            entity.ToTable("dns_zones");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ProviderZoneId).HasMaxLength(128);
+            entity.Property(x => x.Name).HasMaxLength(256);
+            entity.HasOne(x => x.Connection).WithMany().HasForeignKey(x => x.ConnectionId);
+            entity.HasIndex(x => x.ConnectionId);
+        });
+
+        modelBuilder.Entity<DnsRecordEntity>(entity =>
+        {
+            entity.ToTable("dns_records");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ProviderRecordId).HasMaxLength(128);
+            entity.Property(x => x.Name).HasMaxLength(256);
+            entity.Property(x => x.Type).HasMaxLength(16);
+            entity.Property(x => x.Ownership).HasMaxLength(32);
+            entity.HasOne(x => x.Zone).WithMany().HasForeignKey(x => x.ZoneId);
+            entity.HasIndex(x => x.ZoneId);
+        });
+
+        modelBuilder.Entity<DnsImportDecisionEntity>(entity =>
+        {
+            entity.ToTable("dns_import_decisions");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ProviderRecordId).HasMaxLength(128);
+            entity.Property(x => x.Name).HasMaxLength(256);
+            entity.Property(x => x.Type).HasMaxLength(16);
+            entity.HasOne(x => x.Zone).WithMany().HasForeignKey(x => x.ZoneId);
+            entity.HasIndex(x => x.ZoneId);
         });
     }
 }
