@@ -1,7 +1,11 @@
+using Hashi.Api.Features.Auth;
 using Hashi.Api.Features.Setup;
+using Hashi.Api.Features.Vault;
 using Hashi.Infrastructure;
+using Hashi.Infrastructure.Auth;
 using Hashi.Infrastructure.Bootstrap;
 using Hashi.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
@@ -31,6 +35,17 @@ builder.Services.AddOpenApi(options =>
 builder.Services.AddHashiInfrastructure(builder.Configuration);
 builder.Services.AddScoped<BootstrapInitializer>();
 
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.Cookie.Name = "hashi.session";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+        options.SlidingExpiration = true;
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+    });
+builder.Services.AddAuthorization();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment()
@@ -41,14 +56,19 @@ if (app.Environment.IsDevelopment()
 }
 
 app.UseSerilogRequestLogging();
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
 app.MapHealthEndpoints();
 app.MapSetupEndpoints();
 app.MapSetupAdvanceEndpoints();
+app.MapSetupCompletionEndpoints();
 app.MapSettingsEndpoints();
 app.MapActivityEndpoints();
+app.MapAuthEndpoints();
+app.MapVaultEndpoints();
 
 var skipStartupHooks = builder.Configuration.GetValue<bool>("Hashi:SkipStartupHooks")
     || string.Equals(Environment.GetEnvironmentVariable("HASHI_SKIP_STARTUP_HOOKS"), "1", StringComparison.Ordinal);
@@ -58,6 +78,7 @@ if (!skipStartupHooks)
     var db = scope.ServiceProvider.GetRequiredService<HashiDbContext>();
     await db.Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<BootstrapInitializer>().EnsureBootstrapCredentialsAsync();
+    await scope.ServiceProvider.GetRequiredService<VaultService>().EnsureServiceSyncWrapAsync();
 }
 
 app.MapFallbackToFile("index.html");

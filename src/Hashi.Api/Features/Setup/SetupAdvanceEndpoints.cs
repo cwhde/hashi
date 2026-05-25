@@ -24,6 +24,12 @@ public static class SetupAdvanceEndpoints
                 return TypedResults.BadRequest(new { error = $"Unknown setup step: {stepSlug}" });
             }
 
+            if (parsed is SetupStep.Complete or SetupStep.PasskeyAndVault)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(
+                    "Passkey and vault setup must finish through /api/setup/complete after a successful vault unlock."));
+            }
+
             await setup.MarkStepCompleteAsync(parsed, ct);
             await audit.WriteAsync("setup", "step_completed", subjectType: "setup_step", subjectId: stepSlug, cancellationToken: ct);
 
