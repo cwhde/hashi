@@ -28,6 +28,7 @@ public static class KeyDerivation
     private static byte[] DeriveKey(string purpose, ReadOnlySpan<byte> input)
     {
         var salt = SHA256.HashData(Encoding.UTF8.GetBytes(purpose));
-        return HKDF.DeriveKey(HashAlgorithmName.SHA256, input, 32, salt, Encoding.UTF8.GetBytes(purpose));
+        var inputBytes = input.ToArray();
+        return HKDF.DeriveKey(HashAlgorithmName.SHA256, inputBytes, 32, salt, Encoding.UTF8.GetBytes(purpose));
     }
 }

@@ -17,6 +17,12 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
 
     public DbSet<SyncDiffEntity> SyncDiffs => Set<SyncDiffEntity>();
 
+    public DbSet<PasskeyCredentialEntity> PasskeyCredentials => Set<PasskeyCredentialEntity>();
+
+    public DbSet<VaultWrappedKeyEntity> VaultWrappedKeys => Set<VaultWrappedKeyEntity>();
+
+    public DbSet<SecretRecordEntity> SecretRecords => Set<SecretRecordEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AppSettingsEntity>(entity =>
@@ -65,6 +71,35 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.ToTable("sync_diffs");
             entity.HasKey(x => x.Id);
             entity.HasOne(x => x.SyncRun).WithMany(x => x.Diffs).HasForeignKey(x => x.SyncRunId);
+        });
+
+        modelBuilder.Entity<PasskeyCredentialEntity>(entity =>
+        {
+            entity.ToTable("passkey_credentials");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Nickname).HasMaxLength(128);
+            entity.HasIndex(x => x.CredentialId).IsUnique();
+        });
+
+        modelBuilder.Entity<VaultWrappedKeyEntity>(entity =>
+        {
+            entity.ToTable("vault_wrapped_keys");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.WrapMethod).HasMaxLength(32);
+            entity.HasOne(x => x.PasskeyCredential)
+                .WithMany()
+                .HasForeignKey(x => x.PasskeyCredentialId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(x => x.WrapMethod);
+        });
+
+        modelBuilder.Entity<SecretRecordEntity>(entity =>
+        {
+            entity.ToTable("secret_records");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Purpose).HasMaxLength(64);
+            entity.Property(x => x.Label).HasMaxLength(256);
+            entity.HasIndex(x => x.Purpose);
         });
     }
 }
