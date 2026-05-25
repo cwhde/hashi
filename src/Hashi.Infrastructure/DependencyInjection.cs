@@ -1,9 +1,12 @@
 using Fido2NetLib;
 using Hashi.Core.Dns;
 using Hashi.Infrastructure.Auth;
+using Hashi.Infrastructure.Connections;
 using Hashi.Infrastructure.Dns;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Providers.Dns;
+using Hashi.Core.Connections;
+using Hashi.Infrastructure.Ssh;
 using Hashi.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -40,7 +43,9 @@ public static class DependencyInjection
         services.AddScoped<SetupCompletionService>();
         services.AddScoped<WebAuthnChallengeStore>();
         services.AddScoped<DnsConnectionService>();
+        services.AddScoped<SshConnectionService>();
         services.AddSingleton<IDnsProviderFactory, DnsProviderFactory>();
+        services.AddSingleton<ISshRemoteExecutor, SshRemoteExecutor>();
 
         services.AddHostedService<ServiceSyncVaultBootstrapper>();
 
