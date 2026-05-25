@@ -1,4 +1,5 @@
 using Hashi.Api.Features.Auth;
+using Hashi.Api.Features.Dns;
 using Hashi.Api.Features.Setup;
 using Hashi.Api.Features.Vault;
 using Hashi.Infrastructure;
@@ -69,6 +70,7 @@ app.MapSettingsEndpoints();
 app.MapActivityEndpoints();
 app.MapAuthEndpoints();
 app.MapVaultEndpoints();
+app.MapDnsEndpoints();
 
 var skipStartupHooks = builder.Configuration.GetValue<bool>("Hashi:SkipStartupHooks")
     || string.Equals(Environment.GetEnvironmentVariable("HASHI_SKIP_STARTUP_HOOKS"), "1", StringComparison.Ordinal);
