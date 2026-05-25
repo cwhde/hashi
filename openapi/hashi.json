@@ -1,0 +1,960 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "Hashi API",
+    "description": "Hashi V2 admin and edge API. Frontend clients must consume this contract only.",
+    "version": "2.0.0-alpha"
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/setup/status": {
+      "get": {
+        "tags": [
+          "Setup"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/setup/bootstrap-allowed": {
+      "get": {
+        "tags": [
+          "Setup"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BootstrapAllowedResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/setup/steps/{stepSlug}/complete": {
+      "post": {
+        "tags": [
+          "Setup"
+        ],
+        "parameters": [
+          {
+            "name": "stepSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/setup/complete": {
+      "post": {
+        "tags": [
+          "Setup"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/settings/general": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeneralSettingsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Settings"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GeneralSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeneralSettingsUpdateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/activity/audit": {
+      "get": {
+        "tags": [
+          "Activity"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AuditEventResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/bootstrap/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BootstrapLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/auth/passkeys/register/begin": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [
+          {
+            "name": "nickname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/auth/passkeys/register/complete": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeyRegistrationCompleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/auth/passkeys/login/begin": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/auth/passkeys/login/complete": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeyLoginCompleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/auth/session": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/vault/status": {
+      "get": {
+        "tags": [
+          "Vault"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VaultStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/vault/recovery-key/generate": {
+      "post": {
+        "tags": [
+          "Vault"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VaultGenerateRecoveryKeyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/vault/setup": {
+      "post": {
+        "tags": [
+          "Vault"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VaultSetupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/vault/unlock": {
+      "post": {
+        "tags": [
+          "Vault"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VaultUnlockRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/vault/lock": {
+      "post": {
+        "tags": [
+          "Vault"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VaultLockResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/vault/secrets": {
+      "get": {
+        "tags": [
+          "Vault"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SecretDescriptorResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Vault"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SecretStoreRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/vault/verify-unlock": {
+      "post": {
+        "tags": [
+          "Vault"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VaultUnlockRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AuditEventResponse": {
+        "required": [
+          "id",
+          "category",
+          "action",
+          "subjectType",
+          "subjectId",
+          "outcome",
+          "createdAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "category": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "subjectType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "subjectId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "outcome": {
+            "type": "string"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "BootstrapAllowedResponse": {
+        "required": [
+          "allowed",
+          "remoteIp"
+        ],
+        "type": "object",
+        "properties": {
+          "allowed": {
+            "type": "boolean"
+          },
+          "remoteIp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "BootstrapLoginRequest": {
+        "required": [
+          "username",
+          "password"
+        ],
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        }
+      },
+      "GeneralSettingsRequest": {
+        "required": [
+          "rootDomain",
+          "adminDomain",
+          "internalUrl",
+          "defaultSyncIntervalMinutes",
+          "publicDashboardEnabled",
+          "publicStatusEnabled",
+          "theme"
+        ],
+        "type": "object",
+        "properties": {
+          "rootDomain": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "adminDomain": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "internalUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "defaultSyncIntervalMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "publicDashboardEnabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "publicStatusEnabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "theme": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "GeneralSettingsResponse": {
+        "required": [
+          "rootDomain",
+          "adminDomain",
+          "internalUrl",
+          "defaultSyncIntervalMinutes",
+          "publicDashboardEnabled",
+          "publicStatusEnabled",
+          "theme",
+          "updatedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "rootDomain": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "adminDomain": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "internalUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "defaultSyncIntervalMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "publicDashboardEnabled": {
+            "type": "boolean"
+          },
+          "publicStatusEnabled": {
+            "type": "boolean"
+          },
+          "theme": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "updatedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "GeneralSettingsUpdateResponse": {
+        "required": [
+          "updated",
+          "updatedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "updated": {
+            "type": "boolean"
+          },
+          "updatedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "HealthResponse": {
+        "required": [
+          "status",
+          "version",
+          "timestamp"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PasskeyLoginCompleteRequest": {
+        "required": [
+          "assertion",
+          "challengeSessionId",
+          "prfOutputBase64"
+        ],
+        "type": "object",
+        "properties": {
+          "assertion": { },
+          "challengeSessionId": {
+            "type": "string"
+          },
+          "prfOutputBase64": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PasskeyRegistrationCompleteRequest": {
+        "required": [
+          "attestation",
+          "challengeSessionId",
+          "nickname",
+          "clientReportsPrfSupported"
+        ],
+        "type": "object",
+        "properties": {
+          "attestation": { },
+          "challengeSessionId": {
+            "type": "string"
+          },
+          "nickname": {
+            "type": "string"
+          },
+          "clientReportsPrfSupported": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SecretDescriptorResponse": {
+        "required": [
+          "id",
+          "purpose",
+          "label",
+          "createdAtUtc",
+          "updatedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "purpose": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SecretStoreRequest": {
+        "required": [
+          "label",
+          "purpose",
+          "plaintextBase64"
+        ],
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "purpose": {
+            "type": "string"
+          },
+          "plaintextBase64": {
+            "type": "string"
+          }
+        }
+      },
+      "SessionStatusResponse": {
+        "required": [
+          "isAuthenticated",
+          "authMethod",
+          "vaultUnlocked",
+          "setupComplete"
+        ],
+        "type": "object",
+        "properties": {
+          "isAuthenticated": {
+            "type": "boolean"
+          },
+          "authMethod": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "vaultUnlocked": {
+            "type": "boolean"
+          },
+          "setupComplete": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SetupStatusResponse": {
+        "required": [
+          "isComplete",
+          "currentStep",
+          "completedSteps",
+          "updatedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "isComplete": {
+            "type": "boolean"
+          },
+          "currentStep": {
+            "type": "string"
+          },
+          "completedSteps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "updatedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "VaultGenerateRecoveryKeyResponse": {
+        "required": [
+          "recoveryKey"
+        ],
+        "type": "object",
+        "properties": {
+          "recoveryKey": {
+            "type": "string"
+          }
+        }
+      },
+      "VaultLockResponse": {
+        "required": [
+          "locked"
+        ],
+        "type": "object",
+        "properties": {
+          "locked": {
+            "type": "boolean"
+          }
+        }
+      },
+      "VaultSetupRequest": {
+        "required": [
+          "recoveryKey",
+          "prfWrapAttempted",
+          "prfOutputBase64",
+          "passkeyCredentialId"
+        ],
+        "type": "object",
+        "properties": {
+          "recoveryKey": {
+            "type": "string"
+          },
+          "prfWrapAttempted": {
+            "type": "boolean"
+          },
+          "prfOutputBase64": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "passkeyCredentialId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "VaultStatusResponse": {
+        "required": [
+          "lockState",
+          "isVaultConfigured",
+          "hasPasskey",
+          "prfWrapAvailable",
+          "serviceSyncVaultReady",
+          "bootstrapCredentialsActive"
+        ],
+        "type": "object",
+        "properties": {
+          "lockState": {
+            "type": "string"
+          },
+          "isVaultConfigured": {
+            "type": "boolean"
+          },
+          "hasPasskey": {
+            "type": "boolean"
+          },
+          "prfWrapAvailable": {
+            "type": "boolean"
+          },
+          "serviceSyncVaultReady": {
+            "type": "boolean"
+          },
+          "bootstrapCredentialsActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "VaultUnlockRequest": {
+        "required": [
+          "recoveryKey"
+        ],
+        "type": "object",
+        "properties": {
+          "recoveryKey": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Health"
+    },
+    {
+      "name": "Setup"
+    },
+    {
+      "name": "Settings"
+    },
+    {
+      "name": "Activity"
+    },
+    {
+      "name": "Auth"
+    },
+    {
+      "name": "Vault"
+    }
+  ]
+}

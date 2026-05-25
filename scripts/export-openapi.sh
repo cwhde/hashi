@@ -12,12 +12,12 @@ mkdir -p "${ROOT}/openapi"
 
 dotnet build src/Hashi.Api/Hashi.Api.csproj -c Release >/dev/null
 
-export ASPNETCORE_ENVIRONMENT=Development
-export DOTNET_ENVIRONMENT=Development
+export ASPNETCORE_ENVIRONMENT=OpenApiExport
+export DOTNET_ENVIRONMENT=OpenApiExport
+export HASHI_SKIP_STARTUP_HOOKS=1
 
-dotnet run --no-build -c Release --project src/Hashi.Api/Hashi.Api.csproj \
-  --urls "http://127.0.0.1:${PORT}" \
-  --environment OpenApiExport &
+dotnet run --no-build --no-launch-profile -c Release --project src/Hashi.Api/Hashi.Api.csproj \
+  --urls "http://127.0.0.1:${PORT}" &
 SERVER_PID=$!
 
 cleanup() {

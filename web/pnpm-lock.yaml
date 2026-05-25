@@ -20,9 +20,6 @@ importers:
       lucide-svelte:
         specifier: ^0.474.0
         version: 0.474.0(svelte@5.55.9(@typescript-eslint/types@8.59.4))
-      openapi-fetch:
-        specifier: ^0.14.0
-        version: 0.14.1
       tailwind-merge:
         specifier: ^3.0.0
         version: 3.6.0
@@ -63,8 +60,11 @@ importers:
       globals:
         specifier: ^16.0.0
         version: 16.5.0
+      openapi-fetch:
+        specifier: ^0.14.1
+        version: 0.14.1
       openapi-typescript:
-        specifier: ^7.8.0
+        specifier: ^7.13.0
         version: 7.13.0(typescript@5.9.3)
       svelte:
         specifier: ^5.0.0
