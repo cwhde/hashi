@@ -1,6 +1,11 @@
-import type { ApiError } from './types.js';
+import createClient from 'openapi-fetch';
+import type { paths } from './schema.js';
+import type { ApiError, UndocumentedJson } from './types.js';
 
-const API_BASE = '';
+const client = createClient<paths>({
+	baseUrl: '',
+	credentials: 'include'
+});
 
 export class ApiRequestError extends Error {
 	constructor(
@@ -13,143 +18,194 @@ export class ApiRequestError extends Error {
 	}
 }
 
-export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
-	const headers = new Headers(init.headers);
-	if (init.body && !headers.has('Content-Type')) {
-		headers.set('Content-Type', 'application/json');
+function errorFromResult(status: number, error: unknown): ApiRequestError {
+	const body = error as ApiError | undefined;
+	return new ApiRequestError(body?.error ?? body?.message ?? 'Request failed', status, body);
+}
+
+async function readUndocumentedJson(response: Response): Promise<UndocumentedJson> {
+	try {
+		return (await response.json()) as UndocumentedJson;
+	} catch {
+		return {};
 	}
+}
 
-	const response = await fetch(`${API_BASE}${path}`, {
-		credentials: 'include',
-		...init,
-		headers
-	});
-
+async function expectOk(response: Response, error: unknown): Promise<void> {
 	if (!response.ok) {
-		let body: ApiError | undefined;
-		try {
-			body = (await response.json()) as ApiError;
-		} catch {
-			// ignore parse errors
-		}
-		throw new ApiRequestError(
-			body?.error ?? body?.message ?? response.statusText,
-			response.status,
-			body
-		);
+		throw errorFromResult(response.status, error);
 	}
+}
 
-	if (response.status === 204) {
-		return undefined as T;
+async function expectData<T>(response: Response, error: unknown, data: T | undefined): Promise<T> {
+	if (!response.ok) {
+		throw errorFromResult(response.status, error);
 	}
-
-	return (await response.json()) as T;
+	if (data === undefined) {
+		throw new ApiRequestError('Empty response body', response.status);
+	}
+	return data;
 }
 
 export const api = {
-	getSetupStatus: () =>
-		apiFetch<import('./types.js').SetupStatusResponse>('/api/setup/status'),
+	getSetupStatus: async () => {
+		const result = await client.GET('/api/setup/status');
+		return expectData(result.response, result.error, result.data);
+	},
 
-	getBootstrapAllowed: () =>
-		apiFetch<import('./types.js').BootstrapAllowedResponse>('/api/setup/bootstrap-allowed'),
+	getBootstrapAllowed: async () => {
+		const result = await client.GET('/api/setup/bootstrap-allowed');
+		return expectData(result.response, result.error, result.data);
+	},
 
-	completeSetupStep: (stepSlug: string) =>
-		apiFetch<import('./types.js').SetupStatusResponse>(
-			`/api/setup/steps/${stepSlug}/complete`,
-			{ method: 'POST' }
-		),
+	completeSetupStep: async (stepSlug: string) => {
+		const result = await client.POST('/api/setup/steps/{stepSlug}/complete', {
+			params: { path: { stepSlug } }
+		});
+		await expectOk(result.response, result.error);
+		return api.getSetupStatus();
+	},
 
-	completeSetup: () =>
-		apiFetch<import('./types.js').SetupCompleteResponse>('/api/setup/complete', {
-			method: 'POST'
-		}),
+	completeSetup: async () => {
+		const result = await client.POST('/api/setup/complete');
+		await expectOk(result.response, result.error);
+		const body = await readUndocumentedJson(result.response);
+		return {
+			succeeded: body.succeeded !== false,
+			error: typeof body.error === 'string' ? body.error : null
+		};
+	},
 
-	getHealth: () => apiFetch<import('./types.js').HealthResponse>('/api/health'),
+	getHealth: async () => {
+		const result = await client.GET('/api/health');
+		return expectData(result.response, result.error, result.data);
+	},
 
-	getGeneralSettings: () =>
-		apiFetch<import('./types.js').GeneralSettings>('/api/settings/general'),
+	getGeneralSettings: async () => {
+		const result = await client.GET('/api/settings/general');
+		return expectData(result.response, result.error, result.data);
+	},
 
-	updateGeneralSettings: (payload: import('./types.js').GeneralSettingsUpdate) =>
-		apiFetch<{ updated: boolean; updatedAtUtc: string }>('/api/settings/general', {
-			method: 'PUT',
-			body: JSON.stringify(payload)
-		}),
+	updateGeneralSettings: async (
+		payload: import('./types.js').GeneralSettingsUpdate
+	) => {
+		const result = await client.PUT('/api/settings/general', { body: payload });
+		return expectData(result.response, result.error, result.data);
+	},
 
-	getAuditEvents: () =>
-		apiFetch<import('./types.js').AuditEvent[]>('/api/activity/audit'),
+	getAuditEvents: async () => {
+		const result = await client.GET('/api/activity/audit');
+		return expectData(result.response, result.error, result.data ?? []);
+	},
 
-	bootstrapLogin: (username: string, password: string) =>
-		apiFetch<import('./types.js').BootstrapLoginResponse>('/api/auth/bootstrap/login', {
-			method: 'POST',
-			body: JSON.stringify({ username, password })
-		}),
+	bootstrapLogin: async (username: string, password: string) => {
+		const result = await client.POST('/api/auth/bootstrap/login', {
+			body: { username, password }
+		});
+		if (!result.response.ok) {
+			throw errorFromResult(result.response.status, result.error);
+		}
+		const body = await readUndocumentedJson(result.response);
+		return {
+			succeeded: body.succeeded !== false,
+			error: typeof body.error === 'string' ? body.error : null
+		};
+	},
 
-	getSession: () => apiFetch<import('./types.js').SessionStatus>('/api/auth/session'),
+	getSession: async () => {
+		const result = await client.GET('/api/auth/session');
+		return expectData(result.response, result.error, result.data);
+	},
 
-	logout: () => apiFetch<{ loggedOut: boolean }>('/api/auth/logout', { method: 'POST' }),
+	logout: async () => {
+		const result = await client.POST('/api/auth/logout');
+		await expectOk(result.response, result.error);
+		return { loggedOut: true };
+	},
 
-	passkeyRegisterBegin: (nickname = 'Primary passkey') =>
-		apiFetch<import('./types.js').PasskeyBeginResponse>(
-			`/api/auth/passkeys/register/begin?nickname=${encodeURIComponent(nickname)}`,
-			{ method: 'POST' }
-		),
+	passkeyRegisterBegin: async (nickname = 'Primary passkey') => {
+		const result = await client.POST('/api/auth/passkeys/register/begin', {
+			params: { query: { nickname } }
+		});
+		await expectOk(result.response, result.error);
+		return readUndocumentedJson(result.response);
+	},
 
-	passkeyRegisterComplete: (
+	passkeyRegisterComplete: async (
 		attestation: Record<string, unknown>,
 		challengeSessionId: string,
 		nickname = 'Primary passkey',
 		clientReportsPrfSupported = false
-	) =>
-		apiFetch<import('./types.js').PasskeyRegistrationCompleteResponse>(
-			'/api/auth/passkeys/register/complete',
-			{
-				method: 'POST',
-				body: JSON.stringify({
-					attestation,
-					challengeSessionId,
-					nickname,
-					clientReportsPrfSupported
-				})
-			}
-		),
+	) => {
+		const result = await client.POST('/api/auth/passkeys/register/complete', {
+			body: { attestation, challengeSessionId, nickname, clientReportsPrfSupported }
+		});
+		await expectOk(result.response, result.error);
+		const body = await readUndocumentedJson(result.response);
+		return {
+			credentialId: String(body.credentialId ?? ''),
+			prfSupported: body.prfSupported === true
+		};
+	},
 
-	passkeyLoginBegin: () =>
-		apiFetch<import('./types.js').PasskeyBeginResponse>('/api/auth/passkeys/login/begin', {
-			method: 'POST'
-		}),
+	passkeyLoginBegin: async () => {
+		const result = await client.POST('/api/auth/passkeys/login/begin');
+		await expectOk(result.response, result.error);
+		return readUndocumentedJson(result.response);
+	},
 
-	passkeyLoginComplete: (
+	passkeyLoginComplete: async (
 		assertion: Record<string, unknown>,
 		challengeSessionId: string,
 		prfOutputBase64?: string | null
-	) =>
-		apiFetch<import('./types.js').PasskeyLoginCompleteResponse>(
-			'/api/auth/passkeys/login/complete',
-			{
-				method: 'POST',
-				body: JSON.stringify({ assertion, challengeSessionId, prfOutputBase64 })
-			}
-		),
+	) => {
+		const result = await client.POST('/api/auth/passkeys/login/complete', {
+			body: { assertion, challengeSessionId, prfOutputBase64: prfOutputBase64 ?? null }
+		});
+		await expectOk(result.response, result.error);
+		const body = await readUndocumentedJson(result.response);
+		return {
+			succeeded: body.succeeded !== false,
+			vaultUnlocked: body.vaultUnlocked === true
+		};
+	},
 
-	getVaultStatus: () => apiFetch<import('./types.js').VaultStatus>('/api/vault/status'),
+	getVaultStatus: async () => {
+		const result = await client.GET('/api/vault/status');
+		return expectData(result.response, result.error, result.data);
+	},
 
-	generateRecoveryKey: () =>
-		apiFetch<{ recoveryKey: string }>('/api/vault/recovery-key/generate', { method: 'POST' }),
+	generateRecoveryKey: async () => {
+		const result = await client.POST('/api/vault/recovery-key/generate');
+		return expectData(result.response, result.error, result.data);
+	},
 
-	setupVault: (payload: {
-		recoveryKey: string;
-		prfWrapAttempted: boolean;
-		prfOutputBase64?: string | null;
-		passkeyCredentialId?: string | null;
-	}) =>
-		apiFetch<import('./types.js').VaultSetupResponse>('/api/vault/setup', {
-			method: 'POST',
-			body: JSON.stringify(payload)
-		}),
+	setupVault: async (payload: import('./types.js').VaultSetupRequest) => {
+		const result = await client.POST('/api/vault/setup', { body: payload });
+		await expectOk(result.response, result.error);
+		const body = await readUndocumentedJson(result.response);
+		return {
+			configured: body.configured === true,
+			prfWrapStored: body.prfWrapStored === true,
+			serviceSyncWrapStored: body.serviceSyncWrapStored === true,
+			generatedRecoveryKey: String(body.generatedRecoveryKey ?? payload.recoveryKey)
+		};
+	},
 
-	verifyVaultUnlock: (recoveryKey: string) =>
-		apiFetch<{ verified: boolean; vaultUnlocked: boolean }>('/api/vault/verify-unlock', {
-			method: 'POST',
-			body: JSON.stringify({ recoveryKey })
-		})
+	verifyVaultUnlock: async (recoveryKey: string) => {
+		const result = await client.POST('/api/vault/verify-unlock', {
+			body: { recoveryKey }
+		});
+		await expectOk(result.response, result.error);
+		const body = await readUndocumentedJson(result.response);
+		return {
+			verified: body.verified === true,
+			vaultUnlocked: body.vaultUnlocked === true
+		};
+	},
+
+	listVaultSecrets: async () => {
+		const result = await client.GET('/api/vault/secrets');
+		return expectData(result.response, result.error, result.data ?? []);
+	}
 };

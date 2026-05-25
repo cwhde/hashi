@@ -33,7 +33,7 @@
 				rootDomain: settings.rootDomain ?? '',
 				adminDomain: settings.adminDomain ?? '',
 				internalUrl: settings.internalUrl ?? '',
-				defaultSyncIntervalMinutes: settings.defaultSyncIntervalMinutes,
+				defaultSyncIntervalMinutes: Number(settings.defaultSyncIntervalMinutes),
 				publicDashboardEnabled: settings.publicDashboardEnabled,
 				publicStatusEnabled: settings.publicStatusEnabled,
 				theme: settings.theme ?? 'dark'
@@ -48,13 +48,13 @@
 		error = null;
 		try {
 			await api.updateGeneralSettings({
-				rootDomain: form.rootDomain || undefined,
-				adminDomain: form.adminDomain || undefined,
-				internalUrl: form.internalUrl || undefined,
+				rootDomain: form.rootDomain || null,
+				adminDomain: form.adminDomain || null,
+				internalUrl: form.internalUrl || null,
 				defaultSyncIntervalMinutes: form.defaultSyncIntervalMinutes,
 				publicDashboardEnabled: form.publicDashboardEnabled,
 				publicStatusEnabled: form.publicStatusEnabled,
-				theme: form.theme
+				theme: form.theme || null
 			});
 			await oncomplete();
 		} catch (e) {

@@ -52,11 +52,13 @@
 		message = null;
 		try {
 			const begin = await api.passkeyRegisterBegin('Primary passkey');
-			const credential = await registerPasskeyFromServerOptions(begin.options);
+			const options = begin.options as Record<string, unknown>;
+			const challengeSessionId = String(begin.challengeSessionId ?? '');
+			const credential = await registerPasskeyFromServerOptions(options);
 			const attestation = serializeRegistration(credential);
 			const complete = await api.passkeyRegisterComplete(
 				attestation,
-				begin.challengeSessionId,
+				challengeSessionId,
 				'Primary passkey',
 				prfOk
 			);

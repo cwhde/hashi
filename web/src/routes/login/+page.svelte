@@ -38,14 +38,12 @@
 		error = null;
 		try {
 			const begin = await api.passkeyLoginBegin();
-			const credential = await loginPasskeyFromServerOptions(begin.options);
+			const options = begin.options as Record<string, unknown>;
+			const challengeSessionId = String(begin.challengeSessionId ?? '');
+			const credential = await loginPasskeyFromServerOptions(options);
 			const assertion = serializeAuthentication(credential);
 			const prfOutput = extractPrfOutput(credential);
-			const result = await api.passkeyLoginComplete(
-				assertion,
-				begin.challengeSessionId,
-				prfOutput
-			);
+			const result = await api.passkeyLoginComplete(assertion, challengeSessionId, prfOutput);
 			if (!result.succeeded) {
 				error = 'Passkey verification failed.';
 				return;
