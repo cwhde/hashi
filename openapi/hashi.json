@@ -706,6 +706,125 @@
           }
         }
       }
+    },
+    "/api/connections": {
+      "get": {
+        "tags": [
+          "Connections"
+        ],
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConnectionSummaryResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/connections/ssh": {
+      "post": {
+        "tags": [
+          "Connections"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSshConnectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/connections/{connectionId}/validate": {
+      "post": {
+        "tags": [
+          "Connections"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSshConnectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/connections/{connectionId}/write": {
+      "post": {
+        "tags": [
+          "Connections"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoteWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -854,6 +973,63 @@
               "string"
             ],
             "format": "int32"
+          }
+        }
+      },
+      "CreateSshConnectionRequest": {
+        "required": [
+          "name",
+          "connectionType",
+          "host",
+          "port",
+          "username",
+          "authMode",
+          "password",
+          "privateKeyPem",
+          "privateKeyPassphrase"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "connectionType": {
+            "type": "string"
+          },
+          "host": {
+            "type": "string"
+          },
+          "port": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "username": {
+            "type": "string"
+          },
+          "authMode": {
+            "type": "string"
+          },
+          "password": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "privateKeyPem": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "privateKeyPassphrase": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -1142,6 +1318,42 @@
           }
         }
       },
+      "RemoteWriteRequest": {
+        "required": [
+          "remotePath",
+          "contentBase64",
+          "host",
+          "port",
+          "username",
+          "password"
+        ],
+        "type": "object",
+        "properties": {
+          "remotePath": {
+            "type": "string"
+          },
+          "contentBase64": {
+            "type": "string"
+          },
+          "host": {
+            "type": "string"
+          },
+          "port": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "username": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        }
+      },
       "SecretDescriptorResponse": {
         "required": [
           "id",
@@ -1364,6 +1576,9 @@
     },
     {
       "name": "DNS"
+    },
+    {
+      "name": "Connections"
     }
   ]
 }
