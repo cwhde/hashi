@@ -1,0 +1,37 @@
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: hashi
+      POSTGRES_USER: hashi
+      POSTGRES_PASSWORD: hashi
+    volumes:
+      - hashi_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hashi -d hashi"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  hashi:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+      - "8082:8082"
+    environment:
+      ASPNETCORE_URLS: http://0.0.0.0:8080
+      ConnectionStrings__Hashi: Host=postgres;Port=5432;Database=hashi;Username=hashi;Password=hashi
+    volumes:
+      - hashi_data:/data
+      - hashi_logs:/logs
+
+volumes:
+  hashi_data:
+  hashi_logs:
+  hashi_pg:
