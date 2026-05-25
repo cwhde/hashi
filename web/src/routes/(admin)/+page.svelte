@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { api } from '$lib/api/client';
-	import type { AuditEvent } from '$lib/api/types';
+	import type { AuditEvent, VaultStatus } from '$lib/api/types';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import OverviewWidget from '$lib/components/overview/OverviewWidget.svelte';
 	import StatusRow from '$lib/components/layout/StatusRow.svelte';
@@ -11,15 +11,18 @@
 	let prefs = $state(loadWidgetPrefs());
 	let audit = $state<AuditEvent[]>([]);
 	let healthVersion = $state('—');
+	let vaultStatus = $state<VaultStatus | null>(null);
 
 	onMount(async () => {
 		try {
-			const [events, health] = await Promise.all([
+			const [events, health, vault] = await Promise.all([
 				api.getAuditEvents().catch(() => []),
-				api.getHealth().catch(() => null)
+				api.getHealth().catch(() => null),
+				api.getVaultStatus().catch(() => null)
 			]);
 			audit = events.slice(0, 5);
 			healthVersion = health?.version ?? '—';
+			vaultStatus = vault;
 		} catch {
 			// offline dev
 		}
@@ -68,8 +71,15 @@
 					<StatusRow label="Expiring < 14d" value="0" status="ok" />
 					<StatusRow label="Expiring < 7d" value="0" />
 				{:else if widget.id === 'vault-lock'}
-					<StatusRow label="Vault" value="locked" status="warn" />
-					<StatusRow label="Passkey" value="—" />
+					<StatusRow
+						label="Vault"
+						value={vaultStatus?.lockState ?? '—'}
+						status={vaultStatus?.lockState === 'Unlocked' ? 'ok' : 'warn'}
+					/>
+					<StatusRow
+						label="Passkey"
+						value={vaultStatus?.hasPasskey ? 'registered' : 'none'}
+					/>
 				{:else if widget.id === 'audit'}
 					{#if audit.length === 0}
 						<StatusRow label="Recent entries" value="None yet" />
