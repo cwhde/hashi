@@ -49,8 +49,7 @@ public static class SettingsEndpoints
         group.MapGet("/general", async (AppSettingsService settings, CancellationToken ct) =>
         {
             var s = await settings.GetOrCreateAsync(ct);
-            return TypedResults.Ok(new
-            {
+            return TypedResults.Ok(new GeneralSettingsResponse(
                 s.RootDomain,
                 s.AdminDomain,
                 s.InternalUrl,
@@ -58,8 +57,7 @@ public static class SettingsEndpoints
                 s.PublicDashboardEnabled,
                 s.PublicStatusEnabled,
                 s.Theme,
-                s.UpdatedAtUtc,
-            });
+                s.UpdatedAtUtc));
         });
 
         group.MapPut("/general", async (
@@ -107,18 +105,9 @@ public static class SettingsEndpoints
             s.UpdatedAtUtc = DateTimeOffset.UtcNow;
             await settings.SaveAsync(ct);
             await audit.WriteAsync("settings", "general_updated", subjectType: "app_settings", cancellationToken: ct);
-            return TypedResults.Ok(new { updated = true, s.UpdatedAtUtc });
+            return TypedResults.Ok(new GeneralSettingsUpdateResponse(true, s.UpdatedAtUtc));
         });
 
         return app;
     }
 }
-
-public sealed record GeneralSettingsRequest(
-    string? RootDomain,
-    string? AdminDomain,
-    string? InternalUrl,
-    int? DefaultSyncIntervalMinutes,
-    bool? PublicDashboardEnabled,
-    bool? PublicStatusEnabled,
-    string? Theme);

@@ -25,3 +25,28 @@ public sealed record SyncRunResponse(
     DateTimeOffset StartedAtUtc,
     DateTimeOffset? CompletedAtUtc,
     string? ErrorSummary);
+
+public sealed record BootstrapAllowedResponse(bool Allowed, string? RemoteIp);
+
+public sealed record GeneralSettingsResponse(
+    string? RootDomain,
+    string? AdminDomain,
+    string? InternalUrl,
+    int DefaultSyncIntervalMinutes,
+    bool PublicDashboardEnabled,
+    bool PublicStatusEnabled,
+    string? Theme,
+    DateTimeOffset? UpdatedAtUtc);
+
+public sealed record GeneralSettingsRequest(
+    string? RootDomain,
+    string? AdminDomain,
+    string? InternalUrl,
+    int? DefaultSyncIntervalMinutes,
+    bool? PublicDashboardEnabled,
+    bool? PublicStatusEnabled,
+    string? Theme);
+
+public sealed record GeneralSettingsUpdateResponse(bool Updated, DateTimeOffset UpdatedAtUtc);
+
+public sealed record ApiErrorResponse(string Error);

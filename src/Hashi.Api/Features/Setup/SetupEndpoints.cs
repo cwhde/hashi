@@ -25,7 +25,9 @@ public static class SetupEndpoints
         group.MapGet("/bootstrap-allowed", (HttpContext httpContext) =>
         {
             var remoteIp = httpContext.Connection.RemoteIpAddress?.ToString();
-            return TypedResults.Ok(new { allowed = BootstrapNetworkPolicy.IsAllowed(remoteIp), remoteIp });
+            return TypedResults.Ok(new BootstrapAllowedResponse(
+                BootstrapNetworkPolicy.IsAllowed(remoteIp),
+                remoteIp));
         });
 
         return app;
