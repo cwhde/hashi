@@ -31,6 +31,12 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
 
     public DbSet<DnsImportDecisionEntity> DnsImportDecisions => Set<DnsImportDecisionEntity>();
 
+    public DbSet<ResourceEntity> Resources => Set<ResourceEntity>();
+
+    public DbSet<MonitorEndpointEntity> MonitorEndpoints => Set<MonitorEndpointEntity>();
+
+    public DbSet<PulseAgentEntity> PulseAgents => Set<PulseAgentEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AppSettingsEntity>(entity =>
@@ -152,6 +158,33 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.Property(x => x.Type).HasMaxLength(16);
             entity.HasOne(x => x.Zone).WithMany().HasForeignKey(x => x.ZoneId);
             entity.HasIndex(x => x.ZoneId);
+        });
+
+        modelBuilder.Entity<ResourceEntity>(entity =>
+        {
+            entity.ToTable("resources");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).HasMaxLength(128);
+            entity.Property(x => x.Slug).HasMaxLength(128);
+            entity.Property(x => x.Kind).HasMaxLength(16);
+            entity.HasIndex(x => x.Slug).IsUnique();
+        });
+
+        modelBuilder.Entity<MonitorEndpointEntity>(entity =>
+        {
+            entity.ToTable("monitor_endpoints");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).HasMaxLength(128);
+            entity.Property(x => x.CheckType).HasMaxLength(16);
+            entity.Property(x => x.Status).HasMaxLength(16);
+        });
+
+        modelBuilder.Entity<PulseAgentEntity>(entity =>
+        {
+            entity.ToTable("pulse_agents");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).HasMaxLength(128);
+            entity.Property(x => x.Status).HasMaxLength(32);
         });
     }
 }

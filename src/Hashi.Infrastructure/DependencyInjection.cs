@@ -4,6 +4,7 @@ using Hashi.Infrastructure.Auth;
 using Hashi.Infrastructure.Connections;
 using Hashi.Infrastructure.Dns;
 using Hashi.Infrastructure.Persistence;
+using Hashi.Infrastructure.Platform;
 using Hashi.Infrastructure.Providers.Dns;
 using Hashi.Core.Connections;
 using Hashi.Infrastructure.Ssh;
@@ -44,6 +45,10 @@ public static class DependencyInjection
         services.AddScoped<WebAuthnChallengeStore>();
         services.AddScoped<DnsConnectionService>();
         services.AddScoped<SshConnectionService>();
+        services.AddScoped<ResourceService>();
+        services.AddScoped<TraefikPlatformService>();
+        services.AddScoped<FirewallPlatformService>();
+        services.AddScoped<MonitoringService>();
         services.AddSingleton<IDnsProviderFactory, DnsProviderFactory>();
         services.AddSingleton<ISshRemoteExecutor, SshRemoteExecutor>();
 
