@@ -14,10 +14,12 @@ import {
 	Zap
 } from 'lucide-svelte';
 
+import type { LucideIcon } from '$lib/icons';
+
 export type NavItem = {
 	label: string;
 	href: string;
-	icon: typeof LayoutDashboard;
+	icon: LucideIcon;
 };
 
 export const navItems = [
