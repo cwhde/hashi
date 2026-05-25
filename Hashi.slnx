@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Hashi.Api/Hashi.Api.csproj" />
+    <Project Path="src/Hashi.Core/Hashi.Core.csproj" />
+    <Project Path="src/Hashi.Infrastructure/Hashi.Infrastructure.csproj" />
+    <Project Path="src/Hashi.Contracts/Hashi.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Hashi.UnitTests/Hashi.UnitTests.csproj" />
+    <Project Path="tests/Hashi.IntegrationTests/Hashi.IntegrationTests.csproj" />
+  </Folder>
+</Solution>
