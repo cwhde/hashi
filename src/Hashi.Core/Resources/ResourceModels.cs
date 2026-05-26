@@ -23,7 +23,8 @@ public sealed record ResourceDefinition(
     string? PathPrefix = null,
     string? PathRewrite = null,
     ForwardAuthPolicy ForwardAuth = ForwardAuthPolicy.Adaptive,
-    Hashi.Core.Security.WafMode WafMode = Hashi.Core.Security.WafMode.DetectOnly);
+    Hashi.Core.Security.WafMode WafMode = Hashi.Core.Security.WafMode.DetectOnly,
+    IReadOnlyList<string>? ExtraMiddlewares = null);
 
 public static class ResourceSlug
 {

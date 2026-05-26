@@ -284,6 +284,50 @@ export const api = {
 		const r = await client.GET('/api/traefik/render');
 		return expectData(r.response, r.error, r.data);
 	},
+	validateTraefikConfig: async () => {
+		const r = await client.POST('/api/traefik/validate');
+		return expectData(r.response, r.error, r.data);
+	},
+	getTraefikUserMiddlewares: async () => {
+		const r = await client.GET('/api/traefik/user-middlewares');
+		return expectData(r.response, r.error, r.data);
+	},
+	updateTraefikUserMiddlewares: async (body: import('./types.js').UpdateTraefikUserMiddlewareRequest) => {
+		const r = await client.PUT('/api/traefik/user-middlewares', { body });
+		return expectData(r.response, r.error, r.data);
+	},
+	validateTraefikUserMiddlewares: async (body: import('./types.js').TraefikUserMiddlewareValidationRequest) => {
+		const r = await client.POST('/api/traefik/user-middlewares/validate', { body });
+		return expectData(r.response, r.error, r.data);
+	},
+	getTraefikHostState: async (connectionId: string) => {
+		const r = await client.GET('/api/traefik/connections/{connectionId}/state', {
+			params: { path: { connectionId } }
+		});
+		return expectData(r.response, r.error, r.data);
+	},
+	detectExistingTraefikConfig: async (connectionId: string) => {
+		const r = await client.POST('/api/traefik/connections/{connectionId}/detect-existing', {
+			params: { path: { connectionId } }
+		});
+		return expectData(r.response, r.error, r.data);
+	},
+	applyTraefikConnection: async (
+		connectionId: string,
+		body: import('./types.js').TraefikApplyConnectionRequest
+	) => {
+		const r = await client.POST('/api/traefik/connections/{connectionId}/apply', {
+			params: { path: { connectionId } },
+			body
+		});
+		return expectData(r.response, r.error, r.data);
+	},
+	rollbackTraefikConnection: async (connectionId: string) => {
+		const r = await client.POST('/api/traefik/connections/{connectionId}/rollback', {
+			params: { path: { connectionId } }
+		});
+		return expectData(r.response, r.error, r.data);
+	},
 	renderFirewall: async (body: import('./types.js').FirewallRenderRequest) => {
 		const r = await client.POST('/api/firewall/render', { body });
 		return expectData(r.response, r.error, r.data);

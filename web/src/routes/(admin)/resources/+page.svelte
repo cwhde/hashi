@@ -19,6 +19,7 @@
 
 	let resources = $state<Resource[]>([]);
 	let firewallHosts = $state<FirewallHost[]>([]);
+	let availableMiddlewares = $state<string[]>([]);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 	let saving = $state(false);
@@ -44,12 +45,14 @@
 		loading = true;
 		error = null;
 		try {
-			const [resourceList, hostList] = await Promise.all([
+			const [resourceList, hostList, middlewares] = await Promise.all([
 				api.listResources(),
-				api.listFirewallHosts()
+				api.listFirewallHosts(),
+				api.getTraefikUserMiddlewares().catch(() => ({ middlewareNames: [] }))
 			]);
 			resources = resourceList;
 			firewallHosts = hostList;
+			availableMiddlewares = middlewares.middlewareNames ?? [];
 		} catch (e) {
 			error = e instanceof ApiRequestError ? e.message : 'Failed to load resources';
 		} finally {
@@ -106,7 +109,8 @@
 				statusEnabled: null,
 				clearFirewallHostId: false,
 				clearPathPrefix: false,
-				clearPathRewrite: false
+				clearPathRewrite: false,
+				clearExtraMiddlewares: false
 			});
 			await load();
 		} catch (e) {
@@ -128,11 +132,39 @@
 				firewallHostId: firewallHostId || null,
 				clearFirewallHostId: !firewallHostId,
 				clearPathPrefix: false,
-				clearPathRewrite: false
+				clearPathRewrite: false,
+				clearExtraMiddlewares: false
 			});
 			await load();
 		} catch (e) {
 			error = e instanceof ApiRequestError ? e.message : 'Failed to update firewall host';
+		}
+	}
+
+	async function updateExtraMiddlewares(resource: Resource, middleware: string, enabled: boolean) {
+		const current = resource.extraMiddlewares ?? [];
+		const next = enabled
+			? [...new Set([...current, middleware])]
+			: current.filter((name) => name !== middleware);
+		try {
+			await api.updateResource(resource.id, {
+				name: null,
+				enabled: null,
+				domain: null,
+				targetScheme: null,
+				targetHost: null,
+				targetPort: null,
+				dashboardEnabled: null,
+				statusEnabled: null,
+				clearFirewallHostId: false,
+				clearPathPrefix: false,
+				clearPathRewrite: false,
+				clearExtraMiddlewares: false,
+				extraMiddlewares: next
+			});
+			await load();
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Failed to update middlewares';
 		}
 	}
 
@@ -247,6 +279,7 @@
 							<TableHead>Domain</TableHead>
 							<TableHead>Firewall host</TableHead>
 							<TableHead>Target</TableHead>
+							<TableHead>Extra middlewares</TableHead>
 							<TableHead>Enabled</TableHead>
 							<TableHead class="w-12"></TableHead>
 						</TableRow>
@@ -279,6 +312,31 @@
 								</TableCell>
 								<TableCell class="font-mono text-xs">
 									{resource.targetScheme}://{resource.targetHost}:{resource.targetPort}
+								</TableCell>
+								<TableCell>
+									{#if availableMiddlewares.length === 0}
+										<span class="text-xs text-muted-foreground">—</span>
+									{:else if ['http', 'https', 'h2c'].includes(resource.kind.toLowerCase())}
+										<div class="flex flex-col gap-1">
+											{#each availableMiddlewares as middleware (middleware)}
+												<label class="flex items-center gap-2 text-[11px] text-muted-foreground">
+													<input
+														type="checkbox"
+														checked={(resource.extraMiddlewares ?? []).includes(middleware)}
+														onchange={(e) =>
+															updateExtraMiddlewares(
+																resource,
+																middleware,
+																(e.currentTarget as HTMLInputElement).checked
+															)}
+													/>
+													{middleware}
+												</label>
+											{/each}
+										</div>
+									{:else}
+										<span class="text-xs text-muted-foreground">n/a</span>
+									{/if}
 								</TableCell>
 								<TableCell>
 									<Switch

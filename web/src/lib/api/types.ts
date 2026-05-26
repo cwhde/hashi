@@ -34,6 +34,15 @@ export type UpdateResourceRequest = Schemas['UpdateResourceRequest'];
 
 export type TraefikRenderResponse = Schemas['TraefikRenderResponse'];
 export type TraefikApplyRequest = Schemas['TraefikApplyRequest'];
+export type TraefikApplyResponse = Schemas['TraefikApplyResponse'];
+export type TraefikApplyConnectionRequest = Schemas['TraefikApplyConnectionRequest'];
+export type TraefikHostState = Schemas['TraefikHostStateResponse'];
+export type TraefikDetectExistingResponse = Schemas['TraefikDetectExistingResponse'];
+export type TraefikConfigValidationResponse = Schemas['TraefikConfigValidationResponse'];
+export type TraefikUserMiddleware = Schemas['TraefikUserMiddlewareResponse'];
+export type UpdateTraefikUserMiddlewareRequest = Schemas['UpdateTraefikUserMiddlewareRequest'];
+export type TraefikUserMiddlewareValidationRequest = Schemas['TraefikUserMiddlewareValidationRequest'];
+export type TraefikUserMiddlewareValidationResponse = Schemas['TraefikUserMiddlewareValidationResponse'];
 export type FirewallRenderRequest = Schemas['FirewallRenderRequest'];
 export type CreateFirewallHostRequest = Schemas['CreateFirewallHostRequest'];
 export type FirewallRenderResponse = Schemas['FirewallRenderResponse'];

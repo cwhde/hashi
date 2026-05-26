@@ -71,12 +71,13 @@ public sealed class PassiveSyncSafetyTests
         var secrets = new SecretRecordService(db, vault, new ServiceSyncVaultState());
         var dns = new DnsConnectionService(db, providerFactory, secrets, new AuditService(db));
         var settings = new AppSettingsService(db);
+        var userMiddlewares = new TraefikUserMiddlewareService(db);
         var syncRuns = new SyncRunService(db);
         var orchestrator = new SyncOrchestratorService(
             db,
             dns,
-            new TraefikPlatformService(db, settings),
-            new TraefikSyncService(db, new FakeSshRemoteExecutor(), new TraefikPlatformService(db, settings), secrets, new AuditService(db)),
+            new TraefikPlatformService(db, settings, userMiddlewares),
+            new TraefikSyncService(db, new FakeSshRemoteExecutor(), new TraefikPlatformService(db, settings, userMiddlewares), secrets, new AuditService(db)),
             new FirewallApplyService(db, new FakeSshRemoteExecutor(), secrets, new AuditService(db)),
             new AdGuardSyncService(db, new ServiceCollection().AddHttpClient().BuildServiceProvider().GetRequiredService<IHttpClientFactory>(), secrets),
             syncRuns,

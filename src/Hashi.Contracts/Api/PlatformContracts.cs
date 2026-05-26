@@ -15,7 +15,8 @@ public sealed record ResourceResponse(
     bool StatusEnabled,
     Guid? FirewallHostId,
     string? PathPrefix,
-    string? PathRewrite);
+    string? PathRewrite,
+    IReadOnlyList<string> ExtraMiddlewares);
 
 public sealed record CreateResourceRequest(
     string Name,
@@ -28,7 +29,8 @@ public sealed record CreateResourceRequest(
     bool StatusEnabled,
     Guid? FirewallHostId = null,
     string? PathPrefix = null,
-    string? PathRewrite = null);
+    string? PathRewrite = null,
+    IReadOnlyList<string>? ExtraMiddlewares = null);
 
 public sealed record UpdateResourceRequest(
     string? Name,
@@ -44,7 +46,9 @@ public sealed record UpdateResourceRequest(
     string? PathPrefix = null,
     bool ClearPathPrefix = false,
     string? PathRewrite = null,
-    bool ClearPathRewrite = false);
+    bool ClearPathRewrite = false,
+    IReadOnlyList<string>? ExtraMiddlewares = null,
+    bool ClearExtraMiddlewares = false);
 
 public sealed record TraefikDynamicFilesResponse(
     string CoreYaml,
@@ -83,6 +87,36 @@ public sealed record TraefikInstallRequest(
     string? PrivateKeyPassphrase);
 
 public sealed record TraefikInstallResponse(bool Succeeded, string? Message);
+
+public sealed record TraefikUserMiddlewareResponse(
+    string Yaml,
+    string? LastParseError,
+    IReadOnlyList<string> MiddlewareNames,
+    DateTimeOffset UpdatedAtUtc);
+
+public sealed record UpdateTraefikUserMiddlewareRequest(string Yaml);
+
+public sealed record TraefikUserMiddlewareValidationRequest(string Yaml);
+
+public sealed record TraefikUserMiddlewareValidationResponse(
+    bool IsValid,
+    string? Error,
+    IReadOnlyList<string> MiddlewareNames);
+
+public sealed record TraefikConfigValidationResponse(bool IsValid, IReadOnlyList<string> Errors);
+
+public sealed record TraefikHostStateResponse(
+    Guid ConnectionId,
+    string? LastAppliedContentHash,
+    string? CurrentContentHash,
+    DateTimeOffset? LastAppliedAtUtc,
+    bool HasBackup,
+    bool HasPendingChanges,
+    string? LastParseError);
+
+public sealed record TraefikDetectExistingResponse(bool Found, string? Preview, string RemotePath);
+
+public sealed record TraefikApplyConnectionRequest(bool ConfirmReplaceExisting);
 
 public sealed record FirewallRenderRequest(string Name, string Domain, IReadOnlyList<string> ManagedSubnets, string LinkedTraefikHost, string InternalTraefikIp);
 

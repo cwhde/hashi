@@ -1982,6 +1982,290 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/traefik/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TraefikConfigValidationResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/traefik/user-middlewares": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TraefikUserMiddlewareResponse"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateTraefikUserMiddlewareRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TraefikUserMiddlewareResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/traefik/user-middlewares/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TraefikUserMiddlewareValidationRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TraefikUserMiddlewareValidationResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/traefik/connections/{connectionId}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    connectionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TraefikHostStateResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/traefik/connections/{connectionId}/detect-existing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    connectionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TraefikDetectExistingResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/traefik/connections/{connectionId}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    connectionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TraefikApplyConnectionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TraefikApplyResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/traefik/connections/{connectionId}/rollback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    connectionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TraefikApplyResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/traefik/apply": {
         parameters: {
             query?: never;
@@ -2009,7 +2293,9 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["TraefikApplyResponse"];
+                    };
                 };
             };
         };
@@ -2046,7 +2332,9 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["TraefikApplyResponse"];
+                    };
                 };
             };
         };
@@ -2083,7 +2371,9 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["TraefikInstallResponse"];
+                    };
                 };
             };
         };
@@ -3192,6 +3482,7 @@ export interface components {
             firewallHostId?: null | string;
             pathPrefix?: null | string;
             pathRewrite?: null | string;
+            extraMiddlewares?: null | string[];
         };
         CreateScriptRequest: {
             /** Format: uuid */
@@ -3424,6 +3715,7 @@ export interface components {
             firewallHostId: null | string;
             pathPrefix: null | string;
             pathRewrite: null | string;
+            extraMiddlewares: string[];
         };
         RunScriptRequest: {
             host?: null | string;
@@ -3550,6 +3842,9 @@ export interface components {
             completedAtUtc: null | string;
             message: null | string;
         };
+        TraefikApplyConnectionRequest: {
+            confirmReplaceExisting: boolean;
+        };
         TraefikApplyRequest: {
             /** Format: uuid */
             connectionId: string;
@@ -3562,6 +3857,21 @@ export interface components {
             privateKeyPem: null | string;
             privateKeyPassphrase: null | string;
         };
+        TraefikApplyResponse: {
+            succeeded: boolean;
+            contentHash: string;
+            skipped: boolean;
+            message: null | string;
+        };
+        TraefikConfigValidationResponse: {
+            isValid: boolean;
+            errors: string[];
+        };
+        TraefikDetectExistingResponse: {
+            found: boolean;
+            preview: null | string;
+            remotePath: string;
+        };
         TraefikDynamicFilesResponse: null | {
             coreYaml: string;
             httpResourcesYaml: string;
@@ -3569,6 +3879,17 @@ export interface components {
             userMiddlewaresYaml: string;
             securityYaml: string;
             healthYaml: string;
+        };
+        TraefikHostStateResponse: {
+            /** Format: uuid */
+            connectionId: string;
+            lastAppliedContentHash: null | string;
+            currentContentHash: null | string;
+            /** Format: date-time */
+            lastAppliedAtUtc: null | string;
+            hasBackup: boolean;
+            hasPendingChanges: boolean;
+            lastParseError: null | string;
         };
         TraefikInstallRequest: {
             /** Format: uuid */
@@ -3582,11 +3903,30 @@ export interface components {
             privateKeyPem: null | string;
             privateKeyPassphrase: null | string;
         };
+        TraefikInstallResponse: {
+            succeeded: boolean;
+            message: null | string;
+        };
         TraefikRenderResponse: {
             staticConfigYaml: string;
             dynamicHttpYaml: string;
             contentHash: string;
             dynamicFiles?: components["schemas"]["TraefikDynamicFilesResponse"];
+        };
+        TraefikUserMiddlewareResponse: {
+            yaml: string;
+            lastParseError: null | string;
+            middlewareNames: string[];
+            /** Format: date-time */
+            updatedAtUtc: string;
+        };
+        TraefikUserMiddlewareValidationRequest: {
+            yaml: string;
+        };
+        TraefikUserMiddlewareValidationResponse: {
+            isValid: boolean;
+            error: null | string;
+            middlewareNames: string[];
         };
         UpdateResourceRequest: {
             name: null | string;
@@ -3608,6 +3948,12 @@ export interface components {
             pathRewrite?: null | string;
             /** @default false */
             clearPathRewrite: boolean;
+            extraMiddlewares?: null | string[];
+            /** @default false */
+            clearExtraMiddlewares: boolean;
+        };
+        UpdateTraefikUserMiddlewareRequest: {
+            yaml: string;
         };
         UpsertAdGuardRewriteRequest: {
             domain: string;

@@ -53,6 +53,7 @@ public static class DependencyInjection
         services.AddScoped<DnsConnectionService>();
         services.AddScoped<SshConnectionService>();
         services.AddScoped<ResourceService>();
+        services.AddScoped<TraefikUserMiddlewareService>();
         services.AddScoped<TraefikPlatformService>();
         services.AddScoped<TraefikSyncService>();
         services.AddScoped<FirewallPlatformService>();

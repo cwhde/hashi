@@ -34,7 +34,8 @@ public sealed class TraefikSyncSafetyTests
         var connectionId = Guid.NewGuid();
         var settings = new AppSettingsService(db);
         await settings.GetOrCreateAsync();
-        var traefik = new TraefikPlatformService(db, settings);
+        var userMiddlewares = new TraefikUserMiddlewareService(db);
+        var traefik = new TraefikPlatformService(db, settings, userMiddlewares);
         var render = await traefik.RenderAsync();
         db.TraefikHostStates.Add(new TraefikHostStateEntity
         {

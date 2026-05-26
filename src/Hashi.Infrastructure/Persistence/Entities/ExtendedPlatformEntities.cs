@@ -1,5 +1,21 @@
 namespace Hashi.Infrastructure.Persistence.Entities;
 
+public sealed class TraefikUserMiddlewareEntity
+{
+    public Guid Id { get; set; } = Guid.Parse("00000000-0000-0000-0000-000000000001");
+
+    public string Yaml { get; set; } = """
+        http:
+          middlewares: {}
+        """;
+
+    public string? LastValidYaml { get; set; }
+
+    public string? LastParseError { get; set; }
+
+    public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+}
+
 public sealed class TraefikHostStateEntity
 {
     public Guid Id { get; set; } = Guid.NewGuid();

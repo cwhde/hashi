@@ -29,19 +29,21 @@ public static class TraefikConfigRenderer
 {
     public static TraefikRenderResult Render(
         IReadOnlyList<ResourceDefinition> resources,
-        TraefikRenderOptions? options = null)
+        TraefikRenderOptions? options = null,
+        string? userMiddlewaresYaml = null)
     {
         options ??= new TraefikRenderOptions();
         var enabled = resources.Where(r => r.Enabled).ToList();
         var httpResources = enabled.Where(r => r.Kind is ResourceKind.Http or ResourceKind.Https or ResourceKind.H2c).ToList();
         var streamResources = enabled.Where(r => r.Kind is ResourceKind.Tcp or ResourceKind.Udp).ToList();
+        var userMiddlewares = NormalizeUserMiddlewaresYaml(userMiddlewaresYaml);
 
         var staticYaml = RenderStaticConfig(options, streamResources);
         var dynamic = new TraefikDynamicFiles(
             RenderCoreMiddlewares(options),
             RenderHttpResources(httpResources, options),
             RenderStreamResources(streamResources),
-            RenderUserMiddlewaresPlaceholder(),
+            userMiddlewares,
             RenderSecurity(httpResources),
             RenderHealth(options));
 
@@ -254,11 +256,6 @@ public static class TraefikConfigRenderer
             """;
     }
 
-    private static string RenderUserMiddlewaresPlaceholder() => """
-        http:
-          middlewares: {}
-        """;
-
     private static string RenderSecurity(IReadOnlyList<ResourceDefinition> resources)
     {
         var wafBlocks = string.Join('\n', resources
@@ -292,8 +289,22 @@ public static class TraefikConfigRenderer
         }
 
         chain.Add("hashi-rate-limit");
+        if (resource.ExtraMiddlewares is not null)
+        {
+            foreach (var extra in resource.ExtraMiddlewares.Where(x => !string.IsNullOrWhiteSpace(x)))
+            {
+                if (!chain.Contains(extra, StringComparer.Ordinal))
+                {
+                    chain.Add(extra);
+                }
+            }
+        }
+
         return chain;
     }
+
+    private static string NormalizeUserMiddlewaresYaml(string? yaml)
+        => TraefikUserMiddlewareParser.Parse(yaml).NormalizedYaml;
 
     private static string RenderAcmeBlock(TraefikRenderOptions options)
     {

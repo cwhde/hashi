@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Hashi.Contracts.Api;
 using Hashi.Core.Firewall;
 using Hashi.Core.Resources;
@@ -31,6 +32,7 @@ public sealed class ResourceService(HashiDbContext db, AuditService audit)
             FirewallHostId = request.FirewallHostId,
             PathPrefix = request.PathPrefix,
             PathRewrite = request.PathRewrite,
+            ExtraMiddlewaresJson = SerializeExtraMiddlewares(request.ExtraMiddlewares),
         };
         db.Resources.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
@@ -118,6 +120,15 @@ public sealed class ResourceService(HashiDbContext db, AuditService audit)
             entity.PathRewrite = request.PathRewrite;
         }
 
+        if (request.ClearExtraMiddlewares)
+        {
+            entity.ExtraMiddlewaresJson = "[]";
+        }
+        else if (request.ExtraMiddlewares is not null)
+        {
+            entity.ExtraMiddlewaresJson = SerializeExtraMiddlewares(request.ExtraMiddlewares);
+        }
+
         entity.UpdatedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
         return entity;
@@ -156,10 +167,17 @@ public sealed class ResourceService(HashiDbContext db, AuditService audit)
         entity.StatusEnabled,
         entity.FirewallHostId,
         entity.PathPrefix,
-        entity.PathRewrite);
+        entity.PathRewrite,
+        TraefikUserMiddlewareService.ParseExtraMiddlewares(entity.ExtraMiddlewaresJson));
+
+    private static string SerializeExtraMiddlewares(IReadOnlyList<string>? middlewares)
+        => JsonSerializer.Serialize(middlewares ?? []);
 }
 
-public sealed class TraefikPlatformService(HashiDbContext db, AppSettingsService settings)
+public sealed class TraefikPlatformService(
+    HashiDbContext db,
+    AppSettingsService settings,
+    TraefikUserMiddlewareService userMiddlewares)
 {
     public async Task<TraefikRenderResult> RenderAsync(CancellationToken cancellationToken = default)
     {
@@ -169,11 +187,33 @@ public sealed class TraefikPlatformService(HashiDbContext db, AppSettingsService
             x.Enabled, x.IsSystem, x.Domain, x.TargetScheme, x.TargetHost, x.TargetPort,
             x.PathPrefix, x.PathRewrite,
             ForwardAuthPolicyMapping.Parse(x.ForwardAuthPolicy),
-            ParseWafMode(x.WafMode))).ToList();
+            ParseWafMode(x.WafMode),
+            TraefikUserMiddlewareService.ParseExtraMiddlewares(x.ExtraMiddlewaresJson))).ToList();
         var appSettings = await settings.GetOrCreateAsync(cancellationToken);
         var options = new TraefikRenderOptions(
             AdminDomain: appSettings.AdminDomain ?? "hashi.local");
-        return TraefikConfigRenderer.Render(defs, options);
+        var userYaml = await userMiddlewares.GetAppliedYamlAsync(cancellationToken);
+        return TraefikConfigRenderer.Render(defs, options, userYaml);
+    }
+
+    public async Task<TraefikHostStateResponse> GetHostStateAsync(
+        Guid connectionId,
+        CancellationToken cancellationToken = default)
+    {
+        var render = await RenderAsync(cancellationToken);
+        var middleware = await userMiddlewares.GetAsync(cancellationToken);
+        var state = await db.TraefikHostStates.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.ConnectionId == connectionId, cancellationToken);
+        var hasPending = state?.LastAppliedContentHash is null
+            || !string.Equals(state.LastAppliedContentHash, render.ContentHash, StringComparison.Ordinal);
+        return new TraefikHostStateResponse(
+            connectionId,
+            state?.LastAppliedContentHash,
+            render.ContentHash,
+            state?.LastAppliedAtUtc,
+            !string.IsNullOrWhiteSpace(state?.LastBackupStaticYaml),
+            hasPending,
+            middleware.LastParseError);
     }
 
     private static WafMode ParseWafMode(string value) => value.ToLowerInvariant() switch

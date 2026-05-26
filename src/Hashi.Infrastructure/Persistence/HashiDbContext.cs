@@ -39,6 +39,8 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
 
     public DbSet<TraefikHostStateEntity> TraefikHostStates => Set<TraefikHostStateEntity>();
 
+    public DbSet<TraefikUserMiddlewareEntity> TraefikUserMiddlewares => Set<TraefikUserMiddlewareEntity>();
+
     public DbSet<FirewallHostEntity> FirewallHosts => Set<FirewallHostEntity>();
 
     public DbSet<MonitorSampleEntity> MonitorSamples => Set<MonitorSampleEntity>();
@@ -219,6 +221,12 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.ToTable("traefik_host_states");
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => x.ConnectionId).IsUnique();
+        });
+
+        modelBuilder.Entity<TraefikUserMiddlewareEntity>(entity =>
+        {
+            entity.ToTable("traefik_user_middlewares");
+            entity.HasKey(x => x.Id);
         });
 
         modelBuilder.Entity<FirewallHostEntity>(entity =>

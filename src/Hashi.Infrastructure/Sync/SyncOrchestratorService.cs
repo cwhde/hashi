@@ -234,7 +234,7 @@ public sealed class SyncOrchestratorService(
             {
                 try
                 {
-                    var result = await traefikSync.ApplyForConnectionAsync(connection.Id, cancellationToken);
+                    var result = await traefikSync.ApplyForConnectionInternalAsync(connection.Id, cancellationToken);
                     await syncRuns.AddStepAsync(
                         run.Id,
                         $"traefik-apply-{connection.Name}",
@@ -361,7 +361,7 @@ public sealed class SyncOrchestratorService(
             {
                 try
                 {
-                    await traefikSync.ApplyForConnectionAsync(connection.Id, cancellationToken);
+                    await traefikSync.ApplyForConnectionInternalAsync(connection.Id, cancellationToken);
                 }
                 catch
                 {

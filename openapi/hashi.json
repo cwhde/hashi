@@ -1276,6 +1276,230 @@
         }
       }
     },
+    "/api/traefik/validate": {
+      "post": {
+        "tags": [
+          "Traefik"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraefikConfigValidationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/traefik/user-middlewares": {
+      "get": {
+        "tags": [
+          "Traefik"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraefikUserMiddlewareResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Traefik"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTraefikUserMiddlewareRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraefikUserMiddlewareResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/traefik/user-middlewares/validate": {
+      "post": {
+        "tags": [
+          "Traefik"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TraefikUserMiddlewareValidationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraefikUserMiddlewareValidationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/traefik/connections/{connectionId}/state": {
+      "get": {
+        "tags": [
+          "Traefik"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraefikHostStateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/traefik/connections/{connectionId}/detect-existing": {
+      "post": {
+        "tags": [
+          "Traefik"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraefikDetectExistingResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/traefik/connections/{connectionId}/apply": {
+      "post": {
+        "tags": [
+          "Traefik"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TraefikApplyConnectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraefikApplyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/traefik/connections/{connectionId}/rollback": {
+      "post": {
+        "tags": [
+          "Traefik"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraefikApplyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/traefik/apply": {
       "post": {
         "tags": [
@@ -1293,7 +1517,14 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraefikApplyResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -1315,7 +1546,14 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraefikApplyResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -1337,7 +1575,14 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraefikInstallResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -2583,6 +2828,15 @@
               "null",
               "string"
             ]
+          },
+          "extraMiddlewares": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -3471,7 +3725,8 @@
           "statusEnabled",
           "firewallHostId",
           "pathPrefix",
-          "pathRewrite"
+          "pathRewrite",
+          "extraMiddlewares"
         ],
         "type": "object",
         "properties": {
@@ -3538,6 +3793,12 @@
               "null",
               "string"
             ]
+          },
+          "extraMiddlewares": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -4035,6 +4296,17 @@
           }
         }
       },
+      "TraefikApplyConnectionRequest": {
+        "required": [
+          "confirmReplaceExisting"
+        ],
+        "type": "object",
+        "properties": {
+          "confirmReplaceExisting": {
+            "type": "boolean"
+          }
+        }
+      },
       "TraefikApplyRequest": {
         "required": [
           "connectionId",
@@ -4089,6 +4361,72 @@
           }
         }
       },
+      "TraefikApplyResponse": {
+        "required": [
+          "succeeded",
+          "contentHash",
+          "skipped",
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "contentHash": {
+            "type": "string"
+          },
+          "skipped": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "TraefikConfigValidationResponse": {
+        "required": [
+          "isValid",
+          "errors"
+        ],
+        "type": "object",
+        "properties": {
+          "isValid": {
+            "type": "boolean"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "TraefikDetectExistingResponse": {
+        "required": [
+          "found",
+          "preview",
+          "remotePath"
+        ],
+        "type": "object",
+        "properties": {
+          "found": {
+            "type": "boolean"
+          },
+          "preview": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "remotePath": {
+            "type": "string"
+          }
+        }
+      },
       "TraefikDynamicFilesResponse": {
         "required": [
           "coreYaml",
@@ -4120,6 +4458,55 @@
           },
           "healthYaml": {
             "type": "string"
+          }
+        }
+      },
+      "TraefikHostStateResponse": {
+        "required": [
+          "connectionId",
+          "lastAppliedContentHash",
+          "currentContentHash",
+          "lastAppliedAtUtc",
+          "hasBackup",
+          "hasPendingChanges",
+          "lastParseError"
+        ],
+        "type": "object",
+        "properties": {
+          "connectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "lastAppliedContentHash": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "currentContentHash": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastAppliedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "hasBackup": {
+            "type": "boolean"
+          },
+          "hasPendingChanges": {
+            "type": "boolean"
+          },
+          "lastParseError": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -4177,6 +4564,24 @@
           }
         }
       },
+      "TraefikInstallResponse": {
+        "required": [
+          "succeeded",
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "TraefikRenderResponse": {
         "required": [
           "staticConfigYaml",
@@ -4196,6 +4601,72 @@
           },
           "dynamicFiles": {
             "$ref": "#/components/schemas/TraefikDynamicFilesResponse"
+          }
+        }
+      },
+      "TraefikUserMiddlewareResponse": {
+        "required": [
+          "yaml",
+          "lastParseError",
+          "middlewareNames",
+          "updatedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "yaml": {
+            "type": "string"
+          },
+          "lastParseError": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "middlewareNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "updatedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TraefikUserMiddlewareValidationRequest": {
+        "required": [
+          "yaml"
+        ],
+        "type": "object",
+        "properties": {
+          "yaml": {
+            "type": "string"
+          }
+        }
+      },
+      "TraefikUserMiddlewareValidationResponse": {
+        "required": [
+          "isValid",
+          "error",
+          "middlewareNames"
+        ],
+        "type": "object",
+        "properties": {
+          "isValid": {
+            "type": "boolean"
+          },
+          "error": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "middlewareNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -4293,6 +4764,30 @@
           "clearPathRewrite": {
             "type": "boolean",
             "default": false
+          },
+          "extraMiddlewares": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "clearExtraMiddlewares": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "UpdateTraefikUserMiddlewareRequest": {
+        "required": [
+          "yaml"
+        ],
+        "type": "object",
+        "properties": {
+          "yaml": {
+            "type": "string"
           }
         }
       },

@@ -36,6 +36,8 @@ public sealed class ResourceEntity
 
     public string? PathRewrite { get; set; }
 
+    public string ExtraMiddlewaresJson { get; set; } = "[]";
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 
     public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;

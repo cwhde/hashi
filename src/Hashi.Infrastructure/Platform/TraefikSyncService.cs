@@ -87,7 +87,84 @@ public sealed class TraefikSyncService(
         return new TraefikApplyResponse(true, render.ContentHash, false, null);
     }
 
-    public async Task<TraefikApplyResponse> ApplyForConnectionAsync(Guid connectionId, CancellationToken cancellationToken = default)
+    public async Task<TraefikApplyResponse> ApplyForConnectionAsync(
+        Guid connectionId,
+        bool confirmReplaceExisting,
+        CancellationToken cancellationToken = default)
+    {
+        if (!confirmReplaceExisting)
+        {
+            var existing = await DetectExistingAsync(connectionId, cancellationToken);
+            if (existing.Found)
+            {
+                return new TraefikApplyResponse(
+                    false,
+                    string.Empty,
+                    false,
+                    "Existing Traefik config detected. Confirm backup and Hashi ownership before applying.");
+            }
+        }
+
+        return await ApplyForConnectionInternalAsync(connectionId, cancellationToken);
+    }
+
+    public async Task<TraefikApplyResponse> RollbackForConnectionAsync(
+        Guid connectionId,
+        CancellationToken cancellationToken = default)
+    {
+        var connection = await db.Connections.SingleOrDefaultAsync(x => x.Id == connectionId, cancellationToken)
+            ?? throw new InvalidOperationException("Connection not found.");
+        var credentials = await ConnectionSshCredentialResolver.ResolveAsync(connection, secrets, cancellationToken)
+            ?? throw new InvalidOperationException("SSH credentials unavailable for connection.");
+
+        return await RollbackAsync(new TraefikApplyRequest(
+            connectionId,
+            credentials.Settings.Host,
+            credentials.Settings.Port,
+            credentials.Settings.Username,
+            credentials.AuthMode,
+            credentials.Password,
+            credentials.PrivateKeyPem,
+            credentials.PrivateKeyPassphrase), cancellationToken);
+    }
+
+    public async Task<TraefikDetectExistingResponse> DetectExistingAsync(
+        Guid connectionId,
+        CancellationToken cancellationToken = default)
+    {
+        var connection = await db.Connections.SingleOrDefaultAsync(x => x.Id == connectionId, cancellationToken)
+            ?? throw new InvalidOperationException("Connection not found.");
+        var credentials = await ConnectionSshCredentialResolver.ResolveAsync(connection, secrets, cancellationToken)
+            ?? throw new InvalidOperationException("SSH credentials unavailable for connection.");
+        var state = await db.TraefikHostStates.SingleOrDefaultAsync(x => x.ConnectionId == connectionId, cancellationToken);
+        var remotePath = state?.StaticConfigPath ?? "/etc/hashi/traefik/traefik.yml";
+        var settings = new Hashi.Core.Connections.SshConnectionSettings(
+            credentials.Settings.Host,
+            credentials.Settings.Port <= 0 ? 22 : credentials.Settings.Port,
+            credentials.Settings.Username,
+            Hashi.Core.Connections.OsFamily.Unknown,
+            null,
+            null);
+        var read = await ssh.ReadFileAsync(
+            settings,
+            credentials.AuthMode,
+            credentials.Password,
+            credentials.PrivateKeyPem,
+            credentials.PrivateKeyPassphrase,
+            remotePath,
+            cancellationToken);
+
+        if (!read.Succeeded || read.Content is null || read.Content.Length == 0)
+        {
+            return new TraefikDetectExistingResponse(false, null, remotePath);
+        }
+
+        var text = System.Text.Encoding.UTF8.GetString(read.Content);
+        var preview = text.Length > 500 ? text[..500] + "..." : text;
+        return new TraefikDetectExistingResponse(true, preview, remotePath);
+    }
+
+    public async Task<TraefikApplyResponse> ApplyForConnectionInternalAsync(Guid connectionId, CancellationToken cancellationToken = default)
     {
         var connection = await db.Connections.SingleOrDefaultAsync(x => x.Id == connectionId, cancellationToken)
             ?? throw new InvalidOperationException("Connection not found.");
