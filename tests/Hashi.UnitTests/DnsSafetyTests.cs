@@ -31,6 +31,18 @@ public sealed class DnsSafetyRulesTests
         Assert.DoesNotContain(plan, x => x.Type == DnsRecordType.Ns && x.Kind == DnsChangeKind.Delete);
     }
 
+    [Theory]
+    [InlineData(DnsRecordType.Ns)]
+    [InlineData(DnsRecordType.Soa)]
+    public void Protected_types_cannot_be_updated(DnsRecordType type)
+    {
+        var record = new DnsRecordSnapshot("1", "@", type, "old", 3600, true);
+        var change = new DnsPlanChange(DnsChangeKind.Update, record.Name, record.Type, record.Value, "new", record.Ttl, "update");
+        var guarded = DnsSafetyRules.GuardChange(change);
+        Assert.NotNull(guarded);
+        Assert.Equal(DnsChangeKind.NoOp, guarded!.Kind);
+    }
+
     [Fact]
     public void Planner_creates_missing_managed_records()
     {
