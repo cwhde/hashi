@@ -3,15 +3,6 @@ name: CI
 on:
   push:
     branches: [main, feat/v2-foundation]
-    paths:
-      - 'src/**'
-      - 'tests/**'
-      - 'web/**'
-      - 'openapi/**'
-      - 'scripts/**'
-      - 'Hashi.slnx'
-      - 'Directory.Build.props'
-      - '.gitea/workflows/ci.yml'
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -25,7 +16,60 @@ env:
   DOTNET_NOLOGO: true
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      openapi: ${{ steps.filter.outputs.openapi }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: filter
+        shell: bash
+        run: |
+          set -euo pipefail
+          backend=false
+          frontend=false
+          openapi=false
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            backend=true
+            frontend=true
+            openapi=true
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            backend=true
+            frontend=true
+            openapi=true
+          else
+            base="${{ github.event.before }}"
+            if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+              base=HEAD~1
+            fi
+            files="$(git diff --name-only "$base" HEAD 2>/dev/null || git show --pretty='' --name-only HEAD)"
+            echo "Changed files:"
+            echo "$files"
+
+            if echo "$files" | grep -qE '^(src/|tests/|Hashi\.slnx|Directory\.Build\.props|\.gitea/workflows/ci\.yml)'; then
+              backend=true
+            fi
+            if echo "$files" | grep -qE '^(web/|\.gitea/workflows/ci\.yml)'; then
+              frontend=true
+            fi
+            if echo "$files" | grep -qE '^(src/|openapi/|scripts/|web/src/lib/api/|\.gitea/workflows/ci\.yml)'; then
+              openapi=true
+            fi
+          fi
+
+          echo "backend=$backend" >> "$GITHUB_OUTPUT"
+          echo "frontend=$frontend" >> "$GITHUB_OUTPUT"
+          echo "openapi=$openapi" >> "$GITHUB_OUTPUT"
+
   backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -51,10 +95,16 @@ jobs:
           dotnet restore Hashi.slnx
           dotnet format Hashi.slnx --verify-no-changes
           dotnet test tests/Hashi.UnitTests/Hashi.UnitTests.csproj --no-restore --verbosity normal
-          dotnet test tests/Hashi.IntegrationTests/Hashi.IntegrationTests.csproj --no-restore --verbosity normal
+          if [ -S /var/run/docker.sock ]; then
+            dotnet test tests/Hashi.IntegrationTests/Hashi.IntegrationTests.csproj --no-restore --verbosity normal
+          else
+            echo "Docker socket unavailable — skipping Testcontainers integration tests."
+          fi
           dotnet build src/Hashi.Api/Hashi.Api.csproj -c Release --no-restore /p:SkipFrontendBuild=true
 
   openapi-verify:
+    needs: changes
+    if: needs.changes.outputs.openapi == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -83,6 +133,8 @@ jobs:
           git diff --exit-code openapi/hashi.json web/src/lib/api/schema.d.ts
 
   frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
