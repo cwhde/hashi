@@ -64,7 +64,17 @@ public static class TraefikEndpoints
         group.MapGet("/render", async (TraefikPlatformService traefik, CancellationToken ct) =>
         {
             var result = await traefik.RenderAsync(ct);
-            return TypedResults.Ok(new TraefikRenderResponse(result.StaticConfigYaml, result.DynamicHttpYaml, result.ContentHash));
+            return TypedResults.Ok(new TraefikRenderResponse(
+                result.StaticConfigYaml,
+                result.DynamicFiles.HttpResourcesYaml,
+                result.ContentHash,
+                new TraefikDynamicFilesResponse(
+                    result.DynamicFiles.CoreYaml,
+                    result.DynamicFiles.HttpResourcesYaml,
+                    result.DynamicFiles.StreamResourcesYaml,
+                    result.DynamicFiles.UserMiddlewaresYaml,
+                    result.DynamicFiles.SecurityYaml,
+                    result.DynamicFiles.HealthYaml)));
         });
         group.MapPost("/apply", async Task<IResult> (TraefikApplyRequest request, TraefikSyncService sync, CancellationToken ct) =>
         {
@@ -157,13 +167,79 @@ public static class EdgeAuthEndpoints
         app.MapGet("/api/edge-auth/forward", async Task<IResult> (HttpContext ctx, EdgeAuthService edgeAuth, CancellationToken ct) =>
         {
             var host = ctx.Request.Headers["X-Forwarded-Host"].FirstOrDefault() ?? ctx.Request.Host.Value ?? string.Empty;
-            var path = ctx.Request.Path.Value ?? "/";
+            var path = ctx.Request.Headers["X-Forwarded-Uri"].FirstOrDefault()
+                ?? ctx.Request.Headers["X-Original-URL"].FirstOrDefault()
+                ?? ctx.Request.Path.Value
+                ?? "/";
             var clientIp = ctx.Connection.RemoteIpAddress ?? System.Net.IPAddress.Loopback;
             var country = ctx.Request.Headers["X-Geo-Country"].FirstOrDefault();
             var asn = ctx.Request.Headers["X-Geo-Asn"].FirstOrDefault();
-            var result = await edgeAuth.EvaluateForwardAsync(host, path, clientIp, country, asn, ct);
-            return TypedResults.Ok(result);
+            var result = await edgeAuth.EvaluateForwardAsync(host, path, clientIp, country, asn, ctx.Request.Cookies["hashi.edge.session"], ct);
+
+            return result.Decision switch
+            {
+                "allow" => TypedResults.StatusCode(StatusCodes.Status204NoContent),
+                "deny" => TypedResults.StatusCode(StatusCodes.Status403Forbidden),
+                "redirect" or "challenge" => TypedResults.Redirect(result.RedirectUrl ?? "/api/edge-auth/login"),
+                _ => TypedResults.StatusCode(StatusCodes.Status401Unauthorized),
+            };
         }).WithTags("EdgeAuth").AllowAnonymous();
+
+        app.MapGet("/api/edge-auth/login", async Task<IResult> (
+            HttpContext ctx,
+            Guid? providerId,
+            string? returnUrl,
+            OidcEdgeAuthService oidc,
+            CancellationToken ct) =>
+        {
+            var providers = await oidc.ListProvidersAsync(ct);
+            var provider = providerId is Guid id
+                ? providers.FirstOrDefault(x => x.Id == id)
+                : providers.FirstOrDefault();
+            if (provider is null)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse("No enabled OIDC provider configured."));
+            }
+
+            var redirect = oidc.BuildLoginRedirectUri(ctx, provider.Id, returnUrl ?? "/");
+            return TypedResults.Redirect($"https://{new Uri(provider.Issuer).Host}/oauth/authorize?client_id={provider.ClientId}&redirect_uri={Uri.EscapeDataString(redirect)}&response_type=code&scope={Uri.EscapeDataString(provider.Scopes)}");
+        }).WithTags("EdgeAuth").AllowAnonymous();
+
+        app.MapGet("/api/edge-auth/callback", async Task<IResult> (
+            HttpContext ctx,
+            string? code,
+            string? returnUrl,
+            CancellationToken ct) =>
+        {
+            if (string.IsNullOrWhiteSpace(code))
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse("Missing authorization code."));
+            }
+
+            var sessionKey = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(code))).ToLowerInvariant();
+            EdgeSessionStore.Set(sessionKey, new EdgeSessionState("edge-user", DateTimeOffset.UtcNow.AddHours(8)));
+            ctx.Response.Cookies.Append("hashi.edge.session", sessionKey, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = ctx.Request.IsHttps,
+                SameSite = SameSiteMode.Lax,
+                Domain = ctx.Request.Host.Host.StartsWith('.') ? ctx.Request.Host.Host : $".{ctx.Request.Host.Host}",
+                Expires = DateTimeOffset.UtcNow.AddHours(8),
+            });
+            return TypedResults.Redirect(returnUrl ?? "/");
+        }).WithTags("EdgeAuth").AllowAnonymous();
+
+        app.MapPost("/api/edge-auth/logout", (HttpContext ctx) =>
+        {
+            var sessionKey = ctx.Request.Cookies["hashi.edge.session"];
+            if (!string.IsNullOrWhiteSpace(sessionKey))
+            {
+                ctx.Response.Cookies.Delete("hashi.edge.session");
+            }
+
+            return TypedResults.Ok(new { loggedOut = true });
+        }).WithTags("EdgeAuth").AllowAnonymous();
+
         return app;
     }
 }
@@ -207,10 +283,15 @@ public static class PulseEndpoints
         group.MapPost("/{agentId:guid}/heartbeat", async Task<IResult> (
             Guid agentId,
             PulseHeartbeatAuthRequest request,
+            HttpContext ctx,
             PulseAgentService pulse,
             CancellationToken ct) =>
         {
-            var accepted = await pulse.AcceptHeartbeatAsync(agentId, request, ct);
+            var accepted = await pulse.AcceptHeartbeatAsync(
+                agentId,
+                request,
+                ctx.Connection.RemoteIpAddress?.ToString(),
+                ct);
             return accepted ? TypedResults.Ok(new { accepted = true }) : TypedResults.Unauthorized();
         }).AllowAnonymous();
         return app;

@@ -34,7 +34,19 @@ public sealed record UpdateResourceRequest(
     bool? DashboardEnabled,
     bool? StatusEnabled);
 
-public sealed record TraefikRenderResponse(string StaticConfigYaml, string DynamicHttpYaml, string ContentHash);
+public sealed record TraefikDynamicFilesResponse(
+    string CoreYaml,
+    string HttpResourcesYaml,
+    string StreamResourcesYaml,
+    string UserMiddlewaresYaml,
+    string SecurityYaml,
+    string HealthYaml);
+
+public sealed record TraefikRenderResponse(
+    string StaticConfigYaml,
+    string DynamicHttpYaml,
+    string ContentHash,
+    TraefikDynamicFilesResponse? DynamicFiles = null);
 
 public sealed record TraefikApplyRequest(
     Guid ConnectionId,

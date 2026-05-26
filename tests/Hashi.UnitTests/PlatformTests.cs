@@ -16,7 +16,7 @@ public sealed class TraefikConfigRendererTests
         var first = TraefikConfigRenderer.Render(resources);
         var second = TraefikConfigRenderer.Render(resources);
         Assert.Equal(first.ContentHash, second.ContentHash);
-        Assert.Contains("hashi.example.com", second.DynamicHttpYaml);
+        Assert.Contains("hashi.example.com", second.DynamicFiles.HttpResourcesYaml);
     }
 }
 

@@ -125,7 +125,7 @@ public sealed class ResourceService(HashiDbContext db, AuditService audit)
         entity.StatusEnabled);
 }
 
-public sealed class TraefikPlatformService(HashiDbContext db)
+public sealed class TraefikPlatformService(HashiDbContext db, AppSettingsService settings)
 {
     public async Task<TraefikRenderResult> RenderAsync(CancellationToken cancellationToken = default)
     {
@@ -133,7 +133,9 @@ public sealed class TraefikPlatformService(HashiDbContext db)
         var defs = resources.Select(x => new ResourceDefinition(
             x.Id, x.Name, x.Slug, Enum.Parse<ResourceKind>(x.Kind, ignoreCase: true),
             x.Enabled, x.IsSystem, x.Domain, x.TargetScheme, x.TargetHost, x.TargetPort)).ToList();
-        return TraefikConfigRenderer.Render(defs);
+        var appSettings = await settings.GetOrCreateAsync(cancellationToken);
+        var options = new TraefikRenderOptions(AdminDomain: appSettings.AdminDomain ?? "hashi.local");
+        return TraefikConfigRenderer.Render(defs, options);
     }
 }
 

@@ -1,5 +1,6 @@
 using Hashi.Contracts.Api;
 using Hashi.Core.Connections;
+using Hashi.Core.Traefik;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
 using Hashi.Infrastructure.Services;
@@ -10,11 +11,24 @@ namespace Hashi.Infrastructure.Platform;
 public sealed class TraefikSyncService(
     HashiDbContext db,
     ISshRemoteExecutor ssh,
+    TraefikPlatformService traefik,
     AuditService audit)
 {
+    private const string DynamicDirectory = "/etc/hashi/traefik/dynamic";
+
+    private static readonly (string FileName, Func<TraefikDynamicFiles, string> Selector)[] DynamicFileMap =
+    [
+        ("00-hashi-core.yml", f => f.CoreYaml),
+        ("10-hashi-http-resources.yml", f => f.HttpResourcesYaml),
+        ("20-hashi-stream-resources.yml", f => f.StreamResourcesYaml),
+        ("30-user-middlewares.yml", f => f.UserMiddlewaresYaml),
+        ("40-hashi-security.yml", f => f.SecurityYaml),
+        ("90-hashi-health.yml", f => f.HealthYaml),
+    ];
+
     public async Task<TraefikApplyResponse> ApplyAsync(TraefikApplyRequest request, CancellationToken cancellationToken = default)
     {
-        var render = await RenderCurrentAsync(cancellationToken);
+        var render = await traefik.RenderAsync(cancellationToken);
         var state = await db.TraefikHostStates.SingleOrDefaultAsync(x => x.ConnectionId == request.ConnectionId, cancellationToken);
         var isNew = state is null;
         state ??= CreateDefaultState(request.ConnectionId);
@@ -26,7 +40,6 @@ public sealed class TraefikSyncService(
 
         var settings = BuildSettings(request);
         var staticBytes = System.Text.Encoding.UTF8.GetBytes(render.StaticConfigYaml);
-        var dynamicBytes = System.Text.Encoding.UTF8.GetBytes(render.DynamicHttpYaml);
 
         var staticBackup = await ssh.ReadFileAsync(
             settings, request.AuthMode, request.Password, request.PrivateKeyPem, request.PrivateKeyPassphrase,
@@ -36,17 +49,9 @@ public sealed class TraefikSyncService(
             state.LastBackupStaticYaml = System.Text.Encoding.UTF8.GetString(staticBackup.Content);
         }
 
-        var dynamicBackup = await ssh.ReadFileAsync(
-            settings, request.AuthMode, request.Password, request.PrivateKeyPem, request.PrivateKeyPassphrase,
-            state.DynamicConfigPath, cancellationToken);
-        if (dynamicBackup.Succeeded && dynamicBackup.Content is not null)
-        {
-            state.LastBackupDynamicYaml = System.Text.Encoding.UTF8.GetString(dynamicBackup.Content);
-        }
-
         await ssh.RunCommandAsync(
             settings, request.AuthMode, request.Password, request.PrivateKeyPem, request.PrivateKeyPassphrase,
-            $"mkdir -p $(dirname {Quote(state.StaticConfigPath)}) $(dirname {Quote(state.DynamicConfigPath)})",
+            $"mkdir -p $(dirname {Quote(state.StaticConfigPath)}) {Quote(DynamicDirectory)}",
             cancellationToken);
 
         var staticWrite = await WriteAsync(settings, request, state.StaticConfigPath, staticBytes, cancellationToken);
@@ -55,14 +60,20 @@ public sealed class TraefikSyncService(
             return new TraefikApplyResponse(false, render.ContentHash, false, staticWrite.Error);
         }
 
-        var dynamicWrite = await WriteAsync(settings, request, state.DynamicConfigPath, dynamicBytes, cancellationToken);
-        if (!dynamicWrite.Succeeded)
+        foreach (var (fileName, selector) in DynamicFileMap)
         {
-            return new TraefikApplyResponse(false, render.ContentHash, false, dynamicWrite.Error);
+            var path = $"{DynamicDirectory}/{fileName}";
+            var content = System.Text.Encoding.UTF8.GetBytes(selector(render.DynamicFiles));
+            var write = await WriteAsync(settings, request, path, content, cancellationToken);
+            if (!write.Succeeded)
+            {
+                return new TraefikApplyResponse(false, render.ContentHash, false, write.Error);
+            }
         }
 
         state.LastAppliedContentHash = render.ContentHash;
         state.LastAppliedAtUtc = DateTimeOffset.UtcNow;
+        state.DynamicConfigPath = $"{DynamicDirectory}/10-hashi-http-resources.yml";
         if (isNew)
         {
             db.TraefikHostStates.Add(state);
@@ -102,15 +113,6 @@ public sealed class TraefikSyncService(
             installCommand,
             cancellationToken);
         return new TraefikInstallResponse(result.Succeeded, result.Error);
-    }
-
-    private async Task<Hashi.Core.Traefik.TraefikRenderResult> RenderCurrentAsync(CancellationToken cancellationToken)
-    {
-        var resources = await db.Resources.AsNoTracking().ToListAsync(cancellationToken);
-        var defs = resources.Select(x => new Hashi.Core.Resources.ResourceDefinition(
-            x.Id, x.Name, x.Slug, Enum.Parse<Hashi.Core.Resources.ResourceKind>(x.Kind, ignoreCase: true),
-            x.Enabled, x.IsSystem, x.Domain, x.TargetScheme, x.TargetHost, x.TargetPort)).ToList();
-        return Hashi.Core.Traefik.TraefikConfigRenderer.Render(defs);
     }
 
     private async Task<Hashi.Core.Connections.RemoteWriteResult> WriteAsync(
