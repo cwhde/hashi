@@ -2,52 +2,47 @@ using System.Net;
 using System.Net.Http.Json;
 using Hashi.Contracts.Api;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Testcontainers.PostgreSql;
 using Xunit;
 
 namespace Hashi.IntegrationTests;
 
 public sealed class SetupPersistenceTests : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder()
-        .WithImage("postgres:18")
-        .WithDatabase("hashi")
-        .WithUsername("hashi")
-        .WithPassword("hashi")
-        .Build();
-
-    private WebApplicationFactory<Program> _factory = null!;
-    private HttpClient _client = null!;
-    private bool _dockerUnavailable;
+    private readonly IntegrationTestPostgres _postgres = new();
+    private WebApplicationFactory<Program>? _factory;
+    private HttpClient? _client;
 
     public async Task InitializeAsync()
     {
-        if (!File.Exists("/var/run/docker.sock"))
+        await _postgres.StartAsync();
+        if (!_postgres.IsAvailable)
         {
-            _dockerUnavailable = true;
             return;
         }
 
-        await _postgres.StartAsync();
         _factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
-                builder.UseSetting("ConnectionStrings:Hashi", _postgres.GetConnectionString());
+                builder.UseSetting("ConnectionStrings:Hashi", _postgres.ConnectionString);
             });
         _client = _factory.CreateClient();
     }
 
     public async Task DisposeAsync()
     {
-        _client.Dispose();
-        await _factory.DisposeAsync();
+        _client?.Dispose();
+        if (_factory is not null)
+        {
+            await _factory.DisposeAsync();
+        }
+
         await _postgres.DisposeAsync();
     }
 
     [Fact]
     public async Task Setup_status_persists_and_resumes_after_step_completion()
     {
-        if (_dockerUnavailable)
+        if (!_postgres.IsAvailable || _client is null)
         {
             return;
         }
@@ -65,11 +60,10 @@ public sealed class SetupPersistenceTests : IAsyncLifetime
         Assert.Contains("bootstrap-access", updated.CompletedSteps);
         Assert.Equal("base-settings", updated.CurrentStep);
 
-        // Simulate restart with a fresh client against the same database
         await using var factory2 = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
-                builder.UseSetting("ConnectionStrings:Hashi", _postgres.GetConnectionString());
+                builder.UseSetting("ConnectionStrings:Hashi", _postgres.ConnectionString);
             });
         using var client2 = factory2.CreateClient();
         var resumed = await client2.GetFromJsonAsync<SetupStatusResponse>("/api/setup/status");
@@ -81,7 +75,7 @@ public sealed class SetupPersistenceTests : IAsyncLifetime
     [Fact]
     public async Task Audit_log_records_setup_actions()
     {
-        if (_dockerUnavailable)
+        if (!_postgres.IsAvailable || _client is null)
         {
             return;
         }

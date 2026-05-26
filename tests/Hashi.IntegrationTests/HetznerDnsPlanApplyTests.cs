@@ -1,5 +1,4 @@
 using System.Net.Http.Headers;
-using Hashi.Core.Auth;
 using Hashi.Core.Dns;
 using Hashi.Infrastructure.Auth;
 using Hashi.Infrastructure.Dns;
@@ -12,39 +11,30 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Testcontainers.PostgreSql;
 using Xunit;
 
 namespace Hashi.IntegrationTests;
 
 public sealed class HetznerDnsPlanApplyTests : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder()
-        .WithImage("postgres:18")
-        .WithDatabase("hashi")
-        .WithUsername("hashi")
-        .WithPassword("hashi")
-        .Build();
-
+    private readonly IntegrationTestPostgres _postgres = new();
     private readonly HetznerDnsFakeHandler _fake = new();
-    private ServiceProvider _services = null!;
-    private bool _dockerUnavailable;
+    private ServiceProvider? _services;
 
     public async Task InitializeAsync()
     {
-        if (!File.Exists("/var/run/docker.sock"))
+        await _postgres.StartAsync();
+        if (!_postgres.IsAvailable)
         {
-            _dockerUnavailable = true;
             return;
         }
 
-        await _postgres.StartAsync();
         var fakeClient = new HttpClient(_fake) { BaseAddress = new Uri("https://dns.fake/api/v1/") };
         fakeClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
         _services = new ServiceCollection()
             .AddDbContext<HashiDbContext>(options =>
-                options.UseNpgsql(_postgres.GetConnectionString(), npgsql =>
+                options.UseNpgsql(_postgres.ConnectionString, npgsql =>
                     npgsql.MigrationsAssembly(typeof(HashiDbContext).Assembly.FullName)))
             .AddSingleton<VaultSessionState>()
             .AddSingleton<ServiceSyncVaultState>()
@@ -80,7 +70,7 @@ public sealed class HetznerDnsPlanApplyTests : IAsyncLifetime
     [Fact]
     public async Task Plan_skips_ns_soa_deletes_and_apply_creates_managed_record()
     {
-        if (_dockerUnavailable)
+        if (!_postgres.IsAvailable || _services is null)
         {
             return;
         }
@@ -88,7 +78,6 @@ public sealed class HetznerDnsPlanApplyTests : IAsyncLifetime
         using var scope = _services.CreateScope();
         var dns = scope.ServiceProvider.GetRequiredService<DnsConnectionService>();
         var db = scope.ServiceProvider.GetRequiredService<HashiDbContext>();
-        var secrets = scope.ServiceProvider.GetRequiredService<SecretRecordService>();
 
         var connection = await dns.CreateHetznerConnectionAsync("Test DNS", "fake-token", "example.com", 3600);
         var zone = await db.DnsZones.SingleAsync(x => x.ConnectionId == connection.Id);

@@ -65,7 +65,7 @@ jobs:
             if echo "$files" | grep -qE '^(src/|openapi/|scripts/|web/src/lib/api/|\.gitea/workflows/ci\.yml)'; then
               openapi=true
             fi
-            if echo "$files" | grep -qE '^agents/'; then
+            if echo "$files" | grep -qE '^(agents/|\.gitea/workflows/ci\.yml)'; then
               agents=true
             fi
           fi
@@ -154,11 +154,12 @@ jobs:
         with:
           go-version: '1.22.x'
 
-      - name: Build and test Pulse agent
+      - name: Build, test, and verify Docker image
         run: |
           make vet
           make test
           make build
+          docker build -t hashi-pulse:ci .
 
   frontend:
     needs: changes

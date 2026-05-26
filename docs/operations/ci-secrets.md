@@ -6,20 +6,23 @@ Hashi workflows live in `.gitea/workflows/`. Gitea Actions secrets are configure
 
 | Workflow | Push | Pull request | Schedule | Manual |
 |----------|------|--------------|----------|--------|
-| `ci.yml` | `main`, `feat/v2-foundation` (code paths only) | → `main` | — | `workflow_dispatch` |
+| `ci.yml` | `main`, `feat/v2-foundation` | → `main` | — | `workflow_dispatch` |
 | `security.yml` | `main` only | → `main` | Weekly Mon 06:00 UTC | `workflow_dispatch` |
-| `docker-build.yml` | `main` + tags `v*.*.*` (code paths) | — | — | `workflow_dispatch` |
+| `docker-build.yml` | `main` + tags `v*.*.*` | — | — | `workflow_dispatch` |
+| `docker-build-pulse.yml` | `main` + tags `v*.*.*` or `pulse-v*.*.*` | — | — | `workflow_dispatch` |
 
-**Feature branch pushes** run **CI only** (backend, frontend, OpenAPI verify). They do **not** run Security scans or Docker builds on every commit — this keeps runner usage low during development.
+**Feature branch pushes** run **only the CI jobs whose paths changed** (backend, frontend, openapi-verify, pulse-agent). They do **not** run Security scans or Docker image publish on every commit.
 
-**Release images:** push a semver tag (`v1.0.0`) or merge to `main` with relevant path changes, or use **Actions → Run workflow** on `docker-build.yml`.
+Integration tests use Testcontainers when Docker is available; they skip gracefully when the daemon is missing or misconfigured.
+
+**Release images:** push a semver tag (`v1.0.0`) or merge to `main`, or use **Actions → Run workflow**. Main app image: `git.juzo.io/juzo/hashi`. Pulse agent: `git.juzo.io/juzo/hashi-pulse`.
 
 ## Repository secrets (required for Docker publish)
 
 | Secret | Used in | Purpose |
 |--------|---------|---------|
-| `REGISTRY_USERNAME` | `docker-build.yml` | Login to `git.juzo.io` container registry |
-| `REGISTRY_PASSWORD` | `docker-build.yml` | Registry password or token |
+| `REGISTRY_USERNAME` | `docker-build.yml`, `docker-build-pulse.yml` | Login to `git.juzo.io` container registry |
+| `REGISTRY_PASSWORD` | `docker-build.yml`, `docker-build-pulse.yml` | Registry password or token |
 
 `docker-build` fails at login if either secret is missing.
 

@@ -3,42 +3,32 @@ using Hashi.Core.Auth;
 using Hashi.Infrastructure.Auth;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
-using Hashi.Infrastructure.Platform;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Testcontainers.PostgreSql;
 using Xunit;
 
 namespace Hashi.IntegrationTests;
 
 public sealed class EdgeAuthOidcTests : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder()
-        .WithImage("postgres:18")
-        .WithDatabase("hashi")
-        .WithUsername("hashi")
-        .WithPassword("hashi")
-        .Build();
-
-    private WebApplicationFactory<Program> _factory = null!;
-    private HttpClient _client = null!;
-    private bool _dockerUnavailable;
+    private readonly IntegrationTestPostgres _postgres = new();
+    private WebApplicationFactory<Program>? _factory;
+    private HttpClient? _client;
 
     public async Task InitializeAsync()
     {
-        if (!File.Exists("/var/run/docker.sock"))
+        await _postgres.StartAsync();
+        if (!_postgres.IsAvailable)
         {
-            _dockerUnavailable = true;
             return;
         }
 
         Environment.SetEnvironmentVariable("HASHI_SKIP_STARTUP_HOOKS", "1");
-        await _postgres.StartAsync();
         _factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
-                builder.UseSetting("ConnectionStrings:Hashi", _postgres.GetConnectionString());
+                builder.UseSetting("ConnectionStrings:Hashi", _postgres.ConnectionString);
                 builder.UseSetting("Hashi:SkipStartupHooks", "true");
             });
         _client = _factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = true });
@@ -66,15 +56,19 @@ public sealed class EdgeAuthOidcTests : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
-        _client.Dispose();
-        await _factory.DisposeAsync();
+        _client?.Dispose();
+        if (_factory is not null)
+        {
+            await _factory.DisposeAsync();
+        }
+
         await _postgres.DisposeAsync();
     }
 
     [Fact]
     public async Task Callback_stores_session_and_forward_auth_allows()
     {
-        if (_dockerUnavailable)
+        if (!_postgres.IsAvailable || _factory is null || _client is null)
         {
             return;
         }

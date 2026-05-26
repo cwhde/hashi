@@ -4,38 +4,29 @@ using Hashi.Contracts.Api;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Testcontainers.PostgreSql;
 using Xunit;
 
 namespace Hashi.IntegrationTests;
 
 public sealed class EndToEndPlatformTests : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder()
-        .WithImage("postgres:18")
-        .WithDatabase("hashi")
-        .WithUsername("hashi")
-        .WithPassword("hashi")
-        .Build();
-
-    private WebApplicationFactory<Program> _factory = null!;
-    private HttpClient _client = null!;
-    private bool _dockerUnavailable;
+    private readonly IntegrationTestPostgres _postgres = new();
+    private WebApplicationFactory<Program>? _factory;
+    private HttpClient? _client;
 
     public async Task InitializeAsync()
     {
-        if (!File.Exists("/var/run/docker.sock"))
+        await _postgres.StartAsync();
+        if (!_postgres.IsAvailable)
         {
-            _dockerUnavailable = true;
             return;
         }
 
         Environment.SetEnvironmentVariable("HASHI_SKIP_STARTUP_HOOKS", "1");
-        await _postgres.StartAsync();
         _factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
-                builder.UseSetting("ConnectionStrings:Hashi", _postgres.GetConnectionString());
+                builder.UseSetting("ConnectionStrings:Hashi", _postgres.ConnectionString);
                 builder.UseSetting("Hashi:SkipStartupHooks", "true");
             });
         _client = _factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = true });
@@ -49,15 +40,19 @@ public sealed class EndToEndPlatformTests : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
-        _client.Dispose();
-        await _factory.DisposeAsync();
+        _client?.Dispose();
+        if (_factory is not null)
+        {
+            await _factory.DisposeAsync();
+        }
+
         await _postgres.DisposeAsync();
     }
 
     [Fact]
     public async Task Setup_advances_and_resource_crud_works()
     {
-        if (_dockerUnavailable)
+        if (!_postgres.IsAvailable || _client is null)
         {
             return;
         }
@@ -91,7 +86,7 @@ public sealed class EndToEndPlatformTests : IAsyncLifetime
     [Fact]
     public async Task Security_dashboard_returns_metrics_shape()
     {
-        if (_dockerUnavailable)
+        if (!_postgres.IsAvailable || _client is null)
         {
             return;
         }
@@ -104,7 +99,7 @@ public sealed class EndToEndPlatformTests : IAsyncLifetime
     [Fact]
     public async Task Sync_plan_endpoint_returns_preview()
     {
-        if (_dockerUnavailable)
+        if (!_postgres.IsAvailable || _client is null)
         {
             return;
         }
