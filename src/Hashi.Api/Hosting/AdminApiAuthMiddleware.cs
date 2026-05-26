@@ -71,7 +71,7 @@ public sealed class AdminApiAuthMiddleware(RequestDelegate next)
         await next(context);
     }
 
-    internal static bool RequiresReauthentication(PathString path, string method)
+    public static bool RequiresReauthentication(PathString path, string method)
     {
         var value = path.Value ?? string.Empty;
         if (!IsUnsafeMethod(method))
@@ -84,7 +84,50 @@ public sealed class AdminApiAuthMiddleware(RequestDelegate next)
             return true;
         }
 
+        if (value.StartsWith("/api/vault/lock", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
         if (value.StartsWith("/api/scripts", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (value.StartsWith("/api/connections", StringComparison.OrdinalIgnoreCase)
+            && method.Equals(HttpMethods.Post, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (value.StartsWith("/api/dns/connections", StringComparison.OrdinalIgnoreCase)
+            && method.Equals(HttpMethods.Post, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (value.StartsWith("/api/settings", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (value.StartsWith("/api/pulse/agents", StringComparison.OrdinalIgnoreCase)
+            && method.Equals(HttpMethods.Post, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (value.StartsWith("/api/notifications", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (value.StartsWith("/api/adguard", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (value.StartsWith("/api/security/blocklist", StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }

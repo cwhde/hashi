@@ -15,6 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Hashi.Api\Hashi.Api.csproj" />
     <ProjectReference Include="..\..\src\Hashi.Core\Hashi.Core.csproj" />
     <ProjectReference Include="..\..\src\Hashi.Infrastructure\Hashi.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Hashi.Contracts\Hashi.Contracts.csproj" />
