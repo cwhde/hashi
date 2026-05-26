@@ -35,7 +35,9 @@ public sealed class FirewallHostEntity
 
     public string InternalTraefikIp { get; set; } = string.Empty;
 
-    public string ScriptPath { get; set; } = "/etc/hashi/firewall/hashi-firewall.sh";
+    public string? PublicIp { get; set; }
+
+    public string ScriptPath { get; set; } = "/opt/hashi/firewall/hashi-firewall.sh";
 
     public bool NetBirdDetected { get; set; }
 

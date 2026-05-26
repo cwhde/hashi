@@ -1,4 +1,6 @@
+using Hashi.Core.Auth;
 using Hashi.Core.Connections;
+using Hashi.Infrastructure.Auth;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
 using Hashi.Infrastructure.Services;
@@ -9,6 +11,7 @@ namespace Hashi.Infrastructure.Connections;
 public sealed class SshConnectionService(
     HashiDbContext db,
     ISshRemoteExecutor ssh,
+    SecretRecordService secrets,
     AuditService audit)
 {
     public async Task<ConnectionEntity> CreateAsync(
@@ -36,6 +39,16 @@ public sealed class SshConnectionService(
             }),
         };
         db.Connections.Add(connection);
+
+        var credentialPayload = ConnectionSshCredentialResolver.SerializeCredentialPayload(
+            authMode, password, privateKeyPem, privateKeyPassphrase);
+        var secret = await secrets.StoreAsync(
+            SecretPurpose.SshCredential,
+            $"SSH: {name}",
+            credentialPayload,
+            cancellationToken);
+        connection.SecretId = secret.Id;
+
         await db.SaveChangesAsync(cancellationToken);
         await audit.WriteAsync("connections", "ssh_connection_created", subjectType: "connection", subjectId: connection.Id.ToString(), cancellationToken: cancellationToken);
         return connection;
@@ -128,15 +141,5 @@ public sealed class SshConnectionService(
     }
 
     private static SshConnectionSettings ParseSettings(ConnectionEntity connection)
-    {
-        using var doc = System.Text.Json.JsonDocument.Parse(connection.SettingsJson);
-        var root = doc.RootElement;
-        return new SshConnectionSettings(
-            root.GetProperty("Host").GetString() ?? string.Empty,
-            root.TryGetProperty("Port", out var port) ? port.GetInt32() : 22,
-            root.GetProperty("Username").GetString() ?? string.Empty,
-            OsFamily.Unknown,
-            root.TryGetProperty("ConfigPath", out var configPath) ? configPath.GetString() : null,
-            root.TryGetProperty("DynamicPath", out var dynamicPath) ? dynamicPath.GetString() : null);
-    }
+        => ConnectionSshCredentialResolver.ParseSettings(connection);
 }

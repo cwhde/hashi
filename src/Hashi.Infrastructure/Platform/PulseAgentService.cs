@@ -68,7 +68,11 @@ public sealed class PulseAgentService(HashiDbContext db)
         var settings = await db.AppSettings.SingleOrDefaultAsync(cancellationToken);
         var rootDomain = settings?.RootDomain ?? "local";
         var hosts = await db.FirewallHosts.AsNoTracking().ToListAsync(cancellationToken);
-        var hostTargets = hosts.Select(h => new FirewallHostDnsTarget(h.Name, h.InternalTraefikIp)).ToList();
+        var hostTargets = hosts.Select(h => new FirewallHostDnsTarget(
+            h.Id,
+            h.Name,
+            h.PublicIp ?? h.InternalTraefikIp,
+            null)).ToList();
         var records = DnsRecordGenerator.GenerateResourceRecords(
             new ResourceDnsTarget(agent.Name, ResourceSlug.Normalize(agent.Name), rootDomain, null, publicIp, new PulseDnsTarget(agent.Id, publicIp, internalIp)),
             hostTargets);

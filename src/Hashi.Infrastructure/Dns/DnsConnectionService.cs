@@ -163,16 +163,7 @@ public sealed class DnsConnectionService(
         var zone = await GetZoneAsync(connection.Id, cancellationToken);
         var provider = await CreateProviderAsync(connection, cancellationToken);
         var current = await provider.ListRecordsAsync(zone.ProviderZoneId, cancellationToken);
-        var desired = await db.DnsRecords
-            .Where(x => x.ZoneId == zone.Id && x.Enabled)
-            .Select(x => new DnsRecordSnapshot(
-                x.ProviderRecordId,
-                x.Name,
-                DnsRecordTypeMapping.Parse(x.Type),
-                x.Value,
-                x.Ttl,
-                true))
-            .ToListAsync(cancellationToken);
+        var desired = await DnsDesiredStateBuilder.BuildAsync(db, zone.Id, zone.DefaultTtl, cancellationToken);
 
         var changes = DnsPlanner.BuildPlan(current, desired);
         var requiresConfirmation = changes.Any(x => x.Kind == DnsChangeKind.Delete);

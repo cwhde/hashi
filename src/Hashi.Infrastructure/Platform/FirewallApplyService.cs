@@ -4,6 +4,8 @@ using System.Text.Json;
 using Hashi.Contracts.Api;
 using Hashi.Core.Connections;
 using Hashi.Core.Firewall;
+using Hashi.Infrastructure.Auth;
+using Hashi.Infrastructure.Connections;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
 using Hashi.Infrastructure.Services;
@@ -14,6 +16,7 @@ namespace Hashi.Infrastructure.Platform;
 public sealed class FirewallApplyService(
     HashiDbContext db,
     ISshRemoteExecutor ssh,
+    SecretRecordService secrets,
     AuditService audit)
 {
     public async Task<FirewallApplyResponse> ApplyAsync(FirewallApplyRequest request, CancellationToken cancellationToken = default)
@@ -21,9 +24,81 @@ public sealed class FirewallApplyService(
         var host = await db.FirewallHosts.SingleOrDefaultAsync(x => x.Id == request.FirewallHostId, cancellationToken)
             ?? throw new InvalidOperationException("Firewall host not found.");
 
+        var definition = await BuildHostDefinitionAsync(host, cancellationToken);
+        return await ApplyDefinitionAsync(host, definition, request, cancellationToken);
+    }
+
+    public async Task<FirewallApplyResponse> ApplyForHostAsync(Guid firewallHostId, CancellationToken cancellationToken = default)
+    {
+        var host = await db.FirewallHosts.SingleOrDefaultAsync(x => x.Id == firewallHostId, cancellationToken)
+            ?? throw new InvalidOperationException("Firewall host not found.");
+        var connection = await db.Connections.SingleOrDefaultAsync(x => x.Id == host.ConnectionId, cancellationToken)
+            ?? throw new InvalidOperationException("Firewall connection not found.");
+        var credentials = await ConnectionSshCredentialResolver.ResolveAsync(connection, secrets, cancellationToken)
+            ?? throw new InvalidOperationException("SSH credentials unavailable for firewall host.");
+
+        var definition = await BuildHostDefinitionAsync(host, cancellationToken);
+        var request = new FirewallApplyRequest(
+            host.Id,
+            credentials.Settings.Host,
+            credentials.Settings.Port,
+            credentials.Settings.Username,
+            credentials.AuthMode,
+            credentials.Password,
+            credentials.PrivateKeyPem,
+            credentials.PrivateKeyPassphrase);
+        return await ApplyDefinitionAsync(host, definition, request, cancellationToken);
+    }
+
+    public async Task<FirewallHostDefinition> BuildHostDefinitionAsync(
+        FirewallHostEntity host,
+        CancellationToken cancellationToken = default)
+    {
         var subnets = JsonSerializer.Deserialize<List<string>>(host.ManagedSubnetsJson) ?? [];
-        var script = FirewallScriptRenderer.Render(new FirewallHostDefinition(
-            host.Id, host.Name, host.Domain, subnets, host.LinkedTraefikHost, host.InternalTraefikIp));
+        var blocked = await db.BlocklistEntries.AsNoTracking()
+            .Select(x => x.ClientIp)
+            .ToListAsync(cancellationToken);
+        var trustedHosts = await db.FirewallHosts.AsNoTracking()
+            .Where(x => !string.IsNullOrWhiteSpace(x.PublicIp))
+            .Select(x => x.PublicIp!)
+            .ToListAsync(cancellationToken);
+        var portForwards = await db.Resources.AsNoTracking()
+            .Where(x => x.Enabled && (x.Kind == "tcp" || x.Kind == "udp"))
+            .Select(x => new FirewallPortForward(x.Kind, x.TargetPort, host.InternalTraefikIp, x.TargetPort))
+            .ToListAsync(cancellationToken);
+
+        return new FirewallHostDefinition(
+            host.Id,
+            host.Name,
+            host.Domain,
+            subnets,
+            host.LinkedTraefikHost,
+            host.InternalTraefikIp,
+            host.PublicIp,
+            PortForwards: portForwards,
+            TrustedPublicIps: trustedHosts,
+            BlockedIps: blocked);
+    }
+
+    public async Task<(string Script, string ScriptHash)> RenderForHostAsync(
+        Guid firewallHostId,
+        CancellationToken cancellationToken = default)
+    {
+        var host = await db.FirewallHosts.SingleAsync(x => x.Id == firewallHostId, cancellationToken);
+        var definition = await BuildHostDefinitionAsync(host, cancellationToken);
+        var script = FirewallScriptRenderer.Render(definition);
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(script))).ToLowerInvariant();
+        return (script, hash);
+    }
+
+    private async Task<FirewallApplyResponse> ApplyDefinitionAsync(
+        FirewallHostEntity host,
+        FirewallHostDefinition definition,
+        FirewallApplyRequest request,
+        CancellationToken cancellationToken)
+    {
+        var script = FirewallScriptRenderer.Render(definition);
+        var envFile = FirewallScriptRenderer.RenderEnvFile(definition);
         var scriptHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(script))).ToLowerInvariant();
 
         if (string.Equals(host.LastAppliedScriptHash, scriptHash, StringComparison.Ordinal))
@@ -46,9 +121,10 @@ public sealed class FirewallApplyService(
             }
         }
 
+        var scriptDir = "/opt/hashi/firewall";
         await ssh.RunCommandAsync(
             settings, request.AuthMode, request.Password, request.PrivateKeyPem, request.PrivateKeyPassphrase,
-            $"mkdir -p $(dirname {Quote(host.ScriptPath)})",
+            $"mkdir -p {Quote(scriptDir)}",
             cancellationToken);
 
         var write = await WriteScriptAsync(settings, request, host.ScriptPath, script, cancellationToken);
@@ -56,6 +132,8 @@ public sealed class FirewallApplyService(
         {
             return new FirewallApplyResponse(false, false, netBird, write.Error);
         }
+
+        await WriteScriptAsync(settings, request, $"{scriptDir}/hashi-firewall.env", envFile, cancellationToken);
 
         var applyResult = await ssh.RunCommandAsync(
             settings, request.AuthMode, request.Password, request.PrivateKeyPem, request.PrivateKeyPassphrase,
@@ -97,6 +175,11 @@ public sealed class FirewallApplyService(
         host.ManagedSubnetsJson = JsonSerializer.Serialize(request.ManagedSubnets);
         host.LinkedTraefikHost = request.LinkedTraefikHost;
         host.InternalTraefikIp = request.InternalTraefikIp;
+        if (!string.IsNullOrWhiteSpace(request.PublicIp))
+        {
+            host.PublicIp = request.PublicIp;
+        }
+
         await db.SaveChangesAsync(cancellationToken);
         return host;
     }

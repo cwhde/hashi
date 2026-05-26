@@ -118,6 +118,7 @@ public sealed class SyncOrchestratorService(
     HashiDbContext db,
     DnsConnectionService dns,
     TraefikPlatformService traefik,
+    TraefikSyncService traefikSync,
     FirewallApplyService firewall,
     AdGuardSyncService adguard,
     SyncRunService syncRuns,
@@ -152,16 +153,38 @@ public sealed class SyncOrchestratorService(
                 {
                     risk = MaxRisk(risk, SyncRiskLevel.Low);
                 }
+
+                await syncRuns.AddStepAsync(run.Id, $"dns-plan-{connection.Name}", SyncRunStatusNames.Succeeded, $"{plan.Changes.Count} changes", cancellationToken);
             }
             catch (Exception ex)
             {
-                await syncRuns.AddStepAsync(run.Id, $"dns-plan-{connection.Id}", SyncRunStatusNames.Failed, ex.Message, cancellationToken);
+                await syncRuns.AddStepAsync(run.Id, $"dns-plan-{connection.Name}", SyncRunStatusNames.Failed, ex.Message, cancellationToken);
             }
         }
 
         await syncRuns.AddStepAsync(run.Id, "traefik-plan", SyncRunStatusNames.Planning, null, cancellationToken);
         var render = await traefik.RenderAsync(cancellationToken);
         changes.Add(new ProviderChange("traefik", "dynamic-config", ProviderResultKind.Updated, $"Hash {render.ContentHash}"));
+        await syncRuns.AddStepAsync(run.Id, "traefik-plan", SyncRunStatusNames.Succeeded, render.ContentHash, cancellationToken);
+
+        await syncRuns.AddStepAsync(run.Id, "firewall-plan", SyncRunStatusNames.Planning, null, cancellationToken);
+        var firewallHosts = await db.FirewallHosts.AsNoTracking().ToListAsync(cancellationToken);
+        foreach (var host in firewallHosts)
+        {
+            var (_, hash) = await firewall.RenderForHostAsync(host.Id, cancellationToken);
+            var changed = !string.Equals(host.LastAppliedScriptHash, hash, StringComparison.Ordinal);
+            changes.Add(new ProviderChange(
+                "firewall",
+                host.Name,
+                changed ? ProviderResultKind.Updated : ProviderResultKind.NoOp,
+                changed ? $"Script hash {hash}" : "Unchanged"));
+            if (changed)
+            {
+                risk = MaxRisk(risk, SyncRiskLevel.Low);
+            }
+        }
+
+        await syncRuns.AddStepAsync(run.Id, "firewall-plan", SyncRunStatusNames.Succeeded, $"{firewallHosts.Count} hosts", cancellationToken);
 
         await syncRuns.AddDiffsAsync(run.Id, changes, cancellationToken);
         var requiresConfirmation = risk >= SyncRiskLevel.High;
@@ -203,6 +226,60 @@ public sealed class SyncOrchestratorService(
                 await syncRuns.AddStepAsync(run.Id, $"dns-apply-{connection.Name}", SyncRunStatusNames.Succeeded, "Applied", cancellationToken);
             }
 
+            await syncRuns.AddStepAsync(run.Id, "traefik-apply", SyncRunStatusNames.Applying, null, cancellationToken);
+            var traefikConnections = await db.Connections
+                .Where(x => x.Type == ConnectionTypeNames.TraefikHost && x.Enabled)
+                .ToListAsync(cancellationToken);
+            foreach (var connection in traefikConnections)
+            {
+                try
+                {
+                    var result = await traefikSync.ApplyForConnectionAsync(connection.Id, cancellationToken);
+                    await syncRuns.AddStepAsync(
+                        run.Id,
+                        $"traefik-apply-{connection.Name}",
+                        result.Succeeded ? SyncRunStatusNames.Succeeded : SyncRunStatusNames.Failed,
+                        result.Message ?? result.ContentHash,
+                        cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    await syncRuns.AddStepAsync(run.Id, $"traefik-apply-{connection.Name}", SyncRunStatusNames.Failed, ex.Message, cancellationToken);
+                }
+            }
+
+            if (traefikConnections.Count == 0)
+            {
+                var render = await traefik.RenderAsync(cancellationToken);
+                await syncRuns.AddStepAsync(run.Id, "traefik-apply", SyncRunStatusNames.Succeeded, $"Rendered locally; hash {render.ContentHash}", cancellationToken);
+            }
+            else
+            {
+                await syncRuns.AddStepAsync(run.Id, "traefik-apply", SyncRunStatusNames.Succeeded, "Applied", cancellationToken);
+            }
+
+            await syncRuns.AddStepAsync(run.Id, "firewall-apply", SyncRunStatusNames.Applying, null, cancellationToken);
+            var firewallHosts = await db.FirewallHosts.ToListAsync(cancellationToken);
+            foreach (var host in firewallHosts)
+            {
+                try
+                {
+                    var result = await firewall.ApplyForHostAsync(host.Id, cancellationToken);
+                    await syncRuns.AddStepAsync(
+                        run.Id,
+                        $"firewall-apply-{host.Name}",
+                        result.Succeeded ? SyncRunStatusNames.Succeeded : SyncRunStatusNames.Failed,
+                        result.Message,
+                        cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    await syncRuns.AddStepAsync(run.Id, $"firewall-apply-{host.Name}", SyncRunStatusNames.Failed, ex.Message, cancellationToken);
+                }
+            }
+
+            await syncRuns.AddStepAsync(run.Id, "firewall-apply", SyncRunStatusNames.Succeeded, $"{firewallHosts.Count} hosts processed", cancellationToken);
+
             await syncRuns.AddStepAsync(run.Id, "adguard-sync", SyncRunStatusNames.Applying, null, cancellationToken);
             var adguardConnections = await db.AdGuardConnections.ToListAsync(cancellationToken);
             foreach (var connection in adguardConnections)
@@ -238,8 +315,29 @@ public sealed class SyncOrchestratorService(
                 await dns.PlanSyncAsync(connection.Id, cancellationToken);
             }
 
+            await syncRuns.AddStepAsync(run.Id, "dns-reconcile", SyncRunStatusNames.Succeeded, null, cancellationToken);
+
             subsystems.Add("traefik");
-            await traefik.RenderAsync(cancellationToken);
+            await syncRuns.AddStepAsync(run.Id, "traefik-reconcile", SyncRunStatusNames.Reconciling, null, cancellationToken);
+            var traefikConnections = await db.Connections.Where(x => x.Type == ConnectionTypeNames.TraefikHost && x.Enabled).ToListAsync(cancellationToken);
+            foreach (var connection in traefikConnections)
+            {
+                try
+                {
+                    await traefikSync.ApplyForConnectionAsync(connection.Id, cancellationToken);
+                }
+                catch
+                {
+                    // Passive reconcile skips hosts without available credentials.
+                }
+            }
+
+            if (traefikConnections.Count == 0)
+            {
+                await traefik.RenderAsync(cancellationToken);
+            }
+
+            await syncRuns.AddStepAsync(run.Id, "traefik-reconcile", SyncRunStatusNames.Succeeded, null, cancellationToken);
 
             subsystems.Add("adguard");
             var adguardConnections = await db.AdGuardConnections.ToListAsync(cancellationToken);
@@ -251,7 +349,21 @@ public sealed class SyncOrchestratorService(
             if (await db.FirewallHosts.AnyAsync(cancellationToken))
             {
                 subsystems.Add("firewall");
-                _ = firewall;
+                await syncRuns.AddStepAsync(run.Id, "firewall-reconcile", SyncRunStatusNames.Reconciling, null, cancellationToken);
+                var hosts = await db.FirewallHosts.ToListAsync(cancellationToken);
+                foreach (var host in hosts)
+                {
+                    try
+                    {
+                        await firewall.ApplyForHostAsync(host.Id, cancellationToken);
+                    }
+                    catch
+                    {
+                        // Passive reconcile skips when credentials unavailable.
+                    }
+                }
+
+                await syncRuns.AddStepAsync(run.Id, "firewall-reconcile", SyncRunStatusNames.Succeeded, null, cancellationToken);
             }
 
             await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Succeeded, SyncRiskLevel.None, null, cancellationToken);

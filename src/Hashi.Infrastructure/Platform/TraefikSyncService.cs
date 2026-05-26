@@ -1,6 +1,8 @@
 using Hashi.Contracts.Api;
 using Hashi.Core.Connections;
 using Hashi.Core.Traefik;
+using Hashi.Infrastructure.Auth;
+using Hashi.Infrastructure.Connections;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
 using Hashi.Infrastructure.Services;
@@ -12,6 +14,7 @@ public sealed class TraefikSyncService(
     HashiDbContext db,
     ISshRemoteExecutor ssh,
     TraefikPlatformService traefik,
+    SecretRecordService secrets,
     AuditService audit)
 {
     private const string DynamicDirectory = "/etc/hashi/traefik/dynamic";
@@ -82,6 +85,24 @@ public sealed class TraefikSyncService(
         await db.SaveChangesAsync(cancellationToken);
         await audit.WriteAsync("traefik", "config_applied", subjectType: "connection", subjectId: request.ConnectionId.ToString(), cancellationToken: cancellationToken);
         return new TraefikApplyResponse(true, render.ContentHash, false, null);
+    }
+
+    public async Task<TraefikApplyResponse> ApplyForConnectionAsync(Guid connectionId, CancellationToken cancellationToken = default)
+    {
+        var connection = await db.Connections.SingleOrDefaultAsync(x => x.Id == connectionId, cancellationToken)
+            ?? throw new InvalidOperationException("Connection not found.");
+        var credentials = await ConnectionSshCredentialResolver.ResolveAsync(connection, secrets, cancellationToken)
+            ?? throw new InvalidOperationException("SSH credentials unavailable for connection.");
+
+        return await ApplyAsync(new TraefikApplyRequest(
+            connectionId,
+            credentials.Settings.Host,
+            credentials.Settings.Port,
+            credentials.Settings.Username,
+            credentials.AuthMode,
+            credentials.Password,
+            credentials.PrivateKeyPem,
+            credentials.PrivateKeyPassphrase), cancellationToken);
     }
 
     public async Task<TraefikInstallResponse> InstallAsync(TraefikInstallRequest request, CancellationToken cancellationToken = default)
