@@ -76,22 +76,25 @@
         ],
         "responses": {
           "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EdgeAuthForwardResponse"
-                }
-              }
-            }
+            "description": "OK"
           }
         }
       }
     },
-    "/api/scripts": {
+    "/api/waf/{slug}/middleware": {
       "get": {
         "tags": [
-          "Scripts"
+          "Security"
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
         ],
         "responses": {
           "200": {
@@ -99,51 +102,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ScriptResponse"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/settings/notifications/providers": {
-      "get": {
-        "tags": [
-          "Settings"
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/NotificationProviderResponse"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/adguard/rewrites": {
-      "get": {
-        "tags": [
-          "AdGuard"
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array"
+                  "$ref": "#/components/schemas/AnonymousTypeOfstringAndstring"
                 }
               }
             }
@@ -1067,6 +1026,50 @@
         }
       }
     },
+    "/api/traefik/apply": {
+      "post": {
+        "tags": [
+          "Traefik"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TraefikApplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/traefik/install": {
+      "post": {
+        "tags": [
+          "Traefik"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TraefikInstallRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/firewall/render": {
       "post": {
         "tags": [
@@ -1096,6 +1099,83 @@
         }
       }
     },
+    "/api/firewall/hosts": {
+      "post": {
+        "tags": [
+          "Firewall"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFirewallHostRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/firewall/apply": {
+      "post": {
+        "tags": [
+          "Firewall"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FirewallApplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/firewall/{firewallHostId}/rollback": {
+      "post": {
+        "tags": [
+          "Firewall"
+        ],
+        "parameters": [
+          {
+            "name": "firewallHostId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FirewallApplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/status/endpoints": {
       "get": {
         "tags": [
@@ -1110,6 +1190,28 @@
                   "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/MonitorEndpointResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/status/rollups": {
+      "get": {
+        "tags": [
+          "Status"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MonitorRollupResponse"
                   }
                 }
               }
@@ -1137,6 +1239,50 @@
         }
       }
     },
+    "/api/security/access-log": {
+      "post": {
+        "tags": [
+          "Security"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessLogIngestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/security/blocklist/sync": {
+      "post": {
+        "tags": [
+          "Security"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FirewallApplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/pulse/agents": {
       "get": {
         "tags": [
@@ -1155,6 +1301,26 @@
                 }
               }
             }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Pulse"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePulseAgentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
           }
         }
       }
@@ -1179,7 +1345,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PulseHeartbeatRequest"
+                "$ref": "#/components/schemas/PulseHeartbeatAuthRequest"
               }
             }
           },
@@ -1191,10 +1357,289 @@
           }
         }
       }
+    },
+    "/api/scripts": {
+      "get": {
+        "tags": [
+          "Scripts"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ScriptResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Scripts"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateScriptRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/scripts/{scriptId}/run": {
+      "post": {
+        "tags": [
+          "Scripts"
+        ],
+        "parameters": [
+          {
+            "name": "scriptId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunScriptRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/settings/notifications/providers": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NotificationProviderResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Settings"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateNotificationProviderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/settings/notifications/send": {
+      "post": {
+        "tags": [
+          "Settings"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendNotificationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/adguard/{connectionId}/rewrites": {
+      "get": {
+        "tags": [
+          "AdGuard"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "AdGuard"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertAdGuardRewriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/adguard/{connectionId}/sync": {
+      "post": {
+        "tags": [
+          "AdGuard"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AccessLogIngestRequest": {
+        "required": [
+          "clientIp",
+          "host",
+          "path",
+          "statusCode",
+          "countryCode",
+          "asn"
+        ],
+        "type": "object",
+        "properties": {
+          "clientIp": {
+            "type": "string"
+          },
+          "host": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "statusCode": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "countryCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "asn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "AnonymousTypeOfstringAndstring": {
+        "required": [
+          "slug",
+          "yaml"
+        ],
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "yaml": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "AuditEventResponse": {
         "required": [
           "id",
@@ -1314,6 +1759,41 @@
           }
         }
       },
+      "CreateFirewallHostRequest": {
+        "required": [
+          "connectionId",
+          "name",
+          "domain",
+          "managedSubnets",
+          "linkedTraefikHost",
+          "internalTraefikIp"
+        ],
+        "type": "object",
+        "properties": {
+          "connectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "managedSubnets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "linkedTraefikHost": {
+            "type": "string"
+          },
+          "internalTraefikIp": {
+            "type": "string"
+          }
+        }
+      },
       "CreateHetznerDnsConnectionRequest": {
         "required": [
           "name",
@@ -1339,6 +1819,40 @@
               "string"
             ],
             "format": "int32"
+          }
+        }
+      },
+      "CreateNotificationProviderRequest": {
+        "required": [
+          "name",
+          "type",
+          "settingsJson",
+          "enabled"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "settingsJson": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CreatePulseAgentRequest": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
           }
         }
       },
@@ -1386,6 +1900,34 @@
           },
           "statusEnabled": {
             "type": "boolean"
+          }
+        }
+      },
+      "CreateScriptRequest": {
+        "required": [
+          "connectionId",
+          "name",
+          "description",
+          "body",
+          "cronExpression"
+        ],
+        "type": "object",
+        "properties": {
+          "connectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "cronExpression": {
+            "type": "string"
           }
         }
       },
@@ -1535,17 +2077,53 @@
           }
         }
       },
-      "EdgeAuthForwardResponse": {
+      "FirewallApplyRequest": {
         "required": [
-          "decision",
-          "redirectUrl"
+          "firewallHostId",
+          "host",
+          "port",
+          "username",
+          "authMode",
+          "password",
+          "privateKeyPem",
+          "privateKeyPassphrase"
         ],
         "type": "object",
         "properties": {
-          "decision": {
+          "firewallHostId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "host": {
             "type": "string"
           },
-          "redirectUrl": {
+          "port": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "username": {
+            "type": "string"
+          },
+          "authMode": {
+            "type": "string"
+          },
+          "password": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "privateKeyPem": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "privateKeyPassphrase": {
             "type": [
               "null",
               "string"
@@ -1799,6 +2377,59 @@
           }
         }
       },
+      "MonitorRollupResponse": {
+        "required": [
+          "monitorEndpointId",
+          "bucketStartUtc",
+          "sampleCount",
+          "upCount",
+          "downCount",
+          "averageLatencyMs"
+        ],
+        "type": "object",
+        "properties": {
+          "monitorEndpointId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "bucketStartUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sampleCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "upCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "downCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "averageLatencyMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
       "NotificationProviderResponse": {
         "required": [
           "id",
@@ -1924,14 +2555,18 @@
           }
         }
       },
-      "PulseHeartbeatRequest": {
+      "PulseHeartbeatAuthRequest": {
         "required": [
+          "token",
           "version",
           "hostname",
           "privateIpv4Candidates"
         ],
         "type": "object",
         "properties": {
+          "token": {
+            "type": "string"
+          },
           "version": {
             "type": "string"
           },
@@ -1953,7 +2588,10 @@
           "host",
           "port",
           "username",
-          "password"
+          "authMode",
+          "password",
+          "privateKeyPem",
+          "privateKeyPassphrase"
         ],
         "type": "object",
         "properties": {
@@ -1977,8 +2615,26 @@
           "username": {
             "type": "string"
           },
-          "password": {
+          "authMode": {
             "type": "string"
+          },
+          "password": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "privateKeyPem": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "privateKeyPassphrase": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -2043,6 +2699,55 @@
           },
           "statusEnabled": {
             "type": "boolean"
+          }
+        }
+      },
+      "RunScriptRequest": {
+        "required": [
+          "host",
+          "port",
+          "username",
+          "authMode",
+          "password",
+          "privateKeyPem",
+          "privateKeyPassphrase"
+        ],
+        "type": "object",
+        "properties": {
+          "host": {
+            "type": "string"
+          },
+          "port": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "username": {
+            "type": "string"
+          },
+          "authMode": {
+            "type": "string"
+          },
+          "password": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "privateKeyPem": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "privateKeyPassphrase": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -2160,6 +2865,28 @@
           }
         }
       },
+      "SendNotificationRequest": {
+        "required": [
+          "subject",
+          "body",
+          "providerTypes"
+        ],
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "providerTypes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "SessionStatusResponse": {
         "required": [
           "isAuthenticated",
@@ -2213,6 +2940,114 @@
               "string"
             ],
             "format": "date-time"
+          }
+        }
+      },
+      "TraefikApplyRequest": {
+        "required": [
+          "connectionId",
+          "host",
+          "port",
+          "username",
+          "authMode",
+          "password",
+          "privateKeyPem",
+          "privateKeyPassphrase"
+        ],
+        "type": "object",
+        "properties": {
+          "connectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "host": {
+            "type": "string"
+          },
+          "port": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "username": {
+            "type": "string"
+          },
+          "authMode": {
+            "type": "string"
+          },
+          "password": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "privateKeyPem": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "privateKeyPassphrase": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "TraefikInstallRequest": {
+        "required": [
+          "connectionId",
+          "host",
+          "port",
+          "username",
+          "authMode",
+          "password",
+          "privateKeyPem",
+          "privateKeyPassphrase"
+        ],
+        "type": "object",
+        "properties": {
+          "connectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "host": {
+            "type": "string"
+          },
+          "port": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "username": {
+            "type": "string"
+          },
+          "authMode": {
+            "type": "string"
+          },
+          "password": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "privateKeyPem": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "privateKeyPassphrase": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -2298,6 +3133,21 @@
               "null",
               "boolean"
             ]
+          }
+        }
+      },
+      "UpsertAdGuardRewriteRequest": {
+        "required": [
+          "domain",
+          "answer"
+        ],
+        "type": "object",
+        "properties": {
+          "domain": {
+            "type": "string"
+          },
+          "answer": {
+            "type": "string"
           }
         }
       },
@@ -2408,16 +3258,13 @@
       "name": "EdgeAuth"
     },
     {
-      "name": "Scripts"
-    },
-    {
-      "name": "Settings"
-    },
-    {
-      "name": "AdGuard"
+      "name": "Security"
     },
     {
       "name": "Setup"
+    },
+    {
+      "name": "Settings"
     },
     {
       "name": "Activity"
@@ -2447,10 +3294,13 @@
       "name": "Status"
     },
     {
-      "name": "Security"
+      "name": "Pulse"
     },
     {
-      "name": "Pulse"
+      "name": "Scripts"
+    },
+    {
+      "name": "AdGuard"
     }
   ]
 }

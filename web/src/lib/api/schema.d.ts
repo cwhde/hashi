@@ -130,9 +130,7 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content: {
-                        "application/json": components["schemas"]["EdgeAuthForwardResponse"];
-                    };
+                    content?: never;
                 };
             };
         };
@@ -144,7 +142,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/scripts": {
+    "/api/waf/{slug}/middleware": {
         parameters: {
             query?: never;
             header?: never;
@@ -155,42 +153,9 @@ export interface paths {
             parameters: {
                 query?: never;
                 header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ScriptResponse"][];
-                    };
+                path: {
+                    slug: string;
                 };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/settings/notifications/providers": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
                 cookie?: never;
             };
             requestBody?: never;
@@ -201,42 +166,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["NotificationProviderResponse"][];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/adguard/rewrites": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": unknown[];
+                        "application/json": components["schemas"]["AnonymousTypeOfstringAndstring"];
                     };
                 };
             };
@@ -1662,6 +1592,80 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/traefik/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TraefikApplyRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/traefik/install": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TraefikInstallRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/firewall/render": {
         parameters: {
             query?: never;
@@ -1701,6 +1705,119 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/firewall/hosts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateFirewallHostRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/firewall/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["FirewallApplyRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/firewall/{firewallHostId}/rollback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    firewallHostId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["FirewallApplyRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/status/endpoints": {
         parameters: {
             query?: never;
@@ -1724,6 +1841,41 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["MonitorEndpointResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/status/rollups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MonitorRollupResponse"][];
                     };
                 };
             };
@@ -1771,6 +1923,80 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/security/access-log": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AccessLogIngestRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/blocklist/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["FirewallApplyRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/pulse/agents": {
         parameters: {
             query?: never;
@@ -1799,7 +2025,28 @@ export interface paths {
             };
         };
         put?: never;
-        post?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreatePulseAgentRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -1826,9 +2073,290 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["PulseHeartbeatRequest"];
+                    "application/json": components["schemas"]["PulseHeartbeatAuthRequest"];
                 };
             };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/scripts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ScriptResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateScriptRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/scripts/{scriptId}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    scriptId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RunScriptRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/notifications/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["NotificationProviderResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateNotificationProviderRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/notifications/send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SendNotificationRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/adguard/{connectionId}/rewrites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    connectionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    connectionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpsertAdGuardRewriteRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/adguard/{connectionId}/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    connectionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
             responses: {
                 /** @description OK */
                 200: {
@@ -1849,6 +2377,19 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AccessLogIngestRequest: {
+            clientIp: string;
+            host: string;
+            path: string;
+            /** Format: int32 */
+            statusCode: number | string;
+            countryCode: null | string;
+            asn: null | string;
+        };
+        AnonymousTypeOfstringAndstring: {
+            slug: null | string;
+            yaml: null | string;
+        };
         AuditEventResponse: {
             /** Format: uuid */
             id: string;
@@ -1879,12 +2420,30 @@ export interface components {
             /** Format: date-time */
             lastValidatedAtUtc: null | string;
         };
+        CreateFirewallHostRequest: {
+            /** Format: uuid */
+            connectionId: string;
+            name: string;
+            domain: string;
+            managedSubnets: string[];
+            linkedTraefikHost: string;
+            internalTraefikIp: string;
+        };
         CreateHetznerDnsConnectionRequest: {
             name: string;
             apiToken: string;
             zoneName: string;
             /** Format: int32 */
             defaultTtl: number | string;
+        };
+        CreateNotificationProviderRequest: {
+            name: string;
+            type: string;
+            settingsJson: string;
+            enabled: boolean;
+        };
+        CreatePulseAgentRequest: {
+            name: string;
         };
         CreateResourceRequest: {
             name: string;
@@ -1896,6 +2455,14 @@ export interface components {
             targetPort: number | string;
             dashboardEnabled: boolean;
             statusEnabled: boolean;
+        };
+        CreateScriptRequest: {
+            /** Format: uuid */
+            connectionId: string;
+            name: string;
+            description: string;
+            body: string;
+            cronExpression: string;
         };
         CreateSshConnectionRequest: {
             name: string;
@@ -1933,9 +2500,17 @@ export interface components {
             connectionId: string;
             confirmDestructive: boolean;
         };
-        EdgeAuthForwardResponse: {
-            decision: string;
-            redirectUrl: null | string;
+        FirewallApplyRequest: {
+            /** Format: uuid */
+            firewallHostId: string;
+            host: string;
+            /** Format: int32 */
+            port: number | string;
+            username: string;
+            authMode: string;
+            password: null | string;
+            privateKeyPem: null | string;
+            privateKeyPassphrase: null | string;
         };
         FirewallRenderRequest: {
             name: string;
@@ -1993,6 +2568,20 @@ export interface components {
             /** Format: int32 */
             lastLatencyMs: null | number | string;
         };
+        MonitorRollupResponse: {
+            /** Format: uuid */
+            monitorEndpointId: string;
+            /** Format: date-time */
+            bucketStartUtc: string;
+            /** Format: int32 */
+            sampleCount: number | string;
+            /** Format: int32 */
+            upCount: number | string;
+            /** Format: int32 */
+            downCount: number | string;
+            /** Format: double */
+            averageLatencyMs: number | string;
+        };
         NotificationProviderResponse: {
             /** Format: uuid */
             id: string;
@@ -2026,7 +2615,8 @@ export interface components {
             lastSeenAtUtc: null | string;
             lastPublicIp: null | string;
         };
-        PulseHeartbeatRequest: {
+        PulseHeartbeatAuthRequest: {
+            token: string;
             version: string;
             hostname: string;
             privateIpv4Candidates: string[];
@@ -2038,7 +2628,10 @@ export interface components {
             /** Format: int32 */
             port: number | string;
             username: string;
-            password: string;
+            authMode: string;
+            password: null | string;
+            privateKeyPem: null | string;
+            privateKeyPassphrase: null | string;
         };
         ResourceResponse: {
             /** Format: uuid */
@@ -2055,6 +2648,16 @@ export interface components {
             targetPort: number | string;
             dashboardEnabled: boolean;
             statusEnabled: boolean;
+        };
+        RunScriptRequest: {
+            host: string;
+            /** Format: int32 */
+            port: number | string;
+            username: string;
+            authMode: string;
+            password: null | string;
+            privateKeyPem: null | string;
+            privateKeyPassphrase: null | string;
         };
         ScriptResponse: {
             /** Format: uuid */
@@ -2087,6 +2690,11 @@ export interface components {
             challenged: number | string;
             topBlockedIps: string[];
         };
+        SendNotificationRequest: {
+            subject: string;
+            body: string;
+            providerTypes: string[];
+        };
         SessionStatusResponse: {
             isAuthenticated: boolean;
             authMethod: null | string;
@@ -2099,6 +2707,30 @@ export interface components {
             completedSteps: string[];
             /** Format: date-time */
             updatedAtUtc: null | string;
+        };
+        TraefikApplyRequest: {
+            /** Format: uuid */
+            connectionId: string;
+            host: string;
+            /** Format: int32 */
+            port: number | string;
+            username: string;
+            authMode: string;
+            password: null | string;
+            privateKeyPem: null | string;
+            privateKeyPassphrase: null | string;
+        };
+        TraefikInstallRequest: {
+            /** Format: uuid */
+            connectionId: string;
+            host: string;
+            /** Format: int32 */
+            port: number | string;
+            username: string;
+            authMode: string;
+            password: null | string;
+            privateKeyPem: null | string;
+            privateKeyPassphrase: null | string;
         };
         TraefikRenderResponse: {
             staticConfigYaml: string;
@@ -2115,6 +2747,10 @@ export interface components {
             targetPort: null | number | string;
             dashboardEnabled: null | boolean;
             statusEnabled: null | boolean;
+        };
+        UpsertAdGuardRewriteRequest: {
+            domain: string;
+            answer: string;
         };
         VaultGenerateRecoveryKeyResponse: {
             recoveryKey: string;
