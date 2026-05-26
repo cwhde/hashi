@@ -47,6 +47,8 @@ public sealed class HetznerDnsPlanApplyTests : IAsyncLifetime
             .AddSingleton<IHttpClientFactory>(_ => new SingleHttpClientFactory(fakeClient))
             .AddSingleton<IDnsProviderFactory, DnsProviderFactory>()
             .AddSingleton<ILogger<HetznerDnsProvider>>(_ => NullLogger<HetznerDnsProvider>.Instance)
+            .AddScoped<SetupStateService>()
+            .AddScoped<AppSettingsService>()
             .AddScoped<SecretRecordService>()
             .AddScoped<AuditService>()
             .AddScoped<DnsConnectionService>()

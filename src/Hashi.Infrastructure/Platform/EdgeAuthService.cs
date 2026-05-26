@@ -26,9 +26,10 @@ public sealed class EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp,
             return new EdgeAuthForwardResponse("deny", null);
         }
 
+        var normalizedHost = host.ToLowerInvariant();
         var resource = await db.Resources.AsNoTracking()
-            .Where(x => x.Enabled && x.Domain != null)
-            .FirstOrDefaultAsync(x => string.Equals(x.Domain, host, StringComparison.OrdinalIgnoreCase), cancellationToken);
+            .Where(x => x.Enabled && x.Domain != null && x.Domain.ToLower() == normalizedHost)
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (resource is not null)
         {
