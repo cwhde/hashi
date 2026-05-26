@@ -104,6 +104,31 @@ public static class DnsEndpoints
             return TypedResults.Ok(new { applied = true });
         });
 
+        group.MapPost("/connections/{connectionId:guid}/prune/preview", async Task<IResult> (
+            Guid connectionId,
+            DnsConnectionService dns,
+            CancellationToken ct) =>
+        {
+            var plan = await dns.BuildPrunePreviewAsync(connectionId, ct);
+            return TypedResults.Ok(ToPlan(plan));
+        })
+            .Produces<DnsSyncPlanResponse>(StatusCodes.Status200OK);
+
+        group.MapPost("/connections/{connectionId:guid}/prune/apply", async Task<IResult> (
+            Guid connectionId,
+            DnsPruneApplyRequest request,
+            DnsConnectionService dns,
+            CancellationToken ct) =>
+        {
+            if (!request.ConfirmDestructive)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse("Destructive prune requires confirmation."));
+            }
+
+            await dns.ApplyPruneAsync(connectionId, request.ConfirmDestructive, ct);
+            return TypedResults.Ok(new { applied = true });
+        });
+
         group.MapPost("/connections/{connectionId:guid}/sync/plan", async Task<IResult> (
             Guid connectionId,
             DnsConnectionService dns,
@@ -111,7 +136,8 @@ public static class DnsEndpoints
         {
             var plan = await dns.PlanSyncAsync(connectionId, ct);
             return TypedResults.Ok(ToPlan(plan));
-        });
+        })
+            .Produces<DnsSyncPlanResponse>(StatusCodes.Status200OK);
 
         group.MapPost("/connections/{connectionId:guid}/sync/apply", async Task<IResult> (
             Guid connectionId,

@@ -198,6 +198,47 @@ public sealed class DnsConnectionService(
         await audit.WriteAsync("dns", "import_applied", subjectType: "connection", subjectId: connection.Id.ToString(), cancellationToken: cancellationToken);
     }
 
+    public async Task<DnsSyncPlan> BuildPrunePreviewAsync(Guid connectionId, CancellationToken cancellationToken = default)
+    {
+        var connection = await GetDnsConnectionAsync(connectionId, cancellationToken);
+        var zone = await GetZoneAsync(connection.Id, cancellationToken);
+        var candidates = await db.DnsImportDecisions
+            .Where(x => x.ZoneId == zone.Id && !x.SelectedForImport)
+            .ToListAsync(cancellationToken);
+        if (candidates.Count == 0)
+        {
+            return new DnsSyncPlan(Guid.NewGuid(), connection.Id, zone.Name, [], RequiresConfirmation: true);
+        }
+
+        var changes = candidates
+            .Where(x => !DnsSafetyRules.IsProtectedType(DnsRecordTypeMapping.Parse(x.Type)))
+            .Select(x => new DnsPlanChange(
+                DnsChangeKind.Delete,
+                x.Name,
+                DnsRecordTypeMapping.Parse(x.Type),
+                x.Value,
+                null,
+                zone.DefaultTtl,
+                "Prune provider record not imported into Hashi"))
+            .ToList();
+        return new DnsSyncPlan(Guid.NewGuid(), connection.Id, zone.Name, changes, RequiresConfirmation: true);
+    }
+
+    public async Task ApplyPruneAsync(
+        Guid connectionId,
+        bool confirmDestructive,
+        CancellationToken cancellationToken = default)
+    {
+        var plan = await BuildPrunePreviewAsync(connectionId, cancellationToken);
+        if (plan.Changes.Count == 0)
+        {
+            return;
+        }
+
+        await ApplyPlanAsync(plan, confirmDestructive, cancellationToken);
+        await audit.WriteAsync("dns", "prune_applied", subjectType: "connection", subjectId: connectionId.ToString(), cancellationToken: cancellationToken);
+    }
+
     public async Task<DnsSyncPlan> PlanSyncAsync(Guid connectionId, CancellationToken cancellationToken = default)
     {
         var connection = await GetDnsConnectionAsync(connectionId, cancellationToken);

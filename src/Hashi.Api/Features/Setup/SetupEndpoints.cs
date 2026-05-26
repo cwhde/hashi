@@ -1,6 +1,8 @@
 using Hashi.Contracts.Api;
 using Hashi.Core.Setup;
+using Hashi.Infrastructure.Auth;
 using Hashi.Infrastructure.Bootstrap;
+using Hashi.Infrastructure.Platform;
 using Hashi.Infrastructure.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 
@@ -109,6 +111,23 @@ public static class ActivityEndpoints
                 x.CreatedAtUtc)));
         });
 
+        group.MapGet("/jobs", async (BackgroundJobService jobs, CancellationToken ct) =>
+        {
+            var items = await jobs.ListAsync(ct);
+            return TypedResults.Ok(items.Select(x => new BackgroundJobResponse(
+                x.JobKey,
+                x.DisplayName,
+                x.Status,
+                x.LastStartedAtUtc,
+                x.LastCompletedAtUtc,
+                x.NextRunAtUtc,
+                x.LastDurationMs,
+                x.LastDiffSummary,
+                x.LastError,
+                x.IntervalSeconds)));
+        })
+            .Produces<IEnumerable<BackgroundJobResponse>>(StatusCodes.Status200OK);
+
         return app;
     }
 }
@@ -117,7 +136,16 @@ public static class HealthEndpoints
 {
     public static IEndpointRouteBuilder MapHealthEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/health", () => TypedResults.Ok(new HealthResponse("healthy", "2.0.0-alpha", DateTimeOffset.UtcNow)))
+        app.MapGet("/api/health", (ServiceSyncVaultState serviceSync) =>
+        {
+            var ready = serviceSync.IsReady;
+            return TypedResults.Ok(new HealthResponse(
+                "healthy",
+                "2.0.0-alpha",
+                DateTimeOffset.UtcNow,
+                ready,
+                ProviderSyncPaused: !ready));
+        })
             .WithTags("Health")
             .AllowAnonymous();
 

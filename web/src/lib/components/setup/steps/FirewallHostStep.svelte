@@ -52,7 +52,7 @@
 			const created = (await api.createSshConnection(sshBody())) as { id?: string };
 			connectionId = created.id ?? null;
 			if (!connectionId) throw new Error('Connection was not created.');
-			await api.validateConnection(connectionId, sshBody());
+			await api.validateConnection(connectionId);
 			message = 'Firewall host SSH validated.';
 		} catch (e) {
 			error = e instanceof ApiRequestError ? e.message : 'Validation failed';

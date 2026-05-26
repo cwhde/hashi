@@ -19,10 +19,11 @@ public sealed class PasskeyAuthService(
 {
     public async Task<CredentialCreateOptions> BeginRegistrationAsync(
         string nickname,
+        bool allowAfterSetupComplete = false,
         CancellationToken cancellationToken = default)
     {
         var state = await setupState.GetOrCreateAsync(cancellationToken);
-        if (state.IsComplete)
+        if (state.IsComplete && !allowAfterSetupComplete)
         {
             throw new InvalidOperationException("Passkey registration is only available during setup.");
         }
@@ -123,6 +124,29 @@ public sealed class PasskeyAuthService(
         await audit.WriteAsync("auth", "passkey_login", subjectType: "passkey", subjectId: stored.Id.ToString(), cancellationToken: cancellationToken);
 
         return new PasskeyLoginResult(stored.Id, clientPrfOutput);
+    }
+
+    public async Task<IReadOnlyList<PasskeyCredentialEntity>> ListAsync(CancellationToken cancellationToken = default)
+        => await db.PasskeyCredentials.AsNoTracking().OrderBy(x => x.CreatedAtUtc).ToListAsync(cancellationToken);
+
+    public async Task<bool> DeleteAsync(Guid credentialId, CancellationToken cancellationToken = default)
+    {
+        var count = await db.PasskeyCredentials.CountAsync(cancellationToken);
+        if (count <= 1)
+        {
+            throw new InvalidOperationException("At least one passkey must remain.");
+        }
+
+        var credential = await db.PasskeyCredentials.SingleOrDefaultAsync(x => x.Id == credentialId, cancellationToken);
+        if (credential is null)
+        {
+            return false;
+        }
+
+        db.PasskeyCredentials.Remove(credential);
+        await db.SaveChangesAsync(cancellationToken);
+        await audit.WriteAsync("auth", "passkey_removed", subjectType: "passkey", subjectId: credentialId.ToString(), cancellationToken: cancellationToken);
+        return true;
     }
 }
 

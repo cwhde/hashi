@@ -20,11 +20,30 @@ public sealed class MonitorCheckWorker(
         {
             try
             {
+                using var scope = scopeFactory.CreateScope();
+                var jobs = scope.ServiceProvider.GetRequiredService<BackgroundJobService>();
+                await jobs.BeginRunAsync(BackgroundJobKeys.MonitorCheck, stoppingToken);
                 await RunChecksAsync(stoppingToken);
+                await jobs.CompleteRunAsync(
+                    BackgroundJobKeys.MonitorCheck,
+                    true,
+                    "Monitor checks completed.",
+                    null,
+                    30,
+                    stoppingToken);
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Monitor check worker failed.");
+                try
+                {
+                    using var scope = scopeFactory.CreateScope();
+                    var jobs = scope.ServiceProvider.GetRequiredService<BackgroundJobService>();
+                    await jobs.CompleteRunAsync(BackgroundJobKeys.MonitorCheck, false, null, ex.Message, 30, stoppingToken);
+                }
+                catch
+                {
+                }
             }
 
             await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);

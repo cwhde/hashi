@@ -9,6 +9,7 @@ using Hashi.Api.Hosting;
 using Hashi.Infrastructure;
 using Hashi.Infrastructure.Auth;
 using Hashi.Infrastructure.Bootstrap;
+using Hashi.Infrastructure.Platform;
 using Hashi.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.OpenApi;
@@ -119,6 +120,7 @@ if (!skipStartupHooks)
     await db.Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<BootstrapInitializer>().EnsureBootstrapCredentialsAsync();
     await scope.ServiceProvider.GetRequiredService<VaultService>().EnsureServiceSyncWrapAsync();
+    await scope.ServiceProvider.GetRequiredService<BackgroundJobService>().EnsureJobsAsync();
 }
 
 app.MapFallbackToFile("index.html");

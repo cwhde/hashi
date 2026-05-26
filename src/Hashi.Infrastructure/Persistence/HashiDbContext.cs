@@ -65,6 +65,8 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
 
     public DbSet<ScriptEntity> Scripts => Set<ScriptEntity>();
 
+    public DbSet<BackgroundJobEntity> BackgroundJobs => Set<BackgroundJobEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AppSettingsEntity>(entity =>
@@ -317,6 +319,15 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.ToTable("scripts");
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Name).HasMaxLength(128);
+        });
+
+        modelBuilder.Entity<BackgroundJobEntity>(entity =>
+        {
+            entity.ToTable("background_jobs");
+            entity.HasKey(x => x.JobKey);
+            entity.Property(x => x.JobKey).HasMaxLength(64);
+            entity.Property(x => x.DisplayName).HasMaxLength(128);
+            entity.Property(x => x.Status).HasMaxLength(32);
         });
     }
 }

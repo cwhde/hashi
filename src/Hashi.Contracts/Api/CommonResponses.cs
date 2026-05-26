@@ -1,6 +1,29 @@
 namespace Hashi.Contracts.Api;
 
-public sealed record HealthResponse(string Status, string Version, DateTimeOffset Timestamp);
+public sealed record HealthResponse(
+    string Status,
+    string Version,
+    DateTimeOffset Timestamp,
+    bool ServiceSyncVaultReady,
+    bool ProviderSyncPaused);
+
+public sealed record BackgroundJobResponse(
+    string JobKey,
+    string DisplayName,
+    string Status,
+    DateTimeOffset? LastStartedAtUtc,
+    DateTimeOffset? LastCompletedAtUtc,
+    DateTimeOffset? NextRunAtUtc,
+    long? LastDurationMs,
+    string? LastDiffSummary,
+    string? LastError,
+    int IntervalSeconds);
+
+public sealed record PasskeySummaryResponse(
+    Guid Id,
+    string Nickname,
+    bool PrfSupported,
+    DateTimeOffset CreatedAtUtc);
 
 public sealed record SetupStatusResponse(
     bool IsComplete,

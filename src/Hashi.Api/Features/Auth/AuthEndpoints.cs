@@ -52,17 +52,40 @@ public static class AuthEndpoints
             PasskeyAuthService passkeys,
             WebAuthnChallengeStore challenges,
             [FromQuery] string nickname,
+            [FromQuery] bool? afterSetup,
             CancellationToken ct) =>
         {
-            if (!IsAuthenticatedDuringSetup(httpContext))
+            if (!IsAuthenticatedDuringSetup(httpContext) && httpContext.User.Identity?.IsAuthenticated != true)
             {
                 return TypedResults.Unauthorized();
             }
 
-            var options = await passkeys.BeginRegistrationAsync(nickname, ct);
+            var options = await passkeys.BeginRegistrationAsync(nickname, allowAfterSetupComplete: afterSetup == true, ct);
             var sessionId = Guid.NewGuid().ToString("N");
             challenges.StoreRegistration(sessionId, options);
             return TypedResults.Ok(new PasskeyRegistrationBeginResponse(options, sessionId));
+        });
+
+        group.MapGet("/passkeys", async (PasskeyAuthService passkeys, CancellationToken ct) =>
+        {
+            var items = await passkeys.ListAsync(ct);
+            return TypedResults.Ok(items.Select(x => new PasskeySummaryResponse(x.Id, x.Nickname, x.PrfSupported, x.CreatedAtUtc)));
+        });
+
+        group.MapDelete("/passkeys/{credentialId:guid}", async Task<IResult> (
+            Guid credentialId,
+            PasskeyAuthService passkeys,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                var removed = await passkeys.DeleteAsync(credentialId, ct);
+                return removed ? TypedResults.NoContent() : TypedResults.NotFound();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
+            }
         });
 
         group.MapPost("/passkeys/register/complete", async Task<IResult> (

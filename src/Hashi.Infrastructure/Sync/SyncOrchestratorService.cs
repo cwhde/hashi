@@ -455,18 +455,27 @@ public sealed class SyncOrchestratorHostedService(
         await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
         while (!stoppingToken.IsCancellationRequested)
         {
+            var intervalMinutes = 60;
             try
             {
                 using var scope = scopeFactory.CreateScope();
                 var settings = scope.ServiceProvider.GetRequiredService<AppSettingsService>();
                 var orchestrator = scope.ServiceProvider.GetRequiredService<SyncOrchestratorService>();
+                var jobs = scope.ServiceProvider.GetRequiredService<BackgroundJobService>();
                 var general = await settings.GetOrCreateAsync(stoppingToken);
-                var interval = Math.Max(5, general.DefaultSyncIntervalMinutes);
-
+                intervalMinutes = Math.Max(5, general.DefaultSyncIntervalMinutes);
+                await jobs.BeginRunAsync(BackgroundJobKeys.SyncReconcile, stoppingToken);
                 logger.LogInformation("Starting passive sync reconcile.");
-                await orchestrator.ReconcileAsync(stoppingToken);
+                var result = await orchestrator.ReconcileAsync(stoppingToken);
                 logger.LogInformation("Passive sync reconcile completed.");
-                await Task.Delay(TimeSpan.FromMinutes(interval), stoppingToken);
+                await jobs.CompleteRunAsync(
+                    BackgroundJobKeys.SyncReconcile,
+                    result.Succeeded,
+                    $"Reconciled: {string.Join(", ", result.SubsystemsReconciled)}",
+                    result.Succeeded ? null : "Reconcile finished with errors.",
+                    intervalMinutes * 60,
+                    stoppingToken);
+                await Task.Delay(TimeSpan.FromMinutes(intervalMinutes), stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -475,6 +484,23 @@ public sealed class SyncOrchestratorHostedService(
             catch (Exception ex)
             {
                 logger.LogError(ex, "Passive sync orchestrator failed.");
+                try
+                {
+                    using var scope = scopeFactory.CreateScope();
+                    var jobs = scope.ServiceProvider.GetRequiredService<BackgroundJobService>();
+                    await jobs.CompleteRunAsync(
+                        BackgroundJobKeys.SyncReconcile,
+                        false,
+                        null,
+                        ex.Message,
+                        intervalMinutes * 60,
+                        stoppingToken);
+                }
+                catch
+                {
+                    // Best effort job status update.
+                }
+
                 await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
             }
         }

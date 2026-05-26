@@ -617,6 +617,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/activity/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BackgroundJobResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/csrf": {
         parameters: {
             query?: never;
@@ -702,6 +737,7 @@ export interface paths {
             parameters: {
                 query: {
                     nickname: string;
+                    afterSetup?: boolean;
                 };
                 header?: never;
                 path?: never;
@@ -719,6 +755,76 @@ export interface paths {
             };
         };
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/passkeys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PasskeySummaryResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/passkeys/{credentialId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    credentialId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -1572,6 +1678,82 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/dns/connections/{connectionId}/prune/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    connectionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DnsSyncPlanResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dns/connections/{connectionId}/prune/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    connectionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DnsPruneApplyRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/dns/connections/{connectionId}/sync/plan": {
         parameters: {
             query?: never;
@@ -1597,7 +1779,9 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["DnsSyncPlanResponse"];
+                    };
                 };
             };
         };
@@ -1773,11 +1957,7 @@ export interface paths {
                 };
                 cookie?: never;
             };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["CreateSshConnectionRequest"];
-                };
-            };
+            requestBody?: never;
             responses: {
                 /** @description OK */
                 200: {
@@ -3517,6 +3697,23 @@ export interface components {
             /** Format: date-time */
             createdAtUtc: string;
         };
+        BackgroundJobResponse: {
+            jobKey: string;
+            displayName: string;
+            status: string;
+            /** Format: date-time */
+            lastStartedAtUtc: null | string;
+            /** Format: date-time */
+            lastCompletedAtUtc: null | string;
+            /** Format: date-time */
+            nextRunAtUtc: null | string;
+            /** Format: int64 */
+            lastDurationMs: null | number | string;
+            lastDiffSummary: null | string;
+            lastError: null | string;
+            /** Format: int32 */
+            intervalSeconds: number | string;
+        };
         BlocklistSyncResponse: {
             synced: boolean;
             /** Format: int32 */
@@ -3631,8 +3828,21 @@ export interface components {
             value: string;
             selectedForImport: boolean;
         };
+        DnsPlanChangeResponse: {
+            kind: string;
+            name: string;
+            type: string;
+            currentValue: null | string;
+            desiredValue: null | string;
+            /** Format: int32 */
+            ttl: null | number | string;
+            riskReason: string;
+        };
         DnsProviderValidationRequest: {
             apiToken: string;
+        };
+        DnsPruneApplyRequest: {
+            confirmDestructive: boolean;
         };
         DnsRecordResponse: {
             /** Format: uuid */
@@ -3651,6 +3861,15 @@ export interface components {
             /** Format: uuid */
             connectionId: string;
             confirmDestructive: boolean;
+        };
+        DnsSyncPlanResponse: {
+            /** Format: uuid */
+            planId: string;
+            /** Format: uuid */
+            connectionId: string;
+            zoneName: string;
+            changes: components["schemas"]["DnsPlanChangeResponse"][];
+            requiresConfirmation: boolean;
         };
         DnsWriteValidationRequest: {
             confirmDryRun: boolean;
@@ -3724,6 +3943,8 @@ export interface components {
             version: string;
             /** Format: date-time */
             timestamp: string;
+            serviceSyncVaultReady: boolean;
+            providerSyncPaused: boolean;
         };
         MonitorEndpointResponse: {
             /** Format: uuid */
@@ -3771,6 +3992,14 @@ export interface components {
             challengeSessionId: string;
             nickname: string;
             clientReportsPrfSupported: boolean;
+        };
+        PasskeySummaryResponse: {
+            /** Format: uuid */
+            id: string;
+            nickname: string;
+            prfSupported: boolean;
+            /** Format: date-time */
+            createdAtUtc: string;
         };
         PublicStatusItemResponse: {
             name: string;

@@ -27,6 +27,8 @@ services:
     environment:
       ASPNETCORE_URLS: http://0.0.0.0:8080
       ConnectionStrings__Hashi: Host=postgres;Port=5432;Database=hashi;Username=hashi;Password=hashi
+      # 32-byte base64 key for unattended provider sync (generate: openssl rand -base64 32)
+      HASHI_SERVICE_SYNC_VAULT_KEY: ${HASHI_SERVICE_SYNC_VAULT_KEY:-}
     volumes:
       - hashi_data:/data
       - hashi_logs:/logs

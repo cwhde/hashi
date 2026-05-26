@@ -44,6 +44,8 @@ public sealed record DnsImportDecisionResponse(
 
 public sealed record DnsImportApplyRequest(IReadOnlyList<Guid> SelectedDecisionIds);
 
+public sealed record DnsPruneApplyRequest(bool ConfirmDestructive);
+
 public sealed record DnsPlanChangeResponse(
     string Kind,
     string Name,

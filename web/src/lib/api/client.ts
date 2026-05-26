@@ -136,6 +136,10 @@ export const api = {
 		const r = await client.GET('/api/activity/audit');
 		return expectData(r.response, r.error, r.data ?? []);
 	},
+	listBackgroundJobs: async () => {
+		const r = await client.GET('/api/activity/jobs');
+		return expectData(r.response, r.error, r.data ?? []);
+	},
 	bootstrapLogin: async (username: string, password: string) => {
 		const r = await client.POST('/api/auth/bootstrap/login', { body: { username, password } });
 		if (!r.response.ok) throw errorFromResult(r.response.status, r.error);
@@ -241,6 +245,17 @@ export const api = {
 			params: { path: { connectionId } },
 			body
 		}),
+	previewDnsPrune: async (connectionId: string) => {
+		const r = await client.POST('/api/dns/connections/{connectionId}/prune/preview', {
+			params: { path: { connectionId } }
+		});
+		return expectData(r.response, r.error, r.data);
+	},
+	applyDnsPrune: (connectionId: string) =>
+		postUndocumented('/api/dns/connections/{connectionId}/prune/apply', {
+			params: { path: { connectionId } },
+			body: { confirmDestructive: true }
+		}),
 	planDnsSync: (connectionId: string) =>
 		postUndocumented('/api/dns/connections/{connectionId}/sync/plan', { params: { path: { connectionId } } }),
 	applyDnsSync: (connectionId: string, body: import('./types.js').DnsSyncApplyRequest) =>
@@ -256,8 +271,8 @@ export const api = {
 	},
 	createSshConnection: (body: import('./types.js').CreateSshConnectionRequest) =>
 		postUndocumented('/api/connections/ssh', { body }),
-	validateConnection: (connectionId: string, body: import('./types.js').CreateSshConnectionRequest) =>
-		postUndocumented('/api/connections/{connectionId}/validate', { params: { path: { connectionId } }, body }),
+	validateConnection: (connectionId: string) =>
+		postUndocumented('/api/connections/{connectionId}/validate', { params: { path: { connectionId } } }),
 	writeRemoteFile: (connectionId: string, body: import('./types.js').RemoteWriteRequest) =>
 		postUndocumented('/api/connections/{connectionId}/write', { params: { path: { connectionId } }, body }),
 

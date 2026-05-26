@@ -55,7 +55,7 @@
 			const created = (await api.createSshConnection(connectionBody())) as { id?: string };
 			connectionId = created.id ?? null;
 			if (!connectionId) throw new Error('Connection was not created.');
-			await api.validateConnection(connectionId, connectionBody());
+			await api.validateConnection(connectionId);
 			message = `SSH validated for ${host}. Config path: ${configPath}, internal IP: ${internalIp || 'unset'}.`;
 		} catch (e) {
 			error = e instanceof ApiRequestError ? e.message : 'SSH validation failed';

@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Hashi.Core.Connections;
 using Renci.SshNet;
 
@@ -128,6 +129,20 @@ public sealed class SshRemoteExecutor : ISshRemoteExecutor
             client.Connect();
             using var sftp = new SftpClient(client.ConnectionInfo);
             sftp.Connect();
+
+            if (sftp.Exists(remotePath))
+            {
+                using var existingStream = sftp.OpenRead(remotePath);
+                using var existingMs = new MemoryStream();
+                existingStream.CopyTo(existingMs);
+                var existingHash = Convert.ToHexString(SHA256.HashData(existingMs.ToArray()));
+                var newHash = Convert.ToHexString(SHA256.HashData(content.Span));
+                if (string.Equals(existingHash, newHash, StringComparison.OrdinalIgnoreCase))
+                {
+                    return new RemoteWriteResult(true, remotePath, null);
+                }
+            }
+
             using (var stream = sftp.OpenWrite(tempPath))
             {
                 stream.Write(content.Span);

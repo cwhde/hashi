@@ -57,12 +57,20 @@ public sealed class SshConnectionService(
     public async Task<SshValidationResult> ValidateAsync(Guid connectionId, CancellationToken cancellationToken = default)
     {
         var connection = await db.Connections.SingleAsync(x => x.Id == connectionId, cancellationToken);
-        var settings = ParseSettings(connection);
         connection.HealthState = ConnectionHealthStateNames.Validating;
         await db.SaveChangesAsync(cancellationToken);
 
-        // Validation uses request-time credentials stored outside DB for now.
-        throw new InvalidOperationException("Use validate endpoint with credentials payload.");
+        var credentials = await ConnectionSshCredentialResolver.ResolveAsync(connection, secrets, cancellationToken)
+            ?? throw new InvalidOperationException("SSH credentials unavailable for this connection.");
+        var settings = ConnectionSshCredentialResolver.ParseSettings(connection);
+        return await ValidateWithCredentialsAsync(
+            settings,
+            credentials.AuthMode,
+            credentials.Password,
+            credentials.PrivateKeyPem,
+            credentials.PrivateKeyPassphrase,
+            connectionId,
+            cancellationToken);
     }
 
     public async Task<SshValidationResult> ValidateWithCredentialsAsync(

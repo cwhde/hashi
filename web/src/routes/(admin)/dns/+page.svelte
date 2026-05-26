@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { api, ApiRequestError } from '$lib/api/client';
-	import type { ConnectionSummary, DnsImportDecision, DnsRecord } from '$lib/api/types';
+	import type { ConnectionSummary, DnsImportDecision, DnsRecord, DnsSyncPlan } from '$lib/api/types';
 	import AdminSectionPage from '$lib/components/layout/AdminSectionPage.svelte';
 	import PanelSection from '$lib/components/layout/PanelSection.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -26,6 +26,9 @@
 	let importDecisions = $state<DnsImportDecision[]>([]);
 	let selectedImportIds = $state<string[]>([]);
 	let importLoading = $state(false);
+	let pruneConnectionId = $state<string | null>(null);
+	let prunePlan = $state<DnsSyncPlan | null>(null);
+	let pruneLoading = $state(false);
 	let form = $state({
 		name: 'hetzner-primary',
 		apiToken: '',
@@ -152,6 +155,39 @@
 			importLoading = false;
 		}
 	}
+
+	async function previewPrune(id: string) {
+		pruneLoading = true;
+		pruneConnectionId = id;
+		error = null;
+		try {
+			prunePlan = await api.previewDnsPrune(id);
+			message = prunePlan.changes.length
+				? `Prune preview: ${prunePlan.changes.length} record(s) to delete.`
+				: 'No unimported records eligible for prune.';
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Prune preview failed';
+		} finally {
+			pruneLoading = false;
+		}
+	}
+
+	async function applyPrune() {
+		if (!pruneConnectionId) return;
+		pruneLoading = true;
+		error = null;
+		try {
+			await api.applyDnsPrune(pruneConnectionId);
+			message = 'Prune applied to provider.';
+			prunePlan = null;
+			pruneConnectionId = null;
+			await load();
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Prune apply failed';
+		} finally {
+			pruneLoading = false;
+		}
+	}
 </script>
 
 <AdminSectionPage
@@ -232,6 +268,9 @@
 									<Button variant="outline" size="sm" onclick={() => loadImportPreview(conn.id)}>
 										Import
 									</Button>
+									<Button variant="destructive" size="sm" onclick={() => previewPrune(conn.id)}>
+										Prune preview
+									</Button>
 								</TableCell>
 							</TableRow>
 						{/each}
@@ -276,6 +315,20 @@
 					{importLoading ? 'Importing…' : `Import ${selectedImportIds.length} records`}
 				</Button>
 			</div>
+		</PanelSection>
+	{/if}
+
+	{#if prunePlan && prunePlan.changes.length > 0}
+		<PanelSection
+			title="Prune preview"
+			description="Destructive: removes provider records that were not imported into Hashi."
+		>
+			<p class="text-sm text-muted-foreground">
+				{prunePlan.changes.length} record(s) will be deleted from the provider (NS/SOA never pruned).
+			</p>
+			<Button variant="destructive" onclick={() => applyPrune()} disabled={pruneLoading}>
+				{pruneLoading ? 'Pruning…' : 'Confirm prune'}
+			</Button>
 		</PanelSection>
 	{/if}
 

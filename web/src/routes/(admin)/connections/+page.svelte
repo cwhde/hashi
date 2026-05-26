@@ -60,7 +60,7 @@
 				username: form.username,
 				authMode: form.authMode,
 				password: form.authMode === 'password' ? form.password : null,
-				privateKeyPem: form.authMode === 'privateKey' ? form.privateKeyPem : null,
+				privateKeyPem: form.authMode === 'private_key' ? form.privateKeyPem : null,
 				privateKeyPassphrase: form.privateKeyPassphrase || null
 			});
 			message = 'Connection created.';
@@ -74,17 +74,7 @@
 
 	async function validate(id: string) {
 		try {
-			await api.validateConnection(id, {
-				name: form.name,
-				connectionType: form.connectionType,
-				host: form.host,
-				port: form.port,
-				username: form.username,
-				authMode: form.authMode,
-				password: form.password || null,
-				privateKeyPem: form.privateKeyPem || null,
-				privateKeyPassphrase: form.privateKeyPassphrase || null
-			});
+			await api.validateConnection(id);
 			message = 'Connection validated.';
 			await load();
 		} catch (e) {

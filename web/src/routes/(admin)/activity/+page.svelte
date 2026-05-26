@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { api, ApiRequestError } from '$lib/api/client';
 	import { performPasskeyReauthentication } from '$lib/auth/reauth';
-	import type { AuditEvent, SyncPlanPreview, SyncRun } from '$lib/api/types';
+	import type { AuditEvent, BackgroundJob, SyncPlanPreview, SyncRun } from '$lib/api/types';
 	import AdminSectionPage from '$lib/components/layout/AdminSectionPage.svelte';
 	import PanelSection from '$lib/components/layout/PanelSection.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -17,6 +17,7 @@
 
 	let events = $state<AuditEvent[]>([]);
 	let runs = $state<SyncRun[]>([]);
+	let jobs = $state<BackgroundJob[]>([]);
 	let plan = $state<SyncPlanPreview | null>(null);
 	let loading = $state(true);
 	let syncing = $state(false);
@@ -27,9 +28,14 @@
 		loading = true;
 		error = null;
 		try {
-			const [audit, syncRuns] = await Promise.all([api.getAuditEvents(), api.listSyncRuns()]);
+			const [audit, syncRuns, backgroundJobs] = await Promise.all([
+				api.getAuditEvents(),
+				api.listSyncRuns(),
+				api.listBackgroundJobs()
+			]);
 			events = audit;
 			runs = syncRuns;
+			jobs = backgroundJobs;
 		} catch (e) {
 			error = e instanceof ApiRequestError ? e.message : 'Failed to load activity';
 		} finally {
@@ -197,6 +203,51 @@
 						{pendingRuns.length} run(s) awaiting confirmation or still planning.
 					</p>
 				{/if}
+			{/if}
+		</PanelSection>
+
+		<PanelSection title="Background jobs" description="Last run, next run, duration, and errors (spec rule 22).">
+			{#if loading}
+				<p class="text-sm text-muted-foreground">Loading…</p>
+			{:else if jobs.length === 0}
+				<p class="text-sm text-muted-foreground">No background jobs registered yet.</p>
+			{:else}
+				<div class="overflow-hidden rounded-md border border-border">
+					<Table>
+						<TableHeader>
+							<TableRow>
+								<TableHead>Job</TableHead>
+								<TableHead>Status</TableHead>
+								<TableHead>Last run</TableHead>
+								<TableHead>Next run</TableHead>
+								<TableHead>Duration</TableHead>
+								<TableHead>Summary</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{#each jobs as job (job.jobKey)}
+								<TableRow>
+									<TableCell>{job.displayName}</TableCell>
+									<TableCell>{job.status}</TableCell>
+									<TableCell class="text-xs whitespace-nowrap">
+										{job.lastCompletedAtUtc
+											? new Date(job.lastCompletedAtUtc).toLocaleString()
+											: '—'}
+									</TableCell>
+									<TableCell class="text-xs whitespace-nowrap">
+										{job.nextRunAtUtc ? new Date(job.nextRunAtUtc).toLocaleString() : '—'}
+									</TableCell>
+									<TableCell class="text-xs tabular-nums">
+										{job.lastDurationMs != null ? `${job.lastDurationMs} ms` : '—'}
+									</TableCell>
+									<TableCell class="max-w-[14rem] truncate text-xs text-muted-foreground">
+										{job.lastError ?? job.lastDiffSummary ?? '—'}
+									</TableCell>
+								</TableRow>
+							{/each}
+						</TableBody>
+					</Table>
+				</div>
 			{/if}
 		</PanelSection>
 

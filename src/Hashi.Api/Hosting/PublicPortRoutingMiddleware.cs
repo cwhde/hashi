@@ -1,31 +1,52 @@
-using Hashi.Contracts.Api;
-using Hashi.Infrastructure.Platform;
-using Hashi.Infrastructure.Persistence;
+using Hashi.Infrastructure.Services;
 using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore;
 
 namespace Hashi.Api.Hosting;
 
 public sealed class PublicPortRoutingMiddleware(RequestDelegate next)
 {
-    public async Task InvokeAsync(HttpContext context, MonitoringService monitoring, ResourceService resources)
+    public async Task InvokeAsync(HttpContext context, AppSettingsService settings)
     {
         var port = context.Connection.LocalPort;
+        var path = context.Request.Path.Value ?? "/";
+
+        if (path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/openapi/", StringComparison.OrdinalIgnoreCase))
+        {
+            await next(context);
+            return;
+        }
+
         if (port == 8081)
         {
-            var items = await resources.ListAsync(context.RequestAborted);
-            var payload = items.Where(x => x.DashboardEnabled).Select(ResourceService.ToResponse);
-            context.Response.ContentType = "application/json";
-            await context.Response.WriteAsJsonAsync(payload);
-            return;
+            var appSettings = await settings.GetOrCreateAsync(context.RequestAborted);
+            if (!appSettings.PublicDashboardEnabled)
+            {
+                context.Response.StatusCode = StatusCodes.Status404NotFound;
+                return;
+            }
+
+            if (path is "/" or "")
+            {
+                context.Response.Redirect("/dashboard");
+                return;
+            }
         }
 
         if (port == 8082)
         {
-            var status = await monitoring.PublicStatusAsync(context.RequestAborted);
-            context.Response.ContentType = "application/json";
-            await context.Response.WriteAsJsonAsync(status);
-            return;
+            var appSettings = await settings.GetOrCreateAsync(context.RequestAborted);
+            if (!appSettings.PublicStatusEnabled)
+            {
+                context.Response.StatusCode = StatusCodes.Status404NotFound;
+                return;
+            }
+
+            if (path is "/" or "")
+            {
+                context.Response.Redirect("/status-page");
+                return;
+            }
         }
 
         await next(context);

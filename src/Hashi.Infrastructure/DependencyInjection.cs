@@ -64,6 +64,7 @@ public static class DependencyInjection
         services.AddScoped<OidcEdgeAuthService>();
         services.AddScoped<NotificationRoutingService>();
         services.AddScoped<SecurityIngestionService>();
+        services.AddScoped<BackgroundJobService>();
         services.AddScoped<AdGuardSyncService>();
         services.AddScoped<ScriptExecutionService>();
         services.AddScoped<PulseAgentService>();

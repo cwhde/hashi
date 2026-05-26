@@ -120,6 +120,31 @@ public sealed class SyncDiffEntity
     public string? AfterJson { get; set; }
 }
 
+public sealed class BackgroundJobEntity
+{
+    public string JobKey { get; set; } = string.Empty;
+
+    public string DisplayName { get; set; } = string.Empty;
+
+    public string Status { get; set; } = "idle";
+
+    public DateTimeOffset? LastStartedAtUtc { get; set; }
+
+    public DateTimeOffset? LastCompletedAtUtc { get; set; }
+
+    public DateTimeOffset? NextRunAtUtc { get; set; }
+
+    public long? LastDurationMs { get; set; }
+
+    public string? LastDiffSummary { get; set; }
+
+    public string? LastError { get; set; }
+
+    public int IntervalSeconds { get; set; } = 60;
+
+    public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+}
+
 public static class SyncRunStatusNames
 {
     public const string Pending = "pending";

@@ -371,6 +371,28 @@
         }
       }
     },
+    "/api/activity/jobs": {
+      "get": {
+        "tags": [
+          "Activity"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BackgroundJobResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/csrf": {
       "get": {
         "tags": [
@@ -424,6 +446,58 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "afterSetup",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/auth/passkeys": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PasskeySummaryResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/passkeys/{credentialId}": {
+      "delete": {
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [
+          {
+            "name": "credentialId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
             }
           }
         ],
@@ -964,6 +1038,69 @@
         }
       }
     },
+    "/api/dns/connections/{connectionId}/prune/preview": {
+      "post": {
+        "tags": [
+          "DNS"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DnsSyncPlanResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/dns/connections/{connectionId}/prune/apply": {
+      "post": {
+        "tags": [
+          "DNS"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DnsPruneApplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/dns/connections/{connectionId}/sync/plan": {
       "post": {
         "tags": [
@@ -982,7 +1119,14 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DnsSyncPlanResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -1111,16 +1255,6 @@
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateSshConnectionRequest"
-              }
-            }
-          },
-          "required": true
-        },
         "responses": {
           "200": {
             "description": "OK"
@@ -2616,6 +2750,82 @@
           }
         }
       },
+      "BackgroundJobResponse": {
+        "required": [
+          "jobKey",
+          "displayName",
+          "status",
+          "lastStartedAtUtc",
+          "lastCompletedAtUtc",
+          "nextRunAtUtc",
+          "lastDurationMs",
+          "lastDiffSummary",
+          "lastError",
+          "intervalSeconds"
+        ],
+        "type": "object",
+        "properties": {
+          "jobKey": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "lastStartedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lastCompletedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "nextRunAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lastDurationMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "lastDiffSummary": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastError": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "intervalSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "BlocklistSyncResponse": {
         "required": [
           "synced",
@@ -3084,6 +3294,53 @@
           }
         }
       },
+      "DnsPlanChangeResponse": {
+        "required": [
+          "kind",
+          "name",
+          "type",
+          "currentValue",
+          "desiredValue",
+          "ttl",
+          "riskReason"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "currentValue": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "desiredValue": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ttl": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "riskReason": {
+            "type": "string"
+          }
+        }
+      },
       "DnsProviderValidationRequest": {
         "required": [
           "apiToken"
@@ -3092,6 +3349,17 @@
         "properties": {
           "apiToken": {
             "type": "string"
+          }
+        }
+      },
+      "DnsPruneApplyRequest": {
+        "required": [
+          "confirmDestructive"
+        ],
+        "type": "object",
+        "properties": {
+          "confirmDestructive": {
+            "type": "boolean"
           }
         }
       },
@@ -3154,6 +3422,38 @@
             "format": "uuid"
           },
           "confirmDestructive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "DnsSyncPlanResponse": {
+        "required": [
+          "planId",
+          "connectionId",
+          "zoneName",
+          "changes",
+          "requiresConfirmation"
+        ],
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "connectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "zoneName": {
+            "type": "string"
+          },
+          "changes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DnsPlanChangeResponse"
+            }
+          },
+          "requiresConfirmation": {
             "type": "boolean"
           }
         }
@@ -3462,7 +3762,9 @@
         "required": [
           "status",
           "version",
-          "timestamp"
+          "timestamp",
+          "serviceSyncVaultReady",
+          "providerSyncPaused"
         ],
         "type": "object",
         "properties": {
@@ -3475,6 +3777,12 @@
           "timestamp": {
             "type": "string",
             "format": "date-time"
+          },
+          "serviceSyncVaultReady": {
+            "type": "boolean"
+          },
+          "providerSyncPaused": {
+            "type": "boolean"
           }
         }
       },
@@ -3652,6 +3960,31 @@
           },
           "clientReportsPrfSupported": {
             "type": "boolean"
+          }
+        }
+      },
+      "PasskeySummaryResponse": {
+        "required": [
+          "id",
+          "nickname",
+          "prfSupported",
+          "createdAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "nickname": {
+            "type": "string"
+          },
+          "prfSupported": {
+            "type": "boolean"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },

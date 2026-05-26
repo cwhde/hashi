@@ -47,25 +47,10 @@ public static class ConnectionEndpoints
 
         group.MapPost("/{connectionId:guid}/validate", async Task<IResult> (
             Guid connectionId,
-            CreateSshConnectionRequest request,
             SshConnectionService connections,
             CancellationToken ct) =>
         {
-            var settings = new SshConnectionSettings(
-                request.Host,
-                request.Port <= 0 ? 22 : request.Port,
-                request.Username,
-                OsFamily.Unknown,
-                null,
-                null);
-            var result = await connections.ValidateWithCredentialsAsync(
-                settings,
-                request.AuthMode,
-                request.Password,
-                request.PrivateKeyPem,
-                request.PrivateKeyPassphrase,
-                connectionId,
-                ct);
+            var result = await connections.ValidateAsync(connectionId, ct);
             return TypedResults.Ok(new SshValidationResponse(
                 result.Succeeded,
                 result.OsFamily.ToString(),
