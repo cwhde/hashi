@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Hashi.Core.Auth;
 using Hashi.Core.Dns;
 using Hashi.Infrastructure.Auth;
@@ -41,7 +42,8 @@ public sealed class DnsConnectionService(
             HealthState = ConnectionHealthStateNames.Healthy,
             LastValidatedAtUtc = DateTimeOffset.UtcNow,
             SecretId = secret.Id,
-            SettingsJson = JsonSerializer.Serialize(new { provider = DnsProviderTypeNames.Hetzner, zoneName, defaultTtl }),
+            SettingsJson = JsonSerializer.Serialize(
+                new DnsConnectionSettings(DnsProviderTypeNames.Hetzner, zoneName, defaultTtl)),
             DeletionPolicy = ConnectionDeletionPolicyNames.Required,
         };
         db.Connections.Add(connection);
@@ -341,7 +343,10 @@ public sealed class DnsConnectionService(
         return providerFactory.Create(settings.Provider, token);
     }
 
-    private sealed record DnsConnectionSettings(string Provider, string ZoneName, int DefaultTtl);
+    private sealed record DnsConnectionSettings(
+        [property: JsonPropertyName("provider")] string Provider,
+        [property: JsonPropertyName("zoneName")] string ZoneName,
+        [property: JsonPropertyName("defaultTtl")] int DefaultTtl);
 }
 
 public static class DnsProviderValidation
