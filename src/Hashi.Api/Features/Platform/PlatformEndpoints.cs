@@ -474,8 +474,19 @@ public static class SecurityEndpoints
     public static IEndpointRouteBuilder MapSecurityEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/security").WithTags("Security");
-        group.MapGet("/dashboard", async (int? hours, SecurityIngestionService security, CancellationToken ct) =>
-            TypedResults.Ok(await security.GetDashboardAsync(hours ?? 24, ct)))
+        group.MapGet("/dashboard", async (
+            int? hours,
+            string? resource,
+            string? traefikHost,
+            Guid? firewallHostId,
+            SecurityIngestionService security,
+            CancellationToken ct) =>
+            TypedResults.Ok(await security.GetDashboardAsync(
+                hours ?? 24,
+                resource,
+                traefikHost,
+                firewallHostId,
+                ct)))
             .Produces<SecurityDashboardResponse>(StatusCodes.Status200OK);
         group.MapPost("/access-log", async Task<IResult> (AccessLogIngestRequest request, SecurityIngestionService security, CancellationToken ct) =>
         {

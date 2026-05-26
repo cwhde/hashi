@@ -445,15 +445,23 @@ export const api = {
 			enabled: result.enabled !== false
 		} satisfies import('./types.js').OidcProvider;
 	},
-	getSecurityDashboard: async (params?: { hours?: number }) => {
-		const r = await client.GET('/api/security/dashboard', {
+	getSecurityDashboard: async (params?: {
+		hours?: number;
+		resource?: string;
+		traefikHost?: string;
+		firewallHostId?: string;
+	}) => {
+		const r = await client.GET('/api/security/dashboard' as never, {
 			params: {
 				query: {
-					hours: params?.hours
+					hours: params?.hours,
+					resource: params?.resource,
+					traefikHost: params?.traefikHost,
+					firewallHostId: params?.firewallHostId
 				}
 			}
-		});
-		return expectData(r.response, r.error, r.data);
+		} as never);
+		return (await expectData(r.response, r.error, r.data)) as unknown as import('./types.js').SecurityDashboard;
 	},
 	getPulseInstall: async (agentId: string, token?: string) => {
 		const r = await client.GET('/api/pulse/agents/{agentId}/install', {

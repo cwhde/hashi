@@ -56,8 +56,52 @@ export type MonitorEndpoint = Schemas['MonitorEndpointResponse'];
 export type MonitorRollup = Schemas['MonitorRollupResponse'];
 export type PublicStatusItem = Schemas['PublicStatusItemResponse'];
 export type PublicStatusStripBucket = Schemas['PublicStatusStripBucket'];
-export type SecurityDashboard = Schemas['SecurityDashboardResponse'];
 export type SecurityRankItem = { label: string; count: number };
+export type SecurityResourceEnforcementItem = {
+	resource: string;
+	blocked: number;
+	challenged: number;
+};
+export type SecurityRecentEventItem = {
+	occurredAtUtc: string;
+	category: string;
+	action: string;
+	clientIp: string | null;
+	host: string | null;
+	path: string | null;
+};
+export type SecurityFilterOption = {
+	value: string;
+	label: string;
+};
+export type SecurityFirewallHostOption = {
+	id: string;
+	name: string;
+	domain: string;
+	linkedTraefikHost: string;
+};
+export type SecurityDashboard = {
+	allowed: number;
+	blocked: number;
+	challenged: number;
+	wafDetections: number;
+	wafBlocks: number;
+	hours: number;
+	resourceFilter: string | null;
+	traefikHostFilter: string | null;
+	firewallHostIdFilter: string | null;
+	topBlockedIps: string[];
+	topCountries: SecurityRankItem[];
+	topAsns: SecurityRankItem[];
+	topResourcesBlockedChallenged: SecurityResourceEnforcementItem[];
+	recentEvents: SecurityRecentEventItem[];
+	resourceFilters: SecurityFilterOption[];
+	traefikHostFilters: SecurityFilterOption[];
+	firewallHostFilters: SecurityFirewallHostOption[];
+	firewallActiveIpBlocks: number;
+	blocklistCount: number;
+	securityEventCount: number;
+};
 export type PulseAgent = Schemas['PulseAgentResponse'];
 export type PulseInstall = Schemas['PulseInstallResponse'];
 export type CreatePulseAgentRequest = Schemas['CreatePulseAgentRequest'];
