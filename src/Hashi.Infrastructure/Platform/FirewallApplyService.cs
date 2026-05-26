@@ -19,6 +19,12 @@ public sealed class FirewallApplyService(
     SecretRecordService secrets,
     AuditService audit)
 {
+    public async Task<IReadOnlyList<FirewallHostResponse>> ListHostsAsync(CancellationToken cancellationToken = default)
+    {
+        var hosts = await db.FirewallHosts.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
+        return hosts.Select(ToResponse).ToList();
+    }
+
     public async Task<FirewallApplyResponse> ApplyAsync(FirewallApplyRequest request, CancellationToken cancellationToken = default)
     {
         var host = await db.FirewallHosts.SingleOrDefaultAsync(x => x.Id == request.FirewallHostId, cancellationToken)
@@ -248,4 +254,20 @@ public sealed class FirewallApplyService(
         null);
 
     private static string Quote(string value) => $"'{value.Replace("'", "'\\''", StringComparison.Ordinal)}'";
+
+    internal static FirewallHostResponse ToResponse(FirewallHostEntity host)
+    {
+        var subnets = JsonSerializer.Deserialize<List<string>>(host.ManagedSubnetsJson) ?? [];
+        return new FirewallHostResponse(
+            host.Id,
+            host.ConnectionId,
+            host.Name,
+            host.Domain,
+            host.LinkedTraefikHost,
+            host.InternalTraefikIp,
+            host.PublicIp,
+            subnets,
+            host.NetBirdDetected,
+            host.LastAppliedAtUtc);
+    }
 }

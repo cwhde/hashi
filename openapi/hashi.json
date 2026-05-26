@@ -1255,6 +1255,48 @@
         }
       }
     },
+    "/api/firewall/hosts": {
+      "get": {
+        "tags": [
+          "Firewall"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FirewallHostResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Firewall"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFirewallHostRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/firewall/render": {
       "post": {
         "tags": [
@@ -1280,28 +1322,6 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    "/api/firewall/hosts": {
-      "post": {
-        "tags": [
-          "Firewall"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateFirewallHostRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK"
           }
         }
       }
@@ -2483,6 +2503,65 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "FirewallHostResponse": {
+        "required": [
+          "id",
+          "connectionId",
+          "name",
+          "domain",
+          "linkedTraefikHost",
+          "internalTraefikIp",
+          "publicIp",
+          "managedSubnets",
+          "netBirdDetected",
+          "lastAppliedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "connectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "linkedTraefikHost": {
+            "type": "string"
+          },
+          "internalTraefikIp": {
+            "type": "string"
+          },
+          "publicIp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "managedSubnets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "netBirdDetected": {
+            "type": "boolean"
+          },
+          "lastAppliedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },

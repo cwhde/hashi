@@ -273,6 +273,10 @@ export const api = {
 		const r = await client.POST('/api/firewall/render', { body });
 		return expectData(r.response, r.error, r.data);
 	},
+	listFirewallHosts: async () => {
+		const r = await client.GET('/api/firewall/hosts');
+		return expectData(r.response, r.error, r.data ?? []);
+	},
 
 	listStatusEndpoints: async () => {
 		const r = await client.GET('/api/status/endpoints');

@@ -1,6 +1,9 @@
 using Hashi.Core.Resources;
 using Hashi.Core.Security;
 using Hashi.Core.Traefik;
+using Hashi.Infrastructure.Persistence.Entities;
+using Hashi.Infrastructure.Platform;
+using System.Text.Json;
 using Xunit;
 
 namespace Hashi.UnitTests;
@@ -75,5 +78,40 @@ public sealed class ResourceSlugTests
     public void Normalize_replaces_invalid_characters()
     {
         Assert.Equal("my-app", ResourceSlug.Normalize("My App!"));
+    }
+}
+
+public sealed class FirewallHostResponseTests
+{
+    [Fact]
+    public void ToResponse_maps_managed_subnets_and_metadata()
+    {
+        var hostId = Guid.NewGuid();
+        var connectionId = Guid.NewGuid();
+        var appliedAt = DateTimeOffset.UtcNow;
+        var host = new FirewallHostEntity
+        {
+            Id = hostId,
+            ConnectionId = connectionId,
+            Name = "edge-1",
+            Domain = "edge.example.com",
+            ManagedSubnetsJson = JsonSerializer.Serialize(new[] { "10.0.0.0/24", "192.168.1.0/24" }),
+            LinkedTraefikHost = "traefik.internal",
+            InternalTraefikIp = "10.0.0.2",
+            PublicIp = "203.0.113.10",
+            NetBirdDetected = true,
+            LastAppliedAtUtc = appliedAt,
+        };
+
+        var response = FirewallApplyService.ToResponse(host);
+
+        Assert.Equal(hostId, response.Id);
+        Assert.Equal(connectionId, response.ConnectionId);
+        Assert.Equal("edge-1", response.Name);
+        Assert.Equal("edge.example.com", response.Domain);
+        Assert.Equal("203.0.113.10", response.PublicIp);
+        Assert.Equal(["10.0.0.0/24", "192.168.1.0/24"], response.ManagedSubnets);
+        Assert.True(response.NetBirdDetected);
+        Assert.Equal(appliedAt, response.LastAppliedAtUtc);
     }
 }

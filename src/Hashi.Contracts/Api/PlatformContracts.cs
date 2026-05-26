@@ -92,6 +92,18 @@ public sealed record FirewallApplyRequest(
 
 public sealed record FirewallApplyResponse(bool Succeeded, bool Skipped, bool NetBirdDetected, string? Message);
 
+public sealed record FirewallHostResponse(
+    Guid Id,
+    Guid ConnectionId,
+    string Name,
+    string Domain,
+    string LinkedTraefikHost,
+    string InternalTraefikIp,
+    string? PublicIp,
+    IReadOnlyList<string> ManagedSubnets,
+    bool NetBirdDetected,
+    DateTimeOffset? LastAppliedAtUtc);
+
 public sealed record CreateFirewallHostRequest(
     Guid ConnectionId,
     string Name,

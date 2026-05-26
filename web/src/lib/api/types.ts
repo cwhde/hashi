@@ -33,6 +33,7 @@ export type UpdateResourceRequest = Schemas['UpdateResourceRequest'];
 export type TraefikRenderResponse = Schemas['TraefikRenderResponse'];
 export type FirewallRenderRequest = Schemas['FirewallRenderRequest'];
 export type FirewallRenderResponse = Schemas['FirewallRenderResponse'];
+export type FirewallHost = Schemas['FirewallHostResponse'];
 
 export type MonitorEndpoint = Schemas['MonitorEndpointResponse'];
 export type PublicStatusItem = Schemas['PublicStatusItemResponse'];

@@ -1980,6 +1980,62 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/firewall/hosts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FirewallHostResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateFirewallHostRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/firewall/render": {
         parameters: {
             query?: never;
@@ -2010,43 +2066,6 @@ export interface paths {
                     content: {
                         "application/json": components["schemas"]["FirewallRenderResponse"];
                     };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/firewall/hosts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["CreateFirewallHostRequest"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
                 };
             };
         };
@@ -3019,6 +3038,21 @@ export interface components {
             password: null | string;
             privateKeyPem: null | string;
             privateKeyPassphrase: null | string;
+        };
+        FirewallHostResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            connectionId: string;
+            name: string;
+            domain: string;
+            linkedTraefikHost: string;
+            internalTraefikIp: string;
+            publicIp: null | string;
+            managedSubnets: string[];
+            netBirdDetected: boolean;
+            /** Format: date-time */
+            lastAppliedAtUtc: null | string;
         };
         FirewallRenderRequest: {
             name: string;

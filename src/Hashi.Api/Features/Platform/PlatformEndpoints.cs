@@ -95,6 +95,8 @@ public static class FirewallEndpoints
     public static IEndpointRouteBuilder MapFirewallEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/firewall").WithTags("Firewall");
+        group.MapGet("/hosts", async (FirewallApplyService firewall, CancellationToken ct) =>
+            TypedResults.Ok(await firewall.ListHostsAsync(ct)));
         group.MapPost("/render", (FirewallRenderRequest request, FirewallPlatformService firewall) =>
             TypedResults.Ok(firewall.Render(request)));
         group.MapPost("/hosts", async Task<IResult> (CreateFirewallHostRequest request, FirewallApplyService firewall, CancellationToken ct) =>
