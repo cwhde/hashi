@@ -312,8 +312,9 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
 
         modelBuilder.Entity<MonitorSampleEntity>(entity =>
         {
-            entity.ToTable("monitor_samples");
-            entity.HasKey(x => x.Id);
+            entity.ToTable("monitor_samples_raw");
+            entity.HasKey(x => new { x.Id, x.PartitionDate });
+            entity.Property(x => x.PartitionDate).HasColumnName("partition_date");
             entity.HasIndex(x => new { x.MonitorEndpointId, x.PartitionDate, x.CheckedAtUtc });
         });
 
