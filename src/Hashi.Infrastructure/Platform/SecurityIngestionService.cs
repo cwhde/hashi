@@ -198,59 +198,184 @@ public sealed class SecurityIngestionService(
         await db.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<SecurityDashboardResponse> GetDashboardAsync(int hours = 24, CancellationToken cancellationToken = default)
+    public async Task<SecurityDashboardResponse> GetDashboardAsync(
+        int hours = 24,
+        string? resourceFilter = null,
+        string? traefikHostFilter = null,
+        Guid? firewallHostIdFilter = null,
+        CancellationToken cancellationToken = default)
     {
-        var windowHours = Math.Clamp(hours, 1, 168);
+        var windowHours = Math.Clamp(hours, 1, 720);
         var since = DateTimeOffset.UtcNow.AddHours(-windowHours);
-        var bucketSince = TruncateToMinuteUtc(since);
-        var bucketWindow = db.SecurityRequestBuckets.AsNoTracking()
-            .Where(x => x.BucketStartUtc >= bucketSince);
-        var totals = await bucketWindow
-            .GroupBy(_ => 1)
-            .Select(group => new
-            {
-                Allowed = group.Sum(x => x.AllowedCount),
-                Blocked = group.Sum(x => x.BlockedCount),
-                Challenged = group.Sum(x => x.ChallengedCount),
-            })
-            .SingleOrDefaultAsync(cancellationToken);
-        var allowed = totals?.Allowed ?? 0;
-        var blocked = totals?.Blocked ?? 0;
-        var challenged = totals?.Challenged ?? 0;
-        var topIps = await bucketWindow
-            .Where(x => x.BlockedCount > 0)
-            .GroupBy(x => x.ClientIp)
-            .OrderByDescending(x => x.Sum(y => y.BlockedCount))
-            .Take(10)
-            .Select(x => x.Key)
+        var normalizedResourceFilter = string.IsNullOrWhiteSpace(resourceFilter) ? null : resourceFilter.Trim();
+        var normalizedTraefikHostFilter = string.IsNullOrWhiteSpace(traefikHostFilter) ? null : traefikHostFilter.Trim();
+
+        var resourceFilters = await db.Resources.AsNoTracking()
+            .Where(x => !string.IsNullOrWhiteSpace(x.Domain))
+            .Select(x => x.Domain!)
+            .Distinct()
+            .OrderBy(x => x)
+            .Select(x => new SecurityFilterOption { Value = x, Label = x })
             .ToListAsync(cancellationToken);
-        var topCountries = await bucketWindow
+
+        var traefikHostFilters = await db.FirewallHosts.AsNoTracking()
+            .Where(x => !string.IsNullOrWhiteSpace(x.LinkedTraefikHost))
+            .Select(x => x.LinkedTraefikHost)
+            .Distinct()
+            .OrderBy(x => x)
+            .Select(x => new SecurityFilterOption { Value = x, Label = x })
+            .ToListAsync(cancellationToken);
+
+        var firewallHostFilters = await db.FirewallHosts.AsNoTracking()
+            .Select(x => new SecurityFirewallHostOption
+            {
+                Id = x.Id,
+                Name = x.Name,
+                Domain = x.Domain,
+                LinkedTraefikHost = x.LinkedTraefikHost,
+            })
+            .OrderBy(x => x.Name)
+            .ToListAsync(cancellationToken);
+
+        var selectedFirewallHost = firewallHostIdFilter.HasValue
+            ? firewallHostFilters.FirstOrDefault(x => x.Id == firewallHostIdFilter.Value)
+            : null;
+
+        var hostFilters = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (normalizedResourceFilter is not null)
+        {
+            hostFilters.Add(normalizedResourceFilter);
+        }
+
+        if (normalizedTraefikHostFilter is not null)
+        {
+            hostFilters.Add(normalizedTraefikHostFilter);
+        }
+
+        if (selectedFirewallHost is not null)
+        {
+            if (!string.IsNullOrWhiteSpace(selectedFirewallHost.Domain))
+            {
+                hostFilters.Add(selectedFirewallHost.Domain);
+            }
+
+            if (!string.IsNullOrWhiteSpace(selectedFirewallHost.LinkedTraefikHost))
+            {
+                hostFilters.Add(selectedFirewallHost.LinkedTraefikHost);
+            }
+        }
+
+        var accessEventsQuery = db.AccessLogEvents.AsNoTracking()
+            .Where(x => x.ReceivedAtUtc >= since);
+        var securityEventsQuery = db.SecurityEvents.AsNoTracking()
+            .Where(x => x.OccurredAtUtc >= since);
+
+        if (hostFilters.Count > 0)
+        {
+            accessEventsQuery = accessEventsQuery.Where(x => hostFilters.Contains(x.Host));
+            securityEventsQuery = securityEventsQuery.Where(x => x.Host != null && hostFilters.Contains(x.Host));
+        }
+
+        var allowed = await accessEventsQuery.Where(x => x.Decision == "allowed").LongCountAsync(cancellationToken);
+        var blocked = await accessEventsQuery.Where(x => x.Decision == "blocked").LongCountAsync(cancellationToken);
+        var challenged = await accessEventsQuery.Where(x => x.Decision == "challenged").LongCountAsync(cancellationToken);
+
+        var topIps = await accessEventsQuery
+            .Where(x => x.Decision == "blocked")
+            .GroupBy(x => x.ClientIp)
+            .Select(x => new { Ip = x.Key, Count = x.LongCount() })
+            .OrderByDescending(x => x.Count)
+            .ThenBy(x => x.Ip)
+            .Take(10)
+            .Select(x => x.Ip)
+            .ToListAsync(cancellationToken);
+
+        var topCountries = await accessEventsQuery
             .Where(x => !string.IsNullOrWhiteSpace(x.CountryCode))
             .GroupBy(x => x.CountryCode!)
-            .OrderByDescending(x => x.Sum(y => y.TotalCount))
+            .Select(x => new SecurityRankItem { Label = x.Key, Count = x.LongCount() })
+            .OrderByDescending(x => x.Count)
+            .ThenBy(x => x.Label)
             .Take(10)
-            .Select(x => new SecurityRankItem { Label = x.Key, Count = x.Sum(y => y.TotalCount) })
             .ToListAsync(cancellationToken);
-        var topAsns = await bucketWindow
+
+        var topAsns = await accessEventsQuery
             .Where(x => !string.IsNullOrWhiteSpace(x.Asn))
             .GroupBy(x => x.Asn!)
-            .OrderByDescending(x => x.Sum(y => y.TotalCount))
+            .Select(x => new SecurityRankItem { Label = x.Key, Count = x.LongCount() })
+            .OrderByDescending(x => x.Count)
+            .ThenBy(x => x.Label)
             .Take(10)
-            .Select(x => new SecurityRankItem { Label = x.Key, Count = x.Sum(y => y.TotalCount) })
             .ToListAsync(cancellationToken);
-        var blocklistCount = await db.BlocklistEntries.AsNoTracking().LongCountAsync(cancellationToken);
-        var securityEventCount = await db.SecurityEvents.AsNoTracking()
-            .Where(x => x.OccurredAtUtc >= since)
+
+        var topResourcesRaw = await accessEventsQuery
+            .Where(x => x.Decision == "blocked" || x.Decision == "challenged")
+            .Where(x => !string.IsNullOrWhiteSpace(x.Host))
+            .GroupBy(x => x.Host)
+            .Select(x => new
+            {
+                Resource = x.Key,
+                Blocked = x.LongCount(y => y.Decision == "blocked"),
+                Challenged = x.LongCount(y => y.Decision == "challenged"),
+            })
+            .OrderByDescending(x => x.Blocked + x.Challenged)
+            .ThenBy(x => x.Resource)
+            .Take(10)
+            .ToListAsync(cancellationToken);
+        var topResources = topResourcesRaw
+            .Select(x => new SecurityResourceEnforcementItem
+            {
+                Resource = x.Resource,
+                Blocked = x.Blocked,
+                Challenged = x.Challenged,
+            })
+            .ToList();
+
+        var recentEvents = await securityEventsQuery
+            .OrderByDescending(x => x.OccurredAtUtc)
+            .Take(20)
+            .Select(x => new SecurityRecentEventItem
+            {
+                OccurredAtUtc = x.OccurredAtUtc,
+                Category = x.Category,
+                Action = x.Action,
+                ClientIp = x.ClientIp,
+                Host = x.Host,
+                Path = x.Path,
+            })
+            .ToListAsync(cancellationToken);
+
+        var wafDetections = await securityEventsQuery
+            .Where(x => x.Category == "waf")
             .LongCountAsync(cancellationToken);
+        var wafBlocks = await securityEventsQuery
+            .Where(x => x.Category == "waf")
+            .Where(x => x.Action == "blocked" || x.Action == "block" || x.Action == "deny")
+            .LongCountAsync(cancellationToken);
+
+        var firewallActiveIpBlocks = await db.BlocklistEntries.AsNoTracking().LongCountAsync(cancellationToken);
+        var securityEventCount = await securityEventsQuery.LongCountAsync(cancellationToken);
+
         return new SecurityDashboardResponse(
             allowed,
             blocked,
             challenged,
+            wafDetections,
+            wafBlocks,
             windowHours,
+            normalizedResourceFilter,
+            normalizedTraefikHostFilter,
+            selectedFirewallHost?.Id,
             topIps,
             topCountries,
             topAsns,
-            blocklistCount,
+            topResources,
+            recentEvents,
+            resourceFilters,
+            traefikHostFilters,
+            firewallHostFilters,
+            firewallActiveIpBlocks,
+            firewallActiveIpBlocks,
             securityEventCount);
     }
 

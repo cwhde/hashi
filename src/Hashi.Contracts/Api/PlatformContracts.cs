@@ -424,14 +424,56 @@ public sealed record SecurityRankItem
     public required long Count { get; init; }
 }
 
+public sealed record SecurityResourceEnforcementItem
+{
+    public required string Resource { get; init; }
+    public required long Blocked { get; init; }
+    public required long Challenged { get; init; }
+}
+
+public sealed record SecurityRecentEventItem
+{
+    public required DateTimeOffset OccurredAtUtc { get; init; }
+    public required string Category { get; init; }
+    public required string Action { get; init; }
+    public string? ClientIp { get; init; }
+    public string? Host { get; init; }
+    public string? Path { get; init; }
+}
+
+public sealed record SecurityFilterOption
+{
+    public required string Value { get; init; }
+    public required string Label { get; init; }
+}
+
+public sealed record SecurityFirewallHostOption
+{
+    public required Guid Id { get; init; }
+    public required string Name { get; init; }
+    public required string Domain { get; init; }
+    public required string LinkedTraefikHost { get; init; }
+}
+
 public sealed record SecurityDashboardResponse(
     long Allowed,
     long Blocked,
     long Challenged,
+    long WafDetections,
+    long WafBlocks,
     int Hours,
+    string? ResourceFilter,
+    string? TraefikHostFilter,
+    Guid? FirewallHostIdFilter,
     IReadOnlyList<string> TopBlockedIps,
     IReadOnlyList<SecurityRankItem> TopCountries,
     IReadOnlyList<SecurityRankItem> TopAsns,
+    IReadOnlyList<SecurityResourceEnforcementItem> TopResourcesBlockedChallenged,
+    IReadOnlyList<SecurityRecentEventItem> RecentEvents,
+    IReadOnlyList<SecurityFilterOption> ResourceFilters,
+    IReadOnlyList<SecurityFilterOption> TraefikHostFilters,
+    IReadOnlyList<SecurityFirewallHostOption> FirewallHostFilters,
+    long FirewallActiveIpBlocks,
     long BlocklistCount,
     long SecurityEventCount);
 

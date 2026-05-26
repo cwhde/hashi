@@ -18,11 +18,11 @@ public sealed class SecurityIngestionServiceTests
     public async Task GetDashboardAsync_aggregates_counts_and_rankings()
     {
         await using var db = CreateDb();
-        var now = DateTimeOffset.UtcNow;
-        db.SecurityRequestBuckets.AddRange(
-            Bucket("1.1.1.1", "app.example.com", "default", "US", "CA", "AS13335", statusClass: 2, "GET", "/", 1, 1, 0, now),
-            Bucket("2.2.2.2", "app.example.com", "default", "DE", "BE", "AS24940", statusClass: 4, "GET", "/", 0, 1, 0, now),
-            Bucket("3.3.3.3", "app.example.com", "default", "US", "CA", "AS13335", statusClass: 2, "GET", "/", 0, 0, 1, now));
+        db.AccessLogEvents.AddRange(
+            Event("1.1.1.1", "allowed", "US", "AS13335"),
+            Event("1.1.1.1", "blocked", "US", "AS13335"),
+            Event("2.2.2.2", "blocked", "DE", "AS24940"),
+            Event("3.3.3.3", "challenged", "US", "AS13335"));
         await db.SaveChangesAsync();
 
         var service = CreateService(db);
@@ -80,6 +80,31 @@ public sealed class SecurityIngestionServiceTests
     }
 
     [Fact]
+    public async Task GetDashboardAsync_returns_waf_counts_distinct_from_access_logs()
+    {
+        await using var db = CreateDb();
+        db.AccessLogEvents.AddRange(
+            Event("1.1.1.1", "blocked", "US", "AS13335"),
+            Event("2.2.2.2", "blocked", "US", "AS13335"));
+        db.SecurityEvents.Add(new SecurityEventEntity
+        {
+            Category = "waf",
+            Action = "blocked",
+            ClientIp = "3.3.3.3",
+            Host = "app.example.com",
+            Path = "/admin",
+        });
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+        var dashboard = await service.GetDashboardAsync(24);
+
+        Assert.Equal(2, dashboard.Blocked);
+        Assert.Equal(1, dashboard.WafDetections);
+        Assert.Equal(1, dashboard.WafBlocks);
+    }
+
+    [Fact]
     public async Task IngestForwardAuthDecisionAsync_records_challenged_event()
     {
         await using var db = CreateDb();
@@ -120,37 +145,17 @@ public sealed class SecurityIngestionServiceTests
         Assert.Single(await db.BlocklistEntries.ToListAsync());
     }
 
-    private static SecurityRequestBucketEntity Bucket(
-        string ip,
-        string resource,
-        string traefikInstance,
-        string country,
-        string region,
-        string asn,
-        int statusClass,
-        string method,
-        string pathPrefix,
-        long allowed,
-        long blocked,
-        long challenged,
-        DateTimeOffset bucketStartUtc)
+    private static AccessLogEventEntity Event(string ip, string decision, string country, string asn)
         => new()
         {
-            BucketStartUtc = bucketStartUtc,
             ClientIp = ip,
-            Resource = resource,
-            TraefikInstance = traefikInstance,
+            Host = "app.example.com",
+            Path = "/",
+            StatusCode = decision == "blocked" ? 403 : 200,
             CountryCode = country,
-            RegionCode = region,
             Asn = asn,
-            StatusClass = statusClass,
-            Method = method,
-            PathPrefix = pathPrefix,
-            TotalCount = allowed + blocked + challenged,
-            AllowedCount = allowed,
-            BlockedCount = blocked,
-            ChallengedCount = challenged,
-            UpdatedAtUtc = bucketStartUtc,
+            Decision = decision,
+            ReceivedAtUtc = DateTimeOffset.UtcNow,
         };
 
     private static HashiDbContext CreateDb()
