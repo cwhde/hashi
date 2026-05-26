@@ -79,6 +79,7 @@ public sealed class SecurityIngestionServiceTests
         Assert.Equal("/v1", bucket.PathPrefix);
     }
 
+    [Fact]
     public async Task IngestForwardAuthDecisionAsync_records_challenged_event()
     {
         await using var db = CreateDb();
