@@ -30,6 +30,8 @@ public sealed class ResourceEntity
 
     public string WafMode { get; set; } = "detect_only";
 
+    public Guid? FirewallHostId { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 
     public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;

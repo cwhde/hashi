@@ -58,7 +58,7 @@ public static class DnsDesiredStateBuilder
                     resource.Name,
                     slug,
                     rootDomain,
-                    null,
+                    resource.FirewallHostId,
                     null,
                     null),
                 hostTargets,

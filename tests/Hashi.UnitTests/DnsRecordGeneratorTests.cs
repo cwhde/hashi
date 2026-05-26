@@ -30,6 +30,20 @@ public sealed class DnsRecordGeneratorTests
         Assert.Equal(DnsRecordType.Cname, records[0].Type);
         Assert.Contains("on.machine1.example.com", records[0].Value);
     }
+
+    [Fact]
+    public void GenerateResourceRecords_uses_cname_when_firewall_host_id_set()
+    {
+        var hostId = Guid.NewGuid();
+        var hosts = new[] { new FirewallHostDnsTarget(hostId, "machine1", "203.0.113.10", null) };
+        var records = DnsRecordGenerator.GenerateResourceRecords(
+            new ResourceDnsTarget("App", "app", "example.com", hostId, null, null),
+            hosts);
+
+        Assert.Single(records);
+        Assert.Equal(DnsRecordType.Cname, records[0].Type);
+        Assert.Contains("on.machine1.example.com", records[0].Value);
+    }
 }
 
 public sealed class FirewallScriptRendererTests

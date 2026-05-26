@@ -28,6 +28,7 @@ public sealed class ResourceService(HashiDbContext db, AuditService audit)
             TargetPort = request.TargetPort,
             DashboardEnabled = request.DashboardEnabled,
             StatusEnabled = request.StatusEnabled,
+            FirewallHostId = request.FirewallHostId,
         };
         db.Resources.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
@@ -88,6 +89,15 @@ public sealed class ResourceService(HashiDbContext db, AuditService audit)
             entity.StatusEnabled = status;
         }
 
+        if (request.ClearFirewallHostId)
+        {
+            entity.FirewallHostId = null;
+        }
+        else if (request.FirewallHostId is Guid hostId)
+        {
+            entity.FirewallHostId = hostId;
+        }
+
         entity.UpdatedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
         return entity;
@@ -123,7 +133,8 @@ public sealed class ResourceService(HashiDbContext db, AuditService audit)
         entity.TargetHost,
         entity.TargetPort,
         entity.DashboardEnabled,
-        entity.StatusEnabled);
+        entity.StatusEnabled,
+        entity.FirewallHostId);
 }
 
 public sealed class TraefikPlatformService(HashiDbContext db, AppSettingsService settings)

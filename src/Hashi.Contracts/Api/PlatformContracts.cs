@@ -12,7 +12,8 @@ public sealed record ResourceResponse(
     string TargetHost,
     int TargetPort,
     bool DashboardEnabled,
-    bool StatusEnabled);
+    bool StatusEnabled,
+    Guid? FirewallHostId);
 
 public sealed record CreateResourceRequest(
     string Name,
@@ -22,7 +23,8 @@ public sealed record CreateResourceRequest(
     string TargetHost,
     int TargetPort,
     bool DashboardEnabled,
-    bool StatusEnabled);
+    bool StatusEnabled,
+    Guid? FirewallHostId = null);
 
 public sealed record UpdateResourceRequest(
     string? Name,
@@ -32,7 +34,9 @@ public sealed record UpdateResourceRequest(
     string? TargetHost,
     int? TargetPort,
     bool? DashboardEnabled,
-    bool? StatusEnabled);
+    bool? StatusEnabled,
+    Guid? FirewallHostId = null,
+    bool ClearFirewallHostId = false);
 
 public sealed record TraefikDynamicFilesResponse(
     string CoreYaml,
