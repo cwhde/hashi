@@ -63,9 +63,40 @@ public sealed class SecurityIngestionService(
         await db.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<SecurityDashboardResponse> GetDashboardAsync(CancellationToken cancellationToken = default)
+    public async Task IngestForwardAuthDecisionAsync(
+        ForwardAuthDecisionIngestRequest request,
+        CancellationToken cancellationToken = default)
     {
-        var since = DateTimeOffset.UtcNow.AddHours(-24);
+        var decision = request.Decision.ToLowerInvariant() switch
+        {
+            "deny" => "blocked",
+            "challenge" or "redirect" => "challenged",
+            _ => "allowed",
+        };
+        var statusCode = request.Decision.ToLowerInvariant() switch
+        {
+            "deny" => 403,
+            "challenge" or "redirect" => 401,
+            _ => 204,
+        };
+
+        db.AccessLogEvents.Add(new AccessLogEventEntity
+        {
+            ClientIp = request.ClientIp,
+            Host = request.Host,
+            Path = request.Path,
+            StatusCode = statusCode,
+            CountryCode = request.CountryCode,
+            Asn = request.Asn,
+            Decision = decision,
+        });
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<SecurityDashboardResponse> GetDashboardAsync(int hours = 24, CancellationToken cancellationToken = default)
+    {
+        var windowHours = Math.Clamp(hours, 1, 168);
+        var since = DateTimeOffset.UtcNow.AddHours(-windowHours);
         var events = await db.AccessLogEvents.AsNoTracking().Where(x => x.ReceivedAtUtc >= since).ToListAsync(cancellationToken);
         var allowed = events.Count(x => x.Decision == "allowed");
         var blocked = events.Count(x => x.Decision == "blocked");
@@ -76,7 +107,21 @@ public sealed class SecurityIngestionService(
             .Take(5)
             .Select(x => x.Key)
             .ToList();
-        return new SecurityDashboardResponse(allowed, blocked, challenged, topIps);
+        var topCountries = events
+            .Where(x => !string.IsNullOrWhiteSpace(x.CountryCode))
+            .GroupBy(x => x.CountryCode!)
+            .OrderByDescending(x => x.Count())
+            .Take(5)
+            .Select(x => new SecurityRankItem { Label = x.Key, Count = x.LongCount() })
+            .ToList();
+        var topAsns = events
+            .Where(x => !string.IsNullOrWhiteSpace(x.Asn))
+            .GroupBy(x => x.Asn!)
+            .OrderByDescending(x => x.Count())
+            .Take(5)
+            .Select(x => new SecurityRankItem { Label = x.Key, Count = x.LongCount() })
+            .ToList();
+        return new SecurityDashboardResponse(allowed, blocked, challenged, windowHours, topIps, topCountries, topAsns);
     }
 
     public async Task SyncBlocklistToFirewallAsync(FirewallApplyRequest request, CancellationToken cancellationToken = default)

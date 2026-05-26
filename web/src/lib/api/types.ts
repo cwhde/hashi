@@ -44,6 +44,7 @@ export type MonitorRollup = Schemas['MonitorRollupResponse'];
 export type PublicStatusItem = Schemas['PublicStatusItemResponse'];
 export type PublicStatusStripBucket = Schemas['PublicStatusStripBucket'];
 export type SecurityDashboard = Schemas['SecurityDashboardResponse'];
+export type SecurityRankItem = { label: string; count: number };
 export type PulseAgent = Schemas['PulseAgentResponse'];
 export type CreatePulseAgentRequest = Schemas['CreatePulseAgentRequest'];
 export type CreatePulseAgentResult = Schemas['CreatePulseAgentResponse'];

@@ -176,7 +176,11 @@ public static class EdgeAuthEndpoints
 {
     public static IEndpointRouteBuilder MapEdgeAuthEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/edge-auth/forward", async Task<IResult> (HttpContext ctx, EdgeAuthService edgeAuth, CancellationToken ct) =>
+        app.MapGet("/api/edge-auth/forward", async Task<IResult> (
+            HttpContext ctx,
+            EdgeAuthService edgeAuth,
+            SecurityIngestionService security,
+            CancellationToken ct) =>
         {
             var host = ctx.Request.Headers["X-Forwarded-Host"].FirstOrDefault() ?? ctx.Request.Host.Value ?? string.Empty;
             var path = ctx.Request.Headers["X-Forwarded-Uri"].FirstOrDefault()
@@ -189,6 +193,14 @@ public static class EdgeAuthEndpoints
             var mode = ctx.Request.Query["mode"].FirstOrDefault();
             var result = await edgeAuth.EvaluateForwardAsync(
                 host, path, clientIp, country, asn, ctx.Request.Cookies["hashi.edge.session"], mode, ct);
+
+            await security.IngestForwardAuthDecisionAsync(new ForwardAuthDecisionIngestRequest(
+                clientIp.ToString(),
+                host,
+                path,
+                result.Decision,
+                country,
+                asn), ct);
 
             return result.Decision switch
             {
@@ -258,8 +270,9 @@ public static class SecurityEndpoints
     public static IEndpointRouteBuilder MapSecurityEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/security").WithTags("Security");
-        group.MapGet("/dashboard", async (SecurityIngestionService security, CancellationToken ct) =>
-            TypedResults.Ok(await security.GetDashboardAsync(ct)));
+        group.MapGet("/dashboard", async (int? hours, SecurityIngestionService security, CancellationToken ct) =>
+            TypedResults.Ok(await security.GetDashboardAsync(hours ?? 24, ct)))
+            .Produces<SecurityDashboardResponse>(StatusCodes.Status200OK);
         group.MapPost("/access-log", async Task<IResult> (AccessLogIngestRequest request, SecurityIngestionService security, CancellationToken ct) =>
         {
             await security.IngestAccessLogAsync(request, ct);

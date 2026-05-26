@@ -15,6 +15,8 @@
 	let resourceCounts = $state({ total: 0, enabled: 0 });
 	let statusCounts = $state({ up: 0, degraded: 0, down: 0 });
 	let securityBlocked = $state('—');
+	let securityAllowed = $state('—');
+	let securityChallenged = $state('—');
 	let dnsConnections = $state(0);
 	let pulseAgents = $state(0);
 	let syncRuns = $state<{ pending: number; recent: number }>({ pending: 0, recent: 0 });
@@ -46,6 +48,8 @@
 				down: monitors.filter((m) => m.status === 'Down').length
 			};
 			securityBlocked = security ? String(security.blocked) : '—';
+			securityAllowed = security ? String(security.allowed) : '—';
+			securityChallenged = security ? String(security.challenged) : '—';
 			dnsConnections = dns.length;
 			pulseAgents = pulse.length;
 			syncRuns = {
@@ -95,8 +99,9 @@
 					<StatusRow label="Monitors up" value={String(statusCounts.up)} status="ok" />
 					<StatusRow label="Monitors down" value={String(statusCounts.down)} status="error" />
 				{:else if widget.id === 'security-events'}
-					<StatusRow label="Blocked (range)" value={securityBlocked} status="error" />
-					<StatusRow label="Dashboard" value="via /security" />
+					<StatusRow label="Allowed (24h)" value={securityAllowed} status="ok" />
+					<StatusRow label="Blocked (24h)" value={securityBlocked} status="error" />
+					<StatusRow label="Challenged (24h)" value={securityChallenged} status="warn" />
 				{:else if widget.id === 'pending-sync'}
 					<StatusRow label="Recent runs" value={String(syncRuns.recent)} />
 					<StatusRow

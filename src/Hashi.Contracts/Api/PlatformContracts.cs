@@ -154,7 +154,28 @@ public sealed record PulseHeartbeatRequest(string Version, string Hostname, IRea
 
 public sealed record EdgeAuthForwardResponse(string Decision, string? RedirectUrl);
 
-public sealed record SecurityDashboardResponse(long Allowed, long Blocked, long Challenged, IReadOnlyList<string> TopBlockedIps);
+public sealed record SecurityRankItem
+{
+    public required string Label { get; init; }
+    public required long Count { get; init; }
+}
+
+public sealed record SecurityDashboardResponse(
+    long Allowed,
+    long Blocked,
+    long Challenged,
+    int Hours,
+    IReadOnlyList<string> TopBlockedIps,
+    IReadOnlyList<SecurityRankItem> TopCountries,
+    IReadOnlyList<SecurityRankItem> TopAsns);
+
+public sealed record ForwardAuthDecisionIngestRequest(
+    string ClientIp,
+    string Host,
+    string Path,
+    string Decision,
+    string? CountryCode,
+    string? Asn);
 
 public sealed record ScriptResponse(Guid Id, string Name, bool Enabled, string Description);
 

@@ -2349,7 +2349,9 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    hours?: number | string;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -3471,8 +3473,13 @@ export interface components {
             blocked: number | string;
             /** Format: int64 */
             challenged: number | string;
+            /** Format: int32 */
+            hours: number | string;
             topBlockedIps: string[];
+            topCountries: components["schemas"]["SecurityRankItem"][];
+            topAsns: components["schemas"]["SecurityRankItem"][];
         };
+        SecurityRankItem: unknown;
         SendNotificationRequest: {
             subject: string;
             body: string;

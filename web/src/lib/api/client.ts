@@ -321,8 +321,14 @@ export const api = {
 		});
 		return expectData(r.response, r.error, r.data ?? []);
 	},
-	getSecurityDashboard: async () => {
-		const r = await client.GET('/api/security/dashboard');
+	getSecurityDashboard: async (params?: { hours?: number }) => {
+		const r = await client.GET('/api/security/dashboard', {
+			params: {
+				query: {
+					hours: params?.hours
+				}
+			}
+		});
 		return expectData(r.response, r.error, r.data);
 	},
 	listPulseAgents: async () => {

@@ -1558,6 +1558,20 @@
         "tags": [
           "Security"
         ],
+        "parameters": [
+          {
+            "name": "hours",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -3675,7 +3689,10 @@
           "allowed",
           "blocked",
           "challenged",
-          "topBlockedIps"
+          "hours",
+          "topBlockedIps",
+          "topCountries",
+          "topAsns"
         ],
         "type": "object",
         "properties": {
@@ -3703,14 +3720,35 @@
             ],
             "format": "int64"
           },
+          "hours": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
           "topBlockedIps": {
             "type": "array",
             "items": {
               "type": "string"
             }
+          },
+          "topCountries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SecurityRankItem"
+            }
+          },
+          "topAsns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SecurityRankItem"
+            }
           }
         }
       },
+      "SecurityRankItem": { },
       "SendNotificationRequest": {
         "required": [
           "subject",
