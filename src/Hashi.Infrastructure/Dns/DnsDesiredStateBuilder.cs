@@ -15,13 +15,6 @@ public static class DnsDesiredStateBuilder
         int defaultTtl,
         CancellationToken cancellationToken = default)
     {
-        var settings = await db.AppSettings.AsNoTracking().SingleOrDefaultAsync(cancellationToken);
-        var rootDomain = settings?.RootDomain;
-        if (string.IsNullOrWhiteSpace(rootDomain))
-        {
-            return [];
-        }
-
         var manual = await db.DnsRecords.AsNoTracking()
             .Where(x => x.ZoneId == zoneId && x.Enabled)
             .Select(x => new DnsRecordSnapshot(
@@ -32,6 +25,13 @@ public static class DnsDesiredStateBuilder
                 x.Ttl ?? defaultTtl,
                 true))
             .ToListAsync(cancellationToken);
+
+        var settings = await db.AppSettings.AsNoTracking().SingleOrDefaultAsync(cancellationToken);
+        var rootDomain = settings?.RootDomain;
+        if (string.IsNullOrWhiteSpace(rootDomain))
+        {
+            return manual;
+        }
 
         var generated = new List<DnsRecordSnapshot>();
         var hosts = await db.FirewallHosts.AsNoTracking().ToListAsync(cancellationToken);
