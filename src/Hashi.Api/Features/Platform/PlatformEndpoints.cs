@@ -270,7 +270,7 @@ public static class PulseEndpoints
             var agents = await db.PulseAgents.AsNoTracking().ToListAsync(ct);
             return TypedResults.Ok(agents.Select(x => new PulseAgentResponse(x.Id, x.Name, x.Status, x.LastSeenAtUtc, x.LastPublicIp)));
         });
-        group.MapPost("/agents", async Task<IResult> (CreatePulseAgentRequest request, PulseAgentService pulse, CancellationToken ct) =>
+        group.MapPost("/agents", async Task<Ok<CreatePulseAgentResponse>> (CreatePulseAgentRequest request, PulseAgentService pulse, CancellationToken ct) =>
         {
             var created = await pulse.CreateAgentAsync(request, ct);
             return TypedResults.Ok(created);

@@ -110,7 +110,7 @@
 	});
 
 	const pendingRuns = $derived(
-		runs.filter((r) => r.status === 'AwaitingConfirmation' || r.status === 'Planning')
+		runs.filter((r) => r.status === 'awaiting_confirmation' || r.status === 'planning')
 	);
 </script>
 

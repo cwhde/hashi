@@ -50,7 +50,7 @@
 			pulseAgents = pulse.length;
 			syncRuns = {
 				recent: runs.length,
-				pending: runs.filter((r) => r.status === 'AwaitingConfirmation').length
+				pending: runs.filter((r) => r.status === 'awaiting_confirmation').length
 			};
 		} catch {
 			// offline dev

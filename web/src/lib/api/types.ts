@@ -38,6 +38,8 @@ export type MonitorEndpoint = Schemas['MonitorEndpointResponse'];
 export type PublicStatusItem = Schemas['PublicStatusItemResponse'];
 export type SecurityDashboard = Schemas['SecurityDashboardResponse'];
 export type PulseAgent = Schemas['PulseAgentResponse'];
+export type CreatePulseAgentRequest = Schemas['CreatePulseAgentRequest'];
+export type CreatePulseAgentResult = Schemas['CreatePulseAgentResponse'];
 export type Script = Schemas['ScriptResponse'];
 export type NotificationProvider = Schemas['NotificationProviderResponse'];
 

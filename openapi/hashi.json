@@ -1505,7 +1505,14 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatePulseAgentResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -2177,6 +2184,26 @@
           }
         }
       },
+      "CreatePulseAgentResponse": {
+        "required": [
+          "id",
+          "name",
+          "token"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "token": {
+            "type": "string"
+          }
+        }
+      },
       "CreateResourceRequest": {
         "required": [
           "name",
@@ -2221,6 +2248,13 @@
           },
           "statusEnabled": {
             "type": "boolean"
+          },
+          "firewallHostId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },
@@ -2972,7 +3006,8 @@
           "targetHost",
           "targetPort",
           "dashboardEnabled",
-          "statusEnabled"
+          "statusEnabled",
+          "firewallHostId"
         ],
         "type": "object",
         "properties": {
@@ -3020,6 +3055,13 @@
           },
           "statusEnabled": {
             "type": "boolean"
+          },
+          "firewallHostId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },
@@ -3695,6 +3737,17 @@
               "null",
               "boolean"
             ]
+          },
+          "firewallHostId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "clearFirewallHostId": {
+            "type": "boolean",
+            "default": false
           }
         }
       },

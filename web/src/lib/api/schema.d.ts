@@ -2357,7 +2357,9 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["CreatePulseAgentResponse"];
+                    };
                 };
             };
         };
@@ -2943,6 +2945,12 @@ export interface components {
         CreatePulseAgentRequest: {
             name: string;
         };
+        CreatePulseAgentResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            token: string;
+        };
         CreateResourceRequest: {
             name: string;
             kind: string;
@@ -2953,6 +2961,8 @@ export interface components {
             targetPort: number | string;
             dashboardEnabled: boolean;
             statusEnabled: boolean;
+            /** Format: uuid */
+            firewallHostId?: null | string;
         };
         CreateScriptRequest: {
             /** Format: uuid */
@@ -3146,6 +3156,8 @@ export interface components {
             targetPort: number | string;
             dashboardEnabled: boolean;
             statusEnabled: boolean;
+            /** Format: uuid */
+            firewallHostId: null | string;
         };
         RunScriptRequest: {
             host: string;
@@ -3305,6 +3317,10 @@ export interface components {
             targetPort: null | number | string;
             dashboardEnabled: null | boolean;
             statusEnabled: null | boolean;
+            /** Format: uuid */
+            firewallHostId?: null | string;
+            /** @default false */
+            clearFirewallHostId: boolean;
         };
         UpsertAdGuardRewriteRequest: {
             domain: string;
