@@ -117,6 +117,15 @@
         ],
         "parameters": [
           {
+            "name": "providerId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
             "name": "code",
             "in": "query",
             "schema": {
@@ -124,7 +133,7 @@
             }
           },
           {
-            "name": "returnUrl",
+            "name": "state",
             "in": "query",
             "schema": {
               "type": "string"
@@ -238,6 +247,30 @@
               "type": "string"
             }
           }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/setup/system-resource/plan": {
+      "post": {
+        "tags": [
+          "Setup"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/setup/system-resource/sync": {
+      "post": {
+        "tags": [
+          "Setup"
         ],
         "responses": {
           "200": {

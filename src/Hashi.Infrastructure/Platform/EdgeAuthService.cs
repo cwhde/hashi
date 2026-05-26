@@ -49,10 +49,7 @@ public sealed class EdgeAuthService(HashiDbContext db)
     }
 
     private static bool HasValidEdgeSession(string? edgeSessionKey)
-        => !string.IsNullOrWhiteSpace(edgeSessionKey)
-           && EdgeSessionStore.TryGet(edgeSessionKey, out var session)
-           && session is not null
-           && session.ExpiresAtUtc > DateTimeOffset.UtcNow;
+        => OidcEdgeAuthService.TryValidateSession(edgeSessionKey);
 
     private static bool Matches(
         string matchJson,

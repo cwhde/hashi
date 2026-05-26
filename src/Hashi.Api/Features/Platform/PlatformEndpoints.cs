@@ -201,14 +201,16 @@ public static class EdgeAuthEndpoints
                 return TypedResults.BadRequest(new ApiErrorResponse("No enabled OIDC provider configured."));
             }
 
-            var redirect = oidc.BuildLoginRedirectUri(ctx, provider.Id, returnUrl ?? "/");
-            return TypedResults.Redirect($"https://{new Uri(provider.Issuer).Host}/oauth/authorize?client_id={provider.ClientId}&redirect_uri={Uri.EscapeDataString(redirect)}&response_type=code&scope={Uri.EscapeDataString(provider.Scopes)}");
+            var authorizationUrl = await oidc.BuildAuthorizationUrlAsync(ctx, provider.Id, returnUrl ?? "/", ct);
+            return TypedResults.Redirect(authorizationUrl);
         }).WithTags("EdgeAuth").AllowAnonymous();
 
         app.MapGet("/api/edge-auth/callback", async Task<IResult> (
             HttpContext ctx,
+            Guid providerId,
             string? code,
-            string? returnUrl,
+            string? state,
+            OidcEdgeAuthService oidc,
             CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(code))
@@ -216,22 +218,15 @@ public static class EdgeAuthEndpoints
                 return TypedResults.BadRequest(new ApiErrorResponse("Missing authorization code."));
             }
 
-            var sessionKey = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(code))).ToLowerInvariant();
-            EdgeSessionStore.Set(sessionKey, new EdgeSessionState("edge-user", DateTimeOffset.UtcNow.AddHours(8)));
-            ctx.Response.Cookies.Append("hashi.edge.session", sessionKey, new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = ctx.Request.IsHttps,
-                SameSite = SameSiteMode.Lax,
-                Domain = ctx.Request.Host.Host.StartsWith('.') ? ctx.Request.Host.Host : $".{ctx.Request.Host.Host}",
-                Expires = DateTimeOffset.UtcNow.AddHours(8),
-            });
-            return TypedResults.Redirect(returnUrl ?? "/");
+            var result = await oidc.CompleteCallbackAsync(ctx, providerId, code, state, ct);
+            ctx.Response.Cookies.Append("hashi.edge.session", result.SessionKey, result.SessionCookie);
+            return TypedResults.Redirect(result.ReturnUrl);
         }).WithTags("EdgeAuth").AllowAnonymous();
 
         app.MapPost("/api/edge-auth/logout", (HttpContext ctx) =>
         {
             var sessionKey = ctx.Request.Cookies["hashi.edge.session"];
+            OidcEdgeAuthService.ClearSession(sessionKey);
             if (!string.IsNullOrWhiteSpace(sessionKey))
             {
                 ctx.Response.Cookies.Delete("hashi.edge.session");

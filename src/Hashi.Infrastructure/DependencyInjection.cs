@@ -36,6 +36,7 @@ public static class DependencyInjection
         {
             client.BaseAddress = new Uri("https://dns.hetzner.com/api/v1/");
         });
+        services.AddHttpClient("oidc-edge");
         services.AddHttpClient("monitor-checks");
         services.AddHttpClient("adguard");
 
@@ -47,6 +48,7 @@ public static class DependencyInjection
         services.AddScoped<VaultService>();
         services.AddScoped<SecretRecordService>();
         services.AddScoped<SetupCompletionService>();
+        services.AddScoped<SystemResourceSetupService>();
         services.AddScoped<WebAuthnChallengeStore>();
         services.AddScoped<DnsConnectionService>();
         services.AddScoped<SshConnectionService>();
@@ -74,6 +76,7 @@ public static class DependencyInjection
         if (!skipStartupHooks)
         {
             services.AddHostedService<MonitorCheckWorker>();
+            services.AddHostedService<MonitorRollupWorker>();
             services.AddHostedService<SyncOrchestratorHostedService>();
             services.AddHostedService<ScriptCronHostedService>();
         }
