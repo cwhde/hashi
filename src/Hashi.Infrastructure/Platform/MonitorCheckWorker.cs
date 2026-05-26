@@ -83,6 +83,7 @@ public sealed class MonitorCheckWorker(
             .ToDictionaryAsync(x => x.Id, x => x.PulseAgentId!.Value, cancellationToken);
         var pulseLastSeenById = await db.PulseAgents.AsNoTracking()
             .ToDictionaryAsync(x => x.Id, x => x.LastSeenAtUtc, cancellationToken);
+        await MonitorSamplePartitionService.EnsureWeeklyPartitionsAsync(db, cancellationToken);
 
         foreach (var endpoint in endpoints)
         {
@@ -310,11 +311,8 @@ public sealed class MonitorCheckWorker(
         return trimmed;
     }
 
-    private static async Task PruneOldSamplesAsync(HashiDbContext db, int retentionDays, CancellationToken cancellationToken)
-    {
-        var cutoff = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-retentionDays));
-        await db.MonitorSamples.Where(x => x.PartitionDate < cutoff).ExecuteDeleteAsync(cancellationToken);
-    }
+    private static Task PruneOldSamplesAsync(HashiDbContext db, int retentionDays, CancellationToken cancellationToken)
+        => MonitorSamplePartitionService.DropExpiredPartitionsAsync(db, retentionDays, cancellationToken);
 }
 
 public interface IMonitorNetworkProbe

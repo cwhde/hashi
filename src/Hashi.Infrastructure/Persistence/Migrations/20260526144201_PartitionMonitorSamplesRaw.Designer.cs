@@ -3,6 +3,7 @@ using System;
 using Hashi.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Hashi.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(HashiDbContext))]
-    partial class HashiDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260526144201_PartitionMonitorSamplesRaw")]
+    partial class PartitionMonitorSamplesRaw
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -49,29 +52,6 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("abuse_buckets", (string)null);
-                });
-
-            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.AccessLogCursorEntity", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<long>("ByteOffset")
-                        .HasColumnType("bigint");
-
-                    b.Property<Guid>("ConnectionId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ConnectionId")
-                        .IsUnique();
-
-                    b.ToTable("access_log_cursors", (string)null);
                 });
 
             modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.AccessLogEventEntity", b =>
@@ -1254,82 +1234,6 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.HasIndex("OccurredAtUtc");
 
                     b.ToTable("security_events", (string)null);
-                });
-
-            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.SecurityRequestBucketEntity", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<long>("AllowedCount")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("Asn")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<long>("BlockedCount")
-                        .HasColumnType("bigint");
-
-                    b.Property<DateTimeOffset>("BucketStartUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long>("ChallengedCount")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("ClientIp")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("CountryCode")
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<string>("Method")
-                        .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("character varying(16)");
-
-                    b.Property<string>("PathPrefix")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.Property<string>("RegionCode")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<string>("Resource")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.Property<int>("StatusClass")
-                        .HasColumnType("integer");
-
-                    b.Property<long>("TotalCount")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("TraefikInstance")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<DateTimeOffset>("UpdatedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BucketStartUtc");
-
-                    b.HasIndex("ClientIp");
-
-                    b.HasIndex("BucketStartUtc", "ClientIp", "Resource", "TraefikInstance", "CountryCode", "RegionCode", "Asn", "StatusClass", "Method", "PathPrefix")
-                        .IsUnique();
-
-                    b.ToTable("security_request_buckets", (string)null);
                 });
 
             modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.SetupStateEntity", b =>
