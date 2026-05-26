@@ -1,0 +1,8 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Hashi.Contracts</RootNamespace>
+    <AssemblyName>Hashi.Contracts</AssemblyName>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:18
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: hashi
+      POSTGRES_USER: hashi
+      POSTGRES_PASSWORD: hashi
+    volumes:
+      - hashi_pg_dev:/var/lib/postgresql/data
+
+volumes:
+  hashi_pg_dev:

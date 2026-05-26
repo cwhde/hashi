@@ -1,0 +1,94 @@
+using System.Net;
+using System.Net.Http.Json;
+using Hashi.Contracts.Api;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Xunit;
+
+namespace Hashi.IntegrationTests;
+
+[Collection(PostgresIntegrationCollection.Name)]
+public sealed class VaultStatusTests : IAsyncLifetime
+{
+    private readonly PostgresIntegrationFixture _fixture;
+    private WebApplicationFactory<Program>? _factory;
+    private HttpClient? _client;
+
+    public VaultStatusTests(PostgresIntegrationFixture fixture)
+    {
+        _fixture = fixture;
+    }
+
+    public async Task InitializeAsync()
+    {
+        if (!_fixture.IsAvailable)
+        {
+            return;
+        }
+
+        var connectionString = await _fixture.CreateDatabaseAsync();
+        _factory = IntegrationTestApp.CreateFactory(connectionString);
+        _client = _factory.CreateClient();
+    }
+
+    public async Task DisposeAsync()
+    {
+        _client?.Dispose();
+        if (_factory is not null)
+        {
+            await _factory.DisposeAsync();
+        }
+    }
+
+    [Fact]
+    public async Task Vault_status_starts_not_configured()
+    {
+        if (!_fixture.IsAvailable || _client is null)
+        {
+            return;
+        }
+
+        var status = await _client.GetFromJsonAsync<VaultStatusResponse>("/api/vault/status");
+        Assert.NotNull(status);
+        Assert.Equal("NotConfigured", status.LockState);
+        Assert.False(status.IsVaultConfigured);
+        Assert.False(status.HasPasskey);
+    }
+
+    [Fact]
+    public async Task Recovery_key_generation_returns_formatted_key()
+    {
+        if (!_fixture.IsAvailable || _client is null)
+        {
+            return;
+        }
+
+        var csrf = await _client.GetFromJsonAsync<CsrfToken>("/api/auth/csrf");
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/vault/recovery-key/generate");
+        if (!string.IsNullOrEmpty(csrf?.Token))
+        {
+            request.Headers.Add("X-CSRF-TOKEN", csrf.Token);
+        }
+
+        var response = await _client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var payload = await response.Content.ReadFromJsonAsync<VaultGenerateRecoveryKeyResponse>();
+        Assert.NotNull(payload);
+        Assert.Contains('-', payload.RecoveryKey);
+        Assert.True(payload.RecoveryKey.Length >= 35);
+    }
+
+    [Fact]
+    public async Task Passkey_and_vault_setup_steps_require_completion_endpoint()
+    {
+        if (!_fixture.IsAvailable || _client is null)
+        {
+            return;
+        }
+
+        var blocked = await _client.PostAsync("/api/setup/steps/passkey-and-vault/complete", null);
+        Assert.Equal(HttpStatusCode.BadRequest, blocked.StatusCode);
+    }
+
+    private sealed record CsrfToken(string? Token);
+}

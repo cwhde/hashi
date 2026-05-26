@@ -136,3 +136,20 @@ dist
 .yarn/install-state.gz
 .pnp.*
 
+# ---> .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+
+# SvelteKit
+web/node_modules/
+web/.svelte-kit/
+web/build/
+
+# Hashi runtime
+/data/
+/logs/
+hashi.old/node_modules/

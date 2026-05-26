@@ -1,0 +1,362 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Hashi.Core.Auth;
+using Hashi.Core.Dns;
+using Hashi.Infrastructure.Auth;
+using Hashi.Infrastructure.Persistence;
+using Hashi.Infrastructure.Persistence.Entities;
+using Hashi.Infrastructure.Providers.Dns;
+using Hashi.Infrastructure.Services;
+using Microsoft.EntityFrameworkCore;
+
+namespace Hashi.Infrastructure.Dns;
+
+public sealed class DnsConnectionService(
+    HashiDbContext db,
+    IDnsProviderFactory providerFactory,
+    SecretRecordService secrets,
+    AuditService audit)
+{
+    public async Task<ConnectionEntity> CreateHetznerConnectionAsync(
+        string name,
+        string apiToken,
+        string zoneName,
+        int defaultTtl,
+        CancellationToken cancellationToken = default)
+    {
+        var provider = providerFactory.Create(DnsProviderTypeNames.Hetzner, apiToken);
+        var zones = await provider.ListZonesAsync(cancellationToken);
+        var zone = zones.SingleOrDefault(x => string.Equals(x.Name, zoneName, StringComparison.OrdinalIgnoreCase))
+            ?? throw new InvalidOperationException($"Zone '{zoneName}' was not found at the provider.");
+
+        var secret = await secrets.StoreAsync(
+            SecretPurpose.DnsProviderToken,
+            $"DNS: {name}",
+            System.Text.Encoding.UTF8.GetBytes(apiToken),
+            cancellationToken);
+
+        var connection = new ConnectionEntity
+        {
+            Name = name,
+            Type = ConnectionTypeNames.DnsProvider,
+            HealthState = ConnectionHealthStateNames.Healthy,
+            LastValidatedAtUtc = DateTimeOffset.UtcNow,
+            SecretId = secret.Id,
+            SettingsJson = JsonSerializer.Serialize(
+                new DnsConnectionSettings(DnsProviderTypeNames.Hetzner, zoneName, defaultTtl)),
+            DeletionPolicy = ConnectionDeletionPolicyNames.Required,
+        };
+        db.Connections.Add(connection);
+        db.DnsZones.Add(new DnsZoneEntity
+        {
+            ConnectionId = connection.Id,
+            ProviderZoneId = zone.ProviderZoneId,
+            Name = zone.Name,
+            DefaultTtl = defaultTtl,
+        });
+        await db.SaveChangesAsync(cancellationToken);
+        await audit.WriteAsync("dns", "connection_created", subjectType: "connection", subjectId: connection.Id.ToString(), cancellationToken: cancellationToken);
+        return connection;
+    }
+
+    public async Task<(bool Valid, string? Error)> ValidateConnectionAsync(Guid connectionId, CancellationToken cancellationToken = default)
+    {
+        var connection = await GetDnsConnectionAsync(connectionId, cancellationToken);
+        var provider = await CreateProviderAsync(connection, cancellationToken);
+        try
+        {
+            await provider.ListZonesAsync(cancellationToken);
+            connection.HealthState = ConnectionHealthStateNames.Healthy;
+            connection.LastValidationMessage = null;
+            connection.LastValidatedAtUtc = DateTimeOffset.UtcNow;
+            await db.SaveChangesAsync(cancellationToken);
+            return (true, null);
+        }
+        catch (Exception ex)
+        {
+            connection.HealthState = ConnectionHealthStateNames.Failed;
+            connection.LastValidationMessage = ex.Message;
+            connection.LastValidatedAtUtc = DateTimeOffset.UtcNow;
+            await db.SaveChangesAsync(cancellationToken);
+            return (false, ex.Message);
+        }
+    }
+
+    public async Task<(bool Valid, string? Error)> ValidateWriteAsync(
+        Guid connectionId,
+        bool confirmDryRun,
+        CancellationToken cancellationToken = default)
+    {
+        if (!confirmDryRun)
+        {
+            return (false, "Confirm dry-run write validation before creating a _hashi-test record.");
+        }
+
+        var connection = await GetDnsConnectionAsync(connectionId, cancellationToken);
+        var zone = await GetZoneAsync(connection.Id, cancellationToken);
+        var provider = await CreateProviderAsync(connection, cancellationToken);
+        var testName = "_hashi-test." + zone.Name.TrimEnd('.');
+        try
+        {
+            var created = await provider.CreateRecordAsync(
+                zone.ProviderZoneId,
+                testName,
+                DnsRecordType.Txt,
+                "hashi-write-validation",
+                60,
+                cancellationToken);
+            await provider.DeleteRecordAsync(created.ProviderRecordId, cancellationToken);
+            connection.HealthState = ConnectionHealthStateNames.Healthy;
+            connection.LastValidationMessage = "Write validation succeeded.";
+            connection.LastValidatedAtUtc = DateTimeOffset.UtcNow;
+            await db.SaveChangesAsync(cancellationToken);
+            await audit.WriteAsync("dns", "write_validation_succeeded", subjectType: "connection", subjectId: connection.Id.ToString(), cancellationToken: cancellationToken);
+            return (true, null);
+        }
+        catch (Exception ex)
+        {
+            connection.HealthState = ConnectionHealthStateNames.Failed;
+            connection.LastValidationMessage = ex.Message;
+            connection.LastValidatedAtUtc = DateTimeOffset.UtcNow;
+            await db.SaveChangesAsync(cancellationToken);
+            return (false, ex.Message);
+        }
+    }
+
+    public async Task<IReadOnlyList<DnsRecordSnapshot>> ListProviderRecordsAsync(
+        Guid connectionId,
+        CancellationToken cancellationToken = default)
+    {
+        var connection = await GetDnsConnectionAsync(connectionId, cancellationToken);
+        var zone = await GetZoneAsync(connection.Id, cancellationToken);
+        var provider = await CreateProviderAsync(connection, cancellationToken);
+        return await provider.ListRecordsAsync(zone.ProviderZoneId, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<DnsImportDecisionEntity>> BuildImportPreviewAsync(
+        Guid connectionId,
+        CancellationToken cancellationToken = default)
+    {
+        var connection = await GetDnsConnectionAsync(connectionId, cancellationToken);
+        var zone = await GetZoneAsync(connection.Id, cancellationToken);
+        var provider = await CreateProviderAsync(connection, cancellationToken);
+        var records = await provider.ListRecordsAsync(zone.ProviderZoneId, cancellationToken);
+
+        db.DnsImportDecisions.RemoveRange(db.DnsImportDecisions.Where(x => x.ZoneId == zone.Id));
+        var decisions = records
+            .Where(x => !DnsSafetyRules.IsProtectedType(x.Type))
+            .Select(x => new DnsImportDecisionEntity
+            {
+                ZoneId = zone.Id,
+                ProviderRecordId = x.ProviderRecordId,
+                Name = x.Name,
+                Type = DnsRecordTypeMapping.ToApiName(x.Type),
+                Value = x.Value,
+            })
+            .ToList();
+        db.DnsImportDecisions.AddRange(decisions);
+        await db.SaveChangesAsync(cancellationToken);
+        return decisions;
+    }
+
+    public async Task ApplyImportAsync(
+        Guid connectionId,
+        IReadOnlyList<Guid> selectedDecisionIds,
+        CancellationToken cancellationToken = default)
+    {
+        var connection = await GetDnsConnectionAsync(connectionId, cancellationToken);
+        var zone = await GetZoneAsync(connection.Id, cancellationToken);
+        var decisions = await db.DnsImportDecisions
+            .Where(x => x.ZoneId == zone.Id)
+            .ToListAsync(cancellationToken);
+
+        foreach (var decision in decisions)
+        {
+            decision.SelectedForImport = selectedDecisionIds.Contains(decision.Id);
+            if (!decision.SelectedForImport)
+            {
+                continue;
+            }
+
+            if (await db.DnsRecords.AnyAsync(
+                    x => x.ZoneId == zone.Id && x.ProviderRecordId == decision.ProviderRecordId,
+                    cancellationToken))
+            {
+                continue;
+            }
+
+            db.DnsRecords.Add(new DnsRecordEntity
+            {
+                ZoneId = zone.Id,
+                ProviderRecordId = decision.ProviderRecordId,
+                Name = decision.Name,
+                Type = decision.Type,
+                Value = decision.Value,
+                Ownership = DnsOwnershipNames.Imported,
+            });
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        await audit.WriteAsync("dns", "import_applied", subjectType: "connection", subjectId: connection.Id.ToString(), cancellationToken: cancellationToken);
+    }
+
+    public async Task<DnsSyncPlan> BuildPrunePreviewAsync(Guid connectionId, CancellationToken cancellationToken = default)
+    {
+        var connection = await GetDnsConnectionAsync(connectionId, cancellationToken);
+        var zone = await GetZoneAsync(connection.Id, cancellationToken);
+        var candidates = await db.DnsImportDecisions
+            .Where(x => x.ZoneId == zone.Id && !x.SelectedForImport)
+            .ToListAsync(cancellationToken);
+        if (candidates.Count == 0)
+        {
+            return new DnsSyncPlan(Guid.NewGuid(), connection.Id, zone.Name, [], RequiresConfirmation: true);
+        }
+
+        var changes = candidates
+            .Where(x => !DnsSafetyRules.IsProtectedType(DnsRecordTypeMapping.Parse(x.Type)))
+            .Select(x => new DnsPlanChange(
+                DnsChangeKind.Delete,
+                x.Name,
+                DnsRecordTypeMapping.Parse(x.Type),
+                x.Value,
+                null,
+                zone.DefaultTtl,
+                "Prune provider record not imported into Hashi"))
+            .ToList();
+        return new DnsSyncPlan(Guid.NewGuid(), connection.Id, zone.Name, changes, RequiresConfirmation: true);
+    }
+
+    public async Task ApplyPruneAsync(
+        Guid connectionId,
+        bool confirmDestructive,
+        CancellationToken cancellationToken = default)
+    {
+        var plan = await BuildPrunePreviewAsync(connectionId, cancellationToken);
+        if (plan.Changes.Count == 0)
+        {
+            return;
+        }
+
+        await ApplyPlanAsync(plan, confirmDestructive, cancellationToken);
+        await audit.WriteAsync("dns", "prune_applied", subjectType: "connection", subjectId: connectionId.ToString(), cancellationToken: cancellationToken);
+    }
+
+    public async Task<DnsSyncPlan> PlanSyncAsync(Guid connectionId, CancellationToken cancellationToken = default)
+    {
+        var connection = await GetDnsConnectionAsync(connectionId, cancellationToken);
+        var zone = await GetZoneAsync(connection.Id, cancellationToken);
+        var provider = await CreateProviderAsync(connection, cancellationToken);
+        var current = await provider.ListRecordsAsync(zone.ProviderZoneId, cancellationToken);
+        var desired = await DnsDesiredStateBuilder.BuildAsync(db, zone.Id, zone.DefaultTtl, cancellationToken);
+
+        var changes = DnsPlanner.BuildPlan(current, desired);
+        var requiresConfirmation = changes.Any(x => x.Kind == DnsChangeKind.Delete);
+        return new DnsSyncPlan(Guid.NewGuid(), connection.Id, zone.Name, changes, requiresConfirmation);
+    }
+
+    public async Task ApplyPlanAsync(DnsSyncPlan plan, bool confirmDestructive, CancellationToken cancellationToken = default)
+    {
+        if (plan.RequiresConfirmation && !confirmDestructive)
+        {
+            throw new InvalidOperationException("Destructive DNS changes require confirmation.");
+        }
+
+        var connection = await GetDnsConnectionAsync(plan.ConnectionId, cancellationToken);
+        var zone = await GetZoneAsync(connection.Id, cancellationToken);
+        var provider = await CreateProviderAsync(connection, cancellationToken);
+
+        foreach (var change in plan.Changes.Where(x => x.Kind != DnsChangeKind.NoOp))
+        {
+            if (change.Kind == DnsChangeKind.Delete && DnsSafetyRules.IsProtectedType(change.Type))
+            {
+                continue;
+            }
+
+            switch (change.Kind)
+            {
+                case DnsChangeKind.Create:
+                    await provider.CreateRecordAsync(
+                        zone.ProviderZoneId,
+                        change.Name,
+                        change.Type,
+                        change.DesiredValue ?? string.Empty,
+                        change.Ttl,
+                        cancellationToken);
+                    break;
+                case DnsChangeKind.Update:
+                    var existing = (await provider.ListRecordsAsync(zone.ProviderZoneId, cancellationToken))
+                        .First(x => string.Equals(x.Name, change.Name, StringComparison.OrdinalIgnoreCase)
+                            && x.Type == change.Type);
+                    await provider.UpdateRecordAsync(existing.ProviderRecordId, change.DesiredValue ?? string.Empty, change.Ttl, cancellationToken);
+                    break;
+                case DnsChangeKind.Delete:
+                    var toDelete = (await provider.ListRecordsAsync(zone.ProviderZoneId, cancellationToken))
+                        .First(x => string.Equals(x.Name, change.Name, StringComparison.OrdinalIgnoreCase)
+                            && x.Type == change.Type);
+                    await provider.DeleteRecordAsync(toDelete.ProviderRecordId, cancellationToken);
+                    break;
+            }
+        }
+
+        await audit.WriteAsync("dns", "sync_applied", subjectType: "connection", subjectId: connection.Id.ToString(), cancellationToken: cancellationToken);
+    }
+
+    public async Task ApplySafePlanAsync(DnsSyncPlan plan, CancellationToken cancellationToken = default)
+    {
+        var safeChanges = plan.Changes
+            .Where(x => x.Kind is not DnsChangeKind.Delete and not DnsChangeKind.NoOp)
+            .ToList();
+        if (safeChanges.Count == 0)
+        {
+            return;
+        }
+
+        var safePlan = new DnsSyncPlan(plan.PlanId, plan.ConnectionId, plan.ZoneName, safeChanges, RequiresConfirmation: false);
+        await ApplyPlanAsync(safePlan, confirmDestructive: true, cancellationToken);
+    }
+
+    private async Task<ConnectionEntity> GetDnsConnectionAsync(Guid connectionId, CancellationToken cancellationToken)
+    {
+        return await db.Connections.SingleOrDefaultAsync(
+            x => x.Id == connectionId && x.Type == ConnectionTypeNames.DnsProvider,
+            cancellationToken) ?? throw new InvalidOperationException("DNS connection not found.");
+    }
+
+    private async Task<DnsZoneEntity> GetZoneAsync(Guid connectionId, CancellationToken cancellationToken)
+    {
+        return await db.DnsZones.SingleOrDefaultAsync(x => x.ConnectionId == connectionId, cancellationToken)
+            ?? throw new InvalidOperationException("DNS zone not configured for connection.");
+    }
+
+    private async Task<IDnsProvider> CreateProviderAsync(ConnectionEntity connection, CancellationToken cancellationToken)
+    {
+        if (connection.SecretId is null)
+        {
+            throw new InvalidOperationException("DNS connection has no stored credentials.");
+        }
+
+        var tokenBytes = await secrets.DecryptForPurposeAsync(connection.SecretId.Value, cancellationToken)
+            ?? throw new InvalidOperationException("Credentials unavailable; unlock vault or configure service-sync vault.");
+        var token = System.Text.Encoding.UTF8.GetString(tokenBytes);
+        var settings = JsonSerializer.Deserialize<DnsConnectionSettings>(connection.SettingsJson)
+            ?? new DnsConnectionSettings(DnsProviderTypeNames.Hetzner, string.Empty, 3600);
+        return providerFactory.Create(settings.Provider, token);
+    }
+
+    private sealed record DnsConnectionSettings(
+        [property: JsonPropertyName("provider")] string Provider,
+        [property: JsonPropertyName("zoneName")] string ZoneName,
+        [property: JsonPropertyName("defaultTtl")] int DefaultTtl);
+}
+
+public static class DnsProviderValidation
+{
+    public static async Task<(bool Valid, string? Error)> ValidateHetznerTokenAsync(
+        IHttpClientFactory httpClientFactory,
+        string apiToken,
+        CancellationToken cancellationToken = default)
+    {
+        var client = httpClientFactory.CreateClient("hetzner-dns");
+        return await HetznerDnsProvider.ValidateTokenAsync(client, apiToken, cancellationToken);
+    }
+}

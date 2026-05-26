@@ -1,0 +1,7688 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "Hashi API",
+    "description": "Hashi V2 admin and edge API. Frontend clients must consume this contract only.",
+    "version": "2.0.0-alpha"
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/public/status": {
+      "get": {
+        "tags": [
+          "Public"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PublicStatusItemResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/public/status/summary": {
+      "get": {
+        "tags": [
+          "Public"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicStatusSummaryResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/public/apps": {
+      "get": {
+        "tags": [
+          "Public"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ResourceResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/edge-auth/forward": {
+      "get": {
+        "tags": [
+          "EdgeAuth"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/edge-auth/login": {
+      "get": {
+        "tags": [
+          "EdgeAuth"
+        ],
+        "parameters": [
+          {
+            "name": "providerId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "returnUrl",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/edge-auth/callback": {
+      "get": {
+        "tags": [
+          "EdgeAuth"
+        ],
+        "parameters": [
+          {
+            "name": "providerId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/edge-auth/logout": {
+      "post": {
+        "tags": [
+          "EdgeAuth"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/waf/{slug}/middleware": {
+      "get": {
+        "tags": [
+          "Security"
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnonymousTypeOfstringAndstring"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/setup/status": {
+      "get": {
+        "tags": [
+          "Setup"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetupStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/setup/verify-https": {
+      "post": {
+        "tags": [
+          "Setup"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/setup/bootstrap-allowed": {
+      "get": {
+        "tags": [
+          "Setup"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BootstrapAllowedResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/setup/certificate": {
+      "get": {
+        "tags": [
+          "Setup"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CertificateSetupResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/setup/certificate/validate": {
+      "post": {
+        "tags": [
+          "Setup"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CertificateSetupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CertificateSetupValidateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/setup/certificate/save": {
+      "post": {
+        "tags": [
+          "Setup"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CertificateSetupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CertificateSetupSaveResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/setup/steps/{stepSlug}/complete": {
+      "post": {
+        "tags": [
+          "Setup"
+        ],
+        "parameters": [
+          {
+            "name": "stepSlug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/setup/system-resource/plan": {
+      "post": {
+        "tags": [
+          "Setup"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/setup/system-resource/sync": {
+      "post": {
+        "tags": [
+          "Setup"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/setup/complete": {
+      "post": {
+        "tags": [
+          "Setup"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/settings/general": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeneralSettingsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Settings"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GeneralSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeneralSettingsUpdateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/monitoring": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonitoringSettingsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Settings"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MonitoringSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonitoringSettingsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/edge-sso/session": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EdgeSsoSettingsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Settings"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EdgeSsoSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EdgeSsoSettingsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/activity/audit": {
+      "get": {
+        "tags": [
+          "Activity"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AuditEventResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/activity/jobs": {
+      "get": {
+        "tags": [
+          "Activity"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BackgroundJobResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/csrf": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnonymousTypeOfstring"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/bootstrap/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BootstrapLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/auth/passkeys/register/begin": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [
+          {
+            "name": "nickname",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "afterSetup",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/auth/passkeys": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PasskeySummaryResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/passkeys/{credentialId}": {
+      "delete": {
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [
+          {
+            "name": "credentialId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/auth/passkeys/register/complete": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeyRegistrationCompleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/auth/passkeys/login/begin": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/auth/passkeys/login/complete": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeyLoginCompleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/auth/session": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/reauthenticate": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/auth/reauthenticate/complete": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeyLoginCompleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/vault/status": {
+      "get": {
+        "tags": [
+          "Vault"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VaultStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/vault/recovery-key/generate": {
+      "post": {
+        "tags": [
+          "Vault"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VaultGenerateRecoveryKeyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/vault/setup": {
+      "post": {
+        "tags": [
+          "Vault"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VaultSetupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/vault/unlock": {
+      "post": {
+        "tags": [
+          "Vault"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VaultUnlockRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/vault/lock": {
+      "post": {
+        "tags": [
+          "Vault"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VaultLockResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/vault/secrets": {
+      "get": {
+        "tags": [
+          "Vault"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SecretDescriptorResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Vault"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SecretStoreRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/vault/secrets/{id}/reveal": {
+      "get": {
+        "tags": [
+          "Vault"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/vault/verify-unlock": {
+      "post": {
+        "tags": [
+          "Vault"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VaultUnlockRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/dns/providers/hetzner/validate": {
+      "post": {
+        "tags": [
+          "DNS"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DnsProviderValidationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/dns/connections": {
+      "get": {
+        "tags": [
+          "DNS"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConnectionSummaryResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/dns/connections/hetzner": {
+      "post": {
+        "tags": [
+          "DNS"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateHetznerDnsConnectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/dns/connections/{connectionId}/validate": {
+      "post": {
+        "tags": [
+          "DNS"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/dns/connections/{connectionId}/validate-write": {
+      "post": {
+        "tags": [
+          "DNS"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DnsWriteValidationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/dns/connections/{connectionId}/records/provider": {
+      "get": {
+        "tags": [
+          "DNS"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DnsRecordResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/dns/connections/{connectionId}/import/preview": {
+      "post": {
+        "tags": [
+          "DNS"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DnsImportDecisionResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/dns/connections/{connectionId}/import/apply": {
+      "post": {
+        "tags": [
+          "DNS"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DnsImportApplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/dns/connections/{connectionId}/prune/preview": {
+      "post": {
+        "tags": [
+          "DNS"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DnsSyncPlanResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/dns/connections/{connectionId}/prune/apply": {
+      "post": {
+        "tags": [
+          "DNS"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DnsPruneApplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/dns/connections/{connectionId}/sync/plan": {
+      "post": {
+        "tags": [
+          "DNS"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DnsSyncPlanResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/dns/connections/{connectionId}/sync/apply": {
+      "post": {
+        "tags": [
+          "DNS"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DnsSyncApplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/dns/records": {
+      "get": {
+        "tags": [
+          "DNS"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DnsRecordResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/connections": {
+      "get": {
+        "tags": [
+          "Connections"
+        ],
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConnectionSummaryResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/connections/ssh": {
+      "post": {
+        "tags": [
+          "Connections"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSshConnectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/connections/{connectionId}/validate": {
+      "post": {
+        "tags": [
+          "Connections"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/connections/{connectionId}/write": {
+      "post": {
+        "tags": [
+          "Connections"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoteWriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/resources": {
+      "get": {
+        "tags": [
+          "Resources"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ResourceResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Resources"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateResourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/resources/{id}": {
+      "put": {
+        "tags": [
+          "Resources"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateResourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Resources"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/traefik/render": {
+      "get": {
+        "tags": [
+          "Traefik"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraefikRenderResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/traefik/validate": {
+      "post": {
+        "tags": [
+          "Traefik"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraefikConfigValidationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/traefik/user-middlewares": {
+      "get": {
+        "tags": [
+          "Traefik"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraefikUserMiddlewareResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Traefik"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTraefikUserMiddlewareRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraefikUserMiddlewareResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/traefik/user-middlewares/validate": {
+      "post": {
+        "tags": [
+          "Traefik"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TraefikUserMiddlewareValidationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraefikUserMiddlewareValidationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/traefik/connections/{connectionId}/state": {
+      "get": {
+        "tags": [
+          "Traefik"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraefikHostStateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/traefik/connections/{connectionId}/detect-existing": {
+      "post": {
+        "tags": [
+          "Traefik"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraefikDetectExistingResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/traefik/connections/{connectionId}/apply": {
+      "post": {
+        "tags": [
+          "Traefik"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TraefikApplyConnectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraefikApplyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/traefik/connections/{connectionId}/rollback": {
+      "post": {
+        "tags": [
+          "Traefik"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraefikApplyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/traefik/apply": {
+      "post": {
+        "tags": [
+          "Traefik"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TraefikApplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraefikApplyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/traefik/rollback": {
+      "post": {
+        "tags": [
+          "Traefik"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TraefikApplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraefikApplyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/traefik/install": {
+      "post": {
+        "tags": [
+          "Traefik"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TraefikInstallRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraefikInstallResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/traefik/entrypoints": {
+      "get": {
+        "tags": [
+          "Traefik"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TraefikEntryPointResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/traefik/entrypoints/pending": {
+      "get": {
+        "tags": [
+          "Traefik"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TraefikEntryPointResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/traefik/entrypoints/{entryPointId}/confirm": {
+      "post": {
+        "tags": [
+          "Traefik"
+        ],
+        "parameters": [
+          {
+            "name": "entryPointId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraefikEntryPointResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/firewall/hosts": {
+      "get": {
+        "tags": [
+          "Firewall"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FirewallHostResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Firewall"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFirewallHostRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirewallHostResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/firewall/render": {
+      "post": {
+        "tags": [
+          "Firewall"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FirewallRenderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirewallRenderResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/firewall/hosts/{firewallHostId}": {
+      "put": {
+        "tags": [
+          "Firewall"
+        ],
+        "parameters": [
+          {
+            "name": "firewallHostId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateFirewallHostRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirewallHostResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/firewall/apply": {
+      "post": {
+        "tags": [
+          "Firewall"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FirewallApplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/firewall/{firewallHostId}/rollback": {
+      "post": {
+        "tags": [
+          "Firewall"
+        ],
+        "parameters": [
+          {
+            "name": "firewallHostId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FirewallApplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/status/endpoints": {
+      "get": {
+        "tags": [
+          "Status"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MonitorEndpointResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/status/rollups": {
+      "get": {
+        "tags": [
+          "Status"
+        ],
+        "parameters": [
+          {
+            "name": "endpointId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "intervalMinutes",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "hours",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MonitorRollupResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/status/events": {
+      "get": {
+        "tags": [
+          "Status"
+        ],
+        "parameters": [
+          {
+            "name": "endpointId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "hours",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MonitorEventResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/edge-sso/providers": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OidcProviderResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Settings"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOidcProviderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/settings/edge-sso/providers/{providerId}": {
+      "put": {
+        "tags": [
+          "Settings"
+        ],
+        "parameters": [
+          {
+            "name": "providerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOidcProviderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Settings"
+        ],
+        "parameters": [
+          {
+            "name": "providerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/settings/edge-sso/rules": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EdgeAuthRuleResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Settings"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEdgeAuthRuleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/settings/edge-sso/rules/{ruleId}": {
+      "put": {
+        "tags": [
+          "Settings"
+        ],
+        "parameters": [
+          {
+            "name": "ruleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateEdgeAuthRuleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Settings"
+        ],
+        "parameters": [
+          {
+            "name": "ruleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/security/dashboard": {
+      "get": {
+        "tags": [
+          "Security"
+        ],
+        "parameters": [
+          {
+            "name": "hours",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecurityDashboardResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/security/access-log": {
+      "post": {
+        "tags": [
+          "Security"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessLogIngestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/security/blocklist/sync": {
+      "post": {
+        "tags": [
+          "Security"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlocklistSyncResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pulse/agents": {
+      "get": {
+        "tags": [
+          "Pulse"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PulseAgentResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Pulse"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePulseAgentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatePulseAgentResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pulse/agents/{agentId}/revoke": {
+      "post": {
+        "tags": [
+          "Pulse"
+        ],
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/pulse/agents/{agentId}/rotate-token": {
+      "post": {
+        "tags": [
+          "Pulse"
+        ],
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RotatePulseAgentTokenResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pulse/agents/{agentId}/install": {
+      "get": {
+        "tags": [
+          "Pulse"
+        ],
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "token",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PulseInstallResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pulse/install/linux.sh": {
+      "get": {
+        "tags": [
+          "Pulse"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/pulse/{agentId}/heartbeat": {
+      "post": {
+        "tags": [
+          "Pulse"
+        ],
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PulseHeartbeatAuthRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/scripts": {
+      "get": {
+        "tags": [
+          "Scripts"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ScriptResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Scripts"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateScriptRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScriptResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/scripts/{scriptId}": {
+      "get": {
+        "tags": [
+          "Scripts"
+        ],
+        "parameters": [
+          {
+            "name": "scriptId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScriptResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Scripts"
+        ],
+        "parameters": [
+          {
+            "name": "scriptId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateScriptRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScriptResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Scripts"
+        ],
+        "parameters": [
+          {
+            "name": "scriptId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/scripts/{scriptId}/run": {
+      "post": {
+        "tags": [
+          "Scripts"
+        ],
+        "parameters": [
+          {
+            "name": "scriptId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunScriptRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunScriptResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/notifications/providers": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NotificationProviderResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Settings"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateNotificationProviderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationProviderResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/notifications/providers/{providerId}": {
+      "put": {
+        "tags": [
+          "Settings"
+        ],
+        "parameters": [
+          {
+            "name": "providerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateNotificationProviderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationProviderResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Settings"
+        ],
+        "parameters": [
+          {
+            "name": "providerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/settings/notifications/providers/{providerId}/test": {
+      "post": {
+        "tags": [
+          "Settings"
+        ],
+        "parameters": [
+          {
+            "name": "providerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationTestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationTestResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/notifications/send": {
+      "post": {
+        "tags": [
+          "Settings"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendNotificationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/adguard/connections": {
+      "get": {
+        "tags": [
+          "AdGuard"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AdGuardConnectionResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "AdGuard"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAdGuardConnectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdGuardConnectionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/adguard/connections/{connectionId}/test": {
+      "post": {
+        "tags": [
+          "AdGuard"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdGuardConnectionTestResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/adguard/{connectionId}/rewrites": {
+      "get": {
+        "tags": [
+          "AdGuard"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AdGuardRewriteResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "AdGuard"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertAdGuardRewriteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdGuardRewriteResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/adguard/{connectionId}/rewrites/{rewriteId}": {
+      "delete": {
+        "tags": [
+          "AdGuard"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "rewriteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/adguard/{connectionId}/sync": {
+      "post": {
+        "tags": [
+          "AdGuard"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/sync/runs": {
+      "get": {
+        "tags": [
+          "Sync"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SyncRunResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sync/runs/{id}": {
+      "get": {
+        "tags": [
+          "Sync"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/sync/plan": {
+      "post": {
+        "tags": [
+          "Sync"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncPlanPreviewResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sync/apply": {
+      "post": {
+        "tags": [
+          "Sync"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyncApplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/sync/reconcile": {
+      "post": {
+        "tags": [
+          "Sync"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncReconcileResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AccessLogIngestRequest": {
+        "required": [
+          "clientIp",
+          "host",
+          "path",
+          "statusCode",
+          "countryCode",
+          "asn"
+        ],
+        "type": "object",
+        "properties": {
+          "clientIp": {
+            "type": "string"
+          },
+          "host": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "statusCode": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "countryCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "asn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "AdGuardConnectionResponse": {
+        "required": [
+          "id",
+          "name",
+          "baseUrl",
+          "enabled"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "baseUrl": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AdGuardConnectionTestResponse": {
+        "required": [
+          "connected",
+          "error"
+        ],
+        "type": "object",
+        "properties": {
+          "connected": {
+            "type": "boolean"
+          },
+          "error": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "AdGuardRewriteResponse": {
+        "required": [
+          "id",
+          "domain",
+          "answer",
+          "managedByHashi"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "answer": {
+            "type": "string"
+          },
+          "managedByHashi": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AnonymousTypeOfstring": {
+        "required": [
+          "token"
+        ],
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "AnonymousTypeOfstringAndstring": {
+        "required": [
+          "slug",
+          "yaml"
+        ],
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "yaml": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "AuditEventResponse": {
+        "required": [
+          "id",
+          "category",
+          "action",
+          "subjectType",
+          "subjectId",
+          "outcome",
+          "createdAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "category": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "subjectType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "subjectId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "outcome": {
+            "type": "string"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "BackgroundJobResponse": {
+        "required": [
+          "jobKey",
+          "displayName",
+          "status",
+          "lastStartedAtUtc",
+          "lastCompletedAtUtc",
+          "nextRunAtUtc",
+          "lastDurationMs",
+          "lastDiffSummary",
+          "lastError",
+          "intervalSeconds"
+        ],
+        "type": "object",
+        "properties": {
+          "jobKey": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "lastStartedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lastCompletedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "nextRunAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lastDurationMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "lastDiffSummary": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastError": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "intervalSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "BlocklistSyncResponse": {
+        "required": [
+          "synced",
+          "pendingEntries",
+          "appliedHosts",
+          "failures"
+        ],
+        "type": "object",
+        "properties": {
+          "synced": {
+            "type": "boolean"
+          },
+          "pendingEntries": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "appliedHosts": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "failures": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "BootstrapAllowedResponse": {
+        "required": [
+          "allowed",
+          "remoteIp"
+        ],
+        "type": "object",
+        "properties": {
+          "allowed": {
+            "type": "boolean"
+          },
+          "remoteIp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "BootstrapLoginRequest": {
+        "required": [
+          "username",
+          "password"
+        ],
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        }
+      },
+      "CertificateSetupRequest": {
+        "required": [
+          "acmeEmail",
+          "eabKeyId",
+          "eabHmac",
+          "dnsChallengeDelaySeconds",
+          "resolvers"
+        ],
+        "type": "object",
+        "properties": {
+          "acmeEmail": {
+            "type": "string"
+          },
+          "eabKeyId": {
+            "type": "string"
+          },
+          "eabHmac": {
+            "type": "string"
+          },
+          "dnsChallengeDelaySeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "resolvers": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CertificateSetupResponse": {
+        "required": [
+          "acmeEmail",
+          "hasEabCredentials",
+          "dnsChallengeDelaySeconds",
+          "resolvers",
+          "hasDnsProvider"
+        ],
+        "type": "object",
+        "properties": {
+          "acmeEmail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hasEabCredentials": {
+            "type": "boolean"
+          },
+          "dnsChallengeDelaySeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "resolvers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "hasDnsProvider": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CertificateSetupSaveResponse": {
+        "required": [
+          "saved",
+          "error"
+        ],
+        "type": "object",
+        "properties": {
+          "saved": {
+            "type": "boolean"
+          },
+          "error": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "CertificateSetupValidateResponse": {
+        "required": [
+          "isValid",
+          "errors"
+        ],
+        "type": "object",
+        "properties": {
+          "isValid": {
+            "type": "boolean"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ConnectionSummaryResponse": {
+        "required": [
+          "id",
+          "name",
+          "type",
+          "enabled",
+          "healthState",
+          "lastValidationMessage",
+          "lastValidatedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "healthState": {
+            "type": "string"
+          },
+          "lastValidationMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastValidatedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "CreateAdGuardConnectionRequest": {
+        "required": [
+          "name",
+          "baseUrl",
+          "password"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "baseUrl": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateEdgeAuthRuleRequest": {
+        "required": [
+          "name",
+          "priority",
+          "matchJson",
+          "action",
+          "enabled"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "priority": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "matchJson": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CreateFirewallHostRequest": {
+        "required": [
+          "connectionId",
+          "name",
+          "domain",
+          "managedSubnets",
+          "linkedTraefikHost",
+          "internalTraefikIp"
+        ],
+        "type": "object",
+        "properties": {
+          "connectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "managedSubnets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "linkedTraefikHost": {
+            "type": "string"
+          },
+          "internalTraefikIp": {
+            "type": "string"
+          },
+          "publicIp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "wanInterface": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lxcBridge": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "netBirdEnabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "netBirdInterface": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "netBirdOverlayCidrs": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "netBirdRoutedCidrs": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "netBirdRoutingPeer": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "rollbackTimerSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "CreateHetznerDnsConnectionRequest": {
+        "required": [
+          "name",
+          "apiToken",
+          "zoneName",
+          "defaultTtl"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "apiToken": {
+            "type": "string"
+          },
+          "zoneName": {
+            "type": "string"
+          },
+          "defaultTtl": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "CreateNotificationProviderRequest": {
+        "required": [
+          "name",
+          "type",
+          "settingsJson",
+          "enabled"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "settingsJson": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CreateOidcProviderRequest": {
+        "required": [
+          "name",
+          "issuer",
+          "clientId",
+          "clientSecret",
+          "scopes",
+          "enabled"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "issuer": {
+            "type": "string"
+          },
+          "clientId": {
+            "type": "string"
+          },
+          "clientSecret": {
+            "type": "string"
+          },
+          "scopes": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CreatePulseAgentRequest": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "CreatePulseAgentResponse": {
+        "required": [
+          "id",
+          "name",
+          "token"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "token": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateResourceRequest": {
+        "required": [
+          "name",
+          "kind",
+          "domain",
+          "targetScheme",
+          "targetHost",
+          "targetPort",
+          "dashboardEnabled",
+          "statusEnabled"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "domain": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "targetScheme": {
+            "type": "string"
+          },
+          "targetHost": {
+            "type": "string"
+          },
+          "targetPort": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "dashboardEnabled": {
+            "type": "boolean"
+          },
+          "statusEnabled": {
+            "type": "boolean"
+          },
+          "publicPort": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "firewallHostId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "pulseAgentId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "pathPrefix": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pathRewrite": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "forwardAuthPolicy": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "wafMode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "extraMiddlewares": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "routes": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ResourceRouteRequest"
+            }
+          },
+          "rules": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ResourceRuleRequest"
+            }
+          }
+        }
+      },
+      "CreateScriptRequest": {
+        "required": [
+          "connectionId",
+          "name",
+          "description",
+          "body",
+          "cronExpression"
+        ],
+        "type": "object",
+        "properties": {
+          "connectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "cronExpression": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateSshConnectionRequest": {
+        "required": [
+          "name",
+          "connectionType",
+          "host",
+          "port",
+          "username",
+          "authMode",
+          "password",
+          "privateKeyPem",
+          "privateKeyPassphrase"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "connectionType": {
+            "type": "string"
+          },
+          "host": {
+            "type": "string"
+          },
+          "port": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "username": {
+            "type": "string"
+          },
+          "authMode": {
+            "type": "string"
+          },
+          "password": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "privateKeyPem": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "privateKeyPassphrase": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "DnsImportApplyRequest": {
+        "required": [
+          "selectedDecisionIds"
+        ],
+        "type": "object",
+        "properties": {
+          "selectedDecisionIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        }
+      },
+      "DnsImportDecisionResponse": {
+        "required": [
+          "id",
+          "providerRecordId",
+          "name",
+          "type",
+          "value",
+          "selectedForImport"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "providerRecordId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "selectedForImport": {
+            "type": "boolean"
+          }
+        }
+      },
+      "DnsPlanChangeResponse": {
+        "required": [
+          "kind",
+          "name",
+          "type",
+          "currentValue",
+          "desiredValue",
+          "ttl",
+          "riskReason"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "currentValue": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "desiredValue": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ttl": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "riskReason": {
+            "type": "string"
+          }
+        }
+      },
+      "DnsProviderValidationRequest": {
+        "required": [
+          "apiToken"
+        ],
+        "type": "object",
+        "properties": {
+          "apiToken": {
+            "type": "string"
+          }
+        }
+      },
+      "DnsPruneApplyRequest": {
+        "required": [
+          "confirmDestructive"
+        ],
+        "type": "object",
+        "properties": {
+          "confirmDestructive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "DnsRecordResponse": {
+        "required": [
+          "id",
+          "name",
+          "type",
+          "value",
+          "ttl",
+          "ownership",
+          "enabled"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "ttl": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "ownership": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "DnsSyncApplyRequest": {
+        "required": [
+          "planId",
+          "connectionId",
+          "confirmDestructive"
+        ],
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "connectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "confirmDestructive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "DnsSyncPlanResponse": {
+        "required": [
+          "planId",
+          "connectionId",
+          "zoneName",
+          "changes",
+          "requiresConfirmation"
+        ],
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "connectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "zoneName": {
+            "type": "string"
+          },
+          "changes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DnsPlanChangeResponse"
+            }
+          },
+          "requiresConfirmation": {
+            "type": "boolean"
+          }
+        }
+      },
+      "DnsWriteValidationRequest": {
+        "required": [
+          "confirmDryRun"
+        ],
+        "type": "object",
+        "properties": {
+          "confirmDryRun": {
+            "type": "boolean"
+          }
+        }
+      },
+      "EdgeAuthRuleResponse": {
+        "required": [
+          "id",
+          "name",
+          "priority",
+          "matchJson",
+          "action",
+          "enabled"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "priority": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "matchJson": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "EdgeSsoSettingsRequest": {
+        "required": [
+          "edgeSsoSessionHours"
+        ],
+        "type": "object",
+        "properties": {
+          "edgeSsoSessionHours": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "EdgeSsoSettingsResponse": {
+        "required": [
+          "edgeSsoSessionHours",
+          "updatedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "edgeSsoSessionHours": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "updatedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "FirewallApplyRequest": {
+        "required": [
+          "firewallHostId",
+          "host",
+          "port",
+          "username",
+          "authMode",
+          "password",
+          "privateKeyPem",
+          "privateKeyPassphrase"
+        ],
+        "type": "object",
+        "properties": {
+          "firewallHostId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "host": {
+            "type": "string"
+          },
+          "port": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "username": {
+            "type": "string"
+          },
+          "authMode": {
+            "type": "string"
+          },
+          "password": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "privateKeyPem": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "privateKeyPassphrase": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "FirewallHostResponse": {
+        "required": [
+          "id",
+          "connectionId",
+          "name",
+          "domain",
+          "linkedTraefikHost",
+          "internalTraefikIp",
+          "publicIp",
+          "wanInterface",
+          "managedSubnets",
+          "netBirdEnabled",
+          "netBirdInterface",
+          "netBirdOverlayCidrs",
+          "netBirdRoutedCidrs",
+          "netBirdRoutingPeer",
+          "rollbackTimerSeconds",
+          "netBirdDetected",
+          "lastAppliedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "connectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "linkedTraefikHost": {
+            "type": "string"
+          },
+          "internalTraefikIp": {
+            "type": "string"
+          },
+          "publicIp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "wanInterface": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "managedSubnets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "netBirdEnabled": {
+            "type": "boolean"
+          },
+          "netBirdInterface": {
+            "type": "string"
+          },
+          "netBirdOverlayCidrs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "netBirdRoutedCidrs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "netBirdRoutingPeer": {
+            "type": "boolean"
+          },
+          "rollbackTimerSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "netBirdDetected": {
+            "type": "boolean"
+          },
+          "lastAppliedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "FirewallRenderRequest": {
+        "required": [
+          "name",
+          "domain",
+          "managedSubnets",
+          "linkedTraefikHost",
+          "internalTraefikIp"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "managedSubnets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "linkedTraefikHost": {
+            "type": "string"
+          },
+          "internalTraefikIp": {
+            "type": "string"
+          },
+          "publicIp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "wanInterface": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lxcBridge": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "netBirdEnabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "netBirdInterface": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "netBirdOverlayCidrs": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "netBirdRoutedCidrs": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "netBirdRoutingPeer": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "rollbackTimerSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "FirewallRenderResponse": {
+        "required": [
+          "script"
+        ],
+        "type": "object",
+        "properties": {
+          "script": {
+            "type": "string"
+          }
+        }
+      },
+      "GeneralSettingsRequest": {
+        "required": [
+          "rootDomain",
+          "adminDomain",
+          "internalUrl",
+          "defaultSyncIntervalMinutes",
+          "publicDashboardEnabled",
+          "publicStatusEnabled",
+          "theme"
+        ],
+        "type": "object",
+        "properties": {
+          "rootDomain": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "adminDomain": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "internalUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "defaultSyncIntervalMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "publicDashboardEnabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "publicStatusEnabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "theme": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "GeneralSettingsResponse": {
+        "required": [
+          "rootDomain",
+          "adminDomain",
+          "internalUrl",
+          "defaultSyncIntervalMinutes",
+          "publicDashboardEnabled",
+          "publicStatusEnabled",
+          "theme",
+          "updatedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "rootDomain": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "adminDomain": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "internalUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "defaultSyncIntervalMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "publicDashboardEnabled": {
+            "type": "boolean"
+          },
+          "publicStatusEnabled": {
+            "type": "boolean"
+          },
+          "theme": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "updatedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "GeneralSettingsUpdateResponse": {
+        "required": [
+          "updated",
+          "updatedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "updated": {
+            "type": "boolean"
+          },
+          "updatedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "HealthResponse": {
+        "required": [
+          "status",
+          "version",
+          "timestamp",
+          "serviceSyncVaultReady",
+          "providerSyncPaused"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "serviceSyncVaultReady": {
+            "type": "boolean"
+          },
+          "providerSyncPaused": {
+            "type": "boolean"
+          }
+        }
+      },
+      "MonitorEndpointResponse": {
+        "required": [
+          "id",
+          "name",
+          "url",
+          "checkType",
+          "enabled",
+          "status",
+          "lastCheckedAtUtc",
+          "lastLatencyMs"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "checkType": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string"
+          },
+          "lastCheckedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lastLatencyMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "MonitorEventResponse": {
+        "required": [
+          "id",
+          "monitorEndpointId",
+          "previousStatus",
+          "newStatus",
+          "latencyMs",
+          "occurredAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "monitorEndpointId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "previousStatus": {
+            "type": "string"
+          },
+          "newStatus": {
+            "type": "string"
+          },
+          "latencyMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "occurredAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "MonitoringSettingsRequest": {
+        "required": [
+          "monitorCheckIntervalSeconds",
+          "monitorCheckTimeoutSeconds",
+          "monitorSampleRetentionDays",
+          "monitorDegradedLatencyMs"
+        ],
+        "type": "object",
+        "properties": {
+          "monitorCheckIntervalSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "monitorCheckTimeoutSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "monitorSampleRetentionDays": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "monitorDegradedLatencyMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "MonitoringSettingsResponse": {
+        "required": [
+          "monitorCheckIntervalSeconds",
+          "monitorCheckTimeoutSeconds",
+          "monitorSampleRetentionDays",
+          "monitorDegradedLatencyMs",
+          "updatedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "monitorCheckIntervalSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "monitorCheckTimeoutSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "monitorSampleRetentionDays": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "monitorDegradedLatencyMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "updatedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "MonitorRollupResponse": {
+        "required": [
+          "monitorEndpointId",
+          "bucketStartUtc",
+          "intervalMinutes",
+          "sampleCount",
+          "upCount",
+          "downCount",
+          "averageLatencyMs"
+        ],
+        "type": "object",
+        "properties": {
+          "monitorEndpointId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "bucketStartUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "intervalMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sampleCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "upCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "downCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "averageLatencyMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "number",
+              "string"
+            ],
+            "format": "double"
+          }
+        }
+      },
+      "NotificationProviderResponse": {
+        "required": [
+          "id",
+          "name",
+          "type",
+          "enabled"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "NotificationTestRequest": {
+        "required": [
+          "subject",
+          "body"
+        ],
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          }
+        }
+      },
+      "NotificationTestResponse": {
+        "required": [
+          "sent",
+          "error"
+        ],
+        "type": "object",
+        "properties": {
+          "sent": {
+            "type": "boolean"
+          },
+          "error": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "OidcProviderResponse": {
+        "required": [
+          "id",
+          "name",
+          "issuer",
+          "clientId",
+          "scopes",
+          "enabled"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "issuer": {
+            "type": "string"
+          },
+          "clientId": {
+            "type": "string"
+          },
+          "scopes": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PasskeyLoginCompleteRequest": {
+        "required": [
+          "assertion",
+          "challengeSessionId",
+          "prfOutputBase64"
+        ],
+        "type": "object",
+        "properties": {
+          "assertion": { },
+          "challengeSessionId": {
+            "type": "string"
+          },
+          "prfOutputBase64": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PasskeyRegistrationCompleteRequest": {
+        "required": [
+          "attestation",
+          "challengeSessionId",
+          "nickname",
+          "clientReportsPrfSupported"
+        ],
+        "type": "object",
+        "properties": {
+          "attestation": { },
+          "challengeSessionId": {
+            "type": "string"
+          },
+          "nickname": {
+            "type": "string"
+          },
+          "clientReportsPrfSupported": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PasskeySummaryResponse": {
+        "required": [
+          "id",
+          "nickname",
+          "prfSupported",
+          "createdAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "nickname": {
+            "type": "string"
+          },
+          "prfSupported": {
+            "type": "boolean"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PublicStatusItemResponse": {
+        "required": [
+          "name",
+          "status",
+          "lastLatencyMs",
+          "recentStrip"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "lastLatencyMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "recentStrip": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicStatusStripBucket"
+            }
+          }
+        }
+      },
+      "PublicStatusStripBucket": {
+        "required": [
+          "bucketStartUtc",
+          "up"
+        ],
+        "type": "object",
+        "properties": {
+          "bucketStartUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "up": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PublicStatusSummaryResponse": {
+        "required": [
+          "totalEndpoints",
+          "upCount",
+          "degradedCount",
+          "downCount",
+          "firewallHostCount",
+          "firewallHostsApplied"
+        ],
+        "type": "object",
+        "properties": {
+          "totalEndpoints": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "upCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "degradedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "downCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "firewallHostCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "firewallHostsApplied": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "PulseAgentResponse": {
+        "required": [
+          "id",
+          "name",
+          "status",
+          "lastSeenAtUtc",
+          "lastPublicIp",
+          "lastHostname",
+          "lastAgentVersion",
+          "dnsPendingAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "lastSeenAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lastPublicIp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastHostname": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastAgentVersion": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "dnsPendingAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "PulseHeartbeatAuthRequest": {
+        "required": [
+          "token",
+          "version",
+          "hostname",
+          "privateIpv4Candidates"
+        ],
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "hostname": {
+            "type": "string"
+          },
+          "privateIpv4Candidates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "PulseInstallResponse": {
+        "required": [
+          "linuxInstallScript",
+          "dockerRunCommand"
+        ],
+        "type": "object",
+        "properties": {
+          "linuxInstallScript": {
+            "type": "string"
+          },
+          "dockerRunCommand": {
+            "type": "string"
+          }
+        }
+      },
+      "RemoteWriteRequest": {
+        "required": [
+          "remotePath",
+          "contentBase64",
+          "host",
+          "port",
+          "username",
+          "authMode",
+          "password",
+          "privateKeyPem",
+          "privateKeyPassphrase"
+        ],
+        "type": "object",
+        "properties": {
+          "remotePath": {
+            "type": "string"
+          },
+          "contentBase64": {
+            "type": "string"
+          },
+          "host": {
+            "type": "string"
+          },
+          "port": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "username": {
+            "type": "string"
+          },
+          "authMode": {
+            "type": "string"
+          },
+          "password": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "privateKeyPem": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "privateKeyPassphrase": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "ResourceResponse": {
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "kind",
+          "enabled",
+          "isSystem",
+          "domain",
+          "targetScheme",
+          "targetHost",
+          "targetPort",
+          "publicPort",
+          "dashboardEnabled",
+          "statusEnabled",
+          "firewallHostId",
+          "pulseAgentId",
+          "pathPrefix",
+          "pathRewrite",
+          "forwardAuthPolicy",
+          "wafMode",
+          "extraMiddlewares",
+          "routes",
+          "rules"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "isSystem": {
+            "type": "boolean"
+          },
+          "domain": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "targetScheme": {
+            "type": "string"
+          },
+          "targetHost": {
+            "type": "string"
+          },
+          "targetPort": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "publicPort": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "dashboardEnabled": {
+            "type": "boolean"
+          },
+          "statusEnabled": {
+            "type": "boolean"
+          },
+          "firewallHostId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "pulseAgentId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "pathPrefix": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pathRewrite": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "forwardAuthPolicy": {
+            "type": "string"
+          },
+          "wafMode": {
+            "type": "string"
+          },
+          "extraMiddlewares": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "routes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResourceRouteResponse"
+            }
+          },
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResourceRuleResponse"
+            }
+          }
+        }
+      },
+      "ResourceRouteRequest": {
+        "required": [
+          "enabled",
+          "priority",
+          "pathMatchType",
+          "pathValue",
+          "targetScheme",
+          "targetHost",
+          "targetPort"
+        ],
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "priority": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "pathMatchType": {
+            "type": "string"
+          },
+          "pathValue": {
+            "type": "string"
+          },
+          "targetScheme": {
+            "type": "string"
+          },
+          "targetHost": {
+            "type": "string"
+          },
+          "targetPort": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "rewriteMode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rewriteValue": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "extraMiddlewares": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ResourceRouteResponse": {
+        "required": [
+          "id",
+          "enabled",
+          "priority",
+          "pathMatchType",
+          "pathValue",
+          "targetScheme",
+          "targetHost",
+          "targetPort",
+          "rewriteMode",
+          "rewriteValue",
+          "extraMiddlewares"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "priority": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "pathMatchType": {
+            "type": "string"
+          },
+          "pathValue": {
+            "type": "string"
+          },
+          "targetScheme": {
+            "type": "string"
+          },
+          "targetHost": {
+            "type": "string"
+          },
+          "targetPort": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "rewriteMode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rewriteValue": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "extraMiddlewares": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ResourceRuleRequest": {
+        "required": [
+          "enabled",
+          "priority",
+          "action",
+          "matchType",
+          "matchValue"
+        ],
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "priority": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "action": {
+            "type": "string"
+          },
+          "matchType": {
+            "type": "string"
+          },
+          "matchValue": {
+            "type": "string"
+          }
+        }
+      },
+      "ResourceRuleResponse": {
+        "required": [
+          "id",
+          "enabled",
+          "priority",
+          "action",
+          "matchType",
+          "matchValue"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "priority": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "action": {
+            "type": "string"
+          },
+          "matchType": {
+            "type": "string"
+          },
+          "matchValue": {
+            "type": "string"
+          }
+        }
+      },
+      "RotatePulseAgentTokenResponse": {
+        "required": [
+          "id",
+          "name",
+          "token"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "token": {
+            "type": "string"
+          }
+        }
+      },
+      "RunScriptRequest": {
+        "type": "object",
+        "properties": {
+          "host": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "port": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32",
+            "default": 22
+          },
+          "username": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "authMode": {
+            "type": "string",
+            "default": "password"
+          },
+          "password": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "privateKeyPem": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "privateKeyPassphrase": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "RunScriptResponse": {
+        "required": [
+          "succeeded",
+          "output",
+          "error"
+        ],
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "output": {
+            "type": "string"
+          },
+          "error": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "ScriptResponse": {
+        "required": [
+          "id",
+          "name",
+          "enabled",
+          "description",
+          "cronExpression",
+          "lastRunAtUtc",
+          "lastRunOutput"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "description": {
+            "type": "string"
+          },
+          "cronExpression": {
+            "type": "string"
+          },
+          "lastRunAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lastRunOutput": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "SecretDescriptorResponse": {
+        "required": [
+          "id",
+          "purpose",
+          "label",
+          "createdAtUtc",
+          "updatedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "purpose": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SecretStoreRequest": {
+        "required": [
+          "label",
+          "purpose",
+          "plaintextBase64"
+        ],
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "purpose": {
+            "type": "string"
+          },
+          "plaintextBase64": {
+            "type": "string"
+          }
+        }
+      },
+      "SecurityDashboardResponse": {
+        "required": [
+          "allowed",
+          "blocked",
+          "challenged",
+          "hours",
+          "topBlockedIps",
+          "topCountries",
+          "topAsns",
+          "blocklistCount",
+          "securityEventCount"
+        ],
+        "type": "object",
+        "properties": {
+          "allowed": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "blocked": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "challenged": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "hours": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "topBlockedIps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "topCountries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SecurityRankItem"
+            }
+          },
+          "topAsns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SecurityRankItem"
+            }
+          },
+          "blocklistCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "securityEventCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        }
+      },
+      "SecurityRankItem": { },
+      "SendNotificationRequest": {
+        "required": [
+          "subject",
+          "body",
+          "providerTypes"
+        ],
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "providerTypes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "SessionStatusResponse": {
+        "required": [
+          "isAuthenticated",
+          "authMethod",
+          "vaultUnlocked",
+          "setupComplete"
+        ],
+        "type": "object",
+        "properties": {
+          "isAuthenticated": {
+            "type": "boolean"
+          },
+          "authMethod": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "vaultUnlocked": {
+            "type": "boolean"
+          },
+          "setupComplete": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SetupStatusResponse": {
+        "required": [
+          "isComplete",
+          "currentStep",
+          "completedSteps",
+          "httpsDomainVerified",
+          "updatedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "isComplete": {
+            "type": "boolean"
+          },
+          "currentStep": {
+            "type": "string"
+          },
+          "completedSteps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "httpsDomainVerified": {
+            "type": "boolean"
+          },
+          "updatedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "SyncApplyRequest": {
+        "required": [
+          "confirmDestructive"
+        ],
+        "type": "object",
+        "properties": {
+          "confirmDestructive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SyncDiffResponse": {
+        "required": [
+          "id",
+          "resourceType",
+          "resourceKey",
+          "changeKind",
+          "summary"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "resourceType": {
+            "type": "string"
+          },
+          "resourceKey": {
+            "type": "string"
+          },
+          "changeKind": {
+            "type": "string"
+          },
+          "summary": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "SyncPlanPreviewResponse": {
+        "required": [
+          "planId",
+          "subsystem",
+          "riskLevel",
+          "requiresConfirmation",
+          "changes",
+          "previewMarkdown"
+        ],
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "subsystem": {
+            "type": "string"
+          },
+          "riskLevel": {
+            "type": "string"
+          },
+          "requiresConfirmation": {
+            "type": "boolean"
+          },
+          "changes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyncDiffResponse"
+            }
+          },
+          "previewMarkdown": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "SyncReconcileResponse": {
+        "required": [
+          "runId",
+          "succeeded",
+          "subsystemsReconciled"
+        ],
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "succeeded": {
+            "type": "boolean"
+          },
+          "subsystemsReconciled": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "SyncRunResponse": {
+        "required": [
+          "id",
+          "subsystem",
+          "status",
+          "riskLevel",
+          "startedAtUtc",
+          "completedAtUtc",
+          "errorSummary",
+          "steps",
+          "diffs"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "subsystem": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "riskLevel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "startedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "errorSummary": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyncStepResponse"
+            }
+          },
+          "diffs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyncDiffResponse"
+            }
+          }
+        }
+      },
+      "SyncStepResponse": {
+        "required": [
+          "id",
+          "name",
+          "status",
+          "startedAtUtc",
+          "completedAtUtc",
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "startedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "TraefikApplyConnectionRequest": {
+        "required": [
+          "confirmReplaceExisting"
+        ],
+        "type": "object",
+        "properties": {
+          "confirmReplaceExisting": {
+            "type": "boolean"
+          }
+        }
+      },
+      "TraefikApplyRequest": {
+        "required": [
+          "connectionId",
+          "host",
+          "port",
+          "username",
+          "authMode",
+          "password",
+          "privateKeyPem",
+          "privateKeyPassphrase"
+        ],
+        "type": "object",
+        "properties": {
+          "connectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "host": {
+            "type": "string"
+          },
+          "port": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "username": {
+            "type": "string"
+          },
+          "authMode": {
+            "type": "string"
+          },
+          "password": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "privateKeyPem": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "privateKeyPassphrase": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "TraefikApplyResponse": {
+        "required": [
+          "succeeded",
+          "contentHash",
+          "skipped",
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "contentHash": {
+            "type": "string"
+          },
+          "skipped": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "TraefikConfigValidationResponse": {
+        "required": [
+          "isValid",
+          "errors"
+        ],
+        "type": "object",
+        "properties": {
+          "isValid": {
+            "type": "boolean"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "TraefikDetectExistingResponse": {
+        "required": [
+          "found",
+          "preview",
+          "remotePath"
+        ],
+        "type": "object",
+        "properties": {
+          "found": {
+            "type": "boolean"
+          },
+          "preview": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "remotePath": {
+            "type": "string"
+          }
+        }
+      },
+      "TraefikDynamicFilesResponse": {
+        "required": [
+          "coreYaml",
+          "httpResourcesYaml",
+          "streamResourcesYaml",
+          "userMiddlewaresYaml",
+          "securityYaml",
+          "healthYaml"
+        ],
+        "type": [
+          "null",
+          "object"
+        ],
+        "properties": {
+          "coreYaml": {
+            "type": "string"
+          },
+          "httpResourcesYaml": {
+            "type": "string"
+          },
+          "streamResourcesYaml": {
+            "type": "string"
+          },
+          "userMiddlewaresYaml": {
+            "type": "string"
+          },
+          "securityYaml": {
+            "type": "string"
+          },
+          "healthYaml": {
+            "type": "string"
+          }
+        }
+      },
+      "TraefikEntryPointResponse": {
+        "required": [
+          "id",
+          "port",
+          "protocol",
+          "resourceId",
+          "label",
+          "confirmed",
+          "confirmedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "port": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "protocol": {
+            "type": "string"
+          },
+          "resourceId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "label": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "confirmed": {
+            "type": "boolean"
+          },
+          "confirmedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "TraefikHostStateResponse": {
+        "required": [
+          "connectionId",
+          "lastAppliedContentHash",
+          "currentContentHash",
+          "lastAppliedAtUtc",
+          "hasBackup",
+          "hasPendingChanges",
+          "lastParseError"
+        ],
+        "type": "object",
+        "properties": {
+          "connectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "lastAppliedContentHash": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "currentContentHash": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastAppliedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "hasBackup": {
+            "type": "boolean"
+          },
+          "hasPendingChanges": {
+            "type": "boolean"
+          },
+          "lastParseError": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "TraefikInstallRequest": {
+        "required": [
+          "connectionId",
+          "host",
+          "port",
+          "username",
+          "authMode",
+          "password",
+          "privateKeyPem",
+          "privateKeyPassphrase"
+        ],
+        "type": "object",
+        "properties": {
+          "connectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "host": {
+            "type": "string"
+          },
+          "port": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "username": {
+            "type": "string"
+          },
+          "authMode": {
+            "type": "string"
+          },
+          "password": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "privateKeyPem": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "privateKeyPassphrase": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "TraefikInstallResponse": {
+        "required": [
+          "succeeded",
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "TraefikRenderResponse": {
+        "required": [
+          "staticConfigYaml",
+          "dynamicHttpYaml",
+          "contentHash"
+        ],
+        "type": "object",
+        "properties": {
+          "staticConfigYaml": {
+            "type": "string"
+          },
+          "dynamicHttpYaml": {
+            "type": "string"
+          },
+          "contentHash": {
+            "type": "string"
+          },
+          "dynamicFiles": {
+            "$ref": "#/components/schemas/TraefikDynamicFilesResponse"
+          }
+        }
+      },
+      "TraefikUserMiddlewareResponse": {
+        "required": [
+          "yaml",
+          "lastParseError",
+          "middlewareNames",
+          "updatedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "yaml": {
+            "type": "string"
+          },
+          "lastParseError": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "middlewareNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "updatedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TraefikUserMiddlewareValidationRequest": {
+        "required": [
+          "yaml"
+        ],
+        "type": "object",
+        "properties": {
+          "yaml": {
+            "type": "string"
+          }
+        }
+      },
+      "TraefikUserMiddlewareValidationResponse": {
+        "required": [
+          "isValid",
+          "error",
+          "middlewareNames"
+        ],
+        "type": "object",
+        "properties": {
+          "isValid": {
+            "type": "boolean"
+          },
+          "error": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "middlewareNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "UpdateEdgeAuthRuleRequest": {
+        "required": [
+          "name",
+          "priority",
+          "matchJson",
+          "action",
+          "enabled"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "priority": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "matchJson": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "action": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "enabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        }
+      },
+      "UpdateFirewallHostRequest": {
+        "required": [
+          "name",
+          "domain",
+          "managedSubnets",
+          "linkedTraefikHost",
+          "internalTraefikIp",
+          "publicIp"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "domain": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "managedSubnets": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "linkedTraefikHost": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "internalTraefikIp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "publicIp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clearPublicIp": {
+            "type": "boolean",
+            "default": false
+          },
+          "wanInterface": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clearWanInterface": {
+            "type": "boolean",
+            "default": false
+          },
+          "lxcBridge": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clearLxcBridge": {
+            "type": "boolean",
+            "default": false
+          },
+          "netBirdEnabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "netBirdInterface": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "netBirdOverlayCidrs": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "netBirdRoutedCidrs": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "netBirdRoutingPeer": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "rollbackTimerSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "UpdateNotificationProviderRequest": {
+        "required": [
+          "name",
+          "type",
+          "settingsJson",
+          "enabled"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "settingsJson": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "enabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        }
+      },
+      "UpdateOidcProviderRequest": {
+        "required": [
+          "name",
+          "issuer",
+          "clientId",
+          "clientSecret",
+          "scopes",
+          "enabled"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "issuer": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clientId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clientSecret": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "scopes": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "enabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        }
+      },
+      "UpdateResourceRequest": {
+        "required": [
+          "name",
+          "enabled",
+          "domain",
+          "targetScheme",
+          "targetHost",
+          "targetPort",
+          "dashboardEnabled",
+          "statusEnabled"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "enabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "domain": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "targetScheme": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "targetHost": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "targetPort": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "dashboardEnabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "statusEnabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "publicPort": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "clearPublicPort": {
+            "type": "boolean",
+            "default": false
+          },
+          "firewallHostId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "clearFirewallHostId": {
+            "type": "boolean",
+            "default": false
+          },
+          "pulseAgentId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "clearPulseAgentId": {
+            "type": "boolean",
+            "default": false
+          },
+          "pathPrefix": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clearPathPrefix": {
+            "type": "boolean",
+            "default": false
+          },
+          "pathRewrite": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clearPathRewrite": {
+            "type": "boolean",
+            "default": false
+          },
+          "forwardAuthPolicy": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "wafMode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "extraMiddlewares": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "clearExtraMiddlewares": {
+            "type": "boolean",
+            "default": false
+          },
+          "routes": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ResourceRouteRequest"
+            }
+          },
+          "rules": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ResourceRuleRequest"
+            }
+          }
+        }
+      },
+      "UpdateScriptRequest": {
+        "required": [
+          "name",
+          "description",
+          "body",
+          "cronExpression",
+          "enabled"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "body": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cronExpression": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "enabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        }
+      },
+      "UpdateTraefikUserMiddlewareRequest": {
+        "required": [
+          "yaml"
+        ],
+        "type": "object",
+        "properties": {
+          "yaml": {
+            "type": "string"
+          }
+        }
+      },
+      "UpsertAdGuardRewriteRequest": {
+        "required": [
+          "domain",
+          "answer"
+        ],
+        "type": "object",
+        "properties": {
+          "domain": {
+            "type": "string"
+          },
+          "answer": {
+            "type": "string"
+          }
+        }
+      },
+      "VaultGenerateRecoveryKeyResponse": {
+        "required": [
+          "recoveryKey"
+        ],
+        "type": "object",
+        "properties": {
+          "recoveryKey": {
+            "type": "string"
+          }
+        }
+      },
+      "VaultLockResponse": {
+        "required": [
+          "locked"
+        ],
+        "type": "object",
+        "properties": {
+          "locked": {
+            "type": "boolean"
+          }
+        }
+      },
+      "VaultSetupRequest": {
+        "required": [
+          "recoveryKey",
+          "prfWrapAttempted",
+          "prfOutputBase64",
+          "passkeyCredentialId"
+        ],
+        "type": "object",
+        "properties": {
+          "recoveryKey": {
+            "type": "string"
+          },
+          "prfWrapAttempted": {
+            "type": "boolean"
+          },
+          "prfOutputBase64": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "passkeyCredentialId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "VaultStatusResponse": {
+        "required": [
+          "lockState",
+          "isVaultConfigured",
+          "hasPasskey",
+          "prfWrapAvailable",
+          "serviceSyncVaultReady",
+          "bootstrapCredentialsActive"
+        ],
+        "type": "object",
+        "properties": {
+          "lockState": {
+            "type": "string"
+          },
+          "isVaultConfigured": {
+            "type": "boolean"
+          },
+          "hasPasskey": {
+            "type": "boolean"
+          },
+          "prfWrapAvailable": {
+            "type": "boolean"
+          },
+          "serviceSyncVaultReady": {
+            "type": "boolean"
+          },
+          "bootstrapCredentialsActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "VaultUnlockRequest": {
+        "required": [
+          "recoveryKey"
+        ],
+        "type": "object",
+        "properties": {
+          "recoveryKey": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Health"
+    },
+    {
+      "name": "Public"
+    },
+    {
+      "name": "EdgeAuth"
+    },
+    {
+      "name": "Security"
+    },
+    {
+      "name": "Setup"
+    },
+    {
+      "name": "Settings"
+    },
+    {
+      "name": "Activity"
+    },
+    {
+      "name": "Auth"
+    },
+    {
+      "name": "Vault"
+    },
+    {
+      "name": "DNS"
+    },
+    {
+      "name": "Connections"
+    },
+    {
+      "name": "Resources"
+    },
+    {
+      "name": "Traefik"
+    },
+    {
+      "name": "Firewall"
+    },
+    {
+      "name": "Status"
+    },
+    {
+      "name": "Pulse"
+    },
+    {
+      "name": "Scripts"
+    },
+    {
+      "name": "AdGuard"
+    },
+    {
+      "name": "Sync"
+    }
+  ]
+}

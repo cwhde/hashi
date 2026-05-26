@@ -1,0 +1,274 @@
+using System.Net;
+using System.Text.Json;
+using Hashi.Contracts.Api;
+using Hashi.Core.Resources;
+using Hashi.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+
+namespace Hashi.Infrastructure.Platform;
+
+public sealed class EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp, OidcEdgeAuthService oidc)
+{
+    public async Task<EdgeAuthForwardResponse> EvaluateForwardAsync(
+        string host,
+        string path,
+        IPAddress clientIp,
+        string? countryCode,
+        string? regionCode,
+        string? asn,
+        string? edgeSessionKey = null,
+        string? mode = null,
+        CancellationToken cancellationToken = default)
+    {
+        var clientIpText = clientIp.ToString();
+        if (await db.BlocklistEntries.AsNoTracking().AnyAsync(x => x.ClientIp == clientIpText, cancellationToken))
+        {
+            return new EdgeAuthForwardResponse("deny", null);
+        }
+
+        var normalizedHost = host.ToLowerInvariant();
+        var resource = await db.Resources.AsNoTracking()
+            .Where(x => x.Enabled && x.Domain != null && x.Domain.ToLower() == normalizedHost)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (resource is not null)
+        {
+            var resourceRuleResult = await EvaluateResourceRulesAsync(resource, path, clientIp, countryCode, regionCode, asn, cancellationToken);
+            if (resourceRuleResult is not null)
+            {
+                return resourceRuleResult;
+            }
+        }
+
+        var rules = await db.EdgeAuthRules.AsNoTracking()
+            .Where(x => x.Enabled)
+            .OrderBy(x => x.Priority)
+            .ToListAsync(cancellationToken);
+
+        foreach (var rule in rules)
+        {
+            if (!Matches(rule.MatchJson, host, path, clientIp, countryCode, regionCode, asn))
+            {
+                continue;
+            }
+
+            return rule.Action switch
+            {
+                "deny" => new EdgeAuthForwardResponse("deny", null),
+                "redirect" => new EdgeAuthForwardResponse("redirect", "/auth/login"),
+                _ => new EdgeAuthForwardResponse("allow", null),
+            };
+        }
+
+        if (string.Equals(mode, "observe", StringComparison.OrdinalIgnoreCase))
+        {
+            return new EdgeAuthForwardResponse("allow", null);
+        }
+
+        var policy = resource is null
+            ? ForwardAuthPolicy.Adaptive
+            : ForwardAuthPolicyMapping.Parse(resource.ForwardAuthPolicy);
+
+        if (string.Equals(mode, "strict", StringComparison.OrdinalIgnoreCase))
+        {
+            policy = ForwardAuthPolicy.SsoRequired;
+        }
+
+        if (policy == ForwardAuthPolicy.Off || policy == ForwardAuthPolicy.Observe)
+        {
+            return new EdgeAuthForwardResponse("allow", null);
+        }
+
+        if (await oidc.ValidateSessionAsync(edgeSessionKey, cancellationToken))
+        {
+            return new EdgeAuthForwardResponse("allow", null);
+        }
+
+        var providers = await db.OidcProviders.AsNoTracking().AnyAsync(x => x.Enabled, cancellationToken);
+        if (!providers)
+        {
+            return new EdgeAuthForwardResponse("allow", null);
+        }
+
+        if (policy == ForwardAuthPolicy.SsoRequired)
+        {
+            return new EdgeAuthForwardResponse("challenge", BuildLoginUrl(host, path));
+        }
+
+        var bucket = await db.AbuseBuckets.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.ClientIp == clientIpText, cancellationToken);
+        if (bucket?.State is "block")
+        {
+            return new EdgeAuthForwardResponse("deny", null);
+        }
+
+        if (bucket?.State is "challenge")
+        {
+            if (bucket.Score >= 15)
+            {
+                return new EdgeAuthForwardResponse("rate_limited", BuildLoginUrl(host, path));
+            }
+
+            return new EdgeAuthForwardResponse("challenge", BuildLoginUrl(host, path));
+        }
+
+        return new EdgeAuthForwardResponse("allow", null);
+    }
+
+    private async Task<EdgeAuthForwardResponse?> EvaluateResourceRulesAsync(
+        Persistence.Entities.ResourceEntity resource,
+        string path,
+        IPAddress clientIp,
+        string? countryCode,
+        string? regionCode,
+        string? asn,
+        CancellationToken cancellationToken)
+    {
+        var rules = await db.ResourceRules.AsNoTracking()
+            .Where(x => x.ResourceId == resource.Id && x.Enabled)
+            .OrderByDescending(x => x.Priority)
+            .ToListAsync(cancellationToken);
+
+        foreach (var rule in rules)
+        {
+            if (!MatchesResourceRule(rule, path, clientIp, countryCode, regionCode, asn))
+            {
+                continue;
+            }
+
+            return rule.Action.ToLowerInvariant() switch
+            {
+                "bypass_auth" => new EdgeAuthForwardResponse("allow", null),
+                "block_access" => new EdgeAuthForwardResponse("deny", null),
+                "require_adaptive_challenge" => new EdgeAuthForwardResponse("challenge", BuildLoginUrl(resource.Domain ?? hostFallback(resource), path)),
+                "pass_to_auth" => new EdgeAuthForwardResponse("challenge", BuildLoginUrl(resource.Domain ?? hostFallback(resource), path)),
+                _ => null,
+            };
+        }
+
+        return null;
+    }
+
+    private static string hostFallback(Persistence.Entities.ResourceEntity resource) => resource.Domain ?? "localhost";
+
+    public IReadOnlyList<string> ValidateRuleMatchJson(string matchJson)
+        => geoIp.ValidateGeoMatchRules(matchJson);
+
+    private static string BuildLoginUrl(string host, string path)
+    {
+        var returnUrl = Uri.EscapeDataString($"https://{host}{path}");
+        return $"/api/edge-auth/login?returnUrl={returnUrl}";
+    }
+
+    private static bool MatchesResourceRule(
+        Persistence.Entities.ResourceRuleEntity rule,
+        string path,
+        IPAddress clientIp,
+        string? countryCode,
+        string? regionCode,
+        string? asn)
+        => rule.MatchType.ToLowerInvariant() switch
+        {
+            "ip" => string.Equals(clientIp.ToString(), rule.MatchValue, StringComparison.OrdinalIgnoreCase),
+            "cidr" => IsInCidr(clientIp, rule.MatchValue),
+            "path" => path.StartsWith(rule.MatchValue, StringComparison.OrdinalIgnoreCase),
+            "country" => string.Equals(countryCode, rule.MatchValue, StringComparison.OrdinalIgnoreCase),
+            "region" => string.Equals(regionCode, rule.MatchValue, StringComparison.OrdinalIgnoreCase),
+            "asn" => string.Equals(asn, rule.MatchValue, StringComparison.OrdinalIgnoreCase),
+            _ => false,
+        };
+
+    private static bool Matches(
+        string matchJson,
+        string host,
+        string path,
+        IPAddress clientIp,
+        string? countryCode,
+        string? regionCode,
+        string? asn)
+    {
+        using var doc = JsonDocument.Parse(matchJson);
+        var root = doc.RootElement;
+        if (root.TryGetProperty("host", out var hostMatch)
+            && !host.Contains(hostMatch.GetString() ?? string.Empty, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (root.TryGetProperty("pathPrefix", out var pathMatch)
+            && !path.StartsWith(pathMatch.GetString() ?? string.Empty, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (root.TryGetProperty("cidr", out var cidrMatch)
+            && !IsInCidr(clientIp, cidrMatch.GetString() ?? string.Empty))
+        {
+            return false;
+        }
+
+        if (root.TryGetProperty("country", out var countryMatch)
+            && !string.Equals(countryCode, countryMatch.GetString(), StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (root.TryGetProperty("region", out var regionMatch)
+            && !string.Equals(regionCode, regionMatch.GetString(), StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (root.TryGetProperty("asn", out var asnMatch)
+            && !string.Equals(asn, asnMatch.GetString(), StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool IsInCidr(IPAddress ip, string cidr)
+    {
+        if (string.IsNullOrWhiteSpace(cidr) || !cidr.Contains('/'))
+        {
+            return false;
+        }
+
+        var parts = cidr.Split('/');
+        if (!IPAddress.TryParse(parts[0], out var network))
+        {
+            return false;
+        }
+
+        if (!int.TryParse(parts[1], out var prefixLength))
+        {
+            return false;
+        }
+
+        var ipBytes = ip.GetAddressBytes();
+        var networkBytes = network.GetAddressBytes();
+        if (ipBytes.Length != networkBytes.Length)
+        {
+            return false;
+        }
+
+        var fullBytes = prefixLength / 8;
+        var remainingBits = prefixLength % 8;
+        for (var i = 0; i < fullBytes; i++)
+        {
+            if (ipBytes[i] != networkBytes[i])
+            {
+                return false;
+            }
+        }
+
+        if (remainingBits == 0)
+        {
+            return true;
+        }
+
+        var mask = (byte)(0xFF << (8 - remainingBits));
+        return (ipBytes[fullBytes] & mask) == (networkBytes[fullBytes] & mask);
+    }
+}

@@ -1,0 +1,167 @@
+name: CI
+
+on:
+  push:
+    branches: [main, feat/v2-foundation]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_NOLOGO: true
+  CI: true
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      web: ${{ steps.filter.outputs.web }}
+      agents: ${{ steps.filter.outputs.agents }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: filter
+        shell: bash
+        run: |
+          set -euo pipefail
+          backend=false
+          web=false
+          agents=false
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            backend=true
+            web=true
+            agents=true
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            backend=true
+            web=true
+            agents=true
+          else
+            base="${{ github.event.before }}"
+            if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+              base=HEAD~1
+            fi
+            files="$(git diff --name-only "$base" HEAD 2>/dev/null || git show --pretty='' --name-only HEAD)"
+            echo "Changed files:"
+            echo "$files"
+
+            if echo "$files" | grep -qE '^(src/|tests/|Hashi\.slnx|Directory\.Build\.props|\.gitea/workflows/ci\.yml)'; then
+              backend=true
+            fi
+            if echo "$files" | grep -qE '^(web/|openapi/|scripts/|\.gitea/workflows/ci\.yml)'; then
+              web=true
+            fi
+            if echo "$files" | grep -qE '^(agents/|\.gitea/workflows/ci\.yml)'; then
+              agents=true
+            fi
+          fi
+
+          echo "backend=$backend" >> "$GITHUB_OUTPUT"
+          echo "web=$web" >> "$GITHUB_OUTPUT"
+          echo "agents=$agents" >> "$GITHUB_OUTPUT"
+
+  backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore, format, test, build
+        env:
+          HASHI_SKIP_STARTUP_HOOKS: '1'
+        run: |
+          dotnet restore Hashi.slnx
+          dotnet format Hashi.slnx --verify-no-changes
+          dotnet test tests/Hashi.UnitTests/Hashi.UnitTests.csproj --no-restore --verbosity normal /p:SkipFrontendBuild=true
+          dotnet test tests/Hashi.IntegrationTests/Hashi.IntegrationTests.csproj --no-restore --verbosity normal /p:SkipFrontendBuild=true
+          dotnet build src/Hashi.Api/Hashi.Api.csproj -c Release --no-restore /p:SkipFrontendBuild=true
+
+      - name: Shellcheck generated firewall script (spec §Phase 7)
+        run: |
+          sudo apt-get update && sudo apt-get install -y shellcheck
+          dotnet test tests/Hashi.UnitTests/Hashi.UnitTests.csproj --filter "FullyQualifiedName~FirewallScriptRendererTests.Render_passes_shellcheck_when_available" --no-restore /p:SkipFrontendBuild=true
+
+  web:
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install frontend dependencies
+        working-directory: web
+        run: pnpm install --frozen-lockfile
+
+      - name: Frontend check, lint, test, build
+        working-directory: web
+        run: |
+          pnpm run check
+          pnpm run lint
+          pnpm run test
+          pnpm run build
+
+      - name: Verify OpenAPI contract (spec §30)
+        run: |
+          chmod +x scripts/export-openapi.sh scripts/generate-api-client.sh
+          ./scripts/export-openapi.sh
+          ./scripts/generate-api-client.sh
+          git diff --exit-code openapi/hashi.json web/src/lib/api/schema.d.ts
+
+      - name: Playwright smoke tests
+        working-directory: web
+        run: |
+          pnpm exec playwright install --with-deps chromium
+          pnpm run test:e2e
+
+  pulse-agent:
+    needs: changes
+    if: needs.changes.outputs.agents == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: agents/pulse
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22.x'
+
+      - name: Build, test, and verify Docker image
+        run: |
+          make vet
+          make test
+          make build
+          if command -v docker >/dev/null 2>&1; then
+            docker build -t hashi-pulse:ci .
+          else
+            echo "Docker CLI unavailable — skipping image build verification."
+          fi

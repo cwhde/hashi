@@ -1,0 +1,100 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+	/* Hashi Shades of Purple */
+	--hashi-bg: #2d2b55;
+	--hashi-bg-dark: #1e1e3f;
+	--hashi-foreground: #a599e9;
+	--hashi-hover: #4d21fc;
+	--hashi-contrast: #fad000;
+	--hashi-highlight: #ff7200;
+
+	--background: var(--hashi-bg);
+	--foreground: var(--hashi-foreground);
+	--muted: color-mix(in oklab, var(--hashi-bg-dark) 85%, var(--hashi-foreground));
+	--muted-foreground: color-mix(in oklab, var(--hashi-foreground) 70%, var(--hashi-bg-dark));
+	--popover: var(--hashi-bg-dark);
+	--popover-foreground: var(--hashi-foreground);
+	--card: var(--hashi-bg-dark);
+	--card-foreground: var(--hashi-foreground);
+	--border: color-mix(in oklab, var(--hashi-foreground) 18%, var(--hashi-bg-dark));
+	--input: color-mix(in oklab, var(--hashi-foreground) 14%, var(--hashi-bg-dark));
+	--primary: var(--hashi-hover);
+	--primary-foreground: #ffffff;
+	--secondary: color-mix(in oklab, var(--hashi-bg-dark) 70%, var(--hashi-hover));
+	--secondary-foreground: var(--hashi-foreground);
+	--accent: var(--hashi-highlight);
+	--accent-foreground: var(--hashi-bg-dark);
+	--destructive: #ef4444;
+	--destructive-foreground: #ffffff;
+	--ring: var(--hashi-hover);
+	--radius: 0.5rem;
+	--sidebar: var(--hashi-bg-dark);
+	--sidebar-foreground: var(--hashi-foreground);
+	--sidebar-primary: var(--hashi-hover);
+	--sidebar-primary-foreground: #ffffff;
+	--sidebar-accent: color-mix(in oklab, var(--hashi-hover) 25%, var(--hashi-bg-dark));
+	--sidebar-accent-foreground: var(--hashi-contrast);
+	--sidebar-border: color-mix(in oklab, var(--hashi-foreground) 12%, var(--hashi-bg-dark));
+	--sidebar-ring: var(--hashi-hover);
+}
+
+.dark {
+	--background: var(--hashi-bg);
+	--foreground: var(--hashi-foreground);
+}
+
+@theme inline {
+	--radius-sm: calc(var(--radius) - 4px);
+	--radius-md: calc(var(--radius) - 2px);
+	--radius-lg: var(--radius);
+	--radius-xl: calc(var(--radius) + 4px);
+
+	--color-background: var(--background);
+	--color-foreground: var(--foreground);
+	--color-muted: var(--muted);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-popover: var(--popover);
+	--color-popover-foreground: var(--popover-foreground);
+	--color-card: var(--card);
+	--color-card-foreground: var(--card-foreground);
+	--color-border: var(--border);
+	--color-input: var(--input);
+	--color-primary: var(--primary);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-secondary: var(--secondary);
+	--color-secondary-foreground: var(--secondary-foreground);
+	--color-accent: var(--accent);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-destructive: var(--destructive);
+	--color-destructive-foreground: var(--destructive-foreground);
+	--color-ring: var(--ring);
+	--color-sidebar: var(--sidebar);
+	--color-sidebar-foreground: var(--sidebar-foreground);
+	--color-sidebar-primary: var(--sidebar-primary);
+	--color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+	--color-sidebar-accent: var(--sidebar-accent);
+	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+	--color-sidebar-border: var(--sidebar-border);
+	--color-sidebar-ring: var(--sidebar-ring);
+
+	--color-hashi-bg: var(--hashi-bg);
+	--color-hashi-bg-dark: var(--hashi-bg-dark);
+	--color-hashi-foreground: var(--hashi-foreground);
+	--color-hashi-hover: var(--hashi-hover);
+	--color-hashi-contrast: var(--hashi-contrast);
+	--color-hashi-highlight: var(--hashi-highlight);
+}
+
+@layer base {
+	* {
+		@apply border-border;
+	}
+
+	body {
+		@apply bg-background text-foreground antialiased;
+	}
+}
