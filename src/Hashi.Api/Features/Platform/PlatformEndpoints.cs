@@ -645,6 +645,12 @@ public static class NotificationEndpoints
             CancellationToken ct) =>
             TypedResults.Ok(await notifications.TestProviderAsync(providerId, request, ct)))
             .Produces<NotificationTestResponse>(StatusCodes.Status200OK);
+        group.MapPost("/telegram/discover-chat", async (
+            TelegramChatDiscoveryRequest request,
+            NotificationDispatcher notifications,
+            CancellationToken ct) =>
+            TypedResults.Ok(await notifications.DiscoverTelegramChatAsync(request.BotToken, ct)))
+            .Produces<TelegramChatDiscoveryResponse>(StatusCodes.Status200OK);
         group.MapPost("/send", async Task<IResult> (SendNotificationRequest request, NotificationDispatcher notifications, CancellationToken ct) =>
         {
             await notifications.SendAsync(request, ct);

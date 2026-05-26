@@ -118,6 +118,65 @@ public sealed class NotificationDispatcher(HashiDbContext db, IHttpClientFactory
         }
     }
 
+    public async Task<TelegramChatDiscoveryResponse> DiscoverTelegramChatAsync(
+        string botToken,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(botToken))
+        {
+            return new TelegramChatDiscoveryResponse(false, null, null, "Bot token is required.");
+        }
+
+        try
+        {
+            var client = httpClientFactory.CreateClient();
+            var url = $"https://api.telegram.org/bot{botToken}/getUpdates";
+            using var response = await client.GetAsync(url, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                return new TelegramChatDiscoveryResponse(
+                    false,
+                    null,
+                    null,
+                    $"Telegram API returned {(int)response.StatusCode} {response.ReasonPhrase}.");
+            }
+
+            await using var content = await response.Content.ReadAsStreamAsync(cancellationToken);
+            using var doc = await JsonDocument.ParseAsync(content, cancellationToken: cancellationToken);
+            var root = doc.RootElement;
+            var ok = root.TryGetProperty("ok", out var okElement) && okElement.GetBoolean();
+            if (!ok)
+            {
+                return new TelegramChatDiscoveryResponse(false, null, null, "Telegram API did not return ok=true.");
+            }
+
+            if (!root.TryGetProperty("result", out var resultElement) || resultElement.ValueKind != JsonValueKind.Array)
+            {
+                return new TelegramChatDiscoveryResponse(false, null, null, "Telegram API response did not include updates.");
+            }
+
+            for (var i = resultElement.GetArrayLength() - 1; i >= 0; i--)
+            {
+                if (!TryExtractChat(resultElement[i], out var chatId, out var chatTitle))
+                {
+                    continue;
+                }
+
+                return new TelegramChatDiscoveryResponse(true, chatId, chatTitle, null);
+            }
+
+            return new TelegramChatDiscoveryResponse(
+                false,
+                null,
+                null,
+                "No chats found yet. Send the bot a message and try again.");
+        }
+        catch (Exception ex)
+        {
+            return new TelegramChatDiscoveryResponse(false, null, null, ex.Message);
+        }
+    }
+
     public async Task SendAsync(SendNotificationRequest request, CancellationToken cancellationToken = default)
     {
         var providers = await db.NotificationProviders
@@ -181,5 +240,61 @@ public sealed class NotificationDispatcher(HashiDbContext db, IHttpClientFactory
         var payload = new { content = $"{subject}\n{body}" };
         using var response = await client.PostAsJsonAsync(webhook!, payload, cancellationToken);
         response.EnsureSuccessStatusCode();
+    }
+
+    private static bool TryExtractChat(JsonElement update, out string chatId, out string chatTitle)
+    {
+        chatId = string.Empty;
+        chatTitle = string.Empty;
+
+        if (!TryGetChat(update, "message", out var chat)
+            && !TryGetChat(update, "channel_post", out chat)
+            && !TryGetChat(update, "my_chat_member", out chat)
+            && !TryGetChat(update, "chat_member", out chat))
+        {
+            return false;
+        }
+
+        if (!chat.TryGetProperty("id", out var idElement))
+        {
+            return false;
+        }
+
+        chatId = idElement.ValueKind switch
+        {
+            JsonValueKind.Number when idElement.TryGetInt64(out var id) => id.ToString(),
+            JsonValueKind.String => idElement.GetString() ?? string.Empty,
+            _ => string.Empty,
+        };
+        if (string.IsNullOrWhiteSpace(chatId))
+        {
+            return false;
+        }
+
+        chatTitle = chat.TryGetProperty("title", out var title)
+            ? title.GetString() ?? string.Empty
+            : chat.TryGetProperty("username", out var username)
+                ? username.GetString() ?? string.Empty
+                : chat.TryGetProperty("first_name", out var firstName)
+                    ? firstName.GetString() ?? string.Empty
+                    : string.Empty;
+
+        return true;
+    }
+
+    private static bool TryGetChat(JsonElement update, string nodeName, out JsonElement chat)
+    {
+        chat = default;
+        if (!update.TryGetProperty(nodeName, out var node))
+        {
+            return false;
+        }
+
+        if (!node.TryGetProperty("chat", out chat))
+        {
+            return false;
+        }
+
+        return chat.ValueKind == JsonValueKind.Object;
     }
 }
