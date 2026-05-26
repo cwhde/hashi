@@ -6,23 +6,28 @@ using Xunit;
 
 namespace Hashi.IntegrationTests;
 
+[Collection(PostgresIntegrationCollection.Name)]
 public sealed class VaultStatusTests : IAsyncLifetime
 {
-    private readonly IntegrationTestPostgres _postgres = new();
+    private readonly PostgresIntegrationFixture _fixture;
     private WebApplicationFactory<Program>? _factory;
     private HttpClient? _client;
 
+    public VaultStatusTests(PostgresIntegrationFixture fixture)
+    {
+        _fixture = fixture;
+    }
+
     public async Task InitializeAsync()
     {
-        await _postgres.StartAsync();
-        if (!_postgres.IsAvailable)
+        if (!_fixture.IsAvailable)
         {
             return;
         }
 
-        _factory = IntegrationTestApp.CreateFactory(_postgres.ConnectionString);
+        var connectionString = await _fixture.CreateDatabaseAsync();
+        _factory = IntegrationTestApp.CreateFactory(connectionString);
         _client = _factory.CreateClient();
-        await IntegrationTestApp.MigrateAsync(_factory.Services);
     }
 
     public async Task DisposeAsync()
@@ -32,14 +37,12 @@ public sealed class VaultStatusTests : IAsyncLifetime
         {
             await _factory.DisposeAsync();
         }
-
-        await _postgres.DisposeAsync();
     }
 
     [Fact]
     public async Task Vault_status_starts_not_configured()
     {
-        if (!_postgres.IsAvailable || _client is null)
+        if (!_fixture.IsAvailable || _client is null)
         {
             return;
         }
@@ -54,7 +57,7 @@ public sealed class VaultStatusTests : IAsyncLifetime
     [Fact]
     public async Task Recovery_key_generation_returns_formatted_key()
     {
-        if (!_postgres.IsAvailable || _client is null)
+        if (!_fixture.IsAvailable || _client is null)
         {
             return;
         }
@@ -78,7 +81,7 @@ public sealed class VaultStatusTests : IAsyncLifetime
     [Fact]
     public async Task Passkey_and_vault_setup_steps_require_completion_endpoint()
     {
-        if (!_postgres.IsAvailable || _client is null)
+        if (!_fixture.IsAvailable || _client is null)
         {
             return;
         }

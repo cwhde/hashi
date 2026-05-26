@@ -2,30 +2,33 @@ using System.Net;
 using System.Net.Http.Json;
 using Hashi.Contracts.Api;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Hashi.IntegrationTests;
 
+[Collection(PostgresIntegrationCollection.Name)]
 public sealed class EndToEndPlatformTests : IAsyncLifetime
 {
-    private readonly IntegrationTestPostgres _postgres = new();
+    private readonly PostgresIntegrationFixture _fixture;
     private WebApplicationFactory<Program>? _factory;
     private HttpClient? _client;
 
+    public EndToEndPlatformTests(PostgresIntegrationFixture fixture)
+    {
+        _fixture = fixture;
+    }
+
     public async Task InitializeAsync()
     {
-        await _postgres.StartAsync();
-        if (!_postgres.IsAvailable)
+        if (!_fixture.IsAvailable)
         {
             return;
         }
 
         Environment.SetEnvironmentVariable("HASHI_SKIP_STARTUP_HOOKS", "1");
-        _factory = IntegrationTestApp.CreateFactory(_postgres.ConnectionString);
+        var connectionString = await _fixture.CreateDatabaseAsync();
+        _factory = IntegrationTestApp.CreateFactory(connectionString);
         _client = _factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = true });
-        await IntegrationTestApp.MigrateAsync(_factory.Services);
         await IntegrationTestAuth.EnsureBootstrapCredentialsAsync(_factory.Services);
         await IntegrationTestAuth.AuthenticateAsBootstrapAsync(_client);
     }
@@ -37,14 +40,12 @@ public sealed class EndToEndPlatformTests : IAsyncLifetime
         {
             await _factory.DisposeAsync();
         }
-
-        await _postgres.DisposeAsync();
     }
 
     [Fact]
     public async Task Setup_advances_and_resource_crud_works()
     {
-        if (!_postgres.IsAvailable || _client is null)
+        if (!_fixture.IsAvailable || _client is null)
         {
             return;
         }
@@ -78,7 +79,7 @@ public sealed class EndToEndPlatformTests : IAsyncLifetime
     [Fact]
     public async Task Security_dashboard_returns_metrics_shape()
     {
-        if (!_postgres.IsAvailable || _client is null)
+        if (!_fixture.IsAvailable || _client is null)
         {
             return;
         }
@@ -91,7 +92,7 @@ public sealed class EndToEndPlatformTests : IAsyncLifetime
     [Fact]
     public async Task Sync_plan_endpoint_returns_preview()
     {
-        if (!_postgres.IsAvailable || _client is null)
+        if (!_fixture.IsAvailable || _client is null)
         {
             return;
         }

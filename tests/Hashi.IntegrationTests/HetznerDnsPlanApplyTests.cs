@@ -15,26 +15,32 @@ using Xunit;
 
 namespace Hashi.IntegrationTests;
 
+[Collection(PostgresIntegrationCollection.Name)]
 public sealed class HetznerDnsPlanApplyTests : IAsyncLifetime
 {
-    private readonly IntegrationTestPostgres _postgres = new();
+    private readonly PostgresIntegrationFixture _fixture;
     private readonly HetznerDnsFakeHandler _fake = new();
     private ServiceProvider? _services;
 
+    public HetznerDnsPlanApplyTests(PostgresIntegrationFixture fixture)
+    {
+        _fixture = fixture;
+    }
+
     public async Task InitializeAsync()
     {
-        await _postgres.StartAsync();
-        if (!_postgres.IsAvailable)
+        if (!_fixture.IsAvailable)
         {
             return;
         }
 
+        var connectionString = await _fixture.CreateDatabaseAsync();
         var fakeClient = new HttpClient(_fake) { BaseAddress = new Uri("https://dns.fake/api/v1/") };
         fakeClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
         _services = new ServiceCollection()
             .AddDbContext<HashiDbContext>(options =>
-                options.UseNpgsql(_postgres.ConnectionString, npgsql =>
+                options.UseNpgsql(connectionString, npgsql =>
                     npgsql.MigrationsAssembly(typeof(HashiDbContext).Assembly.FullName)))
             .AddSingleton<VaultSessionState>()
             .AddSingleton<ServiceSyncVaultState>()
@@ -48,7 +54,6 @@ public sealed class HetznerDnsPlanApplyTests : IAsyncLifetime
 
         using var scope = _services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<HashiDbContext>();
-        await db.Database.MigrateAsync();
         db.AppSettings.Add(new AppSettingsEntity());
         db.SetupStates.Add(new SetupStateEntity());
         await db.SaveChangesAsync();
@@ -63,14 +68,12 @@ public sealed class HetznerDnsPlanApplyTests : IAsyncLifetime
         {
             await _services.DisposeAsync();
         }
-
-        await _postgres.DisposeAsync();
     }
 
     [Fact]
     public async Task Plan_skips_ns_soa_deletes_and_apply_creates_managed_record()
     {
-        if (!_postgres.IsAvailable || _services is null)
+        if (!_fixture.IsAvailable || _services is null)
         {
             return;
         }

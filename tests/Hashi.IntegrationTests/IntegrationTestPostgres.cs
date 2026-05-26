@@ -1,8 +1,8 @@
-using Npgsql;
 using Hashi.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 using Testcontainers.PostgreSql;
 
 namespace Hashi.IntegrationTests;
@@ -39,6 +39,35 @@ internal sealed class IntegrationTestPostgres : IAsyncDisposable
     public string ConnectionString =>
         _connectionString
         ?? throw new InvalidOperationException("PostgreSQL test database is not running.");
+
+    public async Task<string> CreateIsolatedDatabaseAsync(CancellationToken cancellationToken = default)
+    {
+        if (_connectionString is null)
+        {
+            throw new InvalidOperationException("PostgreSQL test database is not running.");
+        }
+
+        var databaseName = $"hashi_{Guid.NewGuid():N}"[..20];
+        await using (var admin = new NpgsqlConnection(_connectionString))
+        {
+            await admin.OpenAsync(cancellationToken);
+            await using var create = new NpgsqlCommand(
+                $"CREATE DATABASE \"{databaseName}\"",
+                admin);
+            await create.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        var builder = new NpgsqlConnectionStringBuilder(_connectionString)
+        {
+            Database = databaseName,
+        };
+        var isolatedConnection = builder.ConnectionString;
+
+        await using var factory = IntegrationTestApp.CreateFactory(isolatedConnection);
+        await IntegrationTestApp.MigrateAsync(factory.Services, cancellationToken);
+
+        return isolatedConnection;
+    }
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {

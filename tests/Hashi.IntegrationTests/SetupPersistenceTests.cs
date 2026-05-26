@@ -6,23 +6,29 @@ using Xunit;
 
 namespace Hashi.IntegrationTests;
 
+[Collection(PostgresIntegrationCollection.Name)]
 public sealed class SetupPersistenceTests : IAsyncLifetime
 {
-    private readonly IntegrationTestPostgres _postgres = new();
+    private readonly PostgresIntegrationFixture _fixture;
+    private string? _connectionString;
     private WebApplicationFactory<Program>? _factory;
     private HttpClient? _client;
 
+    public SetupPersistenceTests(PostgresIntegrationFixture fixture)
+    {
+        _fixture = fixture;
+    }
+
     public async Task InitializeAsync()
     {
-        await _postgres.StartAsync();
-        if (!_postgres.IsAvailable)
+        if (!_fixture.IsAvailable)
         {
             return;
         }
 
-        _factory = IntegrationTestApp.CreateFactory(_postgres.ConnectionString);
+        _connectionString = await _fixture.CreateDatabaseAsync();
+        _factory = IntegrationTestApp.CreateFactory(_connectionString);
         _client = _factory.CreateClient();
-        await IntegrationTestApp.MigrateAsync(_factory.Services);
     }
 
     public async Task DisposeAsync()
@@ -32,14 +38,12 @@ public sealed class SetupPersistenceTests : IAsyncLifetime
         {
             await _factory.DisposeAsync();
         }
-
-        await _postgres.DisposeAsync();
     }
 
     [Fact]
     public async Task Setup_status_persists_and_resumes_after_step_completion()
     {
-        if (!_postgres.IsAvailable || _client is null)
+        if (!_fixture.IsAvailable || _client is null || _connectionString is null)
         {
             return;
         }
@@ -57,7 +61,7 @@ public sealed class SetupPersistenceTests : IAsyncLifetime
         Assert.Contains("bootstrap-access", updated.CompletedSteps);
         Assert.Equal("base-settings", updated.CurrentStep);
 
-        await using var factory2 = IntegrationTestApp.CreateFactory(_postgres.ConnectionString);
+        await using var factory2 = IntegrationTestApp.CreateFactory(_connectionString);
         using var client2 = factory2.CreateClient();
         var resumed = await client2.GetFromJsonAsync<SetupStatusResponse>("/api/setup/status");
         Assert.NotNull(resumed);
@@ -68,7 +72,7 @@ public sealed class SetupPersistenceTests : IAsyncLifetime
     [Fact]
     public async Task Audit_log_records_setup_actions()
     {
-        if (!_postgres.IsAvailable || _client is null)
+        if (!_fixture.IsAvailable || _client is null)
         {
             return;
         }

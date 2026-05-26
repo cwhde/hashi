@@ -6,23 +6,28 @@ using Xunit;
 
 namespace Hashi.IntegrationTests;
 
+[Collection(PostgresIntegrationCollection.Name)]
 public sealed class SetupFlowIntegrationTests : IAsyncLifetime
 {
-    private readonly IntegrationTestPostgres _postgres = new();
+    private readonly PostgresIntegrationFixture _fixture;
     private WebApplicationFactory<Program>? _factory;
     private HttpClient? _client;
 
+    public SetupFlowIntegrationTests(PostgresIntegrationFixture fixture)
+    {
+        _fixture = fixture;
+    }
+
     public async Task InitializeAsync()
     {
-        await _postgres.StartAsync();
-        if (!_postgres.IsAvailable)
+        if (!_fixture.IsAvailable)
         {
             return;
         }
 
-        _factory = IntegrationTestApp.CreateFactory(_postgres.ConnectionString);
+        var connectionString = await _fixture.CreateDatabaseAsync();
+        _factory = IntegrationTestApp.CreateFactory(connectionString);
         _client = _factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = true });
-        await IntegrationTestApp.MigrateAsync(_factory.Services);
     }
 
     public async Task DisposeAsync()
@@ -32,14 +37,12 @@ public sealed class SetupFlowIntegrationTests : IAsyncLifetime
         {
             await _factory.DisposeAsync();
         }
-
-        await _postgres.DisposeAsync();
     }
 
     [Fact]
     public async Task Fresh_install_exposes_bootstrap_and_advances_first_setup_step()
     {
-        if (!_postgres.IsAvailable || _client is null)
+        if (!_fixture.IsAvailable || _client is null)
         {
             return;
         }
@@ -65,7 +68,7 @@ public sealed class SetupFlowIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task Health_endpoint_reports_version_without_database_secrets()
     {
-        if (!_postgres.IsAvailable || _client is null)
+        if (!_fixture.IsAvailable || _client is null)
         {
             return;
         }

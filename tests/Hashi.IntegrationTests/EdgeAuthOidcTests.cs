@@ -10,24 +10,29 @@ using Xunit;
 
 namespace Hashi.IntegrationTests;
 
+[Collection(PostgresIntegrationCollection.Name)]
 public sealed class EdgeAuthOidcTests : IAsyncLifetime
 {
-    private readonly IntegrationTestPostgres _postgres = new();
+    private readonly PostgresIntegrationFixture _fixture;
     private WebApplicationFactory<Program>? _factory;
     private HttpClient? _client;
 
+    public EdgeAuthOidcTests(PostgresIntegrationFixture fixture)
+    {
+        _fixture = fixture;
+    }
+
     public async Task InitializeAsync()
     {
-        await _postgres.StartAsync();
-        if (!_postgres.IsAvailable)
+        if (!_fixture.IsAvailable)
         {
             return;
         }
 
         Environment.SetEnvironmentVariable("HASHI_SKIP_STARTUP_HOOKS", "1");
-        _factory = IntegrationTestApp.CreateFactory(_postgres.ConnectionString);
+        var connectionString = await _fixture.CreateDatabaseAsync();
+        _factory = IntegrationTestApp.CreateFactory(connectionString);
         _client = _factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = true });
-        await IntegrationTestApp.MigrateAsync(_factory.Services);
 
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<HashiDbContext>();
@@ -56,14 +61,12 @@ public sealed class EdgeAuthOidcTests : IAsyncLifetime
         {
             await _factory.DisposeAsync();
         }
-
-        await _postgres.DisposeAsync();
     }
 
     [Fact]
     public async Task Callback_stores_session_and_forward_auth_allows()
     {
-        if (!_postgres.IsAvailable || _factory is null || _client is null)
+        if (!_fixture.IsAvailable || _factory is null || _client is null)
         {
             return;
         }
