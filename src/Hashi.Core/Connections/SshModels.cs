@@ -33,6 +33,10 @@ public sealed record SshValidationResult(
 
 public sealed record RemoteWriteResult(bool Succeeded, string RemotePath, string? Error);
 
+public sealed record RemoteReadResult(bool Succeeded, byte[]? Content, string? Error);
+
+public sealed record RemoteCommandResult(bool Succeeded, string Output, string? Error);
+
 public interface ISshRemoteExecutor
 {
     Task<SshValidationResult> ValidateAsync(SshConnectionSettings settings, string password, CancellationToken cancellationToken = default);
@@ -48,5 +52,31 @@ public interface ISshRemoteExecutor
         string password,
         string remotePath,
         ReadOnlyMemory<byte> content,
+        CancellationToken cancellationToken = default);
+
+    Task<RemoteWriteResult> WriteAtomicWithPrivateKeyAsync(
+        SshConnectionSettings settings,
+        string privateKeyPem,
+        string? passphrase,
+        string remotePath,
+        ReadOnlyMemory<byte> content,
+        CancellationToken cancellationToken = default);
+
+    Task<RemoteReadResult> ReadFileAsync(
+        SshConnectionSettings settings,
+        string authMode,
+        string? password,
+        string? privateKeyPem,
+        string? privateKeyPassphrase,
+        string remotePath,
+        CancellationToken cancellationToken = default);
+
+    Task<RemoteCommandResult> RunCommandAsync(
+        SshConnectionSettings settings,
+        string authMode,
+        string? password,
+        string? privateKeyPem,
+        string? privateKeyPassphrase,
+        string command,
         CancellationToken cancellationToken = default);
 }

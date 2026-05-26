@@ -23,6 +23,9 @@ public sealed record RemoteWriteRequest(
     string Host,
     int Port,
     string Username,
-    string Password);
+    string AuthMode,
+    string? Password,
+    string? PrivateKeyPem,
+    string? PrivateKeyPassphrase);
 
 public sealed record RemoteWriteResponse(bool Succeeded, string RemotePath, string? Error);

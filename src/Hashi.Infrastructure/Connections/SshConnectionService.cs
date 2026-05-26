@@ -58,9 +58,10 @@ public sealed class SshConnectionService(
         string? password,
         string? privateKeyPem,
         string? privateKeyPassphrase,
+        Guid? connectionId = null,
         CancellationToken cancellationToken = default)
     {
-        return authMode switch
+        var result = authMode switch
         {
             "password" when !string.IsNullOrWhiteSpace(password) =>
                 await ssh.ValidateAsync(settings, password, cancellationToken),
@@ -68,17 +69,43 @@ public sealed class SshConnectionService(
                 await ssh.ValidateWithPrivateKeyAsync(settings, privateKeyPem, privateKeyPassphrase, cancellationToken),
             _ => new SshValidationResult(false, OsFamily.Unknown, null, "Unsupported auth mode."),
         };
+
+        if (connectionId is Guid id)
+        {
+            var connection = await db.Connections.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+            if (connection is not null)
+            {
+                connection.HealthState = result.Succeeded
+                    ? ConnectionHealthStateNames.Healthy
+                    : ConnectionHealthStateNames.Failed;
+                connection.LastValidationMessage = result.Error;
+                connection.LastValidatedAtUtc = DateTimeOffset.UtcNow;
+                await db.SaveChangesAsync(cancellationToken);
+            }
+        }
+
+        return result;
     }
 
     public async Task<RemoteWriteResult> WriteAtomicAsync(
         Guid connectionId,
         SshConnectionSettings settings,
-        string password,
+        string authMode,
+        string? password,
+        string? privateKeyPem,
+        string? privateKeyPassphrase,
         string remotePath,
         ReadOnlyMemory<byte> content,
         CancellationToken cancellationToken = default)
     {
-        var result = await ssh.WriteAtomicAsync(settings, password, remotePath, content, cancellationToken);
+        var result = authMode switch
+        {
+            "password" when !string.IsNullOrWhiteSpace(password) =>
+                await ssh.WriteAtomicAsync(settings, password, remotePath, content, cancellationToken),
+            "private_key" when !string.IsNullOrWhiteSpace(privateKeyPem) =>
+                await ssh.WriteAtomicWithPrivateKeyAsync(settings, privateKeyPem, privateKeyPassphrase, remotePath, content, cancellationToken),
+            _ => new RemoteWriteResult(false, remotePath, "Unsupported auth mode."),
+        };
         await audit.WriteAsync(
             "connections",
             result.Succeeded ? "remote_write" : "remote_write_failed",

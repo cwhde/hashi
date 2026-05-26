@@ -64,6 +64,7 @@ public static class ConnectionEndpoints
                 request.Password,
                 request.PrivateKeyPem,
                 request.PrivateKeyPassphrase,
+                connectionId,
                 ct);
             return TypedResults.Ok(new SshValidationResponse(
                 result.Succeeded,
@@ -78,9 +79,9 @@ public static class ConnectionEndpoints
             SshConnectionService connections,
             CancellationToken ct) =>
         {
-            if (string.IsNullOrWhiteSpace(request.Password))
+            if (string.IsNullOrWhiteSpace(request.AuthMode))
             {
-                return TypedResults.BadRequest(new ApiErrorResponse("Password auth required for remote write in current MVP."));
+                return TypedResults.BadRequest(new ApiErrorResponse("AuthMode is required."));
             }
 
             var settings = new SshConnectionSettings(
@@ -91,7 +92,16 @@ public static class ConnectionEndpoints
                 null,
                 null);
             var content = Convert.FromBase64String(request.ContentBase64);
-            var result = await connections.WriteAtomicAsync(connectionId, settings, request.Password, request.RemotePath, content, ct);
+            var result = await connections.WriteAtomicAsync(
+                connectionId,
+                settings,
+                request.AuthMode,
+                request.Password,
+                request.PrivateKeyPem,
+                request.PrivateKeyPassphrase,
+                request.RemotePath,
+                content,
+                ct);
             return TypedResults.Ok(new RemoteWriteResponse(result.Succeeded, result.RemotePath, result.Error));
         });
 
