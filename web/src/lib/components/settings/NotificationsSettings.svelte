@@ -112,7 +112,7 @@
 			<Input
 				id="notify-settings"
 				bind:value={form.settingsJson}
-				placeholder='{"botToken":"..."}'
+				placeholder="Provider-specific JSON settings"
 				class="font-mono text-xs"
 			/>
 		</div>

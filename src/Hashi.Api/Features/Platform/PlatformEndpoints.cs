@@ -306,7 +306,8 @@ public static class ScriptEndpoints
         {
             var created = await scripts.CreateAsync(request, ct);
             return TypedResults.Ok(created);
-        });
+        })
+            .Produces<ScriptResponse>(StatusCodes.Status200OK);
         group.MapPost("/{scriptId:guid}/run", async Task<IResult> (
             Guid scriptId,
             RunScriptRequest request,
@@ -317,7 +318,8 @@ public static class ScriptEndpoints
                 ? await scripts.RunWithConnectionAsync(scriptId, ct)
                 : await scripts.RunAsync(scriptId, request, ct);
             return TypedResults.Ok(result);
-        });
+        })
+            .Produces<RunScriptResponse>(StatusCodes.Status200OK);
         return app;
     }
 }
@@ -333,7 +335,8 @@ public static class NotificationEndpoints
         {
             var created = await notifications.CreateProviderAsync(request, ct);
             return TypedResults.Ok(created);
-        });
+        })
+            .Produces<NotificationProviderResponse>(StatusCodes.Status200OK);
         group.MapPost("/send", async Task<IResult> (SendNotificationRequest request, NotificationDispatcher notifications, CancellationToken ct) =>
         {
             await notifications.SendAsync(request, ct);

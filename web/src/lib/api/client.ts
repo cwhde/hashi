@@ -216,8 +216,7 @@ export const api = {
 		const r = await client.GET('/api/dns/connections/{connectionId}/records/provider', {
 			params: { path: { connectionId } }
 		});
-		if (!r.response.ok) throw errorFromResult(r.response.status, r.error);
-		return readUndocumentedJson(r.response);
+		return expectData(r.response, r.error, r.data ?? []);
 	},
 	previewDnsImport: (connectionId: string) =>
 		postUndocumented('/api/dns/connections/{connectionId}/import/preview', { params: { path: { connectionId } } }),
@@ -300,16 +299,17 @@ export const api = {
 	},
 	createScript: async (body: import('./types.js').CreateScriptRequest) => {
 		const r = await client.POST('/api/scripts', { body });
-		if (!r.response.ok) throw errorFromResult(r.response.status, r.error);
-		return (await readUndocumentedJson(r.response)) as import('./types.js').Script;
+		return expectData(r.response, r.error, r.data);
 	},
-	runScript: async (scriptId: string, body: import('./types.js').RunScriptRequest = {}) => {
+	runScript: async (
+		scriptId: string,
+		body: import('./types.js').RunScriptRequest = { port: 22, authMode: 'password' }
+	) => {
 		const r = await client.POST('/api/scripts/{scriptId}/run', {
 			params: { path: { scriptId } },
 			body
 		});
-		if (!r.response.ok) throw errorFromResult(r.response.status, r.error);
-		return (await readUndocumentedJson(r.response)) as import('./types.js').RunScriptResponse;
+		return expectData(r.response, r.error, r.data);
 	},
 	listNotificationProviders: async () => {
 		const r = await client.GET('/api/settings/notifications/providers');

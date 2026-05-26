@@ -70,7 +70,8 @@ public static class DnsEndpoints
                 x.Ttl,
                 x.IsManagedByHashi ? "managed" : "unknown",
                 true)));
-        });
+        })
+            .Produces<IEnumerable<DnsRecordResponse>>(StatusCodes.Status200OK);
 
         group.MapPost("/connections/{connectionId:guid}/import/preview", async Task<IResult> (
             Guid connectionId,

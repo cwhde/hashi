@@ -838,7 +838,17 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DnsRecordResponse"
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -1607,7 +1617,14 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScriptResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -1640,7 +1657,14 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunScriptResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -1682,7 +1706,14 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationProviderResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -3185,6 +3216,28 @@
             ]
           },
           "privateKeyPassphrase": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "RunScriptResponse": {
+        "required": [
+          "succeeded",
+          "output",
+          "error"
+        ],
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "output": {
+            "type": "string"
+          },
+          "error": {
             "type": [
               "null",
               "string"

@@ -109,7 +109,7 @@
 		message = null;
 		runOutput = null;
 		try {
-			const result = await withReauth(() => api.runScript(script.id, {}));
+			const result = await withReauth(() => api.runScript(script.id));
 			if (result) {
 				message = result.succeeded ? `Run completed for ${script.name}.` : `Run failed for ${script.name}.`;
 				runOutput = result.error ? `${result.output}\n\n${result.error}` : result.output;

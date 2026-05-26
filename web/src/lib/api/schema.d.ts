@@ -1410,7 +1410,9 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["DnsRecordResponse"][];
+                    };
                 };
             };
         };
@@ -2473,7 +2475,9 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["ScriptResponse"];
+                    };
                 };
             };
         };
@@ -2512,7 +2516,9 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["RunScriptResponse"];
+                    };
                 };
             };
         };
@@ -2568,7 +2574,9 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["NotificationProviderResponse"];
+                    };
                 };
             };
         };
@@ -3206,6 +3214,11 @@ export interface components {
             password?: null | string;
             privateKeyPem?: null | string;
             privateKeyPassphrase?: null | string;
+        };
+        RunScriptResponse: {
+            succeeded: boolean;
+            output: string;
+            error: null | string;
         };
         ScriptResponse: {
             /** Format: uuid */

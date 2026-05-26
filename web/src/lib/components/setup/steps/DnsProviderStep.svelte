@@ -65,12 +65,7 @@
 			})) as { id?: string };
 			connectionId = created.id ?? null;
 			if (connectionId) {
-				const records = (await api.listProviderDnsRecords(connectionId)) as Array<{
-					name?: string;
-					type?: string;
-					ttl?: number;
-					value?: string;
-				}>;
+				const records = await api.listProviderDnsRecords(connectionId);
 				previewRecords = records.slice(0, 50).map((record) => ({
 					name: record.name ?? '',
 					type: record.type ?? '',
