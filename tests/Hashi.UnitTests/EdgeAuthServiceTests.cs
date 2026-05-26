@@ -217,16 +217,19 @@ public sealed class EdgeAuthServiceTests
         string path,
         IPAddress? clientIp = null,
         string? countryCode = null,
+        string? regionCode = null,
         string? asn = null,
         string? edgeSessionKey = null,
         string? mode = null)
     {
-        var service = new EdgeAuthService(db);
+        var geoIp = new GeoIpLookupService(new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build(), Microsoft.Extensions.Logging.Abstractions.NullLogger<GeoIpLookupService>.Instance);
+        var service = new EdgeAuthService(db, geoIp);
         return service.EvaluateForwardAsync(
             host,
             path,
             clientIp ?? IPAddress.Loopback,
             countryCode,
+            regionCode,
             asn,
             edgeSessionKey,
             mode);

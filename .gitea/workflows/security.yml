@@ -2,12 +2,15 @@ name: Security
 
 on:
   push:
-    branches: [main]
+    branches: [main, feat/v2-foundation]
   pull_request:
     branches: [main]
   schedule:
     - cron: '0 6 * * 1'
   workflow_dispatch:
+
+env:
+  CI: true
 
 jobs:
   scan:
@@ -43,19 +46,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
 
       - name: Audit frontend
         working-directory: web
         run: |
           pnpm install --frozen-lockfile
-          pnpm audit --audit-level=high || true
+          pnpm audit --audit-level=high
 
       - name: Semgrep static analysis
         run: |
           pip install semgrep
-          semgrep --config p/default --error --severity ERROR src/ web/src/ agents/pulse/ || true
+          semgrep --config p/default --error --severity ERROR src/ web/src/ agents/pulse/
 
       - name: Trivy filesystem scan
         uses: aquasecurity/trivy-action@0.28.0

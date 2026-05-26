@@ -78,5 +78,7 @@ public sealed class PulseAgentEntity
 
     public string? LastPublicIp { get; set; }
 
+    public string? LastPrivateIp { get; set; }
+
     public string Status { get; set; } = "pending";
 }

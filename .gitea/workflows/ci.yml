@@ -14,14 +14,14 @@ concurrency:
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_NOLOGO: true
+  CI: true
 
 jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
-      frontend: ${{ steps.filter.outputs.frontend }}
-      openapi: ${{ steps.filter.outputs.openapi }}
+      web: ${{ steps.filter.outputs.web }}
       agents: ${{ steps.filter.outputs.agents }}
     steps:
       - uses: actions/checkout@v4
@@ -33,19 +33,16 @@ jobs:
         run: |
           set -euo pipefail
           backend=false
-          frontend=false
-          openapi=false
+          web=false
           agents=false
 
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             backend=true
-            frontend=true
-            openapi=true
+            web=true
             agents=true
           elif [ "${{ github.event_name }}" = "pull_request" ]; then
             backend=true
-            frontend=true
-            openapi=true
+            web=true
             agents=true
           else
             base="${{ github.event.before }}"
@@ -59,11 +56,8 @@ jobs:
             if echo "$files" | grep -qE '^(src/|tests/|Hashi\.slnx|Directory\.Build\.props|\.gitea/workflows/ci\.yml)'; then
               backend=true
             fi
-            if echo "$files" | grep -qE '^(web/|\.gitea/workflows/ci\.yml)'; then
-              frontend=true
-            fi
-            if echo "$files" | grep -qE '^(src/|openapi/|scripts/|web/src/lib/api/|\.gitea/workflows/ci\.yml)'; then
-              openapi=true
+            if echo "$files" | grep -qE '^(web/|openapi/|scripts/|\.gitea/workflows/ci\.yml)'; then
+              web=true
             fi
             if echo "$files" | grep -qE '^(agents/|\.gitea/workflows/ci\.yml)'; then
               agents=true
@@ -71,8 +65,7 @@ jobs:
           fi
 
           echo "backend=$backend" >> "$GITHUB_OUTPUT"
-          echo "frontend=$frontend" >> "$GITHUB_OUTPUT"
-          echo "openapi=$openapi" >> "$GITHUB_OUTPUT"
+          echo "web=$web" >> "$GITHUB_OUTPUT"
           echo "agents=$agents" >> "$GITHUB_OUTPUT"
 
   backend:
@@ -103,14 +96,15 @@ jobs:
         run: |
           dotnet restore Hashi.slnx
           dotnet format Hashi.slnx --verify-no-changes
-          dotnet test tests/Hashi.UnitTests/Hashi.UnitTests.csproj --no-restore --verbosity normal
-          dotnet test tests/Hashi.IntegrationTests/Hashi.IntegrationTests.csproj --no-restore --verbosity normal
+          dotnet test tests/Hashi.UnitTests/Hashi.UnitTests.csproj --no-restore --verbosity normal /p:SkipFrontendBuild=true
+          dotnet test tests/Hashi.IntegrationTests/Hashi.IntegrationTests.csproj --no-restore --verbosity normal /p:SkipFrontendBuild=true
           dotnet build src/Hashi.Api/Hashi.Api.csproj -c Release --no-restore /p:SkipFrontendBuild=true
 
-  openapi-verify:
+  web:
     needs: changes
-    if: needs.changes.outputs.openapi == 'true'
+    if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -125,17 +119,31 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        working-directory: web
+        run: pnpm install --frozen-lockfile
+
+      - name: Frontend check, lint, test, build
+        working-directory: web
+        run: |
+          pnpm run check
+          pnpm run lint
+          pnpm run test
+          pnpm run build
 
       - name: Verify OpenAPI contract (spec §30)
         run: |
           chmod +x scripts/export-openapi.sh scripts/generate-api-client.sh
           ./scripts/export-openapi.sh
-          cd web && pnpm install --frozen-lockfile
-          cd ..
           ./scripts/generate-api-client.sh
           git diff --exit-code openapi/hashi.json web/src/lib/api/schema.d.ts
+
+      - name: Playwright smoke tests
+        working-directory: web
+        run: |
+          pnpm exec playwright install --with-deps chromium
+          pnpm run test:e2e
 
   pulse-agent:
     needs: changes
@@ -162,53 +170,3 @@ jobs:
           else
             echo "Docker CLI unavailable — skipping image build verification."
           fi
-
-  frontend:
-    needs: changes
-    if: needs.changes.outputs.frontend == 'true'
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: web
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
-
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm run check
-      - run: pnpm run lint
-      - run: pnpm run test
-      - run: pnpm run build
-
-  e2e:
-    needs: changes
-    if: needs.changes.outputs.frontend == 'true'
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: web
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium
-      - run: pnpm run build
-      - run: pnpm run test:e2e
-        env:
-          CI: true

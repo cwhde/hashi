@@ -60,6 +60,7 @@ public static class DependencyInjection
         services.AddScoped<FirewallApplyService>();
         services.AddScoped<MonitoringService>();
         services.AddScoped<EdgeAuthService>();
+        services.AddSingleton<GeoIpLookupService>();
         services.AddScoped<OidcEdgeAuthService>();
         services.AddScoped<NotificationRoutingService>();
         services.AddScoped<SecurityIngestionService>();

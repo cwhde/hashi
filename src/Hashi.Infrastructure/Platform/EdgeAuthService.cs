@@ -7,13 +7,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Hashi.Infrastructure.Platform;
 
-public sealed class EdgeAuthService(HashiDbContext db)
+public sealed class EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp)
 {
     public async Task<EdgeAuthForwardResponse> EvaluateForwardAsync(
         string host,
         string path,
         IPAddress clientIp,
         string? countryCode,
+        string? regionCode,
         string? asn,
         string? edgeSessionKey = null,
         string? mode = null,
@@ -26,7 +27,7 @@ public sealed class EdgeAuthService(HashiDbContext db)
 
         foreach (var rule in rules)
         {
-            if (!Matches(rule.MatchJson, host, path, clientIp, countryCode, asn))
+            if (!Matches(rule.MatchJson, host, path, clientIp, countryCode, regionCode, asn))
             {
                 continue;
             }
@@ -102,6 +103,9 @@ public sealed class EdgeAuthService(HashiDbContext db)
         return $"/api/edge-auth/login?returnUrl={returnUrl}";
     }
 
+    public IReadOnlyList<string> ValidateRuleMatchJson(string matchJson)
+        => geoIp.ValidateGeoMatchRules(matchJson);
+
     private static bool HasValidEdgeSession(string? edgeSessionKey)
         => OidcEdgeAuthService.TryValidateSession(edgeSessionKey);
 
@@ -111,6 +115,7 @@ public sealed class EdgeAuthService(HashiDbContext db)
         string path,
         IPAddress clientIp,
         string? countryCode,
+        string? regionCode,
         string? asn)
     {
         using var doc = JsonDocument.Parse(matchJson);
@@ -135,6 +140,12 @@ public sealed class EdgeAuthService(HashiDbContext db)
 
         if (root.TryGetProperty("country", out var countryMatch)
             && !string.Equals(countryCode, countryMatch.GetString(), StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (root.TryGetProperty("region", out var regionMatch)
+            && !string.Equals(regionCode, regionMatch.GetString(), StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }

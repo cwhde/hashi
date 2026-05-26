@@ -209,6 +209,12 @@ public sealed record SecurityDashboardResponse(
     IReadOnlyList<SecurityRankItem> TopCountries,
     IReadOnlyList<SecurityRankItem> TopAsns);
 
+public sealed record BlocklistSyncResponse(
+    bool Synced,
+    int PendingEntries,
+    int AppliedHosts,
+    IReadOnlyList<string> Failures);
+
 public sealed record ForwardAuthDecisionIngestRequest(
     string ClientIp,
     string Host,

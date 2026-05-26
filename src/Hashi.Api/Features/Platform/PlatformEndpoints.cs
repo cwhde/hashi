@@ -238,6 +238,7 @@ public static class EdgeAuthEndpoints
             HttpContext ctx,
             EdgeAuthService edgeAuth,
             SecurityIngestionService security,
+            GeoIpLookupService geoIp,
             CancellationToken ct) =>
         {
             var host = ctx.Request.Headers["X-Forwarded-Host"].FirstOrDefault() ?? ctx.Request.Host.Value ?? string.Empty;
@@ -247,10 +248,22 @@ public static class EdgeAuthEndpoints
                 ?? "/";
             var clientIp = ctx.Connection.RemoteIpAddress ?? System.Net.IPAddress.Loopback;
             var country = ctx.Request.Headers["X-Geo-Country"].FirstOrDefault();
+            var region = ctx.Request.Headers["X-Geo-Region"].FirstOrDefault();
             var asn = ctx.Request.Headers["X-Geo-Asn"].FirstOrDefault();
+            if (country is null && region is null && asn is null)
+            {
+                var lookup = geoIp.Lookup(clientIp);
+                if (lookup is not null)
+                {
+                    country ??= lookup.CountryCode;
+                    region ??= lookup.RegionCode;
+                    asn ??= lookup.Asn;
+                }
+            }
+
             var mode = ctx.Request.Query["mode"].FirstOrDefault();
             var result = await edgeAuth.EvaluateForwardAsync(
-                host, path, clientIp, country, asn, ctx.Request.Cookies["hashi.edge.session"], mode, ct);
+                host, path, clientIp, country, region, asn, ctx.Request.Cookies["hashi.edge.session"], mode, ct);
 
             await security.IngestForwardAuthDecisionAsync(new ForwardAuthDecisionIngestRequest(
                 clientIp.ToString(),
@@ -336,11 +349,11 @@ public static class SecurityEndpoints
             await security.IngestAccessLogAsync(request, ct);
             return TypedResults.Ok(new { accepted = true });
         }).AllowAnonymous();
-        group.MapPost("/blocklist/sync", async Task<IResult> (FirewallApplyRequest request, SecurityIngestionService security, CancellationToken ct) =>
+        group.MapPost("/blocklist/sync", async Task<IResult> (SecurityIngestionService security, CancellationToken ct) =>
         {
-            await security.SyncBlocklistToFirewallAsync(request, ct);
-            return TypedResults.Ok(new { synced = true });
-        });
+            var result = await security.SyncBlocklistToAllFirewallsAsync(ct);
+            return TypedResults.Ok(result);
+        }).Produces<BlocklistSyncResponse>(StatusCodes.Status200OK);
         return app;
     }
 }

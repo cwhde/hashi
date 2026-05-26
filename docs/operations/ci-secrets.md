@@ -11,7 +11,7 @@ Hashi workflows live in `.gitea/workflows/`. Gitea Actions secrets are configure
 | `docker-build.yml` | `main` + tags `v*.*.*` | — | — | `workflow_dispatch` |
 | `docker-build-pulse.yml` | `main` + tags `v*.*.*` or `pulse-v*.*.*` | — | — | `workflow_dispatch` |
 
-**Feature branch pushes** run **only the CI jobs whose paths changed** (backend, frontend, openapi-verify, pulse-agent). They do **not** run Security scans or Docker image publish on every commit.
+**Feature branch pushes** run **only the CI jobs whose paths changed** (backend, web, pulse-agent). They do **not** run Security scans or Docker image publish on every commit.
 
 Integration tests use Testcontainers when Docker is available; they skip gracefully when the daemon is missing or misconfigured.
 
@@ -42,6 +42,25 @@ Integration tests use Testcontainers when Docker is available; they skip gracefu
 
 Fixes applied: `SkipFrontendBuild` in CI backend job; eslint/navigation fixes; security job only fails on High/Critical; docker-build limited to `main` + version tags.
 
+## Gitea runner cache timeouts
+
+If CI logs show:
+
+```text
+Warning: Failed to restore: getCacheEntry failed: connect ETIMEDOUT 172.26.0.2:35735
+pnpm cache is not found
+```
+
+That is a **runner/infrastructure** issue: the act_runner cannot reach the Gitea Actions cache API (often the cache service address in `config.yaml` is wrong or firewalled). CI no longer uses `actions/setup-node` `cache: pnpm` to avoid waiting on a broken cache server.
+
+**Fix on the server (pick one):**
+
+1. In act_runner `config.yaml`, set a reachable cache host or disable cache (`cache.enabled: false`).
+2. Ensure the runner container can reach the Gitea instance cache port (not only `172.26.0.2` from an old Docker network).
+3. Upgrade act_runner if using an older build with cache bugs.
+
+Backend `pnpm` exit code **127** means Node/pnpm was not on PATH when MSBuild tried to build the SPA; `Directory.Build.props` sets `SkipFrontendBuild=true` when `CI=true` so `dotnet test` no longer invokes `pnpm`.
+
 ## OpenAPI verify
 
-`ci.yml` job `openapi-verify` re-exports `openapi/hashi.json` and regenerates `web/src/lib/api/schema.d.ts`, then fails if they differ from the commit.
+`ci.yml` job `web` runs frontend checks and OpenAPI verification in one job (single `pnpm install`). It re-exports `openapi/hashi.json`, regenerates `web/src/lib/api/schema.d.ts`, then fails if they differ from the commit.

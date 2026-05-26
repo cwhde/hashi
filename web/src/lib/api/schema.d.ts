@@ -2720,18 +2720,16 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["FirewallApplyRequest"];
-                };
-            };
+            requestBody?: never;
             responses: {
                 /** @description OK */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["BlocklistSyncResponse"];
+                    };
                 };
             };
         };
@@ -3518,6 +3516,14 @@ export interface components {
             outcome: string;
             /** Format: date-time */
             createdAtUtc: string;
+        };
+        BlocklistSyncResponse: {
+            synced: boolean;
+            /** Format: int32 */
+            pendingEntries: number | string;
+            /** Format: int32 */
+            appliedHosts: number | string;
+            failures: string[];
         };
         BootstrapAllowedResponse: {
             allowed: boolean;

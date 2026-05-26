@@ -81,6 +81,8 @@ public sealed class AdGuardSyncService(HashiDbContext db, IHttpClientFactory htt
 
     public async Task SyncManagedRewritesAsync(Guid connectionId, CancellationToken cancellationToken = default)
     {
+        await SyncResourceTopologyRewritesAsync(connectionId, cancellationToken);
+
         var remoteRewrites = await ListRemoteRewritesAsync(connectionId, cancellationToken);
         var localManaged = await db.AdGuardRewrites
             .Where(x => x.ConnectionId == connectionId && x.ManagedByHashi)
@@ -113,6 +115,73 @@ public sealed class AdGuardSyncService(HashiDbContext db, IHttpClientFactory htt
                 await DeleteRemoteRewriteAsync(connectionId, remote, cancellationToken);
             }
         }
+    }
+
+    private async Task SyncResourceTopologyRewritesAsync(Guid connectionId, CancellationToken cancellationToken)
+    {
+        var settings = await db.AppSettings.AsNoTracking().SingleOrDefaultAsync(cancellationToken);
+        var rootDomain = settings?.RootDomain;
+        if (string.IsNullOrWhiteSpace(rootDomain))
+        {
+            return;
+        }
+
+        var hosts = await db.FirewallHosts.AsNoTracking().ToDictionaryAsync(x => x.Id, cancellationToken);
+        var resources = await db.Resources
+            .Where(x => x.Enabled && x.FirewallHostId != null)
+            .ToListAsync(cancellationToken);
+        var desiredDomains = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var resource in resources)
+        {
+            if (!hosts.TryGetValue(resource.FirewallHostId!.Value, out var host))
+            {
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(host.InternalTraefikIp))
+            {
+                continue;
+            }
+
+            var domain = string.IsNullOrWhiteSpace(resource.Domain)
+                ? $"{resource.Slug}.{rootDomain}".TrimEnd('.')
+                : resource.Domain.TrimEnd('.');
+            desiredDomains.Add(domain);
+
+            var rewrite = await db.AdGuardRewrites.SingleOrDefaultAsync(
+                x => x.ConnectionId == connectionId && x.Domain == domain,
+                cancellationToken);
+            if (rewrite is null)
+            {
+                rewrite = new AdGuardRewriteEntity
+                {
+                    ConnectionId = connectionId,
+                    Domain = domain,
+                    ManagedByHashi = true,
+                };
+                db.AdGuardRewrites.Add(rewrite);
+            }
+            else if (!rewrite.ManagedByHashi)
+            {
+                continue;
+            }
+
+            rewrite.Answer = host.InternalTraefikIp;
+        }
+
+        var staleManaged = await db.AdGuardRewrites
+            .Where(x => x.ConnectionId == connectionId && x.ManagedByHashi)
+            .ToListAsync(cancellationToken);
+        foreach (var rewrite in staleManaged)
+        {
+            if (!desiredDomains.Contains(rewrite.Domain))
+            {
+                db.AdGuardRewrites.Remove(rewrite);
+            }
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
     }
 
     private async Task<IReadOnlyList<RemoteAdGuardRewrite>> ListRemoteRewritesAsync(

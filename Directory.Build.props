@@ -8,5 +8,7 @@
     <NoWarn>$(NoWarn);NU1603;NU1902;NU1903</NoWarn>
     <AnalysisLevel>latest</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!-- CI agents do not install Node; never invoke pnpm from MSBuild in CI. -->
+    <SkipFrontendBuild Condition="'$(SkipFrontendBuild)' == '' and ('$(CI)' == 'true' or '$(GITHUB_ACTIONS)' == 'true' or '$(GITEA_ACTIONS)' == 'true')">true</SkipFrontendBuild>
   </PropertyGroup>
 </Project>

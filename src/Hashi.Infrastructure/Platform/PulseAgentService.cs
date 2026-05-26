@@ -1,13 +1,18 @@
 using Hashi.Core.Dns;
 using Hashi.Core.Resources;
 using Hashi.Contracts.Api;
+using Hashi.Infrastructure.Dns;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Hashi.Infrastructure.Platform;
 
-public sealed class PulseAgentService(HashiDbContext db)
+public sealed class PulseAgentService(
+    HashiDbContext db,
+    DnsConnectionService dns,
+    ILogger<PulseAgentService> logger)
 {
     public async Task<CreatePulseAgentResponse> CreateAgentAsync(CreatePulseAgentRequest request, CancellationToken cancellationToken = default)
     {
@@ -44,16 +49,18 @@ public sealed class PulseAgentService(HashiDbContext db)
 
         var publicIp = remotePublicIp ?? request.PrivateIpv4Candidates.FirstOrDefault();
         var internalIp = request.PrivateIpv4Candidates.FirstOrDefault();
-        var ipChanged = !string.Equals(agent.LastPublicIp, publicIp, StringComparison.OrdinalIgnoreCase);
+        var ipChanged = !string.Equals(agent.LastPublicIp, publicIp, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(agent.LastPrivateIp, internalIp, StringComparison.OrdinalIgnoreCase);
 
         agent.LastSeenAtUtc = DateTimeOffset.UtcNow;
         agent.LastPublicIp = publicIp;
+        agent.LastPrivateIp = internalIp;
         agent.Status = "online";
         await db.SaveChangesAsync(cancellationToken);
 
         if (ipChanged)
         {
-            await QueueDnsSyncForPulseAsync(agent, publicIp, internalIp, cancellationToken);
+            await ApplyDnsForPulseChangeAsync(agent, cancellationToken);
         }
 
         return true;
@@ -74,36 +81,52 @@ public sealed class PulseAgentService(HashiDbContext db)
         return true;
     }
 
-    private async Task QueueDnsSyncForPulseAsync(
-        PulseAgentEntity agent,
-        string? publicIp,
-        string? internalIp,
-        CancellationToken cancellationToken)
+    private async Task ApplyDnsForPulseChangeAsync(PulseAgentEntity agent, CancellationToken cancellationToken)
     {
-        var settings = await db.AppSettings.SingleOrDefaultAsync(cancellationToken);
-        var rootDomain = settings?.RootDomain ?? "local";
-        var hosts = await db.FirewallHosts.AsNoTracking().ToListAsync(cancellationToken);
-        var hostTargets = hosts.Select(h => new FirewallHostDnsTarget(
-            h.Id,
-            h.Name,
-            h.PublicIp ?? h.InternalTraefikIp,
-            null)).ToList();
-        var records = DnsRecordGenerator.GenerateResourceRecords(
-            new ResourceDnsTarget(agent.Name, ResourceSlug.Normalize(agent.Name), rootDomain, null, publicIp, new PulseDnsTarget(agent.Id, publicIp, internalIp)),
-            hostTargets);
-
-        if (records.Count == 0)
-        {
-            return;
-        }
-
-        db.SyncRuns.Add(new SyncRunEntity
+        var syncRun = new SyncRunEntity
         {
             Subsystem = "dns-pulse",
-            Status = SyncRunStatusNames.Pending,
+            Status = SyncRunStatusNames.Applying,
             RiskLevel = nameof(Core.Sync.SyncRiskLevel.Low),
-            ErrorSummary = $"Pulse agent {agent.Name} IP change queued DNS sync.",
-        });
+            ErrorSummary = $"Pulse agent {agent.Name} IP change applying DNS sync.",
+        };
+        db.SyncRuns.Add(syncRun);
+        await db.SaveChangesAsync(cancellationToken);
+
+        var errors = new List<string>();
+        var appliedConnections = 0;
+        var connections = await db.Connections.AsNoTracking()
+            .Where(x => x.Type == ConnectionTypeNames.DnsProvider && x.Enabled)
+            .ToListAsync(cancellationToken);
+
+        foreach (var connection in connections)
+        {
+            try
+            {
+                var plan = await dns.PlanSyncAsync(connection.Id, cancellationToken);
+                if (plan.RequiresConfirmation)
+                {
+                    await dns.ApplySafePlanAsync(plan, cancellationToken);
+                }
+                else if (plan.Changes.Any(x => x.Kind != DnsChangeKind.NoOp))
+                {
+                    await dns.ApplyPlanAsync(plan, confirmDestructive: true, cancellationToken);
+                }
+
+                appliedConnections++;
+            }
+            catch (Exception ex)
+            {
+                errors.Add($"{connection.Name}: {ex.Message}");
+                logger.LogWarning(ex, "Pulse DNS sync failed for connection {ConnectionName}", connection.Name);
+            }
+        }
+
+        syncRun.CompletedAtUtc = DateTimeOffset.UtcNow;
+        syncRun.Status = errors.Count == 0 ? SyncRunStatusNames.Succeeded : SyncRunStatusNames.Failed;
+        syncRun.ErrorSummary = errors.Count == 0
+            ? $"Pulse agent {agent.Name} DNS sync applied to {appliedConnections} connection(s)."
+            : string.Join("; ", errors);
         await db.SaveChangesAsync(cancellationToken);
     }
 }

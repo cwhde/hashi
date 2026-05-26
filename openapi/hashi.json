@@ -1858,19 +1858,16 @@
         "tags": [
           "Security"
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/FirewallApplyRequest"
-              }
-            }
-          },
-          "required": true
-        },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlocklistSyncResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -2616,6 +2613,42 @@
           "createdAtUtc": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "BlocklistSyncResponse": {
+        "required": [
+          "synced",
+          "pendingEntries",
+          "appliedHosts",
+          "failures"
+        ],
+        "type": "object",
+        "properties": {
+          "synced": {
+            "type": "boolean"
+          },
+          "pendingEntries": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "appliedHosts": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "failures": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
