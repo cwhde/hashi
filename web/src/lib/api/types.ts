@@ -41,6 +41,11 @@ export type PulseAgent = Schemas['PulseAgentResponse'];
 export type Script = Schemas['ScriptResponse'];
 export type NotificationProvider = Schemas['NotificationProviderResponse'];
 
+export type SyncRun = Schemas['SyncRunResponse'];
+export type SyncPlanPreview = Schemas['SyncPlanPreviewResponse'];
+export type SyncReconcileResult = Schemas['SyncReconcileResponse'];
+export type SyncApplyRequest = Schemas['SyncApplyRequest'];
+
 export type ApiError = {
 	error?: string;
 	message?: string;

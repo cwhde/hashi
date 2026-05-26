@@ -279,5 +279,33 @@ export const api = {
 	getPublicStatus: async () => {
 		const r = await client.GET('/api/public/status');
 		return expectData(r.response, r.error, r.data ?? []);
+	},
+
+	listSyncRuns: async () => {
+		const r = await client.GET('/api/sync/runs');
+		return expectData(r.response, r.error, r.data ?? []);
+	},
+	getSyncRun: async (id: string) => {
+		const r = await client.GET('/api/sync/runs/{id}', { params: { path: { id } } });
+		return expectData(r.response, r.error, r.data);
+	},
+	planGlobalSync: async () => {
+		const body = await postUndocumented('/api/sync/plan');
+		return body as import('./types.js').SyncPlanPreview;
+	},
+	applyGlobalSync: async (confirmDestructive: boolean) => {
+		const body = await postUndocumented('/api/sync/apply', {
+			body: { confirmDestructive }
+		});
+		return {
+			runId: String(body.runId ?? ''),
+			succeeded: body.succeeded === true,
+			status: String(body.status ?? ''),
+			error: typeof body.error === 'string' ? body.error : null
+		};
+	},
+	reconcileGlobalSync: async () => {
+		const body = await postUndocumented('/api/sync/reconcile');
+		return body as import('./types.js').SyncReconcileResult;
 	}
 };

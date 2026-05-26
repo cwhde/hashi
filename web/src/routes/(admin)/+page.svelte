@@ -17,10 +17,11 @@
 	let securityBlocked = $state('—');
 	let dnsConnections = $state(0);
 	let pulseAgents = $state(0);
+	let syncRuns = $state<{ pending: number; recent: number }>({ pending: 0, recent: 0 });
 
 	onMount(async () => {
 		try {
-			const [events, health, vault, resources, monitors, security, dns, pulse] =
+			const [events, health, vault, resources, monitors, security, dns, pulse, runs] =
 				await Promise.all([
 					api.getAuditEvents().catch(() => []),
 					api.getHealth().catch(() => null),
@@ -29,7 +30,8 @@
 					api.listStatusEndpoints().catch(() => []),
 					api.getSecurityDashboard().catch(() => null),
 					api.listDnsConnections().catch(() => []),
-					api.listPulseAgents().catch(() => [])
+					api.listPulseAgents().catch(() => []),
+					api.listSyncRuns().catch(() => [])
 				]);
 			audit = events.slice(0, 5);
 			healthVersion = health?.version ?? '—';
@@ -46,6 +48,10 @@
 			securityBlocked = security ? String(security.blocked) : '—';
 			dnsConnections = dns.length;
 			pulseAgents = pulse.length;
+			syncRuns = {
+				recent: runs.length,
+				pending: runs.filter((r) => r.status === 'AwaitingConfirmation').length
+			};
 		} catch {
 			// offline dev
 		}
@@ -92,8 +98,12 @@
 					<StatusRow label="Blocked (range)" value={securityBlocked} status="error" />
 					<StatusRow label="Dashboard" value="via /security" />
 				{:else if widget.id === 'pending-sync'}
-					<StatusRow label="Queued plans" value="—" />
-					<StatusRow label="Awaiting approval" value="—" status="warn" />
+					<StatusRow label="Recent runs" value={String(syncRuns.recent)} />
+					<StatusRow
+						label="Awaiting approval"
+						value={String(syncRuns.pending)}
+						status={syncRuns.pending > 0 ? 'warn' : 'ok'}
+					/>
 				{:else if widget.id === 'cert-expiry'}
 					<StatusRow label="Expiring < 14d" value="—" status="ok" />
 					<StatusRow label="Expiring < 7d" value="—" />
