@@ -360,6 +360,8 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.ToTable("access_log_cursors");
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => x.ConnectionId).IsUnique();
+        });
+
         modelBuilder.Entity<SecurityRequestBucketEntity>(entity =>
         {
             entity.ToTable("security_request_buckets");
