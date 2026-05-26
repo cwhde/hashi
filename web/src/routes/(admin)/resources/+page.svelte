@@ -1,6 +1,11 @@
 <script lang="ts">
 	import { api, ApiRequestError } from '$lib/api/client';
 	import type { FirewallHost, PulseAgent, Resource } from '$lib/api/types';
+	import ResourceRoutesEditor from '$lib/components/resources/ResourceRoutesEditor.svelte';
+	import {
+		normalizeRoutes,
+		type ResourceRouteRequest
+	} from '$lib/components/resources/resource-routes';
 	import AdminSectionPage from '$lib/components/layout/AdminSectionPage.svelte';
 	import PanelSection from '$lib/components/layout/PanelSection.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -21,6 +26,8 @@
 	let firewallHosts = $state<FirewallHost[]>([]);
 	let pulseAgents = $state<PulseAgent[]>([]);
 	let availableMiddlewares = $state<string[]>([]);
+	let routeDrafts = $state<Record<string, ResourceRouteRequest[]>>({});
+	let routeSaving = $state<Record<string, boolean>>({});
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 	let saving = $state(false);
@@ -38,7 +45,8 @@
 		wafMode: 'detect_only',
 		firewallHostId: '',
 		dashboardEnabled: false,
-		statusEnabled: true
+		statusEnabled: true,
+		routes: [] as ResourceRouteRequest[]
 	});
 
 	$effect(() => {
@@ -56,6 +64,9 @@
 				api.listPulseAgents().catch(() => [])
 			]);
 			resources = resourceList;
+			routeDrafts = Object.fromEntries(
+				resourceList.map((resource) => [resource.id, cloneResourceRoutes(resource)])
+			);
 			firewallHosts = hostList;
 			pulseAgents = agents;
 			availableMiddlewares = middlewares.middlewareNames ?? [];
@@ -89,7 +100,8 @@
 				statusEnabled: form.statusEnabled,
 				firewallHostId: form.firewallHostId || null,
 				pathPrefix: form.pathPrefix || null,
-				pathRewrite: form.pathRewrite || null
+				pathRewrite: form.pathRewrite || null,
+				routes: form.routes.length > 0 ? normalizeRoutes(form.routes) : null
 			});
 			form.name = '';
 			form.domain = '';
@@ -97,6 +109,7 @@
 			form.pathPrefix = '';
 			form.pathRewrite = '';
 			form.firewallHostId = '';
+			form.routes = [];
 			await load();
 		} catch (e) {
 			error = e instanceof ApiRequestError ? e.message : 'Failed to create resource';
@@ -196,6 +209,45 @@
 			await load();
 		} catch (e) {
 			error = e instanceof ApiRequestError ? e.message : 'Failed to update middlewares';
+		}
+	}
+
+	function cloneResourceRoutes(resource: Resource): ResourceRouteRequest[] {
+		return (resource.routes ?? []).map((route) => ({
+			enabled: route.enabled,
+			priority: Number(route.priority),
+			pathMatchType: route.pathMatchType,
+			pathValue: route.pathValue,
+			targetScheme: route.targetScheme,
+			targetHost: route.targetHost,
+			targetPort: Number(route.targetPort),
+			rewriteMode: route.rewriteMode,
+			rewriteValue: route.rewriteValue,
+			extraMiddlewares: [...(route.extraMiddlewares ?? [])]
+		}));
+	}
+
+	async function saveResourceRoutes(resource: Resource) {
+		const draft = normalizeRoutes(routeDrafts[resource.id] ?? []);
+		routeSaving = { ...routeSaving, [resource.id]: true };
+		try {
+			await api.updateResource(resource.id, {
+				name: null,
+				enabled: null,
+				domain: null,
+				targetScheme: null,
+				targetHost: null,
+				targetPort: null,
+				dashboardEnabled: null,
+				statusEnabled: null,
+				...resourcePatchFlags,
+				routes: draft
+			});
+			await load();
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Failed to update resource routes';
+		} finally {
+			routeSaving = { ...routeSaving, [resource.id]: false };
 		}
 	}
 
@@ -313,6 +365,17 @@
 					</select>
 				</div>
 			</div>
+			<ResourceRoutesEditor
+				title="Advanced routes (optional)"
+				bind:routes={form.routes}
+				availableMiddlewares={availableMiddlewares}
+				baseTarget={{
+					targetScheme: form.targetScheme,
+					targetHost: form.targetHost,
+					targetPort: Number(form.targetPort)
+				}}
+				disabled={saving}
+			/>
 			<div class="flex flex-wrap gap-4">
 				<div class="flex items-center gap-2">
 					<Switch bind:checked={form.dashboardEnabled} id="res-dash" />
@@ -347,6 +410,7 @@
 							<TableHead>Pulse agent</TableHead>
 							<TableHead>Target</TableHead>
 							<TableHead>Extra middlewares</TableHead>
+							<TableHead>Advanced routes</TableHead>
 							<TableHead>Enabled</TableHead>
 							<TableHead class="w-12"></TableHead>
 						</TableRow>
@@ -420,6 +484,29 @@
 									{:else}
 										<span class="text-xs text-muted-foreground">n/a</span>
 									{/if}
+								</TableCell>
+								<TableCell class="min-w-[28rem]">
+									<div class="grid gap-2">
+										<ResourceRoutesEditor
+											title="Routes"
+											bind:routes={routeDrafts[resource.id]}
+											availableMiddlewares={availableMiddlewares}
+											baseTarget={{
+												targetScheme: resource.targetScheme,
+												targetHost: resource.targetHost,
+												targetPort: Number(resource.targetPort)
+											}}
+											disabled={routeSaving[resource.id] === true}
+										/>
+										<Button
+											size="sm"
+											variant="outline"
+											onclick={() => saveResourceRoutes(resource)}
+											disabled={routeSaving[resource.id] === true}
+										>
+											{routeSaving[resource.id] ? 'Saving…' : 'Save routes'}
+										</Button>
+									</div>
 								</TableCell>
 								<TableCell>
 									<Switch
