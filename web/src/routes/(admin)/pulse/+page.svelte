@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { api, ApiRequestError } from '$lib/api/client';
-	import type { CreatePulseAgentResult, PulseAgent } from '$lib/api/types';
+	import type { CreatePulseAgentResult, PulseAgent, PulseInstall } from '$lib/api/types';
 	import AdminSectionPage from '$lib/components/layout/AdminSectionPage.svelte';
 	import PanelSection from '$lib/components/layout/PanelSection.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -17,6 +17,7 @@
 	import { Zap } from 'lucide-svelte';
 
 	let agents = $state<PulseAgent[]>([]);
+	let installSnippet = $state<PulseInstall | null>(null);
 	let loading = $state(true);
 	let creating = $state(false);
 	let error = $state<string | null>(null);
@@ -50,6 +51,7 @@
 			createdToken = await api.createPulseAgent({ name: newAgentName.trim() });
 			newAgentName = '';
 			message = 'Agent created. Copy the token now — it is shown only once.';
+			installSnippet = await api.getPulseInstall(createdToken.id, createdToken.token);
 			await load();
 		} catch (e) {
 			error = e instanceof ApiRequestError ? e.message : 'Failed to create Pulse agent';
@@ -61,6 +63,25 @@
 	$effect(() => {
 		void load();
 	});
+
+	async function revokeAgent(agentId: string) {
+		if (!confirm('Revoke this Pulse agent token?')) return;
+		try {
+			await api.revokePulseAgent(agentId);
+			message = 'Agent token revoked.';
+			await load();
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Failed to revoke agent';
+		}
+	}
+
+	async function showInstall(agentId: string) {
+		try {
+			installSnippet = await api.getPulseInstall(agentId);
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Failed to load install snippet';
+		}
+	}
 </script>
 
 <AdminSectionPage
@@ -82,6 +103,18 @@
 					<p class="font-medium text-amber-200">One-time token for {createdToken.name}</p>
 					<p class="mt-2 break-all font-mono text-xs">{createdToken.token}</p>
 					<p class="mt-2 text-xs text-muted-foreground">Agent ID: {createdToken.id}</p>
+				</div>
+			{/if}
+			{#if installSnippet}
+				<div class="space-y-3 rounded-md border border-border p-3 text-xs">
+					<div>
+						<p class="mb-1 font-medium text-white">Linux install</p>
+						<pre class="overflow-auto whitespace-pre-wrap font-mono text-muted-foreground">{installSnippet.linuxInstallScript}</pre>
+					</div>
+					<div>
+						<p class="mb-1 font-medium text-white">Docker run</p>
+						<pre class="overflow-auto whitespace-pre-wrap font-mono text-muted-foreground">{installSnippet.dockerRunCommand}</pre>
+					</div>
 				</div>
 			{/if}
 			{#if message}
@@ -108,6 +141,7 @@
 						<TableHead>Status</TableHead>
 						<TableHead>Last seen</TableHead>
 						<TableHead>Public IP</TableHead>
+						<TableHead class="w-32"></TableHead>
 					</TableRow>
 				</TableHeader>
 				<TableBody>
@@ -119,6 +153,10 @@
 								{agent.lastSeenAtUtc ? new Date(agent.lastSeenAtUtc).toLocaleString() : '—'}
 							</TableCell>
 							<TableCell class="font-mono text-xs">{agent.lastPublicIp ?? '—'}</TableCell>
+							<TableCell class="space-x-2">
+								<Button variant="ghost" size="sm" onclick={() => showInstall(agent.id)}>Install</Button>
+								<Button variant="ghost" size="sm" onclick={() => revokeAgent(agent.id)}>Revoke</Button>
+							</TableCell>
 						</TableRow>
 					{/each}
 				</TableBody>

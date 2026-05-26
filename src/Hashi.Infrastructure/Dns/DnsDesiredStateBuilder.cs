@@ -50,9 +50,16 @@ public static class DnsDesiredStateBuilder
         var resources = await db.Resources.AsNoTracking()
             .Where(x => x.Enabled && x.Domain != null)
             .ToListAsync(cancellationToken);
+        var pulseAgents = await db.PulseAgents.AsNoTracking().ToDictionaryAsync(x => x.Id, cancellationToken);
         foreach (var resource in resources)
         {
             var slug = resource.Slug;
+            PulseDnsTarget? pulseTarget = null;
+            if (resource.PulseAgentId is Guid pulseId && pulseAgents.TryGetValue(pulseId, out var agent))
+            {
+                pulseTarget = new PulseDnsTarget(agent.Id, agent.LastPublicIp, null);
+            }
+
             var records = DnsRecordGenerator.GenerateResourceRecords(
                 new ResourceDnsTarget(
                     resource.Name,
@@ -60,7 +67,7 @@ public static class DnsDesiredStateBuilder
                     rootDomain,
                     resource.FirewallHostId,
                     null,
-                    null),
+                    pulseTarget),
                 hostTargets,
                 defaultTtl);
             generated.AddRange(records);

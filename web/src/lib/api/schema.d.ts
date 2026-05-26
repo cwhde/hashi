@@ -2799,6 +2799,113 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/pulse/agents/{agentId}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    agentId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pulse/agents/{agentId}/install": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    token?: string;
+                };
+                header?: never;
+                path: {
+                    agentId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PulseInstallResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pulse/install/linux.sh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/pulse/{agentId}/heartbeat": {
         parameters: {
             query?: never;
@@ -3480,6 +3587,8 @@ export interface components {
             statusEnabled: boolean;
             /** Format: uuid */
             firewallHostId?: null | string;
+            /** Format: uuid */
+            pulseAgentId?: null | string;
             pathPrefix?: null | string;
             pathRewrite?: null | string;
             extraMiddlewares?: null | string[];
@@ -3684,6 +3793,10 @@ export interface components {
             hostname: string;
             privateIpv4Candidates: string[];
         };
+        PulseInstallResponse: {
+            linuxInstallScript: string;
+            dockerRunCommand: string;
+        };
         RemoteWriteRequest: {
             remotePath: string;
             contentBase64: string;
@@ -3713,6 +3826,8 @@ export interface components {
             statusEnabled: boolean;
             /** Format: uuid */
             firewallHostId: null | string;
+            /** Format: uuid */
+            pulseAgentId: null | string;
             pathPrefix: null | string;
             pathRewrite: null | string;
             extraMiddlewares: string[];
@@ -3942,6 +4057,10 @@ export interface components {
             firewallHostId?: null | string;
             /** @default false */
             clearFirewallHostId: boolean;
+            /** Format: uuid */
+            pulseAgentId?: null | string;
+            /** @default false */
+            clearPulseAgentId: boolean;
             pathPrefix?: null | string;
             /** @default false */
             clearPathPrefix: boolean;

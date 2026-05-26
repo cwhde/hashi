@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { api, ApiRequestError } from '$lib/api/client';
-	import type { FirewallHost, Resource } from '$lib/api/types';
+	import type { FirewallHost, PulseAgent, Resource } from '$lib/api/types';
 	import AdminSectionPage from '$lib/components/layout/AdminSectionPage.svelte';
 	import PanelSection from '$lib/components/layout/PanelSection.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -19,6 +19,7 @@
 
 	let resources = $state<Resource[]>([]);
 	let firewallHosts = $state<FirewallHost[]>([]);
+	let pulseAgents = $state<PulseAgent[]>([]);
 	let availableMiddlewares = $state<string[]>([]);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
@@ -45,13 +46,15 @@
 		loading = true;
 		error = null;
 		try {
-			const [resourceList, hostList, middlewares] = await Promise.all([
+			const [resourceList, hostList, middlewares, agents] = await Promise.all([
 				api.listResources(),
 				api.listFirewallHosts(),
-				api.getTraefikUserMiddlewares().catch(() => ({ middlewareNames: [] }))
+				api.getTraefikUserMiddlewares().catch(() => ({ middlewareNames: [] })),
+				api.listPulseAgents().catch(() => [])
 			]);
 			resources = resourceList;
 			firewallHosts = hostList;
+			pulseAgents = agents;
 			availableMiddlewares = middlewares.middlewareNames ?? [];
 		} catch (e) {
 			error = e instanceof ApiRequestError ? e.message : 'Failed to load resources';
@@ -110,7 +113,8 @@
 				clearFirewallHostId: false,
 				clearPathPrefix: false,
 				clearPathRewrite: false,
-				clearExtraMiddlewares: false
+				clearExtraMiddlewares: false,
+				clearPulseAgentId: false
 			});
 			await load();
 		} catch (e) {
@@ -131,6 +135,7 @@
 				statusEnabled: null,
 				firewallHostId: firewallHostId || null,
 				clearFirewallHostId: !firewallHostId,
+				clearPulseAgentId: false,
 				clearPathPrefix: false,
 				clearPathRewrite: false,
 				clearExtraMiddlewares: false
@@ -138,6 +143,30 @@
 			await load();
 		} catch (e) {
 			error = e instanceof ApiRequestError ? e.message : 'Failed to update firewall host';
+		}
+	}
+
+	async function updatePulseAgent(resource: Resource, pulseAgentId: string) {
+		try {
+			await api.updateResource(resource.id, {
+				name: null,
+				enabled: null,
+				domain: null,
+				targetScheme: null,
+				targetHost: null,
+				targetPort: null,
+				dashboardEnabled: null,
+				statusEnabled: null,
+				clearFirewallHostId: false,
+				pulseAgentId: pulseAgentId || null,
+				clearPulseAgentId: !pulseAgentId,
+				clearPathPrefix: false,
+				clearPathRewrite: false,
+				clearExtraMiddlewares: false
+			});
+			await load();
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Failed to update Pulse agent';
 		}
 	}
 
@@ -160,6 +189,7 @@
 				clearPathPrefix: false,
 				clearPathRewrite: false,
 				clearExtraMiddlewares: false,
+				clearPulseAgentId: false,
 				extraMiddlewares: next
 			});
 			await load();
@@ -278,6 +308,7 @@
 							<TableHead>Name</TableHead>
 							<TableHead>Domain</TableHead>
 							<TableHead>Firewall host</TableHead>
+							<TableHead>Pulse agent</TableHead>
 							<TableHead>Target</TableHead>
 							<TableHead>Extra middlewares</TableHead>
 							<TableHead>Enabled</TableHead>
@@ -307,6 +338,22 @@
 										<option value="">None</option>
 										{#each firewallHosts as host (host.id)}
 											<option value={host.id}>{host.name}</option>
+										{/each}
+									</select>
+								</TableCell>
+								<TableCell>
+									<select
+										class="h-8 max-w-[12rem] rounded-md border border-border bg-background px-2 text-xs text-white"
+										value={resource.pulseAgentId ?? ''}
+										onchange={(e) =>
+											updatePulseAgent(
+												resource,
+												(e.currentTarget as HTMLSelectElement).value
+											)}
+									>
+										<option value="">None</option>
+										{#each pulseAgents as agent (agent.id)}
+											<option value={agent.id}>{agent.name}</option>
 										{/each}
 									</select>
 								</TableCell>

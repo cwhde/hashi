@@ -1,11 +1,13 @@
 using Hashi.Contracts.Api;
 using Hashi.Infrastructure.Auth;
+using Hashi.Infrastructure.Notifications;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
 using Hashi.Infrastructure.Platform;
 using Hashi.Infrastructure.Services;
 using Hashi.UnitTests.Fakes;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Hashi.UnitTests;
@@ -103,9 +105,11 @@ public sealed class SecurityIngestionServiceTests
     {
         var audit = new AuditService(db);
         var secrets = new SecretRecordService(db, new VaultSessionState(), new ServiceSyncVaultState());
+        var notifications = new NotificationDispatcher(db, new ServiceCollection().AddHttpClient().BuildServiceProvider().GetRequiredService<IHttpClientFactory>());
         return new SecurityIngestionService(
             db,
             new FirewallApplyService(db, new FakeSshRemoteExecutor(), secrets, audit),
-            audit);
+            audit,
+            new NotificationRoutingService(db, notifications));
     }
 }

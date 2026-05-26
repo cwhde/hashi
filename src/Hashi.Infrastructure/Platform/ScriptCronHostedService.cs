@@ -19,6 +19,7 @@ public sealed class ScriptCronHostedService(
                 using var scope = scopeFactory.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<HashiDbContext>();
                 var scripts = scope.ServiceProvider.GetRequiredService<ScriptExecutionService>();
+                await scripts.SyncAllEnabledScriptsAsync(stoppingToken);
                 var now = DateTimeOffset.UtcNow;
                 var dueScripts = await db.Scripts
                     .Where(x => x.Enabled && x.CronExpression != "")

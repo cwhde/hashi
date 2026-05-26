@@ -53,13 +53,35 @@ public sealed class ScriptExecutionService(
             OsFamily.Unknown,
             null,
             null);
-        return await ExecuteRemoteAsync(script, settings, request.AuthMode, request.Password, request.PrivateKeyPem, request.PrivateKeyPassphrase, cancellationToken);
+        return await ExecuteRemoteAsync(script, settings, request.AuthMode, request.Password, request.PrivateKeyPem, request.PrivateKeyPassphrase, cancellationToken: cancellationToken);
     }
 
     public async Task<RunScriptResponse> RunWithConnectionAsync(Guid scriptId, CancellationToken cancellationToken = default)
     {
         var script = await db.Scripts.SingleOrDefaultAsync(x => x.Id == scriptId, cancellationToken)
             ?? throw new InvalidOperationException("Script not found.");
+        await DeployScriptAsync(script, cancellationToken);
+        return await ExecuteOnConnectionAsync(script, cancellationToken);
+    }
+
+    public async Task SyncAllEnabledScriptsAsync(CancellationToken cancellationToken = default)
+    {
+        var scripts = await db.Scripts.Where(x => x.Enabled).ToListAsync(cancellationToken);
+        foreach (var script in scripts)
+        {
+            try
+            {
+                await DeployScriptAsync(script, cancellationToken);
+            }
+            catch (Exception)
+            {
+                // Keep cron loop resilient; individual runs will surface errors.
+            }
+        }
+    }
+
+    private async Task<RunScriptResponse> ExecuteOnConnectionAsync(ScriptEntity script, CancellationToken cancellationToken)
+    {
         var connection = await db.Connections.SingleOrDefaultAsync(x => x.Id == script.ConnectionId, cancellationToken)
             ?? throw new InvalidOperationException("Script connection not found.");
         var credentials = await ConnectionSshCredentialResolver.ResolveAsync(connection, secrets, cancellationToken);
@@ -75,6 +97,43 @@ public sealed class ScriptExecutionService(
             credentials.Password,
             credentials.PrivateKeyPem,
             credentials.PrivateKeyPassphrase,
+            skipDeploy: true,
+            cancellationToken);
+    }
+
+    private async Task DeployScriptAsync(ScriptEntity script, CancellationToken cancellationToken)
+    {
+        var connection = await db.Connections.SingleOrDefaultAsync(x => x.Id == script.ConnectionId, cancellationToken)
+            ?? throw new InvalidOperationException("Script connection not found.");
+        var credentials = await ConnectionSshCredentialResolver.ResolveAsync(connection, secrets, cancellationToken)
+            ?? throw new InvalidOperationException("SSH credentials unavailable; unlock vault or configure service-sync vault.");
+        var remotePath = $"/opt/hashi/scripts/{script.Id:N}.sh";
+        var write = credentials.AuthMode switch
+        {
+            "password" when !string.IsNullOrWhiteSpace(credentials.Password) =>
+                await ssh.WriteAtomicAsync(credentials.Settings, credentials.Password, remotePath, Encoding.UTF8.GetBytes(script.Body), cancellationToken),
+            "private_key" when !string.IsNullOrWhiteSpace(credentials.PrivateKeyPem) =>
+                await ssh.WriteAtomicWithPrivateKeyAsync(
+                    credentials.Settings,
+                    credentials.PrivateKeyPem,
+                    credentials.PrivateKeyPassphrase,
+                    remotePath,
+                    Encoding.UTF8.GetBytes(script.Body),
+                    cancellationToken),
+            _ => new RemoteWriteResult(false, remotePath, "Unsupported auth mode."),
+        };
+        if (!write.Succeeded)
+        {
+            throw new InvalidOperationException(write.Error ?? "Failed to deploy script.");
+        }
+
+        await ssh.RunCommandAsync(
+            credentials.Settings,
+            credentials.AuthMode,
+            credentials.Password,
+            credentials.PrivateKeyPem,
+            credentials.PrivateKeyPassphrase,
+            $"mkdir -p /opt/hashi/scripts && chmod +x '{remotePath}'",
             cancellationToken);
     }
 
@@ -85,31 +144,35 @@ public sealed class ScriptExecutionService(
         string? password,
         string? privateKeyPem,
         string? privateKeyPassphrase,
-        CancellationToken cancellationToken)
+        bool skipDeploy = false,
+        CancellationToken cancellationToken = default)
     {
         var remotePath = $"/opt/hashi/scripts/{script.Id:N}.sh";
-        var write = authMode switch
+        if (!skipDeploy)
         {
-            "password" when !string.IsNullOrWhiteSpace(password) =>
-                await ssh.WriteAtomicAsync(settings, password, remotePath, Encoding.UTF8.GetBytes(script.Body), cancellationToken),
-            "private_key" when !string.IsNullOrWhiteSpace(privateKeyPem) =>
-                await ssh.WriteAtomicWithPrivateKeyAsync(
-                    settings, privateKeyPem, privateKeyPassphrase, remotePath, Encoding.UTF8.GetBytes(script.Body), cancellationToken),
-            _ => new RemoteWriteResult(false, remotePath, "Unsupported auth mode."),
-        };
-        if (!write.Succeeded)
-        {
-            return new RunScriptResponse(false, string.Empty, write.Error);
-        }
+            var write = authMode switch
+            {
+                "password" when !string.IsNullOrWhiteSpace(password) =>
+                    await ssh.WriteAtomicAsync(settings, password, remotePath, Encoding.UTF8.GetBytes(script.Body), cancellationToken),
+                "private_key" when !string.IsNullOrWhiteSpace(privateKeyPem) =>
+                    await ssh.WriteAtomicWithPrivateKeyAsync(
+                        settings, privateKeyPem, privateKeyPassphrase, remotePath, Encoding.UTF8.GetBytes(script.Body), cancellationToken),
+                _ => new RemoteWriteResult(false, remotePath, "Unsupported auth mode."),
+            };
+            if (!write.Succeeded)
+            {
+                return new RunScriptResponse(false, string.Empty, write.Error);
+            }
 
-        await ssh.RunCommandAsync(
-            settings,
-            authMode,
-            password,
-            privateKeyPem,
-            privateKeyPassphrase,
-            $"mkdir -p /opt/hashi/scripts && chmod +x '{remotePath}'",
-            cancellationToken);
+            await ssh.RunCommandAsync(
+                settings,
+                authMode,
+                password,
+                privateKeyPem,
+                privateKeyPassphrase,
+                $"mkdir -p /opt/hashi/scripts && chmod +x '{remotePath}'",
+                cancellationToken);
+        }
 
         var run = await ssh.RunCommandAsync(
             settings,

@@ -9,7 +9,8 @@ namespace Hashi.Infrastructure.Platform;
 public sealed class SecurityIngestionService(
     HashiDbContext db,
     FirewallApplyService firewallApply,
-    AuditService audit)
+    AuditService audit,
+    NotificationRoutingService notificationRouting)
 {
     public async Task IngestAccessLogAsync(AccessLogIngestRequest request, CancellationToken cancellationToken = default)
     {
@@ -61,6 +62,14 @@ public sealed class SecurityIngestionService(
         }
 
         await db.SaveChangesAsync(cancellationToken);
+
+        if (bucket.State is "block" or "challenge")
+        {
+            await notificationRouting.RouteSecurityEventAsync(
+                $"Security {bucket.State}: {request.ClientIp}",
+                $"{request.Host}{request.Path} from {request.ClientIp} scored {bucket.Score}.",
+                cancellationToken);
+        }
     }
 
     public async Task IngestForwardAuthDecisionAsync(

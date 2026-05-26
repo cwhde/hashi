@@ -375,6 +375,18 @@ export const api = {
 		});
 		return expectData(r.response, r.error, r.data);
 	},
+	getPulseInstall: async (agentId: string, token?: string) => {
+		const r = await client.GET('/api/pulse/agents/{agentId}/install', {
+			params: { path: { agentId }, query: token ? { token } : {} }
+		});
+		return expectData(r.response, r.error, r.data);
+	},
+	revokePulseAgent: async (agentId: string) => {
+		const r = await client.POST('/api/pulse/agents/{agentId}/revoke', {
+			params: { path: { agentId } }
+		});
+		await expectOk(r.response, r.error);
+	},
 	listPulseAgents: async () => {
 		const r = await client.GET('/api/pulse/agents');
 		return expectData(r.response, r.error, r.data ?? []);

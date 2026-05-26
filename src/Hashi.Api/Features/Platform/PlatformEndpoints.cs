@@ -360,6 +360,33 @@ public static class PulseEndpoints
             var created = await pulse.CreateAgentAsync(request, ct);
             return TypedResults.Ok(created);
         });
+        group.MapPost("/agents/{agentId:guid}/revoke", async Task<IResult> (Guid agentId, PulseAgentService pulse, CancellationToken ct) =>
+        {
+            var revoked = await pulse.RevokeAgentAsync(agentId, ct);
+            return revoked ? TypedResults.Ok(new { revoked = true }) : TypedResults.NotFound();
+        });
+        group.MapGet("/agents/{agentId:guid}/install", (HttpContext ctx, Guid agentId, string? token) =>
+        {
+            var apiBase = $"{ctx.Request.Scheme}://{ctx.Request.Host}";
+            return TypedResults.Ok(PulseInstallRenderer.Render(apiBase, agentId, token));
+        })
+            .Produces<PulseInstallResponse>(StatusCodes.Status200OK);
+        group.MapGet("/install/linux.sh", () =>
+        {
+            var candidates = new[]
+            {
+                Path.Combine(AppContext.BaseDirectory, "content", "pulse", "install.sh"),
+                Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "agents", "pulse", "install.sh")),
+                Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "agents", "pulse", "install.sh")),
+            };
+            var path = candidates.FirstOrDefault(File.Exists);
+            if (path is null)
+            {
+                return Results.NotFound();
+            }
+
+            return Results.Text(File.ReadAllText(path), "text/x-shellscript");
+        }).AllowAnonymous();
         group.MapPost("/{agentId:guid}/heartbeat", async Task<IResult> (
             Guid agentId,
             PulseHeartbeatAuthRequest request,

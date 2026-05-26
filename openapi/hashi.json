@@ -1924,6 +1924,78 @@
         }
       }
     },
+    "/api/pulse/agents/{agentId}/revoke": {
+      "post": {
+        "tags": [
+          "Pulse"
+        ],
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/pulse/agents/{agentId}/install": {
+      "get": {
+        "tags": [
+          "Pulse"
+        ],
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "token",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PulseInstallResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pulse/install/linux.sh": {
+      "get": {
+        "tags": [
+          "Pulse"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/pulse/{agentId}/heartbeat": {
       "post": {
         "tags": [
@@ -2817,6 +2889,13 @@
             ],
             "format": "uuid"
           },
+          "pulseAgentId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
           "pathPrefix": {
             "type": [
               "null",
@@ -3652,6 +3731,21 @@
           }
         }
       },
+      "PulseInstallResponse": {
+        "required": [
+          "linuxInstallScript",
+          "dockerRunCommand"
+        ],
+        "type": "object",
+        "properties": {
+          "linuxInstallScript": {
+            "type": "string"
+          },
+          "dockerRunCommand": {
+            "type": "string"
+          }
+        }
+      },
       "RemoteWriteRequest": {
         "required": [
           "remotePath",
@@ -3724,6 +3818,7 @@
           "dashboardEnabled",
           "statusEnabled",
           "firewallHostId",
+          "pulseAgentId",
           "pathPrefix",
           "pathRewrite",
           "extraMiddlewares"
@@ -3776,6 +3871,13 @@
             "type": "boolean"
           },
           "firewallHostId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "pulseAgentId": {
             "type": [
               "null",
               "string"
@@ -4742,6 +4844,17 @@
             "format": "uuid"
           },
           "clearFirewallHostId": {
+            "type": "boolean",
+            "default": false
+          },
+          "pulseAgentId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "clearPulseAgentId": {
             "type": "boolean",
             "default": false
           },

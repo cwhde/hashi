@@ -59,6 +59,21 @@ public sealed class PulseAgentService(HashiDbContext db)
         return true;
     }
 
+    public async Task<bool> RevokeAgentAsync(Guid agentId, CancellationToken cancellationToken = default)
+    {
+        var agent = await db.PulseAgents.SingleOrDefaultAsync(x => x.Id == agentId, cancellationToken);
+        if (agent is null)
+        {
+            return false;
+        }
+
+        agent.TokenHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes($"revoked:{agentId}:{Guid.NewGuid()}"))).ToLowerInvariant();
+        agent.Status = "revoked";
+        await db.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
     private async Task QueueDnsSyncForPulseAsync(
         PulseAgentEntity agent,
         string? publicIp,

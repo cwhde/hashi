@@ -43,6 +43,7 @@ public sealed class MonitorCheckWorker(
 
         foreach (var endpoint in endpoints)
         {
+            var previousStatus = endpoint.Status;
             var sw = Stopwatch.StartNew();
             var status = "down";
             try
@@ -69,6 +70,9 @@ public sealed class MonitorCheckWorker(
                 LatencyMs = (int)sw.ElapsedMilliseconds,
             };
             db.MonitorSamples.Add(sample);
+
+            var routing = scope.ServiceProvider.GetRequiredService<NotificationRoutingService>();
+            await routing.RouteMonitorTransitionAsync(endpoint, previousStatus, status, cancellationToken);
         }
 
         await db.SaveChangesAsync(cancellationToken);

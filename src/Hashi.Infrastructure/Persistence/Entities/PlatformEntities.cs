@@ -32,6 +32,8 @@ public sealed class ResourceEntity
 
     public Guid? FirewallHostId { get; set; }
 
+    public Guid? PulseAgentId { get; set; }
+
     public string? PathPrefix { get; set; }
 
     public string? PathRewrite { get; set; }

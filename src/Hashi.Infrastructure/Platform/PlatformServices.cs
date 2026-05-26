@@ -30,6 +30,7 @@ public sealed class ResourceService(HashiDbContext db, AuditService audit)
             DashboardEnabled = request.DashboardEnabled,
             StatusEnabled = request.StatusEnabled,
             FirewallHostId = request.FirewallHostId,
+            PulseAgentId = request.PulseAgentId,
             PathPrefix = request.PathPrefix,
             PathRewrite = request.PathRewrite,
             ExtraMiddlewaresJson = SerializeExtraMiddlewares(request.ExtraMiddlewares),
@@ -102,6 +103,15 @@ public sealed class ResourceService(HashiDbContext db, AuditService audit)
             entity.FirewallHostId = hostId;
         }
 
+        if (request.ClearPulseAgentId)
+        {
+            entity.PulseAgentId = null;
+        }
+        else if (request.PulseAgentId is Guid pulseAgentId)
+        {
+            entity.PulseAgentId = pulseAgentId;
+        }
+
         if (request.ClearPathPrefix)
         {
             entity.PathPrefix = null;
@@ -166,6 +176,7 @@ public sealed class ResourceService(HashiDbContext db, AuditService audit)
         entity.DashboardEnabled,
         entity.StatusEnabled,
         entity.FirewallHostId,
+        entity.PulseAgentId,
         entity.PathPrefix,
         entity.PathRewrite,
         TraefikUserMiddlewareService.ParseExtraMiddlewares(entity.ExtraMiddlewaresJson));

@@ -52,6 +52,11 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm audit --audit-level=high || true
 
+      - name: Semgrep static analysis
+        run: |
+          pip install semgrep
+          semgrep --config p/default --error --severity ERROR src/ web/src/ agents/pulse/ || true
+
       - name: Trivy filesystem scan
         uses: aquasecurity/trivy-action@0.28.0
         with:

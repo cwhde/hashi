@@ -14,6 +14,7 @@ public sealed record ResourceResponse(
     bool DashboardEnabled,
     bool StatusEnabled,
     Guid? FirewallHostId,
+    Guid? PulseAgentId,
     string? PathPrefix,
     string? PathRewrite,
     IReadOnlyList<string> ExtraMiddlewares);
@@ -28,6 +29,7 @@ public sealed record CreateResourceRequest(
     bool DashboardEnabled,
     bool StatusEnabled,
     Guid? FirewallHostId = null,
+    Guid? PulseAgentId = null,
     string? PathPrefix = null,
     string? PathRewrite = null,
     IReadOnlyList<string>? ExtraMiddlewares = null);
@@ -43,6 +45,8 @@ public sealed record UpdateResourceRequest(
     bool? StatusEnabled,
     Guid? FirewallHostId = null,
     bool ClearFirewallHostId = false,
+    Guid? PulseAgentId = null,
+    bool ClearPulseAgentId = false,
     string? PathPrefix = null,
     bool ClearPathPrefix = false,
     string? PathRewrite = null,
@@ -181,6 +185,8 @@ public sealed record MonitorEndpointResponse(
     string Status,
     DateTimeOffset? LastCheckedAtUtc,
     int? LastLatencyMs);
+
+public sealed record PulseInstallResponse(string LinuxInstallScript, string DockerRunCommand);
 
 public sealed record PulseAgentResponse(Guid Id, string Name, string Status, DateTimeOffset? LastSeenAtUtc, string? LastPublicIp);
 

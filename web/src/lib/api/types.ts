@@ -55,6 +55,7 @@ export type PublicStatusStripBucket = Schemas['PublicStatusStripBucket'];
 export type SecurityDashboard = Schemas['SecurityDashboardResponse'];
 export type SecurityRankItem = { label: string; count: number };
 export type PulseAgent = Schemas['PulseAgentResponse'];
+export type PulseInstall = Schemas['PulseInstallResponse'];
 export type CreatePulseAgentRequest = Schemas['CreatePulseAgentRequest'];
 export type CreatePulseAgentResult = Schemas['CreatePulseAgentResponse'];
 export type Script = Schemas['ScriptResponse'];
