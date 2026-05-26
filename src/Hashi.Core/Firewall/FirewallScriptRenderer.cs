@@ -30,9 +30,11 @@ public static class FirewallScriptRenderer
 {
     public static string Render(FirewallHostDefinition host)
     {
-        var subnets = string.Join(' ', host.ManagedSubnets);
-        var overlayCidrs = string.Join(' ', host.NetBirdOverlayCidrs ?? ["100.110.0.0/16"]);
-        var routedCidrs = string.Join(' ', host.NetBirdRoutedCidrs ?? []);
+        var managedSubnetsArray = RenderBashArray("HASHI_MANAGED_SUBNETS", host.ManagedSubnets);
+        var overlayCidrs = host.NetBirdOverlayCidrs ?? ["100.110.0.0/16"];
+        var routedCidrs = host.NetBirdRoutedCidrs ?? [];
+        var overlayCidrsArray = RenderBashArray("HASHI_NETBIRD_OVERLAY", overlayCidrs);
+        var routedCidrsArray = RenderBashArray("HASHI_NETBIRD_ROUTED", routedCidrs);
         var trustedIps = string.Join('\n', (host.TrustedPublicIps ?? []).Select(ip => $"ipset add hashi_trusted {ip} -exist"));
         var blockedIps = string.Join('\n', (host.BlockedIps ?? []).Select(ip => $"ipset add hashi_blocked {ip} -exist"));
         var dnatRules = string.Join('\n', (host.PortForwards ?? []).Select(p =>
@@ -70,7 +72,8 @@ public static class FirewallScriptRenderer
             ipset flush hashi_trusted
             ipset flush hashi_blocked
 
-            for subnet in {{subnets}}; do
+            {{managedSubnetsArray}}
+            for subnet in "${HASHI_MANAGED_SUBNETS[@]}"; do
               ipset add hashi_trusted "$subnet" -exist
             done
             {{trustedIps}}
@@ -93,20 +96,20 @@ public static class FirewallScriptRenderer
             iptables -A HASHI_INPUT -m set --match-set hashi_trusted src -j ACCEPT
             iptables -A HASHI_INPUT -d "$PUBLIC_IP" -j ACCEPT
 
-            {{RenderNetBirdRules(host)}}
+            {{RenderNetBirdRules(host, overlayCidrsArray, routedCidrsArray)}}
 
             iptables -A HASHI_INPUT -j DROP
 
             {{dnatRules}}
             {{fwdRules}}
 
-            for subnet in {{subnets}}; do
+            for subnet in "${HASHI_MANAGED_SUBNETS[@]}"; do
               iptables -A HASHI_FWD -s "$subnet" -j ACCEPT
               iptables -A HASHI_FWD -d "$subnet" -j ACCEPT
             done
 
             iptables -A HASHI_POSTROUTING -o "$WAN_IF" -j MASQUERADE
-            for subnet in {{subnets}}; do
+            for subnet in "${HASHI_MANAGED_SUBNETS[@]}"; do
               iptables -t nat -A HASHI_POSTROUTING -s "$subnet" -o "$WAN_IF" -j MASQUERADE
               iptables -t nat -A HASHI_POSTROUTING -d "$TRAEFIK_IP" -s "$subnet" -j SNAT --to-source "$PUBLIC_IP"
             done
@@ -152,31 +155,42 @@ public static class FirewallScriptRenderer
         HASHI_NETBIRD_IF={{host.NetBirdInterface}}
         """;
 
-    private static string RenderNetBirdRules(FirewallHostDefinition host)
+    private static string RenderNetBirdRules(
+        FirewallHostDefinition host,
+        string overlayCidrsArray,
+        string routedCidrsArray)
     {
         if (!host.NetBirdEnabled)
         {
             return "# NetBird rules disabled\n";
         }
 
-        var overlayCidrs = string.Join(' ', host.NetBirdOverlayCidrs ?? ["100.110.0.0/16"]);
-        var routedCidrs = string.Join(' ', host.NetBirdRoutedCidrs ?? []);
         var lines = new List<string>
         {
-            $"for cidr in {overlayCidrs}; do ipset add hashi_netbird \"$cidr\" -exist; done",
-            $"iptables -A HASHI_INPUT -i {host.NetBirdInterface} -m set --match-set hashi_netbird src -j ACCEPT",
-            $"iptables -A HASHI_NETBIRD -i {host.NetBirdInterface} -j ACCEPT",
+            overlayCidrsArray,
+            "for cidr in \"${HASHI_NETBIRD_OVERLAY[@]}\"; do",
+            "  ipset add hashi_netbird \"$cidr\" -exist",
+            "done",
+            "iptables -A HASHI_INPUT -i \"$NETBIRD_IF\" -m set --match-set hashi_netbird src -j ACCEPT",
+            "iptables -A HASHI_NETBIRD -i \"$NETBIRD_IF\" -j ACCEPT",
         };
 
-        if (host.NetBirdRoutingPeer && !string.IsNullOrWhiteSpace(routedCidrs))
+        if (host.NetBirdRoutingPeer && (host.NetBirdRoutedCidrs ?? []).Count > 0)
         {
-            lines.Add($"for cidr in {routedCidrs}; do");
-            lines.Add($"  iptables -A HASHI_FWD -i {host.NetBirdInterface} -d \"$cidr\" -j ACCEPT");
-            lines.Add($"  iptables -A HASHI_POSTROUTING -s {overlayCidrs.Split(' ')[0]} -d \"$cidr\" -j MASQUERADE");
-            lines.Add($"  iptables -A FORWARD -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu");
+            lines.Add(routedCidrsArray);
+            lines.Add("for cidr in \"${HASHI_NETBIRD_ROUTED[@]}\"; do");
+            lines.Add("  iptables -A HASHI_FWD -i \"$NETBIRD_IF\" -d \"$cidr\" -j ACCEPT");
+            lines.Add("  iptables -A HASHI_POSTROUTING -s \"${HASHI_NETBIRD_OVERLAY[0]}\" -d \"$cidr\" -j MASQUERADE");
+            lines.Add("  iptables -A FORWARD -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu");
             lines.Add("done");
         }
 
         return string.Join('\n', lines);
+    }
+
+    private static string RenderBashArray(string name, IEnumerable<string> values)
+    {
+        var entries = values.Select(value => $"  \"{value.Replace("\"", "\\\"", StringComparison.Ordinal)}\"");
+        return $"{name}=(\n{string.Join("\n", entries)}\n)";
     }
 }

@@ -100,11 +100,12 @@ public sealed class FirewallScriptRendererTests
         File.WriteAllText(path, script);
         try
         {
-            var psi = new System.Diagnostics.ProcessStartInfo(shellcheck, Quote(path))
+            var psi = new System.Diagnostics.ProcessStartInfo(shellcheck)
             {
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
             };
+            psi.ArgumentList.Add(path);
             using var process = System.Diagnostics.Process.Start(psi)
                 ?? throw new InvalidOperationException("Failed to start shellcheck.");
             process.WaitForExit(30_000);
@@ -126,8 +127,19 @@ public sealed class FirewallScriptRendererTests
             }
         }
 
+        var pathEnv = Environment.GetEnvironmentVariable("PATH");
+        if (!string.IsNullOrWhiteSpace(pathEnv))
+        {
+            foreach (var dir in pathEnv.Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                var candidate = Path.Combine(dir, "shellcheck");
+                if (File.Exists(candidate))
+                {
+                    return candidate;
+                }
+            }
+        }
+
         return null;
     }
-
-    private static string Quote(string value) => $"'{value.Replace("'", "'\\''", StringComparison.Ordinal)}'";
 }
