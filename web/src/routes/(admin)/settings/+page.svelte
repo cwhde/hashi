@@ -15,6 +15,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Switch } from '$lib/components/ui/switch';
 	import { Settings as SettingsIcon } from 'lucide-svelte';
+	import NotificationsSettings from '$lib/components/settings/NotificationsSettings.svelte';
 
 	let saving = $state(false);
 	let message = $state<string | null>(null);
@@ -140,6 +141,13 @@
 					</li>
 				{/each}
 			</ul>
+		</PanelSection>
+
+		<PanelSection
+			title="Notifications"
+			description="Alert providers for status monitoring (SMTP, Telegram, Discord)."
+		>
+			<NotificationsSettings />
 		</PanelSection>
 	</div>
 </AdminSectionPage>

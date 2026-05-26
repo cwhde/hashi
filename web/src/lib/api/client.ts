@@ -315,6 +315,10 @@ export const api = {
 		const r = await client.GET('/api/settings/notifications/providers');
 		return expectData(r.response, r.error, r.data ?? []);
 	},
+	createNotificationProvider: async (body: import('./types.js').CreateNotificationProviderRequest) => {
+		const r = await client.POST('/api/settings/notifications/providers', { body });
+		return expectData(r.response, r.error, r.data);
+	},
 	getPublicApps: async () => {
 		const r = await client.GET('/api/public/apps');
 		return expectData(r.response, r.error, r.data ?? []);
