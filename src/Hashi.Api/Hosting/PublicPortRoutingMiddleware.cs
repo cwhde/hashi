@@ -13,18 +13,18 @@ public sealed class PublicPortRoutingMiddleware(RequestDelegate next)
         var port = context.Connection.LocalPort;
         if (port == 8081)
         {
-            var status = await monitoring.PublicStatusAsync(context.RequestAborted);
+            var items = await resources.ListAsync(context.RequestAborted);
+            var payload = items.Where(x => x.DashboardEnabled).Select(ResourceService.ToResponse);
             context.Response.ContentType = "application/json";
-            await context.Response.WriteAsJsonAsync(status);
+            await context.Response.WriteAsJsonAsync(payload);
             return;
         }
 
         if (port == 8082)
         {
-            var items = await resources.ListAsync(context.RequestAborted);
-            var payload = items.Where(x => x.DashboardEnabled).Select(ResourceService.ToResponse);
+            var status = await monitoring.PublicStatusAsync(context.RequestAborted);
             context.Response.ContentType = "application/json";
-            await context.Response.WriteAsJsonAsync(payload);
+            await context.Response.WriteAsJsonAsync(status);
             return;
         }
 
