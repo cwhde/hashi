@@ -7,3 +7,4 @@ dist
 !.env.example
 vite.config.ts.timestamp-*
 vitest.config.ts.timestamp-*
+test-results/
