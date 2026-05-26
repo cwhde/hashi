@@ -1,10 +1,33 @@
 <script lang="ts">
-	import ApiPendingBanner from '$lib/components/layout/ApiPendingBanner.svelte';
+	import { api } from '$lib/api/client';
+	import type { Resource } from '$lib/api/types';
 	import { Input } from '$lib/components/ui/input';
 	import { Search } from 'lucide-svelte';
 
+	let apps = $state<Resource[]>([]);
 	let search = $state('');
 	let sort = $state('name');
+	let loading = $state(true);
+
+	$effect(() => {
+		void (async () => {
+			try {
+				apps = await api.getPublicApps();
+			} catch {
+				apps = [];
+			} finally {
+				loading = false;
+			}
+		})();
+	});
+
+	const filtered = $derived(
+		apps
+			.filter((a) => a.name.toLowerCase().includes(search.toLowerCase()))
+			.sort((a, b) => a.name.localeCompare(b.name))
+	);
+
+	const online = $derived(apps.filter((a) => a.enabled).length);
 </script>
 
 <section class="space-y-6">
@@ -14,16 +37,9 @@
 			<p class="text-sm text-muted-foreground">Public service tiles on port 8081.</p>
 		</div>
 		<div class="flex items-center gap-2 text-xs text-muted-foreground">
-			<span>0 / 0 hosts online</span>
-			<span aria-hidden="true">·</span>
-			<span>0 / 0 firewall hosts available</span>
+			<span>{online} / {apps.length} services online</span>
 		</div>
 	</div>
-
-	<ApiPendingBanner
-		message="Waiting for public dashboard API"
-		detail="Cards will populate from /api/public/dashboard when backend publishes resource tile endpoints."
-	/>
 
 	<div class="flex flex-wrap items-center gap-3">
 		<div class="relative min-w-[12rem] flex-1">
@@ -37,20 +53,28 @@
 				class="rounded-md border border-border bg-card px-2 py-1.5 text-xs text-white"
 			>
 				<option value="name">Name</option>
-				<option value="status">Status</option>
-				<option value="group">Group</option>
 			</select>
 		</label>
 	</div>
 
-	<div
-		class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-		aria-label="Service tiles placeholder"
-	>
-		{#each Array(6) as _, index}
-			<div class="rounded-lg border border-dashed border-border bg-card/30 p-4 text-center">
-				<p class="text-xs text-muted-foreground">Tile slot {index + 1}</p>
-			</div>
-		{/each}
-	</div>
+	{#if loading}
+		<p class="text-sm text-muted-foreground">Loading services…</p>
+	{:else if filtered.length === 0}
+		<p class="text-sm text-muted-foreground">No public dashboard tiles configured.</p>
+	{:else}
+		<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+			{#each filtered as app}
+				<a
+					href={app.domain ? `https://${app.domain}` : '#'}
+					class="rounded-lg border border-border bg-card/50 p-4 transition-colors hover:border-hashi-hover/50"
+				>
+					<p class="font-medium text-white">{app.name}</p>
+					<p class="mt-1 truncate font-mono text-xs text-muted-foreground">
+						{app.domain ?? `${app.targetHost}:${app.targetPort}`}
+					</p>
+					<p class="mt-2 text-[11px] text-emerald-300">{app.enabled ? 'online' : 'offline'}</p>
+				</a>
+			{/each}
+		</div>
+	{/if}
 </section>

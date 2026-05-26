@@ -12,17 +12,40 @@
 	let audit = $state<AuditEvent[]>([]);
 	let healthVersion = $state('—');
 	let vaultStatus = $state<VaultStatus | null>(null);
+	let resourceCounts = $state({ total: 0, enabled: 0 });
+	let statusCounts = $state({ up: 0, degraded: 0, down: 0 });
+	let securityBlocked = $state('—');
+	let dnsConnections = $state(0);
+	let pulseAgents = $state(0);
 
 	onMount(async () => {
 		try {
-			const [events, health, vault] = await Promise.all([
-				api.getAuditEvents().catch(() => []),
-				api.getHealth().catch(() => null),
-				api.getVaultStatus().catch(() => null)
-			]);
+			const [events, health, vault, resources, monitors, security, dns, pulse] =
+				await Promise.all([
+					api.getAuditEvents().catch(() => []),
+					api.getHealth().catch(() => null),
+					api.getVaultStatus().catch(() => null),
+					api.listResources().catch(() => []),
+					api.listStatusEndpoints().catch(() => []),
+					api.getSecurityDashboard().catch(() => null),
+					api.listDnsConnections().catch(() => []),
+					api.listPulseAgents().catch(() => [])
+				]);
 			audit = events.slice(0, 5);
 			healthVersion = health?.version ?? '—';
 			vaultStatus = vault;
+			resourceCounts = {
+				total: resources.length,
+				enabled: resources.filter((r) => r.enabled).length
+			};
+			statusCounts = {
+				up: monitors.filter((m) => m.status === 'Up').length,
+				degraded: monitors.filter((m) => m.status === 'Degraded').length,
+				down: monitors.filter((m) => m.status === 'Down').length
+			};
+			securityBlocked = security ? String(security.blocked) : '—';
+			dnsConnections = dns.length;
+			pulseAgents = pulse.length;
 		} catch {
 			// offline dev
 		}
@@ -46,40 +69,41 @@
 		{#each orderedWidgets as widget (widget.id)}
 			<OverviewWidget title={widget.title} description={widget.description}>
 				{#if widget.id === 'resource-health'}
-					<StatusRow label="Healthy" value="0" />
-					<StatusRow label="Degraded" value="0" status="warn" />
-					<StatusRow label="Down" value="0" status="error" />
+					<StatusRow label="Total" value={String(resourceCounts.total)} />
+					<StatusRow label="Enabled" value={String(resourceCounts.enabled)} status="ok" />
+					<StatusRow
+						label="Disabled"
+						value={String(resourceCounts.total - resourceCounts.enabled)}
+						status="neutral"
+					/>
 				{:else if widget.id === 'firewall-hosts'}
-					<StatusRow label="Hosts online" value="0 / 0" />
-					<StatusRow label="Last SSH check" value="—" />
+					<StatusRow label="Pulse agents" value={String(pulseAgents)} />
+					<StatusRow label="Firewall render" value="via /firewall-hosts" />
 				{:else if widget.id === 'traefik-sync'}
-					<StatusRow label="Last sync" value="—" />
-					<StatusRow label="Pending changes" value="0" status="neutral" />
+					<StatusRow label="Config render" value="via /traefik" />
+					<StatusRow label="Pending changes" value="—" status="neutral" />
 				{:else if widget.id === 'dns-sync'}
-					<StatusRow label="Last sync" value="—" />
-					<StatusRow label="Drift records" value="0" />
+					<StatusRow label="Connections" value={String(dnsConnections)} />
+					<StatusRow label="Drift records" value="—" />
 				{:else if widget.id === 'incidents'}
-					<StatusRow label="Open incidents" value="0" status="ok" />
-					<StatusRow label="Last 24h" value="0" />
+					<StatusRow label="Monitors up" value={String(statusCounts.up)} status="ok" />
+					<StatusRow label="Monitors down" value={String(statusCounts.down)} status="error" />
 				{:else if widget.id === 'security-events'}
-					<StatusRow label="Active events" value="0" />
-					<StatusRow label="Blocked IPs (24h)" value="0" />
+					<StatusRow label="Blocked (range)" value={securityBlocked} status="error" />
+					<StatusRow label="Dashboard" value="via /security" />
 				{:else if widget.id === 'pending-sync'}
-					<StatusRow label="Queued plans" value="0" />
-					<StatusRow label="Awaiting approval" value="0" status="warn" />
+					<StatusRow label="Queued plans" value="—" />
+					<StatusRow label="Awaiting approval" value="—" status="warn" />
 				{:else if widget.id === 'cert-expiry'}
-					<StatusRow label="Expiring < 14d" value="0" status="ok" />
-					<StatusRow label="Expiring < 7d" value="0" />
+					<StatusRow label="Expiring < 14d" value="—" status="ok" />
+					<StatusRow label="Expiring < 7d" value="—" />
 				{:else if widget.id === 'vault-lock'}
 					<StatusRow
 						label="Vault"
 						value={vaultStatus?.lockState ?? '—'}
 						status={vaultStatus?.lockState === 'Unlocked' ? 'ok' : 'warn'}
 					/>
-					<StatusRow
-						label="Passkey"
-						value={vaultStatus?.hasPasskey ? 'registered' : 'none'}
-					/>
+					<StatusRow label="Passkey" value={vaultStatus?.hasPasskey ? 'registered' : 'none'} />
 				{:else if widget.id === 'audit'}
 					{#if audit.length === 0}
 						<StatusRow label="Recent entries" value="None yet" />
