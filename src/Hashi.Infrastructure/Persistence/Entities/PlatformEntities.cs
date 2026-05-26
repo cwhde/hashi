@@ -26,6 +26,10 @@ public sealed class ResourceEntity
 
     public bool StatusEnabled { get; set; }
 
+    public string ForwardAuthPolicy { get; set; } = "adaptive";
+
+    public string WafMode { get; set; } = "detect_only";
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 
     public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;

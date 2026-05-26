@@ -1,6 +1,7 @@
 using Hashi.Contracts.Api;
 using Hashi.Core.Firewall;
 using Hashi.Core.Resources;
+using Hashi.Core.Security;
 using Hashi.Core.Traefik;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
@@ -132,11 +133,21 @@ public sealed class TraefikPlatformService(HashiDbContext db, AppSettingsService
         var resources = await db.Resources.AsNoTracking().ToListAsync(cancellationToken);
         var defs = resources.Select(x => new ResourceDefinition(
             x.Id, x.Name, x.Slug, Enum.Parse<ResourceKind>(x.Kind, ignoreCase: true),
-            x.Enabled, x.IsSystem, x.Domain, x.TargetScheme, x.TargetHost, x.TargetPort)).ToList();
+            x.Enabled, x.IsSystem, x.Domain, x.TargetScheme, x.TargetHost, x.TargetPort,
+            ForwardAuthPolicyMapping.Parse(x.ForwardAuthPolicy),
+            ParseWafMode(x.WafMode))).ToList();
         var appSettings = await settings.GetOrCreateAsync(cancellationToken);
-        var options = new TraefikRenderOptions(AdminDomain: appSettings.AdminDomain ?? "hashi.local");
+        var options = new TraefikRenderOptions(
+            AdminDomain: appSettings.AdminDomain ?? "hashi.local");
         return TraefikConfigRenderer.Render(defs, options);
     }
+
+    private static WafMode ParseWafMode(string value) => value.ToLowerInvariant() switch
+    {
+        "off" => WafMode.Off,
+        "on" or "block" => WafMode.On,
+        _ => WafMode.DetectOnly,
+    };
 }
 
 public sealed class FirewallPlatformService
