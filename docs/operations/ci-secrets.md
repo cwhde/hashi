@@ -13,7 +13,7 @@ Hashi workflows live in `.gitea/workflows/`. Gitea Actions secrets are configure
 
 **Feature branch pushes** run **only the CI jobs whose paths changed** (backend, web, pulse-agent). They do **not** run Security scans or Docker image publish on every commit.
 
-Integration tests use Testcontainers when Docker is available; they skip gracefully when the daemon is missing or misconfigured.
+Integration tests use the CI PostgreSQL service when `ConnectionStrings__Hashi` is set (see `ci.yml`). They skip gracefully when the database is unavailable. SSH container tests are skipped in CI unless `HASHI_RUN_SSH_INTEGRATION_TESTS=1`.
 
 **Release images:** push a semver tag (`v1.0.0`) or merge to `main`, or use **Actions → Run workflow**. Main app image: `git.juzo.io/juzo/hashi`. Pulse agent: `git.juzo.io/juzo/hashi-pulse`.
 

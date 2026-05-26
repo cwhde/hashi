@@ -25,17 +25,12 @@ public sealed class EdgeAuthOidcTests : IAsyncLifetime
         }
 
         Environment.SetEnvironmentVariable("HASHI_SKIP_STARTUP_HOOKS", "1");
-        _factory = new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(builder =>
-            {
-                builder.UseSetting("ConnectionStrings:Hashi", _postgres.ConnectionString);
-                builder.UseSetting("Hashi:SkipStartupHooks", "true");
-            });
+        _factory = IntegrationTestApp.CreateFactory(_postgres.ConnectionString);
         _client = _factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = true });
+        await IntegrationTestApp.MigrateAsync(_factory.Services);
 
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<HashiDbContext>();
-        await db.Database.MigrateAsync();
         var vault = scope.ServiceProvider.GetRequiredService<VaultSessionState>();
         vault.Unlock(new byte[32]);
         var secrets = scope.ServiceProvider.GetRequiredService<SecretRecordService>();

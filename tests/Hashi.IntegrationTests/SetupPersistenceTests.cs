@@ -20,12 +20,9 @@ public sealed class SetupPersistenceTests : IAsyncLifetime
             return;
         }
 
-        _factory = new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(builder =>
-            {
-                builder.UseSetting("ConnectionStrings:Hashi", _postgres.ConnectionString);
-            });
+        _factory = IntegrationTestApp.CreateFactory(_postgres.ConnectionString);
         _client = _factory.CreateClient();
+        await IntegrationTestApp.MigrateAsync(_factory.Services);
     }
 
     public async Task DisposeAsync()
@@ -60,11 +57,7 @@ public sealed class SetupPersistenceTests : IAsyncLifetime
         Assert.Contains("bootstrap-access", updated.CompletedSteps);
         Assert.Equal("base-settings", updated.CurrentStep);
 
-        await using var factory2 = new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(builder =>
-            {
-                builder.UseSetting("ConnectionStrings:Hashi", _postgres.ConnectionString);
-            });
+        await using var factory2 = IntegrationTestApp.CreateFactory(_postgres.ConnectionString);
         using var client2 = factory2.CreateClient();
         var resumed = await client2.GetFromJsonAsync<SetupStatusResponse>("/api/setup/status");
         Assert.NotNull(resumed);

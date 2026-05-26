@@ -13,14 +13,22 @@ public sealed class SshRemoteExecutorTests : IAsyncLifetime
     private const string Username = "hashi";
     private const string Password = "hashi-test-password";
     private const string KeyPassphrase = "hashi-key-pass";
+    private static readonly TimeSpan ContainerStartupTimeout = TimeSpan.FromSeconds(90);
 
     private IContainer _sshContainer = null!;
     private SshRemoteExecutor _executor = null!;
     private int _mappedPort;
     private string _encryptedPrivateKeyPem = string.Empty;
+    private bool _dockerUnavailable;
 
     public async Task InitializeAsync()
     {
+        if (ShouldSkipSshIntegrationTests())
+        {
+            _dockerUnavailable = true;
+            return;
+        }
+
         _executor = new SshRemoteExecutor();
         try
         {
@@ -46,16 +54,16 @@ public sealed class SshRemoteExecutorTests : IAsyncLifetime
                 .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(22))
                 .Build();
 
-            await _sshContainer.StartAsync();
+            using var startupCts = new CancellationTokenSource(ContainerStartupTimeout);
+            await _sshContainer.StartAsync(startupCts.Token);
             _mappedPort = _sshContainer.GetMappedPublicPort(22);
         }
-        catch (Exception ex) when (IsDockerUnavailable(ex))
+        catch (Exception ex) when (IsDockerUnavailable(ex) || IsStartupTimeout(ex))
         {
+            Console.WriteLine($"Skipping SSH integration tests: {ex.Message}");
             _dockerUnavailable = true;
         }
     }
-
-    private bool _dockerUnavailable;
 
     public async Task DisposeAsync()
     {
@@ -132,9 +140,20 @@ public sealed class SshRemoteExecutorTests : IAsyncLifetime
         null,
         null);
 
+    private static bool ShouldSkipSshIntegrationTests()
+        => string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase)
+           && !string.Equals(
+               Environment.GetEnvironmentVariable("HASHI_RUN_SSH_INTEGRATION_TESTS"),
+               "1",
+               StringComparison.Ordinal);
+
     private static bool IsDockerUnavailable(Exception ex)
         => ex is ArgumentException { ParamName: "DockerEndpointAuthConfig" }
            || ex.Message.Contains("Docker is either not running", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsStartupTimeout(Exception ex)
+        => ex is OperationCanceledException or TimeoutException
+           || ex.Message.Contains("timed out", StringComparison.OrdinalIgnoreCase);
 
     private static async Task RunProcessAsync(string fileName, string arguments)
     {

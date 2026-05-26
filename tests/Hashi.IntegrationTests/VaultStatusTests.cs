@@ -20,13 +20,9 @@ public sealed class VaultStatusTests : IAsyncLifetime
             return;
         }
 
-        _factory = new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(builder =>
-            {
-                builder.UseSetting("ConnectionStrings:Hashi", _postgres.ConnectionString);
-                builder.UseSetting("Hashi:SkipStartupHooks", "true");
-            });
+        _factory = IntegrationTestApp.CreateFactory(_postgres.ConnectionString);
         _client = _factory.CreateClient();
+        await IntegrationTestApp.MigrateAsync(_factory.Services);
     }
 
     public async Task DisposeAsync()
