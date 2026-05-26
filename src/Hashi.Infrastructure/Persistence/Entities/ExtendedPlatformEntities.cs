@@ -290,6 +290,41 @@ public sealed class AbuseBucketEntity
     public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }
 
+public sealed class SecurityRequestBucketEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public DateTimeOffset BucketStartUtc { get; set; }
+
+    public string ClientIp { get; set; } = string.Empty;
+
+    public string Resource { get; set; } = string.Empty;
+
+    public string TraefikInstance { get; set; } = "default";
+
+    public string? CountryCode { get; set; }
+
+    public string? RegionCode { get; set; }
+
+    public string? Asn { get; set; }
+
+    public int StatusClass { get; set; }
+
+    public string Method { get; set; } = "GET";
+
+    public string PathPrefix { get; set; } = "/";
+
+    public long TotalCount { get; set; }
+
+    public long AllowedCount { get; set; }
+
+    public long BlockedCount { get; set; }
+
+    public long ChallengedCount { get; set; }
+
+    public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+}
+
 public sealed class AccessLogCursorEntity
 {
     public Guid Id { get; set; } = Guid.NewGuid();

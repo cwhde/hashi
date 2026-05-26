@@ -16,6 +16,7 @@ public sealed class SecurityIngestionService(
 {
     public async Task IngestAccessLogAsync(AccessLogIngestRequest request, CancellationToken cancellationToken = default)
     {
+        var bucketStartUtc = TruncateToMinuteUtc(DateTimeOffset.UtcNow);
         var bucket = await db.AbuseBuckets.SingleOrDefaultAsync(x => x.ClientIp == request.ClientIp, cancellationToken);
         if (bucket is null)
         {
@@ -38,6 +39,56 @@ public sealed class SecurityIngestionService(
             "challenge" => "challenged",
             _ => "allowed",
         };
+
+        var statusClass = request.StatusCode is >= 100 and < 600 ? request.StatusCode / 100 : 0;
+        var resource = NormalizeResource(request.Resource, request.Host);
+        var traefikInstance = NormalizeTraefikInstance(request.TraefikInstance);
+        var method = NormalizeMethod(request.Method);
+        var pathPrefix = NormalizePathPrefix(request.PathPrefix, request.Path);
+        var requestBucket = await db.SecurityRequestBuckets.SingleOrDefaultAsync(
+            x => x.BucketStartUtc == bucketStartUtc
+                && x.ClientIp == request.ClientIp
+                && x.Resource == resource
+                && x.TraefikInstance == traefikInstance
+                && x.CountryCode == request.CountryCode
+                && x.RegionCode == request.RegionCode
+                && x.Asn == request.Asn
+                && x.StatusClass == statusClass
+                && x.Method == method
+                && x.PathPrefix == pathPrefix,
+            cancellationToken);
+        if (requestBucket is null)
+        {
+            requestBucket = new SecurityRequestBucketEntity
+            {
+                BucketStartUtc = bucketStartUtc,
+                ClientIp = request.ClientIp,
+                Resource = resource,
+                TraefikInstance = traefikInstance,
+                CountryCode = request.CountryCode,
+                RegionCode = request.RegionCode,
+                Asn = request.Asn,
+                StatusClass = statusClass,
+                Method = method,
+                PathPrefix = pathPrefix,
+            };
+            db.SecurityRequestBuckets.Add(requestBucket);
+        }
+
+        requestBucket.TotalCount++;
+        requestBucket.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        switch (decision)
+        {
+            case "blocked":
+                requestBucket.BlockedCount++;
+                break;
+            case "challenged":
+                requestBucket.ChallengedCount++;
+                break;
+            default:
+                requestBucket.AllowedCount++;
+                break;
+        }
 
         db.AccessLogEvents.Add(new AccessLogEventEntity
         {
@@ -151,30 +202,42 @@ public sealed class SecurityIngestionService(
     {
         var windowHours = Math.Clamp(hours, 1, 168);
         var since = DateTimeOffset.UtcNow.AddHours(-windowHours);
-        var events = await db.AccessLogEvents.AsNoTracking().Where(x => x.ReceivedAtUtc >= since).ToListAsync(cancellationToken);
-        var allowed = events.Count(x => x.Decision == "allowed");
-        var blocked = events.Count(x => x.Decision == "blocked");
-        var challenged = events.Count(x => x.Decision == "challenged");
-        var topIps = events.Where(x => x.Decision == "blocked")
+        var bucketSince = TruncateToMinuteUtc(since);
+        var bucketWindow = db.SecurityRequestBuckets.AsNoTracking()
+            .Where(x => x.BucketStartUtc >= bucketSince);
+        var totals = await bucketWindow
+            .GroupBy(_ => 1)
+            .Select(group => new
+            {
+                Allowed = group.Sum(x => x.AllowedCount),
+                Blocked = group.Sum(x => x.BlockedCount),
+                Challenged = group.Sum(x => x.ChallengedCount),
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+        var allowed = totals?.Allowed ?? 0;
+        var blocked = totals?.Blocked ?? 0;
+        var challenged = totals?.Challenged ?? 0;
+        var topIps = await bucketWindow
+            .Where(x => x.BlockedCount > 0)
             .GroupBy(x => x.ClientIp)
-            .OrderByDescending(x => x.Count())
+            .OrderByDescending(x => x.Sum(y => y.BlockedCount))
             .Take(10)
             .Select(x => x.Key)
-            .ToList();
-        var topCountries = events
+            .ToListAsync(cancellationToken);
+        var topCountries = await bucketWindow
             .Where(x => !string.IsNullOrWhiteSpace(x.CountryCode))
             .GroupBy(x => x.CountryCode!)
-            .OrderByDescending(x => x.Count())
+            .OrderByDescending(x => x.Sum(y => y.TotalCount))
             .Take(10)
-            .Select(x => new SecurityRankItem { Label = x.Key, Count = x.LongCount() })
-            .ToList();
-        var topAsns = events
+            .Select(x => new SecurityRankItem { Label = x.Key, Count = x.Sum(y => y.TotalCount) })
+            .ToListAsync(cancellationToken);
+        var topAsns = await bucketWindow
             .Where(x => !string.IsNullOrWhiteSpace(x.Asn))
             .GroupBy(x => x.Asn!)
-            .OrderByDescending(x => x.Count())
+            .OrderByDescending(x => x.Sum(y => y.TotalCount))
             .Take(10)
-            .Select(x => new SecurityRankItem { Label = x.Key, Count = x.LongCount() })
-            .ToList();
+            .Select(x => new SecurityRankItem { Label = x.Key, Count = x.Sum(y => y.TotalCount) })
+            .ToListAsync(cancellationToken);
         var blocklistCount = await db.BlocklistEntries.AsNoTracking().LongCountAsync(cancellationToken);
         var securityEventCount = await db.SecurityEvents.AsNoTracking()
             .Where(x => x.OccurredAtUtc >= since)
@@ -245,6 +308,41 @@ public sealed class SecurityIngestionService(
             cancellationToken: cancellationToken);
         return new BlocklistSyncResponse(true, pending.Count, appliedHosts, []);
     }
+
+    private static DateTimeOffset TruncateToMinuteUtc(DateTimeOffset value)
+    {
+        var utc = value.ToUniversalTime();
+        return new DateTimeOffset(utc.Year, utc.Month, utc.Day, utc.Hour, utc.Minute, 0, TimeSpan.Zero);
+    }
+
+    private static string NormalizeResource(string? resource, string host)
+        => string.IsNullOrWhiteSpace(resource) ? host : resource.Trim();
+
+    private static string NormalizeTraefikInstance(string? traefikInstance)
+        => string.IsNullOrWhiteSpace(traefikInstance) ? "default" : traefikInstance.Trim();
+
+    private static string NormalizeMethod(string? method)
+        => string.IsNullOrWhiteSpace(method) ? "GET" : method.Trim().ToUpperInvariant();
+
+    private static string NormalizePathPrefix(string? pathPrefix, string path)
+    {
+        if (!string.IsNullOrWhiteSpace(pathPrefix))
+        {
+            return EnsureLeadingSlash(pathPrefix.Trim());
+        }
+
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return "/";
+        }
+
+        var normalizedPath = EnsureLeadingSlash(path.Trim());
+        var slash = normalizedPath.IndexOf('/', 1);
+        return slash < 0 ? normalizedPath : normalizedPath[..slash];
+    }
+
+    private static string EnsureLeadingSlash(string value)
+        => value.StartsWith('/') ? value : "/" + value;
 
     private async Task TrySyncBlocklistToAllFirewallsAsync(CancellationToken cancellationToken)
     {

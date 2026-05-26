@@ -18,11 +18,11 @@ public sealed class SecurityIngestionServiceTests
     public async Task GetDashboardAsync_aggregates_counts_and_rankings()
     {
         await using var db = CreateDb();
-        db.AccessLogEvents.AddRange(
-            Event("1.1.1.1", "allowed", "US", "AS13335"),
-            Event("1.1.1.1", "blocked", "US", "AS13335"),
-            Event("2.2.2.2", "blocked", "DE", "AS24940"),
-            Event("3.3.3.3", "challenged", "US", "AS13335"));
+        var now = DateTimeOffset.UtcNow;
+        db.SecurityRequestBuckets.AddRange(
+            Bucket("1.1.1.1", "app.example.com", "default", "US", "CA", "AS13335", statusClass: 2, "GET", "/", 1, 1, 0, now),
+            Bucket("2.2.2.2", "app.example.com", "default", "DE", "BE", "AS24940", statusClass: 4, "GET", "/", 0, 1, 0, now),
+            Bucket("3.3.3.3", "app.example.com", "default", "US", "CA", "AS13335", statusClass: 2, "GET", "/", 0, 0, 1, now));
         await db.SaveChangesAsync();
 
         var service = CreateService(db);
@@ -40,6 +40,45 @@ public sealed class SecurityIngestionServiceTests
     }
 
     [Fact]
+    public async Task SecurityRequestBuckets_groups_events_by_minute_and_dimensions()
+    {
+        await using var db = CreateDb();
+        var service = CreateService(db);
+
+        for (var i = 0; i < 500; i++)
+        {
+            await service.IngestAccessLogAsync(new AccessLogIngestRequest(
+                "203.0.113.25",
+                "api.example.com",
+                "/v1/users",
+                429,
+                "US",
+                "AS13335",
+                RegionCode: "CA",
+                Method: "GET",
+                PathPrefix: "/v1",
+                TraefikInstance: "traefik-a",
+                Resource: "resource-api"));
+        }
+
+        var buckets = await db.SecurityRequestBuckets.ToListAsync();
+        Assert.Single(buckets);
+        var bucket = buckets[0];
+        Assert.Equal(500, bucket.TotalCount);
+        Assert.Equal(4, bucket.AllowedCount);
+        Assert.Equal(491, bucket.BlockedCount);
+        Assert.Equal(5, bucket.ChallengedCount);
+        Assert.Equal("203.0.113.25", bucket.ClientIp);
+        Assert.Equal("resource-api", bucket.Resource);
+        Assert.Equal("traefik-a", bucket.TraefikInstance);
+        Assert.Equal("US", bucket.CountryCode);
+        Assert.Equal("CA", bucket.RegionCode);
+        Assert.Equal("AS13335", bucket.Asn);
+        Assert.Equal(4, bucket.StatusClass);
+        Assert.Equal("GET", bucket.Method);
+        Assert.Equal("/v1", bucket.PathPrefix);
+    }
+
     public async Task IngestForwardAuthDecisionAsync_records_challenged_event()
     {
         await using var db = CreateDb();
@@ -80,17 +119,37 @@ public sealed class SecurityIngestionServiceTests
         Assert.Single(await db.BlocklistEntries.ToListAsync());
     }
 
-    private static AccessLogEventEntity Event(string ip, string decision, string country, string asn)
+    private static SecurityRequestBucketEntity Bucket(
+        string ip,
+        string resource,
+        string traefikInstance,
+        string country,
+        string region,
+        string asn,
+        int statusClass,
+        string method,
+        string pathPrefix,
+        long allowed,
+        long blocked,
+        long challenged,
+        DateTimeOffset bucketStartUtc)
         => new()
         {
+            BucketStartUtc = bucketStartUtc,
             ClientIp = ip,
-            Host = "app.example.com",
-            Path = "/",
-            StatusCode = decision == "blocked" ? 403 : 200,
+            Resource = resource,
+            TraefikInstance = traefikInstance,
             CountryCode = country,
+            RegionCode = region,
             Asn = asn,
-            Decision = decision,
-            ReceivedAtUtc = DateTimeOffset.UtcNow,
+            StatusClass = statusClass,
+            Method = method,
+            PathPrefix = pathPrefix,
+            TotalCount = allowed + blocked + challenged,
+            AllowedCount = allowed,
+            BlockedCount = blocked,
+            ChallengedCount = challenged,
+            UpdatedAtUtc = bucketStartUtc,
         };
 
     private static HashiDbContext CreateDb()

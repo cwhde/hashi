@@ -68,6 +68,7 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
     public DbSet<AbuseBucketEntity> AbuseBuckets => Set<AbuseBucketEntity>();
 
     public DbSet<AccessLogCursorEntity> AccessLogCursors => Set<AccessLogCursorEntity>();
+    public DbSet<SecurityRequestBucketEntity> SecurityRequestBuckets => Set<SecurityRequestBucketEntity>();
 
     public DbSet<BlocklistEntryEntity> BlocklistEntries => Set<BlocklistEntryEntity>();
 
@@ -359,6 +360,33 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.ToTable("access_log_cursors");
             entity.HasKey(x => x.Id);
             entity.HasIndex(x => x.ConnectionId).IsUnique();
+        modelBuilder.Entity<SecurityRequestBucketEntity>(entity =>
+        {
+            entity.ToTable("security_request_buckets");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ClientIp).HasMaxLength(64);
+            entity.Property(x => x.Resource).HasMaxLength(256);
+            entity.Property(x => x.TraefikInstance).HasMaxLength(128);
+            entity.Property(x => x.CountryCode).HasMaxLength(32);
+            entity.Property(x => x.RegionCode).HasMaxLength(64);
+            entity.Property(x => x.Asn).HasMaxLength(64);
+            entity.Property(x => x.Method).HasMaxLength(16);
+            entity.Property(x => x.PathPrefix).HasMaxLength(256);
+            entity.HasIndex(x => x.BucketStartUtc);
+            entity.HasIndex(x => x.ClientIp);
+            entity.HasIndex(x => new
+            {
+                x.BucketStartUtc,
+                x.ClientIp,
+                x.Resource,
+                x.TraefikInstance,
+                x.CountryCode,
+                x.RegionCode,
+                x.Asn,
+                x.StatusClass,
+                x.Method,
+                x.PathPrefix,
+            }).IsUnique();
         });
 
         modelBuilder.Entity<BlocklistEntryEntity>(entity =>
