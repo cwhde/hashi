@@ -57,6 +57,14 @@ public sealed class SetupStateService(HashiDbContext db, ILogger<SetupStateServi
         state.UpdatedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task MarkHttpsVerifiedAsync(CancellationToken cancellationToken = default)
+    {
+        var state = await GetOrCreateAsync(cancellationToken);
+        state.HttpsDomainVerifiedAtUtc = DateTimeOffset.UtcNow;
+        state.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
+    }
 }
 
 public sealed class AuditService(HashiDbContext db)

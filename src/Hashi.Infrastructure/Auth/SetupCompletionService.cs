@@ -38,6 +38,12 @@ public sealed class SetupCompletionService(
             return SetupCompletionResult.Failed("Unlock the vault to verify recovery before completing setup.");
         }
 
+        if (state.HttpsDomainVerifiedAtUtc is null)
+        {
+            return SetupCompletionResult.Failed(
+                "Verify HTTPS access on the admin domain (POST /api/setup/verify-https) before completing setup.");
+        }
+
         await setupState.MarkCompleteAsync(cancellationToken);
         await setupState.MarkStepCompleteAsync(SetupStep.PasskeyAndVault, cancellationToken);
         await setupState.MarkStepCompleteAsync(SetupStep.Complete, cancellationToken);

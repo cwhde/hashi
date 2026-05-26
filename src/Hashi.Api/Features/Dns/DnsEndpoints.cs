@@ -56,6 +56,16 @@ public static class DnsEndpoints
             return TypedResults.Ok(new DnsProviderValidationResponse(valid, error));
         });
 
+        group.MapPost("/connections/{connectionId:guid}/validate-write", async Task<IResult> (
+            Guid connectionId,
+            DnsWriteValidationRequest request,
+            DnsConnectionService dns,
+            CancellationToken ct) =>
+        {
+            var (valid, error) = await dns.ValidateWriteAsync(connectionId, request.ConfirmDryRun, ct);
+            return TypedResults.Ok(new DnsWriteValidationResponse(valid, error));
+        });
+
         group.MapGet("/connections/{connectionId:guid}/records/provider", async Task<IResult> (
             Guid connectionId,
             DnsConnectionService dns,
@@ -81,7 +91,8 @@ public static class DnsEndpoints
             var decisions = await dns.BuildImportPreviewAsync(connectionId, ct);
             return TypedResults.Ok(decisions.Select(x => new DnsImportDecisionResponse(
                 x.Id, x.ProviderRecordId, x.Name, x.Type, x.Value, x.SelectedForImport)));
-        });
+        })
+            .Produces<IEnumerable<DnsImportDecisionResponse>>(StatusCodes.Status200OK);
 
         group.MapPost("/connections/{connectionId:guid}/import/apply", async Task<IResult> (
             Guid connectionId,

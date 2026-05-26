@@ -20,6 +20,8 @@ public sealed record ResourceDefinition(
     string TargetScheme,
     string TargetHost,
     int TargetPort,
+    string? PathPrefix = null,
+    string? PathRewrite = null,
     ForwardAuthPolicy ForwardAuth = ForwardAuthPolicy.Adaptive,
     Hashi.Core.Security.WafMode WafMode = Hashi.Core.Security.WafMode.DetectOnly);
 

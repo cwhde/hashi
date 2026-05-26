@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { api, ApiRequestError } from '$lib/api/client';
-	import type { ConnectionSummary, DnsRecord } from '$lib/api/types';
+	import type { ConnectionSummary, DnsImportDecision, DnsRecord } from '$lib/api/types';
 	import AdminSectionPage from '$lib/components/layout/AdminSectionPage.svelte';
 	import PanelSection from '$lib/components/layout/PanelSection.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -22,6 +22,10 @@
 	let error = $state<string | null>(null);
 	let message = $state<string | null>(null);
 	let creating = $state(false);
+	let importConnectionId = $state<string | null>(null);
+	let importDecisions = $state<DnsImportDecision[]>([]);
+	let selectedImportIds = $state<Set<string>>(new Set());
+	let importLoading = $state(false);
 	let form = $state({
 		name: 'hetzner-primary',
 		apiToken: '',
@@ -94,6 +98,57 @@
 			message = `Sync plan ready (${JSON.stringify(plan).slice(0, 120)}…)`;
 		} catch (e) {
 			error = e instanceof ApiRequestError ? e.message : 'Sync plan failed';
+		}
+	}
+
+	async function validateWrite(id: string) {
+		try {
+			const result = (await api.validateDnsWrite(id, true)) as { valid?: boolean; error?: string | null };
+			message = result.valid
+				? 'Write validation succeeded (_hashi-test record created and removed).'
+				: (result.error ?? 'Write validation failed.');
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Write validation failed';
+		}
+	}
+
+	async function loadImportPreview(id: string) {
+		importLoading = true;
+		importConnectionId = id;
+		error = null;
+		try {
+			importDecisions = await api.previewDnsImport(id);
+			selectedImportIds = new Set(importDecisions.map((d) => d.id));
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Import preview failed';
+		} finally {
+			importLoading = false;
+		}
+	}
+
+	function toggleImport(id: string, checked: boolean) {
+		const next = new Set(selectedImportIds);
+		if (checked) next.add(id);
+		else next.delete(id);
+		selectedImportIds = next;
+	}
+
+	async function applyImport() {
+		if (!importConnectionId) return;
+		importLoading = true;
+		error = null;
+		try {
+			await api.applyDnsImport(importConnectionId, {
+				selectedDecisionIds: [...selectedImportIds]
+			});
+			message = `Imported ${selectedImportIds.size} DNS records into Hashi.`;
+			importDecisions = [];
+			importConnectionId = null;
+			await load();
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Import apply failed';
+		} finally {
+			importLoading = false;
 		}
 	}
 </script>
@@ -170,6 +225,12 @@
 									<Button variant="outline" size="sm" onclick={() => planSync(conn.id)}>
 										Plan sync
 									</Button>
+									<Button variant="outline" size="sm" onclick={() => validateWrite(conn.id)}>
+										Test write
+									</Button>
+									<Button variant="outline" size="sm" onclick={() => loadImportPreview(conn.id)}>
+										Import
+									</Button>
 								</TableCell>
 							</TableRow>
 						{/each}
@@ -178,6 +239,44 @@
 			</div>
 		{/if}
 	</PanelSection>
+
+	{#if importDecisions.length > 0}
+		<PanelSection title="Import preview" description="Select provider records to manage in Hashi (spec §7.3).">
+			<div class="overflow-hidden rounded-md border border-border">
+				<Table>
+					<TableHeader>
+						<TableRow>
+							<TableHead></TableHead>
+							<TableHead>Name</TableHead>
+							<TableHead>Type</TableHead>
+							<TableHead>Value</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						{#each importDecisions as row (row.id)}
+							<TableRow>
+								<TableCell>
+									<input
+										type="checkbox"
+										checked={selectedImportIds.has(row.id)}
+										onchange={(e) => toggleImport(row.id, (e.currentTarget as HTMLInputElement).checked)}
+									/>
+								</TableCell>
+								<TableCell class="font-mono text-xs">{row.name}</TableCell>
+								<TableCell>{row.type}</TableCell>
+								<TableCell class="max-w-[14rem] truncate font-mono text-xs">{row.value}</TableCell>
+							</TableRow>
+						{/each}
+					</TableBody>
+				</Table>
+			</div>
+			<div class="mt-3">
+				<Button onclick={() => applyImport()} disabled={importLoading || selectedImportIds.size === 0}>
+					{importLoading ? 'Importing…' : `Import ${selectedImportIds.size} records`}
+				</Button>
+			</div>
+		</PanelSection>
+	{/if}
 
 	<PanelSection title="Managed records" description="Hashi-owned DNS record inventory.">
 		{#if records.length === 0}

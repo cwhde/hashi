@@ -322,6 +322,39 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/setup/verify-https": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/setup/bootstrap-allowed": {
         parameters: {
             query?: never;
@@ -1387,6 +1420,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/dns/connections/{connectionId}/validate-write": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    connectionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DnsWriteValidationRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/dns/connections/{connectionId}/records/provider": {
         parameters: {
             query?: never;
@@ -1449,7 +1521,9 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["DnsImportDecisionResponse"][];
+                    };
                 };
             };
         };
@@ -1945,6 +2019,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/traefik/rollback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TraefikApplyRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/traefik/install": {
         parameters: {
             query?: never;
@@ -2028,7 +2139,9 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["FirewallHostResponse"];
+                    };
                 };
             };
         };
@@ -3071,6 +3184,8 @@ export interface components {
             statusEnabled: boolean;
             /** Format: uuid */
             firewallHostId?: null | string;
+            pathPrefix?: null | string;
+            pathRewrite?: null | string;
         };
         CreateScriptRequest: {
             /** Format: uuid */
@@ -3095,6 +3210,15 @@ export interface components {
         DnsImportApplyRequest: {
             selectedDecisionIds: string[];
         };
+        DnsImportDecisionResponse: {
+            /** Format: uuid */
+            id: string;
+            providerRecordId: string;
+            name: string;
+            type: string;
+            value: string;
+            selectedForImport: boolean;
+        };
         DnsProviderValidationRequest: {
             apiToken: string;
         };
@@ -3115,6 +3239,9 @@ export interface components {
             /** Format: uuid */
             connectionId: string;
             confirmDestructive: boolean;
+        };
+        DnsWriteValidationRequest: {
+            confirmDryRun: boolean;
         };
         FirewallApplyRequest: {
             /** Format: uuid */
@@ -3281,6 +3408,8 @@ export interface components {
             statusEnabled: boolean;
             /** Format: uuid */
             firewallHostId: null | string;
+            pathPrefix: null | string;
+            pathRewrite: null | string;
         };
         RunScriptRequest: {
             host?: null | string;
@@ -3347,6 +3476,7 @@ export interface components {
             isComplete: boolean;
             currentStep: string;
             completedSteps: string[];
+            httpsDomainVerified: boolean;
             /** Format: date-time */
             updatedAtUtc: null | string;
         };
@@ -3453,6 +3583,12 @@ export interface components {
             firewallHostId?: null | string;
             /** @default false */
             clearFirewallHostId: boolean;
+            pathPrefix?: null | string;
+            /** @default false */
+            clearPathPrefix: boolean;
+            pathRewrite?: null | string;
+            /** @default false */
+            clearPathRewrite: boolean;
         };
         UpsertAdGuardRewriteRequest: {
             domain: string;

@@ -133,6 +133,16 @@ public sealed class FirewallApplyService(
             $"mkdir -p {Quote(scriptDir)}",
             cancellationToken);
 
+        if (!string.IsNullOrWhiteSpace(host.RollbackScript))
+        {
+            await WriteScriptAsync(
+                settings,
+                request,
+                $"{scriptDir}/hashi-firewall.rollback.sh",
+                host.RollbackScript,
+                cancellationToken);
+        }
+
         var write = await WriteScriptAsync(settings, request, host.ScriptPath, script, cancellationToken);
         if (!write.Succeeded)
         {
@@ -255,7 +265,7 @@ public sealed class FirewallApplyService(
 
     private static string Quote(string value) => $"'{value.Replace("'", "'\\''", StringComparison.Ordinal)}'";
 
-    internal static FirewallHostResponse ToResponse(FirewallHostEntity host)
+    public static FirewallHostResponse ToResponse(FirewallHostEntity host)
     {
         var subnets = JsonSerializer.Deserialize<List<string>>(host.ManagedSubnetsJson) ?? [];
         return new FirewallHostResponse(

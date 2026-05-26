@@ -214,6 +214,18 @@
         }
       }
     },
+    "/api/setup/verify-https": {
+      "post": {
+        "tags": [
+          "Setup"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/setup/bootstrap-allowed": {
       "get": {
         "tags": [
@@ -820,6 +832,39 @@
         }
       }
     },
+    "/api/dns/connections/{connectionId}/validate-write": {
+      "post": {
+        "tags": [
+          "DNS"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DnsWriteValidationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/dns/connections/{connectionId}/records/provider": {
       "get": {
         "tags": [
@@ -871,7 +916,17 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DnsImportDecisionResponse"
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -1243,6 +1298,28 @@
         }
       }
     },
+    "/api/traefik/rollback": {
+      "post": {
+        "tags": [
+          "Traefik"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TraefikApplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/traefik/install": {
       "post": {
         "tags": [
@@ -1302,7 +1379,14 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirewallHostResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -2439,6 +2523,18 @@
               "string"
             ],
             "format": "uuid"
+          },
+          "pathPrefix": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pathRewrite": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -2542,6 +2638,38 @@
           }
         }
       },
+      "DnsImportDecisionResponse": {
+        "required": [
+          "id",
+          "providerRecordId",
+          "name",
+          "type",
+          "value",
+          "selectedForImport"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "providerRecordId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "selectedForImport": {
+            "type": "boolean"
+          }
+        }
+      },
       "DnsProviderValidationRequest": {
         "required": [
           "apiToken"
@@ -2612,6 +2740,17 @@
             "format": "uuid"
           },
           "confirmDestructive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "DnsWriteValidationRequest": {
+        "required": [
+          "confirmDryRun"
+        ],
+        "type": "object",
+        "properties": {
+          "confirmDryRun": {
             "type": "boolean"
           }
         }
@@ -3250,7 +3389,9 @@
           "targetPort",
           "dashboardEnabled",
           "statusEnabled",
-          "firewallHostId"
+          "firewallHostId",
+          "pathPrefix",
+          "pathRewrite"
         ],
         "type": "object",
         "properties": {
@@ -3305,6 +3446,18 @@
               "string"
             ],
             "format": "uuid"
+          },
+          "pathPrefix": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pathRewrite": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -3545,6 +3698,7 @@
           "isComplete",
           "currentStep",
           "completedSteps",
+          "httpsDomainVerified",
           "updatedAtUtc"
         ],
         "type": "object",
@@ -3560,6 +3714,9 @@
             "items": {
               "type": "string"
             }
+          },
+          "httpsDomainVerified": {
+            "type": "boolean"
           },
           "updatedAtUtc": {
             "type": [
@@ -4010,6 +4167,26 @@
             "format": "uuid"
           },
           "clearFirewallHostId": {
+            "type": "boolean",
+            "default": false
+          },
+          "pathPrefix": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clearPathPrefix": {
+            "type": "boolean",
+            "default": false
+          },
+          "pathRewrite": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clearPathRewrite": {
             "type": "boolean",
             "default": false
           }

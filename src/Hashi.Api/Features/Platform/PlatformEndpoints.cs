@@ -81,6 +81,11 @@ public static class TraefikEndpoints
             var result = await sync.ApplyAsync(request, ct);
             return TypedResults.Ok(result);
         });
+        group.MapPost("/rollback", async Task<IResult> (TraefikApplyRequest request, TraefikSyncService sync, CancellationToken ct) =>
+        {
+            var result = await sync.RollbackAsync(request, ct);
+            return TypedResults.Ok(result);
+        });
         group.MapPost("/install", async Task<IResult> (TraefikInstallRequest request, TraefikSyncService sync, CancellationToken ct) =>
         {
             var result = await sync.InstallAsync(request, ct);
@@ -102,8 +107,9 @@ public static class FirewallEndpoints
         group.MapPost("/hosts", async Task<IResult> (CreateFirewallHostRequest request, FirewallApplyService firewall, CancellationToken ct) =>
         {
             var host = await firewall.UpsertHostAsync(request, ct);
-            return TypedResults.Ok(new { host.Id, host.Name });
-        });
+            return TypedResults.Ok(FirewallApplyService.ToResponse(host));
+        })
+            .Produces<FirewallHostResponse>(StatusCodes.Status200OK);
         group.MapPost("/apply", async Task<IResult> (FirewallApplyRequest request, FirewallApplyService firewall, CancellationToken ct) =>
         {
             var result = await firewall.ApplyAsync(request, ct);

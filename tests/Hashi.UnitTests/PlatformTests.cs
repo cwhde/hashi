@@ -29,7 +29,7 @@ public sealed class TraefikConfigRendererTests
         var resources = new List<ResourceDefinition>
         {
             new(Guid.NewGuid(), "App", "app", ResourceKind.Https, true, false, "app.example.com", "http", "10.0.0.2", 8080,
-                ForwardAuthPolicy.Adaptive, WafMode.On),
+                PathPrefix: null, PathRewrite: null, ForwardAuthPolicy.Adaptive, WafMode.On),
         };
         var options = new TraefikRenderOptions(
             AcmeEmail: "admin@example.com",
@@ -50,7 +50,7 @@ public sealed class TraefikConfigRendererTests
         var resources = new List<ResourceDefinition>
         {
             new(Guid.NewGuid(), "Public", "public", ResourceKind.Http, true, false, "public.example.com", "http", "10.0.0.2", 8080,
-                ForwardAuthPolicy.Off, WafMode.Off),
+                PathPrefix: null, PathRewrite: null, ForwardAuthPolicy.Off, WafMode.Off),
         };
         var result = TraefikConfigRenderer.Render(resources);
 
@@ -64,7 +64,7 @@ public sealed class TraefikConfigRendererTests
         var resources = new List<ResourceDefinition>
         {
             new(Guid.NewGuid(), "Secure", "secure", ResourceKind.Https, true, false, "secure.example.com", "http", "10.0.0.2", 8080,
-                ForwardAuthPolicy.SsoRequired, WafMode.DetectOnly),
+                PathPrefix: null, PathRewrite: null, ForwardAuthPolicy.SsoRequired, WafMode.DetectOnly),
         };
         var result = TraefikConfigRenderer.Render(resources);
 

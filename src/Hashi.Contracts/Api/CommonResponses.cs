@@ -6,7 +6,10 @@ public sealed record SetupStatusResponse(
     bool IsComplete,
     string CurrentStep,
     IReadOnlyList<string> CompletedSteps,
+    bool HttpsDomainVerified,
     DateTimeOffset? UpdatedAtUtc);
+
+public sealed record SetupVerifyHttpsResponse(bool Verified, string? Error);
 
 public sealed record AuditEventResponse(
     Guid Id,

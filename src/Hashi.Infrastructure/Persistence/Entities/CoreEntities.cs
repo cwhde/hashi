@@ -35,6 +35,8 @@ public sealed class SetupStateEntity
 
     public string? BootstrapPasswordHash { get; set; }
 
+    public DateTimeOffset? HttpsDomainVerifiedAtUtc { get; set; }
+
     public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }
 

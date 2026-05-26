@@ -29,6 +29,8 @@
 		targetScheme: 'https',
 		targetHost: '',
 		targetPort: 443,
+		pathPrefix: '',
+		pathRewrite: '',
 		firewallHostId: '',
 		dashboardEnabled: false,
 		statusEnabled: true
@@ -73,11 +75,15 @@
 				targetPort: form.targetPort,
 				dashboardEnabled: form.dashboardEnabled,
 				statusEnabled: form.statusEnabled,
-				firewallHostId: form.firewallHostId || null
+				firewallHostId: form.firewallHostId || null,
+				pathPrefix: form.pathPrefix || null,
+				pathRewrite: form.pathRewrite || null
 			});
 			form.name = '';
 			form.domain = '';
 			form.targetHost = '';
+			form.pathPrefix = '';
+			form.pathRewrite = '';
 			form.firewallHostId = '';
 			await load();
 		} catch (e) {
@@ -98,7 +104,9 @@
 				targetPort: null,
 				dashboardEnabled: null,
 				statusEnabled: null,
-				clearFirewallHostId: false
+				clearFirewallHostId: false,
+				clearPathPrefix: false,
+				clearPathRewrite: false
 			});
 			await load();
 		} catch (e) {
@@ -118,7 +126,9 @@
 				dashboardEnabled: null,
 				statusEnabled: null,
 				firewallHostId: firewallHostId || null,
-				clearFirewallHostId: !firewallHostId
+				clearFirewallHostId: !firewallHostId,
+				clearPathPrefix: false,
+				clearPathRewrite: false
 			});
 			await load();
 		} catch (e) {
@@ -151,7 +161,27 @@
 				</div>
 				<div class="grid gap-1.5">
 					<Label for="res-kind">Kind</Label>
-					<Input id="res-kind" bind:value={form.kind} placeholder="http" />
+					<select
+						id="res-kind"
+						class="h-9 rounded-md border border-border bg-background px-3 text-sm text-white"
+						bind:value={form.kind}
+					>
+						<option value="http">HTTP</option>
+						<option value="https">HTTPS</option>
+						<option value="h2c">H2C</option>
+						<option value="tcp">TCP</option>
+						<option value="udp">UDP</option>
+					</select>
+				</div>
+			</div>
+			<div class="grid grid-cols-2 gap-3">
+				<div class="grid gap-1.5">
+					<Label for="res-path-prefix">Path prefix (optional)</Label>
+					<Input id="res-path-prefix" bind:value={form.pathPrefix} placeholder="/api" />
+				</div>
+				<div class="grid gap-1.5">
+					<Label for="res-path-rewrite">Path rewrite target (optional)</Label>
+					<Input id="res-path-rewrite" bind:value={form.pathRewrite} placeholder="/" />
 				</div>
 			</div>
 			<div class="grid gap-1.5">

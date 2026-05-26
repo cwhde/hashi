@@ -29,6 +29,8 @@ public sealed class ResourceService(HashiDbContext db, AuditService audit)
             DashboardEnabled = request.DashboardEnabled,
             StatusEnabled = request.StatusEnabled,
             FirewallHostId = request.FirewallHostId,
+            PathPrefix = request.PathPrefix,
+            PathRewrite = request.PathRewrite,
         };
         db.Resources.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
@@ -98,6 +100,24 @@ public sealed class ResourceService(HashiDbContext db, AuditService audit)
             entity.FirewallHostId = hostId;
         }
 
+        if (request.ClearPathPrefix)
+        {
+            entity.PathPrefix = null;
+        }
+        else if (request.PathPrefix is not null)
+        {
+            entity.PathPrefix = request.PathPrefix;
+        }
+
+        if (request.ClearPathRewrite)
+        {
+            entity.PathRewrite = null;
+        }
+        else if (request.PathRewrite is not null)
+        {
+            entity.PathRewrite = request.PathRewrite;
+        }
+
         entity.UpdatedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
         return entity;
@@ -134,7 +154,9 @@ public sealed class ResourceService(HashiDbContext db, AuditService audit)
         entity.TargetPort,
         entity.DashboardEnabled,
         entity.StatusEnabled,
-        entity.FirewallHostId);
+        entity.FirewallHostId,
+        entity.PathPrefix,
+        entity.PathRewrite);
 }
 
 public sealed class TraefikPlatformService(HashiDbContext db, AppSettingsService settings)
@@ -145,6 +167,7 @@ public sealed class TraefikPlatformService(HashiDbContext db, AppSettingsService
         var defs = resources.Select(x => new ResourceDefinition(
             x.Id, x.Name, x.Slug, Enum.Parse<ResourceKind>(x.Kind, ignoreCase: true),
             x.Enabled, x.IsSystem, x.Domain, x.TargetScheme, x.TargetHost, x.TargetPort,
+            x.PathPrefix, x.PathRewrite,
             ForwardAuthPolicyMapping.Parse(x.ForwardAuthPolicy),
             ParseWafMode(x.WafMode))).ToList();
         var appSettings = await settings.GetOrCreateAsync(cancellationToken);

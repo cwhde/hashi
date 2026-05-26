@@ -1,8 +1,11 @@
 using Hashi.Contracts.Api;
 using Hashi.Core.Setup;
+using Hashi.Infrastructure.Auth;
+using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.EntityFrameworkCore;
 
 namespace Hashi.Api.Features.Setup;
 
@@ -15,6 +18,8 @@ public static class SetupAdvanceEndpoints
         group.MapPost("/steps/{stepSlug}/complete", async Task<IResult> (
             string stepSlug,
             SetupStateService setup,
+            VaultSessionState vaultSession,
+            HashiDbContext db,
             AuditService audit,
             CancellationToken ct) =>
         {
@@ -24,10 +29,27 @@ public static class SetupAdvanceEndpoints
                 return TypedResults.BadRequest(new { error = $"Unknown setup step: {stepSlug}" });
             }
 
-            if (parsed is SetupStep.Complete or SetupStep.PasskeyAndVault)
+            if (parsed is SetupStep.Complete)
             {
                 return TypedResults.BadRequest(new ApiErrorResponse(
-                    "Passkey and vault setup must finish through /api/setup/complete after a successful vault unlock."));
+                    "Final setup completion must use POST /api/setup/complete."));
+            }
+
+            if (parsed is SetupStep.PasskeyAndVault)
+            {
+                var passkeyCount = await db.PasskeyCredentials.CountAsync(ct);
+                if (passkeyCount == 0)
+                {
+                    return TypedResults.BadRequest(new ApiErrorResponse("Register a passkey before advancing."));
+                }
+
+                var vaultConfigured = await db.VaultWrappedKeys.AnyAsync(
+                    x => x.WrapMethod == Hashi.Infrastructure.Persistence.Entities.VaultWrapMethodNames.RecoveryKey,
+                    ct);
+                if (!vaultConfigured || !vaultSession.IsUnlocked)
+                {
+                    return TypedResults.BadRequest(new ApiErrorResponse("Configure and unlock the vault before advancing."));
+                }
             }
 
             await setup.MarkStepCompleteAsync(parsed, ct);
@@ -39,6 +61,7 @@ public static class SetupAdvanceEndpoints
                 state.IsComplete,
                 state.CurrentStep,
                 completed,
+                state.HttpsDomainVerifiedAtUtc is not null,
                 state.UpdatedAtUtc));
         });
 

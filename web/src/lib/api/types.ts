@@ -21,6 +21,8 @@ export type CreateHetznerDnsConnectionRequest = Schemas['CreateHetznerDnsConnect
 export type DnsProviderValidationRequest = Schemas['DnsProviderValidationRequest'];
 export type DnsRecord = Schemas['DnsRecordResponse'];
 export type DnsImportApplyRequest = Schemas['DnsImportApplyRequest'];
+export type DnsImportDecision = Schemas['DnsImportDecisionResponse'];
+export type DnsWriteValidationRequest = Schemas['DnsWriteValidationRequest'];
 export type DnsSyncApplyRequest = Schemas['DnsSyncApplyRequest'];
 
 export type CreateSshConnectionRequest = Schemas['CreateSshConnectionRequest'];
@@ -31,7 +33,9 @@ export type CreateResourceRequest = Schemas['CreateResourceRequest'];
 export type UpdateResourceRequest = Schemas['UpdateResourceRequest'];
 
 export type TraefikRenderResponse = Schemas['TraefikRenderResponse'];
+export type TraefikApplyRequest = Schemas['TraefikApplyRequest'];
 export type FirewallRenderRequest = Schemas['FirewallRenderRequest'];
+export type CreateFirewallHostRequest = Schemas['CreateFirewallHostRequest'];
 export type FirewallRenderResponse = Schemas['FirewallRenderResponse'];
 export type FirewallHost = Schemas['FirewallHostResponse'];
 

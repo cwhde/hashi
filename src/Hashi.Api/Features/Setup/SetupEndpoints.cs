@@ -1,4 +1,5 @@
 using Hashi.Contracts.Api;
+using Hashi.Core.Setup;
 using Hashi.Infrastructure.Bootstrap;
 using Hashi.Infrastructure.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -19,7 +20,41 @@ public static class SetupEndpoints
                 state.IsComplete,
                 state.CurrentStep,
                 completed,
+                state.HttpsDomainVerifiedAtUtc is not null,
                 state.UpdatedAtUtc));
+        });
+
+        group.MapPost("/verify-https", async Task<IResult> (
+            HttpContext httpContext,
+            AppSettingsService settings,
+            SetupStateService setup,
+            AuditService audit,
+            CancellationToken ct) =>
+        {
+            var appSettings = await settings.GetOrCreateAsync(ct);
+            if (string.IsNullOrWhiteSpace(appSettings.AdminDomain))
+            {
+                return TypedResults.BadRequest(new SetupVerifyHttpsResponse(false, "Configure admin domain in base settings first."));
+            }
+
+            var host = httpContext.Request.Host.Host;
+            if (!HostMatchesAdminDomain(host, appSettings.AdminDomain))
+            {
+                return TypedResults.BadRequest(new SetupVerifyHttpsResponse(
+                    false,
+                    $"Request host '{host}' does not match admin domain '{appSettings.AdminDomain}'."));
+            }
+
+            if (!IsHttpsRequest(httpContext))
+            {
+                return TypedResults.BadRequest(new SetupVerifyHttpsResponse(
+                    false,
+                    "Open Hashi over HTTPS on the admin domain before verifying."));
+            }
+
+            await setup.MarkHttpsVerifiedAsync(ct);
+            await audit.WriteAsync("setup", "https_domain_verified", subjectType: "setup", cancellationToken: ct);
+            return TypedResults.Ok(new SetupVerifyHttpsResponse(true, null));
         });
 
         group.MapGet("/bootstrap-allowed", (HttpContext httpContext) =>
@@ -31,6 +66,27 @@ public static class SetupEndpoints
         });
 
         return app;
+    }
+
+    private static bool IsHttpsRequest(HttpContext httpContext)
+    {
+        if (httpContext.Request.IsHttps)
+        {
+            return true;
+        }
+
+        var forwarded = httpContext.Request.Headers["X-Forwarded-Proto"].FirstOrDefault();
+        return string.Equals(forwarded, "https", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool HostMatchesAdminDomain(string host, string adminDomain)
+    {
+        if (string.Equals(host, adminDomain, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return host.EndsWith("." + adminDomain, StringComparison.OrdinalIgnoreCase);
     }
 }
 

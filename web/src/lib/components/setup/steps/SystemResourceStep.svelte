@@ -44,6 +44,24 @@
 			busy = false;
 		}
 	}
+
+	async function verifyHttps() {
+		busy = true;
+		error = null;
+		message = null;
+		try {
+			const result = await api.verifySetupHttps();
+			if (result.verified) {
+				message = 'HTTPS admin domain verified. Continue to passkey setup.';
+			} else {
+				error = result.error ?? 'HTTPS verification failed. Open Hashi on the admin HTTPS URL first.';
+			}
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'HTTPS verification failed';
+		} finally {
+			busy = false;
+		}
+	}
 </script>
 
 <Alert>
@@ -64,8 +82,11 @@
 	<pre class="mt-2 max-h-48 overflow-auto rounded-md border border-border bg-hashi-bg-dark p-3 font-mono text-[11px]">{preview}</pre>
 {/if}
 
-<div class="mt-4 flex gap-2">
+<div class="mt-4 flex flex-wrap gap-2">
 	<Button variant="outline" onclick={() => plan()} disabled={busy || advancing}>Preview sync plan</Button>
+	<Button variant="outline" onclick={() => verifyHttps()} disabled={busy || advancing}>
+		Verify HTTPS access
+	</Button>
 	<Button onclick={() => syncAndContinue()} disabled={busy || advancing}>
 		{busy ? 'Syncing…' : 'Sync and continue'}
 	</Button>

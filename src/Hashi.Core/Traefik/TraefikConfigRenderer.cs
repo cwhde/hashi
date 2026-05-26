@@ -167,6 +167,18 @@ public static class TraefikConfigRenderer
             return "http:\n  routers: {}\n  services: {}\n";
         }
 
+        var stripMiddlewares = resources
+            .Where(r => !string.IsNullOrWhiteSpace(r.PathRewrite))
+            .Select(r =>
+                $$"""
+                      {{r.Slug}}-strip:
+                        replacePath:
+                          path: "{{r.PathRewrite}}"
+                    """);
+        var middlewareBlock = stripMiddlewares.Any()
+            ? "  middlewares:\n" + string.Join('\n', stripMiddlewares) + "\n"
+            : string.Empty;
+
         var routers = string.Join('\n', resources.Select(RenderHttpRouter));
 
         var services = string.Join('\n', resources.Select(r =>
@@ -177,21 +189,29 @@ public static class TraefikConfigRenderer
                         - url: "{{r.TargetScheme}}://{{r.TargetHost}}:{{r.TargetPort}}"
                 """));
 
-        return $"http:\n  routers:\n{routers}\n  services:\n{services}\n";
+        return $"http:\n{middlewareBlock}  routers:\n{routers}\n  services:\n{services}\n";
     }
 
     private static string RenderHttpRouter(ResourceDefinition resource)
     {
         var middlewares = BuildResourceMiddlewares(resource);
+        var rule = string.IsNullOrWhiteSpace(resource.PathPrefix)
+            ? $"Host(`{resource.Domain}`)"
+            : $"Host(`{resource.Domain}`) && PathPrefix(`{resource.PathPrefix}`)";
         var lines = new List<string>
         {
             $"    {resource.Slug}:",
-            $"      rule: Host(`{resource.Domain}`)",
+            $"      rule: {rule}",
             "      entryPoints:",
             "        - websecure",
             "      middlewares:",
         };
         lines.AddRange(middlewares.Select(m => $"        - {m}"));
+        if (!string.IsNullOrWhiteSpace(resource.PathRewrite))
+        {
+            lines.Add($"        - {resource.Slug}-strip");
+        }
+
         lines.Add($"      service: {resource.Slug}");
         if (resource.Kind == ResourceKind.Https)
         {

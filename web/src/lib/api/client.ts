@@ -101,6 +101,13 @@ export const api = {
 		await postUndocumented('/api/setup/steps/{stepSlug}/complete', { params: { path: { stepSlug } } });
 		return api.getSetupStatus();
 	},
+	verifySetupHttps: async () => {
+		const body = await postUndocumented('/api/setup/verify-https');
+		return {
+			verified: body.verified === true,
+			error: typeof body.error === 'string' ? body.error : null
+		};
+	},
 	planSystemResourceSync: async () => {
 		const body = await postUndocumented('/api/setup/system-resource/plan');
 		return body as import('./types.js').SystemResourceSyncResult;
@@ -212,14 +219,23 @@ export const api = {
 		postUndocumented('/api/dns/connections/hetzner', { body }),
 	validateDnsConnection: (connectionId: string) =>
 		postUndocumented('/api/dns/connections/{connectionId}/validate', { params: { path: { connectionId } } }),
+	validateDnsWrite: (connectionId: string, confirmDryRun: boolean) =>
+		postUndocumented('/api/dns/connections/{connectionId}/validate-write', {
+			params: { path: { connectionId } },
+			body: { confirmDryRun }
+		}),
 	listProviderDnsRecords: async (connectionId: string) => {
 		const r = await client.GET('/api/dns/connections/{connectionId}/records/provider', {
 			params: { path: { connectionId } }
 		});
 		return expectData(r.response, r.error, r.data ?? []);
 	},
-	previewDnsImport: (connectionId: string) =>
-		postUndocumented('/api/dns/connections/{connectionId}/import/preview', { params: { path: { connectionId } } }),
+	previewDnsImport: async (connectionId: string) => {
+		const r = await client.POST('/api/dns/connections/{connectionId}/import/preview', {
+			params: { path: { connectionId } }
+		});
+		return expectData(r.response, r.error, r.data ?? []);
+	},
 	applyDnsImport: (connectionId: string, body: import('./types.js').DnsImportApplyRequest) =>
 		postUndocumented('/api/dns/connections/{connectionId}/import/apply', {
 			params: { path: { connectionId } },
@@ -276,6 +292,14 @@ export const api = {
 		const r = await client.GET('/api/firewall/hosts');
 		return expectData(r.response, r.error, r.data ?? []);
 	},
+	createFirewallHost: async (body: import('./types.js').CreateFirewallHostRequest) => {
+		const r = await client.POST('/api/firewall/hosts', { body });
+		return expectData(r.response, r.error, r.data);
+	},
+	applyTraefik: (body: import('./types.js').TraefikApplyRequest) =>
+		postUndocumented('/api/traefik/apply', { body }),
+	rollbackTraefik: (body: import('./types.js').TraefikApplyRequest) =>
+		postUndocumented('/api/traefik/rollback', { body }),
 
 	listStatusEndpoints: async () => {
 		const r = await client.GET('/api/status/endpoints');

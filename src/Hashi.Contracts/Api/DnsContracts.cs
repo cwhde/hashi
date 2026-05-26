@@ -1,5 +1,9 @@
 namespace Hashi.Contracts.Api;
 
+public sealed record DnsWriteValidationRequest(bool ConfirmDryRun);
+
+public sealed record DnsWriteValidationResponse(bool Valid, string? Error);
+
 public sealed record DnsProviderValidationRequest(string ApiToken);
 
 public sealed record DnsProviderValidationResponse(bool Valid, string? Error);

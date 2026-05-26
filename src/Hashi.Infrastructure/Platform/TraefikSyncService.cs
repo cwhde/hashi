@@ -136,6 +136,29 @@ public sealed class TraefikSyncService(
         return new TraefikInstallResponse(result.Succeeded, result.Error);
     }
 
+    public async Task<TraefikApplyResponse> RollbackAsync(TraefikApplyRequest request, CancellationToken cancellationToken = default)
+    {
+        var state = await db.TraefikHostStates.SingleOrDefaultAsync(x => x.ConnectionId == request.ConnectionId, cancellationToken);
+        if (state is null || string.IsNullOrWhiteSpace(state.LastBackupStaticYaml))
+        {
+            return new TraefikApplyResponse(false, state?.LastAppliedContentHash ?? string.Empty, false, "No Traefik backup available to restore.");
+        }
+
+        var settings = BuildSettings(request);
+        var backupBytes = System.Text.Encoding.UTF8.GetBytes(state.LastBackupStaticYaml);
+        var write = await WriteAsync(settings, request, state.StaticConfigPath, backupBytes, cancellationToken);
+        if (!write.Succeeded)
+        {
+            return new TraefikApplyResponse(false, state.LastAppliedContentHash ?? string.Empty, false, write.Error);
+        }
+
+        state.LastAppliedContentHash = null;
+        state.LastAppliedAtUtc = null;
+        await db.SaveChangesAsync(cancellationToken);
+        await audit.WriteAsync("traefik", "config_rollback", subjectType: "connection", subjectId: request.ConnectionId.ToString(), cancellationToken: cancellationToken);
+        return new TraefikApplyResponse(true, state.LastAppliedContentHash ?? string.Empty, false, "Static Traefik config restored from backup.");
+    }
+
     private async Task<Hashi.Core.Connections.RemoteWriteResult> WriteAsync(
         Hashi.Core.Connections.SshConnectionSettings settings,
         TraefikApplyRequest request,

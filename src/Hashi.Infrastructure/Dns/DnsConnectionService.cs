@@ -80,6 +80,47 @@ public sealed class DnsConnectionService(
         }
     }
 
+    public async Task<(bool Valid, string? Error)> ValidateWriteAsync(
+        Guid connectionId,
+        bool confirmDryRun,
+        CancellationToken cancellationToken = default)
+    {
+        if (!confirmDryRun)
+        {
+            return (false, "Confirm dry-run write validation before creating a _hashi-test record.");
+        }
+
+        var connection = await GetDnsConnectionAsync(connectionId, cancellationToken);
+        var zone = await GetZoneAsync(connection.Id, cancellationToken);
+        var provider = await CreateProviderAsync(connection, cancellationToken);
+        var testName = "_hashi-test." + zone.Name.TrimEnd('.');
+        try
+        {
+            var created = await provider.CreateRecordAsync(
+                zone.ProviderZoneId,
+                testName,
+                DnsRecordType.Txt,
+                "hashi-write-validation",
+                60,
+                cancellationToken);
+            await provider.DeleteRecordAsync(created.ProviderRecordId, cancellationToken);
+            connection.HealthState = ConnectionHealthStateNames.Healthy;
+            connection.LastValidationMessage = "Write validation succeeded.";
+            connection.LastValidatedAtUtc = DateTimeOffset.UtcNow;
+            await db.SaveChangesAsync(cancellationToken);
+            await audit.WriteAsync("dns", "write_validation_succeeded", subjectType: "connection", subjectId: connection.Id.ToString(), cancellationToken: cancellationToken);
+            return (true, null);
+        }
+        catch (Exception ex)
+        {
+            connection.HealthState = ConnectionHealthStateNames.Failed;
+            connection.LastValidationMessage = ex.Message;
+            connection.LastValidatedAtUtc = DateTimeOffset.UtcNow;
+            await db.SaveChangesAsync(cancellationToken);
+            return (false, ex.Message);
+        }
+    }
+
     public async Task<IReadOnlyList<DnsRecordSnapshot>> ListProviderRecordsAsync(
         Guid connectionId,
         CancellationToken cancellationToken = default)

@@ -32,6 +32,10 @@ public sealed class ResourceEntity
 
     public Guid? FirewallHostId { get; set; }
 
+    public string? PathPrefix { get; set; }
+
+    public string? PathRewrite { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 
     public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
