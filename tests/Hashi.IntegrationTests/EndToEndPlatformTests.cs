@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using Hashi.Contracts.Api;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -21,13 +23,21 @@ public sealed class EndToEndPlatformTests : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
+        Environment.SetEnvironmentVariable("HASHI_SKIP_STARTUP_HOOKS", "1");
         await _postgres.StartAsync();
         _factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
                 builder.UseSetting("ConnectionStrings:Hashi", _postgres.GetConnectionString());
+                builder.UseSetting("Hashi:SkipStartupHooks", "true");
             });
-        _client = _factory.CreateClient();
+        _client = _factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = true });
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<Hashi.Infrastructure.Persistence.HashiDbContext>();
+        await db.Database.MigrateAsync();
+        await IntegrationTestAuth.EnsureBootstrapCredentialsAsync(_factory.Services);
+        await IntegrationTestAuth.AuthenticateAsBootstrapAsync(_client);
     }
 
     public async Task DisposeAsync()
@@ -44,8 +54,18 @@ public sealed class EndToEndPlatformTests : IAsyncLifetime
         Assert.NotNull(setup);
         Assert.False(setup.IsComplete);
 
-        var resource = await _client.PostAsJsonAsync("/api/resources", new CreateResourceRequest(
-            "Test App", "https", "app.example.com", "http", "127.0.0.1", 8080, true, true));
+        var csrf = await _client.GetFromJsonAsync<CsrfToken>("/api/auth/csrf");
+        var create = new HttpRequestMessage(HttpMethod.Post, "/api/resources")
+        {
+            Content = JsonContent.Create(new CreateResourceRequest(
+                "Test App", "https", "app.example.com", "http", "127.0.0.1", 8080, true, true)),
+        };
+        if (!string.IsNullOrEmpty(csrf?.Token))
+        {
+            create.Headers.Add("X-CSRF-TOKEN", csrf.Token);
+        }
+
+        var resource = await _client.SendAsync(create);
         Assert.Equal(HttpStatusCode.OK, resource.StatusCode);
         var created = await resource.Content.ReadFromJsonAsync<ResourceResponse>();
         Assert.NotNull(created);
@@ -63,4 +83,20 @@ public sealed class EndToEndPlatformTests : IAsyncLifetime
         Assert.NotNull(dashboard);
         Assert.True(dashboard.Allowed >= 0);
     }
+
+    [Fact]
+    public async Task Sync_plan_endpoint_returns_preview()
+    {
+        var csrf = await _client.GetFromJsonAsync<CsrfToken>("/api/auth/csrf");
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/sync/plan");
+        if (!string.IsNullOrEmpty(csrf?.Token))
+        {
+            request.Headers.Add("X-CSRF-TOKEN", csrf.Token);
+        }
+
+        var response = await _client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    private sealed record CsrfToken(string? Token);
 }

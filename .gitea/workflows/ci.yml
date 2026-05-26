@@ -44,10 +44,14 @@ jobs:
           dotnet-version: '10.0.x'
 
       - name: Restore, format, test, build
+        env:
+          ConnectionStrings__Hashi: Host=localhost;Port=5432;Database=hashi;Username=hashi;Password=hashi
+          HASHI_SKIP_STARTUP_HOOKS: '1'
         run: |
           dotnet restore Hashi.slnx
           dotnet format Hashi.slnx --verify-no-changes
           dotnet test tests/Hashi.UnitTests/Hashi.UnitTests.csproj --no-restore --verbosity normal
+          dotnet test tests/Hashi.IntegrationTests/Hashi.IntegrationTests.csproj --no-restore --verbosity normal
           dotnet build src/Hashi.Api/Hashi.Api.csproj -c Release --no-restore /p:SkipFrontendBuild=true
 
   openapi-verify:
