@@ -156,8 +156,8 @@ public static class DnsEndpoints
                 return TypedResults.BadRequest(new ApiErrorResponse("Plan is stale. Re-run sync/plan."));
             }
 
-            await dns.ApplyPlanAsync(plan, request.ConfirmDestructive, ct);
-            return TypedResults.Ok(new { applied = true });
+            var syncRunId = await dns.ApplyPlanWithSyncRunAsync(plan, request.ConfirmDestructive, ct);
+            return TypedResults.Ok(new { applied = true, syncRunId });
         });
 
         group.MapGet("/records", async (HashiDbContext db, CancellationToken ct) =>
