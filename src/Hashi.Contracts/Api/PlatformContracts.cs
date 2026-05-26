@@ -94,7 +94,8 @@ public sealed record CreateFirewallHostRequest(
     string Domain,
     IReadOnlyList<string> ManagedSubnets,
     string LinkedTraefikHost,
-    string InternalTraefikIp);
+    string InternalTraefikIp,
+    string? PublicIp = null);
 
 public sealed record MonitorRollupResponse(
     Guid MonitorEndpointId,

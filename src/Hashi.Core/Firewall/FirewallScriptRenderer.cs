@@ -115,6 +115,11 @@ public static class FirewallScriptRenderer
               netfilter-persistent save || true
             fi
 
+            # Boot/cron persistence stub — spec §14.3
+            cat > /etc/cron.d/hashi-firewall <<'CRON'
+            */5 * * * * root /opt/hashi/firewall/hashi-firewall.sh >/dev/null 2>&1
+            CRON
+
             echo "[hashi-firewall] Applied for {{host.Name}}."
             """;
     }

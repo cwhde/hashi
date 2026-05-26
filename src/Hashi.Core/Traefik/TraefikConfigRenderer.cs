@@ -82,20 +82,7 @@ public static class TraefikConfigRenderer
 
         var acme = string.IsNullOrWhiteSpace(options.AcmeEmail)
             ? string.Empty
-            : $$"""
-                certificatesResolvers:
-                  gts:
-                    acme:
-                      email: {{options.AcmeEmail}}
-                      storage: /var/lib/hashi/traefik/acme.json
-                      caServer: https://dv.acme-v02.api.pki.goog/directory
-                      dnsChallenge:
-                        provider: hetzner
-                        delayBeforeCheck: {{options.DnsChallengeDelaySeconds}}s
-                        resolvers:
-                          - "1.1.1.1:53"
-                          - "8.8.8.8:53"
-                """;
+            : RenderAcmeBlock(options);
 
         return $$"""
             entryPoints:
@@ -155,6 +142,18 @@ public static class TraefikConfigRenderer
                 trustForwardHeader: true
                 authResponseHeaders:
                   - X-Hashi-User
+            hashi-forward-auth-strict:
+              forwardAuth:
+                address: "{{options.HashiForwardAuthUrl}}?mode=strict"
+                trustForwardHeader: true
+                authResponseHeaders:
+                  - X-Hashi-User
+            hashi-forward-auth-observe:
+              forwardAuth:
+                address: "{{options.HashiForwardAuthUrl}}?mode=observe"
+                trustForwardHeader: true
+                authResponseHeaders:
+                  - X-Hashi-User
             hashi-rate-limit:
               rateLimit:
                 average: 100
@@ -168,25 +167,7 @@ public static class TraefikConfigRenderer
             return "http:\n  routers: {}\n  services: {}\n";
         }
 
-        var routers = string.Join('\n', resources.Select(r =>
-        {
-            var middlewares = $"hashi-redirect-https, hashi-security-headers, hashi-compress, {r.Slug}-waf, hashi-forward-auth, hashi-rate-limit";
-            var tls = r.Kind == ResourceKind.Https ? "\n    tls:\n      certResolver: gts" : string.Empty;
-            return $$"""
-                  {{r.Slug}}:
-                    rule: Host(`{{r.Domain}}`)
-                    entryPoints:
-                      - websecure
-                    middlewares:
-                      - hashi-redirect-https
-                      - hashi-security-headers
-                      - hashi-compress
-                      - {{r.Slug}}-waf
-                      - hashi-forward-auth
-                      - hashi-rate-limit
-                    service: {{r.Slug}}{{tls}}
-                """;
-        }));
+        var routers = string.Join('\n', resources.Select(RenderHttpRouter));
 
         var services = string.Join('\n', resources.Select(r =>
             $$"""
@@ -197,6 +178,28 @@ public static class TraefikConfigRenderer
                 """));
 
         return $"http:\n  routers:\n{routers}\n  services:\n{services}\n";
+    }
+
+    private static string RenderHttpRouter(ResourceDefinition resource)
+    {
+        var middlewares = BuildResourceMiddlewares(resource);
+        var lines = new List<string>
+        {
+            $"    {resource.Slug}:",
+            $"      rule: Host(`{resource.Domain}`)",
+            "      entryPoints:",
+            "        - websecure",
+            "      middlewares:",
+        };
+        lines.AddRange(middlewares.Select(m => $"        - {m}"));
+        lines.Add($"      service: {resource.Slug}");
+        if (resource.Kind == ResourceKind.Https)
+        {
+            lines.Add("      tls:");
+            lines.Add("        certResolver: gts");
+        }
+
+        return string.Join('\n', lines);
     }
 
     private static string RenderStreamResources(IReadOnlyList<ResourceDefinition> resources)
@@ -238,9 +241,65 @@ public static class TraefikConfigRenderer
 
     private static string RenderSecurity(IReadOnlyList<ResourceDefinition> resources)
     {
-        var wafBlocks = string.Join('\n', resources.Select(r =>
-            WafMiddlewareRenderer.RenderCorazaMiddleware(r.Slug, WafMode.DetectOnly).TrimEnd()));
-        return wafBlocks + "\n";
+        var wafBlocks = string.Join('\n', resources
+            .Where(r => r.WafMode != WafMode.Off)
+            .Select(r => WafMiddlewareRenderer.RenderCorazaMiddleware(r.Slug, r.WafMode).TrimEnd()));
+        return string.IsNullOrEmpty(wafBlocks) ? "http:\n  middlewares: {}\n" : wafBlocks + "\n";
+    }
+
+    private static IReadOnlyList<string> BuildResourceMiddlewares(ResourceDefinition resource)
+    {
+        var chain = new List<string>
+        {
+            "hashi-redirect-https",
+            "hashi-security-headers",
+            "hashi-compress",
+        };
+
+        if (resource.WafMode != WafMode.Off)
+        {
+            chain.Add($"{resource.Slug}-waf");
+        }
+
+        if (resource.ForwardAuth != ForwardAuthPolicy.Off)
+        {
+            chain.Add(resource.ForwardAuth switch
+            {
+                ForwardAuthPolicy.SsoRequired => "hashi-forward-auth-strict",
+                ForwardAuthPolicy.Observe => "hashi-forward-auth-observe",
+                _ => "hashi-forward-auth",
+            });
+        }
+
+        chain.Add("hashi-rate-limit");
+        return chain;
+    }
+
+    private static string RenderAcmeBlock(TraefikRenderOptions options)
+    {
+        var eabBlock = string.IsNullOrWhiteSpace(options.AcmeEabKeyId) || string.IsNullOrWhiteSpace(options.AcmeEabHmac)
+            ? string.Empty
+            : $$"""
+
+                      externalAccountBinding:
+                        keyID: {{options.AcmeEabKeyId}}
+                        hmacEncoded: {{options.AcmeEabHmac}}
+                """;
+
+        return $$"""
+            certificatesResolvers:
+              gts:
+                acme:
+                  email: {{options.AcmeEmail}}
+                  storage: /var/lib/hashi/traefik/acme.json
+                  caServer: https://dv.acme-v02.api.pki.goog/directory
+                  dnsChallenge:
+                    provider: hetzner
+                    delayBeforeCheck: {{options.DnsChallengeDelaySeconds}}s
+                    resolvers:
+                      - "1.1.1.1:53"
+                      - "8.8.8.8:53"{{eabBlock}}
+            """;
     }
 
     private static string RenderHealth(TraefikRenderOptions options) => $$"""

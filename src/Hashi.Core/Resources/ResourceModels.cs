@@ -19,7 +19,9 @@ public sealed record ResourceDefinition(
     string? Domain,
     string TargetScheme,
     string TargetHost,
-    int TargetPort);
+    int TargetPort,
+    ForwardAuthPolicy ForwardAuth = ForwardAuthPolicy.Adaptive,
+    Hashi.Core.Security.WafMode WafMode = Hashi.Core.Security.WafMode.DetectOnly);
 
 public static class ResourceSlug
 {

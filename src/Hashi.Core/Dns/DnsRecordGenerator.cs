@@ -1,6 +1,7 @@
 namespace Hashi.Core.Dns;
 
 public sealed record FirewallHostDnsTarget(
+    Guid Id,
     string Name,
     string PublicIp,
     string? OnRouteTarget = null);
@@ -75,7 +76,7 @@ public static class DnsRecordGenerator
     {
         if (target.FirewallHostId is Guid hostId)
         {
-            return hosts.FirstOrDefault(h => h.Name == hostId.ToString()) ?? hosts.FirstOrDefault();
+            return hosts.FirstOrDefault(h => h.Id == hostId);
         }
 
         var candidates = new List<string?>();
