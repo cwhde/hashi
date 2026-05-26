@@ -3,6 +3,7 @@ using Hashi.Api.Features.Connections;
 using Hashi.Api.Features.Dns;
 using Hashi.Api.Features.Resources;
 using Hashi.Api.Features.Setup;
+using Hashi.Api.Features.Sync;
 using Hashi.Api.Features.Vault;
 using Hashi.Api.Hosting;
 using Hashi.Infrastructure;
@@ -59,6 +60,13 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
     });
 builder.Services.AddAuthorization();
+builder.Services.AddAntiforgery(options =>
+{
+    options.HeaderName = "X-CSRF-TOKEN";
+    options.Cookie.Name = "hashi.csrf";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+});
 
 var app = builder.Build();
 
@@ -73,6 +81,8 @@ app.UseSerilogRequestLogging();
 app.UseMiddleware<PublicPortRoutingMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<AdminApiAuthMiddleware>();
+app.UseMiddleware<AdminCsrfMiddleware>();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
@@ -98,6 +108,7 @@ app.MapScriptEndpoints();
 app.MapNotificationEndpoints();
 app.MapAdGuardEndpoints();
 app.MapWafEndpoints();
+app.MapSyncEndpoints();
 
 var skipStartupHooks = builder.Configuration.GetValue<bool>("Hashi:SkipStartupHooks")
     || string.Equals(Environment.GetEnvironmentVariable("HASHI_SKIP_STARTUP_HOOKS"), "1", StringComparison.Ordinal);

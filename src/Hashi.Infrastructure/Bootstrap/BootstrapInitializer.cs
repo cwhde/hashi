@@ -30,11 +30,11 @@ public sealed class BootstrapInitializer(
         state.UpdatedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
 
+        // Spec §7.1: password shown once via stdout only — never in structured logs (rule 5).
         logger.LogWarning(
-            "Hashi bootstrap credentials generated. Username: {Username} Password: {Password}. " +
-            "These are shown once in logs and must be replaced during passkey setup.",
-            username,
-            password);
+            "Hashi bootstrap credentials generated for user {Username}. One-time password emitted to stdout.",
+            username);
+        Console.WriteLine($"[hashi bootstrap] password={password}");
 
         await audit.WriteAsync("setup", "bootstrap_credentials_generated", subjectType: "setup", cancellationToken: cancellationToken);
     }
@@ -69,6 +69,12 @@ public static class BootstrapNetworkPolicy
         }
 
         if (remoteIp == "::1")
+        {
+            return true;
+        }
+
+        if (remoteIp.StartsWith("fc", StringComparison.OrdinalIgnoreCase)
+            || remoteIp.StartsWith("fd", StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }

@@ -27,6 +27,13 @@
 				await navigate('/setup');
 				return;
 			}
+			if (status.isComplete) {
+				const session = await api.getSession();
+				if (!session.isAuthenticated) {
+					await navigate('/login');
+					return;
+				}
+			}
 		} catch {
 			// allow offline dev without API
 		} finally {

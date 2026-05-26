@@ -1,4 +1,4 @@
-import createClient from 'openapi-fetch';
+import createClient, { type Middleware } from 'openapi-fetch';
 import type { paths } from './schema.js';
 import type { ApiError, UndocumentedJson } from './types.js';
 
@@ -6,6 +6,41 @@ export const client = createClient<paths>({
 	baseUrl: '',
 	credentials: 'include'
 });
+
+let csrfToken: string | null = null;
+
+export async function ensureCsrfToken(): Promise<string | null> {
+	if (csrfToken) return csrfToken;
+	try {
+		const response = await fetch('/api/auth/csrf', { credentials: 'include' });
+		if (!response.ok) return null;
+		const body = (await response.json()) as { token?: string };
+		csrfToken = body.token ?? null;
+		return csrfToken;
+	} catch {
+		return null;
+	}
+}
+
+const csrfMiddleware: Middleware = {
+	async onRequest({ request }) {
+		const method = request.method.toUpperCase();
+		if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') {
+			return request;
+		}
+		if (!request.url.includes('/api/auth/')) {
+			if (!csrfToken) {
+				csrfToken = await ensureCsrfToken();
+			}
+			if (csrfToken) {
+				request.headers.set('X-CSRF-TOKEN', csrfToken);
+			}
+		}
+		return request;
+	}
+};
+
+client.use(csrfMiddleware);
 
 export class ApiRequestError extends Error {
 	constructor(
@@ -42,7 +77,7 @@ async function expectData<T>(response: Response, error: unknown, data: T | undef
 }
 
 async function postUndocumented(path: string, init?: Record<string, unknown>): Promise<UndocumentedJson> {
-	const result = await client.POST(path as never, init as never);
+	const result = await client.POST(path as never, (init ?? {}) as never);
 	await expectOk(result.response, result.error);
 	return readUndocumentedJson(result.response);
 }

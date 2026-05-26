@@ -10,7 +10,7 @@ using Hashi.Infrastructure.Dns;
 using Hashi.Infrastructure.Providers.Dns;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Services;
-using Hashi.Infrastructure.Bootstrap;
+using Hashi.Infrastructure.Sync;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,6 +30,7 @@ public static class DependencyInjection
         services.AddMemoryCache();
         services.AddSingleton<VaultSessionState>();
         services.AddSingleton<ServiceSyncVaultState>();
+        services.AddSingleton<ReauthenticationState>();
 
         services.AddHttpClient("hetzner-dns", client =>
         {
@@ -56,6 +57,7 @@ public static class DependencyInjection
         services.AddScoped<FirewallApplyService>();
         services.AddScoped<MonitoringService>();
         services.AddScoped<EdgeAuthService>();
+        services.AddScoped<OidcEdgeAuthService>();
         services.AddScoped<SecurityIngestionService>();
         services.AddScoped<AdGuardSyncService>();
         services.AddScoped<ScriptExecutionService>();
@@ -66,10 +68,14 @@ public static class DependencyInjection
 
         var skipStartupHooks = configuration.GetValue<bool>("Hashi:SkipStartupHooks")
             || string.Equals(Environment.GetEnvironmentVariable("HASHI_SKIP_STARTUP_HOOKS"), "1", StringComparison.Ordinal);
+        services.AddScoped<SyncRunService>();
+        services.AddScoped<SyncOrchestratorService>();
         services.AddHostedService<ServiceSyncVaultBootstrapper>();
         if (!skipStartupHooks)
         {
             services.AddHostedService<MonitorCheckWorker>();
+            services.AddHostedService<SyncOrchestratorHostedService>();
+            services.AddHostedService<ScriptCronHostedService>();
         }
 
         var fidoDomain = configuration["Hashi:WebAuthn:ServerDomain"] ?? "localhost";

@@ -104,6 +104,20 @@ public static class VaultEndpoints
                 stored.UpdatedAtUtc));
         });
 
+        group.MapGet("/secrets/{id:guid}/reveal", async Task<IResult> (
+            Guid id,
+            SecretRecordService secrets,
+            CancellationToken ct) =>
+        {
+            var plaintext = await secrets.DecryptForAdminAsync(id, ct);
+            if (plaintext is null)
+            {
+                return TypedResults.NotFound();
+            }
+
+            return TypedResults.Ok(new SecretRevealResponse(Convert.ToBase64String(plaintext)));
+        });
+
         group.MapPost("/verify-unlock", async Task<IResult> (
             VaultUnlockRequest request,
             VaultService vault,

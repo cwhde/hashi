@@ -6,6 +6,7 @@ using Hashi.Infrastructure.Auth;
 using Hashi.Infrastructure.Bootstrap;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
@@ -16,6 +17,12 @@ public static class AuthEndpoints
     public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/auth").WithTags("Auth");
+
+        group.MapGet("/csrf", (IAntiforgery antiforgery, HttpContext httpContext) =>
+        {
+            var tokens = antiforgery.GetAndStoreTokens(httpContext);
+            return TypedResults.Ok(new { token = tokens.RequestToken });
+        });
 
         group.MapPost("/bootstrap/login", async Task<IResult> (
             BootstrapLoginRequest request,
@@ -60,10 +67,16 @@ public static class AuthEndpoints
 
         group.MapPost("/passkeys/register/complete", async Task<IResult> (
             PasskeyRegistrationCompleteRequest request,
+            HttpContext httpContext,
             PasskeyAuthService passkeys,
             WebAuthnChallengeStore challenges,
             CancellationToken ct) =>
         {
+            if (!IsAuthenticatedDuringSetup(httpContext))
+            {
+                return TypedResults.Unauthorized();
+            }
+
             var options = challenges.GetRegistration(request.ChallengeSessionId);
             if (options is null)
             {
@@ -135,6 +148,52 @@ public static class AuthEndpoints
                 authMethod,
                 vaultSession.IsUnlocked,
                 httpContext.User.HasClaim(c => c.Type == ClaimTypes.Name && c.Value == "setup-complete")));
+        });
+
+        group.MapPost("/reauthenticate", async Task<IResult> (
+            HttpContext httpContext,
+            ReauthenticationState reauth,
+            PasskeyAuthService passkeys,
+            WebAuthnChallengeStore challenges,
+            CancellationToken ct) =>
+        {
+            if (httpContext.User.Identity?.IsAuthenticated != true)
+            {
+                return TypedResults.Unauthorized();
+            }
+
+            var options = await passkeys.BeginLoginAsync(ct);
+            var sessionId = Guid.NewGuid().ToString("N");
+            challenges.StoreLogin(sessionId, options);
+            return TypedResults.Ok(new PasskeyLoginBeginResponse(options, sessionId));
+        });
+
+        group.MapPost("/reauthenticate/complete", async Task<IResult> (
+            PasskeyLoginCompleteRequest request,
+            HttpContext httpContext,
+            PasskeyAuthService passkeys,
+            ReauthenticationState reauth,
+            WebAuthnChallengeStore challenges,
+            CancellationToken ct) =>
+        {
+            if (httpContext.User.Identity?.IsAuthenticated != true)
+            {
+                return TypedResults.Unauthorized();
+            }
+
+            var options = challenges.GetLogin(request.ChallengeSessionId);
+            if (options is null)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse("Reauthentication challenge expired or invalid."));
+            }
+
+            var assertion = System.Text.Json.JsonSerializer.Deserialize<AuthenticatorAssertionRawResponse>(
+                System.Text.Json.JsonSerializer.Serialize(request.Assertion))
+                ?? throw new InvalidOperationException("Invalid assertion payload.");
+
+            await passkeys.CompleteLoginAsync(assertion, options, null, ct);
+            reauth.MarkRecent(httpContext);
+            return TypedResults.Ok(new { reauthenticated = true });
         });
 
         group.MapPost("/logout", async Task<IResult> (

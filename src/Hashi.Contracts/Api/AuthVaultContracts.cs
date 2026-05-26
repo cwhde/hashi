@@ -64,6 +64,8 @@ public sealed record SecretDescriptorResponse(
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset UpdatedAtUtc);
 
+public sealed record SecretRevealResponse(string PlaintextBase64);
+
 public sealed record SetupCompleteResponse(bool Succeeded, string? Error);
 
 public sealed record LogoutResponse(bool LoggedOut);
