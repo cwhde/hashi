@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
@@ -39,6 +39,34 @@ jobs:
 
       - name: Build API
         run: dotnet build src/Hashi.Api/Hashi.Api.csproj -c Release --no-restore
+
+  openapi-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Verify OpenAPI contract (spec §30)
+        run: |
+          chmod +x scripts/export-openapi.sh scripts/generate-api-client.sh
+          ./scripts/export-openapi.sh
+          cd web && pnpm install --frozen-lockfile || pnpm install
+          cd ..
+          ./scripts/generate-api-client.sh
+          git diff --exit-code openapi/hashi.json web/src/lib/api/schema.d.ts
 
   frontend:
     runs-on: ubuntu-latest

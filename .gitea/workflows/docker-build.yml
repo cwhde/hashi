@@ -5,17 +5,17 @@ on:
   push:
     branches:
       - main
+      - feat/v2-foundation
     paths:
       - 'src/**'
       - 'web/**'
       - 'deploy/**'
+      - 'openapi/**'
       - 'Directory.Build.props'
       - 'Hashi.slnx'
       - '.gitea/workflows/docker-build.yml'
     paths-ignore:
       - 'hashi.old/**'
-      - '*.md'
-      - 'docs/**'
 
 env:
   REGISTRY: git.juzo.io
