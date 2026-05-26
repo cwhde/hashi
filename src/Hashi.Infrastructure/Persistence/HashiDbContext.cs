@@ -37,6 +37,32 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
 
     public DbSet<PulseAgentEntity> PulseAgents => Set<PulseAgentEntity>();
 
+    public DbSet<TraefikHostStateEntity> TraefikHostStates => Set<TraefikHostStateEntity>();
+
+    public DbSet<FirewallHostEntity> FirewallHosts => Set<FirewallHostEntity>();
+
+    public DbSet<MonitorSampleEntity> MonitorSamples => Set<MonitorSampleEntity>();
+
+    public DbSet<MonitorRollupEntity> MonitorRollups => Set<MonitorRollupEntity>();
+
+    public DbSet<OidcProviderEntity> OidcProviders => Set<OidcProviderEntity>();
+
+    public DbSet<EdgeAuthRuleEntity> EdgeAuthRules => Set<EdgeAuthRuleEntity>();
+
+    public DbSet<AccessLogEventEntity> AccessLogEvents => Set<AccessLogEventEntity>();
+
+    public DbSet<AbuseBucketEntity> AbuseBuckets => Set<AbuseBucketEntity>();
+
+    public DbSet<BlocklistEntryEntity> BlocklistEntries => Set<BlocklistEntryEntity>();
+
+    public DbSet<AdGuardConnectionEntity> AdGuardConnections => Set<AdGuardConnectionEntity>();
+
+    public DbSet<AdGuardRewriteEntity> AdGuardRewrites => Set<AdGuardRewriteEntity>();
+
+    public DbSet<NotificationProviderEntity> NotificationProviders => Set<NotificationProviderEntity>();
+
+    public DbSet<ScriptEntity> Scripts => Set<ScriptEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AppSettingsEntity>(entity =>
@@ -185,6 +211,104 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Name).HasMaxLength(128);
             entity.Property(x => x.Status).HasMaxLength(32);
+            entity.Property(x => x.TokenHash).HasMaxLength(128);
+        });
+
+        modelBuilder.Entity<TraefikHostStateEntity>(entity =>
+        {
+            entity.ToTable("traefik_host_states");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.ConnectionId).IsUnique();
+        });
+
+        modelBuilder.Entity<FirewallHostEntity>(entity =>
+        {
+            entity.ToTable("firewall_hosts");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).HasMaxLength(128);
+            entity.HasIndex(x => new { x.ConnectionId, x.Name }).IsUnique();
+        });
+
+        modelBuilder.Entity<MonitorSampleEntity>(entity =>
+        {
+            entity.ToTable("monitor_samples");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.MonitorEndpointId, x.PartitionDate, x.CheckedAtUtc });
+        });
+
+        modelBuilder.Entity<MonitorRollupEntity>(entity =>
+        {
+            entity.ToTable("monitor_rollups");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.MonitorEndpointId, x.BucketStartUtc }).IsUnique();
+        });
+
+        modelBuilder.Entity<OidcProviderEntity>(entity =>
+        {
+            entity.ToTable("oidc_providers");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).HasMaxLength(128);
+        });
+
+        modelBuilder.Entity<EdgeAuthRuleEntity>(entity =>
+        {
+            entity.ToTable("edge_auth_rules");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).HasMaxLength(128);
+            entity.Property(x => x.Action).HasMaxLength(32);
+        });
+
+        modelBuilder.Entity<AccessLogEventEntity>(entity =>
+        {
+            entity.ToTable("access_log_events");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ClientIp).HasMaxLength(64);
+            entity.HasIndex(x => x.ReceivedAtUtc);
+        });
+
+        modelBuilder.Entity<AbuseBucketEntity>(entity =>
+        {
+            entity.ToTable("abuse_buckets");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ClientIp).HasMaxLength(64);
+            entity.HasIndex(x => x.ClientIp).IsUnique();
+        });
+
+        modelBuilder.Entity<BlocklistEntryEntity>(entity =>
+        {
+            entity.ToTable("blocklist_entries");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ClientIp).HasMaxLength(64);
+        });
+
+        modelBuilder.Entity<AdGuardConnectionEntity>(entity =>
+        {
+            entity.ToTable("adguard_connections");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).HasMaxLength(128);
+        });
+
+        modelBuilder.Entity<AdGuardRewriteEntity>(entity =>
+        {
+            entity.ToTable("adguard_rewrites");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Domain).HasMaxLength(256);
+            entity.HasIndex(x => new { x.ConnectionId, x.Domain }).IsUnique();
+        });
+
+        modelBuilder.Entity<NotificationProviderEntity>(entity =>
+        {
+            entity.ToTable("notification_providers");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).HasMaxLength(128);
+            entity.Property(x => x.Type).HasMaxLength(32);
+        });
+
+        modelBuilder.Entity<ScriptEntity>(entity =>
+        {
+            entity.ToTable("scripts");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).HasMaxLength(128);
         });
     }
 }

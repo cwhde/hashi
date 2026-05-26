@@ -36,9 +36,61 @@ public sealed record UpdateResourceRequest(
 
 public sealed record TraefikRenderResponse(string StaticConfigYaml, string DynamicHttpYaml, string ContentHash);
 
+public sealed record TraefikApplyRequest(
+    Guid ConnectionId,
+    string Host,
+    int Port,
+    string Username,
+    string AuthMode,
+    string? Password,
+    string? PrivateKeyPem,
+    string? PrivateKeyPassphrase);
+
+public sealed record TraefikApplyResponse(bool Succeeded, string ContentHash, bool Skipped, string? Message);
+
+public sealed record TraefikInstallRequest(
+    Guid ConnectionId,
+    string Host,
+    int Port,
+    string Username,
+    string AuthMode,
+    string? Password,
+    string? PrivateKeyPem,
+    string? PrivateKeyPassphrase);
+
+public sealed record TraefikInstallResponse(bool Succeeded, string? Message);
+
 public sealed record FirewallRenderRequest(string Name, string Domain, IReadOnlyList<string> ManagedSubnets, string LinkedTraefikHost, string InternalTraefikIp);
 
 public sealed record FirewallRenderResponse(string Script);
+
+public sealed record FirewallApplyRequest(
+    Guid FirewallHostId,
+    string Host,
+    int Port,
+    string Username,
+    string AuthMode,
+    string? Password,
+    string? PrivateKeyPem,
+    string? PrivateKeyPassphrase);
+
+public sealed record FirewallApplyResponse(bool Succeeded, bool Skipped, bool NetBirdDetected, string? Message);
+
+public sealed record CreateFirewallHostRequest(
+    Guid ConnectionId,
+    string Name,
+    string Domain,
+    IReadOnlyList<string> ManagedSubnets,
+    string LinkedTraefikHost,
+    string InternalTraefikIp);
+
+public sealed record MonitorRollupResponse(
+    Guid MonitorEndpointId,
+    DateTimeOffset BucketStartUtc,
+    int SampleCount,
+    int UpCount,
+    int DownCount,
+    double AverageLatencyMs);
 
 public sealed record MonitorEndpointResponse(
     Guid Id,
@@ -63,3 +115,38 @@ public sealed record SecurityDashboardResponse(long Allowed, long Blocked, long 
 public sealed record ScriptResponse(Guid Id, string Name, bool Enabled, string Description);
 
 public sealed record NotificationProviderResponse(Guid Id, string Name, string Type, bool Enabled);
+
+public sealed record CreateNotificationProviderRequest(string Name, string Type, string SettingsJson, bool Enabled);
+
+public sealed record SendNotificationRequest(string Subject, string Body, IReadOnlyList<string> ProviderTypes);
+
+public sealed record AccessLogIngestRequest(
+    string ClientIp,
+    string Host,
+    string Path,
+    int StatusCode,
+    string? CountryCode,
+    string? Asn);
+
+public sealed record AdGuardRewriteResponse(Guid Id, string Domain, string Answer, bool ManagedByHashi);
+
+public sealed record UpsertAdGuardRewriteRequest(string Domain, string Answer);
+
+public sealed record CreateScriptRequest(Guid ConnectionId, string Name, string Description, string Body, string CronExpression);
+
+public sealed record RunScriptRequest(
+    string Host,
+    int Port,
+    string Username,
+    string AuthMode,
+    string? Password,
+    string? PrivateKeyPem,
+    string? PrivateKeyPassphrase);
+
+public sealed record RunScriptResponse(bool Succeeded, string Output, string? Error);
+
+public sealed record CreatePulseAgentRequest(string Name);
+
+public sealed record CreatePulseAgentResponse(Guid Id, string Name, string Token);
+
+public sealed record PulseHeartbeatAuthRequest(string Token, string Version, string Hostname, IReadOnlyList<string> PrivateIpv4Candidates);

@@ -1,4 +1,5 @@
 using Hashi.Contracts.Api;
+using Hashi.Infrastructure.Notifications;
 using Hashi.Infrastructure.Platform;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
@@ -65,6 +66,16 @@ public static class TraefikEndpoints
             var result = await traefik.RenderAsync(ct);
             return TypedResults.Ok(new TraefikRenderResponse(result.StaticConfigYaml, result.DynamicHttpYaml, result.ContentHash));
         });
+        group.MapPost("/apply", async Task<IResult> (TraefikApplyRequest request, TraefikSyncService sync, CancellationToken ct) =>
+        {
+            var result = await sync.ApplyAsync(request, ct);
+            return TypedResults.Ok(result);
+        });
+        group.MapPost("/install", async Task<IResult> (TraefikInstallRequest request, TraefikSyncService sync, CancellationToken ct) =>
+        {
+            var result = await sync.InstallAsync(request, ct);
+            return TypedResults.Ok(result);
+        });
         return app;
     }
 }
@@ -76,6 +87,25 @@ public static class FirewallEndpoints
         var group = app.MapGroup("/api/firewall").WithTags("Firewall");
         group.MapPost("/render", (FirewallRenderRequest request, FirewallPlatformService firewall) =>
             TypedResults.Ok(firewall.Render(request)));
+        group.MapPost("/hosts", async Task<IResult> (CreateFirewallHostRequest request, FirewallApplyService firewall, CancellationToken ct) =>
+        {
+            var host = await firewall.UpsertHostAsync(request, ct);
+            return TypedResults.Ok(new { host.Id, host.Name });
+        });
+        group.MapPost("/apply", async Task<IResult> (FirewallApplyRequest request, FirewallApplyService firewall, CancellationToken ct) =>
+        {
+            var result = await firewall.ApplyAsync(request, ct);
+            return TypedResults.Ok(result);
+        });
+        group.MapPost("/{firewallHostId:guid}/rollback", async Task<IResult> (
+            Guid firewallHostId,
+            FirewallApplyRequest request,
+            FirewallApplyService firewall,
+            CancellationToken ct) =>
+        {
+            var result = await firewall.RollbackAsync(firewallHostId, request, ct);
+            return TypedResults.Ok(result);
+        });
         return app;
     }
 }
@@ -90,6 +120,16 @@ public static class StatusEndpoints
             var items = await monitoring.ListAsync(ct);
             return TypedResults.Ok(items.Select(x => new MonitorEndpointResponse(
                 x.Id, x.Name, x.Url, x.CheckType, x.Enabled, x.Status, x.LastCheckedAtUtc, x.LastLatencyMs)));
+        });
+        group.MapGet("/rollups", async (HashiDbContext db, CancellationToken ct) =>
+        {
+            var rollups = await db.MonitorRollups.AsNoTracking()
+                .OrderByDescending(x => x.BucketStartUtc)
+                .Take(500)
+                .Select(x => new MonitorRollupResponse(
+                    x.MonitorEndpointId, x.BucketStartUtc, x.SampleCount, x.UpCount, x.DownCount, x.AverageLatencyMs))
+                .ToListAsync(ct);
+            return TypedResults.Ok(rollups);
         });
         return app;
     }
@@ -114,10 +154,15 @@ public static class EdgeAuthEndpoints
 {
     public static IEndpointRouteBuilder MapEdgeAuthEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/edge-auth/forward", (HttpContext ctx) =>
+        app.MapGet("/api/edge-auth/forward", async Task<IResult> (HttpContext ctx, EdgeAuthService edgeAuth, CancellationToken ct) =>
         {
-            var host = ctx.Request.Headers["X-Forwarded-Host"].FirstOrDefault() ?? ctx.Request.Host.Value;
-            return TypedResults.Ok(new EdgeAuthForwardResponse("allow", null));
+            var host = ctx.Request.Headers["X-Forwarded-Host"].FirstOrDefault() ?? ctx.Request.Host.Value ?? string.Empty;
+            var path = ctx.Request.Path.Value ?? "/";
+            var clientIp = ctx.Connection.RemoteIpAddress ?? System.Net.IPAddress.Loopback;
+            var country = ctx.Request.Headers["X-Geo-Country"].FirstOrDefault();
+            var asn = ctx.Request.Headers["X-Geo-Asn"].FirstOrDefault();
+            var result = await edgeAuth.EvaluateForwardAsync(host, path, clientIp, country, asn, ct);
+            return TypedResults.Ok(result);
         }).WithTags("EdgeAuth").AllowAnonymous();
         return app;
     }
@@ -128,7 +173,18 @@ public static class SecurityEndpoints
     public static IEndpointRouteBuilder MapSecurityEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/security").WithTags("Security");
-        group.MapGet("/dashboard", () => TypedResults.Ok(new SecurityDashboardResponse(0, 0, 0, Array.Empty<string>())));
+        group.MapGet("/dashboard", async (SecurityIngestionService security, CancellationToken ct) =>
+            TypedResults.Ok(await security.GetDashboardAsync(ct)));
+        group.MapPost("/access-log", async Task<IResult> (AccessLogIngestRequest request, SecurityIngestionService security, CancellationToken ct) =>
+        {
+            await security.IngestAccessLogAsync(request, ct);
+            return TypedResults.Ok(new { accepted = true });
+        }).AllowAnonymous();
+        group.MapPost("/blocklist/sync", async Task<IResult> (FirewallApplyRequest request, SecurityIngestionService security, CancellationToken ct) =>
+        {
+            await security.SyncBlocklistToFirewallAsync(request, ct);
+            return TypedResults.Ok(new { synced = true });
+        });
         return app;
     }
 }
@@ -143,23 +199,19 @@ public static class PulseEndpoints
             var agents = await db.PulseAgents.AsNoTracking().ToListAsync(ct);
             return TypedResults.Ok(agents.Select(x => new PulseAgentResponse(x.Id, x.Name, x.Status, x.LastSeenAtUtc, x.LastPublicIp)));
         });
+        group.MapPost("/agents", async Task<IResult> (CreatePulseAgentRequest request, PulseAgentService pulse, CancellationToken ct) =>
+        {
+            var created = await pulse.CreateAgentAsync(request, ct);
+            return TypedResults.Ok(created);
+        });
         group.MapPost("/{agentId:guid}/heartbeat", async Task<IResult> (
             Guid agentId,
-            PulseHeartbeatRequest request,
-            HashiDbContext db,
+            PulseHeartbeatAuthRequest request,
+            PulseAgentService pulse,
             CancellationToken ct) =>
         {
-            var agent = await db.PulseAgents.SingleOrDefaultAsync(x => x.Id == agentId, ct);
-            if (agent is null)
-            {
-                return TypedResults.NotFound();
-            }
-
-            agent.LastSeenAtUtc = DateTimeOffset.UtcNow;
-            agent.LastPublicIp = request.PrivateIpv4Candidates.FirstOrDefault();
-            agent.Status = "online";
-            await db.SaveChangesAsync(ct);
-            return TypedResults.Ok(new { accepted = true });
+            var accepted = await pulse.AcceptHeartbeatAsync(agentId, request, ct);
+            return accepted ? TypedResults.Ok(new { accepted = true }) : TypedResults.Unauthorized();
         }).AllowAnonymous();
         return app;
     }
@@ -169,7 +221,23 @@ public static class ScriptEndpoints
 {
     public static IEndpointRouteBuilder MapScriptEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/scripts", () => TypedResults.Ok(Array.Empty<ScriptResponse>())).WithTags("Scripts");
+        var group = app.MapGroup("/api/scripts").WithTags("Scripts");
+        group.MapGet("/", async (ScriptExecutionService scripts, CancellationToken ct) =>
+            TypedResults.Ok(await scripts.ListAsync(ct)));
+        group.MapPost("/", async Task<IResult> (CreateScriptRequest request, ScriptExecutionService scripts, CancellationToken ct) =>
+        {
+            var created = await scripts.CreateAsync(request, ct);
+            return TypedResults.Ok(created);
+        });
+        group.MapPost("/{scriptId:guid}/run", async Task<IResult> (
+            Guid scriptId,
+            RunScriptRequest request,
+            ScriptExecutionService scripts,
+            CancellationToken ct) =>
+        {
+            var result = await scripts.RunAsync(scriptId, request, ct);
+            return TypedResults.Ok(result);
+        });
         return app;
     }
 }
@@ -178,8 +246,19 @@ public static class NotificationEndpoints
 {
     public static IEndpointRouteBuilder MapNotificationEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/settings/notifications/providers", () =>
-            TypedResults.Ok(Array.Empty<NotificationProviderResponse>())).WithTags("Settings");
+        var group = app.MapGroup("/api/settings/notifications").WithTags("Settings");
+        group.MapGet("/providers", async (NotificationDispatcher notifications, CancellationToken ct) =>
+            TypedResults.Ok(await notifications.ListProvidersAsync(ct)));
+        group.MapPost("/providers", async Task<IResult> (CreateNotificationProviderRequest request, NotificationDispatcher notifications, CancellationToken ct) =>
+        {
+            var created = await notifications.CreateProviderAsync(request, ct);
+            return TypedResults.Ok(created);
+        });
+        group.MapPost("/send", async Task<IResult> (SendNotificationRequest request, NotificationDispatcher notifications, CancellationToken ct) =>
+        {
+            await notifications.SendAsync(request, ct);
+            return TypedResults.Ok(new { sent = true });
+        });
         return app;
     }
 }
@@ -188,7 +267,48 @@ public static class AdGuardEndpoints
 {
     public static IEndpointRouteBuilder MapAdGuardEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/adguard/rewrites", () => TypedResults.Ok(Array.Empty<object>())).WithTags("AdGuard");
+        var group = app.MapGroup("/api/adguard").WithTags("AdGuard");
+        group.MapGet("/{connectionId:guid}/rewrites", async Task<IResult> (
+            Guid connectionId,
+            AdGuardSyncService adguard,
+            CancellationToken ct) => TypedResults.Ok(await adguard.ListRewritesAsync(connectionId, ct)));
+        group.MapPost("/{connectionId:guid}/rewrites", async Task<IResult> (
+            Guid connectionId,
+            UpsertAdGuardRewriteRequest request,
+            AdGuardSyncService adguard,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                var rewrite = await adguard.UpsertRewriteAsync(connectionId, request, ct);
+                return TypedResults.Ok(rewrite);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        });
+        group.MapPost("/{connectionId:guid}/sync", async Task<IResult> (
+            Guid connectionId,
+            AdGuardSyncService adguard,
+            CancellationToken ct) =>
+        {
+            await adguard.SyncManagedRewritesAsync(connectionId, ct);
+            return TypedResults.Ok(new { synced = true });
+        });
+        return app;
+    }
+}
+
+public static class WafEndpoints
+{
+    public static IEndpointRouteBuilder MapWafEndpoints(this IEndpointRouteBuilder app)
+    {
+        app.MapGet("/api/waf/{slug}/middleware", (string slug) =>
+        {
+            var yaml = Hashi.Core.Security.WafMiddlewareRenderer.RenderCorazaMiddleware(slug, Hashi.Core.Security.WafMode.On);
+            return TypedResults.Ok(new { slug, yaml });
+        }).WithTags("Security");
         return app;
     }
 }
