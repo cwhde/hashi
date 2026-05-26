@@ -52,7 +52,7 @@
 					</TableRow>
 				</TableHeader>
 				<TableBody>
-					{#each scripts as script}
+					{#each scripts as script (script.id)}
 						<TableRow>
 							<TableCell>{script.name}</TableCell>
 							<TableCell class="max-w-md truncate text-xs">{script.description}</TableCell>

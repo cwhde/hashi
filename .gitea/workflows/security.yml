@@ -2,6 +2,7 @@ name: Security
 
 on:
   push:
+    branches: [main]
   pull_request:
     branches: [main]
   schedule:
@@ -28,7 +29,12 @@ jobs:
       - name: Vulnerable packages (.NET)
         run: |
           dotnet restore Hashi.slnx
-          dotnet list package --vulnerable --include-transitive
+          dotnet list package --vulnerable --include-transitive > vuln.txt || true
+          cat vuln.txt
+          if grep -E 'High|Critical' vuln.txt; then
+            echo "High or critical vulnerabilities found"
+            exit 1
+          fi
 
       - uses: pnpm/action-setup@v4
         with:
@@ -43,7 +49,7 @@ jobs:
       - name: Audit frontend
         working-directory: web
         run: |
-          pnpm install --frozen-lockfile || pnpm install
+          pnpm install --frozen-lockfile
           pnpm audit --audit-level=high || true
 
       - name: Trivy filesystem scan

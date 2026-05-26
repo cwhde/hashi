@@ -28,5 +28,11 @@ export default ts.config(
 				svelteConfig: './svelte.config.js'
 			}
 		}
+	},
+	{
+		files: ['src/lib/components/ui/**/*.svelte'],
+		rules: {
+			'svelte/no-navigation-without-resolve': 'off'
+		}
 	}
 );

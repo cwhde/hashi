@@ -2,9 +2,23 @@ name: CI
 
 on:
   push:
+    branches: [main, feat/v2-foundation]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'web/**'
+      - 'openapi/**'
+      - 'scripts/**'
+      - 'Hashi.slnx'
+      - 'Directory.Build.props'
+      - '.gitea/workflows/ci.yml'
   pull_request:
     branches: [main]
   workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
@@ -29,16 +43,12 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Restore and format check
+      - name: Restore, format, test, build
         run: |
           dotnet restore Hashi.slnx
           dotnet format Hashi.slnx --verify-no-changes
-
-      - name: Unit tests
-        run: dotnet test tests/Hashi.UnitTests/Hashi.UnitTests.csproj --no-restore --verbosity normal
-
-      - name: Build API
-        run: dotnet build src/Hashi.Api/Hashi.Api.csproj -c Release --no-restore
+          dotnet test tests/Hashi.UnitTests/Hashi.UnitTests.csproj --no-restore --verbosity normal
+          dotnet build src/Hashi.Api/Hashi.Api.csproj -c Release --no-restore /p:SkipFrontendBuild=true
 
   openapi-verify:
     runs-on: ubuntu-latest
@@ -63,7 +73,7 @@ jobs:
         run: |
           chmod +x scripts/export-openapi.sh scripts/generate-api-client.sh
           ./scripts/export-openapi.sh
-          cd web && pnpm install --frozen-lockfile || pnpm install
+          cd web && pnpm install --frozen-lockfile
           cd ..
           ./scripts/generate-api-client.sh
           git diff --exit-code openapi/hashi.json web/src/lib/api/schema.d.ts
@@ -86,7 +96,7 @@ jobs:
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
 
-      - run: pnpm install --frozen-lockfile || pnpm install
+      - run: pnpm install --frozen-lockfile
       - run: pnpm run check
       - run: pnpm run lint
       - run: pnpm run test

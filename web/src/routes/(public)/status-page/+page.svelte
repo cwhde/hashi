@@ -59,7 +59,7 @@
 		{:else if filtered.length === 0}
 			<p class="px-3 py-6 text-sm text-muted-foreground">No public status entries.</p>
 		{:else}
-			{#each filtered as item}
+			{#each filtered as item (item.name)}
 				<div class="grid grid-cols-[1fr_5rem_5rem] gap-2 border-b border-border/50 px-3 py-2 text-sm last:border-0">
 					<span class="truncate text-white">{item.name}</span>
 					<span class="text-xs">{item.status}</span>

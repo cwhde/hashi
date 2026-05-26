@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { Pin, PinOff } from 'lucide-svelte';
 	import { page } from '$app/state';
 	import { navItems } from '$lib/nav';
@@ -34,7 +35,7 @@
 >
 	<div class="mb-2 flex items-center gap-2 px-3">
 		<a
-			href="/"
+			href={resolve('/')}
 			class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-hashi-hover text-sm font-bold text-white"
 			title="Hashi"
 		>
@@ -54,7 +55,7 @@
 					: page.url.pathname.startsWith(item.href)}
 			<li>
 				<a
-					href={item.href}
+					href={resolve(item.href as '/')}
 					class={cn(
 						'flex items-center gap-2 rounded-md px-2 py-2 text-xs transition-colors',
 						active

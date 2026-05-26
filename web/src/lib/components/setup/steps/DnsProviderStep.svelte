@@ -12,7 +12,6 @@
 		TableHeader,
 		TableRow
 	} from '$lib/components/ui/table';
-	import { Checkbox } from '$lib/components/ui/checkbox';
 
 	let {
 		oncomplete,
@@ -109,7 +108,7 @@
 					</TableRow>
 				</TableHeader>
 				<TableBody>
-					{#each previewRecords as record}
+					{#each previewRecords as record (record.name)}
 						<TableRow>
 							<TableCell class="font-mono text-xs">{record.name}</TableCell>
 							<TableCell>{record.type}</TableCell>

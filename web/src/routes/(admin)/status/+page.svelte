@@ -74,7 +74,7 @@
 					</TableRow>
 				</TableHeader>
 				<TableBody>
-					{#each endpoints as endpoint}
+					{#each endpoints as endpoint (endpoint.id)}
 						<TableRow>
 							<TableCell>{endpoint.name}</TableCell>
 							<TableCell class="max-w-[12rem] truncate font-mono text-xs">{endpoint.url}</TableCell>

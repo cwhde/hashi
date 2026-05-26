@@ -158,7 +158,7 @@
 						</TableRow>
 					</TableHeader>
 					<TableBody>
-						{#each connections as conn}
+						{#each connections as conn (conn.id)}
 							<TableRow>
 								<TableCell>{conn.name}</TableCell>
 								<TableCell>{conn.type}</TableCell>
@@ -195,7 +195,7 @@
 						</TableRow>
 					</TableHeader>
 					<TableBody>
-						{#each records as record}
+						{#each records as record (record.id ?? record.name)}
 							<TableRow>
 								<TableCell class="font-mono text-xs">{record.name}</TableCell>
 								<TableCell>{record.type}</TableCell>

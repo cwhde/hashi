@@ -173,7 +173,7 @@
 						</TableRow>
 					</TableHeader>
 					<TableBody>
-						{#each resources as resource}
+						{#each resources as resource (resource.id)}
 							<TableRow>
 								<TableCell>
 									<span class="font-medium text-white">{resource.name}</span>

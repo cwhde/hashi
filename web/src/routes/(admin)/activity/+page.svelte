@@ -57,7 +57,7 @@
 					</TableRow>
 				</TableHeader>
 				<TableBody>
-					{#each events as event}
+					{#each events as event (event.id)}
 						<TableRow>
 							<TableCell class="whitespace-nowrap text-xs">
 								{new Date(event.createdAtUtc).toLocaleString()}

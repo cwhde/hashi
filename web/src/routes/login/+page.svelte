@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { navigate } from '$lib/navigation';
 	import { onMount } from 'svelte';
 	import { api, ApiRequestError } from '$lib/api/client';
 	import {
@@ -26,7 +26,7 @@
 		try {
 			const session = await api.getSession();
 			if (session.isAuthenticated) {
-				await goto(session.setupComplete ? '/' : '/setup');
+				await navigate(session.setupComplete ? '/' : '/setup');
 			}
 		} catch {
 			// offline dev
@@ -48,7 +48,7 @@
 				error = 'Passkey verification failed.';
 				return;
 			}
-			await goto('/');
+			await navigate('/');
 		} catch (e) {
 			error = e instanceof ApiRequestError ? e.message : 'Passkey login failed';
 		} finally {
@@ -65,7 +65,7 @@
 				error = result.error ?? 'Invalid credentials';
 				return;
 			}
-			await goto('/setup');
+			await navigate('/setup');
 		} catch (e) {
 			error =
 				e instanceof ApiRequestError && e.status === 401

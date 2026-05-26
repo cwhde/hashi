@@ -154,7 +154,7 @@
 					</TableRow>
 				</TableHeader>
 				<TableBody>
-					{#each connections as conn}
+					{#each connections as conn (conn.id)}
 						<TableRow>
 							<TableCell>{conn.name}</TableCell>
 							<TableCell>{conn.type}</TableCell>

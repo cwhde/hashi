@@ -77,7 +77,7 @@
 	<div class="rounded-md border border-border p-3 text-xs">
 		<p class="mb-2 font-medium text-hashi-contrast">Discovered configs (preview)</p>
 		<ul class="space-y-1 text-muted-foreground">
-			{#each discoveredFiles as file}
+			{#each discoveredFiles as file (file)}
 				<li class="font-mono">{file}</li>
 			{/each}
 		</ul>

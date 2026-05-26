@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
+	import { navigate } from '$lib/navigation';
 	import { api, ApiRequestError } from '$lib/api/client';
 	import type { SetupStatusResponse } from '$lib/api/types';
 	import { SETUP_STEPS, stepBySlug } from '$lib/setup/steps';
@@ -38,7 +38,7 @@
 		try {
 			status = await api.getSetupStatus();
 			if (status.isComplete) {
-				await goto('/');
+				await navigate('/');
 			}
 		} catch (e) {
 			error = e instanceof ApiRequestError ? e.message : 'Failed to load setup status';
@@ -53,7 +53,7 @@
 		try {
 			status = await api.completeSetupStep(slug);
 			if (status.isComplete || slug === 'complete') {
-				await goto('/');
+				await navigate('/');
 			}
 		} catch (e) {
 			error = e instanceof ApiRequestError ? e.message : 'Failed to advance setup';

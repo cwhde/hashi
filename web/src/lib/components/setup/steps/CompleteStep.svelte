@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { navigate } from '$lib/navigation';
 	import { api, ApiRequestError } from '$lib/api/client';
 	import { Button } from '$lib/components/ui/button';
 	import { PartyPopper } from 'lucide-svelte';
@@ -25,7 +25,7 @@
 				return;
 			}
 			await oncomplete();
-			await goto('/');
+			await navigate('/');
 		} catch (e) {
 			error =
 				e instanceof ApiRequestError

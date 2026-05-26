@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
+	import { navigate } from '$lib/navigation';
 	import { page } from '$app/state';
 	import { navItems } from '$lib/nav';
 	import NavRail from '$lib/components/layout/NavRail.svelte';
@@ -24,7 +24,7 @@
 		try {
 			const status = await api.getSetupStatus();
 			if (!status.isComplete && !page.url.pathname.startsWith('/setup')) {
-				await goto('/setup');
+				await navigate('/setup');
 				return;
 			}
 		} catch {

@@ -63,7 +63,7 @@
 		<p class="text-sm text-muted-foreground">No public dashboard tiles configured.</p>
 	{:else}
 		<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-			{#each filtered as app}
+			{#each filtered as app (app.id)}
 				<a
 					href={app.domain ? `https://${app.domain}` : '#'}
 					class="rounded-lg border border-border bg-card/50 p-4 transition-colors hover:border-hashi-hover/50"

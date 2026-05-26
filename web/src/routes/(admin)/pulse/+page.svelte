@@ -53,7 +53,7 @@
 					</TableRow>
 				</TableHeader>
 				<TableBody>
-					{#each agents as agent}
+					{#each agents as agent (agent.id)}
 						<TableRow>
 							<TableCell>{agent.name}</TableCell>
 							<TableCell>{agent.status}</TableCell>

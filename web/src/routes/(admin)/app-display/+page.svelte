@@ -52,7 +52,7 @@
 					</TableRow>
 				</TableHeader>
 				<TableBody>
-					{#each apps as app}
+					{#each apps as app (app.id)}
 						<TableRow>
 							<TableCell>{app.name}</TableCell>
 							<TableCell class="font-mono text-xs">{app.domain ?? '—'}</TableCell>

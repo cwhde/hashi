@@ -50,7 +50,7 @@
 				{#if dashboard.topBlockedIps.length === 0}
 					<p class="text-xs text-muted-foreground">None</p>
 				{:else}
-					{#each dashboard.topBlockedIps.slice(0, 5) as ip}
+					{#each dashboard.topBlockedIps.slice(0, 5) as ip (ip)}
 						<StatusRow label={ip} value="blocked" status="error" />
 					{/each}
 				{/if}

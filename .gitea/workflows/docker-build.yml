@@ -1,11 +1,13 @@
 name: Build and Publish Docker Image
 
+# Release images only on version tags and main merges — not every feature-branch push.
 on:
   workflow_dispatch:
   push:
+    tags:
+      - 'v*.*.*'
     branches:
       - main
-      - feat/v2-foundation
     paths:
       - 'src/**'
       - 'web/**'
@@ -43,6 +45,7 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,prefix=
             type=semver,pattern={{version}}
+            type=ref,event=tag
 
       - uses: docker/build-push-action@v6
         with:

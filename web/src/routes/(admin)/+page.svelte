@@ -108,7 +108,7 @@
 					{#if audit.length === 0}
 						<StatusRow label="Recent entries" value="None yet" />
 					{:else}
-						{#each audit as event}
+						{#each audit as event (event.id)}
 							<StatusRow
 								label="{event.category}/{event.action}"
 								value={new Date(event.createdAtUtc).toLocaleString()}

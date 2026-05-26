@@ -2,52 +2,43 @@
 
 Hashi workflows live in `.gitea/workflows/`. Gitea Actions secrets are configured in the repository under **Settings → Actions → Secrets**.
 
-## Why workflows did not run on feature branches
+## Workflow triggers (current)
 
-Until the trigger fix, `ci.yml` and `security.yml` only ran on **push to `main`** and **pull requests targeting `main`**. Pushes to `feat/v2-foundation` (and other branches) did not start CI. `docker-build.yml` had the same branch restriction.
+| Workflow | Push | Pull request | Schedule | Manual |
+|----------|------|--------------|----------|--------|
+| `ci.yml` | `main`, `feat/v2-foundation` (code paths only) | → `main` | — | `workflow_dispatch` |
+| `security.yml` | `main` only | → `main` | Weekly Mon 06:00 UTC | `workflow_dispatch` |
+| `docker-build.yml` | `main` + tags `v*.*.*` (code paths) | — | — | `workflow_dispatch` |
 
-After the fix:
+**Feature branch pushes** run **CI only** (backend, frontend, OpenAPI verify). They do **not** run Security scans or Docker builds on every commit — this keeps runner usage low during development.
 
-| Workflow        | Push                         | Pull request      | Manual              |
-|-----------------|------------------------------|-------------------|---------------------|
-| `ci.yml`        | All branches                 | Targeting `main`  | `workflow_dispatch` |
-| `security.yml`  | All branches                 | Targeting `main`  | `workflow_dispatch` |
-| `docker-build.yml` | `main`, `feat/v2-foundation` (path filters) | — | `workflow_dispatch` |
+**Release images:** push a semver tag (`v1.0.0`) or merge to `main` with relevant path changes, or use **Actions → Run workflow** on `docker-build.yml`.
 
-To run CI without pushing to a configured branch, open a PR into `main` or use **Actions → Run workflow** (`workflow_dispatch`).
+## Repository secrets (required for Docker publish)
 
-## Repository secrets (required)
+| Secret | Used in | Purpose |
+|--------|---------|---------|
+| `REGISTRY_USERNAME` | `docker-build.yml` | Login to `git.juzo.io` container registry |
+| `REGISTRY_PASSWORD` | `docker-build.yml` | Registry password or token |
 
-| Secret               | Used in              | Purpose |
-|----------------------|----------------------|---------|
-| `REGISTRY_USERNAME`  | `docker-build.yml`   | Login to `git.juzo.io` container registry |
-| `REGISTRY_PASSWORD`  | `docker-build.yml`   | Registry password or token for `git.juzo.io` |
-
-`docker-build` fails at the login step if either registry secret is missing.
+`docker-build` fails at login if either secret is missing.
 
 ## Secrets not required
 
-| Name            | Notes |
-|-----------------|-------|
-| `GITHUB_TOKEN`  | Not used. Gitleaks runs via the CLI binary instead of `gitleaks/gitleaks-action` (GitHub-oriented). |
-| Other secrets   | No other `${{ secrets.* }}` references in workflows. |
+| Name | Notes |
+|------|-------|
+| `GITHUB_TOKEN` | Not used. Gitleaks runs via CLI binary. |
 
-## Workflow job environment variables
+## CI failure reference (runs 40–42)
 
-These are set in workflow YAML, not in Gitea Secrets:
+| Run | Workflow | Typical failure cause |
+|-----|----------|----------------------|
+| 40 | `ci.yml` | Backend build ran frontend `pnpm` without `SkipFrontendBuild`; frontend `pnpm install --frozen-lockfile`; OpenAPI drift |
+| 41 | `docker-build.yml` | Missing registry secrets or unnecessary run on feature branch |
+| 42 | `security.yml` | Moderate transitive JWT advisories failing `dotnet list package --vulnerable` |
 
-| Variable / env | Workflow(s) | Purpose |
-|----------------|-------------|---------|
-| `DOTNET_SKIP_FIRST_TIME_EXPERIENCE`, `DOTNET_NOLOGO` | `ci.yml` | Faster .NET CI startup |
-| `REGISTRY` (`git.juzo.io`) | `docker-build.yml` | Image registry host |
-| `IMAGE_NAME` (`juzo/hashi`) | `docker-build.yml` | Image path under registry |
-| Postgres service env (`POSTGRES_*`) | `ci.yml` backend job | Ephemeral CI database (not secrets) |
-| `ASPNETCORE_ENVIRONMENT`, `DOTNET_ENVIRONMENT`, `HASHI_SKIP_STARTUP_HOOKS` | OpenAPI export script in CI | Set by `scripts/export-openapi.sh` during contract verify |
+Fixes applied: `SkipFrontendBuild` in CI backend job; eslint/navigation fixes; security job only fails on High/Critical; docker-build limited to `main` + version tags.
 
-## OpenAPI verify (CI)
+## OpenAPI verify
 
-`ci.yml` job `openapi-verify` re-exports `openapi/hashi.json` and regenerates `web/src/lib/api/schema.d.ts`, then fails if they differ from the commit (API contract §30 / `docs/operations/api-contract.md`).
-
-## Path filters (`docker-build.yml`)
-
-Builds run on push when changed paths match `src/**`, `web/**`, `deploy/**`, `openapi/**`, build props, solution file, or the workflow file itself. `hashi.old/**` is ignored. Documentation-only changes do not trigger image builds.
+`ci.yml` job `openapi-verify` re-exports `openapi/hashi.json` and regenerates `web/src/lib/api/schema.d.ts`, then fails if they differ from the commit.

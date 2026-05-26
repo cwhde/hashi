@@ -42,6 +42,8 @@
 </script>
 
 <script lang="ts">
+	import { resolve } from '$app/paths';
+
 	let {
 		class: className,
 		variant = "default",
@@ -53,6 +55,10 @@
 		children,
 		...restProps
 	}: ButtonProps = $props();
+
+	const linkHref = $derived(
+		href && href.startsWith('/') ? resolve(href as '/') : href
+	);
 </script>
 
 {#if href}
@@ -60,7 +66,7 @@
 		bind:this={ref}
 		data-slot="button"
 		class={cn(buttonVariants({ variant, size }), className)}
-		href={disabled ? undefined : href}
+		href={disabled ? undefined : linkHref}
 		aria-disabled={disabled}
 		role={disabled ? "link" : undefined}
 		tabindex={disabled ? -1 : undefined}
