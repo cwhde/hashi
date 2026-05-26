@@ -217,6 +217,20 @@ public sealed class DnsConnectionService(
         await audit.WriteAsync("dns", "sync_applied", subjectType: "connection", subjectId: connection.Id.ToString(), cancellationToken: cancellationToken);
     }
 
+    public async Task ApplySafePlanAsync(DnsSyncPlan plan, CancellationToken cancellationToken = default)
+    {
+        var safeChanges = plan.Changes
+            .Where(x => x.Kind is not DnsChangeKind.Delete and not DnsChangeKind.NoOp)
+            .ToList();
+        if (safeChanges.Count == 0)
+        {
+            return;
+        }
+
+        var safePlan = new DnsSyncPlan(plan.PlanId, plan.ConnectionId, plan.ZoneName, safeChanges, RequiresConfirmation: false);
+        await ApplyPlanAsync(safePlan, confirmDestructive: true, cancellationToken);
+    }
+
     private async Task<ConnectionEntity> GetDnsConnectionAsync(Guid connectionId, CancellationToken cancellationToken)
     {
         return await db.Connections.SingleOrDefaultAsync(

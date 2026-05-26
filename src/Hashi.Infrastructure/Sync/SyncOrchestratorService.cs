@@ -305,6 +305,7 @@ public sealed class SyncOrchestratorService(
         _ = await settings.GetOrCreateAsync(cancellationToken);
         var run = await syncRuns.BeginRunAsync("reconcile", cancellationToken);
         var subsystems = new List<string>();
+        var hasPendingDestructive = false;
         try
         {
             subsystems.Add("dns");
@@ -312,7 +313,43 @@ public sealed class SyncOrchestratorService(
             var dnsConnections = await db.Connections.Where(x => x.Type == ConnectionTypeNames.DnsProvider && x.Enabled).ToListAsync(cancellationToken);
             foreach (var connection in dnsConnections)
             {
-                await dns.PlanSyncAsync(connection.Id, cancellationToken);
+                try
+                {
+                    var plan = await dns.PlanSyncAsync(connection.Id, cancellationToken);
+                    var dnsChanges = plan.Changes
+                        .Where(x => x.Kind != Core.Dns.DnsChangeKind.NoOp)
+                        .Select(MapDnsPlanChange)
+                        .ToList();
+                    if (dnsChanges.Count > 0)
+                    {
+                        await syncRuns.AddDiffsAsync(run.Id, dnsChanges, cancellationToken);
+                    }
+
+                    if (plan.RequiresConfirmation)
+                    {
+                        hasPendingDestructive = true;
+                        await dns.ApplySafePlanAsync(plan, cancellationToken);
+                        await syncRuns.AddStepAsync(
+                            run.Id,
+                            $"dns-reconcile-{connection.Name}",
+                            SyncRunStatusNames.Succeeded,
+                            "Safe changes applied; destructive changes pending confirmation.",
+                            cancellationToken);
+                    }
+                    else if (plan.Changes.Any(x => x.Kind != Core.Dns.DnsChangeKind.NoOp))
+                    {
+                        await dns.ApplyPlanAsync(plan, confirmDestructive: true, cancellationToken);
+                        await syncRuns.AddStepAsync(run.Id, $"dns-reconcile-{connection.Name}", SyncRunStatusNames.Succeeded, "Applied", cancellationToken);
+                    }
+                    else
+                    {
+                        await syncRuns.AddStepAsync(run.Id, $"dns-reconcile-{connection.Name}", SyncRunStatusNames.Succeeded, "No changes", cancellationToken);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    await syncRuns.AddStepAsync(run.Id, $"dns-reconcile-{connection.Name}", SyncRunStatusNames.Failed, ex.Message, cancellationToken);
+                }
             }
 
             await syncRuns.AddStepAsync(run.Id, "dns-reconcile", SyncRunStatusNames.Succeeded, null, cancellationToken);
@@ -366,7 +403,12 @@ public sealed class SyncOrchestratorService(
                 await syncRuns.AddStepAsync(run.Id, "firewall-reconcile", SyncRunStatusNames.Succeeded, null, cancellationToken);
             }
 
-            await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Succeeded, SyncRiskLevel.None, null, cancellationToken);
+            await syncRuns.CompleteRunAsync(
+                run.Id,
+                hasPendingDestructive ? SyncRunStatusNames.AwaitingConfirmation : SyncRunStatusNames.Succeeded,
+                hasPendingDestructive ? SyncRiskLevel.Destructive : SyncRiskLevel.None,
+                hasPendingDestructive ? "Destructive DNS changes require confirmation." : null,
+                cancellationToken);
             return new SyncReconcileResponse(run.Id, true, subsystems);
         }
         catch (Exception ex)
@@ -375,6 +417,12 @@ public sealed class SyncOrchestratorService(
             return new SyncReconcileResponse(run.Id, false, subsystems);
         }
     }
+
+    private static ProviderChange MapDnsPlanChange(Core.Dns.DnsPlanChange change) => new(
+        "dns",
+        $"{change.Name}/{Core.Dns.DnsRecordTypeMapping.ToApiName(change.Type)}",
+        MapDnsKind(change.Kind),
+        change.RiskReason ?? change.Kind.ToString());
 
     private static SyncRiskLevel MaxRisk(SyncRiskLevel current, SyncRiskLevel next)
         => (SyncRiskLevel)Math.Max((int)current, (int)next);
