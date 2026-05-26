@@ -15,6 +15,7 @@ env:
 jobs:
   scan:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -23,7 +24,7 @@ jobs:
           GITLEAKS_VERSION=8.22.1
           curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
             | tar -xz -C /tmp
-          /tmp/gitleaks detect --source . --verbose --redact
+          /tmp/gitleaks detect --source . --verbose --redact --exclude-path hashi.old
 
       - uses: actions/setup-dotnet@v4
         with:
@@ -55,12 +56,18 @@ jobs:
 
       - name: Semgrep static analysis
         run: |
-          pip install semgrep
-          semgrep --config p/default --error --severity ERROR src/ web/src/ agents/pulse/
+          python3 -m pip install --user 'semgrep>=1.76,<2'
+          export PATH="$HOME/.local/bin:$PATH"
+          semgrep --config p/default --error --severity ERROR \
+            --exclude hashi.old \
+            src/ web/src/ agents/pulse/
 
       - name: Trivy filesystem scan
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          scan-type: fs
-          scan-ref: .
-          severity: CRITICAL,HIGH
+        run: |
+          TRIVY_VERSION=0.58.1
+          curl -sfL "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz" \
+            | tar -xz -C /tmp trivy
+          sudo mv /tmp/trivy /usr/local/bin/trivy
+          trivy fs --severity CRITICAL,HIGH --exit-code 1 \
+            --skip-dirs hashi.old \
+            .

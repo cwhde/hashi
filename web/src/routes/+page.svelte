@@ -4,13 +4,9 @@
 	import PublicDashboardView from '$lib/components/public/PublicDashboardView.svelte';
 	import PublicShell from '$lib/components/public/PublicShell.svelte';
 	import PublicStatusView from '$lib/components/public/PublicStatusView.svelte';
-	import { resolveRootPortMode, type RootPortMode } from '$lib/public/port-mode';
+	import { resolveRootPortMode } from '$lib/public/port-mode';
 
-	let mode = $state<RootPortMode>('admin');
-
-	$effect(() => {
-		mode = resolveRootPortMode();
-	});
+	let mode = $derived(resolveRootPortMode());
 </script>
 
 {#if mode === 'public-dashboard'}

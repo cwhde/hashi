@@ -43,16 +43,16 @@ internal sealed class IntegrationTestPostgres : IAsyncDisposable
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
         var ciConnection = Environment.GetEnvironmentVariable("ConnectionStrings__Hashi");
-        if (!string.IsNullOrWhiteSpace(ciConnection))
+        if (!string.IsNullOrWhiteSpace(ciConnection)
+            && await WaitForConnectionAsync(ciConnection, cancellationToken))
         {
-            if (await WaitForConnectionAsync(ciConnection, cancellationToken))
-            {
-                _connectionString = ciConnection;
-                IsAvailable = true;
-            }
-
+            _connectionString = ciConnection;
+            IsAvailable = true;
             return;
         }
+
+        // Gitea act_runner often does not wire GitHub-style service containers to localhost.
+        // Fall through to Testcontainers when Docker is available on the runner.
 
         if (!File.Exists("/var/run/docker.sock"))
         {
