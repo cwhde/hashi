@@ -58,9 +58,9 @@ jobs:
 
       - name: Semgrep static analysis
         run: |
-          python3 -m pip install --user 'semgrep>=1.76,<2'
-          export PATH="$HOME/.local/bin:$PATH"
-          semgrep --config p/default --error --severity ERROR \
+          python3 -m venv /tmp/semgrep-venv
+          /tmp/semgrep-venv/bin/pip install 'semgrep>=1.76,<2'
+          /tmp/semgrep-venv/bin/semgrep --config p/default --error --severity ERROR \
             --exclude hashi.old \
             src/ web/src/ agents/pulse/
 

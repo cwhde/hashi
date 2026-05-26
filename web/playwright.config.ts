@@ -18,8 +18,9 @@ export default defineConfig({
 	webServer: process.env.HASHI_E2E_BASE_URL
 		? undefined
 		: {
-				command: 'pnpm run preview -- --host 127.0.0.1 --port 8080',
-				port: 8080,
-				reuseExistingServer: !process.env.CI
+				command: 'pnpm exec vite preview --host 127.0.0.1 --port 8080',
+				url: 'http://127.0.0.1:8080/setup',
+				reuseExistingServer: !process.env.CI,
+				timeout: 120_000
 			}
 });
