@@ -487,7 +487,12 @@ public sealed record AccessLogIngestRequest(
     string Path,
     int StatusCode,
     string? CountryCode,
-    string? Asn);
+    string? Asn,
+    string? RegionCode = null,
+    string? Method = null,
+    string? PathPrefix = null,
+    string? TraefikInstance = null,
+    string? Resource = null);
 
 public sealed record AdGuardRewriteResponse(Guid Id, string Domain, string Answer, bool ManagedByHashi);
 
