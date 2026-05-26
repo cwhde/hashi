@@ -85,6 +85,38 @@
 			saving = false;
 		}
 	}
+
+	async function testProvider(providerId: string) {
+		saving = true;
+		error = null;
+		message = null;
+		try {
+			const result = await withReauth(() =>
+				api.testNotificationProvider(providerId, {
+					subject: 'Hashi test alert',
+					body: 'This is a test notification from Hashi.'
+				})
+			);
+			if (result) {
+				message = result.sent ? 'Test notification sent.' : `Test failed: ${result.error ?? 'unknown error'}`;
+			}
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Test send failed';
+		} finally {
+			saving = false;
+		}
+	}
+
+	async function deleteProvider(providerId: string) {
+		if (!confirm('Delete this notification provider?')) return;
+		try {
+			await withReauth(() => api.deleteNotificationProvider(providerId));
+			message = 'Provider deleted.';
+			await load();
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Failed to delete provider';
+		}
+	}
 </script>
 
 <div class="grid gap-4">
@@ -139,6 +171,7 @@
 						<TableHead>Name</TableHead>
 						<TableHead>Type</TableHead>
 						<TableHead>Enabled</TableHead>
+						<TableHead class="w-40"></TableHead>
 					</TableRow>
 				</TableHeader>
 				<TableBody>
@@ -147,6 +180,14 @@
 							<TableCell>{provider.name}</TableCell>
 							<TableCell>{provider.type}</TableCell>
 							<TableCell>{provider.enabled ? 'yes' : 'no'}</TableCell>
+							<TableCell class="space-x-2">
+								<Button variant="ghost" size="sm" disabled={saving} onclick={() => testProvider(provider.id)}>
+									Test
+								</Button>
+								<Button variant="ghost" size="sm" onclick={() => deleteProvider(provider.id)}>
+									Delete
+								</Button>
+							</TableCell>
 						</TableRow>
 					{/each}
 				</TableBody>

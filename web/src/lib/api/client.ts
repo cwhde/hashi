@@ -474,6 +474,19 @@ export const api = {
 		const r = await client.GET('/api/scripts');
 		return expectData(r.response, r.error, r.data ?? []);
 	},
+	updateScript: async (scriptId: string, body: import('./types.js').UpdateScriptRequest) => {
+		const r = await client.PUT('/api/scripts/{scriptId}', {
+			params: { path: { scriptId } },
+			body
+		});
+		return expectData(r.response, r.error, r.data);
+	},
+	deleteScript: async (scriptId: string) => {
+		const r = await client.DELETE('/api/scripts/{scriptId}', {
+			params: { path: { scriptId } }
+		});
+		await expectOk(r.response, r.error);
+	},
 	createScript: async (body: import('./types.js').CreateScriptRequest) => {
 		const r = await client.POST('/api/scripts', { body });
 		return expectData(r.response, r.error, r.data);
@@ -495,6 +508,19 @@ export const api = {
 	createNotificationProvider: async (body: import('./types.js').CreateNotificationProviderRequest) => {
 		const r = await client.POST('/api/settings/notifications/providers', { body });
 		return expectData(r.response, r.error, r.data);
+	},
+	testNotificationProvider: async (providerId: string, body: import('./types.js').NotificationTestRequest) => {
+		const r = await client.POST('/api/settings/notifications/providers/{providerId}/test', {
+			params: { path: { providerId } },
+			body
+		});
+		return expectData(r.response, r.error, r.data);
+	},
+	deleteNotificationProvider: async (providerId: string) => {
+		const r = await client.DELETE('/api/settings/notifications/providers/{providerId}', {
+			params: { path: { providerId } }
+		});
+		await expectOk(r.response, r.error);
 	},
 	getPublicApps: async () => {
 		const r = await client.GET('/api/public/apps');

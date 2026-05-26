@@ -449,11 +449,35 @@ public sealed record ForwardAuthDecisionIngestRequest(
     string? CountryCode,
     string? Asn);
 
-public sealed record ScriptResponse(Guid Id, string Name, bool Enabled, string Description);
+public sealed record ScriptResponse(
+    Guid Id,
+    string Name,
+    bool Enabled,
+    string Description,
+    string CronExpression,
+    DateTimeOffset? LastRunAtUtc,
+    string? LastRunOutput);
+
+public sealed record UpdateScriptRequest(
+    string? Name,
+    string? Description,
+    string? Body,
+    string? CronExpression,
+    bool? Enabled);
 
 public sealed record NotificationProviderResponse(Guid Id, string Name, string Type, bool Enabled);
 
 public sealed record CreateNotificationProviderRequest(string Name, string Type, string SettingsJson, bool Enabled);
+
+public sealed record UpdateNotificationProviderRequest(
+    string? Name,
+    string? Type,
+    string? SettingsJson,
+    bool? Enabled);
+
+public sealed record NotificationTestRequest(string Subject, string Body);
+
+public sealed record NotificationTestResponse(bool Sent, string? Error);
 
 public sealed record SendNotificationRequest(string Subject, string Body, IReadOnlyList<string> ProviderTypes);
 

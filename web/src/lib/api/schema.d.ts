@@ -3894,6 +3894,87 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/scripts/{scriptId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    scriptId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ScriptResponse"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    scriptId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateScriptRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ScriptResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    scriptId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/scripts/{scriptId}/run": {
         parameters: {
             query?: never;
@@ -3983,6 +4064,107 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["NotificationProviderResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/notifications/providers/{providerId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    providerId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateNotificationProviderRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["NotificationProviderResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    providerId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/notifications/providers/{providerId}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    providerId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["NotificationTestRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["NotificationTestResponse"];
                     };
                 };
             };
@@ -4896,6 +5078,14 @@ export interface components {
             type: string;
             enabled: boolean;
         };
+        NotificationTestRequest: {
+            subject: string;
+            body: string;
+        };
+        NotificationTestResponse: {
+            sent: boolean;
+            error: null | string;
+        };
         OidcProviderResponse: {
             /** Format: uuid */
             id: string;
@@ -5093,6 +5283,10 @@ export interface components {
             name: string;
             enabled: boolean;
             description: string;
+            cronExpression: string;
+            /** Format: date-time */
+            lastRunAtUtc: null | string;
+            lastRunOutput: null | string;
         };
         SecretDescriptorResponse: {
             /** Format: uuid */
@@ -5327,6 +5521,12 @@ export interface components {
             /** Format: int32 */
             rollbackTimerSeconds?: null | number | string;
         };
+        UpdateNotificationProviderRequest: {
+            name: null | string;
+            type: null | string;
+            settingsJson: null | string;
+            enabled: null | boolean;
+        };
         UpdateOidcProviderRequest: {
             name: null | string;
             issuer: null | string;
@@ -5370,6 +5570,13 @@ export interface components {
             clearExtraMiddlewares: boolean;
             routes?: null | components["schemas"]["ResourceRouteRequest"][];
             rules?: null | components["schemas"]["ResourceRuleRequest"][];
+        };
+        UpdateScriptRequest: {
+            name: null | string;
+            description: null | string;
+            body: null | string;
+            cronExpression: null | string;
+            enabled: null | boolean;
         };
         UpdateTraefikUserMiddlewareRequest: {
             yaml: string;

@@ -34,6 +34,90 @@ public sealed class NotificationDispatcher(HashiDbContext db, IHttpClientFactory
         return new NotificationProviderResponse(entity.Id, entity.Name, entity.Type, entity.Enabled);
     }
 
+    public async Task<NotificationProviderResponse?> UpdateProviderAsync(
+        Guid providerId,
+        UpdateNotificationProviderRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await db.NotificationProviders.SingleOrDefaultAsync(x => x.Id == providerId, cancellationToken);
+        if (entity is null)
+        {
+            return null;
+        }
+
+        if (request.Name is not null)
+        {
+            entity.Name = request.Name;
+        }
+
+        if (request.Type is not null)
+        {
+            entity.Type = request.Type;
+        }
+
+        if (request.SettingsJson is not null)
+        {
+            entity.SettingsJson = request.SettingsJson;
+        }
+
+        if (request.Enabled is bool enabled)
+        {
+            entity.Enabled = enabled;
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        return new NotificationProviderResponse(entity.Id, entity.Name, entity.Type, entity.Enabled);
+    }
+
+    public async Task<bool> DeleteProviderAsync(Guid providerId, CancellationToken cancellationToken = default)
+    {
+        var entity = await db.NotificationProviders.SingleOrDefaultAsync(x => x.Id == providerId, cancellationToken);
+        if (entity is null)
+        {
+            return false;
+        }
+
+        db.NotificationProviders.Remove(entity);
+        await db.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    public async Task<NotificationTestResponse> TestProviderAsync(
+        Guid providerId,
+        NotificationTestRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var provider = await db.NotificationProviders.SingleOrDefaultAsync(x => x.Id == providerId, cancellationToken);
+        if (provider is null)
+        {
+            return new NotificationTestResponse(false, "Provider not found.");
+        }
+
+        try
+        {
+            switch (provider.Type)
+            {
+                case "smtp":
+                    await SendSmtpAsync(provider, request.Subject, request.Body, cancellationToken);
+                    break;
+                case "telegram":
+                    await SendTelegramAsync(provider, request.Subject, request.Body, cancellationToken);
+                    break;
+                case "discord":
+                    await SendDiscordAsync(provider, request.Subject, request.Body, cancellationToken);
+                    break;
+                default:
+                    return new NotificationTestResponse(false, $"Unsupported provider type: {provider.Type}");
+            }
+
+            return new NotificationTestResponse(true, null);
+        }
+        catch (Exception ex)
+        {
+            return new NotificationTestResponse(false, ex.Message);
+        }
+    }
+
     public async Task SendAsync(SendNotificationRequest request, CancellationToken cancellationToken = default)
     {
         var providers = await db.NotificationProviders

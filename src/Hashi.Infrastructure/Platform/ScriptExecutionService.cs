@@ -19,7 +19,65 @@ public sealed class ScriptExecutionService(
     public async Task<IReadOnlyList<ScriptResponse>> ListAsync(CancellationToken cancellationToken = default)
     {
         var scripts = await db.Scripts.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
-        return scripts.Select(x => new ScriptResponse(x.Id, x.Name, x.Enabled, x.Description)).ToList();
+        return scripts.Select(ToResponse).ToList();
+    }
+
+    public async Task<ScriptResponse?> GetAsync(Guid scriptId, CancellationToken cancellationToken = default)
+    {
+        var script = await db.Scripts.AsNoTracking().SingleOrDefaultAsync(x => x.Id == scriptId, cancellationToken);
+        return script is null ? null : ToResponse(script);
+    }
+
+    public async Task<ScriptResponse?> UpdateAsync(Guid scriptId, UpdateScriptRequest request, CancellationToken cancellationToken = default)
+    {
+        var script = await db.Scripts.SingleOrDefaultAsync(x => x.Id == scriptId, cancellationToken);
+        if (script is null)
+        {
+            return null;
+        }
+
+        if (request.Name is not null)
+        {
+            script.Name = request.Name;
+        }
+
+        if (request.Description is not null)
+        {
+            script.Description = request.Description;
+        }
+
+        if (request.Body is not null)
+        {
+            script.Body = request.Body;
+        }
+
+        if (request.CronExpression is not null)
+        {
+            script.CronExpression = request.CronExpression;
+        }
+
+        if (request.Enabled is bool enabled)
+        {
+            script.Enabled = enabled;
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        await audit.WriteAsync("scripts", "script_updated", subjectType: "script", subjectId: script.Id.ToString(), cancellationToken: cancellationToken);
+        return ToResponse(script);
+    }
+
+    public async Task<bool> DeleteAsync(Guid scriptId, CancellationToken cancellationToken = default)
+    {
+        var script = await db.Scripts.SingleOrDefaultAsync(x => x.Id == scriptId, cancellationToken);
+        if (script is null)
+        {
+            return false;
+        }
+
+        db.Scripts.Remove(script);
+        await db.SaveChangesAsync(cancellationToken);
+        await audit.WriteAsync("scripts", "script_deleted", subjectType: "script", subjectId: scriptId.ToString(), cancellationToken: cancellationToken);
+        return true;
     }
 
     public async Task<ScriptResponse> CreateAsync(CreateScriptRequest request, CancellationToken cancellationToken = default)
@@ -34,7 +92,8 @@ public sealed class ScriptExecutionService(
         };
         db.Scripts.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
-        return new ScriptResponse(entity.Id, entity.Name, entity.Enabled, entity.Description);
+        await audit.WriteAsync("scripts", "script_created", subjectType: "script", subjectId: entity.Id.ToString(), cancellationToken: cancellationToken);
+        return ToResponse(entity);
     }
 
     public async Task<RunScriptResponse> RunAsync(Guid scriptId, RunScriptRequest request, CancellationToken cancellationToken = default)
@@ -188,4 +247,13 @@ public sealed class ScriptExecutionService(
         await audit.WriteAsync("scripts", run.Succeeded ? "script_executed" : "script_failed", subjectType: "script", subjectId: script.Id.ToString(), cancellationToken: cancellationToken);
         return new RunScriptResponse(run.Succeeded, run.Output, run.Error);
     }
+
+    public static ScriptResponse ToResponse(ScriptEntity entity) => new(
+        entity.Id,
+        entity.Name,
+        entity.Enabled,
+        entity.Description,
+        entity.CronExpression,
+        entity.LastRunAtUtc,
+        entity.LastRunOutput);
 }

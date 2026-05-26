@@ -113,11 +113,40 @@
 			if (result) {
 				message = result.succeeded ? `Run completed for ${script.name}.` : `Run failed for ${script.name}.`;
 				runOutput = result.error ? `${result.output}\n\n${result.error}` : result.output;
+				await load();
 			}
 		} catch (e) {
 			error = e instanceof ApiRequestError ? e.message : 'Script run failed';
 		} finally {
 			runningId = null;
+		}
+	}
+
+	async function toggleScript(script: Script) {
+		try {
+			await withReauth(() =>
+				api.updateScript(script.id, {
+					name: null,
+					description: null,
+					body: null,
+					cronExpression: null,
+					enabled: !script.enabled
+				})
+			);
+			await load();
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Failed to update script';
+		}
+	}
+
+	async function deleteScript(script: Script) {
+		if (!confirm(`Delete script "${script.name}"?`)) return;
+		try {
+			await withReauth(() => api.deleteScript(script.id));
+			message = `Deleted ${script.name}.`;
+			await load();
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Failed to delete script';
 		}
 	}
 </script>
@@ -192,18 +221,28 @@
 					<TableHeader>
 						<TableRow>
 							<TableHead>Name</TableHead>
-							<TableHead>Description</TableHead>
+							<TableHead>Cron</TableHead>
+							<TableHead>Last run</TableHead>
 							<TableHead>Enabled</TableHead>
-							<TableHead class="w-12"></TableHead>
+							<TableHead class="w-28"></TableHead>
 						</TableRow>
 					</TableHeader>
 					<TableBody>
 						{#each scripts as script (script.id)}
 							<TableRow>
 								<TableCell>{script.name}</TableCell>
-								<TableCell class="max-w-md truncate text-xs">{script.description}</TableCell>
-								<TableCell>{script.enabled ? 'yes' : 'no'}</TableCell>
+								<TableCell class="font-mono text-xs">{script.cronExpression || '—'}</TableCell>
+								<TableCell class="text-xs">
+									{script.lastRunAtUtc
+										? new Date(script.lastRunAtUtc).toLocaleString()
+										: '—'}
+								</TableCell>
 								<TableCell>
+									<Button variant="ghost" size="sm" onclick={() => toggleScript(script)}>
+										{script.enabled ? 'yes' : 'no'}
+									</Button>
+								</TableCell>
+								<TableCell class="space-x-1">
 									<Button
 										variant="ghost"
 										size="icon-sm"
@@ -213,6 +252,7 @@
 									>
 										<Play class="size-4" />
 									</Button>
+									<Button variant="ghost" size="sm" onclick={() => deleteScript(script)}>Delete</Button>
 								</TableCell>
 							</TableRow>
 						{/each}

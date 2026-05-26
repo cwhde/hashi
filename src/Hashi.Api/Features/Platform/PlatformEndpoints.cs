@@ -552,12 +552,33 @@ public static class ScriptEndpoints
         var group = app.MapGroup("/api/scripts").WithTags("Scripts");
         group.MapGet("/", async (ScriptExecutionService scripts, CancellationToken ct) =>
             TypedResults.Ok(await scripts.ListAsync(ct)));
+        group.MapGet("/{scriptId:guid}", async Task<IResult> (Guid scriptId, ScriptExecutionService scripts, CancellationToken ct) =>
+        {
+            var script = await scripts.GetAsync(scriptId, ct);
+            return script is null ? TypedResults.NotFound() : TypedResults.Ok(script);
+        })
+            .Produces<ScriptResponse>(StatusCodes.Status200OK);
         group.MapPost("/", async Task<IResult> (CreateScriptRequest request, ScriptExecutionService scripts, CancellationToken ct) =>
         {
             var created = await scripts.CreateAsync(request, ct);
             return TypedResults.Ok(created);
         })
             .Produces<ScriptResponse>(StatusCodes.Status200OK);
+        group.MapPut("/{scriptId:guid}", async Task<IResult> (
+            Guid scriptId,
+            UpdateScriptRequest request,
+            ScriptExecutionService scripts,
+            CancellationToken ct) =>
+        {
+            var updated = await scripts.UpdateAsync(scriptId, request, ct);
+            return updated is null ? TypedResults.NotFound() : TypedResults.Ok(updated);
+        })
+            .Produces<ScriptResponse>(StatusCodes.Status200OK);
+        group.MapDelete("/{scriptId:guid}", async Task<IResult> (Guid scriptId, ScriptExecutionService scripts, CancellationToken ct) =>
+        {
+            var deleted = await scripts.DeleteAsync(scriptId, ct);
+            return deleted ? TypedResults.NoContent() : TypedResults.NotFound();
+        });
         group.MapPost("/{scriptId:guid}/run", async Task<IResult> (
             Guid scriptId,
             RunScriptRequest request,
@@ -587,6 +608,31 @@ public static class NotificationEndpoints
             return TypedResults.Ok(created);
         })
             .Produces<NotificationProviderResponse>(StatusCodes.Status200OK);
+        group.MapPut("/providers/{providerId:guid}", async Task<IResult> (
+            Guid providerId,
+            UpdateNotificationProviderRequest request,
+            NotificationDispatcher notifications,
+            CancellationToken ct) =>
+        {
+            var updated = await notifications.UpdateProviderAsync(providerId, request, ct);
+            return updated is null ? TypedResults.NotFound() : TypedResults.Ok(updated);
+        })
+            .Produces<NotificationProviderResponse>(StatusCodes.Status200OK);
+        group.MapDelete("/providers/{providerId:guid}", async Task<IResult> (
+            Guid providerId,
+            NotificationDispatcher notifications,
+            CancellationToken ct) =>
+        {
+            var deleted = await notifications.DeleteProviderAsync(providerId, ct);
+            return deleted ? TypedResults.NoContent() : TypedResults.NotFound();
+        });
+        group.MapPost("/providers/{providerId:guid}/test", async Task<IResult> (
+            Guid providerId,
+            NotificationTestRequest request,
+            NotificationDispatcher notifications,
+            CancellationToken ct) =>
+            TypedResults.Ok(await notifications.TestProviderAsync(providerId, request, ct)))
+            .Produces<NotificationTestResponse>(StatusCodes.Status200OK);
         group.MapPost("/send", async Task<IResult> (SendNotificationRequest request, NotificationDispatcher notifications, CancellationToken ct) =>
         {
             await notifications.SendAsync(request, ct);
