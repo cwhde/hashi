@@ -41,3 +41,11 @@ public sealed record GeneralSettingsRequest(
 public sealed record GeneralSettingsUpdateResponse(bool Updated, DateTimeOffset UpdatedAtUtc);
 
 public sealed record ApiErrorResponse(string Error);
+
+public sealed record SystemResourceSyncResponse(
+    bool Succeeded,
+    Guid RunId,
+    string? RiskLevel,
+    bool RequiresConfirmation,
+    string? PreviewMarkdown,
+    string? Message);

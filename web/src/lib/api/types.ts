@@ -46,6 +46,15 @@ export type SyncPlanPreview = Schemas['SyncPlanPreviewResponse'];
 export type SyncReconcileResult = Schemas['SyncReconcileResponse'];
 export type SyncApplyRequest = Schemas['SyncApplyRequest'];
 
+export type SystemResourceSyncResult = {
+	succeeded: boolean;
+	runId: string;
+	riskLevel?: string | null;
+	requiresConfirmation?: boolean;
+	previewMarkdown?: string | null;
+	message?: string | null;
+};
+
 export type ApiError = {
 	error?: string;
 	message?: string;

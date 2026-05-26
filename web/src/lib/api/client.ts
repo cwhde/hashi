@@ -101,6 +101,14 @@ export const api = {
 		await postUndocumented('/api/setup/steps/{stepSlug}/complete', { params: { path: { stepSlug } } });
 		return api.getSetupStatus();
 	},
+	planSystemResourceSync: async () => {
+		const body = await postUndocumented('/api/setup/system-resource/plan');
+		return body as import('./types.js').SystemResourceSyncResult;
+	},
+	syncSystemResource: async () => {
+		const body = await postUndocumented('/api/setup/system-resource/sync');
+		return body as import('./types.js').SystemResourceSyncResult;
+	},
 	completeSetup: async () => {
 		const body = await postUndocumented('/api/setup/complete');
 		return { succeeded: body.succeeded !== false, error: typeof body.error === 'string' ? body.error : null };

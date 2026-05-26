@@ -42,6 +42,40 @@ public static class SetupAdvanceEndpoints
                 state.UpdatedAtUtc));
         });
 
+        group.MapPost("/system-resource/plan", async Task<IResult> (
+            SystemResourceSetupService systemResource,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                var result = await systemResource.PlanAsync(ct);
+                return TypedResults.Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        });
+
+        group.MapPost("/system-resource/sync", async Task<IResult> (
+            SystemResourceSetupService systemResource,
+            AuditService audit,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                var result = await systemResource.SyncAsync(ct);
+                await audit.WriteAsync("setup", "system_resource_sync", subjectType: "sync_run", subjectId: result.RunId.ToString(), cancellationToken: ct);
+                return result.Succeeded
+                    ? TypedResults.Ok(result)
+                    : TypedResults.BadRequest(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        });
+
         return app;
     }
 }
