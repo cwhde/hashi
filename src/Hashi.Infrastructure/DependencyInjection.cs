@@ -1,14 +1,16 @@
-using Fido2NetLib;
 using Hashi.Core.Dns;
-using Hashi.Infrastructure.Auth;
-using Hashi.Infrastructure.Connections;
-using Hashi.Infrastructure.Dns;
-using Hashi.Infrastructure.Persistence;
+using Fido2NetLib;
+using Hashi.Infrastructure.Notifications;
 using Hashi.Infrastructure.Platform;
-using Hashi.Infrastructure.Providers.Dns;
+using Hashi.Infrastructure.Connections;
 using Hashi.Core.Connections;
 using Hashi.Infrastructure.Ssh;
+using Hashi.Infrastructure.Auth;
+using Hashi.Infrastructure.Dns;
+using Hashi.Infrastructure.Providers.Dns;
+using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Services;
+using Hashi.Infrastructure.Bootstrap;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -33,6 +35,8 @@ public static class DependencyInjection
         {
             client.BaseAddress = new Uri("https://dns.hetzner.com/api/v1/");
         });
+        services.AddHttpClient("monitor-checks");
+        services.AddHttpClient("adguard");
 
         services.AddScoped<SetupStateService>();
         services.AddScoped<AuditService>();
@@ -47,12 +51,26 @@ public static class DependencyInjection
         services.AddScoped<SshConnectionService>();
         services.AddScoped<ResourceService>();
         services.AddScoped<TraefikPlatformService>();
+        services.AddScoped<TraefikSyncService>();
         services.AddScoped<FirewallPlatformService>();
+        services.AddScoped<FirewallApplyService>();
         services.AddScoped<MonitoringService>();
+        services.AddScoped<EdgeAuthService>();
+        services.AddScoped<SecurityIngestionService>();
+        services.AddScoped<AdGuardSyncService>();
+        services.AddScoped<ScriptExecutionService>();
+        services.AddScoped<PulseAgentService>();
+        services.AddScoped<NotificationDispatcher>();
         services.AddSingleton<IDnsProviderFactory, DnsProviderFactory>();
         services.AddSingleton<ISshRemoteExecutor, SshRemoteExecutor>();
 
+        var skipStartupHooks = configuration.GetValue<bool>("Hashi:SkipStartupHooks")
+            || string.Equals(Environment.GetEnvironmentVariable("HASHI_SKIP_STARTUP_HOOKS"), "1", StringComparison.Ordinal);
         services.AddHostedService<ServiceSyncVaultBootstrapper>();
+        if (!skipStartupHooks)
+        {
+            services.AddHostedService<MonitorCheckWorker>();
+        }
 
         var fidoDomain = configuration["Hashi:WebAuthn:ServerDomain"] ?? "localhost";
         var fidoOrigin = configuration["Hashi:WebAuthn:Origin"] ?? "http://localhost:8080";

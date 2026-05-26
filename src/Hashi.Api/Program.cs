@@ -4,6 +4,7 @@ using Hashi.Api.Features.Dns;
 using Hashi.Api.Features.Resources;
 using Hashi.Api.Features.Setup;
 using Hashi.Api.Features.Vault;
+using Hashi.Api.Hosting;
 using Hashi.Infrastructure;
 using Hashi.Infrastructure.Auth;
 using Hashi.Infrastructure.Bootstrap;
@@ -15,6 +16,16 @@ using Microsoft.OpenApi.Models;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+if (!builder.Environment.IsEnvironment("OpenApiExport"))
+{
+    builder.WebHost.ConfigureKestrel(options =>
+    {
+        options.ListenAnyIP(8080);
+        options.ListenAnyIP(8081);
+        options.ListenAnyIP(8082);
+    });
+}
 
 builder.Host.UseSerilog((context, services, configuration) =>
     configuration.ReadFrom.Configuration(context.Configuration)
@@ -59,6 +70,7 @@ if (app.Environment.IsDevelopment()
 }
 
 app.UseSerilogRequestLogging();
+app.UseMiddleware<PublicPortRoutingMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseDefaultFiles();
@@ -85,6 +97,7 @@ app.MapPulseEndpoints();
 app.MapScriptEndpoints();
 app.MapNotificationEndpoints();
 app.MapAdGuardEndpoints();
+app.MapWafEndpoints();
 
 var skipStartupHooks = builder.Configuration.GetValue<bool>("Hashi:SkipStartupHooks")
     || string.Equals(Environment.GetEnvironmentVariable("HASHI_SKIP_STARTUP_HOOKS"), "1", StringComparison.Ordinal);
