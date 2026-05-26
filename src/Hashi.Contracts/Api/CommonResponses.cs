@@ -17,15 +17,6 @@ public sealed record AuditEventResponse(
     string Outcome,
     DateTimeOffset CreatedAtUtc);
 
-public sealed record SyncRunResponse(
-    Guid Id,
-    string Subsystem,
-    string Status,
-    string? RiskLevel,
-    DateTimeOffset StartedAtUtc,
-    DateTimeOffset? CompletedAtUtc,
-    string? ErrorSummary);
-
 public sealed record BootstrapAllowedResponse(bool Allowed, string? RemoteIp);
 
 public sealed record GeneralSettingsResponse(

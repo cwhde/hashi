@@ -81,6 +81,82 @@
         }
       }
     },
+    "/api/edge-auth/login": {
+      "get": {
+        "tags": [
+          "EdgeAuth"
+        ],
+        "parameters": [
+          {
+            "name": "providerId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "returnUrl",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/edge-auth/callback": {
+      "get": {
+        "tags": [
+          "EdgeAuth"
+        ],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "returnUrl",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/edge-auth/logout": {
+      "post": {
+        "tags": [
+          "EdgeAuth"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnonymousTypeOfboolean"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/waf/{slug}/middleware": {
       "get": {
         "tags": [
@@ -250,6 +326,25 @@
         }
       }
     },
+    "/api/auth/csrf": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnonymousTypeOfstring"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/bootstrap/login": {
       "post": {
         "tags": [
@@ -365,6 +460,40 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/auth/reauthenticate": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/auth/reauthenticate/complete": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeyLoginCompleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
           }
         }
       }
@@ -517,6 +646,29 @@
           },
           "required": true
         },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/vault/secrets/{id}/reveal": {
+      "get": {
+        "tags": [
+          "Vault"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK"
@@ -1573,6 +1725,111 @@
           }
         }
       }
+    },
+    "/api/sync/runs": {
+      "get": {
+        "tags": [
+          "Sync"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SyncRunResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sync/runs/{id}": {
+      "get": {
+        "tags": [
+          "Sync"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/sync/plan": {
+      "post": {
+        "tags": [
+          "Sync"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncPlanPreviewResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sync/apply": {
+      "post": {
+        "tags": [
+          "Sync"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyncApplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/sync/reconcile": {
+      "post": {
+        "tags": [
+          "Sync"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncReconcileResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1612,6 +1869,31 @@
             ]
           },
           "asn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "AnonymousTypeOfboolean": {
+        "required": [
+          "loggedOut"
+        ],
+        "type": "object",
+        "properties": {
+          "loggedOut": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AnonymousTypeOfstring": {
+        "required": [
+          "token"
+        ],
+        "type": "object",
+        "properties": {
+          "token": {
             "type": [
               "null",
               "string"
@@ -2943,6 +3225,210 @@
           }
         }
       },
+      "SyncApplyRequest": {
+        "required": [
+          "confirmDestructive"
+        ],
+        "type": "object",
+        "properties": {
+          "confirmDestructive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SyncDiffResponse": {
+        "required": [
+          "id",
+          "resourceType",
+          "resourceKey",
+          "changeKind",
+          "summary"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "resourceType": {
+            "type": "string"
+          },
+          "resourceKey": {
+            "type": "string"
+          },
+          "changeKind": {
+            "type": "string"
+          },
+          "summary": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "SyncPlanPreviewResponse": {
+        "required": [
+          "planId",
+          "subsystem",
+          "riskLevel",
+          "requiresConfirmation",
+          "changes",
+          "previewMarkdown"
+        ],
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "subsystem": {
+            "type": "string"
+          },
+          "riskLevel": {
+            "type": "string"
+          },
+          "requiresConfirmation": {
+            "type": "boolean"
+          },
+          "changes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyncDiffResponse"
+            }
+          },
+          "previewMarkdown": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "SyncReconcileResponse": {
+        "required": [
+          "runId",
+          "succeeded",
+          "subsystemsReconciled"
+        ],
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "succeeded": {
+            "type": "boolean"
+          },
+          "subsystemsReconciled": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "SyncRunResponse": {
+        "required": [
+          "id",
+          "subsystem",
+          "status",
+          "riskLevel",
+          "startedAtUtc",
+          "completedAtUtc",
+          "errorSummary",
+          "steps",
+          "diffs"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "subsystem": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "riskLevel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "startedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "errorSummary": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyncStepResponse"
+            }
+          },
+          "diffs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyncDiffResponse"
+            }
+          }
+        }
+      },
+      "SyncStepResponse": {
+        "required": [
+          "id",
+          "name",
+          "status",
+          "startedAtUtc",
+          "completedAtUtc",
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "startedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "TraefikApplyRequest": {
         "required": [
           "connectionId",
@@ -2994,6 +3480,40 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "TraefikDynamicFilesResponse": {
+        "required": [
+          "coreYaml",
+          "httpResourcesYaml",
+          "streamResourcesYaml",
+          "userMiddlewaresYaml",
+          "securityYaml",
+          "healthYaml"
+        ],
+        "type": [
+          "null",
+          "object"
+        ],
+        "properties": {
+          "coreYaml": {
+            "type": "string"
+          },
+          "httpResourcesYaml": {
+            "type": "string"
+          },
+          "streamResourcesYaml": {
+            "type": "string"
+          },
+          "userMiddlewaresYaml": {
+            "type": "string"
+          },
+          "securityYaml": {
+            "type": "string"
+          },
+          "healthYaml": {
+            "type": "string"
           }
         }
       },
@@ -3067,6 +3587,9 @@
           },
           "contentHash": {
             "type": "string"
+          },
+          "dynamicFiles": {
+            "$ref": "#/components/schemas/TraefikDynamicFilesResponse"
           }
         }
       },
@@ -3301,6 +3824,9 @@
     },
     {
       "name": "AdGuard"
+    },
+    {
+      "name": "Sync"
     }
   ]
 }
