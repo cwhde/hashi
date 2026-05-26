@@ -87,6 +87,7 @@ public static class DependencyInjection
             services.AddHostedService<MonitorRollupWorker>();
             services.AddHostedService<SyncOrchestratorHostedService>();
             services.AddHostedService<ScriptCronHostedService>();
+            services.AddHostedService<AccessLogIngestWorker>();
         }
 
         var fidoDomain = configuration["Hashi:WebAuthn:ServerDomain"] ?? "localhost";
