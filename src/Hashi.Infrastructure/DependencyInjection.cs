@@ -1,4 +1,6 @@
+using FluentValidation;
 using Hashi.Core.Dns;
+using Hashi.Core.Validation;
 using Fido2NetLib;
 using Hashi.Infrastructure.Notifications;
 using Hashi.Infrastructure.Platform;
@@ -75,6 +77,7 @@ public static class DependencyInjection
         services.AddScoped<NotificationDispatcher>();
         services.AddSingleton<IDnsProviderFactory, DnsProviderFactory>();
         services.AddSingleton<ISshRemoteExecutor, SshRemoteExecutor>();
+        services.AddValidatorsFromAssemblyContaining<CreateResourceRequestValidator>();
 
         var skipStartupHooks = configuration.GetValue<bool>("Hashi:SkipStartupHooks")
             || string.Equals(Environment.GetEnvironmentVariable("HASHI_SKIP_STARTUP_HOOKS"), "1", StringComparison.Ordinal);
