@@ -77,6 +77,8 @@ export type UpsertAdGuardRewriteRequest = Schemas['UpsertAdGuardRewriteRequest']
 
 export type MonitoringSettingsRequest = Schemas['MonitoringSettingsRequest'];
 export type EdgeSsoSettingsRequest = Schemas['EdgeSsoSettingsRequest'];
+export type OidcProvider = Schemas['OidcProviderResponse'];
+export type CreateOidcProviderRequest = Schemas['CreateOidcProviderRequest'];
 export type RotatePulseAgentResult = Schemas['CreatePulseAgentResponse'];
 
 export type SyncRun = Schemas['SyncRunResponse'];
