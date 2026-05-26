@@ -1,15 +1,46 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using Hashi.Contracts.Api;
+using Hashi.Core.Auth;
+using Hashi.Infrastructure.Auth;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace Hashi.Infrastructure.Platform;
 
-public sealed class AdGuardSyncService(HashiDbContext db, IHttpClientFactory httpClientFactory)
+public sealed class AdGuardSyncService(HashiDbContext db, IHttpClientFactory httpClientFactory, SecretRecordService secrets)
 {
+    public async Task<IReadOnlyList<AdGuardConnectionResponse>> ListConnectionsAsync(CancellationToken cancellationToken = default)
+    {
+        var items = await db.AdGuardConnections.AsNoTracking()
+            .OrderBy(x => x.Name)
+            .ToListAsync(cancellationToken);
+        return items.Select(x => new AdGuardConnectionResponse(x.Id, x.Name, x.BaseUrl, x.Enabled)).ToList();
+    }
+
+    public async Task<AdGuardConnectionResponse> CreateConnectionAsync(
+        CreateAdGuardConnectionRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var secret = await secrets.StoreAsync(
+            SecretPurpose.AdGuardCredential,
+            $"AdGuard: {request.Name}",
+            JsonSerializer.SerializeToUtf8Bytes(new { password = request.Password }),
+            cancellationToken);
+        var connection = new AdGuardConnectionEntity
+        {
+            Name = request.Name,
+            BaseUrl = request.BaseUrl.TrimEnd('/'),
+            PasswordSecretId = secret.Id,
+        };
+        db.AdGuardConnections.Add(connection);
+        await db.SaveChangesAsync(cancellationToken);
+        return new AdGuardConnectionResponse(connection.Id, connection.Name, connection.BaseUrl, connection.Enabled);
+    }
+
     public async Task<IReadOnlyList<AdGuardRewriteResponse>> ListRewritesAsync(Guid connectionId, CancellationToken cancellationToken = default)
     {
         var items = await db.AdGuardRewrites.AsNoTracking()
@@ -63,8 +94,16 @@ public sealed class AdGuardSyncService(HashiDbContext db, IHttpClientFactory htt
     {
         var connection = await db.AdGuardConnections.SingleOrDefaultAsync(x => x.Id == connectionId, cancellationToken)
             ?? throw new InvalidOperationException("AdGuard connection not found.");
+        var password = await ResolvePasswordAsync(connection.PasswordSecretId, cancellationToken);
         var client = httpClientFactory.CreateClient("adguard");
         client.BaseAddress = new Uri(connection.BaseUrl.TrimEnd('/') + "/");
+        if (!string.IsNullOrEmpty(password))
+        {
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+                "Basic",
+                Convert.ToBase64String(Encoding.UTF8.GetBytes($"admin:{password}")));
+        }
+
         var payload = new { domain = rewrite.Domain, answer = rewrite.Answer };
         using var response = await client.PostAsJsonAsync("control/rewrite/add", payload, cancellationToken);
         response.EnsureSuccessStatusCode();
@@ -75,5 +114,17 @@ public sealed class AdGuardSyncService(HashiDbContext db, IHttpClientFactory htt
             rewrite.ProviderRewriteId = idElement.GetRawText();
             await db.SaveChangesAsync(cancellationToken);
         }
+    }
+
+    private async Task<string?> ResolvePasswordAsync(Guid secretId, CancellationToken cancellationToken)
+    {
+        var payload = await secrets.DecryptForPurposeAsync(secretId, cancellationToken);
+        if (payload is null)
+        {
+            return null;
+        }
+
+        using var doc = JsonDocument.Parse(payload);
+        return doc.RootElement.TryGetProperty("password", out var password) ? password.GetString() : null;
     }
 }

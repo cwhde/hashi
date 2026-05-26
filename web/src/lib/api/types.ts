@@ -47,6 +47,10 @@ export type RunScriptRequest = Schemas['RunScriptRequest'];
 export type RunScriptResponse = Schemas['RunScriptResponse'];
 export type NotificationProvider = Schemas['NotificationProviderResponse'];
 export type CreateNotificationProviderRequest = Schemas['CreateNotificationProviderRequest'];
+export type AdGuardConnection = Schemas['AdGuardConnectionResponse'];
+export type CreateAdGuardConnectionRequest = Schemas['CreateAdGuardConnectionRequest'];
+export type AdGuardRewrite = Schemas['AdGuardRewriteResponse'];
+export type UpsertAdGuardRewriteRequest = Schemas['UpsertAdGuardRewriteRequest'];
 
 export type SyncRun = Schemas['SyncRunResponse'];
 export type SyncPlanPreview = Schemas['SyncPlanPreviewResponse'];

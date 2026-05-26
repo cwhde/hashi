@@ -161,6 +161,10 @@ public sealed record AdGuardRewriteResponse(Guid Id, string Domain, string Answe
 
 public sealed record UpsertAdGuardRewriteRequest(string Domain, string Answer);
 
+public sealed record AdGuardConnectionResponse(Guid Id, string Name, string BaseUrl, bool Enabled);
+
+public sealed record CreateAdGuardConnectionRequest(string Name, string BaseUrl, string Password);
+
 public sealed record CreateScriptRequest(Guid ConnectionId, string Name, string Description, string Body, string CronExpression);
 
 public sealed record RunScriptRequest(

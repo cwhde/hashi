@@ -351,10 +351,20 @@ public static class AdGuardEndpoints
     public static IEndpointRouteBuilder MapAdGuardEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/adguard").WithTags("AdGuard");
+        group.MapGet("/connections", async (AdGuardSyncService adguard, CancellationToken ct) =>
+            TypedResults.Ok(await adguard.ListConnectionsAsync(ct)))
+            .Produces<IEnumerable<AdGuardConnectionResponse>>(StatusCodes.Status200OK);
+        group.MapPost("/connections", async Task<IResult> (
+            CreateAdGuardConnectionRequest request,
+            AdGuardSyncService adguard,
+            CancellationToken ct) =>
+            TypedResults.Ok(await adguard.CreateConnectionAsync(request, ct)))
+            .Produces<AdGuardConnectionResponse>(StatusCodes.Status200OK);
         group.MapGet("/{connectionId:guid}/rewrites", async Task<IResult> (
             Guid connectionId,
             AdGuardSyncService adguard,
-            CancellationToken ct) => TypedResults.Ok(await adguard.ListRewritesAsync(connectionId, ct)));
+            CancellationToken ct) => TypedResults.Ok(await adguard.ListRewritesAsync(connectionId, ct)))
+            .Produces<IEnumerable<AdGuardRewriteResponse>>(StatusCodes.Status200OK);
         group.MapPost("/{connectionId:guid}/rewrites", async Task<IResult> (
             Guid connectionId,
             UpsertAdGuardRewriteRequest request,
@@ -370,7 +380,8 @@ public static class AdGuardEndpoints
             {
                 return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
             }
-        });
+        })
+            .Produces<AdGuardRewriteResponse>(StatusCodes.Status200OK);
         group.MapPost("/{connectionId:guid}/sync", async Task<IResult> (
             Guid connectionId,
             AdGuardSyncService adguard,

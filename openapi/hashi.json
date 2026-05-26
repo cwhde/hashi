@@ -1740,6 +1740,55 @@
         }
       }
     },
+    "/api/adguard/connections": {
+      "get": {
+        "tags": [
+          "AdGuard"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AdGuardConnectionResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "AdGuard"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAdGuardConnectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdGuardConnectionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/adguard/{connectionId}/rewrites": {
       "get": {
         "tags": [
@@ -1758,7 +1807,17 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AdGuardRewriteResponse"
+                  }
+                }
+              }
+            }
           }
         }
       },
@@ -1789,7 +1848,14 @@
         },
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdGuardRewriteResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -1967,6 +2033,54 @@
           }
         }
       },
+      "AdGuardConnectionResponse": {
+        "required": [
+          "id",
+          "name",
+          "baseUrl",
+          "enabled"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "baseUrl": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AdGuardRewriteResponse": {
+        "required": [
+          "id",
+          "domain",
+          "answer",
+          "managedByHashi"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "answer": {
+            "type": "string"
+          },
+          "managedByHashi": {
+            "type": "boolean"
+          }
+        }
+      },
       "AnonymousTypeOfboolean": {
         "required": [
           "loggedOut"
@@ -2129,6 +2243,25 @@
               "string"
             ],
             "format": "date-time"
+          }
+        }
+      },
+      "CreateAdGuardConnectionRequest": {
+        "required": [
+          "name",
+          "baseUrl",
+          "password"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "baseUrl": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
           }
         }
       },

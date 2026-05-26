@@ -2623,6 +2623,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/adguard/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdGuardConnectionResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateAdGuardConnectionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdGuardConnectionResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/adguard/{connectionId}/rewrites": {
         parameters: {
             query?: never;
@@ -2646,7 +2704,9 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["AdGuardRewriteResponse"][];
+                    };
                 };
             };
         };
@@ -2671,7 +2731,9 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["AdGuardRewriteResponse"];
+                    };
                 };
             };
         };
@@ -2906,6 +2968,20 @@ export interface components {
             countryCode: null | string;
             asn: null | string;
         };
+        AdGuardConnectionResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            baseUrl: string;
+            enabled: boolean;
+        };
+        AdGuardRewriteResponse: {
+            /** Format: uuid */
+            id: string;
+            domain: string;
+            answer: string;
+            managedByHashi: boolean;
+        };
         AnonymousTypeOfboolean: {
             loggedOut: boolean;
         };
@@ -2945,6 +3021,11 @@ export interface components {
             lastValidationMessage: null | string;
             /** Format: date-time */
             lastValidatedAtUtc: null | string;
+        };
+        CreateAdGuardConnectionRequest: {
+            name: string;
+            baseUrl: string;
+            password: string;
         };
         CreateFirewallHostRequest: {
             /** Format: uuid */

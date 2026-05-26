@@ -354,5 +354,37 @@ export const api = {
 	reconcileGlobalSync: async () => {
 		const body = await postUndocumented('/api/sync/reconcile');
 		return body as import('./types.js').SyncReconcileResult;
+	},
+
+	listAdGuardConnections: async () => {
+		const r = await client.GET('/api/adguard/connections');
+		return expectData(r.response, r.error, r.data ?? []);
+	},
+	createAdGuardConnection: async (body: import('./types.js').CreateAdGuardConnectionRequest) => {
+		const r = await client.POST('/api/adguard/connections', { body });
+		return expectData(r.response, r.error, r.data);
+	},
+	listAdGuardRewrites: async (connectionId: string) => {
+		const r = await client.GET('/api/adguard/{connectionId}/rewrites', {
+			params: { path: { connectionId } }
+		});
+		return expectData(r.response, r.error, r.data ?? []);
+	},
+	upsertAdGuardRewrite: async (
+		connectionId: string,
+		body: import('./types.js').UpsertAdGuardRewriteRequest
+	) => {
+		const r = await client.POST('/api/adguard/{connectionId}/rewrites', {
+			params: { path: { connectionId } },
+			body
+		});
+		return expectData(r.response, r.error, r.data);
+	},
+	syncAdGuardConnection: async (connectionId: string) => {
+		const r = await client.POST('/api/adguard/{connectionId}/sync', {
+			params: { path: { connectionId } }
+		});
+		if (!r.response.ok) throw errorFromResult(r.response.status, r.error);
+		return readUndocumentedJson(r.response) as { synced?: boolean };
 	}
 };

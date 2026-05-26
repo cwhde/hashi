@@ -78,7 +78,7 @@ public sealed class PassiveSyncSafetyTests
             new TraefikPlatformService(db, settings),
             new TraefikSyncService(db, new FakeSshRemoteExecutor(), new TraefikPlatformService(db, settings), secrets, new AuditService(db)),
             new FirewallApplyService(db, new FakeSshRemoteExecutor(), secrets, new AuditService(db)),
-            new AdGuardSyncService(db, new ServiceCollection().AddHttpClient().BuildServiceProvider().GetRequiredService<IHttpClientFactory>()),
+            new AdGuardSyncService(db, new ServiceCollection().AddHttpClient().BuildServiceProvider().GetRequiredService<IHttpClientFactory>(), secrets),
             syncRuns,
             settings,
             new AuditService(db));

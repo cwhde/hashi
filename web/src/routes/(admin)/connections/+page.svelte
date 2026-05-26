@@ -134,6 +134,13 @@
 		</div>
 	</PanelSection>
 
+	<PanelSection title="AdGuard Home" description="Optional DNS rewrite management (spec §16).">
+		<p class="mb-3 text-sm text-muted-foreground">
+			Configure AdGuard Home connections and Hashi-managed rewrites on the dedicated page.
+		</p>
+		<Button variant="outline" href="/adguard">Open AdGuard admin</Button>
+	</PanelSection>
+
 	{#if message}<p class="text-xs text-emerald-300">{message}</p>{/if}
 	{#if error}<p class="text-xs text-destructive">{error}</p>{/if}
 
