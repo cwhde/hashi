@@ -3,20 +3,30 @@ using Testcontainers.PostgreSql;
 namespace Hashi.IntegrationTests;
 
 /// <summary>
-/// Lazy PostgreSQL test container — avoids Testcontainers constructor failures when Docker is unavailable.
+/// PostgreSQL for integration tests. Uses CI service connection string when provided;
+/// otherwise starts a Testcontainers instance when Docker is available.
 /// </summary>
 internal sealed class IntegrationTestPostgres : IAsyncDisposable
 {
     private PostgreSqlContainer? _container;
+    private string? _connectionString;
 
     public bool IsAvailable { get; private set; }
 
     public string ConnectionString =>
-        _container?.GetConnectionString()
-        ?? throw new InvalidOperationException("PostgreSQL test container is not running.");
+        _connectionString
+        ?? throw new InvalidOperationException("PostgreSQL test database is not running.");
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
+        var ciConnection = Environment.GetEnvironmentVariable("ConnectionStrings__Hashi");
+        if (!string.IsNullOrWhiteSpace(ciConnection))
+        {
+            _connectionString = ciConnection;
+            IsAvailable = true;
+            return;
+        }
+
         if (!File.Exists("/var/run/docker.sock"))
         {
             return;
@@ -31,6 +41,7 @@ internal sealed class IntegrationTestPostgres : IAsyncDisposable
                 .WithPassword("hashi")
                 .Build();
             await _container.StartAsync(cancellationToken);
+            _connectionString = _container.GetConnectionString();
             IsAvailable = true;
         }
         catch (Exception ex)

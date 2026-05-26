@@ -79,6 +79,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:18
@@ -103,11 +104,7 @@ jobs:
           dotnet restore Hashi.slnx
           dotnet format Hashi.slnx --verify-no-changes
           dotnet test tests/Hashi.UnitTests/Hashi.UnitTests.csproj --no-restore --verbosity normal
-          if [ -S /var/run/docker.sock ]; then
-            dotnet test tests/Hashi.IntegrationTests/Hashi.IntegrationTests.csproj --no-restore --verbosity normal
-          else
-            echo "Docker socket unavailable — skipping Testcontainers integration tests."
-          fi
+          dotnet test tests/Hashi.IntegrationTests/Hashi.IntegrationTests.csproj --no-restore --verbosity normal
           dotnet build src/Hashi.Api/Hashi.Api.csproj -c Release --no-restore /p:SkipFrontendBuild=true
 
   openapi-verify:
@@ -144,6 +141,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.agents == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: agents/pulse
@@ -159,7 +157,11 @@ jobs:
           make vet
           make test
           make build
-          docker build -t hashi-pulse:ci .
+          if command -v docker >/dev/null 2>&1; then
+            docker build -t hashi-pulse:ci .
+          else
+            echo "Docker CLI unavailable — skipping image build verification."
+          fi
 
   frontend:
     needs: changes

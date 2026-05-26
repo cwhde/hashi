@@ -83,7 +83,8 @@
 				targetHost: null,
 				targetPort: null,
 				dashboardEnabled: null,
-				statusEnabled: null
+				statusEnabled: null,
+				clearFirewallHostId: false
 			});
 			await load();
 		} catch (e) {
