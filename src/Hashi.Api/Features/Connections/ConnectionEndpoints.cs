@@ -1,3 +1,5 @@
+using FluentValidation;
+using Hashi.Api.Hosting;
 using Hashi.Contracts.Api;
 using Hashi.Core.Connections;
 using Hashi.Infrastructure.Connections;
@@ -21,9 +23,16 @@ public static class ConnectionEndpoints
 
         group.MapPost("/ssh", async Task<IResult> (
             CreateSshConnectionRequest request,
+            IValidator<CreateSshConnectionRequest> validator,
             SshConnectionService connections,
             CancellationToken ct) =>
         {
+            var validationErrors = await validator!.ValidateRequestAsync(request, ct);
+            if (validationErrors is not null)
+            {
+                return TypedResults.ValidationProblem(validationErrors);
+            }
+
             var settings = new SshConnectionSettings(
                 request.Host,
                 request.Port <= 0 ? 22 : request.Port,
@@ -61,12 +70,14 @@ public static class ConnectionEndpoints
         group.MapPost("/{connectionId:guid}/write", async Task<IResult> (
             Guid connectionId,
             RemoteWriteRequest request,
+            IValidator<RemoteWriteRequest> validator,
             SshConnectionService connections,
             CancellationToken ct) =>
         {
-            if (string.IsNullOrWhiteSpace(request.AuthMode))
+            var validationErrors = await validator!.ValidateRequestAsync(request, ct);
+            if (validationErrors is not null)
             {
-                return TypedResults.BadRequest(new ApiErrorResponse("AuthMode is required."));
+                return TypedResults.ValidationProblem(validationErrors);
             }
 
             var settings = new SshConnectionSettings(

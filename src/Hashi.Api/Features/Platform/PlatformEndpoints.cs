@@ -1,3 +1,5 @@
+using FluentValidation;
+using Hashi.Api.Hosting;
 using Hashi.Contracts.Api;
 using Hashi.Core.Traefik;
 using Hashi.Infrastructure.Notifications;
@@ -27,8 +29,18 @@ public static class ResourceEndpoints
             return TypedResults.Ok(responses);
         });
 
-        group.MapPost("/", async Task<IResult> (CreateResourceRequest request, ResourceService resources, CancellationToken ct) =>
+        group.MapPost("/", async Task<IResult> (
+            CreateResourceRequest request,
+            IValidator<CreateResourceRequest> validator,
+            ResourceService resources,
+            CancellationToken ct) =>
         {
+            var validationErrors = await validator!.ValidateRequestAsync(request, ct);
+            if (validationErrors is not null)
+            {
+                return TypedResults.ValidationProblem(validationErrors);
+            }
+
             var created = await resources.CreateAsync(request, ct);
             return TypedResults.Ok(await resources.ToResponseAsync(created, ct));
         });
