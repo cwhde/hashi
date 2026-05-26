@@ -14,6 +14,7 @@ public sealed class EdgeAuthService(HashiDbContext db)
         IPAddress clientIp,
         string? countryCode,
         string? asn,
+        string? edgeSessionKey = null,
         CancellationToken cancellationToken = default)
     {
         var rules = await db.EdgeAuthRules.AsNoTracking()
@@ -37,10 +38,21 @@ public sealed class EdgeAuthService(HashiDbContext db)
         }
 
         var providers = await db.OidcProviders.AsNoTracking().AnyAsync(x => x.Enabled, cancellationToken);
+        if (providers && HasValidEdgeSession(edgeSessionKey))
+        {
+            return new EdgeAuthForwardResponse("allow", null);
+        }
+
         return providers
-            ? new EdgeAuthForwardResponse("challenge", "/auth/oidc/login")
+            ? new EdgeAuthForwardResponse("challenge", "/api/edge-auth/login")
             : new EdgeAuthForwardResponse("allow", null);
     }
+
+    private static bool HasValidEdgeSession(string? edgeSessionKey)
+        => !string.IsNullOrWhiteSpace(edgeSessionKey)
+           && EdgeSessionStore.TryGet(edgeSessionKey, out var session)
+           && session is not null
+           && session.ExpiresAtUtc > DateTimeOffset.UtcNow;
 
     private static bool Matches(
         string matchJson,
