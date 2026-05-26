@@ -2073,6 +2073,12 @@
           },
           "internalTraefikIp": {
             "type": "string"
+          },
+          "publicIp": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

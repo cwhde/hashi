@@ -2858,6 +2858,7 @@ export interface components {
             managedSubnets: string[];
             linkedTraefikHost: string;
             internalTraefikIp: string;
+            publicIp?: null | string;
         };
         CreateHetznerDnsConnectionRequest: {
             name: string;
