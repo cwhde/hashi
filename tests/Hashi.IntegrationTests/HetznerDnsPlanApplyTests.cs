@@ -47,8 +47,6 @@ public sealed class HetznerDnsPlanApplyTests : IAsyncLifetime
             .AddSingleton<IHttpClientFactory>(_ => new SingleHttpClientFactory(fakeClient))
             .AddSingleton<IDnsProviderFactory, DnsProviderFactory>()
             .AddSingleton<ILogger<HetznerDnsProvider>>(_ => NullLogger<HetznerDnsProvider>.Instance)
-            .AddScoped<SetupStateService>()
-            .AddScoped<AppSettingsService>()
             .AddScoped<SecretRecordService>()
             .AddScoped<AuditService>()
             .AddScoped<DnsConnectionService>()
@@ -57,7 +55,6 @@ public sealed class HetznerDnsPlanApplyTests : IAsyncLifetime
         using var scope = _services.CreateScope();
         var vault = scope.ServiceProvider.GetRequiredService<VaultSessionState>();
         vault.Unlock(new byte[32]);
-        await IntegrationTestApp.EnsureSeededAsync(_services);
     }
 
     public async Task DisposeAsync()
