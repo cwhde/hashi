@@ -42,7 +42,11 @@ export type PulseAgent = Schemas['PulseAgentResponse'];
 export type CreatePulseAgentRequest = Schemas['CreatePulseAgentRequest'];
 export type CreatePulseAgentResult = Schemas['CreatePulseAgentResponse'];
 export type Script = Schemas['ScriptResponse'];
+export type CreateScriptRequest = Schemas['CreateScriptRequest'];
+export type RunScriptRequest = Schemas['RunScriptRequest'];
+export type RunScriptResponse = Schemas['RunScriptResponse'];
 export type NotificationProvider = Schemas['NotificationProviderResponse'];
+export type CreateNotificationProviderRequest = Schemas['CreateNotificationProviderRequest'];
 
 export type SyncRun = Schemas['SyncRunResponse'];
 export type SyncPlanPreview = Schemas['SyncPlanPreviewResponse'];

@@ -39,6 +39,11 @@ public sealed class ScriptExecutionService(
 
     public async Task<RunScriptResponse> RunAsync(Guid scriptId, RunScriptRequest request, CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(request.Host) || string.IsNullOrWhiteSpace(request.Username))
+        {
+            return await RunWithConnectionAsync(scriptId, cancellationToken);
+        }
+
         var script = await db.Scripts.SingleOrDefaultAsync(x => x.Id == scriptId, cancellationToken)
             ?? throw new InvalidOperationException("Script not found.");
         var settings = new SshConnectionSettings(

@@ -3194,14 +3194,18 @@ export interface components {
             firewallHostId: null | string;
         };
         RunScriptRequest: {
-            host: string;
-            /** Format: int32 */
+            host?: null | string;
+            /**
+             * Format: int32
+             * @default 22
+             */
             port: number | string;
-            username: string;
+            username?: null | string;
+            /** @default password */
             authMode: string;
-            password: null | string;
-            privateKeyPem: null | string;
-            privateKeyPassphrase: null | string;
+            password?: null | string;
+            privateKeyPem?: null | string;
+            privateKeyPassphrase?: null | string;
         };
         ScriptResponse: {
             /** Format: uuid */

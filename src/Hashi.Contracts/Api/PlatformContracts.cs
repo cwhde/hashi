@@ -164,13 +164,13 @@ public sealed record UpsertAdGuardRewriteRequest(string Domain, string Answer);
 public sealed record CreateScriptRequest(Guid ConnectionId, string Name, string Description, string Body, string CronExpression);
 
 public sealed record RunScriptRequest(
-    string Host,
-    int Port,
-    string Username,
-    string AuthMode,
-    string? Password,
-    string? PrivateKeyPem,
-    string? PrivateKeyPassphrase);
+    string? Host = null,
+    int Port = 22,
+    string? Username = null,
+    string AuthMode = "password",
+    string? Password = null,
+    string? PrivateKeyPem = null,
+    string? PrivateKeyPassphrase = null);
 
 public sealed record RunScriptResponse(bool Succeeded, string Output, string? Error);
 

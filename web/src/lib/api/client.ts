@@ -298,6 +298,19 @@ export const api = {
 		const r = await client.GET('/api/scripts');
 		return expectData(r.response, r.error, r.data ?? []);
 	},
+	createScript: async (body: import('./types.js').CreateScriptRequest) => {
+		const r = await client.POST('/api/scripts', { body });
+		if (!r.response.ok) throw errorFromResult(r.response.status, r.error);
+		return (await readUndocumentedJson(r.response)) as import('./types.js').Script;
+	},
+	runScript: async (scriptId: string, body: import('./types.js').RunScriptRequest = {}) => {
+		const r = await client.POST('/api/scripts/{scriptId}/run', {
+			params: { path: { scriptId } },
+			body
+		});
+		if (!r.response.ok) throw errorFromResult(r.response.status, r.error);
+		return (await readUndocumentedJson(r.response)) as import('./types.js').RunScriptResponse;
+	},
 	listNotificationProviders: async () => {
 		const r = await client.GET('/api/settings/notifications/providers');
 		return expectData(r.response, r.error, r.data ?? []);

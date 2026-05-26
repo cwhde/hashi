@@ -3145,19 +3145,13 @@
         }
       },
       "RunScriptRequest": {
-        "required": [
-          "host",
-          "port",
-          "username",
-          "authMode",
-          "password",
-          "privateKeyPem",
-          "privateKeyPassphrase"
-        ],
         "type": "object",
         "properties": {
           "host": {
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "port": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -3165,13 +3159,18 @@
               "integer",
               "string"
             ],
-            "format": "int32"
+            "format": "int32",
+            "default": 22
           },
           "username": {
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "authMode": {
-            "type": "string"
+            "type": "string",
+            "default": "password"
           },
           "password": {
             "type": [
