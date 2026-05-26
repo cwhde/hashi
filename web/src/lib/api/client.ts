@@ -527,6 +527,17 @@ export const api = {
 		});
 		return expectData(r.response, r.error, r.data);
 	},
+	discoverTelegramChat: async (botToken: string) => {
+		const body = await postUndocumented('/api/settings/notifications/telegram/discover-chat', {
+			body: { botToken }
+		});
+		return {
+			found: body.found === true,
+			chatId: typeof body.chatId === 'string' ? body.chatId : null,
+			chatTitle: typeof body.chatTitle === 'string' ? body.chatTitle : null,
+			error: typeof body.error === 'string' ? body.error : null
+		} as import('./types.js').TelegramChatDiscoveryResponse;
+	},
 	deleteNotificationProvider: async (providerId: string) => {
 		const r = await client.DELETE('/api/settings/notifications/providers/{providerId}', {
 			params: { path: { providerId } }

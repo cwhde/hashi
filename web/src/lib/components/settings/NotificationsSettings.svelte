@@ -18,13 +18,23 @@
 	let providers = $state<NotificationProvider[]>([]);
 	let loading = $state(true);
 	let saving = $state(false);
+	let discoveringChat = $state(false);
 	let error = $state<string | null>(null);
 	let message = $state<string | null>(null);
 	let form = $state({
 		name: '',
 		type: 'telegram',
-		settingsJson: '{}',
-		enabled: true
+		enabled: true,
+		telegramBotToken: '',
+		telegramChatId: '',
+		discordWebhookUrl: '',
+		smtpHost: '',
+		smtpPort: 587,
+		smtpUsername: '',
+		smtpPassword: '',
+		smtpFrom: '',
+		smtpTo: '',
+		smtpUseTls: true
 	});
 
 	$effect(() => {
@@ -59,30 +69,147 @@
 		}
 	}
 
-	async function createProvider() {
-		if (!form.name) return;
+	function resetProviderFields() {
+		form.telegramBotToken = '';
+		form.telegramChatId = '';
+		form.discordWebhookUrl = '';
+		form.smtpHost = '';
+		form.smtpPort = 587;
+		form.smtpUsername = '';
+		form.smtpPassword = '';
+		form.smtpFrom = '';
+		form.smtpTo = '';
+		form.smtpUseTls = true;
+	}
+
+	function buildSettingsJson(): string | null {
+		if (form.type === 'telegram') {
+			if (!form.telegramBotToken.trim()) {
+				error = 'Telegram bot token is required.';
+				return null;
+			}
+			if (!form.telegramChatId.trim()) {
+				error = 'Telegram chat ID is required.';
+				return null;
+			}
+
+			return JSON.stringify({
+				botToken: form.telegramBotToken.trim(),
+				chatId: form.telegramChatId.trim()
+			});
+		}
+
+		if (form.type === 'discord') {
+			if (!form.discordWebhookUrl.trim()) {
+				error = 'Discord webhook URL is required.';
+				return null;
+			}
+
+			return JSON.stringify({
+				webhookUrl: form.discordWebhookUrl.trim()
+			});
+		}
+
+		if (!form.smtpHost.trim()) {
+			error = 'SMTP host is required.';
+			return null;
+		}
+		if (!form.smtpUsername.trim()) {
+			error = 'SMTP username is required.';
+			return null;
+		}
+		if (!form.smtpPassword.trim()) {
+			error = 'SMTP password is required.';
+			return null;
+		}
+		if (!form.smtpFrom.trim() || !form.smtpTo.trim()) {
+			error = 'SMTP from/to addresses are required.';
+			return null;
+		}
+
+		return JSON.stringify({
+			host: form.smtpHost.trim(),
+			port: form.smtpPort,
+			username: form.smtpUsername.trim(),
+			password: form.smtpPassword,
+			from: form.smtpFrom.trim(),
+			to: form.smtpTo.trim(),
+			useTls: form.smtpUseTls
+		});
+	}
+
+	async function createProvider(runSmtpTestAfterCreate = false) {
+		if (!form.name.trim()) return;
+		const settingsJson = buildSettingsJson();
+		if (!settingsJson) return;
+
 		saving = true;
 		error = null;
 		message = null;
 		try {
 			const created = await withReauth(() =>
 				api.createNotificationProvider({
-					name: form.name,
+					name: form.name.trim(),
 					type: form.type,
-					settingsJson: form.settingsJson || '{}',
+					settingsJson,
 					enabled: form.enabled
 				})
 			);
-			if (created) {
-				message = `Provider "${created.name}" created.`;
-				form.name = '';
-				form.settingsJson = '{}';
-				await load();
+			if (!created) {
+				return;
 			}
+
+			message = `Provider "${created.name}" created.`;
+			if (runSmtpTestAfterCreate && form.type === 'smtp') {
+				const testResult = await withReauth(() =>
+					api.testNotificationProvider(created.id, {
+						subject: 'Hashi SMTP setup test',
+						body: 'SMTP setup test from Hashi notifications settings.'
+					})
+				);
+				if (testResult?.sent) {
+					message = `Provider "${created.name}" created and SMTP test email sent.`;
+				} else if (testResult) {
+					message = `Provider created, but SMTP test failed: ${testResult.error ?? 'unknown error'}`;
+				}
+			}
+
+			form.name = '';
+			resetProviderFields();
+			await load();
 		} catch (e) {
 			error = e instanceof ApiRequestError ? e.message : 'Failed to create provider';
 		} finally {
 			saving = false;
+		}
+	}
+
+	async function discoverTelegramChat() {
+		if (!form.telegramBotToken.trim()) {
+			error = 'Enter the Telegram bot token first.';
+			return;
+		}
+
+		discoveringChat = true;
+		error = null;
+		message = null;
+		try {
+			const result = await withReauth(() => api.discoverTelegramChat(form.telegramBotToken.trim()));
+			if (!result) {
+				return;
+			}
+			if (result.found && result.chatId) {
+				form.telegramChatId = result.chatId;
+				message = result.chatTitle
+					? `Discovered chat "${result.chatTitle}" (${result.chatId}).`
+					: `Discovered chat ID ${result.chatId}.`;
+			} else {
+				error = result.error ?? 'No Telegram chats discovered yet.';
+			}
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Failed to discover Telegram chat';
+		} finally {
+			discoveringChat = false;
 		}
 	}
 
@@ -132,29 +259,96 @@
 					id="notify-type"
 					class="h-9 rounded-md border border-border bg-background px-3 text-sm text-white"
 					bind:value={form.type}
+					onchange={() => resetProviderFields()}
 				>
 					<option value="smtp">SMTP email</option>
 					<option value="telegram">Telegram bot</option>
-					<option value="discord">Discord bot</option>
+					<option value="discord">Discord webhook</option>
 				</select>
 			</div>
 		</div>
-		<div class="grid gap-1.5">
-			<Label for="notify-settings">Settings JSON (stub)</Label>
-			<Input
-				id="notify-settings"
-				bind:value={form.settingsJson}
-				placeholder="Provider-specific JSON settings"
-				class="font-mono text-xs"
-			/>
-		</div>
+		{#if form.type === 'telegram'}
+			<div class="grid gap-2 rounded-md border border-border p-3">
+				<p class="text-xs text-muted-foreground">
+					Step 1: paste bot token. Step 2: message your bot. Step 3: discover chat ID.
+				</p>
+				<div class="grid gap-1.5">
+					<Label for="notify-telegram-token">Bot token</Label>
+					<Input id="notify-telegram-token" bind:value={form.telegramBotToken} placeholder="123456:ABC..." />
+				</div>
+				<div class="grid gap-1.5">
+					<Label for="notify-telegram-chat-id">Chat ID</Label>
+					<Input id="notify-telegram-chat-id" bind:value={form.telegramChatId} placeholder="-1001234567890" />
+				</div>
+				<Button
+					variant="secondary"
+					onclick={() => discoverTelegramChat()}
+					disabled={saving || discoveringChat || !form.telegramBotToken.trim()}
+				>
+					{discoveringChat ? 'Discovering…' : 'Discover chat'}
+				</Button>
+			</div>
+		{:else if form.type === 'discord'}
+			<div class="grid gap-2 rounded-md border border-border p-3">
+				<p class="text-xs text-muted-foreground">Paste your Discord incoming webhook URL.</p>
+				<div class="grid gap-1.5">
+					<Label for="notify-discord-webhook">Webhook URL</Label>
+					<Input
+						id="notify-discord-webhook"
+						bind:value={form.discordWebhookUrl}
+						placeholder="https://discord.com/api/webhooks/..."
+					/>
+				</div>
+			</div>
+		{:else}
+			<div class="grid gap-2 rounded-md border border-border p-3">
+				<p class="text-xs text-muted-foreground">Configure SMTP details and optionally send a setup test email.</p>
+				<div class="grid grid-cols-2 gap-3">
+					<div class="grid gap-1.5">
+						<Label for="notify-smtp-host">Host</Label>
+						<Input id="notify-smtp-host" bind:value={form.smtpHost} placeholder="smtp.example.com" />
+					</div>
+					<div class="grid gap-1.5">
+						<Label for="notify-smtp-port">Port</Label>
+						<Input id="notify-smtp-port" type="number" bind:value={form.smtpPort} />
+					</div>
+					<div class="grid gap-1.5">
+						<Label for="notify-smtp-user">Username</Label>
+						<Input id="notify-smtp-user" bind:value={form.smtpUsername} placeholder="smtp-user" />
+					</div>
+					<div class="grid gap-1.5">
+						<Label for="notify-smtp-pass">Password</Label>
+						<Input id="notify-smtp-pass" type="password" bind:value={form.smtpPassword} />
+					</div>
+					<div class="grid gap-1.5">
+						<Label for="notify-smtp-from">From email</Label>
+						<Input id="notify-smtp-from" bind:value={form.smtpFrom} placeholder="hashi@example.com" />
+					</div>
+					<div class="grid gap-1.5">
+						<Label for="notify-smtp-to">To email</Label>
+						<Input id="notify-smtp-to" bind:value={form.smtpTo} placeholder="admin@example.com" />
+					</div>
+				</div>
+				<div class="flex items-center justify-between rounded-md border border-border px-3 py-2">
+					<span class="text-sm text-white">Use TLS</span>
+					<Switch bind:checked={form.smtpUseTls} />
+				</div>
+			</div>
+		{/if}
 		<div class="flex items-center justify-between rounded-md border border-border px-3 py-2">
 			<span class="text-sm text-white">Enabled</span>
 			<Switch bind:checked={form.enabled} />
 		</div>
-		<Button onclick={() => createProvider()} disabled={saving || !form.name}>
-			{saving ? 'Creating…' : 'Add provider'}
-		</Button>
+		<div class="flex flex-wrap gap-2">
+			<Button onclick={() => createProvider()} disabled={saving || !form.name.trim()}>
+				{saving ? 'Creating…' : 'Add provider'}
+			</Button>
+			{#if form.type === 'smtp'}
+				<Button variant="secondary" onclick={() => createProvider(true)} disabled={saving || !form.name.trim()}>
+					{saving ? 'Working…' : 'Add + send test email'}
+				</Button>
+			{/if}
+		</div>
 	</div>
 
 	{#if loading}

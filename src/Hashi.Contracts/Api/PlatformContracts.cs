@@ -479,6 +479,14 @@ public sealed record NotificationTestRequest(string Subject, string Body);
 
 public sealed record NotificationTestResponse(bool Sent, string? Error);
 
+public sealed record TelegramChatDiscoveryRequest(string BotToken);
+
+public sealed record TelegramChatDiscoveryResponse(
+    bool Found,
+    string? ChatId,
+    string? ChatTitle,
+    string? Error);
+
 public sealed record SendNotificationRequest(string Subject, string Body, IReadOnlyList<string> ProviderTypes);
 
 public sealed record AccessLogIngestRequest(

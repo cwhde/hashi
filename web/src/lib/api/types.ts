@@ -70,6 +70,12 @@ export type RunScriptResponse = Schemas['RunScriptResponse'];
 export type NotificationProvider = Schemas['NotificationProviderResponse'];
 export type CreateNotificationProviderRequest = Schemas['CreateNotificationProviderRequest'];
 export type NotificationTestRequest = Schemas['NotificationTestRequest'];
+export type TelegramChatDiscoveryResponse = {
+	found: boolean;
+	chatId: string | null;
+	chatTitle: string | null;
+	error: string | null;
+};
 export type AdGuardConnection = Schemas['AdGuardConnectionResponse'];
 export type CreateAdGuardConnectionRequest = Schemas['CreateAdGuardConnectionRequest'];
 export type AdGuardRewrite = Schemas['AdGuardRewriteResponse'];
