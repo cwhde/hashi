@@ -2,6 +2,7 @@
 	import { api, ApiRequestError } from '$lib/api/client';
 	import { performPasskeyReauthentication } from '$lib/auth/reauth';
 	import type { ConnectionSummary, Script } from '$lib/api/types';
+	import ShellCodeEditor from '$lib/components/editors/ShellCodeEditor.svelte';
 	import AdminSectionPage from '$lib/components/layout/AdminSectionPage.svelte';
 	import PanelSection from '$lib/components/layout/PanelSection.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -28,7 +29,7 @@
 	let form = $state({
 		name: '',
 		description: '',
-		body: '#!/bin/bash\nset -euo pipefail\necho "Hashi script stub"',
+		body: '',
 		cronExpression: '',
 		connectionId: ''
 	});
@@ -76,7 +77,7 @@
 	}
 
 	async function createScript() {
-		if (!form.name || !form.connectionId) return;
+		if (!form.name || !form.connectionId || !form.body.trim()) return;
 		saving = true;
 		error = null;
 		message = null;
@@ -85,7 +86,7 @@
 				api.createScript({
 					connectionId: form.connectionId,
 					name: form.name,
-					description: form.description || 'Stub script',
+					description: form.description || '',
 					body: form.body,
 					cronExpression: form.cronExpression
 				})
@@ -192,16 +193,12 @@
 				</select>
 			</div>
 			<div class="grid gap-1.5">
-				<Label for="script-body">Script body</Label>
-				<textarea
-					id="script-body"
-					class="min-h-28 rounded-md border border-border bg-background px-3 py-2 font-mono text-xs text-white"
-					bind:value={form.body}
-				></textarea>
+				<p class="text-sm font-medium leading-none">Script body</p>
+				<ShellCodeEditor minHeight="10rem" bind:value={form.body} />
 			</div>
 			<Button
 				onclick={() => createScript()}
-				disabled={saving || !form.name || !form.connectionId}
+				disabled={saving || !form.name || !form.connectionId || !form.body.trim()}
 			>
 				{saving ? 'Creating…' : 'Create script'}
 			</Button>
