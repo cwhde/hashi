@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using Hashi.Infrastructure.Persistence;
+using Hashi.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -13,11 +14,11 @@ public static class IntegrationTestAuth
     public static async Task EnsureBootstrapCredentialsAsync(IServiceProvider services)
     {
         using var scope = services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<HashiDbContext>();
-        var state = await db.SetupStates.SingleAsync();
+        var setupState = scope.ServiceProvider.GetRequiredService<SetupStateService>();
+        var state = await setupState.GetOrCreateAsync();
         state.BootstrapUsername = Username;
         state.BootstrapPasswordHash = BCrypt.Net.BCrypt.HashPassword(Password);
-        await db.SaveChangesAsync();
+        await scope.ServiceProvider.GetRequiredService<HashiDbContext>().SaveChangesAsync();
     }
 
     public static async Task AuthenticateAsBootstrapAsync(HttpClient client)

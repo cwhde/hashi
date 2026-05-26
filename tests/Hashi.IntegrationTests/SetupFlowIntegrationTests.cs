@@ -75,7 +75,7 @@ public sealed class SetupFlowIntegrationTests : IAsyncLifetime
 
         var health = await _client.GetFromJsonAsync<HealthResponse>("/api/health");
         Assert.NotNull(health);
-        Assert.Equal("ok", health.Status);
+        Assert.Equal("healthy", health.Status);
         Assert.False(string.IsNullOrWhiteSpace(health.Version));
     }
 }

@@ -28,6 +28,10 @@ public sealed class HetznerDnsFakeHandler : HttpMessageHandler
         }
 
         var path = request.RequestUri?.AbsolutePath.Trim('/') ?? string.Empty;
+        if (path.StartsWith("api/v1/", StringComparison.OrdinalIgnoreCase))
+        {
+            path = path["api/v1/".Length..];
+        }
         if (path is "zones")
         {
             return Task.FromResult(Json(HttpStatusCode.OK, new

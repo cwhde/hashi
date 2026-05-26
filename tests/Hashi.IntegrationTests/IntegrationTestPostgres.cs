@@ -1,4 +1,5 @@
 using Hashi.Infrastructure.Persistence;
+using Hashi.Infrastructure.Services;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,6 +23,15 @@ internal static class IntegrationTestApp
         using var scope = services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<HashiDbContext>();
         await db.Database.MigrateAsync(cancellationToken);
+    }
+
+    public static async Task EnsureSeededAsync(IServiceProvider services, CancellationToken cancellationToken = default)
+    {
+        using var scope = services.CreateScope();
+        var setupState = scope.ServiceProvider.GetRequiredService<SetupStateService>();
+        var appSettings = scope.ServiceProvider.GetRequiredService<AppSettingsService>();
+        await setupState.GetOrCreateAsync(cancellationToken);
+        await appSettings.GetOrCreateAsync(cancellationToken);
     }
 }
 
@@ -65,6 +75,7 @@ internal sealed class IntegrationTestPostgres : IAsyncDisposable
 
         await using var factory = IntegrationTestApp.CreateFactory(isolatedConnection);
         await IntegrationTestApp.MigrateAsync(factory.Services, cancellationToken);
+        await IntegrationTestApp.EnsureSeededAsync(factory.Services, cancellationToken);
 
         return isolatedConnection;
     }

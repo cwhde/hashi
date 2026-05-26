@@ -9,6 +9,10 @@ on:
     - cron: '0 6 * * 1'
   workflow_dispatch:
 
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CI: true
 
@@ -66,10 +70,7 @@ jobs:
 
       - name: Trivy filesystem scan
         run: |
-          TRIVY_VERSION=0.58.1
-          curl -sfL "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz" \
-            | tar -xz -C /tmp trivy
-          sudo mv /tmp/trivy /usr/local/bin/trivy
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.58.1
           trivy fs --severity CRITICAL,HIGH --exit-code 1 \
             --skip-dirs hashi.old \
             .

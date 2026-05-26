@@ -195,5 +195,6 @@ public sealed class AdminApiAuthMiddleware(RequestDelegate next)
     private static bool IsSetupPhasePath(PathString path)
         => path.StartsWithSegments("/api/setup")
            || path.StartsWithSegments("/api/vault")
-           || path.StartsWithSegments("/api/settings");
+           || path.StartsWithSegments("/api/settings")
+           || path.StartsWithSegments("/api/activity");
 }
