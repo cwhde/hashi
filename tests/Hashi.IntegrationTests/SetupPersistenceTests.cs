@@ -53,7 +53,13 @@ public sealed class SetupPersistenceTests : IAsyncLifetime
         Assert.False(initial.IsComplete);
         Assert.Equal("bootstrap-access", initial.CurrentStep);
 
-        var complete = await _client.PostAsync("/api/setup/steps/bootstrap-access/complete", null);
+        await IntegrationTestAuth.EnsureBootstrapCredentialsAsync(_factory!.Services);
+        await IntegrationTestAuth.AuthenticateAsBootstrapAsync(_client);
+        using var completeRequest = await IntegrationTestAuth.CreateCsrfRequestAsync(
+            _client,
+            HttpMethod.Post,
+            "/api/setup/steps/bootstrap-access/complete");
+        var complete = await _client.SendAsync(completeRequest);
         Assert.Equal(HttpStatusCode.OK, complete.StatusCode);
 
         var updated = await complete.Content.ReadFromJsonAsync<SetupStatusResponse>();
@@ -77,7 +83,14 @@ public sealed class SetupPersistenceTests : IAsyncLifetime
             return;
         }
 
-        await _client.PostAsync("/api/setup/steps/bootstrap-access/complete", null);
+        await IntegrationTestAuth.EnsureBootstrapCredentialsAsync(_factory!.Services);
+        await IntegrationTestAuth.AuthenticateAsBootstrapAsync(_client);
+        using var completeRequest = await IntegrationTestAuth.CreateCsrfRequestAsync(
+            _client,
+            HttpMethod.Post,
+            "/api/setup/steps/bootstrap-access/complete");
+        var complete = await _client.SendAsync(completeRequest);
+        complete.EnsureSuccessStatusCode();
 
         var events = await _client.GetFromJsonAsync<List<AuditEventResponse>>("/api/activity/audit");
         Assert.NotNull(events);

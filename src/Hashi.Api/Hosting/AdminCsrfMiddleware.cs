@@ -26,16 +26,8 @@ public sealed class AdminCsrfMiddleware(RequestDelegate next)
             return;
         }
 
-        // Bootstrap login and passkey ceremonies establish the session.
-        if (context.Request.Path.StartsWithSegments("/api/auth"))
-        {
-            await next(context);
-            return;
-        }
-
-        // Unsafe setup mutations during bootstrap (before passkey session + CSRF flow).
-        if (context.Request.Path.StartsWithSegments("/api/setup")
-            && context.Request.Path.Value?.Contains("/complete", StringComparison.Ordinal) == true)
+        // These endpoints establish auth state before a trusted CSRF token can exist.
+        if (IsCsrfExemptEndpoint(context.Request.Path, context.Request.Method))
         {
             await next(context);
             return;
@@ -53,4 +45,16 @@ public sealed class AdminCsrfMiddleware(RequestDelegate next)
 
         await next(context);
     }
+
+    public static bool IsCsrfExemptEndpoint(PathString path, string method)
+    {
+        var value = path.Value ?? string.Empty;
+        return IsEndpoint(value, method, "/api/auth/bootstrap/login", HttpMethods.Post)
+               || IsEndpoint(value, method, "/api/auth/passkeys/login/begin", HttpMethods.Post)
+               || IsEndpoint(value, method, "/api/auth/passkeys/login/complete", HttpMethods.Post);
+    }
+
+    private static bool IsEndpoint(string actualPath, string actualMethod, string expectedPath, string expectedMethod)
+        => string.Equals(actualPath, expectedPath, StringComparison.OrdinalIgnoreCase)
+           && string.Equals(actualMethod, expectedMethod, StringComparison.OrdinalIgnoreCase);
 }
