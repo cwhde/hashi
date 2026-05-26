@@ -74,6 +74,45 @@ public sealed class SecretRecordService(
             return null;
         }
 
+        return await DecryptWithAdminWrapAsync(secretId, cancellationToken);
+    }
+
+    public async Task<byte[]?> DecryptForServiceSyncAsync(Guid secretId, CancellationToken cancellationToken = default)
+    {
+        if (!serviceSync.IsReady)
+        {
+            return null;
+        }
+
+        var entity = await db.SecretRecords.AsNoTracking().SingleOrDefaultAsync(x => x.Id == secretId, cancellationToken);
+        if (entity is null || entity.ServiceWrappedDekBlob is null)
+        {
+            return null;
+        }
+
+        var dek = AesGcmCipher.Decrypt(entity.ServiceWrappedDekBlob, serviceSync.GetWrapKeyOrThrow());
+        try
+        {
+            return AesGcmCipher.Decrypt(entity.CiphertextBlob, dek);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(dek);
+        }
+    }
+
+    public async Task<byte[]?> DecryptForPurposeAsync(Guid secretId, CancellationToken cancellationToken = default)
+    {
+        if (session.IsUnlocked)
+        {
+            return await DecryptWithAdminWrapAsync(secretId, cancellationToken);
+        }
+
+        return await DecryptForServiceSyncAsync(secretId, cancellationToken);
+    }
+
+    private async Task<byte[]?> DecryptWithAdminWrapAsync(Guid secretId, CancellationToken cancellationToken)
+    {
         var entity = await db.SecretRecords.AsNoTracking().SingleOrDefaultAsync(x => x.Id == secretId, cancellationToken);
         if (entity is null)
         {

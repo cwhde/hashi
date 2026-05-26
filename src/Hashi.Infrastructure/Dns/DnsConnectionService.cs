@@ -246,8 +246,8 @@ public sealed class DnsConnectionService(
             throw new InvalidOperationException("DNS connection has no stored credentials.");
         }
 
-        var tokenBytes = await secrets.DecryptForAdminAsync(connection.SecretId.Value, cancellationToken)
-            ?? throw new InvalidOperationException("Vault must be unlocked to use DNS credentials.");
+        var tokenBytes = await secrets.DecryptForPurposeAsync(connection.SecretId.Value, cancellationToken)
+            ?? throw new InvalidOperationException("Credentials unavailable; unlock vault or configure service-sync vault.");
         var token = System.Text.Encoding.UTF8.GetString(tokenBytes);
         var settings = JsonSerializer.Deserialize<DnsConnectionSettings>(connection.SettingsJson)
             ?? new DnsConnectionSettings(DnsProviderTypeNames.Hetzner, string.Empty, 3600);
