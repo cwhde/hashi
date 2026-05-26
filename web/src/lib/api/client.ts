@@ -46,7 +46,8 @@ export class ApiRequestError extends Error {
 	constructor(
 		message: string,
 		readonly status: number,
-		readonly body?: ApiError
+		readonly body?: ApiError,
+		readonly code?: string
 	) {
 		super(message);
 		this.name = 'ApiRequestError';
@@ -54,8 +55,13 @@ export class ApiRequestError extends Error {
 }
 
 function errorFromResult(status: number, error: unknown): ApiRequestError {
-	const body = error as ApiError | undefined;
-	return new ApiRequestError(body?.error ?? body?.message ?? 'Request failed', status, body);
+	const body = error as (ApiError & { code?: string }) | undefined;
+	return new ApiRequestError(
+		body?.error ?? body?.message ?? 'Request failed',
+		status,
+		body,
+		body?.code
+	);
 }
 
 async function readUndocumentedJson(response: Response): Promise<UndocumentedJson> {
@@ -130,6 +136,14 @@ export const api = {
 		await expectOk(r.response, r.error);
 		return { loggedOut: true };
 	},
+	reauthenticateBegin: () => postUndocumented('/api/auth/reauthenticate'),
+	reauthenticateComplete: (
+		assertion: Record<string, unknown>,
+		challengeSessionId: string
+	) =>
+		postUndocumented('/api/auth/reauthenticate/complete', {
+			body: { assertion, challengeSessionId }
+		}),
 	passkeyRegisterBegin: async (nickname = 'Primary passkey') =>
 		postUndocumented('/api/auth/passkeys/register/begin', { params: { query: { nickname } } }),
 	passkeyRegisterComplete: async (

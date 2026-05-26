@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { api, ApiRequestError } from '$lib/api/client';
+	import { performPasskeyReauthentication } from '$lib/auth/reauth';
 	import type { AuditEvent, SyncPlanPreview, SyncRun } from '$lib/api/types';
 	import AdminSectionPage from '$lib/components/layout/AdminSectionPage.svelte';
 	import PanelSection from '$lib/components/layout/PanelSection.svelte';
@@ -65,7 +66,23 @@
 			plan = null;
 			await load();
 		} catch (e) {
-			error = e instanceof ApiRequestError ? e.message : 'Sync apply failed';
+			if (e instanceof ApiRequestError && e.code === 'reauth_required') {
+				try {
+					const ok = await performPasskeyReauthentication();
+					if (ok) {
+						await applySync(confirmDestructive);
+						return;
+					}
+					error = 'Passkey reauthentication failed.';
+				} catch (reauthError) {
+					error =
+						reauthError instanceof ApiRequestError
+							? reauthError.message
+							: 'Passkey reauthentication was cancelled.';
+				}
+			} else {
+				error = e instanceof ApiRequestError ? e.message : 'Sync apply failed';
+			}
 		} finally {
 			syncing = false;
 		}
