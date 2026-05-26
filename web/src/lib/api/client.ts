@@ -2,7 +2,7 @@ import createClient from 'openapi-fetch';
 import type { paths } from './schema.js';
 import type { ApiError, UndocumentedJson } from './types.js';
 
-const client = createClient<paths>({
+export const client = createClient<paths>({
 	baseUrl: '',
 	credentials: 'include'
 });
@@ -32,158 +32,103 @@ async function readUndocumentedJson(response: Response): Promise<UndocumentedJso
 }
 
 async function expectOk(response: Response, error: unknown): Promise<void> {
-	if (!response.ok) {
-		throw errorFromResult(response.status, error);
-	}
+	if (!response.ok) throw errorFromResult(response.status, error);
 }
 
 async function expectData<T>(response: Response, error: unknown, data: T | undefined): Promise<T> {
-	if (!response.ok) {
-		throw errorFromResult(response.status, error);
-	}
-	if (data === undefined) {
-		throw new ApiRequestError('Empty response body', response.status);
-	}
+	if (!response.ok) throw errorFromResult(response.status, error);
+	if (data === undefined) throw new ApiRequestError('Empty response body', response.status);
 	return data;
+}
+
+async function postUndocumented(path: string, init?: Record<string, unknown>): Promise<UndocumentedJson> {
+	const result = await client.POST(path as never, init as never);
+	await expectOk(result.response, result.error);
+	return readUndocumentedJson(result.response);
 }
 
 export const api = {
 	getSetupStatus: async () => {
-		const result = await client.GET('/api/setup/status');
-		return expectData(result.response, result.error, result.data);
+		const r = await client.GET('/api/setup/status');
+		return expectData(r.response, r.error, r.data);
 	},
-
 	getBootstrapAllowed: async () => {
-		const result = await client.GET('/api/setup/bootstrap-allowed');
-		return expectData(result.response, result.error, result.data);
+		const r = await client.GET('/api/setup/bootstrap-allowed');
+		return expectData(r.response, r.error, r.data);
 	},
-
 	completeSetupStep: async (stepSlug: string) => {
-		const result = await client.POST('/api/setup/steps/{stepSlug}/complete', {
-			params: { path: { stepSlug } }
-		});
-		await expectOk(result.response, result.error);
+		await postUndocumented('/api/setup/steps/{stepSlug}/complete', { params: { path: { stepSlug } } });
 		return api.getSetupStatus();
 	},
-
 	completeSetup: async () => {
-		const result = await client.POST('/api/setup/complete');
-		await expectOk(result.response, result.error);
-		const body = await readUndocumentedJson(result.response);
-		return {
-			succeeded: body.succeeded !== false,
-			error: typeof body.error === 'string' ? body.error : null
-		};
+		const body = await postUndocumented('/api/setup/complete');
+		return { succeeded: body.succeeded !== false, error: typeof body.error === 'string' ? body.error : null };
 	},
-
 	getHealth: async () => {
-		const result = await client.GET('/api/health');
-		return expectData(result.response, result.error, result.data);
+		const r = await client.GET('/api/health');
+		return expectData(r.response, r.error, r.data);
 	},
-
 	getGeneralSettings: async () => {
-		const result = await client.GET('/api/settings/general');
-		return expectData(result.response, result.error, result.data);
+		const r = await client.GET('/api/settings/general');
+		return expectData(r.response, r.error, r.data);
 	},
-
-	updateGeneralSettings: async (
-		payload: import('./types.js').GeneralSettingsUpdate
-	) => {
-		const result = await client.PUT('/api/settings/general', { body: payload });
-		return expectData(result.response, result.error, result.data);
+	updateGeneralSettings: async (payload: import('./types.js').GeneralSettingsUpdate) => {
+		const r = await client.PUT('/api/settings/general', { body: payload });
+		return expectData(r.response, r.error, r.data);
 	},
-
 	getAuditEvents: async () => {
-		const result = await client.GET('/api/activity/audit');
-		return expectData(result.response, result.error, result.data ?? []);
+		const r = await client.GET('/api/activity/audit');
+		return expectData(r.response, r.error, r.data ?? []);
 	},
-
 	bootstrapLogin: async (username: string, password: string) => {
-		const result = await client.POST('/api/auth/bootstrap/login', {
-			body: { username, password }
-		});
-		if (!result.response.ok) {
-			throw errorFromResult(result.response.status, result.error);
-		}
-		const body = await readUndocumentedJson(result.response);
-		return {
-			succeeded: body.succeeded !== false,
-			error: typeof body.error === 'string' ? body.error : null
-		};
+		const r = await client.POST('/api/auth/bootstrap/login', { body: { username, password } });
+		if (!r.response.ok) throw errorFromResult(r.response.status, r.error);
+		const body = await readUndocumentedJson(r.response);
+		return { succeeded: body.succeeded !== false, error: typeof body.error === 'string' ? body.error : null };
 	},
-
 	getSession: async () => {
-		const result = await client.GET('/api/auth/session');
-		return expectData(result.response, result.error, result.data);
+		const r = await client.GET('/api/auth/session');
+		return expectData(r.response, r.error, r.data);
 	},
-
 	logout: async () => {
-		const result = await client.POST('/api/auth/logout');
-		await expectOk(result.response, result.error);
+		const r = await client.POST('/api/auth/logout');
+		await expectOk(r.response, r.error);
 		return { loggedOut: true };
 	},
-
-	passkeyRegisterBegin: async (nickname = 'Primary passkey') => {
-		const result = await client.POST('/api/auth/passkeys/register/begin', {
-			params: { query: { nickname } }
-		});
-		await expectOk(result.response, result.error);
-		return readUndocumentedJson(result.response);
-	},
-
+	passkeyRegisterBegin: async (nickname = 'Primary passkey') =>
+		postUndocumented('/api/auth/passkeys/register/begin', { params: { query: { nickname } } }),
 	passkeyRegisterComplete: async (
 		attestation: Record<string, unknown>,
 		challengeSessionId: string,
 		nickname = 'Primary passkey',
 		clientReportsPrfSupported = false
 	) => {
-		const result = await client.POST('/api/auth/passkeys/register/complete', {
+		const body = await postUndocumented('/api/auth/passkeys/register/complete', {
 			body: { attestation, challengeSessionId, nickname, clientReportsPrfSupported }
 		});
-		await expectOk(result.response, result.error);
-		const body = await readUndocumentedJson(result.response);
-		return {
-			credentialId: String(body.credentialId ?? ''),
-			prfSupported: body.prfSupported === true
-		};
+		return { credentialId: String(body.credentialId ?? ''), prfSupported: body.prfSupported === true };
 	},
-
-	passkeyLoginBegin: async () => {
-		const result = await client.POST('/api/auth/passkeys/login/begin');
-		await expectOk(result.response, result.error);
-		return readUndocumentedJson(result.response);
-	},
-
+	passkeyLoginBegin: async () => postUndocumented('/api/auth/passkeys/login/begin'),
 	passkeyLoginComplete: async (
 		assertion: Record<string, unknown>,
 		challengeSessionId: string,
 		prfOutputBase64?: string | null
 	) => {
-		const result = await client.POST('/api/auth/passkeys/login/complete', {
+		const body = await postUndocumented('/api/auth/passkeys/login/complete', {
 			body: { assertion, challengeSessionId, prfOutputBase64: prfOutputBase64 ?? null }
 		});
-		await expectOk(result.response, result.error);
-		const body = await readUndocumentedJson(result.response);
-		return {
-			succeeded: body.succeeded !== false,
-			vaultUnlocked: body.vaultUnlocked === true
-		};
+		return { succeeded: body.succeeded !== false, vaultUnlocked: body.vaultUnlocked === true };
 	},
-
 	getVaultStatus: async () => {
-		const result = await client.GET('/api/vault/status');
-		return expectData(result.response, result.error, result.data);
+		const r = await client.GET('/api/vault/status');
+		return expectData(r.response, r.error, r.data);
 	},
-
 	generateRecoveryKey: async () => {
-		const result = await client.POST('/api/vault/recovery-key/generate');
-		return expectData(result.response, result.error, result.data);
+		const r = await client.POST('/api/vault/recovery-key/generate');
+		return expectData(r.response, r.error, r.data);
 	},
-
 	setupVault: async (payload: import('./types.js').VaultSetupRequest) => {
-		const result = await client.POST('/api/vault/setup', { body: payload });
-		await expectOk(result.response, result.error);
-		const body = await readUndocumentedJson(result.response);
+		const body = await postUndocumented('/api/vault/setup', { body: payload });
 		return {
 			configured: body.configured === true,
 			prfWrapStored: body.prfWrapStored === true,
@@ -191,21 +136,113 @@ export const api = {
 			generatedRecoveryKey: String(body.generatedRecoveryKey ?? payload.recoveryKey)
 		};
 	},
-
 	verifyVaultUnlock: async (recoveryKey: string) => {
-		const result = await client.POST('/api/vault/verify-unlock', {
-			body: { recoveryKey }
-		});
-		await expectOk(result.response, result.error);
-		const body = await readUndocumentedJson(result.response);
-		return {
-			verified: body.verified === true,
-			vaultUnlocked: body.vaultUnlocked === true
-		};
+		const body = await postUndocumented('/api/vault/verify-unlock', { body: { recoveryKey } });
+		return { verified: body.verified === true, vaultUnlocked: body.vaultUnlocked === true };
+	},
+	listVaultSecrets: async () => {
+		const r = await client.GET('/api/vault/secrets');
+		return expectData(r.response, r.error, r.data ?? []);
 	},
 
-	listVaultSecrets: async () => {
-		const result = await client.GET('/api/vault/secrets');
-		return expectData(result.response, result.error, result.data ?? []);
+	validateHetznerDnsProvider: (body: import('./types.js').DnsProviderValidationRequest) =>
+		postUndocumented('/api/dns/providers/hetzner/validate', { body }),
+	listDnsConnections: async () => {
+		const r = await client.GET('/api/dns/connections');
+		return expectData(r.response, r.error, r.data ?? []);
+	},
+	createHetznerDnsConnection: (body: import('./types.js').CreateHetznerDnsConnectionRequest) =>
+		postUndocumented('/api/dns/connections/hetzner', { body }),
+	validateDnsConnection: (connectionId: string) =>
+		postUndocumented('/api/dns/connections/{connectionId}/validate', { params: { path: { connectionId } } }),
+	listProviderDnsRecords: async (connectionId: string) => {
+		const r = await client.GET('/api/dns/connections/{connectionId}/records/provider', {
+			params: { path: { connectionId } }
+		});
+		if (!r.response.ok) throw errorFromResult(r.response.status, r.error);
+		return readUndocumentedJson(r.response);
+	},
+	previewDnsImport: (connectionId: string) =>
+		postUndocumented('/api/dns/connections/{connectionId}/import/preview', { params: { path: { connectionId } } }),
+	applyDnsImport: (connectionId: string, body: import('./types.js').DnsImportApplyRequest) =>
+		postUndocumented('/api/dns/connections/{connectionId}/import/apply', {
+			params: { path: { connectionId } },
+			body
+		}),
+	planDnsSync: (connectionId: string) =>
+		postUndocumented('/api/dns/connections/{connectionId}/sync/plan', { params: { path: { connectionId } } }),
+	applyDnsSync: (connectionId: string, body: import('./types.js').DnsSyncApplyRequest) =>
+		postUndocumented('/api/dns/connections/{connectionId}/sync/apply', { params: { path: { connectionId } }, body }),
+	listDnsRecords: async () => {
+		const r = await client.GET('/api/dns/records');
+		return expectData(r.response, r.error, r.data ?? []);
+	},
+
+	listConnections: async (type?: string) => {
+		const r = await client.GET('/api/connections', { params: { query: type ? { type } : {} } });
+		return expectData(r.response, r.error, r.data ?? []);
+	},
+	createSshConnection: (body: import('./types.js').CreateSshConnectionRequest) =>
+		postUndocumented('/api/connections/ssh', { body }),
+	validateConnection: (connectionId: string, body: import('./types.js').CreateSshConnectionRequest) =>
+		postUndocumented('/api/connections/{connectionId}/validate', { params: { path: { connectionId } }, body }),
+	writeRemoteFile: (connectionId: string, body: import('./types.js').RemoteWriteRequest) =>
+		postUndocumented('/api/connections/{connectionId}/write', { params: { path: { connectionId } }, body }),
+
+	listResources: async () => {
+		const r = await client.GET('/api/resources');
+		return expectData(r.response, r.error, r.data ?? []);
+	},
+	createResource: async (body: import('./types.js').CreateResourceRequest) => {
+		const r = await client.POST('/api/resources', { body });
+		await expectOk(r.response, r.error);
+		return readUndocumentedJson(r.response);
+	},
+	updateResource: async (id: string, body: import('./types.js').UpdateResourceRequest) => {
+		const r = await client.PUT('/api/resources/{id}', { params: { path: { id } }, body });
+		await expectOk(r.response, r.error);
+		return readUndocumentedJson(r.response);
+	},
+	deleteResource: async (id: string) => {
+		const r = await client.DELETE('/api/resources/{id}', { params: { path: { id } } });
+		await expectOk(r.response, r.error);
+	},
+
+	getTraefikRender: async () => {
+		const r = await client.GET('/api/traefik/render');
+		return expectData(r.response, r.error, r.data);
+	},
+	renderFirewall: async (body: import('./types.js').FirewallRenderRequest) => {
+		const r = await client.POST('/api/firewall/render', { body });
+		return expectData(r.response, r.error, r.data);
+	},
+
+	listStatusEndpoints: async () => {
+		const r = await client.GET('/api/status/endpoints');
+		return expectData(r.response, r.error, r.data ?? []);
+	},
+	getSecurityDashboard: async () => {
+		const r = await client.GET('/api/security/dashboard');
+		return expectData(r.response, r.error, r.data);
+	},
+	listPulseAgents: async () => {
+		const r = await client.GET('/api/pulse/agents');
+		return expectData(r.response, r.error, r.data ?? []);
+	},
+	listScripts: async () => {
+		const r = await client.GET('/api/scripts');
+		return expectData(r.response, r.error, r.data ?? []);
+	},
+	listNotificationProviders: async () => {
+		const r = await client.GET('/api/settings/notifications/providers');
+		return expectData(r.response, r.error, r.data ?? []);
+	},
+	getPublicApps: async () => {
+		const r = await client.GET('/api/public/apps');
+		return expectData(r.response, r.error, r.data ?? []);
+	},
+	getPublicStatus: async () => {
+		const r = await client.GET('/api/public/status');
+		return expectData(r.response, r.error, r.data ?? []);
 	}
 };
