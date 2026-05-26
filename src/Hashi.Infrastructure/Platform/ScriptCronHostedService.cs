@@ -18,10 +18,39 @@ public sealed class ScriptCronHostedService(
             {
                 using var scope = scopeFactory.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<HashiDbContext>();
-                var dueCount = await db.Scripts.CountAsync(x => x.Enabled && x.CronExpression != "", stoppingToken);
-                if (dueCount > 0)
+                var scripts = scope.ServiceProvider.GetRequiredService<ScriptExecutionService>();
+                var now = DateTimeOffset.UtcNow;
+                var dueScripts = await db.Scripts
+                    .Where(x => x.Enabled && x.CronExpression != "")
+                    .ToListAsync(stoppingToken);
+
+                foreach (var script in dueScripts)
                 {
-                    logger.LogInformation("Script cron tick: {Count} enabled scripts with schedules.", dueCount);
+                    if (!ScriptCronSchedule.IsDue(script.CronExpression, script.LastRunAtUtc, now))
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        var result = await scripts.RunWithConnectionAsync(script.Id, stoppingToken);
+                        if (result.Succeeded)
+                        {
+                            logger.LogInformation("Script cron run succeeded for {ScriptName} ({ScriptId}).", script.Name, script.Id);
+                        }
+                        else
+                        {
+                            logger.LogWarning(
+                                "Script cron run failed for {ScriptName} ({ScriptId}): {Error}",
+                                script.Name,
+                                script.Id,
+                                result.Error ?? "unknown error");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "Script cron run threw for {ScriptName} ({ScriptId}).", script.Name, script.Id);
+                    }
                 }
             }
             catch (Exception ex)
