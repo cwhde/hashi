@@ -1,11 +1,29 @@
-# Hashi Pulse
+# Hashi Pulse Agent
 
-Native dynamic endpoint agent for Hashi V2. See the root implementation spec §17.
+Go agent that reports host identity and private IPv4 candidates to Hashi.
 
-Implementation begins in Phase 12.
+## Build
 
 ```bash
-# Planned layout
-agents/pulse/cmd/hashi-pulse/
-agents/pulse/internal/
+cd agents/pulse
+go build -o hashi-pulse ./cmd/hashi-pulse
+```
+
+## Run
+
+```bash
+export HASHI_PULSE_API=https://hashi.example.com
+export HASHI_PULSE_AGENT_ID=<agent-guid>
+export HASHI_PULSE_TOKEN=<one-time-token-from-create-agent>
+./hashi-pulse
+```
+
+## Docker
+
+```bash
+docker run --rm \
+  -e HASHI_PULSE_API=https://hashi.example.com \
+  -e HASHI_PULSE_AGENT_ID=<agent-guid> \
+  -e HASHI_PULSE_TOKEN=<token> \
+  ghcr.io/hashi/pulse:latest
 ```
