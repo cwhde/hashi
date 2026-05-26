@@ -68,5 +68,66 @@ public sealed class FirewallScriptRendererTests
         Assert.Contains("--dport 443", script);
         Assert.Contains("rollback", script, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("/etc/cron.d/hashi-firewall", script);
+        Assert.Contains("hashi-firewall.service", script);
+        Assert.Contains("systemctl enable hashi-firewall.service", script);
     }
+
+    [Fact]
+    public void Render_passes_shellcheck_when_available()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var shellcheck = FindShellcheck();
+        if (shellcheck is null)
+        {
+            return;
+        }
+
+        var script = Hashi.Core.Firewall.FirewallScriptRenderer.Render(new Hashi.Core.Firewall.FirewallHostDefinition(
+            Guid.NewGuid(),
+            "fw1",
+            "example.com",
+            ["192.168.1.0/24"],
+            "traefik.local",
+            "10.0.0.2",
+            "203.0.113.5",
+            PortForwards: [new Hashi.Core.Firewall.FirewallPortForward("tcp", 443, "10.0.0.2", 443)],
+            BlockedIps: ["198.51.100.9"]));
+        var path = Path.Combine(Path.GetTempPath(), $"hashi-firewall-{Guid.NewGuid():N}.sh");
+        File.WriteAllText(path, script);
+        try
+        {
+            var psi = new System.Diagnostics.ProcessStartInfo(shellcheck, Quote(path))
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            };
+            using var process = System.Diagnostics.Process.Start(psi)
+                ?? throw new InvalidOperationException("Failed to start shellcheck.");
+            process.WaitForExit(30_000);
+            Assert.True(process.ExitCode == 0, process.StandardOutput.ReadToEnd() + process.StandardError.ReadToEnd());
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    private static string? FindShellcheck()
+    {
+        foreach (var candidate in new[] { "/usr/bin/shellcheck", "/bin/shellcheck" })
+        {
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private static string Quote(string value) => $"'{value.Replace("'", "'\\''", StringComparison.Ordinal)}'";
 }

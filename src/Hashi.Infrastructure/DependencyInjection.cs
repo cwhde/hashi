@@ -52,6 +52,9 @@ public static class DependencyInjection
         services.AddScoped<WebAuthnChallengeStore>();
         services.AddScoped<DnsConnectionService>();
         services.AddScoped<SshConnectionService>();
+        services.AddScoped<CertificateSetupService>();
+        services.AddScoped<TraefikEntryPointService>();
+        services.AddScoped<FirewallTrustedIpResolver>();
         services.AddScoped<ResourceService>();
         services.AddScoped<TraefikUserMiddlewareService>();
         services.AddScoped<TraefikPlatformService>();

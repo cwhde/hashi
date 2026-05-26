@@ -14,7 +14,7 @@ public sealed class PublicPortRoutingMiddleware(RequestDelegate next)
         var port = context.Connection.LocalPort;
         var path = context.Request.Path.Value ?? "/";
 
-        if (port is not HashiPorts.Admin && IsApiOrOpenApi(path))
+        if (port is HashiPorts.PublicDashboard or HashiPorts.PublicStatus && IsApiOrOpenApi(path))
         {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;

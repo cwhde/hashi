@@ -53,7 +53,23 @@ public sealed class FirewallHostEntity
 
     public string? PublicIp { get; set; }
 
+    public string? WanInterface { get; set; }
+
+    public string? LxcBridge { get; set; }
+
     public string ScriptPath { get; set; } = "/opt/hashi/firewall/hashi-firewall.sh";
+
+    public bool NetBirdEnabled { get; set; } = true;
+
+    public string NetBirdInterface { get; set; } = "wt0";
+
+    public string NetBirdOverlayCidrsJson { get; set; } = "[\"100.110.0.0/16\"]";
+
+    public string NetBirdRoutedCidrsJson { get; set; } = "[]";
+
+    public bool NetBirdRoutingPeer { get; set; }
+
+    public int RollbackTimerSeconds { get; set; } = 300;
 
     public bool NetBirdDetected { get; set; }
 
@@ -62,6 +78,69 @@ public sealed class FirewallHostEntity
     public string? RollbackScript { get; set; }
 
     public DateTimeOffset? LastAppliedAtUtc { get; set; }
+}
+
+public sealed class ResourceRouteEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid ResourceId { get; set; }
+
+    public bool Enabled { get; set; } = true;
+
+    public int Priority { get; set; }
+
+    public string PathMatchType { get; set; } = "prefix";
+
+    public string PathValue { get; set; } = "/";
+
+    public string TargetScheme { get; set; } = "http";
+
+    public string TargetHost { get; set; } = "127.0.0.1";
+
+    public int TargetPort { get; set; } = 8080;
+
+    public string? RewriteMode { get; set; }
+
+    public string? RewriteValue { get; set; }
+
+    public string ExtraMiddlewaresJson { get; set; } = "[]";
+}
+
+public sealed class ResourceRuleEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid ResourceId { get; set; }
+
+    public bool Enabled { get; set; } = true;
+
+    public int Priority { get; set; }
+
+    public string Action { get; set; } = "pass_to_auth";
+
+    public string MatchType { get; set; } = "path";
+
+    public string MatchValue { get; set; } = "/";
+}
+
+public sealed class TraefikEntryPointEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public int Port { get; set; }
+
+    public string Protocol { get; set; } = "tcp";
+
+    public Guid? ResourceId { get; set; }
+
+    public string? Label { get; set; }
+
+    public bool Confirmed { get; set; }
+
+    public DateTimeOffset? ConfirmedAtUtc { get; set; }
+
+    public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }
 
 public sealed class MonitorSampleEntity

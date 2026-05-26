@@ -17,7 +17,8 @@ public sealed class FirewallApplyService(
     HashiDbContext db,
     ISshRemoteExecutor ssh,
     SecretRecordService secrets,
-    AuditService audit)
+    AuditService audit,
+    FirewallTrustedIpResolver trustedIpResolver)
 {
     public async Task<IReadOnlyList<FirewallHostResponse>> ListHostsAsync(CancellationToken cancellationToken = default)
     {
@@ -64,14 +65,27 @@ public sealed class FirewallApplyService(
         var blocked = await db.BlocklistEntries.AsNoTracking()
             .Select(x => x.ClientIp)
             .ToListAsync(cancellationToken);
-        var trustedHosts = await db.FirewallHosts.AsNoTracking()
-            .Where(x => !string.IsNullOrWhiteSpace(x.PublicIp))
-            .Select(x => x.PublicIp!)
+        var allHosts = await db.FirewallHosts.AsNoTracking().ToListAsync(cancellationToken);
+        var trustedHosts = await trustedIpResolver.ResolveTrustedPublicIpsAsync(allHosts, cancellationToken);
+        var confirmedPorts = await db.TraefikEntryPoints.AsNoTracking()
+            .Where(x => x.Confirmed)
+            .Select(x => new { x.Port, x.Protocol })
             .ToListAsync(cancellationToken);
-        var portForwards = await db.Resources.AsNoTracking()
+        var confirmedKeys = confirmedPorts.Select(x => (x.Port, x.Protocol)).ToHashSet();
+        var streamResources = await db.Resources.AsNoTracking()
             .Where(x => x.Enabled && (x.Kind == "tcp" || x.Kind == "udp"))
-            .Select(x => new FirewallPortForward(x.Kind, x.TargetPort, host.InternalTraefikIp, x.TargetPort))
             .ToListAsync(cancellationToken);
+        var portForwards = streamResources
+            .Where(x => confirmedKeys.Contains((x.PublicPort ?? x.TargetPort, x.Kind)))
+            .Select(x => new FirewallPortForward(
+                x.Kind,
+                x.PublicPort ?? x.TargetPort,
+                host.InternalTraefikIp,
+                x.TargetPort))
+            .ToList();
+
+        var overlayCidrs = JsonSerializer.Deserialize<List<string>>(host.NetBirdOverlayCidrsJson) ?? ["100.110.0.0/16"];
+        var routedCidrs = JsonSerializer.Deserialize<List<string>>(host.NetBirdRoutedCidrsJson) ?? [];
 
         return new FirewallHostDefinition(
             host.Id,
@@ -81,9 +95,17 @@ public sealed class FirewallApplyService(
             host.LinkedTraefikHost,
             host.InternalTraefikIp,
             host.PublicIp,
-            PortForwards: portForwards,
-            TrustedPublicIps: trustedHosts,
-            BlockedIps: blocked);
+            host.WanInterface,
+            host.LxcBridge,
+            host.NetBirdEnabled,
+            host.NetBirdInterface,
+            overlayCidrs,
+            routedCidrs,
+            host.NetBirdRoutingPeer,
+            portForwards,
+            trustedHosts,
+            blocked,
+            host.RollbackTimerSeconds);
     }
 
     public async Task<(string Script, string ScriptHash)> RenderForHostAsync(
@@ -187,13 +209,99 @@ public sealed class FirewallApplyService(
             db.FirewallHosts.Add(host);
         }
 
-        host.Domain = request.Domain;
-        host.ManagedSubnetsJson = JsonSerializer.Serialize(request.ManagedSubnets);
-        host.LinkedTraefikHost = request.LinkedTraefikHost;
-        host.InternalTraefikIp = request.InternalTraefikIp;
-        if (!string.IsNullOrWhiteSpace(request.PublicIp))
+        ApplyHostFields(host, request);
+        await db.SaveChangesAsync(cancellationToken);
+        return host;
+    }
+
+    public async Task<FirewallHostEntity?> UpdateHostAsync(Guid id, UpdateFirewallHostRequest request, CancellationToken cancellationToken = default)
+    {
+        var host = await db.FirewallHosts.SingleOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (host is null)
+        {
+            return null;
+        }
+
+        if (request.Name is not null)
+        {
+            host.Name = request.Name;
+        }
+
+        if (request.Domain is not null)
+        {
+            host.Domain = request.Domain;
+        }
+
+        if (request.ManagedSubnets is not null)
+        {
+            host.ManagedSubnetsJson = JsonSerializer.Serialize(request.ManagedSubnets);
+        }
+
+        if (request.LinkedTraefikHost is not null)
+        {
+            host.LinkedTraefikHost = request.LinkedTraefikHost;
+        }
+
+        if (request.InternalTraefikIp is not null)
+        {
+            host.InternalTraefikIp = request.InternalTraefikIp;
+        }
+
+        if (request.ClearPublicIp)
+        {
+            host.PublicIp = null;
+        }
+        else if (!string.IsNullOrWhiteSpace(request.PublicIp))
         {
             host.PublicIp = request.PublicIp;
+        }
+
+        if (request.ClearWanInterface)
+        {
+            host.WanInterface = null;
+        }
+        else if (request.WanInterface is not null)
+        {
+            host.WanInterface = request.WanInterface;
+        }
+
+        if (request.ClearLxcBridge)
+        {
+            host.LxcBridge = null;
+        }
+        else if (request.LxcBridge is not null)
+        {
+            host.LxcBridge = request.LxcBridge;
+        }
+
+        if (request.NetBirdEnabled is bool netBirdEnabled)
+        {
+            host.NetBirdEnabled = netBirdEnabled;
+        }
+
+        if (request.NetBirdInterface is not null)
+        {
+            host.NetBirdInterface = request.NetBirdInterface;
+        }
+
+        if (request.NetBirdOverlayCidrs is not null)
+        {
+            host.NetBirdOverlayCidrsJson = JsonSerializer.Serialize(request.NetBirdOverlayCidrs);
+        }
+
+        if (request.NetBirdRoutedCidrs is not null)
+        {
+            host.NetBirdRoutedCidrsJson = JsonSerializer.Serialize(request.NetBirdRoutedCidrs);
+        }
+
+        if (request.NetBirdRoutingPeer is bool routingPeer)
+        {
+            host.NetBirdRoutingPeer = routingPeer;
+        }
+
+        if (request.RollbackTimerSeconds is int rollbackTimer)
+        {
+            host.RollbackTimerSeconds = rollbackTimer;
         }
 
         await db.SaveChangesAsync(cancellationToken);
@@ -210,7 +318,62 @@ public sealed class FirewallApplyService(
 
         var settings = BuildSettings(request);
         await RollbackInternalAsync(settings, request, host, cancellationToken);
+        host.LastAppliedScriptHash = null;
+        host.LastAppliedAtUtc = null;
+        await db.SaveChangesAsync(cancellationToken);
         return new FirewallApplyResponse(true, false, host.NetBirdDetected, "Rollback applied.");
+    }
+
+    private static void ApplyHostFields(FirewallHostEntity host, CreateFirewallHostRequest request)
+    {
+        host.Domain = request.Domain;
+        host.ManagedSubnetsJson = JsonSerializer.Serialize(request.ManagedSubnets);
+        host.LinkedTraefikHost = request.LinkedTraefikHost;
+        host.InternalTraefikIp = request.InternalTraefikIp;
+        if (!string.IsNullOrWhiteSpace(request.PublicIp))
+        {
+            host.PublicIp = request.PublicIp;
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.WanInterface))
+        {
+            host.WanInterface = request.WanInterface;
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.LxcBridge))
+        {
+            host.LxcBridge = request.LxcBridge;
+        }
+
+        if (request.NetBirdEnabled is bool netBirdEnabled)
+        {
+            host.NetBirdEnabled = netBirdEnabled;
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.NetBirdInterface))
+        {
+            host.NetBirdInterface = request.NetBirdInterface;
+        }
+
+        if (request.NetBirdOverlayCidrs is not null)
+        {
+            host.NetBirdOverlayCidrsJson = JsonSerializer.Serialize(request.NetBirdOverlayCidrs);
+        }
+
+        if (request.NetBirdRoutedCidrs is not null)
+        {
+            host.NetBirdRoutedCidrsJson = JsonSerializer.Serialize(request.NetBirdRoutedCidrs);
+        }
+
+        if (request.NetBirdRoutingPeer is bool routingPeer)
+        {
+            host.NetBirdRoutingPeer = routingPeer;
+        }
+
+        if (request.RollbackTimerSeconds is int rollbackTimer)
+        {
+            host.RollbackTimerSeconds = rollbackTimer;
+        }
     }
 
     private async Task RollbackInternalAsync(
@@ -250,7 +413,7 @@ public sealed class FirewallApplyService(
     {
         var result = await ssh.RunCommandAsync(
             settings, request.AuthMode, request.Password, request.PrivateKeyPem, request.PrivateKeyPassphrase,
-            "command -v netbird >/dev/null 2>&1 && echo yes || echo no",
+            "command -v netbird >/dev/null 2>&1 && netbird status >/dev/null 2>&1 && echo yes || echo no",
             cancellationToken);
         return result.Succeeded && result.Output.Contains("yes", StringComparison.OrdinalIgnoreCase);
     }
@@ -268,6 +431,8 @@ public sealed class FirewallApplyService(
     public static FirewallHostResponse ToResponse(FirewallHostEntity host)
     {
         var subnets = JsonSerializer.Deserialize<List<string>>(host.ManagedSubnetsJson) ?? [];
+        var overlayCidrs = JsonSerializer.Deserialize<List<string>>(host.NetBirdOverlayCidrsJson) ?? ["100.110.0.0/16"];
+        var routedCidrs = JsonSerializer.Deserialize<List<string>>(host.NetBirdRoutedCidrsJson) ?? [];
         return new FirewallHostResponse(
             host.Id,
             host.ConnectionId,
@@ -276,7 +441,14 @@ public sealed class FirewallApplyService(
             host.LinkedTraefikHost,
             host.InternalTraefikIp,
             host.PublicIp,
+            host.WanInterface,
             subnets,
+            host.NetBirdEnabled,
+            host.NetBirdInterface,
+            overlayCidrs,
+            routedCidrs,
+            host.NetBirdRoutingPeer,
+            host.RollbackTimerSeconds,
             host.NetBirdDetected,
             host.LastAppliedAtUtc);
     }

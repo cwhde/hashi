@@ -115,7 +115,26 @@ public static class FirewallScriptRenderer
               netfilter-persistent save || true
             fi
 
-            # Boot/cron persistence stub — spec §14.3
+            cat > /etc/systemd/system/hashi-firewall.service <<'UNIT'
+            [Unit]
+            Description=Hashi managed firewall rules
+            After=network-online.target
+            Wants=network-online.target
+
+            [Service]
+            Type=oneshot
+            RemainAfterExit=yes
+            ExecStart=/opt/hashi/firewall/hashi-firewall.sh
+            EnvironmentFile=-/opt/hashi/firewall/hashi-firewall.env
+
+            [Install]
+            WantedBy=multi-user.target
+            UNIT
+
+            systemctl daemon-reload
+            systemctl enable hashi-firewall.service || true
+
+            # Cron fallback for hosts without systemd
             cat > /etc/cron.d/hashi-firewall <<'CRON'
             */5 * * * * root /opt/hashi/firewall/hashi-firewall.sh >/dev/null 2>&1
             CRON

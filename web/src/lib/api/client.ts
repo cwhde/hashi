@@ -109,6 +109,18 @@ export const api = {
 			error: typeof body.error === 'string' ? body.error : null
 		};
 	},
+	getCertificateSetup: async () => {
+		const r = await client.GET('/api/setup/certificate');
+		return expectData(r.response, r.error, r.data);
+	},
+	validateCertificateSetup: async (body: import('./types.js').CertificateSetupRequest) => {
+		const r = await client.POST('/api/setup/certificate/validate', { body });
+		return expectData(r.response, r.error, r.data);
+	},
+	saveCertificateSetup: async (body: import('./types.js').CertificateSetupRequest) => {
+		const r = await client.POST('/api/setup/certificate/save', { body });
+		return expectData(r.response, r.error, r.data);
+	},
 	planSystemResourceSync: async () => {
 		const body = await postUndocumented('/api/setup/system-resource/plan');
 		return body as import('./types.js').SystemResourceSyncResult;
@@ -341,6 +353,16 @@ export const api = {
 	rollbackTraefikConnection: async (connectionId: string) => {
 		const r = await client.POST('/api/traefik/connections/{connectionId}/rollback', {
 			params: { path: { connectionId } }
+		});
+		return expectData(r.response, r.error, r.data);
+	},
+	listPendingTraefikEntryPoints: async () => {
+		const r = await client.GET('/api/traefik/entrypoints/pending');
+		return expectData(r.response, r.error, r.data ?? []);
+	},
+	confirmTraefikEntryPoint: async (entryPointId: string) => {
+		const r = await client.POST('/api/traefik/entrypoints/{entryPointId}/confirm', {
+			params: { path: { entryPointId } }
 		});
 		return expectData(r.response, r.error, r.data);
 	},

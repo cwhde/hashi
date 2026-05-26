@@ -22,6 +22,8 @@ public sealed class ResourceEntity
 
     public int TargetPort { get; set; } = 8080;
 
+    public int? PublicPort { get; set; }
+
     public bool DashboardEnabled { get; set; }
 
     public bool StatusEnabled { get; set; }

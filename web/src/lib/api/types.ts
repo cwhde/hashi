@@ -33,6 +33,8 @@ export type RemoteWriteRequest = Schemas['RemoteWriteRequest'];
 export type Resource = Schemas['ResourceResponse'];
 export type CreateResourceRequest = Schemas['CreateResourceRequest'];
 export type UpdateResourceRequest = Schemas['UpdateResourceRequest'];
+export type CertificateSetupRequest = Schemas['CertificateSetupRequest'];
+export type TraefikEntryPoint = Schemas['TraefikEntryPointResponse'];
 
 export type TraefikRenderResponse = Schemas['TraefikRenderResponse'];
 export type TraefikApplyRequest = Schemas['TraefikApplyRequest'];

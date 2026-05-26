@@ -9,6 +9,25 @@ public enum ResourceKind
     Udp,
 }
 
+public sealed record ResourceRouteDefinition(
+    int Priority,
+    string PathMatchType,
+    string PathValue,
+    string TargetScheme,
+    string TargetHost,
+    int TargetPort,
+    bool Enabled = true,
+    string? RewriteMode = null,
+    string? RewriteValue = null,
+    IReadOnlyList<string>? ExtraMiddlewares = null);
+
+public sealed record ResourceRuleDefinition(
+    int Priority,
+    string Action,
+    string MatchType,
+    string MatchValue,
+    bool Enabled = true);
+
 public sealed record ResourceDefinition(
     Guid Id,
     string Name,
@@ -20,11 +39,17 @@ public sealed record ResourceDefinition(
     string TargetScheme,
     string TargetHost,
     int TargetPort,
+    int? PublicPort = null,
     string? PathPrefix = null,
     string? PathRewrite = null,
     ForwardAuthPolicy ForwardAuth = ForwardAuthPolicy.Adaptive,
     Hashi.Core.Security.WafMode WafMode = Hashi.Core.Security.WafMode.DetectOnly,
-    IReadOnlyList<string>? ExtraMiddlewares = null);
+    IReadOnlyList<string>? ExtraMiddlewares = null,
+    IReadOnlyList<ResourceRouteDefinition>? Routes = null,
+    IReadOnlyList<ResourceRuleDefinition>? Rules = null)
+{
+    public int EffectivePublicPort => PublicPort ?? TargetPort;
+}
 
 public static class ResourceSlug
 {

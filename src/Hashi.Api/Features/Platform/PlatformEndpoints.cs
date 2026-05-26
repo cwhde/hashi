@@ -18,13 +18,19 @@ public static class ResourceEndpoints
         group.MapGet("/", async (ResourceService resources, CancellationToken ct) =>
         {
             var items = await resources.ListAsync(ct);
-            return TypedResults.Ok(items.Select(ResourceService.ToResponse));
+            var responses = new List<ResourceResponse>();
+            foreach (var item in items)
+            {
+                responses.Add(await resources.ToResponseAsync(item, ct));
+            }
+
+            return TypedResults.Ok(responses);
         });
 
         group.MapPost("/", async Task<IResult> (CreateResourceRequest request, ResourceService resources, CancellationToken ct) =>
         {
             var created = await resources.CreateAsync(request, ct);
-            return TypedResults.Ok(ResourceService.ToResponse(created));
+            return TypedResults.Ok(await resources.ToResponseAsync(created, ct));
         });
 
         group.MapPut("/{id:guid}", async Task<IResult> (Guid id, UpdateResourceRequest request, ResourceService resources, CancellationToken ct) =>
@@ -32,7 +38,9 @@ public static class ResourceEndpoints
             try
             {
                 var updated = await resources.UpdateAsync(id, request, ct);
-                return updated is null ? TypedResults.NotFound() : TypedResults.Ok(ResourceService.ToResponse(updated));
+                return updated is null
+                    ? TypedResults.NotFound()
+                    : TypedResults.Ok(await resources.ToResponseAsync(updated, ct));
             }
             catch (InvalidOperationException ex)
             {
@@ -149,6 +157,21 @@ public static class TraefikEndpoints
             return TypedResults.Ok(result);
         })
             .Produces<TraefikInstallResponse>(StatusCodes.Status200OK);
+        group.MapGet("/entrypoints", async (TraefikEntryPointService entryPoints, CancellationToken ct) =>
+            TypedResults.Ok(await entryPoints.ListAllAsync(ct)))
+            .Produces<IEnumerable<TraefikEntryPointResponse>>(StatusCodes.Status200OK);
+        group.MapGet("/entrypoints/pending", async (TraefikEntryPointService entryPoints, CancellationToken ct) =>
+            TypedResults.Ok(await entryPoints.ListPendingAsync(ct)))
+            .Produces<IEnumerable<TraefikEntryPointResponse>>(StatusCodes.Status200OK);
+        group.MapPost("/entrypoints/{entryPointId:guid}/confirm", async Task<IResult> (
+            Guid entryPointId,
+            TraefikEntryPointService entryPoints,
+            CancellationToken ct) =>
+        {
+            var confirmed = await entryPoints.ConfirmAsync(entryPointId, ct);
+            return confirmed is null ? TypedResults.NotFound() : TypedResults.Ok(confirmed);
+        })
+            .Produces<TraefikEntryPointResponse>(StatusCodes.Status200OK);
         return app;
     }
 }
@@ -166,6 +189,16 @@ public static class FirewallEndpoints
         {
             var host = await firewall.UpsertHostAsync(request, ct);
             return TypedResults.Ok(FirewallApplyService.ToResponse(host));
+        })
+            .Produces<FirewallHostResponse>(StatusCodes.Status200OK);
+        group.MapPut("/hosts/{firewallHostId:guid}", async Task<IResult> (
+            Guid firewallHostId,
+            UpdateFirewallHostRequest request,
+            FirewallApplyService firewall,
+            CancellationToken ct) =>
+        {
+            var host = await firewall.UpdateHostAsync(firewallHostId, request, ct);
+            return host is null ? TypedResults.NotFound() : TypedResults.Ok(FirewallApplyService.ToResponse(host));
         })
             .Produces<FirewallHostResponse>(StatusCodes.Status200OK);
         group.MapPost("/apply", async Task<IResult> (FirewallApplyRequest request, FirewallApplyService firewall, CancellationToken ct) =>
@@ -227,7 +260,13 @@ public static class PublicEndpoints
         app.MapGet("/api/public/apps", async (ResourceService resources, CancellationToken ct) =>
         {
             var items = await resources.ListAsync(ct);
-            return TypedResults.Ok(items.Where(x => x.DashboardEnabled).Select(ResourceService.ToResponse));
+            var responses = new List<ResourceResponse>();
+            foreach (var item in items.Where(x => x.DashboardEnabled))
+            {
+                responses.Add(await resources.ToResponseAsync(item, ct));
+            }
+
+            return TypedResults.Ok(responses);
         })
             .WithTags("Public")
             .AllowAnonymous()

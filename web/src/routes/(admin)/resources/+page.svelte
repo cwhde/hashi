@@ -31,8 +31,11 @@
 		targetScheme: 'https',
 		targetHost: '',
 		targetPort: 443,
+		publicPort: 443,
 		pathPrefix: '',
 		pathRewrite: '',
+		forwardAuthPolicy: 'adaptive',
+		wafMode: 'detect_only',
 		firewallHostId: '',
 		dashboardEnabled: false,
 		statusEnabled: true
@@ -78,7 +81,10 @@
 				domain: form.domain || null,
 				targetScheme: form.targetScheme,
 				targetHost: form.targetHost,
-				targetPort: form.targetPort,
+				targetPort: Number(form.targetPort),
+				publicPort: form.kind === 'tcp' || form.kind === 'udp' ? Number(form.publicPort) : null,
+				forwardAuthPolicy: form.forwardAuthPolicy,
+				wafMode: form.wafMode,
 				dashboardEnabled: form.dashboardEnabled,
 				statusEnabled: form.statusEnabled,
 				firewallHostId: form.firewallHostId || null,
@@ -99,6 +105,15 @@
 		}
 	}
 
+	const resourcePatchFlags = {
+		clearPublicPort: false,
+		clearFirewallHostId: false,
+		clearPulseAgentId: false,
+		clearPathPrefix: false,
+		clearPathRewrite: false,
+		clearExtraMiddlewares: false
+	} as const;
+
 	async function toggleEnabled(resource: Resource) {
 		try {
 			await api.updateResource(resource.id, {
@@ -110,11 +125,7 @@
 				targetPort: null,
 				dashboardEnabled: null,
 				statusEnabled: null,
-				clearFirewallHostId: false,
-				clearPathPrefix: false,
-				clearPathRewrite: false,
-				clearExtraMiddlewares: false,
-				clearPulseAgentId: false
+				...resourcePatchFlags
 			});
 			await load();
 		} catch (e) {
@@ -134,11 +145,8 @@
 				dashboardEnabled: null,
 				statusEnabled: null,
 				firewallHostId: firewallHostId || null,
-				clearFirewallHostId: !firewallHostId,
-				clearPulseAgentId: false,
-				clearPathPrefix: false,
-				clearPathRewrite: false,
-				clearExtraMiddlewares: false
+				...resourcePatchFlags,
+				clearFirewallHostId: !firewallHostId
 			});
 			await load();
 		} catch (e) {
@@ -157,12 +165,9 @@
 				targetPort: null,
 				dashboardEnabled: null,
 				statusEnabled: null,
-				clearFirewallHostId: false,
 				pulseAgentId: pulseAgentId || null,
-				clearPulseAgentId: !pulseAgentId,
-				clearPathPrefix: false,
-				clearPathRewrite: false,
-				clearExtraMiddlewares: false
+				...resourcePatchFlags,
+				clearPulseAgentId: !pulseAgentId
 			});
 			await load();
 		} catch (e) {
@@ -185,11 +190,7 @@
 				targetPort: null,
 				dashboardEnabled: null,
 				statusEnabled: null,
-				clearFirewallHostId: false,
-				clearPathPrefix: false,
-				clearPathRewrite: false,
-				clearExtraMiddlewares: false,
-				clearPulseAgentId: false,
+				...resourcePatchFlags,
 				extraMiddlewares: next
 			});
 			await load();
@@ -273,9 +274,44 @@
 					<Input id="res-host" bind:value={form.targetHost} />
 				</div>
 			</div>
-			<div class="grid gap-1.5">
-				<Label for="res-port">Port</Label>
-				<Input id="res-port" type="number" bind:value={form.targetPort} />
+			<div class="grid grid-cols-2 gap-3">
+				<div class="grid gap-1.5">
+					<Label for="res-port">Target port</Label>
+					<Input id="res-port" type="number" bind:value={form.targetPort} inputmode="numeric" />
+				</div>
+				{#if form.kind === 'tcp' || form.kind === 'udp'}
+					<div class="grid gap-1.5">
+						<Label for="res-public-port">Public port</Label>
+						<Input id="res-public-port" type="number" bind:value={form.publicPort} />
+					</div>
+				{/if}
+			</div>
+			<div class="grid grid-cols-2 gap-3">
+				<div class="grid gap-1.5">
+					<Label for="res-forward-auth">Forward auth</Label>
+					<select
+						id="res-forward-auth"
+						class="h-9 rounded-md border border-border bg-background px-3 text-sm text-white"
+						bind:value={form.forwardAuthPolicy}
+					>
+						<option value="off">Off</option>
+						<option value="adaptive">Adaptive</option>
+						<option value="sso_required">SSO required</option>
+						<option value="observe">Observe</option>
+					</select>
+				</div>
+				<div class="grid gap-1.5">
+					<Label for="res-waf">WAF mode</Label>
+					<select
+						id="res-waf"
+						class="h-9 rounded-md border border-border bg-background px-3 text-sm text-white"
+						bind:value={form.wafMode}
+					>
+						<option value="off">Off</option>
+						<option value="detect_only">Detect only</option>
+						<option value="on">Block</option>
+					</select>
+				</div>
 			</div>
 			<div class="flex flex-wrap gap-4">
 				<div class="flex items-center gap-2">

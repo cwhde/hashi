@@ -390,6 +390,119 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/setup/certificate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CertificateSetupResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/setup/certificate/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CertificateSetupRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CertificateSetupValidateResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/setup/certificate/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CertificateSetupRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CertificateSetupSaveResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/setup/steps/{stepSlug}/complete": {
         parameters: {
             query?: never;
@@ -2563,6 +2676,113 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/traefik/entrypoints": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TraefikEntryPointResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/traefik/entrypoints/pending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TraefikEntryPointResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/traefik/entrypoints/{entryPointId}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    entryPointId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TraefikEntryPointResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/firewall/hosts": {
         parameters: {
             query?: never;
@@ -2654,6 +2874,47 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/firewall/hosts/{firewallHostId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    firewallHostId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateFirewallHostRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FirewallHostResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3730,6 +3991,30 @@ export interface components {
             username: string;
             password: string;
         };
+        CertificateSetupRequest: {
+            acmeEmail: string;
+            eabKeyId: string;
+            eabHmac: string;
+            /** Format: int32 */
+            dnsChallengeDelaySeconds: number | string;
+            resolvers: null | string[];
+        };
+        CertificateSetupResponse: {
+            acmeEmail: null | string;
+            hasEabCredentials: boolean;
+            /** Format: int32 */
+            dnsChallengeDelaySeconds: number | string;
+            resolvers: string[];
+            hasDnsProvider: boolean;
+        };
+        CertificateSetupSaveResponse: {
+            saved: boolean;
+            error: null | string;
+        };
+        CertificateSetupValidateResponse: {
+            isValid: boolean;
+            errors: string[];
+        };
         ConnectionSummaryResponse: {
             /** Format: uuid */
             id: string;
@@ -3755,6 +4040,15 @@ export interface components {
             linkedTraefikHost: string;
             internalTraefikIp: string;
             publicIp?: null | string;
+            wanInterface?: null | string;
+            lxcBridge?: null | string;
+            netBirdEnabled?: null | boolean;
+            netBirdInterface?: null | string;
+            netBirdOverlayCidrs?: null | string[];
+            netBirdRoutedCidrs?: null | string[];
+            netBirdRoutingPeer?: null | boolean;
+            /** Format: int32 */
+            rollbackTimerSeconds?: null | number | string;
         };
         CreateHetznerDnsConnectionRequest: {
             name: string;
@@ -3788,13 +4082,19 @@ export interface components {
             targetPort: number | string;
             dashboardEnabled: boolean;
             statusEnabled: boolean;
+            /** Format: int32 */
+            publicPort?: null | number | string;
             /** Format: uuid */
             firewallHostId?: null | string;
             /** Format: uuid */
             pulseAgentId?: null | string;
             pathPrefix?: null | string;
             pathRewrite?: null | string;
+            forwardAuthPolicy?: null | string;
+            wafMode?: null | string;
             extraMiddlewares?: null | string[];
+            routes?: null | components["schemas"]["ResourceRouteRequest"][];
+            rules?: null | components["schemas"]["ResourceRuleRequest"][];
         };
         CreateScriptRequest: {
             /** Format: uuid */
@@ -3896,7 +4196,15 @@ export interface components {
             linkedTraefikHost: string;
             internalTraefikIp: string;
             publicIp: null | string;
+            wanInterface: null | string;
             managedSubnets: string[];
+            netBirdEnabled: boolean;
+            netBirdInterface: string;
+            netBirdOverlayCidrs: string[];
+            netBirdRoutedCidrs: string[];
+            netBirdRoutingPeer: boolean;
+            /** Format: int32 */
+            rollbackTimerSeconds: number | string;
             netBirdDetected: boolean;
             /** Format: date-time */
             lastAppliedAtUtc: null | string;
@@ -3907,6 +4215,16 @@ export interface components {
             managedSubnets: string[];
             linkedTraefikHost: string;
             internalTraefikIp: string;
+            publicIp?: null | string;
+            wanInterface?: null | string;
+            lxcBridge?: null | string;
+            netBirdEnabled?: null | boolean;
+            netBirdInterface?: null | string;
+            netBirdOverlayCidrs?: null | string[];
+            netBirdRoutedCidrs?: null | string[];
+            netBirdRoutingPeer?: null | boolean;
+            /** Format: int32 */
+            rollbackTimerSeconds?: null | number | string;
         };
         FirewallRenderResponse: {
             script: string;
@@ -4057,6 +4375,8 @@ export interface components {
             targetHost: string;
             /** Format: int32 */
             targetPort: number | string;
+            /** Format: int32 */
+            publicPort: null | number | string;
             dashboardEnabled: boolean;
             statusEnabled: boolean;
             /** Format: uuid */
@@ -4065,7 +4385,59 @@ export interface components {
             pulseAgentId: null | string;
             pathPrefix: null | string;
             pathRewrite: null | string;
+            forwardAuthPolicy: string;
+            wafMode: string;
             extraMiddlewares: string[];
+            routes: components["schemas"]["ResourceRouteResponse"][];
+            rules: components["schemas"]["ResourceRuleResponse"][];
+        };
+        ResourceRouteRequest: {
+            enabled: boolean;
+            /** Format: int32 */
+            priority: number | string;
+            pathMatchType: string;
+            pathValue: string;
+            targetScheme: string;
+            targetHost: string;
+            /** Format: int32 */
+            targetPort: number | string;
+            rewriteMode?: null | string;
+            rewriteValue?: null | string;
+            extraMiddlewares?: null | string[];
+        };
+        ResourceRouteResponse: {
+            /** Format: uuid */
+            id: string;
+            enabled: boolean;
+            /** Format: int32 */
+            priority: number | string;
+            pathMatchType: string;
+            pathValue: string;
+            targetScheme: string;
+            targetHost: string;
+            /** Format: int32 */
+            targetPort: number | string;
+            rewriteMode: null | string;
+            rewriteValue: null | string;
+            extraMiddlewares: string[];
+        };
+        ResourceRuleRequest: {
+            enabled: boolean;
+            /** Format: int32 */
+            priority: number | string;
+            action: string;
+            matchType: string;
+            matchValue: string;
+        };
+        ResourceRuleResponse: {
+            /** Format: uuid */
+            id: string;
+            enabled: boolean;
+            /** Format: int32 */
+            priority: number | string;
+            action: string;
+            matchType: string;
+            matchValue: string;
         };
         RunScriptRequest: {
             host?: null | string;
@@ -4230,6 +4602,19 @@ export interface components {
             securityYaml: string;
             healthYaml: string;
         };
+        TraefikEntryPointResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: int32 */
+            port: number | string;
+            protocol: string;
+            /** Format: uuid */
+            resourceId: null | string;
+            label: null | string;
+            confirmed: boolean;
+            /** Format: date-time */
+            confirmedAtUtc: null | string;
+        };
         TraefikHostStateResponse: {
             /** Format: uuid */
             connectionId: string;
@@ -4278,6 +4663,29 @@ export interface components {
             error: null | string;
             middlewareNames: string[];
         };
+        UpdateFirewallHostRequest: {
+            name: null | string;
+            domain: null | string;
+            managedSubnets: null | string[];
+            linkedTraefikHost: null | string;
+            internalTraefikIp: null | string;
+            publicIp: null | string;
+            /** @default false */
+            clearPublicIp: boolean;
+            wanInterface?: null | string;
+            /** @default false */
+            clearWanInterface: boolean;
+            lxcBridge?: null | string;
+            /** @default false */
+            clearLxcBridge: boolean;
+            netBirdEnabled?: null | boolean;
+            netBirdInterface?: null | string;
+            netBirdOverlayCidrs?: null | string[];
+            netBirdRoutedCidrs?: null | string[];
+            netBirdRoutingPeer?: null | boolean;
+            /** Format: int32 */
+            rollbackTimerSeconds?: null | number | string;
+        };
         UpdateResourceRequest: {
             name: null | string;
             enabled: null | boolean;
@@ -4288,6 +4696,10 @@ export interface components {
             targetPort: null | number | string;
             dashboardEnabled: null | boolean;
             statusEnabled: null | boolean;
+            /** Format: int32 */
+            publicPort?: null | number | string;
+            /** @default false */
+            clearPublicPort: boolean;
             /** Format: uuid */
             firewallHostId?: null | string;
             /** @default false */
@@ -4302,9 +4714,13 @@ export interface components {
             pathRewrite?: null | string;
             /** @default false */
             clearPathRewrite: boolean;
+            forwardAuthPolicy?: null | string;
+            wafMode?: null | string;
             extraMiddlewares?: null | string[];
             /** @default false */
             clearExtraMiddlewares: boolean;
+            routes?: null | components["schemas"]["ResourceRouteRequest"][];
+            rules?: null | components["schemas"]["ResourceRuleRequest"][];
         };
         UpdateTraefikUserMiddlewareRequest: {
             yaml: string;

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Hashi.Contracts.Api;
 using Hashi.Core.Connections;
 using Hashi.Core.Traefik;
@@ -50,6 +51,24 @@ public sealed class TraefikSyncService(
         if (staticBackup.Succeeded && staticBackup.Content is not null)
         {
             state.LastBackupStaticYaml = System.Text.Encoding.UTF8.GetString(staticBackup.Content);
+        }
+
+        var dynamicBackup = new Dictionary<string, string>();
+        foreach (var (fileName, _) in DynamicFileMap)
+        {
+            var path = $"{DynamicDirectory}/{fileName}";
+            var read = await ssh.ReadFileAsync(
+                settings, request.AuthMode, request.Password, request.PrivateKeyPem, request.PrivateKeyPassphrase,
+                path, cancellationToken);
+            if (read.Succeeded && read.Content is not null && read.Content.Length > 0)
+            {
+                dynamicBackup[fileName] = System.Text.Encoding.UTF8.GetString(read.Content);
+            }
+        }
+
+        if (dynamicBackup.Count > 0)
+        {
+            state.LastBackupDynamicYaml = JsonSerializer.Serialize(dynamicBackup);
         }
 
         await ssh.RunCommandAsync(
@@ -200,8 +219,8 @@ public sealed class TraefikSyncService(
         }
 
         var installCommand = validation.OsFamily == Hashi.Core.Connections.OsFamily.Alpine
-            ? "apk add --no-cache traefik || true"
-            : "apt-get update && apt-get install -y traefik || true";
+            ? BuildAlpineInstallScript()
+            : BuildDebianInstallScript();
         var result = await ssh.RunCommandAsync(
             settings,
             request.AuthMode,
@@ -210,30 +229,89 @@ public sealed class TraefikSyncService(
             request.PrivateKeyPassphrase,
             installCommand,
             cancellationToken);
-        return new TraefikInstallResponse(result.Succeeded, result.Error);
+        return new TraefikInstallResponse(result.Succeeded, result.Error ?? result.Output);
     }
+
+    private static string BuildDebianInstallScript() => """
+        set -euo pipefail
+        export DEBIAN_FRONTEND=noninteractive
+        mkdir -p /etc/hashi/traefik/dynamic /var/log/hashi/traefik /var/lib/hashi/traefik
+        apt-get update
+        apt-get install -y traefik || apt-get install -y traefik2 || true
+        cat > /etc/systemd/system/traefik.service <<'UNIT'
+        [Unit]
+        Description=Hashi-managed Traefik
+        After=network-online.target
+        Wants=network-online.target
+
+        [Service]
+        Type=simple
+        ExecStart=/usr/bin/traefik --configFile=/etc/hashi/traefik/traefik.yml
+        Restart=on-failure
+        RestartSec=5
+
+        [Install]
+        WantedBy=multi-user.target
+        UNIT
+        systemctl daemon-reload
+        systemctl enable traefik || true
+        echo "Traefik directories and systemd unit prepared."
+        """;
+
+    private static string BuildAlpineInstallScript() => """
+        set -euo pipefail
+        mkdir -p /etc/hashi/traefik/dynamic /var/log/hashi/traefik /var/lib/hashi/traefik
+        apk add --no-cache traefik || true
+        cat > /etc/init.d/traefik <<'INIT'
+        #!/sbin/openrc-run
+        name="traefik"
+        command="/usr/bin/traefik"
+        command_args="--configFile=/etc/hashi/traefik/traefik.yml"
+        pidfile="/run/${RC_SVCNAME}.pid"
+        INIT
+        chmod +x /etc/init.d/traefik
+        rc-update add traefik default || true
+        echo "Traefik directories and OpenRC service prepared."
+        """;
 
     public async Task<TraefikApplyResponse> RollbackAsync(TraefikApplyRequest request, CancellationToken cancellationToken = default)
     {
         var state = await db.TraefikHostStates.SingleOrDefaultAsync(x => x.ConnectionId == request.ConnectionId, cancellationToken);
-        if (state is null || string.IsNullOrWhiteSpace(state.LastBackupStaticYaml))
+        if (state is null || (string.IsNullOrWhiteSpace(state.LastBackupStaticYaml) && string.IsNullOrWhiteSpace(state.LastBackupDynamicYaml)))
         {
             return new TraefikApplyResponse(false, state?.LastAppliedContentHash ?? string.Empty, false, "No Traefik backup available to restore.");
         }
 
         var settings = BuildSettings(request);
-        var backupBytes = System.Text.Encoding.UTF8.GetBytes(state.LastBackupStaticYaml);
-        var write = await WriteAsync(settings, request, state.StaticConfigPath, backupBytes, cancellationToken);
-        if (!write.Succeeded)
+        if (!string.IsNullOrWhiteSpace(state.LastBackupStaticYaml))
         {
-            return new TraefikApplyResponse(false, state.LastAppliedContentHash ?? string.Empty, false, write.Error);
+            var backupBytes = System.Text.Encoding.UTF8.GetBytes(state.LastBackupStaticYaml);
+            var write = await WriteAsync(settings, request, state.StaticConfigPath, backupBytes, cancellationToken);
+            if (!write.Succeeded)
+            {
+                return new TraefikApplyResponse(false, state.LastAppliedContentHash ?? string.Empty, false, write.Error);
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(state.LastBackupDynamicYaml))
+        {
+            var dynamicFiles = JsonSerializer.Deserialize<Dictionary<string, string>>(state.LastBackupDynamicYaml) ?? [];
+            foreach (var (fileName, content) in dynamicFiles)
+            {
+                var path = $"{DynamicDirectory}/{fileName}";
+                var write = await WriteAsync(settings, request, path, System.Text.Encoding.UTF8.GetBytes(content), cancellationToken);
+                if (!write.Succeeded)
+                {
+                    return new TraefikApplyResponse(false, state.LastAppliedContentHash ?? string.Empty, false, write.Error);
+                }
+            }
         }
 
         state.LastAppliedContentHash = null;
         state.LastAppliedAtUtc = null;
         await db.SaveChangesAsync(cancellationToken);
         await audit.WriteAsync("traefik", "config_rollback", subjectType: "connection", subjectId: request.ConnectionId.ToString(), cancellationToken: cancellationToken);
-        return new TraefikApplyResponse(true, state.LastAppliedContentHash ?? string.Empty, false, "Static Traefik config restored from backup.");
+        return new TraefikApplyResponse(true, state.LastAppliedContentHash ?? string.Empty, false, "Traefik static and dynamic configs restored from backup.");
     }
 
     private async Task<Hashi.Core.Connections.RemoteWriteResult> WriteAsync(

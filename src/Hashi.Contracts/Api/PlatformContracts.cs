@@ -11,13 +11,58 @@ public sealed record ResourceResponse(
     string TargetScheme,
     string TargetHost,
     int TargetPort,
+    int? PublicPort,
     bool DashboardEnabled,
     bool StatusEnabled,
     Guid? FirewallHostId,
     Guid? PulseAgentId,
     string? PathPrefix,
     string? PathRewrite,
+    string ForwardAuthPolicy,
+    string WafMode,
+    IReadOnlyList<string> ExtraMiddlewares,
+    IReadOnlyList<ResourceRouteResponse> Routes,
+    IReadOnlyList<ResourceRuleResponse> Rules);
+
+public sealed record ResourceRouteResponse(
+    Guid Id,
+    bool Enabled,
+    int Priority,
+    string PathMatchType,
+    string PathValue,
+    string TargetScheme,
+    string TargetHost,
+    int TargetPort,
+    string? RewriteMode,
+    string? RewriteValue,
     IReadOnlyList<string> ExtraMiddlewares);
+
+public sealed record ResourceRuleResponse(
+    Guid Id,
+    bool Enabled,
+    int Priority,
+    string Action,
+    string MatchType,
+    string MatchValue);
+
+public sealed record ResourceRouteRequest(
+    bool Enabled,
+    int Priority,
+    string PathMatchType,
+    string PathValue,
+    string TargetScheme,
+    string TargetHost,
+    int TargetPort,
+    string? RewriteMode = null,
+    string? RewriteValue = null,
+    IReadOnlyList<string>? ExtraMiddlewares = null);
+
+public sealed record ResourceRuleRequest(
+    bool Enabled,
+    int Priority,
+    string Action,
+    string MatchType,
+    string MatchValue);
 
 public sealed record CreateResourceRequest(
     string Name,
@@ -28,11 +73,16 @@ public sealed record CreateResourceRequest(
     int TargetPort,
     bool DashboardEnabled,
     bool StatusEnabled,
+    int? PublicPort = null,
     Guid? FirewallHostId = null,
     Guid? PulseAgentId = null,
     string? PathPrefix = null,
     string? PathRewrite = null,
-    IReadOnlyList<string>? ExtraMiddlewares = null);
+    string? ForwardAuthPolicy = null,
+    string? WafMode = null,
+    IReadOnlyList<string>? ExtraMiddlewares = null,
+    IReadOnlyList<ResourceRouteRequest>? Routes = null,
+    IReadOnlyList<ResourceRuleRequest>? Rules = null);
 
 public sealed record UpdateResourceRequest(
     string? Name,
@@ -43,6 +93,8 @@ public sealed record UpdateResourceRequest(
     int? TargetPort,
     bool? DashboardEnabled,
     bool? StatusEnabled,
+    int? PublicPort = null,
+    bool ClearPublicPort = false,
     Guid? FirewallHostId = null,
     bool ClearFirewallHostId = false,
     Guid? PulseAgentId = null,
@@ -51,8 +103,12 @@ public sealed record UpdateResourceRequest(
     bool ClearPathPrefix = false,
     string? PathRewrite = null,
     bool ClearPathRewrite = false,
+    string? ForwardAuthPolicy = null,
+    string? WafMode = null,
     IReadOnlyList<string>? ExtraMiddlewares = null,
-    bool ClearExtraMiddlewares = false);
+    bool ClearExtraMiddlewares = false,
+    IReadOnlyList<ResourceRouteRequest>? Routes = null,
+    IReadOnlyList<ResourceRuleRequest>? Rules = null);
 
 public sealed record TraefikDynamicFilesResponse(
     string CoreYaml,
@@ -92,6 +148,33 @@ public sealed record TraefikInstallRequest(
 
 public sealed record TraefikInstallResponse(bool Succeeded, string? Message);
 
+public sealed record TraefikEntryPointResponse(
+    Guid Id,
+    int Port,
+    string Protocol,
+    Guid? ResourceId,
+    string? Label,
+    bool Confirmed,
+    DateTimeOffset? ConfirmedAtUtc);
+
+public sealed record CertificateSetupRequest(
+    string AcmeEmail,
+    string EabKeyId,
+    string EabHmac,
+    int DnsChallengeDelaySeconds,
+    IReadOnlyList<string>? Resolvers);
+
+public sealed record CertificateSetupResponse(
+    string? AcmeEmail,
+    bool HasEabCredentials,
+    int DnsChallengeDelaySeconds,
+    IReadOnlyList<string> Resolvers,
+    bool HasDnsProvider);
+
+public sealed record CertificateSetupValidateResponse(bool IsValid, IReadOnlyList<string> Errors);
+
+public sealed record CertificateSetupSaveResponse(bool Saved, string? Error);
+
 public sealed record TraefikUserMiddlewareResponse(
     string Yaml,
     string? LastParseError,
@@ -122,7 +205,21 @@ public sealed record TraefikDetectExistingResponse(bool Found, string? Preview, 
 
 public sealed record TraefikApplyConnectionRequest(bool ConfirmReplaceExisting);
 
-public sealed record FirewallRenderRequest(string Name, string Domain, IReadOnlyList<string> ManagedSubnets, string LinkedTraefikHost, string InternalTraefikIp);
+public sealed record FirewallRenderRequest(
+    string Name,
+    string Domain,
+    IReadOnlyList<string> ManagedSubnets,
+    string LinkedTraefikHost,
+    string InternalTraefikIp,
+    string? PublicIp = null,
+    string? WanInterface = null,
+    string? LxcBridge = null,
+    bool? NetBirdEnabled = null,
+    string? NetBirdInterface = null,
+    IReadOnlyList<string>? NetBirdOverlayCidrs = null,
+    IReadOnlyList<string>? NetBirdRoutedCidrs = null,
+    bool? NetBirdRoutingPeer = null,
+    int? RollbackTimerSeconds = null);
 
 public sealed record FirewallRenderResponse(string Script);
 
@@ -146,7 +243,14 @@ public sealed record FirewallHostResponse(
     string LinkedTraefikHost,
     string InternalTraefikIp,
     string? PublicIp,
+    string? WanInterface,
     IReadOnlyList<string> ManagedSubnets,
+    bool NetBirdEnabled,
+    string NetBirdInterface,
+    IReadOnlyList<string> NetBirdOverlayCidrs,
+    IReadOnlyList<string> NetBirdRoutedCidrs,
+    bool NetBirdRoutingPeer,
+    int RollbackTimerSeconds,
     bool NetBirdDetected,
     DateTimeOffset? LastAppliedAtUtc);
 
@@ -157,7 +261,34 @@ public sealed record CreateFirewallHostRequest(
     IReadOnlyList<string> ManagedSubnets,
     string LinkedTraefikHost,
     string InternalTraefikIp,
-    string? PublicIp = null);
+    string? PublicIp = null,
+    string? WanInterface = null,
+    string? LxcBridge = null,
+    bool? NetBirdEnabled = null,
+    string? NetBirdInterface = null,
+    IReadOnlyList<string>? NetBirdOverlayCidrs = null,
+    IReadOnlyList<string>? NetBirdRoutedCidrs = null,
+    bool? NetBirdRoutingPeer = null,
+    int? RollbackTimerSeconds = null);
+
+public sealed record UpdateFirewallHostRequest(
+    string? Name,
+    string? Domain,
+    IReadOnlyList<string>? ManagedSubnets,
+    string? LinkedTraefikHost,
+    string? InternalTraefikIp,
+    string? PublicIp,
+    bool ClearPublicIp = false,
+    string? WanInterface = null,
+    bool ClearWanInterface = false,
+    string? LxcBridge = null,
+    bool ClearLxcBridge = false,
+    bool? NetBirdEnabled = null,
+    string? NetBirdInterface = null,
+    IReadOnlyList<string>? NetBirdOverlayCidrs = null,
+    IReadOnlyList<string>? NetBirdRoutedCidrs = null,
+    bool? NetBirdRoutingPeer = null,
+    int? RollbackTimerSeconds = null);
 
 public sealed record MonitorRollupResponse(
     Guid MonitorEndpointId,

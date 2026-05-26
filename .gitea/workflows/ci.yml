@@ -100,6 +100,11 @@ jobs:
           dotnet test tests/Hashi.IntegrationTests/Hashi.IntegrationTests.csproj --no-restore --verbosity normal /p:SkipFrontendBuild=true
           dotnet build src/Hashi.Api/Hashi.Api.csproj -c Release --no-restore /p:SkipFrontendBuild=true
 
+      - name: Shellcheck generated firewall script (spec §Phase 7)
+        run: |
+          sudo apt-get update && sudo apt-get install -y shellcheck
+          dotnet test tests/Hashi.UnitTests/Hashi.UnitTests.csproj --filter "FullyQualifiedName~FirewallScriptRendererTests.Render_passes_shellcheck_when_available" --no-restore /p:SkipFrontendBuild=true
+
   web:
     needs: changes
     if: needs.changes.outputs.web == 'true'

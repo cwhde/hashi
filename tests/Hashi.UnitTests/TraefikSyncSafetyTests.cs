@@ -32,10 +32,7 @@ public sealed class TraefikSyncSafetyTests
         });
         await db.SaveChangesAsync();
         var connectionId = Guid.NewGuid();
-        var settings = new AppSettingsService(db);
-        await settings.GetOrCreateAsync();
-        var userMiddlewares = new TraefikUserMiddlewareService(db);
-        var traefik = new TraefikPlatformService(db, settings, userMiddlewares);
+        var traefik = TestPlatformHelpers.CreateTraefikPlatform(db);
         var render = await traefik.RenderAsync();
         db.TraefikHostStates.Add(new TraefikHostStateEntity
         {
@@ -46,7 +43,7 @@ public sealed class TraefikSyncSafetyTests
         var ssh = new FakeSshRemoteExecutor();
         var vault = new VaultSessionState();
         vault.Unlock(new byte[32]);
-        var sync = new TraefikSyncService(db, ssh, traefik, new SecretRecordService(db, vault, new ServiceSyncVaultState()), new AuditService(db));
+        var sync = TestPlatformHelpers.CreateTraefikSync(db, ssh, vault);
         var result = await sync.ApplyAsync(new TraefikApplyRequest(
             connectionId,
             "10.0.0.1",

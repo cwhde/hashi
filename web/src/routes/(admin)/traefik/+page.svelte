@@ -1,13 +1,6 @@
 <script lang="ts">
 	import { api, ApiRequestError } from '$lib/api/client';
-	import type {
-		ConnectionSummary,
-		TraefikApplyResponse,
-		TraefikDetectExistingResponse,
-		TraefikHostState,
-		TraefikRenderResponse,
-		TraefikUserMiddleware
-	} from '$lib/api/types';
+	import YamlCodeEditor from '$lib/components/editors/YamlCodeEditor.svelte';
 	import AdminSectionPage from '$lib/components/layout/AdminSectionPage.svelte';
 	import PanelSection from '$lib/components/layout/PanelSection.svelte';
 	import StatusRow from '$lib/components/layout/StatusRow.svelte';
@@ -16,12 +9,13 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Network } from 'lucide-svelte';
 
-	let render = $state<TraefikRenderResponse | null>(null);
-	let connections = $state<ConnectionSummary[]>([]);
+	let render = $state<Awaited<ReturnType<typeof api.getTraefikRender>> | null>(null);
+	let connections = $state<Awaited<ReturnType<typeof api.listConnections>>>([]);
 	let selectedConnectionId = $state('');
-	let hostState = $state<TraefikHostState | null>(null);
-	let existingConfig = $state<TraefikDetectExistingResponse | null>(null);
-	let userMiddlewares = $state<TraefikUserMiddleware | null>(null);
+	let hostState = $state<Awaited<ReturnType<typeof api.getTraefikHostState>> | null>(null);
+	let existingConfig = $state<Awaited<ReturnType<typeof api.detectExistingTraefikConfig>> | null>(null);
+	let userMiddlewares = $state<Awaited<ReturnType<typeof api.getTraefikUserMiddlewares>> | null>(null);
+	let pendingEntryPoints = $state<Awaited<ReturnType<typeof api.listPendingTraefikEntryPoints>>>([]);
 	let middlewareYaml = $state('');
 	let middlewareValidation = $state<string | null>(null);
 	let confirmReplace = $state(false);
@@ -29,23 +23,26 @@
 	let applying = $state(false);
 	let rollingBack = $state(false);
 	let savingMiddleware = $state(false);
+	let confirmingPort = $state<string | null>(null);
 	let error = $state<string | null>(null);
-	let applyResult = $state<TraefikApplyResponse | null>(null);
+	let applyResult = $state<Awaited<ReturnType<typeof api.applyTraefikConnection>> | null>(null);
 	let activeTab = $state<'preview' | 'middlewares' | 'apply'>('preview');
 
 	async function loadAll() {
 		loading = true;
 		error = null;
 		try {
-			const [renderResult, connList, middlewareResult] = await Promise.all([
+			const [renderResult, connList, middlewareResult, pendingPorts] = await Promise.all([
 				api.getTraefikRender(),
 				api.listConnections('traefik_host'),
-				api.getTraefikUserMiddlewares()
+				api.getTraefikUserMiddlewares(),
+				api.listPendingTraefikEntryPoints().catch(() => [])
 			]);
 			render = renderResult;
 			connections = connList;
 			userMiddlewares = middlewareResult;
 			middlewareYaml = middlewareResult.yaml;
+			pendingEntryPoints = pendingPorts;
 			if (!selectedConnectionId && connList.length > 0) {
 				selectedConnectionId = connList[0].id;
 			}
@@ -70,6 +67,19 @@
 		]);
 		hostState = state;
 		existingConfig = existing;
+	}
+
+	async function confirmEntryPoint(id: string) {
+		confirmingPort = id;
+		try {
+			await api.confirmTraefikEntryPoint(id);
+			pendingEntryPoints = await api.listPendingTraefikEntryPoints();
+			render = await api.getTraefikRender();
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Failed to confirm entry point';
+		} finally {
+			confirmingPort = null;
+		}
 	}
 
 	async function validateMiddlewareYaml() {
@@ -171,6 +181,25 @@
 		<p class="text-sm text-destructive">{error}</p>
 	{/if}
 
+	{#if pendingEntryPoints.length > 0}
+		<PanelSection title="Pending public ports" description="Confirm new TCP/UDP entry points before they render and open firewall ports.">
+			<ul class="space-y-2 text-sm">
+				{#each pendingEntryPoints as entry (entry.id)}
+					<li class="flex items-center justify-between rounded-md border border-border px-3 py-2">
+						<span>{entry.label ?? `${entry.protocol}/${entry.port}`}</span>
+						<Button
+							size="sm"
+							onclick={() => confirmEntryPoint(entry.id)}
+							disabled={confirmingPort === entry.id}
+						>
+							{confirmingPort === entry.id ? 'Confirming…' : 'Confirm'}
+						</Button>
+					</li>
+				{/each}
+			</ul>
+		</PanelSection>
+	{/if}
+
 	{#if activeTab === 'preview' && render}
 		<div class="flex items-center gap-2 text-xs text-muted-foreground">
 			<span>hash {render.contentHash}</span>
@@ -203,10 +232,7 @@
 			{#if userMiddlewares?.lastParseError}
 				<p class="mb-2 text-xs text-destructive">Last parse error: {userMiddlewares.lastParseError}</p>
 			{/if}
-			<textarea
-				class="min-h-72 w-full rounded-md border border-border bg-hashi-bg-dark p-3 font-mono text-[11px] text-hashi-foreground"
-				bind:value={middlewareYaml}
-			></textarea>
+			<YamlCodeEditor bind:value={middlewareYaml} />
 			<div class="mt-3 flex flex-wrap gap-2">
 				<Button variant="outline" onclick={() => validateMiddlewareYaml()}>Validate YAML</Button>
 				<Button onclick={() => saveMiddlewareYaml()} disabled={savingMiddleware}>
@@ -281,7 +307,7 @@
 							onclick={() => rollbackConfig()}
 							disabled={rollingBack || !hostState?.hasBackup}
 						>
-							{rollingBack ? 'Rolling back…' : 'Rollback static config'}
+							{rollingBack ? 'Rolling back…' : 'Rollback config'}
 						</Button>
 					</div>
 				</div>

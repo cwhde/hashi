@@ -245,6 +245,83 @@
         }
       }
     },
+    "/api/setup/certificate": {
+      "get": {
+        "tags": [
+          "Setup"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CertificateSetupResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/setup/certificate/validate": {
+      "post": {
+        "tags": [
+          "Setup"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CertificateSetupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CertificateSetupValidateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/setup/certificate/save": {
+      "post": {
+        "tags": [
+          "Setup"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CertificateSetupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CertificateSetupSaveResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/setup/steps/{stepSlug}/complete": {
       "post": {
         "tags": [
@@ -1721,6 +1798,80 @@
         }
       }
     },
+    "/api/traefik/entrypoints": {
+      "get": {
+        "tags": [
+          "Traefik"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TraefikEntryPointResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/traefik/entrypoints/pending": {
+      "get": {
+        "tags": [
+          "Traefik"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TraefikEntryPointResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/traefik/entrypoints/{entryPointId}/confirm": {
+      "post": {
+        "tags": [
+          "Traefik"
+        ],
+        "parameters": [
+          {
+            "name": "entryPointId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraefikEntryPointResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/firewall/hosts": {
       "get": {
         "tags": [
@@ -1792,6 +1943,46 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FirewallRenderResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/firewall/hosts/{firewallHostId}": {
+      "put": {
+        "tags": [
+          "Firewall"
+        ],
+        "parameters": [
+          {
+            "name": "firewallHostId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateFirewallHostRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirewallHostResponse"
                 }
               }
             }
@@ -2895,6 +3086,118 @@
           }
         }
       },
+      "CertificateSetupRequest": {
+        "required": [
+          "acmeEmail",
+          "eabKeyId",
+          "eabHmac",
+          "dnsChallengeDelaySeconds",
+          "resolvers"
+        ],
+        "type": "object",
+        "properties": {
+          "acmeEmail": {
+            "type": "string"
+          },
+          "eabKeyId": {
+            "type": "string"
+          },
+          "eabHmac": {
+            "type": "string"
+          },
+          "dnsChallengeDelaySeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "resolvers": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CertificateSetupResponse": {
+        "required": [
+          "acmeEmail",
+          "hasEabCredentials",
+          "dnsChallengeDelaySeconds",
+          "resolvers",
+          "hasDnsProvider"
+        ],
+        "type": "object",
+        "properties": {
+          "acmeEmail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hasEabCredentials": {
+            "type": "boolean"
+          },
+          "dnsChallengeDelaySeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "resolvers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "hasDnsProvider": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CertificateSetupSaveResponse": {
+        "required": [
+          "saved",
+          "error"
+        ],
+        "type": "object",
+        "properties": {
+          "saved": {
+            "type": "boolean"
+          },
+          "error": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "CertificateSetupValidateResponse": {
+        "required": [
+          "isValid",
+          "errors"
+        ],
+        "type": "object",
+        "properties": {
+          "isValid": {
+            "type": "boolean"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
       "ConnectionSummaryResponse": {
         "required": [
           "id",
@@ -2995,6 +3298,63 @@
               "null",
               "string"
             ]
+          },
+          "wanInterface": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lxcBridge": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "netBirdEnabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "netBirdInterface": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "netBirdOverlayCidrs": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "netBirdRoutedCidrs": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "netBirdRoutingPeer": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "rollbackTimerSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         }
       },
@@ -3125,6 +3485,15 @@
           "statusEnabled": {
             "type": "boolean"
           },
+          "publicPort": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
           "firewallHostId": {
             "type": [
               "null",
@@ -3151,6 +3520,18 @@
               "string"
             ]
           },
+          "forwardAuthPolicy": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "wafMode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "extraMiddlewares": {
             "type": [
               "null",
@@ -3158,6 +3539,24 @@
             ],
             "items": {
               "type": "string"
+            }
+          },
+          "routes": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ResourceRouteRequest"
+            }
+          },
+          "rules": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ResourceRuleRequest"
             }
           }
         }
@@ -3532,7 +3931,14 @@
           "linkedTraefikHost",
           "internalTraefikIp",
           "publicIp",
+          "wanInterface",
           "managedSubnets",
+          "netBirdEnabled",
+          "netBirdInterface",
+          "netBirdOverlayCidrs",
+          "netBirdRoutedCidrs",
+          "netBirdRoutingPeer",
+          "rollbackTimerSeconds",
           "netBirdDetected",
           "lastAppliedAtUtc"
         ],
@@ -3564,11 +3970,46 @@
               "string"
             ]
           },
+          "wanInterface": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "managedSubnets": {
             "type": "array",
             "items": {
               "type": "string"
             }
+          },
+          "netBirdEnabled": {
+            "type": "boolean"
+          },
+          "netBirdInterface": {
+            "type": "string"
+          },
+          "netBirdOverlayCidrs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "netBirdRoutedCidrs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "netBirdRoutingPeer": {
+            "type": "boolean"
+          },
+          "rollbackTimerSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           },
           "netBirdDetected": {
             "type": "boolean"
@@ -3609,6 +4050,69 @@
           },
           "internalTraefikIp": {
             "type": "string"
+          },
+          "publicIp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "wanInterface": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lxcBridge": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "netBirdEnabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "netBirdInterface": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "netBirdOverlayCidrs": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "netBirdRoutedCidrs": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "netBirdRoutingPeer": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "rollbackTimerSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         }
       },
@@ -4181,13 +4685,18 @@
           "targetScheme",
           "targetHost",
           "targetPort",
+          "publicPort",
           "dashboardEnabled",
           "statusEnabled",
           "firewallHostId",
           "pulseAgentId",
           "pathPrefix",
           "pathRewrite",
-          "extraMiddlewares"
+          "forwardAuthPolicy",
+          "wafMode",
+          "extraMiddlewares",
+          "routes",
+          "rules"
         ],
         "type": "object",
         "properties": {
@@ -4230,6 +4739,15 @@
             ],
             "format": "int32"
           },
+          "publicPort": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
           "dashboardEnabled": {
             "type": "boolean"
           },
@@ -4262,11 +4780,235 @@
               "string"
             ]
           },
+          "forwardAuthPolicy": {
+            "type": "string"
+          },
+          "wafMode": {
+            "type": "string"
+          },
           "extraMiddlewares": {
             "type": "array",
             "items": {
               "type": "string"
             }
+          },
+          "routes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResourceRouteResponse"
+            }
+          },
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResourceRuleResponse"
+            }
+          }
+        }
+      },
+      "ResourceRouteRequest": {
+        "required": [
+          "enabled",
+          "priority",
+          "pathMatchType",
+          "pathValue",
+          "targetScheme",
+          "targetHost",
+          "targetPort"
+        ],
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "priority": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "pathMatchType": {
+            "type": "string"
+          },
+          "pathValue": {
+            "type": "string"
+          },
+          "targetScheme": {
+            "type": "string"
+          },
+          "targetHost": {
+            "type": "string"
+          },
+          "targetPort": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "rewriteMode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rewriteValue": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "extraMiddlewares": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ResourceRouteResponse": {
+        "required": [
+          "id",
+          "enabled",
+          "priority",
+          "pathMatchType",
+          "pathValue",
+          "targetScheme",
+          "targetHost",
+          "targetPort",
+          "rewriteMode",
+          "rewriteValue",
+          "extraMiddlewares"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "priority": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "pathMatchType": {
+            "type": "string"
+          },
+          "pathValue": {
+            "type": "string"
+          },
+          "targetScheme": {
+            "type": "string"
+          },
+          "targetHost": {
+            "type": "string"
+          },
+          "targetPort": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "rewriteMode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rewriteValue": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "extraMiddlewares": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ResourceRuleRequest": {
+        "required": [
+          "enabled",
+          "priority",
+          "action",
+          "matchType",
+          "matchValue"
+        ],
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "priority": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "action": {
+            "type": "string"
+          },
+          "matchType": {
+            "type": "string"
+          },
+          "matchValue": {
+            "type": "string"
+          }
+        }
+      },
+      "ResourceRuleResponse": {
+        "required": [
+          "id",
+          "enabled",
+          "priority",
+          "action",
+          "matchType",
+          "matchValue"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "priority": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "action": {
+            "type": "string"
+          },
+          "matchType": {
+            "type": "string"
+          },
+          "matchValue": {
+            "type": "string"
           }
         }
       },
@@ -4929,6 +5671,58 @@
           }
         }
       },
+      "TraefikEntryPointResponse": {
+        "required": [
+          "id",
+          "port",
+          "protocol",
+          "resourceId",
+          "label",
+          "confirmed",
+          "confirmedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "port": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "protocol": {
+            "type": "string"
+          },
+          "resourceId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "label": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "confirmed": {
+            "type": "boolean"
+          },
+          "confirmedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
       "TraefikHostStateResponse": {
         "required": [
           "connectionId",
@@ -5138,6 +5932,127 @@
           }
         }
       },
+      "UpdateFirewallHostRequest": {
+        "required": [
+          "name",
+          "domain",
+          "managedSubnets",
+          "linkedTraefikHost",
+          "internalTraefikIp",
+          "publicIp"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "domain": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "managedSubnets": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "linkedTraefikHost": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "internalTraefikIp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "publicIp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clearPublicIp": {
+            "type": "boolean",
+            "default": false
+          },
+          "wanInterface": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clearWanInterface": {
+            "type": "boolean",
+            "default": false
+          },
+          "lxcBridge": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clearLxcBridge": {
+            "type": "boolean",
+            "default": false
+          },
+          "netBirdEnabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "netBirdInterface": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "netBirdOverlayCidrs": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "netBirdRoutedCidrs": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "netBirdRoutingPeer": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "rollbackTimerSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "UpdateResourceRequest": {
         "required": [
           "name",
@@ -5202,6 +6117,19 @@
               "boolean"
             ]
           },
+          "publicPort": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "clearPublicPort": {
+            "type": "boolean",
+            "default": false
+          },
           "firewallHostId": {
             "type": [
               "null",
@@ -5244,6 +6172,18 @@
             "type": "boolean",
             "default": false
           },
+          "forwardAuthPolicy": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "wafMode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "extraMiddlewares": {
             "type": [
               "null",
@@ -5256,6 +6196,24 @@
           "clearExtraMiddlewares": {
             "type": "boolean",
             "default": false
+          },
+          "routes": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ResourceRouteRequest"
+            }
+          },
+          "rules": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ResourceRuleRequest"
+            }
           }
         }
       },

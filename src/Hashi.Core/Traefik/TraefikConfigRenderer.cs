@@ -22,8 +22,10 @@ public sealed record TraefikRenderOptions(
     string? AcmeEabHmac = null,
     string? DnsProviderName = null,
     int DnsChallengeDelaySeconds = 30,
+    IReadOnlyList<string>? AcmeResolvers = null,
     string AdminDomain = "hashi.local",
-    string HashiForwardAuthUrl = "http://127.0.0.1:8080/api/edge-auth/forward");
+    string HashiForwardAuthUrl = "http://127.0.0.1:8080/api/edge-auth/forward",
+    IReadOnlySet<(int Port, string Protocol)>? ConfirmedStreamPorts = null);
 
 public static class TraefikConfigRenderer
 {
@@ -36,6 +38,13 @@ public static class TraefikConfigRenderer
         var enabled = resources.Where(r => r.Enabled).ToList();
         var httpResources = enabled.Where(r => r.Kind is ResourceKind.Http or ResourceKind.Https or ResourceKind.H2c).ToList();
         var streamResources = enabled.Where(r => r.Kind is ResourceKind.Tcp or ResourceKind.Udp).ToList();
+        var confirmedPorts = options.ConfirmedStreamPorts;
+        if (confirmedPorts is not null)
+        {
+            streamResources = streamResources
+                .Where(r => confirmedPorts.Contains((r.EffectivePublicPort, r.Kind == ResourceKind.Udp ? "udp" : "tcp")))
+                .ToList();
+        }
         var userMiddlewares = NormalizeUserMiddlewaresYaml(userMiddlewaresYaml);
 
         var staticYaml = RenderStaticConfig(options, streamResources);
@@ -76,9 +85,12 @@ public static class TraefikConfigRenderer
 
         foreach (var resource in streamResources)
         {
+            var protocol = resource.Kind == ResourceKind.Udp ? "udp" : "tcp";
+            var entryName = resource.Kind == ResourceKind.Udp ? $"{resource.Slug}-udp" : $"{resource.Slug}-tcp";
             entryPoints += $"""
-                  {resource.Slug}-tcp:
-                    address: ":{resource.TargetPort}/tcp"
+
+                  {entryName}:
+                    address: ":{resource.EffectivePublicPort}/{protocol}"
                 """;
         }
 
@@ -169,52 +181,98 @@ public static class TraefikConfigRenderer
             return "http:\n  routers: {}\n  services: {}\n";
         }
 
-        var stripMiddlewares = resources
-            .Where(r => !string.IsNullOrWhiteSpace(r.PathRewrite))
-            .Select(r =>
-                $$"""
-                      {{r.Slug}}-strip:
-                        replacePath:
-                          path: "{{r.PathRewrite}}"
-                    """);
-        var middlewareBlock = stripMiddlewares.Any()
-            ? "  middlewares:\n" + string.Join('\n', stripMiddlewares) + "\n"
+        var rewriteMiddlewares = resources.SelectMany(r =>
+        {
+            if (r.Routes is { Count: > 0 })
+            {
+                return r.Routes.Where(route => route.Enabled && !string.IsNullOrWhiteSpace(route.RewriteValue))
+                    .Select(route => (Name: $"{r.Slug}-route-{route.Priority}-rewrite", Value: route.RewriteValue!, Mode: route.RewriteMode));
+            }
+
+            if (!string.IsNullOrWhiteSpace(r.PathRewrite))
+            {
+                return [(Name: $"{r.Slug}-rewrite", Value: r.PathRewrite!, Mode: (string?)null)];
+            }
+
+            return [];
+        });
+
+        var middlewareEntries = rewriteMiddlewares.Select(x => RenderRewriteMiddleware(x.Name, x.Value, x.Mode)).ToList();
+        var middlewareBlock = middlewareEntries.Count > 0
+            ? "  middlewares:\n" + string.Join('\n', middlewareEntries) + "\n"
             : string.Empty;
 
-        var routers = string.Join('\n', resources.Select(RenderHttpRouter));
+        var routers = string.Join('\n', resources.SelectMany(RenderHttpRouters));
 
-        var services = string.Join('\n', resources.Select(r =>
-            $$"""
-                  {{r.Slug}}:
+        var serviceKeys = resources.SelectMany(r =>
+            r.Routes is { Count: > 0 }
+                ? r.Routes.Where(route => route.Enabled).Select(route => (Resource: r, Route: (ResourceRouteDefinition?)route))
+                : [(Resource: r, Route: (ResourceRouteDefinition?)null)])
+            .DistinctBy(x => x.Route is null ? x.Resource.Slug : $"{x.Resource.Slug}-{x.Route.Priority}");
+
+        var services = string.Join('\n', serviceKeys.Select(x =>
+        {
+            var scheme = x.Route?.TargetScheme ?? x.Resource.TargetScheme;
+            var host = x.Route?.TargetHost ?? x.Resource.TargetHost;
+            var port = x.Route?.TargetPort ?? x.Resource.TargetPort;
+            var serviceName = x.Route is null ? x.Resource.Slug : $"{x.Resource.Slug}-route-{x.Route.Priority}";
+            return $$"""
+                  {{serviceName}}:
                     loadBalancer:
                       servers:
-                        - url: "{{r.TargetScheme}}://{{r.TargetHost}}:{{r.TargetPort}}"
-                """));
+                        - url: "{{scheme}}://{{host}}:{{port}}"
+                """;
+        }));
 
         return $"http:\n{middlewareBlock}  routers:\n{routers}\n  services:\n{services}\n";
     }
 
-    private static string RenderHttpRouter(ResourceDefinition resource)
+    private static IEnumerable<string> RenderHttpRouters(ResourceDefinition resource)
     {
-        var middlewares = BuildResourceMiddlewares(resource);
-        var rule = string.IsNullOrWhiteSpace(resource.PathPrefix)
-            ? $"Host(`{resource.Domain}`)"
-            : $"Host(`{resource.Domain}`) && PathPrefix(`{resource.PathPrefix}`)";
-        var lines = new List<string>
+        if (resource.Routes is { Count: > 0 })
         {
-            $"    {resource.Slug}:",
-            $"      rule: {rule}",
-            "      entryPoints:",
-            "        - websecure",
-            "      middlewares:",
-        };
-        lines.AddRange(middlewares.Select(m => $"        - {m}"));
-        if (!string.IsNullOrWhiteSpace(resource.PathRewrite))
-        {
-            lines.Add($"        - {resource.Slug}-strip");
+            foreach (var route in resource.Routes.Where(x => x.Enabled).OrderByDescending(x => x.Priority))
+            {
+                yield return RenderHttpRouter(resource, route);
+            }
+
+            yield break;
         }
 
-        lines.Add($"      service: {resource.Slug}");
+        yield return RenderHttpRouter(resource, null);
+    }
+
+    private static string RenderHttpRouter(ResourceDefinition resource, ResourceRouteDefinition? route)
+    {
+        var middlewares = BuildResourceMiddlewares(resource, route?.ExtraMiddlewares);
+        var pathPrefix = route?.PathValue ?? resource.PathPrefix;
+        var pathMatchType = route?.PathMatchType ?? (string.IsNullOrWhiteSpace(resource.PathPrefix) ? null : "prefix");
+        var rule = BuildPathRule(resource.Domain, pathMatchType, pathPrefix);
+        var routerName = route is null ? resource.Slug : $"{resource.Slug}-route-{route.Priority}";
+        var serviceName = route is null ? resource.Slug : $"{resource.Slug}-route-{route.Priority}";
+        var rewriteValue = route?.RewriteValue ?? resource.PathRewrite;
+        var rewriteMode = route?.RewriteMode;
+        var lines = new List<string>
+        {
+            $"    {routerName}:",
+            $"      rule: {rule}",
+        };
+        if (route is not null)
+        {
+            lines.Add($"      priority: {route.Priority}");
+        }
+
+        lines.Add("      entryPoints:");
+        lines.Add("        - websecure");
+        lines.Add("      middlewares:");
+
+        lines.AddRange(middlewares.Select(m => $"        - {m}"));
+        if (!string.IsNullOrWhiteSpace(rewriteValue))
+        {
+            lines.Add($"        - {routerName}-rewrite");
+        }
+
+        lines.Add($"      service: {serviceName}");
         if (resource.Kind == ResourceKind.Https)
         {
             lines.Add("      tls:");
@@ -224,14 +282,54 @@ public static class TraefikConfigRenderer
         return string.Join('\n', lines);
     }
 
+    private static string RenderRewriteMiddleware(string name, string value, string? mode)
+        => (mode ?? "replace_path").ToLowerInvariant() switch
+        {
+            "strip_prefix" => $$"""
+                  {{name}}:
+                    stripPrefix:
+                      prefixes:
+                        - "{{value}}"
+                """,
+            "regex" => $$"""
+                  {{name}}:
+                    replacePathRegex:
+                      regex: "{{value}}"
+                """,
+            _ => $$"""
+                  {{name}}:
+                    replacePath:
+                      path: "{{value}}"
+                """,
+        };
+
+    private static string BuildPathRule(string? domain, string? pathMatchType, string? pathValue)
+    {
+        var hostRule = string.IsNullOrWhiteSpace(domain) ? "HostRegexp(`{host:.+}`)" : $"Host(`{domain}`)";
+        if (string.IsNullOrWhiteSpace(pathValue))
+        {
+            return hostRule;
+        }
+
+        var pathRule = (pathMatchType ?? "prefix").ToLowerInvariant() switch
+        {
+            "exact" => $"Path(`{pathValue}`)",
+            "regex" => $"PathRegexp(`{pathValue}`)",
+            _ => $"PathPrefix(`{pathValue}`)",
+        };
+        return $"{hostRule} && {pathRule}";
+    }
+
     private static string RenderStreamResources(IReadOnlyList<ResourceDefinition> resources)
     {
-        if (resources.Count == 0)
+        var tcpResources = resources.Where(r => r.Kind == ResourceKind.Tcp).ToList();
+        var udpResources = resources.Where(r => r.Kind == ResourceKind.Udp).ToList();
+        if (tcpResources.Count == 0 && udpResources.Count == 0)
         {
             return "tcp: {}\nudp: {}\n";
         }
 
-        var tcpRouters = string.Join('\n', resources.Where(r => r.Kind == ResourceKind.Tcp).Select(r =>
+        var tcpRouters = string.Join('\n', tcpResources.Select(r =>
             $$"""
                   {{r.Slug}}:
                     entryPoints:
@@ -239,7 +337,21 @@ public static class TraefikConfigRenderer
                     rule: HostSNI(`*`)
                     service: {{r.Slug}}
                 """));
-        var tcpServices = string.Join('\n', resources.Where(r => r.Kind == ResourceKind.Tcp).Select(r =>
+        var tcpServices = string.Join('\n', tcpResources.Select(r =>
+            $$"""
+                  {{r.Slug}}:
+                    loadBalancer:
+                      servers:
+                        - address: "{{r.TargetHost}}:{{r.TargetPort}}"
+                """));
+        var udpRouters = string.Join('\n', udpResources.Select(r =>
+            $$"""
+                  {{r.Slug}}:
+                    entryPoints:
+                      - {{r.Slug}}-udp
+                    service: {{r.Slug}}
+                """));
+        var udpServices = string.Join('\n', udpResources.Select(r =>
             $$"""
                   {{r.Slug}}:
                     loadBalancer:
@@ -250,9 +362,14 @@ public static class TraefikConfigRenderer
         return $$"""
             tcp:
               routers:
-            {{tcpRouters}}
+            {{(string.IsNullOrWhiteSpace(tcpRouters) ? "{}" : tcpRouters)}}
               services:
-            {{tcpServices}}
+            {{(string.IsNullOrWhiteSpace(tcpServices) ? "{}" : tcpServices)}}
+            udp:
+              routers:
+            {{(string.IsNullOrWhiteSpace(udpRouters) ? "{}" : udpRouters)}}
+              services:
+            {{(string.IsNullOrWhiteSpace(udpServices) ? "{}" : udpServices)}}
             """;
     }
 
@@ -264,7 +381,9 @@ public static class TraefikConfigRenderer
         return string.IsNullOrEmpty(wafBlocks) ? "http:\n  middlewares: {}\n" : wafBlocks + "\n";
     }
 
-    private static IReadOnlyList<string> BuildResourceMiddlewares(ResourceDefinition resource)
+    private static IReadOnlyList<string> BuildResourceMiddlewares(
+        ResourceDefinition resource,
+        IReadOnlyList<string>? routeMiddlewares = null)
     {
         var chain = new List<string>
         {
@@ -289,6 +408,17 @@ public static class TraefikConfigRenderer
         }
 
         chain.Add("hashi-rate-limit");
+        if (routeMiddlewares is not null)
+        {
+            foreach (var extra in routeMiddlewares.Where(x => !string.IsNullOrWhiteSpace(x)))
+            {
+                if (!chain.Contains(extra, StringComparer.Ordinal))
+                {
+                    chain.Add(extra);
+                }
+            }
+        }
+
         if (resource.ExtraMiddlewares is not null)
         {
             foreach (var extra in resource.ExtraMiddlewares.Where(x => !string.IsNullOrWhiteSpace(x)))
@@ -317,6 +447,10 @@ public static class TraefikConfigRenderer
                         hmacEncoded: {{options.AcmeEabHmac}}
                 """;
 
+        var resolverLines = (options.AcmeResolvers ?? ["1.1.1.1:53", "8.8.8.8:53"])
+            .Select(r => $"                      - \"{r}\"");
+        var resolvers = string.Join('\n', resolverLines);
+
         return $$"""
             certificatesResolvers:
               gts:
@@ -328,8 +462,7 @@ public static class TraefikConfigRenderer
                     provider: hetzner
                     delayBeforeCheck: {{options.DnsChallengeDelaySeconds}}s
                     resolvers:
-                      - "1.1.1.1:53"
-                      - "8.8.8.8:53"{{eabBlock}}
+            {{resolvers}}{{eabBlock}}
             """;
     }
 

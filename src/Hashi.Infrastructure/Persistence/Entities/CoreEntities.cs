@@ -18,6 +18,14 @@ public sealed class AppSettingsEntity
 
     public string Theme { get; set; } = "dark";
 
+    public string? AcmeEmail { get; set; }
+
+    public Guid? AcmeEabSecretId { get; set; }
+
+    public int DnsChallengeDelaySeconds { get; set; } = 30;
+
+    public string AcmeResolversJson { get; set; } = "[\"1.1.1.1:53\",\"8.8.8.8:53\"]";
+
     public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }
 
@@ -36,6 +44,8 @@ public sealed class SetupStateEntity
     public string? BootstrapPasswordHash { get; set; }
 
     public DateTimeOffset? HttpsDomainVerifiedAtUtc { get; set; }
+
+    public string? PendingAcmeEabJson { get; set; }
 
     public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }

@@ -33,6 +33,12 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
 
     public DbSet<ResourceEntity> Resources => Set<ResourceEntity>();
 
+    public DbSet<ResourceRouteEntity> ResourceRoutes => Set<ResourceRouteEntity>();
+
+    public DbSet<ResourceRuleEntity> ResourceRules => Set<ResourceRuleEntity>();
+
+    public DbSet<TraefikEntryPointEntity> TraefikEntryPoints => Set<TraefikEntryPointEntity>();
+
     public DbSet<MonitorEndpointEntity> MonitorEndpoints => Set<MonitorEndpointEntity>();
 
     public DbSet<PulseAgentEntity> PulseAgents => Set<PulseAgentEntity>();
@@ -74,6 +80,7 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.ToTable("app_settings");
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Theme).HasMaxLength(32);
+            entity.Property(x => x.AcmeEmail).HasMaxLength(256);
         });
 
         modelBuilder.Entity<SetupStateEntity>(entity =>
@@ -197,7 +204,34 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.Property(x => x.Name).HasMaxLength(128);
             entity.Property(x => x.Slug).HasMaxLength(128);
             entity.Property(x => x.Kind).HasMaxLength(16);
+            entity.Property(x => x.ForwardAuthPolicy).HasMaxLength(32);
+            entity.Property(x => x.WafMode).HasMaxLength(32);
             entity.HasIndex(x => x.Slug).IsUnique();
+        });
+
+        modelBuilder.Entity<ResourceRouteEntity>(entity =>
+        {
+            entity.ToTable("resource_routes");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.PathMatchType).HasMaxLength(16);
+            entity.HasIndex(x => x.ResourceId);
+        });
+
+        modelBuilder.Entity<ResourceRuleEntity>(entity =>
+        {
+            entity.ToTable("resource_rules");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Action).HasMaxLength(32);
+            entity.Property(x => x.MatchType).HasMaxLength(32);
+            entity.HasIndex(x => x.ResourceId);
+        });
+
+        modelBuilder.Entity<TraefikEntryPointEntity>(entity =>
+        {
+            entity.ToTable("traefik_entrypoints");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Protocol).HasMaxLength(8);
+            entity.HasIndex(x => new { x.Port, x.Protocol }).IsUnique();
         });
 
         modelBuilder.Entity<MonitorEndpointEntity>(entity =>

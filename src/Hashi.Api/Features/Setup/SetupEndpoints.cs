@@ -67,6 +67,27 @@ public static class SetupEndpoints
                 remoteIp));
         });
 
+        group.MapGet("/certificate", async (CertificateSetupService certificate, CancellationToken ct) =>
+            TypedResults.Ok(await certificate.GetAsync(ct)))
+            .Produces<CertificateSetupResponse>(StatusCodes.Status200OK);
+        group.MapPost("/certificate/validate", async Task<IResult> (
+            CertificateSetupRequest request,
+            CertificateSetupService certificate,
+            CancellationToken ct) =>
+            TypedResults.Ok(await certificate.ValidateAsync(request, ct)))
+            .Produces<CertificateSetupValidateResponse>(StatusCodes.Status200OK);
+        group.MapPost("/certificate/save", async Task<IResult> (
+            CertificateSetupRequest request,
+            CertificateSetupService certificate,
+            CancellationToken ct) =>
+        {
+            var result = await certificate.SaveAsync(request, ct);
+            return result.Saved
+                ? TypedResults.Ok(result)
+                : TypedResults.BadRequest(result);
+        })
+            .Produces<CertificateSetupSaveResponse>(StatusCodes.Status200OK);
+
         return app;
     }
 

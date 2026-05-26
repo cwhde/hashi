@@ -109,7 +109,7 @@ public sealed class SecurityIngestionServiceTests
         var routing = new NotificationRoutingService(db, dispatcher);
         return new SecurityIngestionService(
             db,
-            new FirewallApplyService(db, new FakeSshRemoteExecutor(), secrets, audit),
+            TestPlatformHelpers.CreateFirewallApply(db),
             audit,
             routing,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<SecurityIngestionService>.Instance);
