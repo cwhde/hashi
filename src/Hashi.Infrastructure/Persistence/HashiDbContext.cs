@@ -67,6 +67,8 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
 
     public DbSet<AbuseBucketEntity> AbuseBuckets => Set<AbuseBucketEntity>();
 
+    public DbSet<AccessLogCursorEntity> AccessLogCursors => Set<AccessLogCursorEntity>();
+
     public DbSet<BlocklistEntryEntity> BlocklistEntries => Set<BlocklistEntryEntity>();
 
     public DbSet<AdGuardConnectionEntity> AdGuardConnections => Set<AdGuardConnectionEntity>();
@@ -350,6 +352,13 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.HasKey(x => x.Id);
             entity.Property(x => x.ClientIp).HasMaxLength(64);
             entity.HasIndex(x => x.ClientIp).IsUnique();
+        });
+
+        modelBuilder.Entity<AccessLogCursorEntity>(entity =>
+        {
+            entity.ToTable("access_log_cursors");
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.ConnectionId).IsUnique();
         });
 
         modelBuilder.Entity<BlocklistEntryEntity>(entity =>

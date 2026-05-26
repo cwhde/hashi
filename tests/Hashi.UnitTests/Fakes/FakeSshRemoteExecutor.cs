@@ -5,6 +5,7 @@ namespace Hashi.UnitTests.Fakes;
 public sealed class FakeSshRemoteExecutor : ISshRemoteExecutor
 {
     public int WriteCount { get; private set; }
+    public Dictionary<string, byte[]> ReadFiles { get; } = new(StringComparer.Ordinal);
 
     public Task<SshValidationResult> ValidateAsync(SshConnectionSettings settings, string password, CancellationToken cancellationToken = default)
         => Task.FromResult(new SshValidationResult(true, OsFamily.Debian, "linux", null));
@@ -47,7 +48,10 @@ public sealed class FakeSshRemoteExecutor : ISshRemoteExecutor
         string? privateKeyPassphrase,
         string remotePath,
         CancellationToken cancellationToken = default)
-        => Task.FromResult(new RemoteReadResult(false, null, null));
+        => Task.FromResult(
+            ReadFiles.TryGetValue(remotePath, out var bytes)
+                ? new RemoteReadResult(true, bytes, null)
+                : new RemoteReadResult(false, null, "Remote file not found."));
 
     public Task<RemoteCommandResult> RunCommandAsync(
         SshConnectionSettings settings,

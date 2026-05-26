@@ -10,6 +10,7 @@ public static class BackgroundJobKeys
     public const string MonitorCheck = "monitor-check";
     public const string MonitorRollup = "monitor-rollup";
     public const string ScriptCron = "script-cron";
+    public const string AccessLogIngest = "access-log-ingest";
 }
 
 public sealed class BackgroundJobService(HashiDbContext db)
@@ -20,6 +21,7 @@ public sealed class BackgroundJobService(HashiDbContext db)
         await EnsureJobAsync(BackgroundJobKeys.MonitorCheck, "Monitor checks", 30, cancellationToken);
         await EnsureJobAsync(BackgroundJobKeys.MonitorRollup, "Monitor rollups", 60, cancellationToken);
         await EnsureJobAsync(BackgroundJobKeys.ScriptCron, "Script cron sync", 60, cancellationToken);
+        await EnsureJobAsync(BackgroundJobKeys.AccessLogIngest, "Traefik access-log ingest", 60, cancellationToken);
     }
 
     public async Task<IReadOnlyList<BackgroundJobEntity>> ListAsync(CancellationToken cancellationToken = default)

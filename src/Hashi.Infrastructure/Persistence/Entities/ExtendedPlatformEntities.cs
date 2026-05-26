@@ -290,6 +290,17 @@ public sealed class AbuseBucketEntity
     public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }
 
+public sealed class AccessLogCursorEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid ConnectionId { get; set; }
+
+    public long ByteOffset { get; set; }
+
+    public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+}
+
 public sealed class BlocklistEntryEntity
 {
     public Guid Id { get; set; } = Guid.NewGuid();
