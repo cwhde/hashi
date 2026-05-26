@@ -6,7 +6,7 @@ Go agent that reports host identity and private IPv4 candidates to Hashi.
 
 ```bash
 cd agents/pulse
-go build -o hashi-pulse ./cmd/hashi-pulse
+make build
 ```
 
 ## Run
