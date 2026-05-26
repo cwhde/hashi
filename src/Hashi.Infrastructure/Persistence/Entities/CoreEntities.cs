@@ -26,6 +26,16 @@ public sealed class AppSettingsEntity
 
     public string AcmeResolversJson { get; set; } = "[\"1.1.1.1:53\",\"8.8.8.8:53\"]";
 
+    public int MonitorCheckIntervalSeconds { get; set; } = 30;
+
+    public int MonitorCheckTimeoutSeconds { get; set; } = 15;
+
+    public int MonitorSampleRetentionDays { get; set; } = 30;
+
+    public int MonitorDegradedLatencyMs { get; set; } = 1500;
+
+    public int EdgeSsoSessionHours { get; set; } = 8;
+
     public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }
 

@@ -307,6 +307,91 @@ public sealed record PublicStatusItemResponse(
     int? LastLatencyMs,
     IReadOnlyList<PublicStatusStripBucket> RecentStrip);
 
+public sealed record PublicStatusSummaryResponse(
+    int TotalEndpoints,
+    int UpCount,
+    int DegradedCount,
+    int DownCount,
+    int FirewallHostCount,
+    int FirewallHostsApplied);
+
+public sealed record MonitorEventResponse(
+    Guid Id,
+    Guid MonitorEndpointId,
+    string PreviousStatus,
+    string NewStatus,
+    int? LatencyMs,
+    DateTimeOffset OccurredAtUtc);
+
+public sealed record MonitoringSettingsResponse(
+    int MonitorCheckIntervalSeconds,
+    int MonitorCheckTimeoutSeconds,
+    int MonitorSampleRetentionDays,
+    int MonitorDegradedLatencyMs,
+    DateTimeOffset? UpdatedAtUtc);
+
+public sealed record MonitoringSettingsRequest(
+    int? MonitorCheckIntervalSeconds,
+    int? MonitorCheckTimeoutSeconds,
+    int? MonitorSampleRetentionDays,
+    int? MonitorDegradedLatencyMs);
+
+public sealed record EdgeSsoSettingsResponse(
+    int EdgeSsoSessionHours,
+    DateTimeOffset? UpdatedAtUtc);
+
+public sealed record EdgeSsoSettingsRequest(int? EdgeSsoSessionHours);
+
+public sealed record OidcProviderResponse(
+    Guid Id,
+    string Name,
+    string Issuer,
+    string ClientId,
+    string Scopes,
+    bool Enabled);
+
+public sealed record CreateOidcProviderRequest(
+    string Name,
+    string Issuer,
+    string ClientId,
+    string ClientSecret,
+    string? Scopes,
+    bool Enabled);
+
+public sealed record UpdateOidcProviderRequest(
+    string? Name,
+    string? Issuer,
+    string? ClientId,
+    string? ClientSecret,
+    string? Scopes,
+    bool? Enabled);
+
+public sealed record EdgeAuthRuleResponse(
+    Guid Id,
+    string Name,
+    int Priority,
+    string MatchJson,
+    string Action,
+    bool Enabled);
+
+public sealed record CreateEdgeAuthRuleRequest(
+    string Name,
+    int Priority,
+    string MatchJson,
+    string Action,
+    bool Enabled);
+
+public sealed record UpdateEdgeAuthRuleRequest(
+    string? Name,
+    int? Priority,
+    string? MatchJson,
+    string? Action,
+    bool? Enabled);
+
+public sealed record AdGuardConnectionTestResponse(bool Connected, string? Error);
+
+public sealed record RotatePulseAgentTokenResponse(Guid Id, string Name, string Token);
+
 public sealed record MonitorEndpointResponse(
     Guid Id,
     string Name,
@@ -319,7 +404,15 @@ public sealed record MonitorEndpointResponse(
 
 public sealed record PulseInstallResponse(string LinuxInstallScript, string DockerRunCommand);
 
-public sealed record PulseAgentResponse(Guid Id, string Name, string Status, DateTimeOffset? LastSeenAtUtc, string? LastPublicIp);
+public sealed record PulseAgentResponse(
+    Guid Id,
+    string Name,
+    string Status,
+    DateTimeOffset? LastSeenAtUtc,
+    string? LastPublicIp,
+    string? LastHostname,
+    string? LastAgentVersion,
+    DateTimeOffset? DnsPendingAtUtc);
 
 public sealed record PulseHeartbeatRequest(string Version, string Hostname, IReadOnlyList<string> PrivateIpv4Candidates);
 
@@ -338,7 +431,9 @@ public sealed record SecurityDashboardResponse(
     int Hours,
     IReadOnlyList<string> TopBlockedIps,
     IReadOnlyList<SecurityRankItem> TopCountries,
-    IReadOnlyList<SecurityRankItem> TopAsns);
+    IReadOnlyList<SecurityRankItem> TopAsns,
+    long BlocklistCount,
+    long SecurityEventCount);
 
 public sealed record BlocklistSyncResponse(
     bool Synced,

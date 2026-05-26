@@ -1,11 +1,12 @@
 using Hashi.Contracts.Api;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
+using Hashi.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace Hashi.Infrastructure.Platform;
 
-public sealed class MonitoringService(HashiDbContext db)
+public sealed class MonitoringService(HashiDbContext db, AppSettingsService settings)
 {
     public async Task SyncEndpointsFromResourcesAsync(CancellationToken cancellationToken = default)
     {
@@ -45,8 +46,45 @@ public sealed class MonitoringService(HashiDbContext db)
         await db.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task RecordTransitionAsync(
+        MonitorEndpointEntity endpoint,
+        string previousStatus,
+        string newStatus,
+        int? latencyMs,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.Equals(previousStatus, newStatus, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        db.MonitorEvents.Add(new MonitorEventEntity
+        {
+            MonitorEndpointId = endpoint.Id,
+            PreviousStatus = previousStatus,
+            NewStatus = newStatus,
+            LatencyMs = latencyMs,
+        });
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<MonitorEndpointEntity>> ListAsync(CancellationToken cancellationToken = default)
         => await db.MonitorEndpoints.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<MonitorEventEntity>> ListEventsAsync(
+        Guid? endpointId,
+        int hours,
+        CancellationToken cancellationToken = default)
+    {
+        var since = DateTimeOffset.UtcNow.AddHours(-Math.Clamp(hours, 1, 720));
+        var query = db.MonitorEvents.AsNoTracking().Where(x => x.OccurredAtUtc >= since);
+        if (endpointId is Guid id)
+        {
+            query = query.Where(x => x.MonitorEndpointId == id);
+        }
+
+        return await query.OrderByDescending(x => x.OccurredAtUtc).Take(500).ToListAsync(cancellationToken);
+    }
 
     public async Task<IReadOnlyList<MonitorRollupEntity>> ListRollupsAsync(
         Guid? endpointId,
@@ -71,15 +109,25 @@ public sealed class MonitoringService(HashiDbContext db)
 
     public async Task<IReadOnlyList<PublicStatusItemResponse>> PublicStatusAsync(CancellationToken cancellationToken = default)
     {
+        var appSettings = await settings.GetOrCreateAsync(cancellationToken);
+        var hours = 1;
         var endpoints = await db.MonitorEndpoints.AsNoTracking()
             .Where(x => x.Enabled)
             .OrderBy(x => x.Name)
             .ToListAsync(cancellationToken);
-        var since = DateTimeOffset.UtcNow.AddHours(-1);
+        var since = DateTimeOffset.UtcNow.AddHours(-hours);
         var rollups = await db.MonitorRollups.AsNoTracking()
             .Where(x => x.IntervalMinutes == 1 && x.BucketStartUtc >= since)
             .OrderBy(x => x.BucketStartUtc)
             .ToListAsync(cancellationToken);
+        var pendingPulseIds = await db.PulseAgents.AsNoTracking()
+            .Where(x => x.DnsPendingAtUtc != null && x.DnsPendingAtUtc > DateTimeOffset.UtcNow.AddHours(-2))
+            .Select(x => x.Id)
+            .ToListAsync(cancellationToken);
+        var pendingResourceIds = await db.Resources.AsNoTracking()
+            .Where(x => x.PulseAgentId != null && pendingPulseIds.Contains(x.PulseAgentId.Value))
+            .Select(x => x.Id)
+            .ToHashSetAsync(cancellationToken);
 
         return endpoints.Select(endpoint =>
         {
@@ -89,12 +137,32 @@ public sealed class MonitoringService(HashiDbContext db)
                     x.BucketStartUtc,
                     x.UpCount >= x.DownCount))
                 .ToList();
+            var status = endpoint.ResourceId is not null && pendingResourceIds.Contains(endpoint.ResourceId.Value)
+                ? "Pending"
+                : NormalizeStatus(endpoint.Status);
+
             return new PublicStatusItemResponse(
                 endpoint.Name,
-                NormalizeStatus(endpoint.Status),
+                status,
                 endpoint.LastLatencyMs,
                 strip);
         }).ToList();
+    }
+
+    public async Task<PublicStatusSummaryResponse> PublicSummaryAsync(CancellationToken cancellationToken = default)
+    {
+        var endpoints = await db.MonitorEndpoints.AsNoTracking().Where(x => x.Enabled).ToListAsync(cancellationToken);
+        var hosts = await db.FirewallHosts.AsNoTracking().ToListAsync(cancellationToken);
+        var up = endpoints.Count(x => x.Status.Equals("up", StringComparison.OrdinalIgnoreCase));
+        var down = endpoints.Count(x => x.Status.Equals("down", StringComparison.OrdinalIgnoreCase));
+        var degraded = endpoints.Count(x => x.Status.Equals("degraded", StringComparison.OrdinalIgnoreCase));
+        return new PublicStatusSummaryResponse(
+            endpoints.Count,
+            up,
+            degraded,
+            down,
+            hosts.Count,
+            hosts.Count(h => h.LastAppliedAtUtc is not null));
     }
 
     public static MonitorEndpointResponse ToResponse(MonitorEndpointEntity entity) => new(
@@ -115,6 +183,14 @@ public sealed class MonitoringService(HashiDbContext db)
         entity.UpCount,
         entity.DownCount,
         entity.AverageLatencyMs);
+
+    public static MonitorEventResponse ToEventResponse(MonitorEventEntity entity) => new(
+        entity.Id,
+        entity.MonitorEndpointId,
+        entity.PreviousStatus,
+        entity.NewStatus,
+        entity.LatencyMs,
+        entity.OccurredAtUtc);
 
     private static string NormalizeStatus(string status) => status.ToLowerInvariant() switch
     {

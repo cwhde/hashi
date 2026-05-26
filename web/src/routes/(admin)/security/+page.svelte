@@ -93,6 +93,12 @@
 					{/each}
 				{/if}
 			</OverviewWidget>
+			<OverviewWidget title="Blocklist" description="Active blocked IPs.">
+				<StatusRow label="Entries" value={String(dashboard.blocklistCount ?? 0)} status="error" />
+			</OverviewWidget>
+			<OverviewWidget title="Security events" description="Access, WAF, and forward-auth events.">
+				<StatusRow label="Events in range" value={String(dashboard.securityEventCount ?? 0)} />
+			</OverviewWidget>
 		</div>
 	{/if}
 </section>

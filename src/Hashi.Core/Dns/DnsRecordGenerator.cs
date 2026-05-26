@@ -1,10 +1,14 @@
+using System.Net;
+using Hashi.Core.Dns;
+
 namespace Hashi.Core.Dns;
 
 public sealed record FirewallHostDnsTarget(
     Guid Id,
     string Name,
     string PublicIp,
-    string? OnRouteTarget = null);
+    string? OnRouteTarget = null,
+    IReadOnlyList<string>? ManagedSubnets = null);
 
 public sealed record PulseDnsTarget(
     Guid AgentId,
@@ -93,12 +97,60 @@ public static class DnsRecordGenerator
 
         foreach (var host in hosts)
         {
-            if (candidates.Any(c => string.Equals(c, host.PublicIp, StringComparison.OrdinalIgnoreCase)))
+            foreach (var candidate in candidates.Where(c => !string.IsNullOrWhiteSpace(c)))
             {
-                return host;
+                if (string.Equals(candidate, host.PublicIp, StringComparison.OrdinalIgnoreCase))
+                {
+                    return host;
+                }
+
+                if (host.ManagedSubnets is not null
+                    && host.ManagedSubnets.Any(subnet => IpMatchesSubnet(candidate!, subnet)))
+                {
+                    return host;
+                }
             }
         }
 
         return null;
+    }
+
+    public static bool IpMatchesSubnet(string ipText, string cidr)
+    {
+        if (!IPAddress.TryParse(ipText, out var ip) || !cidr.Contains('/'))
+        {
+            return false;
+        }
+
+        var parts = cidr.Split('/');
+        if (!IPAddress.TryParse(parts[0], out var network) || !int.TryParse(parts[1], out var prefixLength))
+        {
+            return false;
+        }
+
+        var ipBytes = ip.GetAddressBytes();
+        var networkBytes = network.GetAddressBytes();
+        if (ipBytes.Length != networkBytes.Length)
+        {
+            return false;
+        }
+
+        var fullBytes = prefixLength / 8;
+        var remainingBits = prefixLength % 8;
+        for (var i = 0; i < fullBytes; i++)
+        {
+            if (ipBytes[i] != networkBytes[i])
+            {
+                return false;
+            }
+        }
+
+        if (remainingBits == 0)
+        {
+            return true;
+        }
+
+        var mask = (byte)(0xFF << (8 - remainingBits));
+        return (ipBytes[fullBytes] & mask) == (networkBytes[fullBytes] & mask);
     }
 }

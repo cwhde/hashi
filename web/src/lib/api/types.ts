@@ -73,6 +73,10 @@ export type CreateAdGuardConnectionRequest = Schemas['CreateAdGuardConnectionReq
 export type AdGuardRewrite = Schemas['AdGuardRewriteResponse'];
 export type UpsertAdGuardRewriteRequest = Schemas['UpsertAdGuardRewriteRequest'];
 
+export type MonitoringSettingsRequest = Schemas['MonitoringSettingsRequest'];
+export type EdgeSsoSettingsRequest = Schemas['EdgeSsoSettingsRequest'];
+export type RotatePulseAgentResult = Schemas['CreatePulseAgentResponse'];
+
 export type SyncRun = Schemas['SyncRunResponse'];
 export type SyncPlanPreview = Schemas['SyncPlanPreviewResponse'];
 export type SyncReconcileResult = Schemas['SyncReconcileResponse'];

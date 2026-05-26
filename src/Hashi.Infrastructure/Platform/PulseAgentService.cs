@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Hashi.Core.Dns;
 using Hashi.Core.Resources;
 using Hashi.Contracts.Api;
@@ -29,6 +30,21 @@ public sealed class PulseAgentService(
         return new CreatePulseAgentResponse(agent.Id, agent.Name, token);
     }
 
+    public async Task<RotatePulseAgentTokenResponse?> RotateTokenAsync(Guid agentId, CancellationToken cancellationToken = default)
+    {
+        var agent = await db.PulseAgents.SingleOrDefaultAsync(x => x.Id == agentId, cancellationToken);
+        if (agent is null || agent.Status == "revoked")
+        {
+            return null;
+        }
+
+        var token = Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
+        agent.TokenHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(token))).ToLowerInvariant();
+        agent.Status = "pending";
+        await db.SaveChangesAsync(cancellationToken);
+        return new RotatePulseAgentTokenResponse(agent.Id, agent.Name, token);
+    }
+
     public async Task<bool> AcceptHeartbeatAsync(
         Guid agentId,
         PulseHeartbeatAuthRequest request,
@@ -55,7 +71,15 @@ public sealed class PulseAgentService(
         agent.LastSeenAtUtc = DateTimeOffset.UtcNow;
         agent.LastPublicIp = publicIp;
         agent.LastPrivateIp = internalIp;
+        agent.LastHostname = request.Hostname;
+        agent.LastAgentVersion = request.Version;
         agent.Status = "online";
+
+        if (ipChanged)
+        {
+            agent.DnsPendingAtUtc = DateTimeOffset.UtcNow;
+        }
+
         await db.SaveChangesAsync(cancellationToken);
 
         if (ipChanged)
@@ -77,9 +101,20 @@ public sealed class PulseAgentService(
         agent.TokenHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
             System.Text.Encoding.UTF8.GetBytes($"revoked:{agentId}:{Guid.NewGuid()}"))).ToLowerInvariant();
         agent.Status = "revoked";
+        agent.DnsPendingAtUtc = null;
         await db.SaveChangesAsync(cancellationToken);
         return true;
     }
+
+    public static PulseAgentResponse ToResponse(PulseAgentEntity agent) => new(
+        agent.Id,
+        agent.Name,
+        agent.Status,
+        agent.LastSeenAtUtc,
+        agent.LastPublicIp,
+        agent.LastHostname,
+        agent.LastAgentVersion,
+        agent.DnsPendingAtUtc);
 
     private async Task ApplyDnsForPulseChangeAsync(PulseAgentEntity agent, CancellationToken cancellationToken)
     {
@@ -127,6 +162,11 @@ public sealed class PulseAgentService(
         syncRun.ErrorSummary = errors.Count == 0
             ? $"Pulse agent {agent.Name} DNS sync applied to {appliedConnections} connection(s)."
             : string.Join("; ", errors);
+        if (errors.Count == 0)
+        {
+            agent.DnsPendingAtUtc = null;
+        }
+
         await db.SaveChangesAsync(cancellationToken);
     }
 }

@@ -403,6 +403,37 @@ export const api = {
 		});
 		return expectData(r.response, r.error, r.data ?? []);
 	},
+	listStatusEvents: async (params?: { endpointId?: string; hours?: number }) => {
+		const r = await client.GET('/api/status/events', {
+			params: {
+				query: {
+					endpointId: params?.endpointId,
+					hours: params?.hours
+				}
+			}
+		});
+		return expectData(r.response, r.error, r.data ?? []);
+	},
+	getPublicStatusSummary: async () => {
+		const r = await client.GET('/api/public/status/summary');
+		return expectData(r.response, r.error, r.data);
+	},
+	getMonitoringSettings: async () => {
+		const r = await client.GET('/api/settings/monitoring');
+		return expectData(r.response, r.error, r.data);
+	},
+	updateMonitoringSettings: async (body: import('./types.js').MonitoringSettingsRequest) => {
+		const r = await client.PUT('/api/settings/monitoring', { body });
+		return expectData(r.response, r.error, r.data);
+	},
+	getEdgeSsoSettings: async () => {
+		const r = await client.GET('/api/settings/edge-sso/session');
+		return expectData(r.response, r.error, r.data);
+	},
+	updateEdgeSsoSettings: async (body: import('./types.js').EdgeSsoSettingsRequest) => {
+		const r = await client.PUT('/api/settings/edge-sso/session', { body });
+		return expectData(r.response, r.error, r.data);
+	},
 	getSecurityDashboard: async (params?: { hours?: number }) => {
 		const r = await client.GET('/api/security/dashboard', {
 			params: {
@@ -424,6 +455,12 @@ export const api = {
 			params: { path: { agentId } }
 		});
 		await expectOk(r.response, r.error);
+	},
+	rotatePulseAgentToken: async (agentId: string) => {
+		const body = await postUndocumented('/api/pulse/agents/{agentId}/rotate-token', {
+			params: { path: { agentId } }
+		});
+		return body as import('./types.js').RotatePulseAgentResult;
 	},
 	listPulseAgents: async () => {
 		const r = await client.GET('/api/pulse/agents');
@@ -504,6 +541,12 @@ export const api = {
 		const r = await client.POST('/api/adguard/connections', { body });
 		return expectData(r.response, r.error, r.data);
 	},
+	testAdGuardConnection: async (connectionId: string) => {
+		const r = await client.POST('/api/adguard/connections/{connectionId}/test', {
+			params: { path: { connectionId } }
+		});
+		return expectData(r.response, r.error, r.data);
+	},
 	listAdGuardRewrites: async (connectionId: string) => {
 		const r = await client.GET('/api/adguard/{connectionId}/rewrites', {
 			params: { path: { connectionId } }
@@ -526,5 +569,11 @@ export const api = {
 		});
 		if (!r.response.ok) throw errorFromResult(r.response.status, r.error);
 		return readUndocumentedJson(r.response) as { synced?: boolean };
+	},
+	deleteAdGuardRewrite: async (connectionId: string, rewriteId: string) => {
+		const r = await client.DELETE('/api/adguard/{connectionId}/rewrites/{rewriteId}', {
+			params: { path: { connectionId, rewriteId } }
+		});
+		await expectOk(r.response, r.error);
 	}
 };

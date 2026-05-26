@@ -23,6 +23,7 @@
 	let error = $state<string | null>(null);
 	let search = $state('');
 	let selectedId = $state<string | null>(null);
+	let hours = $state(1);
 
 	$effect(() => {
 		void load();
@@ -34,7 +35,7 @@
 		try {
 			const [endpointList, rollupList] = await Promise.all([
 				api.listStatusEndpoints(),
-				api.listStatusRollups({ intervalMinutes: 1, hours: 1 })
+				api.listStatusRollups({ intervalMinutes: 1, hours })
 			]);
 			endpoints = endpointList;
 			rollups = rollupList;
@@ -94,12 +95,26 @@
 		</PanelSection>
 	</div>
 
+	<div class="flex flex-wrap items-center gap-3">
+		<label class="text-sm text-muted-foreground" for="status-hours">Range</label>
+		<select
+			id="status-hours"
+			class="rounded-md border border-border bg-background px-2 py-1 text-sm"
+			bind:value={hours}
+			onchange={() => void load()}
+		>
+			<option value={1}>Last hour</option>
+			<option value={24}>Last 24 hours</option>
+			<option value={168}>Last 7 days</option>
+		</select>
+	</div>
+
 	<div class="relative max-w-md">
 		<Search class="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
 		<Input bind:value={search} placeholder="Search monitors…" class="pl-9" />
 	</div>
 
-	<PanelSection title="Monitored endpoints" description="Last 60 minutes at 1-minute resolution (spec §18).">
+	<PanelSection title="Monitored endpoints" description="Rollups at 1-minute resolution for the selected range.">
 		{#if loading}
 			<p class="text-sm text-muted-foreground">Loading…</p>
 		{:else if error}
@@ -145,7 +160,7 @@
 
 	{#if selectedEndpoint}
 		<PanelSection
-			title="{selectedEndpoint.name} — last hour"
+			title="{selectedEndpoint.name} — selected range"
 			description="Latency from 1-minute rollups. Select another row to switch."
 		>
 			<MonitorLatencyChart timestamps={chartData.timestamps} latencies={chartData.latencies} />

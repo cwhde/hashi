@@ -47,6 +47,25 @@
         }
       }
     },
+    "/api/public/status/summary": {
+      "get": {
+        "tags": [
+          "Public"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicStatusSummaryResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/public/apps": {
       "get": {
         "tags": [
@@ -154,14 +173,7 @@
         ],
         "responses": {
           "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AnonymousTypeOfboolean"
-                }
-              }
-            }
+            "description": "OK"
           }
         }
       }
@@ -419,6 +431,98 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GeneralSettingsUpdateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/monitoring": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonitoringSettingsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Settings"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MonitoringSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonitoringSettingsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/edge-sso/session": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EdgeSsoSettingsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Settings"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EdgeSsoSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EdgeSsoSettingsResponse"
                 }
               }
             }
@@ -2123,6 +2227,242 @@
         }
       }
     },
+    "/api/status/events": {
+      "get": {
+        "tags": [
+          "Status"
+        ],
+        "parameters": [
+          {
+            "name": "endpointId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "hours",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MonitorEventResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/edge-sso/providers": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OidcProviderResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Settings"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOidcProviderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/settings/edge-sso/providers/{providerId}": {
+      "put": {
+        "tags": [
+          "Settings"
+        ],
+        "parameters": [
+          {
+            "name": "providerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOidcProviderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Settings"
+        ],
+        "parameters": [
+          {
+            "name": "providerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/settings/edge-sso/rules": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EdgeAuthRuleResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Settings"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEdgeAuthRuleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/settings/edge-sso/rules/{ruleId}": {
+      "put": {
+        "tags": [
+          "Settings"
+        ],
+        "parameters": [
+          {
+            "name": "ruleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateEdgeAuthRuleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Settings"
+        ],
+        "parameters": [
+          {
+            "name": "ruleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/security/dashboard": {
       "get": {
         "tags": [
@@ -2265,6 +2605,36 @@
         "responses": {
           "200": {
             "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/pulse/agents/{agentId}/rotate-token": {
+      "post": {
+        "tags": [
+          "Pulse"
+        ],
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RotatePulseAgentTokenResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -2560,6 +2930,36 @@
         }
       }
     },
+    "/api/adguard/connections/{connectionId}/test": {
+      "post": {
+        "tags": [
+          "AdGuard"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdGuardConnectionTestResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/adguard/{connectionId}/rewrites": {
       "get": {
         "tags": [
@@ -2627,6 +3027,38 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/adguard/{connectionId}/rewrites/{rewriteId}": {
+      "delete": {
+        "tags": [
+          "AdGuard"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "rewriteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
           }
         }
       }
@@ -2828,6 +3260,24 @@
           }
         }
       },
+      "AdGuardConnectionTestResponse": {
+        "required": [
+          "connected",
+          "error"
+        ],
+        "type": "object",
+        "properties": {
+          "connected": {
+            "type": "boolean"
+          },
+          "error": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "AdGuardRewriteResponse": {
         "required": [
           "id",
@@ -2848,17 +3298,6 @@
             "type": "string"
           },
           "managedByHashi": {
-            "type": "boolean"
-          }
-        }
-      },
-      "AnonymousTypeOfboolean": {
-        "required": [
-          "loggedOut"
-        ],
-        "type": "object",
-        "properties": {
-          "loggedOut": {
             "type": "boolean"
           }
         }
@@ -3260,6 +3699,38 @@
           }
         }
       },
+      "CreateEdgeAuthRuleRequest": {
+        "required": [
+          "name",
+          "priority",
+          "matchJson",
+          "action",
+          "enabled"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "priority": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "matchJson": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
       "CreateFirewallHostRequest": {
         "required": [
           "connectionId",
@@ -3403,6 +3874,40 @@
           },
           "settingsJson": {
             "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CreateOidcProviderRequest": {
+        "required": [
+          "name",
+          "issuer",
+          "clientId",
+          "clientSecret",
+          "scopes",
+          "enabled"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "issuer": {
+            "type": "string"
+          },
+          "clientId": {
+            "type": "string"
+          },
+          "clientSecret": {
+            "type": "string"
+          },
+          "scopes": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "enabled": {
             "type": "boolean"
@@ -3865,6 +4370,84 @@
         "properties": {
           "confirmDryRun": {
             "type": "boolean"
+          }
+        }
+      },
+      "EdgeAuthRuleResponse": {
+        "required": [
+          "id",
+          "name",
+          "priority",
+          "matchJson",
+          "action",
+          "enabled"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "priority": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "matchJson": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "EdgeSsoSettingsRequest": {
+        "required": [
+          "edgeSsoSessionHours"
+        ],
+        "type": "object",
+        "properties": {
+          "edgeSsoSessionHours": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "EdgeSsoSettingsResponse": {
+        "required": [
+          "edgeSsoSessionHours",
+          "updatedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "edgeSsoSessionHours": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "updatedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },
@@ -4340,6 +4923,144 @@
           }
         }
       },
+      "MonitorEventResponse": {
+        "required": [
+          "id",
+          "monitorEndpointId",
+          "previousStatus",
+          "newStatus",
+          "latencyMs",
+          "occurredAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "monitorEndpointId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "previousStatus": {
+            "type": "string"
+          },
+          "newStatus": {
+            "type": "string"
+          },
+          "latencyMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "occurredAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "MonitoringSettingsRequest": {
+        "required": [
+          "monitorCheckIntervalSeconds",
+          "monitorCheckTimeoutSeconds",
+          "monitorSampleRetentionDays",
+          "monitorDegradedLatencyMs"
+        ],
+        "type": "object",
+        "properties": {
+          "monitorCheckIntervalSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "monitorCheckTimeoutSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "monitorSampleRetentionDays": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "monitorDegradedLatencyMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "MonitoringSettingsResponse": {
+        "required": [
+          "monitorCheckIntervalSeconds",
+          "monitorCheckTimeoutSeconds",
+          "monitorSampleRetentionDays",
+          "monitorDegradedLatencyMs",
+          "updatedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "monitorCheckIntervalSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "monitorCheckTimeoutSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "monitorSampleRetentionDays": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "monitorDegradedLatencyMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "updatedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
       "MonitorRollupResponse": {
         "required": [
           "monitorEndpointId",
@@ -4419,6 +5140,38 @@
             "type": "string"
           },
           "type": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "OidcProviderResponse": {
+        "required": [
+          "id",
+          "name",
+          "issuer",
+          "clientId",
+          "scopes",
+          "enabled"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "issuer": {
+            "type": "string"
+          },
+          "clientId": {
+            "type": "string"
+          },
+          "scopes": {
             "type": "string"
           },
           "enabled": {
@@ -4540,13 +5293,77 @@
           }
         }
       },
+      "PublicStatusSummaryResponse": {
+        "required": [
+          "totalEndpoints",
+          "upCount",
+          "degradedCount",
+          "downCount",
+          "firewallHostCount",
+          "firewallHostsApplied"
+        ],
+        "type": "object",
+        "properties": {
+          "totalEndpoints": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "upCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "degradedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "downCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "firewallHostCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "firewallHostsApplied": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "PulseAgentResponse": {
         "required": [
           "id",
           "name",
           "status",
           "lastSeenAtUtc",
-          "lastPublicIp"
+          "lastPublicIp",
+          "lastHostname",
+          "lastAgentVersion",
+          "dnsPendingAtUtc"
         ],
         "type": "object",
         "properties": {
@@ -4572,6 +5389,25 @@
               "null",
               "string"
             ]
+          },
+          "lastHostname": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastAgentVersion": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "dnsPendingAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },
@@ -5012,6 +5848,26 @@
           }
         }
       },
+      "RotatePulseAgentTokenResponse": {
+        "required": [
+          "id",
+          "name",
+          "token"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "token": {
+            "type": "string"
+          }
+        }
+      },
       "RunScriptRequest": {
         "type": "object",
         "properties": {
@@ -5163,7 +6019,9 @@
           "hours",
           "topBlockedIps",
           "topCountries",
-          "topAsns"
+          "topAsns",
+          "blocklistCount",
+          "securityEventCount"
         ],
         "type": "object",
         "properties": {
@@ -5216,6 +6074,22 @@
             "items": {
               "$ref": "#/components/schemas/SecurityRankItem"
             }
+          },
+          "blocklistCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "securityEventCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
           }
         }
       },
@@ -5932,6 +6806,51 @@
           }
         }
       },
+      "UpdateEdgeAuthRuleRequest": {
+        "required": [
+          "name",
+          "priority",
+          "matchJson",
+          "action",
+          "enabled"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "priority": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "matchJson": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "action": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "enabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        }
+      },
       "UpdateFirewallHostRequest": {
         "required": [
           "name",
@@ -6050,6 +6969,55 @@
               "string"
             ],
             "format": "int32"
+          }
+        }
+      },
+      "UpdateOidcProviderRequest": {
+        "required": [
+          "name",
+          "issuer",
+          "clientId",
+          "clientSecret",
+          "scopes",
+          "enabled"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "issuer": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clientId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clientSecret": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "scopes": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "enabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           }
         }
       },

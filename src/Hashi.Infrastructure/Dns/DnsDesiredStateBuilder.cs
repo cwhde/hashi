@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Hashi.Core.Dns;
 using Hashi.Core.Resources;
 using Hashi.Infrastructure.Persistence;
@@ -38,8 +39,9 @@ public static class DnsDesiredStateBuilder
             .Select(h => new FirewallHostDnsTarget(
                 h.Id,
                 h.Name,
-                h.PublicIp ?? h.InternalTraefikIp,
-                null))
+                h.PublicIp ?? h.InternalTraefikIp ?? string.Empty,
+                null,
+                JsonSerializer.Deserialize<List<string>>(h.ManagedSubnetsJson) ?? []))
             .ToList();
 
         foreach (var host in hostTargets)

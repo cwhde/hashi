@@ -39,6 +39,12 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
 
     public DbSet<TraefikEntryPointEntity> TraefikEntryPoints => Set<TraefikEntryPointEntity>();
 
+    public DbSet<MonitorEventEntity> MonitorEvents => Set<MonitorEventEntity>();
+
+    public DbSet<SecurityEventEntity> SecurityEvents => Set<SecurityEventEntity>();
+
+    public DbSet<EdgeSessionEntity> EdgeSessions => Set<EdgeSessionEntity>();
+
     public DbSet<MonitorEndpointEntity> MonitorEndpoints => Set<MonitorEndpointEntity>();
 
     public DbSet<PulseAgentEntity> PulseAgents => Set<PulseAgentEntity>();
@@ -232,6 +238,34 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Protocol).HasMaxLength(8);
             entity.HasIndex(x => new { x.Port, x.Protocol }).IsUnique();
+        });
+
+        modelBuilder.Entity<MonitorEventEntity>(entity =>
+        {
+            entity.ToTable("monitor_events");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.PreviousStatus).HasMaxLength(16);
+            entity.Property(x => x.NewStatus).HasMaxLength(16);
+            entity.HasIndex(x => x.OccurredAtUtc);
+            entity.HasIndex(x => x.MonitorEndpointId);
+        });
+
+        modelBuilder.Entity<SecurityEventEntity>(entity =>
+        {
+            entity.ToTable("security_events");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Category).HasMaxLength(32);
+            entity.Property(x => x.Action).HasMaxLength(64);
+            entity.HasIndex(x => x.OccurredAtUtc);
+        });
+
+        modelBuilder.Entity<EdgeSessionEntity>(entity =>
+        {
+            entity.ToTable("edge_sessions");
+            entity.HasKey(x => x.SessionKey);
+            entity.Property(x => x.SessionKey).HasMaxLength(128);
+            entity.Property(x => x.Subject).HasMaxLength(256);
+            entity.HasIndex(x => x.ExpiresAtUtc);
         });
 
         modelBuilder.Entity<MonitorEndpointEntity>(entity =>

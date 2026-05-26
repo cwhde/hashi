@@ -24,6 +24,8 @@
 	let loading = $state(true);
 	let saving = $state(false);
 	let syncing = $state(false);
+	let testing = $state(false);
+	let deletingId = $state<string | null>(null);
 	let error = $state<string | null>(null);
 	let message = $state<string | null>(null);
 	let connectionForm = $state({
@@ -159,10 +161,42 @@
 		try {
 			await withReauth(() => api.syncAdGuardConnection(selectedConnectionId!));
 			message = 'Managed rewrites pushed to AdGuard Home.';
+			await loadRewrites(selectedConnectionId);
 		} catch (e) {
 			error = e instanceof ApiRequestError ? e.message : 'Sync failed';
 		} finally {
 			syncing = false;
+		}
+	}
+
+	async function testConnection() {
+		if (!selectedConnectionId) return;
+		testing = true;
+		error = null;
+		message = null;
+		try {
+			const result = await withReauth(() => api.testAdGuardConnection(selectedConnectionId!));
+			message = result?.connected ? 'Connection test succeeded.' : `Connection failed: ${result?.error ?? 'unknown error'}`;
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Connection test failed';
+		} finally {
+			testing = false;
+		}
+	}
+
+	async function deleteRewrite(rewriteId: string) {
+		if (!selectedConnectionId || !confirm('Delete this managed rewrite?')) return;
+		deletingId = rewriteId;
+		error = null;
+		message = null;
+		try {
+			await withReauth(() => api.deleteAdGuardRewrite(selectedConnectionId!, rewriteId));
+			message = 'Rewrite deleted.';
+			await loadRewrites(selectedConnectionId);
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Failed to delete rewrite';
+		} finally {
+			deletingId = null;
 		}
 	}
 </script>
@@ -209,6 +243,9 @@
 					{/each}
 				</select>
 			</div>
+			<Button variant="outline" onclick={() => testConnection()} disabled={!selectedConnectionId || testing}>
+				{testing ? 'Testing…' : 'Test connection'}
+			</Button>
 			<Button variant="outline" onclick={() => syncConnection()} disabled={!selectedConnectionId || syncing}>
 				{syncing ? 'Syncing…' : 'Push sync'}
 			</Button>
@@ -243,6 +280,7 @@
 						<TableHead>Domain</TableHead>
 						<TableHead>Answer</TableHead>
 						<TableHead>Managed</TableHead>
+						<TableHead class="w-24"></TableHead>
 					</TableRow>
 				</TableHeader>
 				<TableBody>
@@ -251,6 +289,18 @@
 							<TableCell class="font-mono text-xs">{rewrite.domain}</TableCell>
 							<TableCell class="font-mono text-xs">{rewrite.answer}</TableCell>
 							<TableCell>{rewrite.managedByHashi ? 'yes' : 'no'}</TableCell>
+							<TableCell>
+								{#if rewrite.managedByHashi}
+									<Button
+										variant="ghost"
+										size="sm"
+										disabled={deletingId === rewrite.id}
+										onclick={() => deleteRewrite(rewrite.id)}
+									>
+										{deletingId === rewrite.id ? '…' : 'Delete'}
+									</Button>
+								{/if}
+							</TableCell>
 						</TableRow>
 					{/each}
 				</TableBody>

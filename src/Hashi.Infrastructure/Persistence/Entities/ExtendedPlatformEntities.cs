@@ -143,6 +143,53 @@ public sealed class TraefikEntryPointEntity
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }
 
+public sealed class MonitorEventEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid MonitorEndpointId { get; set; }
+
+    public string PreviousStatus { get; set; } = "unknown";
+
+    public string NewStatus { get; set; } = "unknown";
+
+    public int? LatencyMs { get; set; }
+
+    public DateTimeOffset OccurredAtUtc { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public sealed class SecurityEventEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public string Category { get; set; } = "access";
+
+    public string Action { get; set; } = string.Empty;
+
+    public string? ClientIp { get; set; }
+
+    public string? Host { get; set; }
+
+    public string? Path { get; set; }
+
+    public string? DetailsJson { get; set; }
+
+    public DateTimeOffset OccurredAtUtc { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public sealed class EdgeSessionEntity
+{
+    public string SessionKey { get; set; } = string.Empty;
+
+    public Guid OidcProviderId { get; set; }
+
+    public string Subject { get; set; } = string.Empty;
+
+    public DateTimeOffset ExpiresAtUtc { get; set; }
+
+    public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+}
+
 public sealed class MonitorSampleEntity
 {
     public Guid Id { get; set; } = Guid.NewGuid();

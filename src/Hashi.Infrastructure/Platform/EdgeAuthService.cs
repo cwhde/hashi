@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Hashi.Infrastructure.Platform;
 
-public sealed class EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp)
+public sealed class EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp, OidcEdgeAuthService oidc)
 {
     public async Task<EdgeAuthForwardResponse> EvaluateForwardAsync(
         string host,
@@ -20,6 +20,25 @@ public sealed class EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp)
         string? mode = null,
         CancellationToken cancellationToken = default)
     {
+        var clientIpText = clientIp.ToString();
+        if (await db.BlocklistEntries.AsNoTracking().AnyAsync(x => x.ClientIp == clientIpText, cancellationToken))
+        {
+            return new EdgeAuthForwardResponse("deny", null);
+        }
+
+        var resource = await db.Resources.AsNoTracking()
+            .Where(x => x.Enabled && x.Domain != null)
+            .FirstOrDefaultAsync(x => string.Equals(x.Domain, host, StringComparison.OrdinalIgnoreCase), cancellationToken);
+
+        if (resource is not null)
+        {
+            var resourceRuleResult = await EvaluateResourceRulesAsync(resource, path, clientIp, countryCode, regionCode, asn, cancellationToken);
+            if (resourceRuleResult is not null)
+            {
+                return resourceRuleResult;
+            }
+        }
+
         var rules = await db.EdgeAuthRules.AsNoTracking()
             .Where(x => x.Enabled)
             .OrderBy(x => x.Priority)
@@ -45,15 +64,6 @@ public sealed class EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp)
             return new EdgeAuthForwardResponse("allow", null);
         }
 
-        var clientIpText = clientIp.ToString();
-        if (await db.BlocklistEntries.AsNoTracking().AnyAsync(x => x.ClientIp == clientIpText, cancellationToken))
-        {
-            return new EdgeAuthForwardResponse("deny", null);
-        }
-
-        var resource = await db.Resources.AsNoTracking()
-            .Where(x => x.Enabled && x.Domain != null)
-            .FirstOrDefaultAsync(x => string.Equals(x.Domain, host, StringComparison.OrdinalIgnoreCase), cancellationToken);
         var policy = resource is null
             ? ForwardAuthPolicy.Adaptive
             : ForwardAuthPolicyMapping.Parse(resource.ForwardAuthPolicy);
@@ -68,8 +78,7 @@ public sealed class EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp)
             return new EdgeAuthForwardResponse("allow", null);
         }
 
-        var hasSession = HasValidEdgeSession(edgeSessionKey);
-        if (hasSession)
+        if (await oidc.ValidateSessionAsync(edgeSessionKey, cancellationToken))
         {
             return new EdgeAuthForwardResponse("allow", null);
         }
@@ -87,15 +96,62 @@ public sealed class EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp)
 
         var bucket = await db.AbuseBuckets.AsNoTracking()
             .SingleOrDefaultAsync(x => x.ClientIp == clientIpText, cancellationToken);
-        if (bucket?.State is "challenge" or "block")
+        if (bucket?.State is "block")
         {
-            return bucket.State == "block"
-                ? new EdgeAuthForwardResponse("deny", null)
-                : new EdgeAuthForwardResponse("challenge", BuildLoginUrl(host, path));
+            return new EdgeAuthForwardResponse("deny", null);
+        }
+
+        if (bucket?.State is "challenge")
+        {
+            if (bucket.Score >= 15)
+            {
+                return new EdgeAuthForwardResponse("rate_limited", BuildLoginUrl(host, path));
+            }
+
+            return new EdgeAuthForwardResponse("challenge", BuildLoginUrl(host, path));
         }
 
         return new EdgeAuthForwardResponse("allow", null);
     }
+
+    private async Task<EdgeAuthForwardResponse?> EvaluateResourceRulesAsync(
+        Persistence.Entities.ResourceEntity resource,
+        string path,
+        IPAddress clientIp,
+        string? countryCode,
+        string? regionCode,
+        string? asn,
+        CancellationToken cancellationToken)
+    {
+        var rules = await db.ResourceRules.AsNoTracking()
+            .Where(x => x.ResourceId == resource.Id && x.Enabled)
+            .OrderByDescending(x => x.Priority)
+            .ToListAsync(cancellationToken);
+
+        foreach (var rule in rules)
+        {
+            if (!MatchesResourceRule(rule, path, clientIp, countryCode, regionCode, asn))
+            {
+                continue;
+            }
+
+            return rule.Action.ToLowerInvariant() switch
+            {
+                "bypass_auth" => new EdgeAuthForwardResponse("allow", null),
+                "block_access" => new EdgeAuthForwardResponse("deny", null),
+                "require_adaptive_challenge" => new EdgeAuthForwardResponse("challenge", BuildLoginUrl(resource.Domain ?? hostFallback(resource), path)),
+                "pass_to_auth" => new EdgeAuthForwardResponse("challenge", BuildLoginUrl(resource.Domain ?? hostFallback(resource), path)),
+                _ => null,
+            };
+        }
+
+        return null;
+    }
+
+    private static string hostFallback(Persistence.Entities.ResourceEntity resource) => resource.Domain ?? "localhost";
+
+    public IReadOnlyList<string> ValidateRuleMatchJson(string matchJson)
+        => geoIp.ValidateGeoMatchRules(matchJson);
 
     private static string BuildLoginUrl(string host, string path)
     {
@@ -103,11 +159,23 @@ public sealed class EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp)
         return $"/api/edge-auth/login?returnUrl={returnUrl}";
     }
 
-    public IReadOnlyList<string> ValidateRuleMatchJson(string matchJson)
-        => geoIp.ValidateGeoMatchRules(matchJson);
-
-    private static bool HasValidEdgeSession(string? edgeSessionKey)
-        => OidcEdgeAuthService.TryValidateSession(edgeSessionKey);
+    private static bool MatchesResourceRule(
+        Persistence.Entities.ResourceRuleEntity rule,
+        string path,
+        IPAddress clientIp,
+        string? countryCode,
+        string? regionCode,
+        string? asn)
+        => rule.MatchType.ToLowerInvariant() switch
+        {
+            "ip" => string.Equals(clientIp.ToString(), rule.MatchValue, StringComparison.OrdinalIgnoreCase),
+            "cidr" => IsInCidr(clientIp, rule.MatchValue),
+            "path" => path.StartsWith(rule.MatchValue, StringComparison.OrdinalIgnoreCase),
+            "country" => string.Equals(countryCode, rule.MatchValue, StringComparison.OrdinalIgnoreCase),
+            "region" => string.Equals(regionCode, rule.MatchValue, StringComparison.OrdinalIgnoreCase),
+            "asn" => string.Equals(asn, rule.MatchValue, StringComparison.OrdinalIgnoreCase),
+            _ => false,
+        };
 
     private static bool Matches(
         string matchJson,

@@ -119,6 +119,7 @@ app.MapFirewallEndpoints();
 app.MapStatusEndpoints();
 app.MapPublicEndpoints();
 app.MapEdgeAuthEndpoints();
+app.MapEdgeSsoAdminEndpoints();
 app.MapSecurityEndpoints();
 app.MapPulseEndpoints();
 app.MapScriptEndpoints();

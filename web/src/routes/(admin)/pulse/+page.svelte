@@ -75,6 +75,21 @@
 		}
 	}
 
+	async function rotateAgent(agentId: string) {
+		if (!confirm('Rotate this agent token? The old token stops working immediately.')) return;
+		try {
+			const rotated = await api.rotatePulseAgentToken(agentId);
+			if (rotated) {
+				createdToken = rotated;
+				message = 'Token rotated. Copy the new token now.';
+				installSnippet = await api.getPulseInstall(rotated.id, rotated.token);
+			}
+			await load();
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Failed to rotate token';
+		}
+	}
+
 	async function showInstall(agentId: string) {
 		try {
 			installSnippet = await api.getPulseInstall(agentId);
@@ -139,9 +154,12 @@
 					<TableRow>
 						<TableHead>Name</TableHead>
 						<TableHead>Status</TableHead>
+						<TableHead>Hostname</TableHead>
+						<TableHead>Version</TableHead>
 						<TableHead>Last seen</TableHead>
 						<TableHead>Public IP</TableHead>
-						<TableHead class="w-32"></TableHead>
+						<TableHead>DNS</TableHead>
+						<TableHead class="w-40"></TableHead>
 					</TableRow>
 				</TableHeader>
 				<TableBody>
@@ -149,12 +167,18 @@
 						<TableRow>
 							<TableCell>{agent.name}</TableCell>
 							<TableCell>{agent.status}</TableCell>
+							<TableCell class="text-xs">{agent.lastHostname ?? '—'}</TableCell>
+							<TableCell class="text-xs">{agent.lastAgentVersion ?? '—'}</TableCell>
 							<TableCell class="text-xs">
 								{agent.lastSeenAtUtc ? new Date(agent.lastSeenAtUtc).toLocaleString() : '—'}
 							</TableCell>
 							<TableCell class="font-mono text-xs">{agent.lastPublicIp ?? '—'}</TableCell>
+							<TableCell class="text-xs">
+								{agent.dnsPendingAtUtc ? 'Pending' : '—'}
+							</TableCell>
 							<TableCell class="space-x-2">
 								<Button variant="ghost" size="sm" onclick={() => showInstall(agent.id)}>Install</Button>
+								<Button variant="ghost" size="sm" onclick={() => rotateAgent(agent.id)}>Rotate</Button>
 								<Button variant="ghost" size="sm" onclick={() => revokeAgent(agent.id)}>Revoke</Button>
 							</TableCell>
 						</TableRow>

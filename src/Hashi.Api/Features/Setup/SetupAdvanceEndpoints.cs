@@ -171,6 +171,79 @@ public static class SettingsEndpoints
             return TypedResults.Ok(new GeneralSettingsUpdateResponse(true, s.UpdatedAtUtc));
         });
 
+        group.MapGet("/monitoring", async (AppSettingsService settings, CancellationToken ct) =>
+        {
+            var s = await settings.GetOrCreateAsync(ct);
+            return TypedResults.Ok(new MonitoringSettingsResponse(
+                s.MonitorCheckIntervalSeconds,
+                s.MonitorCheckTimeoutSeconds,
+                s.MonitorSampleRetentionDays,
+                s.MonitorDegradedLatencyMs,
+                s.UpdatedAtUtc));
+        });
+
+        group.MapPut("/monitoring", async (
+            MonitoringSettingsRequest request,
+            AppSettingsService settings,
+            AuditService audit,
+            CancellationToken ct) =>
+        {
+            var s = await settings.GetOrCreateAsync(ct);
+            if (request.MonitorCheckIntervalSeconds is int interval && interval >= 15)
+            {
+                s.MonitorCheckIntervalSeconds = Math.Min(interval, 300);
+            }
+
+            if (request.MonitorCheckTimeoutSeconds is int timeout && timeout >= 5)
+            {
+                s.MonitorCheckTimeoutSeconds = Math.Min(timeout, 120);
+            }
+
+            if (request.MonitorSampleRetentionDays is int retention && retention >= 7)
+            {
+                s.MonitorSampleRetentionDays = Math.Min(retention, 365);
+            }
+
+            if (request.MonitorDegradedLatencyMs is int degraded && degraded >= 100)
+            {
+                s.MonitorDegradedLatencyMs = degraded;
+            }
+
+            s.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            await settings.SaveAsync(ct);
+            await audit.WriteAsync("settings", "monitoring_updated", subjectType: "app_settings", cancellationToken: ct);
+            return TypedResults.Ok(new MonitoringSettingsResponse(
+                s.MonitorCheckIntervalSeconds,
+                s.MonitorCheckTimeoutSeconds,
+                s.MonitorSampleRetentionDays,
+                s.MonitorDegradedLatencyMs,
+                s.UpdatedAtUtc));
+        });
+
+        group.MapGet("/edge-sso/session", async (AppSettingsService settings, CancellationToken ct) =>
+        {
+            var s = await settings.GetOrCreateAsync(ct);
+            return TypedResults.Ok(new EdgeSsoSettingsResponse(s.EdgeSsoSessionHours, s.UpdatedAtUtc));
+        });
+
+        group.MapPut("/edge-sso/session", async (
+            EdgeSsoSettingsRequest request,
+            AppSettingsService settings,
+            AuditService audit,
+            CancellationToken ct) =>
+        {
+            var s = await settings.GetOrCreateAsync(ct);
+            if (request.EdgeSsoSessionHours is int hours && hours >= 1)
+            {
+                s.EdgeSsoSessionHours = Math.Min(hours, 168);
+            }
+
+            s.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            await settings.SaveAsync(ct);
+            await audit.WriteAsync("settings", "edge_sso_updated", subjectType: "app_settings", cancellationToken: ct);
+            return TypedResults.Ok(new EdgeSsoSettingsResponse(s.EdgeSsoSessionHours, s.UpdatedAtUtc));
+        });
+
         return app;
     }
 }

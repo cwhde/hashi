@@ -1,7 +1,7 @@
 using System.Diagnostics;
-using System.Net.Http.Headers;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
+using Hashi.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -18,18 +18,23 @@ public sealed class MonitorCheckWorker(
     {
         while (!stoppingToken.IsCancellationRequested)
         {
+            var delaySeconds = 30;
             try
             {
                 using var scope = scopeFactory.CreateScope();
+                var settings = scope.ServiceProvider.GetRequiredService<AppSettingsService>();
+                var appSettings = await settings.GetOrCreateAsync(stoppingToken);
+                delaySeconds = Math.Clamp(appSettings.MonitorCheckIntervalSeconds, 15, 300);
+
                 var jobs = scope.ServiceProvider.GetRequiredService<BackgroundJobService>();
                 await jobs.BeginRunAsync(BackgroundJobKeys.MonitorCheck, stoppingToken);
-                await RunChecksAsync(stoppingToken);
+                await RunChecksAsync(appSettings.MonitorCheckTimeoutSeconds, appSettings.MonitorDegradedLatencyMs, stoppingToken);
                 await jobs.CompleteRunAsync(
                     BackgroundJobKeys.MonitorCheck,
                     true,
                     "Monitor checks completed.",
                     null,
-                    30,
+                    delaySeconds,
                     stoppingToken);
             }
             catch (Exception ex)
@@ -39,26 +44,28 @@ public sealed class MonitorCheckWorker(
                 {
                     using var scope = scopeFactory.CreateScope();
                     var jobs = scope.ServiceProvider.GetRequiredService<BackgroundJobService>();
-                    await jobs.CompleteRunAsync(BackgroundJobKeys.MonitorCheck, false, null, ex.Message, 30, stoppingToken);
+                    await jobs.CompleteRunAsync(BackgroundJobKeys.MonitorCheck, false, null, ex.Message, delaySeconds, stoppingToken);
                 }
                 catch
                 {
                 }
             }
 
-            await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
+            await Task.Delay(TimeSpan.FromSeconds(delaySeconds), stoppingToken);
         }
     }
 
-    private async Task RunChecksAsync(CancellationToken cancellationToken)
+    private async Task RunChecksAsync(int timeoutSeconds, int degradedLatencyMs, CancellationToken cancellationToken)
     {
         using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<HashiDbContext>();
         var monitoring = scope.ServiceProvider.GetRequiredService<MonitoringService>();
+        var appSettings = scope.ServiceProvider.GetRequiredService<AppSettingsService>();
         await monitoring.SyncEndpointsFromResourcesAsync(cancellationToken);
         var endpoints = await db.MonitorEndpoints.Where(x => x.Enabled).ToListAsync(cancellationToken);
         var client = httpClientFactory.CreateClient("monitor-checks");
-        client.Timeout = TimeSpan.FromSeconds(15);
+        client.Timeout = TimeSpan.FromSeconds(Math.Clamp(timeoutSeconds, 5, 120));
+        var retentionDays = Math.Clamp((await appSettings.GetOrCreateAsync(cancellationToken)).MonitorSampleRetentionDays, 7, 365);
 
         foreach (var endpoint in endpoints)
         {
@@ -76,9 +83,15 @@ public sealed class MonitorCheckWorker(
             }
 
             sw.Stop();
+            var latency = (int)sw.ElapsedMilliseconds;
+            if (status == "up" && latency >= degradedLatencyMs)
+            {
+                status = "degraded";
+            }
+
             endpoint.Status = status;
             endpoint.LastCheckedAtUtc = DateTimeOffset.UtcNow;
-            endpoint.LastLatencyMs = (int)sw.ElapsedMilliseconds;
+            endpoint.LastLatencyMs = latency;
 
             var sample = new MonitorSampleEntity
             {
@@ -86,9 +99,11 @@ public sealed class MonitorCheckWorker(
                 PartitionDate = DateOnly.FromDateTime(DateTime.UtcNow),
                 CheckedAtUtc = DateTimeOffset.UtcNow,
                 Status = status,
-                LatencyMs = (int)sw.ElapsedMilliseconds,
+                LatencyMs = latency,
             };
             db.MonitorSamples.Add(sample);
+
+            await monitoring.RecordTransitionAsync(endpoint, previousStatus, status, latency, cancellationToken);
 
             var routing = scope.ServiceProvider.GetRequiredService<NotificationRoutingService>();
             await routing.RouteMonitorTransitionAsync(endpoint, previousStatus, status, cancellationToken);
@@ -96,12 +111,12 @@ public sealed class MonitorCheckWorker(
 
         await db.SaveChangesAsync(cancellationToken);
         await MonitorRollupService.RollupRecentAsync(db, cancellationToken);
-        await PruneOldSamplesAsync(db, cancellationToken);
+        await PruneOldSamplesAsync(db, retentionDays, cancellationToken);
     }
 
-    private static async Task PruneOldSamplesAsync(HashiDbContext db, CancellationToken cancellationToken)
+    private static async Task PruneOldSamplesAsync(HashiDbContext db, int retentionDays, CancellationToken cancellationToken)
     {
-        var cutoff = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-30));
+        var cutoff = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-retentionDays));
         await db.MonitorSamples.Where(x => x.PartitionDate < cutoff).ExecuteDeleteAsync(cancellationToken);
     }
 }

@@ -50,6 +50,15 @@ public sealed class SecurityIngestionService(
             Decision = decision,
         });
 
+        db.SecurityEvents.Add(new SecurityEventEntity
+        {
+            Category = "access",
+            Action = decision,
+            ClientIp = request.ClientIp,
+            Host = request.Host,
+            Path = request.Path,
+        });
+
         var createdBlocklistEntry = false;
         if (bucket.State == "block")
         {
@@ -108,6 +117,33 @@ public sealed class SecurityIngestionService(
             Asn = request.Asn,
             Decision = decision,
         });
+
+        db.SecurityEvents.Add(new SecurityEventEntity
+        {
+            Category = "forward_auth",
+            Action = request.Decision,
+            ClientIp = request.ClientIp,
+            Host = request.Host,
+            Path = request.Path,
+        });
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RecordWafEventAsync(
+        string clientIp,
+        string host,
+        string path,
+        string action,
+        CancellationToken cancellationToken = default)
+    {
+        db.SecurityEvents.Add(new SecurityEventEntity
+        {
+            Category = "waf",
+            Action = action,
+            ClientIp = clientIp,
+            Host = host,
+            Path = path,
+        });
         await db.SaveChangesAsync(cancellationToken);
     }
 
@@ -139,7 +175,20 @@ public sealed class SecurityIngestionService(
             .Take(10)
             .Select(x => new SecurityRankItem { Label = x.Key, Count = x.LongCount() })
             .ToList();
-        return new SecurityDashboardResponse(allowed, blocked, challenged, windowHours, topIps, topCountries, topAsns);
+        var blocklistCount = await db.BlocklistEntries.AsNoTracking().LongCountAsync(cancellationToken);
+        var securityEventCount = await db.SecurityEvents.AsNoTracking()
+            .Where(x => x.OccurredAtUtc >= since)
+            .LongCountAsync(cancellationToken);
+        return new SecurityDashboardResponse(
+            allowed,
+            blocked,
+            challenged,
+            windowHours,
+            topIps,
+            topCountries,
+            topAsns,
+            blocklistCount,
+            securityEventCount);
     }
 
     public async Task<BlocklistSyncResponse> SyncBlocklistToAllFirewallsAsync(CancellationToken cancellationToken = default)

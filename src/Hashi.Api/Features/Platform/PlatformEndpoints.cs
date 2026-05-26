@@ -244,6 +244,16 @@ public static class StatusEndpoints
             return TypedResults.Ok(rollups.Select(MonitoringService.ToRollupResponse));
         })
             .Produces<IEnumerable<MonitorRollupResponse>>(StatusCodes.Status200OK);
+        group.MapGet("/events", async Task<IResult> (
+            Guid? endpointId,
+            int? hours,
+            MonitoringService monitoring,
+            CancellationToken ct) =>
+        {
+            var events = await monitoring.ListEventsAsync(endpointId, hours ?? 24, ct);
+            return TypedResults.Ok(events.Select(MonitoringService.ToEventResponse));
+        })
+            .Produces<IEnumerable<MonitorEventResponse>>(StatusCodes.Status200OK);
         return app;
     }
 }
@@ -254,6 +264,11 @@ public static class PublicEndpoints
     {
         app.MapGet("/api/public/status", async (MonitoringService monitoring, CancellationToken ct) =>
             TypedResults.Ok(await monitoring.PublicStatusAsync(ct)))
+            .WithTags("Public")
+            .AllowAnonymous()
+            .RequireCors("PublicRead");
+        app.MapGet("/api/public/status/summary", async (MonitoringService monitoring, CancellationToken ct) =>
+            TypedResults.Ok(await monitoring.PublicSummaryAsync(ct)))
             .WithTags("Public")
             .AllowAnonymous()
             .RequireCors("PublicRead");
@@ -322,6 +337,7 @@ public static class EdgeAuthEndpoints
             {
                 "allow" => TypedResults.StatusCode(StatusCodes.Status204NoContent),
                 "deny" => TypedResults.StatusCode(StatusCodes.Status403Forbidden),
+                "rate_limited" => TypedResults.StatusCode(StatusCodes.Status429TooManyRequests),
                 "redirect" or "challenge" => TypedResults.Redirect(result.RedirectUrl ?? "/api/edge-auth/login"),
                 _ => TypedResults.StatusCode(StatusCodes.Status401Unauthorized),
             };
@@ -365,10 +381,13 @@ public static class EdgeAuthEndpoints
             return TypedResults.Redirect(result.ReturnUrl);
         }).WithTags("EdgeAuth").AllowAnonymous();
 
-        app.MapPost("/api/edge-auth/logout", (HttpContext ctx) =>
+        app.MapPost("/api/edge-auth/logout", async Task<IResult> (
+            HttpContext ctx,
+            OidcEdgeAuthService oidc,
+            CancellationToken ct) =>
         {
             var sessionKey = ctx.Request.Cookies["hashi.edge.session"];
-            OidcEdgeAuthService.ClearSession(sessionKey);
+            await oidc.ClearSessionAsync(sessionKey, ct);
             if (!string.IsNullOrWhiteSpace(sessionKey))
             {
                 ctx.Response.Cookies.Delete("hashi.edge.session");
@@ -377,6 +396,63 @@ public static class EdgeAuthEndpoints
             return TypedResults.Ok(new { loggedOut = true });
         }).WithTags("EdgeAuth").AllowAnonymous();
 
+        return app;
+    }
+}
+
+public static class EdgeSsoAdminEndpoints
+{
+    public static IEndpointRouteBuilder MapEdgeSsoAdminEndpoints(this IEndpointRouteBuilder app)
+    {
+        var group = app.MapGroup("/api/settings/edge-sso").WithTags("Settings");
+        group.MapGet("/providers", async (OidcProviderAdminService admin, CancellationToken ct) =>
+            TypedResults.Ok(await admin.ListProvidersAsync(ct)));
+        group.MapPost("/providers", async Task<IResult> (
+            CreateOidcProviderRequest request,
+            OidcProviderAdminService admin,
+            CancellationToken ct) =>
+            TypedResults.Ok(await admin.CreateProviderAsync(request, ct)));
+        group.MapPut("/providers/{providerId:guid}", async Task<IResult> (
+            Guid providerId,
+            UpdateOidcProviderRequest request,
+            OidcProviderAdminService admin,
+            CancellationToken ct) =>
+        {
+            var updated = await admin.UpdateProviderAsync(providerId, request, ct);
+            return updated is null ? TypedResults.NotFound() : TypedResults.Ok(updated);
+        });
+        group.MapDelete("/providers/{providerId:guid}", async Task<IResult> (
+            Guid providerId,
+            OidcProviderAdminService admin,
+            CancellationToken ct) =>
+        {
+            var deleted = await admin.DeleteProviderAsync(providerId, ct);
+            return deleted ? TypedResults.NoContent() : TypedResults.NotFound();
+        });
+        group.MapGet("/rules", async (OidcProviderAdminService admin, CancellationToken ct) =>
+            TypedResults.Ok(await admin.ListRulesAsync(ct)));
+        group.MapPost("/rules", async Task<IResult> (
+            CreateEdgeAuthRuleRequest request,
+            OidcProviderAdminService admin,
+            CancellationToken ct) =>
+            TypedResults.Ok(await admin.CreateRuleAsync(request, ct)));
+        group.MapPut("/rules/{ruleId:guid}", async Task<IResult> (
+            Guid ruleId,
+            UpdateEdgeAuthRuleRequest request,
+            OidcProviderAdminService admin,
+            CancellationToken ct) =>
+        {
+            var updated = await admin.UpdateRuleAsync(ruleId, request, ct);
+            return updated is null ? TypedResults.NotFound() : TypedResults.Ok(updated);
+        });
+        group.MapDelete("/rules/{ruleId:guid}", async Task<IResult> (
+            Guid ruleId,
+            OidcProviderAdminService admin,
+            CancellationToken ct) =>
+        {
+            var deleted = await admin.DeleteRuleAsync(ruleId, ct);
+            return deleted ? TypedResults.NoContent() : TypedResults.NotFound();
+        });
         return app;
     }
 }
@@ -411,7 +487,7 @@ public static class PulseEndpoints
         group.MapGet("/agents", async (HashiDbContext db, CancellationToken ct) =>
         {
             var agents = await db.PulseAgents.AsNoTracking().ToListAsync(ct);
-            return TypedResults.Ok(agents.Select(x => new PulseAgentResponse(x.Id, x.Name, x.Status, x.LastSeenAtUtc, x.LastPublicIp)));
+            return TypedResults.Ok(agents.Select(PulseAgentService.ToResponse));
         });
         group.MapPost("/agents", async Task<Ok<CreatePulseAgentResponse>> (CreatePulseAgentRequest request, PulseAgentService pulse, CancellationToken ct) =>
         {
@@ -423,6 +499,12 @@ public static class PulseEndpoints
             var revoked = await pulse.RevokeAgentAsync(agentId, ct);
             return revoked ? TypedResults.Ok(new { revoked = true }) : TypedResults.NotFound();
         });
+        group.MapPost("/agents/{agentId:guid}/rotate-token", async Task<IResult> (Guid agentId, PulseAgentService pulse, CancellationToken ct) =>
+        {
+            var rotated = await pulse.RotateTokenAsync(agentId, ct);
+            return rotated is null ? TypedResults.NotFound() : TypedResults.Ok(rotated);
+        })
+            .Produces<RotatePulseAgentTokenResponse>(StatusCodes.Status200OK);
         group.MapGet("/agents/{agentId:guid}/install", (HttpContext ctx, Guid agentId, string? token) =>
         {
             var apiBase = $"{ctx.Request.Scheme}://{ctx.Request.Host}";
@@ -528,6 +610,12 @@ public static class AdGuardEndpoints
             CancellationToken ct) =>
             TypedResults.Ok(await adguard.CreateConnectionAsync(request, ct)))
             .Produces<AdGuardConnectionResponse>(StatusCodes.Status200OK);
+        group.MapPost("/connections/{connectionId:guid}/test", async Task<IResult> (
+            Guid connectionId,
+            AdGuardSyncService adguard,
+            CancellationToken ct) =>
+            TypedResults.Ok(await adguard.TestConnectionAsync(connectionId, ct)))
+            .Produces<AdGuardConnectionTestResponse>(StatusCodes.Status200OK);
         group.MapGet("/{connectionId:guid}/rewrites", async Task<IResult> (
             Guid connectionId,
             AdGuardSyncService adguard,
@@ -550,6 +638,22 @@ public static class AdGuardEndpoints
             }
         })
             .Produces<AdGuardRewriteResponse>(StatusCodes.Status200OK);
+        group.MapDelete("/{connectionId:guid}/rewrites/{rewriteId:guid}", async Task<IResult> (
+            Guid connectionId,
+            Guid rewriteId,
+            AdGuardSyncService adguard,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                var deleted = await adguard.DeleteRewriteAsync(connectionId, rewriteId, ct);
+                return deleted ? TypedResults.NoContent() : TypedResults.NotFound();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        });
         group.MapPost("/{connectionId:guid}/sync", async Task<IResult> (
             Guid connectionId,
             AdGuardSyncService adguard,

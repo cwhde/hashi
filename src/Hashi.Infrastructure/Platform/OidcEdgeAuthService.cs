@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
@@ -19,7 +18,7 @@ public sealed class OidcEdgeAuthService(
     IHttpClientFactory httpClientFactory,
     AppSettingsService settings)
 {
-    private static readonly ConcurrentDictionary<string, PendingOidcLogin> PendingLogins = new();
+    private static readonly Dictionary<string, PendingOidcLogin> PendingLogins = new();
 
     public async Task<IReadOnlyList<OidcProviderEntity>> ListProvidersAsync(CancellationToken cancellationToken = default)
         => await db.OidcProviders.AsNoTracking().Where(x => x.Enabled).ToListAsync(cancellationToken);
@@ -43,7 +42,11 @@ public sealed class OidcEdgeAuthService(
             ?? throw new InvalidOperationException("OIDC provider not found.");
         var state = Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
         var redirectUri = BuildLoginRedirectUri(context, provider.Id, returnUrl);
-        PendingLogins[state] = new PendingOidcLogin(provider.Id, returnUrl, DateTimeOffset.UtcNow.AddMinutes(10));
+        lock (PendingLogins)
+        {
+            PendingLogins[state] = new PendingOidcLogin(provider.Id, returnUrl, DateTimeOffset.UtcNow.AddMinutes(10));
+        }
+
         var scope = Uri.EscapeDataString(provider.Scopes);
         var callback = Uri.EscapeDataString(redirectUri);
         return $"{provider.Issuer.TrimEnd('/')}/oauth/authorize?client_id={Uri.EscapeDataString(provider.ClientId)}&redirect_uri={callback}&response_type=code&scope={scope}&state={state}";
@@ -65,36 +68,72 @@ public sealed class OidcEdgeAuthService(
             ?? throw new InvalidOperationException("OIDC provider not found.");
 
         var returnUrl = "/";
-        if (!string.IsNullOrWhiteSpace(state) && PendingLogins.TryRemove(state, out var pending))
+        if (!string.IsNullOrWhiteSpace(state))
         {
-            if (pending.ProviderId != providerId || pending.ExpiresAtUtc < DateTimeOffset.UtcNow)
+            PendingOidcLogin? pending;
+            lock (PendingLogins)
             {
-                throw new InvalidOperationException("OIDC login state expired.");
+                PendingLogins.Remove(state, out pending);
             }
 
-            returnUrl = pending.ReturnUrl;
+            if (pending is not null)
+            {
+                if (pending.ProviderId != providerId || pending.ExpiresAtUtc < DateTimeOffset.UtcNow)
+                {
+                    throw new InvalidOperationException("OIDC login state expired.");
+                }
+
+                returnUrl = pending.ReturnUrl;
+            }
         }
 
         var subject = await ExchangeCodeForSubjectAsync(context, provider, code, cancellationToken);
         var sessionKey = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{provider.Id}:{subject}:{code}"))).ToLowerInvariant();
-        var expires = DateTimeOffset.UtcNow.AddHours(8);
-        EdgeSessionStore.Set(sessionKey, new EdgeSessionState(subject, expires));
         var appSettings = await settings.GetOrCreateAsync(cancellationToken);
+        var sessionHours = Math.Clamp(appSettings.EdgeSsoSessionHours, 1, 168);
+        var expires = DateTimeOffset.UtcNow.AddHours(sessionHours);
+
+        var existing = await db.EdgeSessions.SingleOrDefaultAsync(x => x.SessionKey == sessionKey, cancellationToken);
+        if (existing is null)
+        {
+            db.EdgeSessions.Add(new EdgeSessionEntity
+            {
+                SessionKey = sessionKey,
+                OidcProviderId = provider.Id,
+                Subject = subject,
+                ExpiresAtUtc = expires,
+            });
+        }
+        else
+        {
+            existing.ExpiresAtUtc = expires;
+            existing.Subject = subject;
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
         return new EdgeCallbackResult(returnUrl, sessionKey, await BuildSessionCookieAsync(context, expires, appSettings.RootDomain, cancellationToken));
     }
 
-    public static bool TryValidateSession(string? sessionKey)
-        => !string.IsNullOrWhiteSpace(sessionKey)
-           && EdgeSessionStore.TryGet(sessionKey, out var session)
-           && session is not null
-           && session.ExpiresAtUtc > DateTimeOffset.UtcNow;
-
-    public static void ClearSession(string? sessionKey)
+    public async Task<bool> ValidateSessionAsync(string? sessionKey, CancellationToken cancellationToken = default)
     {
-        if (!string.IsNullOrWhiteSpace(sessionKey))
+        if (string.IsNullOrWhiteSpace(sessionKey))
         {
-            EdgeSessionStore.Remove(sessionKey);
+            return false;
         }
+
+        var session = await db.EdgeSessions.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.SessionKey == sessionKey, cancellationToken);
+        return session is not null && session.ExpiresAtUtc > DateTimeOffset.UtcNow;
+    }
+
+    public async Task ClearSessionAsync(string? sessionKey, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(sessionKey))
+        {
+            return;
+        }
+
+        await db.EdgeSessions.Where(x => x.SessionKey == sessionKey).ExecuteDeleteAsync(cancellationToken);
     }
 
     private async Task<string> ExchangeCodeForSubjectAsync(
@@ -200,16 +239,3 @@ public sealed class OidcEdgeAuthService(
 }
 
 public sealed record EdgeCallbackResult(string ReturnUrl, string SessionKey, CookieOptions SessionCookie);
-
-public sealed record EdgeSessionState(string Subject, DateTimeOffset ExpiresAtUtc);
-
-public static class EdgeSessionStore
-{
-    private static readonly Dictionary<string, EdgeSessionState> Sessions = new();
-
-    public static void Set(string sessionKey, EdgeSessionState state) => Sessions[sessionKey] = state;
-
-    public static bool TryGet(string sessionKey, out EdgeSessionState? state) => Sessions.TryGetValue(sessionKey, out state);
-
-    public static void Remove(string sessionKey) => Sessions.Remove(sessionKey);
-}

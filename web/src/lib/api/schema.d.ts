@@ -74,6 +74,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/status/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PublicStatusSummaryResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/apps": {
         parameters: {
             query?: never;
@@ -238,9 +273,7 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content: {
-                        "application/json": components["schemas"]["AnonymousTypeOfboolean"];
-                    };
+                    content?: never;
                 };
             };
         };
@@ -684,6 +717,122 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["GeneralSettingsUpdateResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/monitoring": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MonitoringSettingsResponse"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["MonitoringSettingsRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MonitoringSettingsResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/edge-sso/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EdgeSsoSettingsResponse"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["EdgeSsoSettingsRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EdgeSsoSettingsResponse"];
                     };
                 };
             };
@@ -3071,6 +3220,272 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/status/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    endpointId?: string;
+                    hours?: number | string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MonitorEventResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/edge-sso/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OidcProviderResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateOidcProviderRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/edge-sso/providers/{providerId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    providerId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateOidcProviderRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    providerId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/edge-sso/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EdgeAuthRuleResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateEdgeAuthRuleRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/edge-sso/rules/{ruleId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    ruleId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateEdgeAuthRuleRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    ruleId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/security/dashboard": {
         parameters: {
             query?: never;
@@ -3264,6 +3679,43 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pulse/agents/{agentId}/rotate-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    agentId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RotatePulseAgentTokenResponse"];
+                    };
                 };
             };
         };
@@ -3636,6 +4088,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/adguard/connections/{connectionId}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    connectionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdGuardConnectionTestResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/adguard/{connectionId}/rewrites": {
         parameters: {
             query?: never;
@@ -3693,6 +4182,42 @@ export interface paths {
             };
         };
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/adguard/{connectionId}/rewrites/{rewriteId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    connectionId: string;
+                    rewriteId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -3930,15 +4455,16 @@ export interface components {
             baseUrl: string;
             enabled: boolean;
         };
+        AdGuardConnectionTestResponse: {
+            connected: boolean;
+            error: null | string;
+        };
         AdGuardRewriteResponse: {
             /** Format: uuid */
             id: string;
             domain: string;
             answer: string;
             managedByHashi: boolean;
-        };
-        AnonymousTypeOfboolean: {
-            loggedOut: boolean;
         };
         AnonymousTypeOfstring: {
             token: null | string;
@@ -4031,6 +4557,14 @@ export interface components {
             baseUrl: string;
             password: string;
         };
+        CreateEdgeAuthRuleRequest: {
+            name: string;
+            /** Format: int32 */
+            priority: number | string;
+            matchJson: string;
+            action: string;
+            enabled: boolean;
+        };
         CreateFirewallHostRequest: {
             /** Format: uuid */
             connectionId: string;
@@ -4061,6 +4595,14 @@ export interface components {
             name: string;
             type: string;
             settingsJson: string;
+            enabled: boolean;
+        };
+        CreateOidcProviderRequest: {
+            name: string;
+            issuer: string;
+            clientId: string;
+            clientSecret: string;
+            scopes: null | string;
             enabled: boolean;
         };
         CreatePulseAgentRequest: {
@@ -4174,6 +4716,26 @@ export interface components {
         DnsWriteValidationRequest: {
             confirmDryRun: boolean;
         };
+        EdgeAuthRuleResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** Format: int32 */
+            priority: number | string;
+            matchJson: string;
+            action: string;
+            enabled: boolean;
+        };
+        EdgeSsoSettingsRequest: {
+            /** Format: int32 */
+            edgeSsoSessionHours: null | number | string;
+        };
+        EdgeSsoSettingsResponse: {
+            /** Format: int32 */
+            edgeSsoSessionHours: number | string;
+            /** Format: date-time */
+            updatedAtUtc: null | string;
+        };
         FirewallApplyRequest: {
             /** Format: uuid */
             firewallHostId: string;
@@ -4277,6 +4839,40 @@ export interface components {
             /** Format: int32 */
             lastLatencyMs: null | number | string;
         };
+        MonitorEventResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            monitorEndpointId: string;
+            previousStatus: string;
+            newStatus: string;
+            /** Format: int32 */
+            latencyMs: null | number | string;
+            /** Format: date-time */
+            occurredAtUtc: string;
+        };
+        MonitoringSettingsRequest: {
+            /** Format: int32 */
+            monitorCheckIntervalSeconds: null | number | string;
+            /** Format: int32 */
+            monitorCheckTimeoutSeconds: null | number | string;
+            /** Format: int32 */
+            monitorSampleRetentionDays: null | number | string;
+            /** Format: int32 */
+            monitorDegradedLatencyMs: null | number | string;
+        };
+        MonitoringSettingsResponse: {
+            /** Format: int32 */
+            monitorCheckIntervalSeconds: number | string;
+            /** Format: int32 */
+            monitorCheckTimeoutSeconds: number | string;
+            /** Format: int32 */
+            monitorSampleRetentionDays: number | string;
+            /** Format: int32 */
+            monitorDegradedLatencyMs: number | string;
+            /** Format: date-time */
+            updatedAtUtc: null | string;
+        };
         MonitorRollupResponse: {
             /** Format: uuid */
             monitorEndpointId: string;
@@ -4298,6 +4894,15 @@ export interface components {
             id: string;
             name: string;
             type: string;
+            enabled: boolean;
+        };
+        OidcProviderResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            issuer: string;
+            clientId: string;
+            scopes: string;
             enabled: boolean;
         };
         PasskeyLoginCompleteRequest: {
@@ -4331,6 +4936,20 @@ export interface components {
             bucketStartUtc: string;
             up: boolean;
         };
+        PublicStatusSummaryResponse: {
+            /** Format: int32 */
+            totalEndpoints: number | string;
+            /** Format: int32 */
+            upCount: number | string;
+            /** Format: int32 */
+            degradedCount: number | string;
+            /** Format: int32 */
+            downCount: number | string;
+            /** Format: int32 */
+            firewallHostCount: number | string;
+            /** Format: int32 */
+            firewallHostsApplied: number | string;
+        };
         PulseAgentResponse: {
             /** Format: uuid */
             id: string;
@@ -4339,6 +4958,10 @@ export interface components {
             /** Format: date-time */
             lastSeenAtUtc: null | string;
             lastPublicIp: null | string;
+            lastHostname: null | string;
+            lastAgentVersion: null | string;
+            /** Format: date-time */
+            dnsPendingAtUtc: null | string;
         };
         PulseHeartbeatAuthRequest: {
             token: string;
@@ -4439,6 +5062,12 @@ export interface components {
             matchType: string;
             matchValue: string;
         };
+        RotatePulseAgentTokenResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            token: string;
+        };
         RunScriptRequest: {
             host?: null | string;
             /**
@@ -4492,6 +5121,10 @@ export interface components {
             topBlockedIps: string[];
             topCountries: components["schemas"]["SecurityRankItem"][];
             topAsns: components["schemas"]["SecurityRankItem"][];
+            /** Format: int64 */
+            blocklistCount: number | string;
+            /** Format: int64 */
+            securityEventCount: number | string;
         };
         SecurityRankItem: unknown;
         SendNotificationRequest: {
@@ -4663,6 +5296,14 @@ export interface components {
             error: null | string;
             middlewareNames: string[];
         };
+        UpdateEdgeAuthRuleRequest: {
+            name: null | string;
+            /** Format: int32 */
+            priority: null | number | string;
+            matchJson: null | string;
+            action: null | string;
+            enabled: null | boolean;
+        };
         UpdateFirewallHostRequest: {
             name: null | string;
             domain: null | string;
@@ -4685,6 +5326,14 @@ export interface components {
             netBirdRoutingPeer?: null | boolean;
             /** Format: int32 */
             rollbackTimerSeconds?: null | number | string;
+        };
+        UpdateOidcProviderRequest: {
+            name: null | string;
+            issuer: null | string;
+            clientId: null | string;
+            clientSecret: null | string;
+            scopes: null | string;
+            enabled: null | boolean;
         };
         UpdateResourceRequest: {
             name: null | string;

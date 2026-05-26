@@ -41,6 +41,56 @@ public sealed class AdGuardSyncService(HashiDbContext db, IHttpClientFactory htt
         return new AdGuardConnectionResponse(connection.Id, connection.Name, connection.BaseUrl, connection.Enabled);
     }
 
+    public async Task<AdGuardConnectionTestResponse> TestConnectionAsync(Guid connectionId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var client = await CreateAuthorizedClientAsync(connectionId, cancellationToken);
+            using var response = await client.GetAsync("control/status", cancellationToken);
+            response.EnsureSuccessStatusCode();
+            return new AdGuardConnectionTestResponse(true, null);
+        }
+        catch (Exception ex)
+        {
+            return new AdGuardConnectionTestResponse(false, ex.Message);
+        }
+    }
+
+    public async Task<bool> DeleteRewriteAsync(Guid connectionId, Guid rewriteId, CancellationToken cancellationToken = default)
+    {
+        var rewrite = await db.AdGuardRewrites.SingleOrDefaultAsync(
+            x => x.Id == rewriteId && x.ConnectionId == connectionId,
+            cancellationToken);
+        if (rewrite is null)
+        {
+            return false;
+        }
+
+        if (!rewrite.ManagedByHashi)
+        {
+            throw new InvalidOperationException("Rewrite is managed manually and cannot be deleted by Hashi.");
+        }
+
+        try
+        {
+            var remoteRewrites = await ListRemoteRewritesAsync(connectionId, cancellationToken);
+            var remote = remoteRewrites.FirstOrDefault(x =>
+                string.Equals(x.Domain, rewrite.Domain, StringComparison.OrdinalIgnoreCase));
+            if (remote is not null)
+            {
+                await DeleteRemoteRewriteAsync(connectionId, remote, cancellationToken);
+            }
+        }
+        catch
+        {
+            // Best effort remote delete; local row is still removed.
+        }
+
+        db.AdGuardRewrites.Remove(rewrite);
+        await db.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
     public async Task<IReadOnlyList<AdGuardRewriteResponse>> ListRewritesAsync(Guid connectionId, CancellationToken cancellationToken = default)
     {
         var items = await db.AdGuardRewrites.AsNoTracking()
@@ -127,19 +177,25 @@ public sealed class AdGuardSyncService(HashiDbContext db, IHttpClientFactory htt
         }
 
         var hosts = await db.FirewallHosts.AsNoTracking().ToDictionaryAsync(x => x.Id, cancellationToken);
+        var pulseAgents = await db.PulseAgents.AsNoTracking().ToDictionaryAsync(x => x.Id, cancellationToken);
         var resources = await db.Resources
-            .Where(x => x.Enabled && x.FirewallHostId != null)
+            .Where(x => x.Enabled && (x.FirewallHostId != null || x.PulseAgentId != null))
             .ToListAsync(cancellationToken);
         var desiredDomains = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var resource in resources)
         {
-            if (!hosts.TryGetValue(resource.FirewallHostId!.Value, out var host))
+            string? answer = null;
+            if (resource.FirewallHostId is Guid hostId && hosts.TryGetValue(hostId, out var host))
             {
-                continue;
+                answer = host.InternalTraefikIp;
+            }
+            else if (resource.PulseAgentId is Guid pulseId && pulseAgents.TryGetValue(pulseId, out var agent))
+            {
+                answer = agent.LastPrivateIp ?? agent.LastPublicIp;
             }
 
-            if (string.IsNullOrWhiteSpace(host.InternalTraefikIp))
+            if (string.IsNullOrWhiteSpace(answer))
             {
                 continue;
             }
@@ -167,7 +223,7 @@ public sealed class AdGuardSyncService(HashiDbContext db, IHttpClientFactory htt
                 continue;
             }
 
-            rewrite.Answer = host.InternalTraefikIp;
+            rewrite.Answer = answer;
         }
 
         var staleManaged = await db.AdGuardRewrites

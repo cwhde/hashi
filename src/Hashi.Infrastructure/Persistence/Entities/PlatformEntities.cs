@@ -82,5 +82,11 @@ public sealed class PulseAgentEntity
 
     public string? LastPrivateIp { get; set; }
 
+    public string? LastHostname { get; set; }
+
+    public string? LastAgentVersion { get; set; }
+
+    public DateTimeOffset? DnsPendingAtUtc { get; set; }
+
     public string Status { get; set; } = "pending";
 }

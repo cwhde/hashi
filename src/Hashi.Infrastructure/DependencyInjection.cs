@@ -65,6 +65,7 @@ public static class DependencyInjection
         services.AddScoped<EdgeAuthService>();
         services.AddSingleton<GeoIpLookupService>();
         services.AddScoped<OidcEdgeAuthService>();
+        services.AddScoped<OidcProviderAdminService>();
         services.AddScoped<NotificationRoutingService>();
         services.AddScoped<SecurityIngestionService>();
         services.AddScoped<BackgroundJobService>();

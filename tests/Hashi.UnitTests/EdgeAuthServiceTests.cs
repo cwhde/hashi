@@ -1,9 +1,12 @@
 using System.Net;
 using Hashi.Contracts.Api;
+using Hashi.Infrastructure.Auth;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
 using Hashi.Infrastructure.Platform;
+using Hashi.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Hashi.UnitTests;
@@ -75,12 +78,19 @@ public sealed class EdgeAuthServiceTests
     public async Task Valid_edge_session_allows_sso_required_resource()
     {
         await using var db = CreateDb();
+        var providerId = await SeedProviderAsync(db);
         db.Resources.Add(Resource("app.example.com", "sso_required"));
-        await SeedProviderAsync(db);
         await db.SaveChangesAsync();
 
         const string sessionKey = "test-session";
-        EdgeSessionStore.Set(sessionKey, new EdgeSessionState("user", DateTimeOffset.UtcNow.AddHours(1)));
+        db.EdgeSessions.Add(new EdgeSessionEntity
+        {
+            SessionKey = sessionKey,
+            OidcProviderId = providerId,
+            Subject = "user",
+            ExpiresAtUtc = DateTimeOffset.UtcNow.AddHours(1),
+        });
+        await db.SaveChangesAsync();
 
         var result = await Evaluate(db, "app.example.com", "/", edgeSessionKey: sessionKey);
 
@@ -199,16 +209,18 @@ public sealed class EdgeAuthServiceTests
             ForwardAuthPolicy = forwardAuthPolicy,
         };
 
-    private static async Task SeedProviderAsync(HashiDbContext db)
+    private static async Task<Guid> SeedProviderAsync(HashiDbContext db)
     {
-        db.OidcProviders.Add(new OidcProviderEntity
+        var provider = new OidcProviderEntity
         {
             Name = "Test IdP",
             Issuer = "https://idp.fake.local",
             ClientId = "hashi-edge",
             ClientSecretId = Guid.NewGuid(),
-        });
+        };
+        db.OidcProviders.Add(provider);
         await db.SaveChangesAsync();
+        return provider.Id;
     }
 
     private static Task<EdgeAuthForwardResponse> Evaluate(
@@ -223,7 +235,12 @@ public sealed class EdgeAuthServiceTests
         string? mode = null)
     {
         var geoIp = new GeoIpLookupService(new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build(), Microsoft.Extensions.Logging.Abstractions.NullLogger<GeoIpLookupService>.Instance);
-        var service = new EdgeAuthService(db, geoIp);
+        var oidc = new OidcEdgeAuthService(
+            db,
+            new SecretRecordService(db, new VaultSessionState(), new ServiceSyncVaultState()),
+            new ServiceCollection().AddHttpClient().BuildServiceProvider().GetRequiredService<IHttpClientFactory>(),
+            new AppSettingsService(db));
+        var service = new EdgeAuthService(db, geoIp, oidc);
         return service.EvaluateForwardAsync(
             host,
             path,
