@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { api, ApiRequestError } from '$lib/api/client';
-	import type { Resource } from '$lib/api/types';
+	import type { FirewallHost, Resource } from '$lib/api/types';
 	import AdminSectionPage from '$lib/components/layout/AdminSectionPage.svelte';
 	import PanelSection from '$lib/components/layout/PanelSection.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -18,6 +18,7 @@
 	import { Server, Trash2 } from 'lucide-svelte';
 
 	let resources = $state<Resource[]>([]);
+	let firewallHosts = $state<FirewallHost[]>([]);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 	let saving = $state(false);
@@ -28,6 +29,7 @@
 		targetScheme: 'https',
 		targetHost: '',
 		targetPort: 443,
+		firewallHostId: '',
 		dashboardEnabled: false,
 		statusEnabled: true
 	});
@@ -40,12 +42,22 @@
 		loading = true;
 		error = null;
 		try {
-			resources = await api.listResources();
+			const [resourceList, hostList] = await Promise.all([
+				api.listResources(),
+				api.listFirewallHosts()
+			]);
+			resources = resourceList;
+			firewallHosts = hostList;
 		} catch (e) {
 			error = e instanceof ApiRequestError ? e.message : 'Failed to load resources';
 		} finally {
 			loading = false;
 		}
+	}
+
+	function hostLabel(host: FirewallHost): string {
+		const fqdn = host.domain.includes('.') ? host.domain : `${host.name}.${host.domain}`;
+		return host.publicIp ? `${host.name} (${host.publicIp}) — ${fqdn}` : `${host.name} — ${fqdn}`;
 	}
 
 	async function create() {
@@ -60,11 +72,13 @@
 				targetHost: form.targetHost,
 				targetPort: form.targetPort,
 				dashboardEnabled: form.dashboardEnabled,
-				statusEnabled: form.statusEnabled
+				statusEnabled: form.statusEnabled,
+				firewallHostId: form.firewallHostId || null
 			});
 			form.name = '';
 			form.domain = '';
 			form.targetHost = '';
+			form.firewallHostId = '';
 			await load();
 		} catch (e) {
 			error = e instanceof ApiRequestError ? e.message : 'Failed to create resource';
@@ -89,6 +103,26 @@
 			await load();
 		} catch (e) {
 			error = e instanceof ApiRequestError ? e.message : 'Failed to update resource';
+		}
+	}
+
+	async function updateFirewallHost(resource: Resource, firewallHostId: string) {
+		try {
+			await api.updateResource(resource.id, {
+				name: null,
+				enabled: null,
+				domain: null,
+				targetScheme: null,
+				targetHost: null,
+				targetPort: null,
+				dashboardEnabled: null,
+				statusEnabled: null,
+				firewallHostId: firewallHostId || null,
+				clearFirewallHostId: !firewallHostId
+			});
+			await load();
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Failed to update firewall host';
 		}
 	}
 
@@ -123,6 +157,19 @@
 			<div class="grid gap-1.5">
 				<Label for="res-domain">Domain</Label>
 				<Input id="res-domain" bind:value={form.domain} placeholder="app.example.com" />
+			</div>
+			<div class="grid gap-1.5">
+				<Label for="res-firewall-host">Linux firewall host (optional)</Label>
+				<select
+					id="res-firewall-host"
+					class="h-9 rounded-md border border-border bg-background px-3 text-sm text-white"
+					bind:value={form.firewallHostId}
+				>
+					<option value="">None — manual / Pulse target</option>
+					{#each firewallHosts as host (host.id)}
+						<option value={host.id}>{hostLabel(host)}</option>
+					{/each}
+				</select>
 			</div>
 			<div class="grid grid-cols-3 gap-3">
 				<div class="grid gap-1.5">
@@ -168,6 +215,7 @@
 						<TableRow>
 							<TableHead>Name</TableHead>
 							<TableHead>Domain</TableHead>
+							<TableHead>Firewall host</TableHead>
 							<TableHead>Target</TableHead>
 							<TableHead>Enabled</TableHead>
 							<TableHead class="w-12"></TableHead>
@@ -183,6 +231,22 @@
 									{/if}
 								</TableCell>
 								<TableCell class="font-mono text-xs">{resource.domain ?? '—'}</TableCell>
+								<TableCell>
+									<select
+										class="h-8 max-w-[12rem] rounded-md border border-border bg-background px-2 text-xs text-white"
+										value={resource.firewallHostId ?? ''}
+										onchange={(e) =>
+											updateFirewallHost(
+												resource,
+												(e.currentTarget as HTMLSelectElement).value
+											)}
+									>
+										<option value="">None</option>
+										{#each firewallHosts as host (host.id)}
+											<option value={host.id}>{host.name}</option>
+										{/each}
+									</select>
+								</TableCell>
 								<TableCell class="font-mono text-xs">
 									{resource.targetScheme}://{resource.targetHost}:{resource.targetPort}
 								</TableCell>
