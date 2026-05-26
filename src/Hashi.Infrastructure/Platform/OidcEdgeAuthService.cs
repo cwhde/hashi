@@ -7,6 +7,7 @@ using Hashi.Contracts.Api;
 using Hashi.Infrastructure.Auth;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
+using Hashi.Infrastructure.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,7 +16,8 @@ namespace Hashi.Infrastructure.Platform;
 public sealed class OidcEdgeAuthService(
     HashiDbContext db,
     SecretRecordService secrets,
-    IHttpClientFactory httpClientFactory)
+    IHttpClientFactory httpClientFactory,
+    AppSettingsService settings)
 {
     private static readonly ConcurrentDictionary<string, PendingOidcLogin> PendingLogins = new();
 
@@ -77,7 +79,8 @@ public sealed class OidcEdgeAuthService(
         var sessionKey = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{provider.Id}:{subject}:{code}"))).ToLowerInvariant();
         var expires = DateTimeOffset.UtcNow.AddHours(8);
         EdgeSessionStore.Set(sessionKey, new EdgeSessionState(subject, expires));
-        return new EdgeCallbackResult(returnUrl, sessionKey, BuildSessionCookie(context, expires));
+        var appSettings = await settings.GetOrCreateAsync(cancellationToken);
+        return new EdgeCallbackResult(returnUrl, sessionKey, await BuildSessionCookieAsync(context, expires, appSettings.RootDomain, cancellationToken));
     }
 
     public static bool TryValidateSession(string? sessionKey)
@@ -158,7 +161,11 @@ public sealed class OidcEdgeAuthService(
            || issuer.Contains("127.0.0.1", StringComparison.OrdinalIgnoreCase)
            || issuer.Contains("localhost", StringComparison.OrdinalIgnoreCase);
 
-    private static CookieOptions BuildSessionCookie(HttpContext context, DateTimeOffset expires)
+    private static async Task<CookieOptions> BuildSessionCookieAsync(
+        HttpContext context,
+        DateTimeOffset expires,
+        string? rootDomain,
+        CancellationToken cancellationToken)
     {
         var host = context.Request.Host.Host;
         var cookie = new CookieOptions
@@ -168,12 +175,20 @@ public sealed class OidcEdgeAuthService(
             SameSite = SameSiteMode.Lax,
             Expires = expires,
         };
-        if (!string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase)
+
+        if (!string.IsNullOrWhiteSpace(rootDomain)
+            && !string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase)
+            && host != "127.0.0.1")
+        {
+            cookie.Domain = rootDomain.StartsWith('.') ? rootDomain : $".{rootDomain}";
+        }
+        else if (!string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase)
             && host != "127.0.0.1")
         {
             cookie.Domain = host.StartsWith('.') ? host : $".{host}";
         }
 
+        await Task.CompletedTask;
         return cookie;
     }
 

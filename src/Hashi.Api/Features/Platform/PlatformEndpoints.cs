@@ -186,7 +186,9 @@ public static class EdgeAuthEndpoints
             var clientIp = ctx.Connection.RemoteIpAddress ?? System.Net.IPAddress.Loopback;
             var country = ctx.Request.Headers["X-Geo-Country"].FirstOrDefault();
             var asn = ctx.Request.Headers["X-Geo-Asn"].FirstOrDefault();
-            var result = await edgeAuth.EvaluateForwardAsync(host, path, clientIp, country, asn, ctx.Request.Cookies["hashi.edge.session"], ct);
+            var mode = ctx.Request.Query["mode"].FirstOrDefault();
+            var result = await edgeAuth.EvaluateForwardAsync(
+                host, path, clientIp, country, asn, ctx.Request.Cookies["hashi.edge.session"], mode, ct);
 
             return result.Decision switch
             {
