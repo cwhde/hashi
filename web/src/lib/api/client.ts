@@ -434,6 +434,17 @@ export const api = {
 		const r = await client.PUT('/api/settings/edge-sso/session', { body });
 		return expectData(r.response, r.error, r.data);
 	},
+	createEdgeSsoProvider: async (body: import('./types.js').CreateOidcProviderRequest) => {
+		const result = await postUndocumented('/api/settings/edge-sso/providers', { body });
+		return {
+			id: String(result.id ?? ''),
+			name: String(result.name ?? body.name),
+			issuer: String(result.issuer ?? body.issuer),
+			clientId: String(result.clientId ?? body.clientId),
+			scopes: String(result.scopes ?? body.scopes ?? ''),
+			enabled: result.enabled !== false
+		} satisfies import('./types.js').OidcProvider;
+	},
 	getSecurityDashboard: async (params?: { hours?: number }) => {
 		const r = await client.GET('/api/security/dashboard', {
 			params: {
