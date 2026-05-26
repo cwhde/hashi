@@ -220,12 +220,18 @@ public static class PublicEndpoints
     public static IEndpointRouteBuilder MapPublicEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/api/public/status", async (MonitoringService monitoring, CancellationToken ct) =>
-            TypedResults.Ok(await monitoring.PublicStatusAsync(ct))).WithTags("Public").AllowAnonymous();
+            TypedResults.Ok(await monitoring.PublicStatusAsync(ct)))
+            .WithTags("Public")
+            .AllowAnonymous()
+            .RequireCors("PublicRead");
         app.MapGet("/api/public/apps", async (ResourceService resources, CancellationToken ct) =>
         {
             var items = await resources.ListAsync(ct);
             return TypedResults.Ok(items.Where(x => x.DashboardEnabled).Select(ResourceService.ToResponse));
-        }).WithTags("Public").AllowAnonymous();
+        })
+            .WithTags("Public")
+            .AllowAnonymous()
+            .RequireCors("PublicRead");
         return app;
     }
 }

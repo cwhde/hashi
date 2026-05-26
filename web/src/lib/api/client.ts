@@ -1,9 +1,10 @@
 import createClient, { type Middleware } from 'openapi-fetch';
 import type { paths } from './schema.js';
 import type { ApiError, UndocumentedJson } from './types.js';
+import { resolveApiBaseUrl } from './base-url.js';
 
 export const client = createClient<paths>({
-	baseUrl: '',
+	baseUrl: resolveApiBaseUrl(),
 	credentials: 'include'
 });
 

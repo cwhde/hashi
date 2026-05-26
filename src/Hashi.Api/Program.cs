@@ -61,6 +61,21 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
     });
 builder.Services.AddAuthorization();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("PublicRead", policy =>
+        policy.SetIsOriginAllowed(static origin =>
+        {
+            if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+            {
+                return false;
+            }
+
+            return uri.Port is HashiPorts.PublicDashboard or HashiPorts.PublicStatus;
+        })
+        .AllowAnyHeader()
+        .AllowAnyMethod());
+});
 builder.Services.AddAntiforgery(options =>
 {
     options.HeaderName = "X-CSRF-TOKEN";
@@ -79,6 +94,7 @@ if (app.Environment.IsDevelopment()
 }
 
 app.UseSerilogRequestLogging();
+app.UseCors();
 app.UseMiddleware<PublicPortRoutingMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
