@@ -70,7 +70,10 @@ jobs:
 
       - name: Trivy filesystem scan
         run: |
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.58.1
-          trivy fs --severity CRITICAL,HIGH --exit-code 1 \
+          docker run --rm \
+            -v "$PWD:/repo" \
+            aquasec/trivy:0.58.1 fs \
+            --severity CRITICAL,HIGH \
+            --exit-code 1 \
             --skip-dirs hashi.old \
-            .
+            /repo

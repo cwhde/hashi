@@ -1,5 +1,6 @@
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Services;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,6 +17,10 @@ internal static class IntegrationTestApp
             {
                 builder.UseSetting("ConnectionStrings:Hashi", connectionString);
                 builder.UseSetting("Hashi:SkipStartupHooks", "true");
+                builder.ConfigureServices(services =>
+                {
+                    services.AddSingleton<IStartupFilter, LoopbackRemoteIpStartupFilter>();
+                });
             });
 
     public static async Task MigrateAsync(IServiceProvider services, CancellationToken cancellationToken = default)

@@ -32,7 +32,11 @@ public sealed class EdgeAuthOidcTests : IAsyncLifetime
         Environment.SetEnvironmentVariable("HASHI_SKIP_STARTUP_HOOKS", "1");
         var connectionString = await _fixture.CreateDatabaseAsync();
         _factory = IntegrationTestApp.CreateFactory(connectionString);
-        _client = _factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = true });
+        _client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            HandleCookies = true,
+            AllowAutoRedirect = false,
+        });
 
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<HashiDbContext>();

@@ -53,13 +53,9 @@ public sealed class HetznerDnsPlanApplyTests : IAsyncLifetime
             .BuildServiceProvider();
 
         using var scope = _services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<HashiDbContext>();
-        db.AppSettings.Add(new AppSettingsEntity());
-        db.SetupStates.Add(new SetupStateEntity());
-        await db.SaveChangesAsync();
-
         var vault = scope.ServiceProvider.GetRequiredService<VaultSessionState>();
         vault.Unlock(new byte[32]);
+        await IntegrationTestApp.EnsureSeededAsync(_services);
     }
 
     public async Task DisposeAsync()
