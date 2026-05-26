@@ -24,7 +24,7 @@
 	let creating = $state(false);
 	let importConnectionId = $state<string | null>(null);
 	let importDecisions = $state<DnsImportDecision[]>([]);
-	let selectedImportIds = $state<Set<string>>(new Set());
+	let selectedImportIds = $state<string[]>([]);
 	let importLoading = $state(false);
 	let form = $state({
 		name: 'hetzner-primary',
@@ -118,7 +118,7 @@
 		error = null;
 		try {
 			importDecisions = await api.previewDnsImport(id);
-			selectedImportIds = new Set(importDecisions.map((d) => d.id));
+			selectedImportIds = importDecisions.map((d) => d.id);
 		} catch (e) {
 			error = e instanceof ApiRequestError ? e.message : 'Import preview failed';
 		} finally {
@@ -127,10 +127,11 @@
 	}
 
 	function toggleImport(id: string, checked: boolean) {
-		const next = new Set(selectedImportIds);
-		if (checked) next.add(id);
-		else next.delete(id);
-		selectedImportIds = next;
+		if (checked) {
+			selectedImportIds = [...selectedImportIds, id];
+		} else {
+			selectedImportIds = selectedImportIds.filter((x) => x !== id);
+		}
 	}
 
 	async function applyImport() {
@@ -139,9 +140,9 @@
 		error = null;
 		try {
 			await api.applyDnsImport(importConnectionId, {
-				selectedDecisionIds: [...selectedImportIds]
+				selectedDecisionIds: selectedImportIds
 			});
-			message = `Imported ${selectedImportIds.size} DNS records into Hashi.`;
+			message = `Imported ${selectedImportIds.length} DNS records into Hashi.`;
 			importDecisions = [];
 			importConnectionId = null;
 			await load();
@@ -258,7 +259,7 @@
 								<TableCell>
 									<input
 										type="checkbox"
-										checked={selectedImportIds.has(row.id)}
+										checked={selectedImportIds.includes(row.id)}
 										onchange={(e) => toggleImport(row.id, (e.currentTarget as HTMLInputElement).checked)}
 									/>
 								</TableCell>
@@ -271,8 +272,8 @@
 				</Table>
 			</div>
 			<div class="mt-3">
-				<Button onclick={() => applyImport()} disabled={importLoading || selectedImportIds.size === 0}>
-					{importLoading ? 'Importing…' : `Import ${selectedImportIds.size} records`}
+				<Button onclick={() => applyImport()} disabled={importLoading || selectedImportIds.length === 0}>
+					{importLoading ? 'Importing…' : `Import ${selectedImportIds.length} records`}
 				</Button>
 			</div>
 		</PanelSection>

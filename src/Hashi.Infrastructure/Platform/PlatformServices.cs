@@ -198,17 +198,3 @@ public sealed class FirewallPlatformService
         return new FirewallRenderResponse(script);
     }
 }
-
-public sealed class MonitoringService(HashiDbContext db)
-{
-    public async Task<IReadOnlyList<MonitorEndpointEntity>> ListAsync(CancellationToken cancellationToken = default)
-        => await db.MonitorEndpoints.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
-
-    public async Task<IReadOnlyList<PublicStatusItemResponse>> PublicStatusAsync(CancellationToken cancellationToken = default)
-    {
-        return await db.MonitorEndpoints.AsNoTracking()
-            .Where(x => x.Enabled)
-            .Select(x => new PublicStatusItemResponse(x.Name, x.Status, x.LastLatencyMs))
-            .ToListAsync(cancellationToken);
-    }
-}

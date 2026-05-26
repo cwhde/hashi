@@ -40,7 +40,9 @@ export type FirewallRenderResponse = Schemas['FirewallRenderResponse'];
 export type FirewallHost = Schemas['FirewallHostResponse'];
 
 export type MonitorEndpoint = Schemas['MonitorEndpointResponse'];
+export type MonitorRollup = Schemas['MonitorRollupResponse'];
 export type PublicStatusItem = Schemas['PublicStatusItemResponse'];
+export type PublicStatusStripBucket = Schemas['PublicStatusStripBucket'];
 export type SecurityDashboard = Schemas['SecurityDashboardResponse'];
 export type PulseAgent = Schemas['PulseAgentResponse'];
 export type CreatePulseAgentRequest = Schemas['CreatePulseAgentRequest'];

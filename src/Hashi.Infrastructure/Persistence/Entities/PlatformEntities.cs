@@ -55,6 +55,8 @@ public sealed class MonitorEndpointEntity
 
     public string Status { get; set; } = "unknown";
 
+    public Guid? ResourceId { get; set; }
+
     public DateTimeOffset? LastCheckedAtUtc { get; set; }
 
     public int? LastLatencyMs { get; set; }

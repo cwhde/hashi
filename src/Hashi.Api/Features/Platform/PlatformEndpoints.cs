@@ -136,19 +136,23 @@ public static class StatusEndpoints
         group.MapGet("/endpoints", async (MonitoringService monitoring, CancellationToken ct) =>
         {
             var items = await monitoring.ListAsync(ct);
-            return TypedResults.Ok(items.Select(x => new MonitorEndpointResponse(
-                x.Id, x.Name, x.Url, x.CheckType, x.Enabled, x.Status, x.LastCheckedAtUtc, x.LastLatencyMs)));
+            return TypedResults.Ok(items.Select(MonitoringService.ToResponse));
         });
-        group.MapGet("/rollups", async (HashiDbContext db, CancellationToken ct) =>
+        group.MapGet("/rollups", async Task<IResult> (
+            Guid? endpointId,
+            int? intervalMinutes,
+            int? hours,
+            MonitoringService monitoring,
+            CancellationToken ct) =>
         {
-            var rollups = await db.MonitorRollups.AsNoTracking()
-                .OrderByDescending(x => x.BucketStartUtc)
-                .Take(500)
-                .Select(x => new MonitorRollupResponse(
-                    x.MonitorEndpointId, x.BucketStartUtc, x.SampleCount, x.UpCount, x.DownCount, x.AverageLatencyMs))
-                .ToListAsync(ct);
-            return TypedResults.Ok(rollups);
-        });
+            var rollups = await monitoring.ListRollupsAsync(
+                endpointId,
+                intervalMinutes,
+                hours ?? 1,
+                ct);
+            return TypedResults.Ok(rollups.Select(MonitoringService.ToRollupResponse));
+        })
+            .Produces<IEnumerable<MonitorRollupResponse>>(StatusCodes.Status200OK);
         return app;
     }
 }

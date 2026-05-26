@@ -2310,7 +2310,11 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    endpointId?: string;
+                    intervalMinutes?: number | string;
+                    hours?: number | string;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -3332,6 +3336,8 @@ export interface components {
             /** Format: date-time */
             bucketStartUtc: string;
             /** Format: int32 */
+            intervalMinutes: number | string;
+            /** Format: int32 */
             sampleCount: number | string;
             /** Format: int32 */
             upCount: number | string;
@@ -3363,6 +3369,12 @@ export interface components {
             status: string;
             /** Format: int32 */
             lastLatencyMs: null | number | string;
+            recentStrip: components["schemas"]["PublicStatusStripBucket"][];
+        };
+        PublicStatusStripBucket: {
+            /** Format: date-time */
+            bucketStartUtc: string;
+            up: boolean;
         };
         PulseAgentResponse: {
             /** Format: uuid */

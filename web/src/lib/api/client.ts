@@ -305,6 +305,22 @@ export const api = {
 		const r = await client.GET('/api/status/endpoints');
 		return expectData(r.response, r.error, r.data ?? []);
 	},
+	listStatusRollups: async (params?: {
+		endpointId?: string;
+		intervalMinutes?: number;
+		hours?: number;
+	}) => {
+		const r = await client.GET('/api/status/rollups', {
+			params: {
+				query: {
+					endpointId: params?.endpointId,
+					intervalMinutes: params?.intervalMinutes,
+					hours: params?.hours
+				}
+			}
+		});
+		return expectData(r.response, r.error, r.data ?? []);
+	},
 	getSecurityDashboard: async () => {
 		const r = await client.GET('/api/security/dashboard');
 		return expectData(r.response, r.error, r.data);

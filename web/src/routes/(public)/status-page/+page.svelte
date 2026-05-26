@@ -2,6 +2,7 @@
 	import { api } from '$lib/api/client';
 	import type { PublicStatusItem } from '$lib/api/types';
 	import StatusRow from '$lib/components/layout/StatusRow.svelte';
+	import MonitorStatusStrip from '$lib/components/monitoring/MonitorStatusStrip.svelte';
 	import OverviewWidget from '$lib/components/overview/OverviewWidget.svelte';
 	import { Input } from '$lib/components/ui/input';
 	import { Search } from 'lucide-svelte';
@@ -48,9 +49,10 @@
 
 	<div class="overflow-hidden rounded-lg border border-border">
 		<div
-			class="grid grid-cols-[1fr_5rem_5rem] gap-2 border-b border-border bg-card/40 px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
+			class="grid grid-cols-[1fr_8rem_5rem_5rem] gap-2 border-b border-border bg-card/40 px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
 		>
 			<span>Service</span>
+			<span>60 min</span>
 			<span>State</span>
 			<span>Latency</span>
 		</div>
@@ -60,8 +62,14 @@
 			<p class="px-3 py-6 text-sm text-muted-foreground">No public status entries.</p>
 		{:else}
 			{#each filtered as item (item.name)}
-				<div class="grid grid-cols-[1fr_5rem_5rem] gap-2 border-b border-border/50 px-3 py-2 text-sm last:border-0">
+				<div
+					class="grid grid-cols-[1fr_8rem_5rem_5rem] items-center gap-2 border-b border-border/50 px-3 py-2 text-sm last:border-0"
+				>
 					<span class="truncate text-white">{item.name}</span>
+					<MonitorStatusStrip
+						buckets={(item.recentStrip ?? []).map((b) => ({ up: b.up }))}
+						width={96}
+					/>
 					<span class="text-xs">{item.status}</span>
 					<span class="text-xs tabular-nums">{item.lastLatencyMs ?? '—'} ms</span>
 				</div>

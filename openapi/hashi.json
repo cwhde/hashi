@@ -1502,6 +1502,40 @@
         "tags": [
           "Status"
         ],
+        "parameters": [
+          {
+            "name": "endpointId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "intervalMinutes",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "hours",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -3118,6 +3152,7 @@
         "required": [
           "monitorEndpointId",
           "bucketStartUtc",
+          "intervalMinutes",
           "sampleCount",
           "upCount",
           "downCount",
@@ -3132,6 +3167,14 @@
           "bucketStartUtc": {
             "type": "string",
             "format": "date-time"
+          },
+          "intervalMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           },
           "sampleCount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -3236,7 +3279,8 @@
         "required": [
           "name",
           "status",
-          "lastLatencyMs"
+          "lastLatencyMs",
+          "recentStrip"
         ],
         "type": "object",
         "properties": {
@@ -3254,6 +3298,28 @@
               "string"
             ],
             "format": "int32"
+          },
+          "recentStrip": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicStatusStripBucket"
+            }
+          }
+        }
+      },
+      "PublicStatusStripBucket": {
+        "required": [
+          "bucketStartUtc",
+          "up"
+        ],
+        "type": "object",
+        "properties": {
+          "bucketStartUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "up": {
+            "type": "boolean"
           }
         }
       },

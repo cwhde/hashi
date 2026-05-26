@@ -71,6 +71,8 @@ public sealed class MonitorRollupEntity
 
     public DateTimeOffset BucketStartUtc { get; set; }
 
+    public int IntervalMinutes { get; set; } = 60;
+
     public int SampleCount { get; set; }
 
     public int UpCount { get; set; }

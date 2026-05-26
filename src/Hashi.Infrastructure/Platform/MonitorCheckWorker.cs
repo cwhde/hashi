@@ -35,6 +35,8 @@ public sealed class MonitorCheckWorker(
     {
         using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<HashiDbContext>();
+        var monitoring = scope.ServiceProvider.GetRequiredService<MonitoringService>();
+        await monitoring.SyncEndpointsFromResourcesAsync(cancellationToken);
         var endpoints = await db.MonitorEndpoints.Where(x => x.Enabled).ToListAsync(cancellationToken);
         var client = httpClientFactory.CreateClient("monitor-checks");
         client.Timeout = TimeSpan.FromSeconds(15);

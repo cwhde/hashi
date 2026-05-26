@@ -1,9 +1,12 @@
 <script lang="ts">
 	import { api, ApiRequestError } from '$lib/api/client';
-	import type { MonitorEndpoint } from '$lib/api/types';
+	import type { MonitorEndpoint, MonitorRollup } from '$lib/api/types';
 	import AdminSectionPage from '$lib/components/layout/AdminSectionPage.svelte';
 	import PanelSection from '$lib/components/layout/PanelSection.svelte';
 	import StatusRow from '$lib/components/layout/StatusRow.svelte';
+	import MonitorLatencyChart from '$lib/components/monitoring/MonitorLatencyChart.svelte';
+	import MonitorStatusStrip from '$lib/components/monitoring/MonitorStatusStrip.svelte';
+	import { Input } from '$lib/components/ui/input';
 	import {
 		Table,
 		TableBody,
@@ -12,34 +15,71 @@
 		TableHeader,
 		TableRow
 	} from '$lib/components/ui/table';
-	import { HeartPulse } from 'lucide-svelte';
+	import { HeartPulse, Search } from 'lucide-svelte';
 
 	let endpoints = $state<MonitorEndpoint[]>([]);
+	let rollups = $state<MonitorRollup[]>([]);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
+	let search = $state('');
+	let selectedId = $state<string | null>(null);
 
 	$effect(() => {
-		void (async () => {
-			try {
-				endpoints = await api.listStatusEndpoints();
-			} catch (e) {
-				error = e instanceof ApiRequestError ? e.message : 'Failed to load monitors';
-			} finally {
-				loading = false;
-			}
-		})();
+		void load();
 	});
+
+	async function load() {
+		loading = true;
+		error = null;
+		try {
+			const [endpointList, rollupList] = await Promise.all([
+				api.listStatusEndpoints(),
+				api.listStatusRollups({ intervalMinutes: 1, hours: 1 })
+			]);
+			endpoints = endpointList;
+			rollups = rollupList;
+			if (!selectedId && endpointList.length > 0) {
+				selectedId = endpointList[0]?.id ?? null;
+			}
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Failed to load monitors';
+		} finally {
+			loading = false;
+		}
+	}
+
+	const filtered = $derived(
+		endpoints.filter((e) => e.name.toLowerCase().includes(search.toLowerCase()))
+	);
 
 	const counts = $derived({
 		up: endpoints.filter((e) => e.status === 'Up').length,
 		degraded: endpoints.filter((e) => e.status === 'Degraded').length,
 		down: endpoints.filter((e) => e.status === 'Down').length
 	});
+
+	function stripFor(endpointId: string) {
+		return rollups
+			.filter((r) => r.monitorEndpointId === endpointId)
+			.map((r) => ({ up: r.upCount >= r.downCount }));
+	}
+
+	const selectedRollups = $derived(
+		selectedId ? rollups.filter((r) => r.monitorEndpointId === selectedId) : []
+	);
+
+	const chartData = $derived.by(() => {
+		const timestamps = selectedRollups.map((r) => new Date(r.bucketStartUtc).getTime() / 1000);
+		const latencies = selectedRollups.map((r) => Number(r.averageLatencyMs));
+		return { timestamps, latencies };
+	});
+
+	const selectedEndpoint = $derived(endpoints.find((e) => e.id === selectedId) ?? null);
 </script>
 
 <AdminSectionPage
 	title="Status"
-	description="Monitors, incidents, latency charts, and public status page config."
+	description="Monitors, 60-minute strips, latency charts, and public status page config."
 	icon={HeartPulse}
 >
 	<div class="grid gap-4 sm:grid-cols-3">
@@ -54,31 +94,41 @@
 		</PanelSection>
 	</div>
 
-	<PanelSection title="Monitored endpoints" description="Latency charts require time-series API (pending).">
+	<div class="relative max-w-md">
+		<Search class="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
+		<Input bind:value={search} placeholder="Search monitors…" class="pl-9" />
+	</div>
+
+	<PanelSection title="Monitored endpoints" description="Last 60 minutes at 1-minute resolution (spec §18).">
 		{#if loading}
 			<p class="text-sm text-muted-foreground">Loading…</p>
 		{:else if error}
 			<p class="text-sm text-destructive">{error}</p>
-		{:else if endpoints.length === 0}
-			<p class="text-sm text-muted-foreground">No monitor endpoints configured.</p>
+		{:else if filtered.length === 0}
+			<p class="text-sm text-muted-foreground">
+				No monitor endpoints yet. Enable status on a resource to auto-provision checks.
+			</p>
 		{:else}
 			<Table>
 				<TableHeader>
 					<TableRow>
 						<TableHead>Name</TableHead>
-						<TableHead>URL</TableHead>
-						<TableHead>Type</TableHead>
+						<TableHead>60 min</TableHead>
 						<TableHead>Status</TableHead>
 						<TableHead>Latency</TableHead>
 						<TableHead>Last check</TableHead>
 					</TableRow>
 				</TableHeader>
 				<TableBody>
-					{#each endpoints as endpoint (endpoint.id)}
-						<TableRow>
+					{#each filtered as endpoint (endpoint.id)}
+						<TableRow
+							class={selectedId === endpoint.id ? 'bg-card/60' : 'cursor-pointer'}
+							onclick={() => (selectedId = endpoint.id)}
+						>
 							<TableCell>{endpoint.name}</TableCell>
-							<TableCell class="max-w-[12rem] truncate font-mono text-xs">{endpoint.url}</TableCell>
-							<TableCell>{endpoint.checkType}</TableCell>
+							<TableCell>
+								<MonitorStatusStrip buckets={stripFor(endpoint.id)} />
+							</TableCell>
 							<TableCell>{endpoint.status}</TableCell>
 							<TableCell>{endpoint.lastLatencyMs ?? '—'} ms</TableCell>
 							<TableCell class="text-xs">
@@ -92,4 +142,13 @@
 			</Table>
 		{/if}
 	</PanelSection>
+
+	{#if selectedEndpoint}
+		<PanelSection
+			title="{selectedEndpoint.name} — last hour"
+			description="Latency from 1-minute rollups. Select another row to switch."
+		>
+			<MonitorLatencyChart timestamps={chartData.timestamps} latencies={chartData.latencies} />
+		</PanelSection>
+	{/if}
 </AdminSectionPage>

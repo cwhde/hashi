@@ -240,7 +240,7 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
         {
             entity.ToTable("monitor_rollups");
             entity.HasKey(x => x.Id);
-            entity.HasIndex(x => new { x.MonitorEndpointId, x.BucketStartUtc }).IsUnique();
+            entity.HasIndex(x => new { x.MonitorEndpointId, x.BucketStartUtc, x.IntervalMinutes }).IsUnique();
         });
 
         modelBuilder.Entity<OidcProviderEntity>(entity =>

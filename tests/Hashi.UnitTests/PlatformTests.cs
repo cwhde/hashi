@@ -72,6 +72,17 @@ public sealed class TraefikConfigRendererTests
     }
 }
 
+public sealed class MonitorRollupServiceTests
+{
+    [Fact]
+    public void FloorToBucket_aligns_to_interval_start()
+    {
+        var time = new DateTimeOffset(2026, 5, 26, 8, 27, 45, TimeSpan.Zero);
+        var bucket = MonitorRollupService.FloorToBucket(time, 5);
+        Assert.Equal(new DateTimeOffset(2026, 5, 26, 8, 25, 0, TimeSpan.Zero), bucket);
+    }
+}
+
 public sealed class ResourceSlugTests
 {
     [Fact]

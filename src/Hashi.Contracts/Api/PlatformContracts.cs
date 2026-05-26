@@ -124,10 +124,19 @@ public sealed record CreateFirewallHostRequest(
 public sealed record MonitorRollupResponse(
     Guid MonitorEndpointId,
     DateTimeOffset BucketStartUtc,
+    int IntervalMinutes,
     int SampleCount,
     int UpCount,
     int DownCount,
     double AverageLatencyMs);
+
+public sealed record PublicStatusStripBucket(DateTimeOffset BucketStartUtc, bool Up);
+
+public sealed record PublicStatusItemResponse(
+    string Name,
+    string Status,
+    int? LastLatencyMs,
+    IReadOnlyList<PublicStatusStripBucket> RecentStrip);
 
 public sealed record MonitorEndpointResponse(
     Guid Id,
@@ -138,8 +147,6 @@ public sealed record MonitorEndpointResponse(
     string Status,
     DateTimeOffset? LastCheckedAtUtc,
     int? LastLatencyMs);
-
-public sealed record PublicStatusItemResponse(string Name, string Status, int? LastLatencyMs);
 
 public sealed record PulseAgentResponse(Guid Id, string Name, string Status, DateTimeOffset? LastSeenAtUtc, string? LastPublicIp);
 
