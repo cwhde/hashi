@@ -2,9 +2,11 @@ name: CI
 
 on:
   push:
-    branches: [main, feat/v2-foundation]
+    branches:
+      - '**'
   pull_request:
-    branches: [main]
+    branches:
+      - '**'
   workflow_dispatch:
 
 concurrency:
@@ -56,7 +58,7 @@ jobs:
             if echo "$files" | grep -qE '^(src/|tests/|Hashi\.slnx|Directory\.Build\.props|\.gitea/workflows/ci\.yml)'; then
               backend=true
             fi
-            if echo "$files" | grep -qE '^(web/|openapi/|scripts/|\.gitea/workflows/ci\.yml)'; then
+            if echo "$files" | grep -qE '^(src/|tests/|web/|openapi/|scripts/|Hashi\.slnx|Directory\.Build\.props|\.gitea/workflows/ci\.yml)'; then
               web=true
             fi
             if echo "$files" | grep -qE '^(agents/|\.gitea/workflows/ci\.yml)'; then

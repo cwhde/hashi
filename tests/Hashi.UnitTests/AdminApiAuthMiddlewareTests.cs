@@ -1,5 +1,12 @@
 using Hashi.Api.Hosting;
+using Hashi.Core.Auth;
+using Hashi.Infrastructure.Auth;
+using Hashi.Infrastructure.Persistence;
+using Hashi.Infrastructure.Services;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
+using System.Security.Claims;
 using Xunit;
 
 namespace Hashi.UnitTests;
@@ -8,6 +15,7 @@ public sealed class AdminApiAuthMiddlewareTests
 {
     [Theory]
     [InlineData("/api/vault/secrets/abc", "POST", true)]
+    [InlineData("/api/vault/secrets/11111111-1111-1111-1111-111111111111/reveal", "GET", true)]
     [InlineData("/api/scripts", "POST", true)]
     [InlineData("/api/scripts/abc/run", "POST", true)]
     [InlineData("/api/connections/ssh", "POST", true)]
@@ -26,6 +34,172 @@ public sealed class AdminApiAuthMiddlewareTests
     {
         var actual = AdminApiAuthMiddleware.RequiresReauthentication(new PathString(path), method);
         Assert.Equal(expected, actual);
+    }
+
+    [Theory]
+    [InlineData("/api/health", "GET")]
+    [InlineData("/api/setup/status", "GET")]
+    [InlineData("/api/setup/bootstrap-allowed", "GET")]
+    [InlineData("/api/auth/csrf", "GET")]
+    [InlineData("/api/auth/bootstrap/login", "POST")]
+    [InlineData("/api/auth/passkeys/login/begin", "POST")]
+    [InlineData("/api/auth/passkeys/login/complete", "POST")]
+    [InlineData("/api/edge-auth/check", "GET")]
+    [InlineData("/api/public/status", "GET")]
+    public void Public_allowlist_keeps_only_expected_public_endpoints(string path, string method)
+    {
+        Assert.True(AdminApiAuthMiddleware.IsPublicEndpoint(new PathString(path), method));
+    }
+
+    [Theory]
+    [InlineData("/api/auth/passkeys", "GET")]
+    [InlineData("/api/auth/passkeys/11111111-1111-1111-1111-111111111111", "DELETE")]
+    [InlineData("/api/auth/passkeys/register/begin", "POST")]
+    [InlineData("/api/auth/passkeys/register/complete", "POST")]
+    [InlineData("/api/auth/reauthenticate", "POST")]
+    [InlineData("/api/auth/reauthenticate/complete", "POST")]
+    [InlineData("/api/auth/logout", "POST")]
+    [InlineData("/api/vault/status", "GET")]
+    [InlineData("/api/setup/steps/bootstrap-access/complete", "POST")]
+    public void Public_allowlist_does_not_include_protected_auth_or_setup_endpoints(string path, string method)
+    {
+        Assert.False(AdminApiAuthMiddleware.IsPublicEndpoint(new PathString(path), method));
+    }
+
+    [Theory]
+    [InlineData("/api/auth/passkeys", "GET")]
+    [InlineData("/api/auth/passkeys/11111111-1111-1111-1111-111111111111", "DELETE")]
+    [InlineData("/api/auth/reauthenticate", "POST")]
+    [InlineData("/api/vault/secrets", "POST")]
+    [InlineData("/api/settings/general", "GET")]
+    [InlineData("/api/activity/audit", "GET")]
+    [InlineData("/api/setup/steps/bootstrap-access/complete", "POST")]
+    public async Task Anonymous_protected_endpoints_are_rejected_even_before_setup_completes(string path, string method)
+    {
+        var (context, invoked) = await InvokeMiddlewareAsync(path, method, setupComplete: false);
+
+        Assert.False(invoked);
+        Assert.Equal(StatusCodes.Status401Unauthorized, context.Response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("/api/setup/status", "GET")]
+    [InlineData("/api/pulse/agent-1/heartbeat", "POST")]
+    [InlineData("/api/security/access-log", "POST")]
+    public async Task Anonymous_operational_public_endpoints_still_bypass_auth(string path, string method)
+    {
+        var (context, invoked) = await InvokeMiddlewareAsync(path, method, setupComplete: false);
+
+        Assert.True(invoked);
+        Assert.Equal(StatusCodes.Status204NoContent, context.Response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Reauthenticate_begin_requires_auth_but_not_recent_reauthentication()
+    {
+        var (context, invoked) = await InvokeMiddlewareAsync(
+            "/api/auth/reauthenticate",
+            HttpMethods.Post,
+            setupComplete: true,
+            user: AuthenticatedUser());
+
+        Assert.True(invoked);
+        Assert.Equal(StatusCodes.Status204NoContent, context.Response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Secret_reveal_get_requires_recent_reauthentication()
+    {
+        var (context, invoked) = await InvokeMiddlewareAsync(
+            "/api/vault/secrets/11111111-1111-1111-1111-111111111111/reveal",
+            HttpMethods.Get,
+            setupComplete: true,
+            user: AuthenticatedUser());
+
+        Assert.False(invoked);
+        Assert.Equal(StatusCodes.Status403Forbidden, context.Response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Secret_reveal_get_allows_recent_reauthentication()
+    {
+        var user = AuthenticatedUser();
+        var reauth = new ReauthenticationState();
+        reauth.MarkRecent(new DefaultHttpContext { User = user });
+
+        var (context, invoked) = await InvokeMiddlewareAsync(
+            "/api/vault/secrets/11111111-1111-1111-1111-111111111111/reveal",
+            HttpMethods.Get,
+            setupComplete: true,
+            user: user,
+            reauth: reauth);
+
+        Assert.True(invoked);
+        Assert.Equal(StatusCodes.Status204NoContent, context.Response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("/api/auth/bootstrap/login", "POST", true)]
+    [InlineData("/api/auth/passkeys/login/begin", "POST", true)]
+    [InlineData("/api/auth/passkeys/login/complete", "POST", true)]
+    [InlineData("/api/auth/passkeys", "DELETE", false)]
+    [InlineData("/api/auth/reauthenticate", "POST", false)]
+    [InlineData("/api/auth/logout", "POST", false)]
+    [InlineData("/api/setup/complete", "POST", false)]
+    public void Csrf_exemptions_are_limited_to_public_login_ceremonies(string path, string method, bool expected)
+    {
+        Assert.Equal(expected, AdminCsrfMiddleware.IsCsrfExemptEndpoint(new PathString(path), method));
+    }
+
+    private static async Task<(DefaultHttpContext Context, bool Invoked)> InvokeMiddlewareAsync(
+        string path,
+        string method,
+        bool setupComplete,
+        ClaimsPrincipal? user = null,
+        ReauthenticationState? reauth = null)
+    {
+        await using var db = CreateDb();
+        var setup = new SetupStateService(db, NullLogger<SetupStateService>.Instance);
+        var state = await setup.GetOrCreateAsync();
+        state.IsComplete = setupComplete;
+        await db.SaveChangesAsync();
+
+        var context = new DefaultHttpContext
+        {
+            User = user ?? new ClaimsPrincipal(new ClaimsIdentity()),
+        };
+        context.Request.Path = path;
+        context.Request.Method = method;
+
+        var invoked = false;
+        var middleware = new AdminApiAuthMiddleware(httpContext =>
+        {
+            invoked = true;
+            httpContext.Response.StatusCode = StatusCodes.Status204NoContent;
+            return Task.CompletedTask;
+        });
+
+        await middleware.InvokeAsync(context, setup, reauth ?? new ReauthenticationState());
+        return (context, invoked);
+    }
+
+    private static ClaimsPrincipal AuthenticatedUser(string authMethod = AdminAuthMethods.Passkey)
+    {
+        var identity = new ClaimsIdentity(
+            [
+                new Claim(ClaimTypes.Name, "admin"),
+                new Claim(AdminClaimTypes.AuthMethod, authMethod),
+            ],
+            authenticationType: "Test");
+        return new ClaimsPrincipal(identity);
+    }
+
+    private static HashiDbContext CreateDb()
+    {
+        var options = new DbContextOptionsBuilder<HashiDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        return new HashiDbContext(options);
     }
 }
 

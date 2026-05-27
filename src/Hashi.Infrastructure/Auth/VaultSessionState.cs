@@ -1,36 +1,81 @@
+using System.Collections.Concurrent;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using Hashi.Core.Auth;
+using Microsoft.AspNetCore.Http;
 
 namespace Hashi.Infrastructure.Auth;
 
-public sealed class VaultSessionState
+public sealed class VaultSessionState(IHttpContextAccessor? httpContextAccessor = null)
 {
-    public byte[]? AdminRootKey { get; private set; }
+    private const string LocalTestSessionKey = "local-test-session";
+    private readonly ConcurrentDictionary<string, byte[]> _adminRootKeys = new();
 
-    public bool IsUnlocked => AdminRootKey is not null;
+    public bool IsUnlocked => TryGetCurrentSessionKey(out var sessionKey) && _adminRootKeys.ContainsKey(sessionKey);
 
     public void Unlock(ReadOnlySpan<byte> adminRootKey)
+        => UnlockForSession(GetRequiredCurrentSessionKey(), adminRootKey);
+
+    public void UnlockForSession(string sessionKey, ReadOnlySpan<byte> adminRootKey)
     {
-        AdminRootKey = adminRootKey.ToArray();
+        var key = adminRootKey.ToArray();
+        if (_adminRootKeys.TryGetValue(sessionKey, out var existing))
+        {
+            CryptographicOperations.ZeroMemory(existing);
+        }
+
+        _adminRootKeys[sessionKey] = key;
     }
 
     public ReadOnlySpan<byte> GetRootKeyOrThrow()
     {
-        if (AdminRootKey is null)
+        var sessionKey = GetRequiredCurrentSessionKey();
+        if (!_adminRootKeys.TryGetValue(sessionKey, out var adminRootKey))
         {
             throw new InvalidOperationException("Vault is locked.");
         }
 
-        return AdminRootKey;
+        return adminRootKey;
     }
 
     public void Lock()
     {
-        if (AdminRootKey is not null)
+        if (!TryGetCurrentSessionKey(out var sessionKey))
         {
-            CryptographicOperations.ZeroMemory(AdminRootKey);
-            AdminRootKey = null;
+            return;
         }
+
+        if (_adminRootKeys.TryRemove(sessionKey, out var adminRootKey))
+        {
+            CryptographicOperations.ZeroMemory(adminRootKey);
+        }
+    }
+
+    private string GetRequiredCurrentSessionKey()
+        => TryGetCurrentSessionKey(out var sessionKey)
+            ? sessionKey
+            : throw new InvalidOperationException("Vault unlock requires an authenticated admin session.");
+
+    private bool TryGetCurrentSessionKey(out string sessionKey)
+    {
+        var context = httpContextAccessor?.HttpContext;
+        sessionKey = context?.User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? context?.User.FindFirst(ClaimTypes.Sid)?.Value
+            ?? context?.Request.Cookies["hashi.session"]
+            ?? string.Empty;
+
+        if (!string.IsNullOrWhiteSpace(sessionKey))
+        {
+            return true;
+        }
+
+        if (httpContextAccessor is null)
+        {
+            sessionKey = LocalTestSessionKey;
+            return true;
+        }
+
+        return false;
     }
 }
 

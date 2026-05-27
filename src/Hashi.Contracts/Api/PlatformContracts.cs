@@ -233,7 +233,27 @@ public sealed record FirewallApplyRequest(
     string? PrivateKeyPem,
     string? PrivateKeyPassphrase);
 
-public sealed record FirewallApplyResponse(bool Succeeded, bool Skipped, bool NetBirdDetected, string? Message);
+public sealed record FirewallPlanChangeResponse(
+    string Kind,
+    string ResourceKey,
+    string Summary);
+
+public sealed record FirewallPlanPreviewResponse(
+    Guid PlanId,
+    Guid FirewallHostId,
+    string ScriptHash,
+    bool HasChanges,
+    IReadOnlyList<FirewallPlanChangeResponse> Changes,
+    string Preview);
+
+public sealed record FirewallApplyResponse(
+    bool Succeeded,
+    bool Skipped,
+    bool NetBirdDetected,
+    string? Message,
+    Guid? PlanId = null,
+    string? ScriptHash = null,
+    string? Preview = null);
 
 public sealed record FirewallHostResponse(
     Guid Id,
@@ -493,19 +513,49 @@ public sealed record ForwardAuthDecisionIngestRequest(
 
 public sealed record ScriptResponse(
     Guid Id,
+    Guid ConnectionId,
     string Name,
     bool Enabled,
     string Description,
     string CronExpression,
+    int RunTimeoutSeconds,
     DateTimeOffset? LastRunAtUtc,
-    string? LastRunOutput);
+    string? LastRunOutput,
+    string? LastRunError,
+    string LastRunStatus,
+    Guid? LastRunId,
+    IReadOnlyList<ScriptTargetResponse> Targets,
+    IReadOnlyList<ScriptEnvironmentVariableResponse> EnvironmentVariables);
+
+public sealed record ScriptTargetResponse(Guid Id, Guid ConnectionId, bool Enabled);
+
+public sealed record ScriptEnvironmentVariableResponse(Guid Id, string Name, bool IsSecret, Guid? SecretId);
+
+public sealed record ScriptRunResponse(
+    Guid Id,
+    Guid ScriptId,
+    Guid ConnectionId,
+    DateTimeOffset StartedAtUtc,
+    DateTimeOffset? CompletedAtUtc,
+    string Status,
+    bool Succeeded,
+    string? Error);
+
+public sealed record ScriptEnvironmentVariableRequest(
+    string Name,
+    string? Value = null,
+    bool IsSecret = false,
+    Guid? SecretId = null);
 
 public sealed record UpdateScriptRequest(
     string? Name,
     string? Description,
     string? Body,
     string? CronExpression,
-    bool? Enabled);
+    bool? Enabled,
+    IReadOnlyList<Guid>? TargetConnectionIds = null,
+    int? RunTimeoutSeconds = null,
+    IReadOnlyList<ScriptEnvironmentVariableRequest>? EnvironmentVariables = null);
 
 public sealed record NotificationProviderResponse(Guid Id, string Name, string Type, bool Enabled);
 
@@ -546,13 +596,42 @@ public sealed record AccessLogIngestRequest(
 
 public sealed record AdGuardRewriteResponse(Guid Id, string Domain, string Answer, bool ManagedByHashi);
 
+public sealed record AdGuardRewritePlanChangeResponse(
+    string Kind,
+    string Domain,
+    string? CurrentAnswer,
+    string? DesiredAnswer,
+    string Summary);
+
+public sealed record AdGuardRewritePlanResponse(
+    Guid PlanId,
+    Guid ConnectionId,
+    bool RequiresConfirmation,
+    IReadOnlyList<AdGuardRewritePlanChangeResponse> Changes);
+
+public sealed record AdGuardRewriteMutationResponse(
+    AdGuardRewriteResponse? Rewrite,
+    AdGuardRewritePlanResponse Plan);
+
+public sealed record AdGuardRewriteApplyRequest(Guid PlanId, bool ConfirmDestructive = false);
+
+public sealed record AdGuardRewriteApplyResponse(Guid RunId, bool Succeeded, string Status, string? Message);
+
 public sealed record UpsertAdGuardRewriteRequest(string Domain, string Answer);
 
 public sealed record AdGuardConnectionResponse(Guid Id, string Name, string BaseUrl, bool Enabled);
 
 public sealed record CreateAdGuardConnectionRequest(string Name, string BaseUrl, string Password);
 
-public sealed record CreateScriptRequest(Guid ConnectionId, string Name, string Description, string Body, string CronExpression);
+public sealed record CreateScriptRequest(
+    Guid ConnectionId,
+    string Name,
+    string Description,
+    string Body,
+    string CronExpression,
+    IReadOnlyList<Guid>? TargetConnectionIds = null,
+    int RunTimeoutSeconds = 300,
+    IReadOnlyList<ScriptEnvironmentVariableRequest>? EnvironmentVariables = null);
 
 public sealed record RunScriptRequest(
     string? Host = null,
@@ -563,7 +642,13 @@ public sealed record RunScriptRequest(
     string? PrivateKeyPem = null,
     string? PrivateKeyPassphrase = null);
 
-public sealed record RunScriptResponse(bool Succeeded, string Output, string? Error);
+public sealed record RunScriptResponse(
+    bool Succeeded,
+    string Output,
+    string? Error,
+    string Status = "unknown",
+    Guid? RunId = null,
+    IReadOnlyList<ScriptRunResponse>? Runs = null);
 
 public sealed record CreatePulseAgentRequest(string Name);
 

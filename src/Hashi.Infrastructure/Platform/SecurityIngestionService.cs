@@ -12,11 +12,13 @@ public sealed class SecurityIngestionService(
     FirewallApplyService firewallApply,
     AuditService audit,
     NotificationRoutingService notificationRouting,
-    ILogger<SecurityIngestionService> logger)
+    ILogger<SecurityIngestionService> logger,
+    TimeProvider? timeProvider = null)
 {
     public async Task IngestAccessLogAsync(AccessLogIngestRequest request, CancellationToken cancellationToken = default)
     {
-        var bucketStartUtc = TruncateToMinuteUtc(DateTimeOffset.UtcNow);
+        var now = timeProvider?.GetUtcNow() ?? DateTimeOffset.UtcNow;
+        var bucketStartUtc = TruncateToMinuteUtc(now);
         var bucket = await db.AbuseBuckets.SingleOrDefaultAsync(x => x.ClientIp == request.ClientIp, cancellationToken);
         if (bucket is null)
         {
@@ -25,7 +27,7 @@ public sealed class SecurityIngestionService(
         }
 
         bucket.Score += request.StatusCode >= 400 ? 2 : 1;
-        bucket.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        bucket.UpdatedAtUtc = now;
         bucket.State = bucket.Score switch
         {
             >= 20 => "block",
@@ -76,7 +78,7 @@ public sealed class SecurityIngestionService(
         }
 
         requestBucket.TotalCount++;
-        requestBucket.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        requestBucket.UpdatedAtUtc = now;
         switch (decision)
         {
             case "blocked":

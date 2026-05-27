@@ -12,6 +12,11 @@ internal sealed class LoopbackRemoteIpStartupFilter : IStartupFilter
             app.Use(async (context, nextMiddleware) =>
             {
                 context.Connection.RemoteIpAddress ??= IPAddress.Loopback;
+                if (context.Request.Host.Port is int port)
+                {
+                    context.Connection.LocalPort = port;
+                }
+
                 await nextMiddleware();
             });
             next(app);

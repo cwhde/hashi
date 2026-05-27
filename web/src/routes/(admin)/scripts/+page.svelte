@@ -88,7 +88,8 @@
 					name: form.name,
 					description: form.description || '',
 					body: form.body,
-					cronExpression: form.cronExpression
+					cronExpression: form.cronExpression,
+					runTimeoutSeconds: 300
 				})
 			);
 			if (created) {

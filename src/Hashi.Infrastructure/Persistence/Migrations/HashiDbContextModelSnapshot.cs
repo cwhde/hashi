@@ -408,6 +408,44 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.ToTable("connections", (string)null);
                 });
 
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.ConnectionHealthEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CheckKind")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("CheckedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ConnectionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DetailsJson")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("LatencyMs")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Message")
+                        .HasColumnType("text");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConnectionId", "CheckedAtUtc");
+
+                    b.ToTable("connection_health", (string)null);
+                });
+
             modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.DnsImportDecisionEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -501,6 +539,84 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.ToTable("dns_records", (string)null);
                 });
 
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.DnsRecordOwnershipEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AppliedContentHash")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DesiredContentHash")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("DnsRecordId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("LastAppliedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("LastObservedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("OwnerWorkflow")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Ownership")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("ProviderRecordId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid?>("ResourceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SyncState")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ZoneId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DnsRecordId");
+
+                    b.HasIndex("ProviderRecordId");
+
+                    b.HasIndex("ResourceId");
+
+                    b.HasIndex("ZoneId", "Name", "Type", "Value")
+                        .IsUnique();
+
+                    b.ToTable("dns_record_ownership", (string)null);
+                });
+
             modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.DnsZoneEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -591,6 +707,148 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.ToTable("edge_sessions", (string)null);
                 });
 
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.FirewallAllowedSubjectEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("FirewallHostId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Ownership")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SubjectKind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("SubjectValue")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FirewallHostId", "SubjectKind", "SubjectValue")
+                        .IsUnique();
+
+                    b.ToTable("firewall_allowed_subjects", (string)null);
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.FirewallBlockSubjectEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("BlocklistEntryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("FirewallHostId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Ownership")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SubjectKind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("SubjectValue")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BlocklistEntryId");
+
+                    b.HasIndex("FirewallHostId", "SubjectKind", "SubjectValue")
+                        .IsUnique();
+
+                    b.ToTable("firewall_block_subjects", (string)null);
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.FirewallGeneratedScriptEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("AppliedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("AppliedContentHash")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("AppliedScript")
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DesiredContentHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("DesiredScript")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("DiffSummary")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ErrorDetails")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("FirewallHostId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ScriptPath")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid?>("SyncRunId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SyncRunId");
+
+                    b.HasIndex("FirewallHostId", "CreatedAtUtc");
+
+                    b.ToTable("firewall_generated_scripts", (string)null);
+                });
+
             modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.FirewallHostEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -673,6 +931,90 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("firewall_hosts", (string)null);
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.FirewallPortEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("Confirmed")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("ConfirmedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("FirewallHostId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Ownership")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Protocol")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
+                    b.Property<int>("PublicPort")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("ResourceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("TargetHost")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<int>("TargetPort")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ResourceId");
+
+                    b.HasIndex("FirewallHostId", "PublicPort", "Protocol")
+                        .IsUnique();
+
+                    b.ToTable("firewall_ports", (string)null);
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.FirewallSubnetEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Cidr")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("FirewallHostId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Ownership")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FirewallHostId", "Cidr", "Purpose")
+                        .IsUnique();
+
+                    b.ToTable("firewall_subnets", (string)null);
                 });
 
             modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.MonitorEndpointEntity", b =>
@@ -815,6 +1157,58 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.ToTable("monitor_samples_raw", (string)null);
                 });
 
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.NotificationDeliveryEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ErrorDetails")
+                        .HasColumnType("text");
+
+                    b.Property<string>("EventKind")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<Guid>("ProviderId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ProviderMessageId")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid?>("RouteId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("SentAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProviderId", "CreatedAtUtc");
+
+                    b.HasIndex("RouteId", "CreatedAtUtc");
+
+                    b.ToTable("notification_deliveries", (string)null);
+                });
+
             modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.NotificationProviderEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -841,6 +1235,47 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("notification_providers", (string)null);
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.NotificationRouteEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("EventKind")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("MatchJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<Guid>("ProviderId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProviderId", "EventKind");
+
+                    b.ToTable("notification_routes", (string)null);
                 });
 
             modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.OidcProviderEntity", b =>
@@ -972,6 +1407,13 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.Property<bool>("DashboardEnabled")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("DeletionPolicy")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("optional");
+
                     b.Property<string>("Domain")
                         .HasColumnType("text");
 
@@ -998,10 +1440,27 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
 
+                    b.Property<DateTimeOffset?>("LastAppliedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastAppliedHash")
+                        .HasColumnType("text");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
+
+                    b.Property<string>("Ownership")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("user_created");
+
+                    b.Property<string>("OwningWorkflow")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<string>("PathPrefix")
                         .HasColumnType("text");
@@ -1022,6 +1481,13 @@ namespace Hashi.Infrastructure.Persistence.Migrations
 
                     b.Property<bool>("StatusEnabled")
                         .HasColumnType("boolean");
+
+                    b.Property<string>("SyncState")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("desired");
 
                     b.Property<string>("TargetHost")
                         .IsRequired()
@@ -1048,6 +1514,47 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("resources", (string)null);
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.ResourcePortEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("Confirmed")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("ConfirmedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Ownership")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Protocol")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
+
+                    b.Property<int>("PublicPort")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ResourceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("TargetPort")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ResourceId");
+
+                    b.HasIndex("PublicPort", "Protocol")
+                        .IsUnique();
+
+                    b.ToTable("resource_ports", (string)null);
                 });
 
             modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.ResourceRouteEntity", b =>
@@ -1138,6 +1645,49 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.ToTable("resource_rules", (string)null);
                 });
 
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.ResourceTargetEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid?>("FirewallHostId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Host")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<int>("Port")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("PulseAgentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ResourceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Scheme")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FirewallHostId");
+
+                    b.HasIndex("ResourceId", "Priority");
+
+                    b.ToTable("resource_targets", (string)null);
+                });
+
             modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.ScriptEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1165,17 +1715,161 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("LastRunAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("LastRunError")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("LastRunId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("LastRunOutput")
                         .HasColumnType("text");
+
+                    b.Property<string>("LastRunStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("never_run");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
 
+                    b.Property<int>("RunTimeoutSeconds")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(300);
+
                     b.HasKey("Id");
 
+                    b.HasIndex("ConnectionId");
+
                     b.ToTable("scripts", (string)null);
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.ScriptEnvironmentVariableEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsSecret")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("PlainValue")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ScriptId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("SecretId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SecretId");
+
+                    b.HasIndex("ScriptId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("host_script_environment_variables", (string)null);
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.ScriptOutputEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CapturedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("RunId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Stream")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RunId");
+
+                    b.ToTable("host_script_outputs", (string)null);
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.ScriptRunEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("CompletedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ConnectionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Error")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ScriptId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("StartedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<bool>("Succeeded")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConnectionId");
+
+                    b.HasIndex("ScriptId", "StartedAtUtc");
+
+                    b.ToTable("host_script_runs", (string)null);
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.ScriptTargetEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ConnectionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("ScriptId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConnectionId");
+
+                    b.HasIndex("ScriptId", "ConnectionId")
+                        .IsUnique();
+
+                    b.ToTable("host_script_targets", (string)null);
                 });
 
             modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.SecretRecordEntity", b =>
@@ -1200,6 +1894,11 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<bool>("IsServiceSyncEligible")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("Purpose")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -1212,6 +1911,8 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("IsServiceSyncEligible");
 
                     b.HasIndex("Purpose");
 
@@ -1478,6 +2179,42 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.ToTable("sync_steps", (string)null);
                 });
 
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.SystemResourceEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OwningWorkflow")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<bool>("RequiredForAppAccess")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("ResourceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SystemKey")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ResourceId")
+                        .IsUnique();
+
+                    b.HasIndex("SystemKey")
+                        .IsUnique();
+
+                    b.ToTable("system_resources", (string)null);
+                });
+
             modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.TraefikEntryPointEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1609,6 +2346,17 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.ToTable("vault_wrapped_keys", (string)null);
                 });
 
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.ConnectionHealthEntity", b =>
+                {
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.ConnectionEntity", "Connection")
+                        .WithMany()
+                        .HasForeignKey("ConnectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Connection");
+                });
+
             modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.DnsImportDecisionEntity", b =>
                 {
                     b.HasOne("Hashi.Infrastructure.Persistence.Entities.DnsZoneEntity", "Zone")
@@ -1631,6 +2379,31 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.Navigation("Zone");
                 });
 
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.DnsRecordOwnershipEntity", b =>
+                {
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.DnsRecordEntity", "DnsRecord")
+                        .WithMany()
+                        .HasForeignKey("DnsRecordId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.ResourceEntity", "Resource")
+                        .WithMany()
+                        .HasForeignKey("ResourceId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.DnsZoneEntity", "Zone")
+                        .WithMany()
+                        .HasForeignKey("ZoneId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("DnsRecord");
+
+                    b.Navigation("Resource");
+
+                    b.Navigation("Zone");
+                });
+
             modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.DnsZoneEntity", b =>
                 {
                     b.HasOne("Hashi.Infrastructure.Persistence.Entities.ConnectionEntity", "Connection")
@@ -1640,6 +2413,214 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Connection");
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.FirewallAllowedSubjectEntity", b =>
+                {
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.FirewallHostEntity", "FirewallHost")
+                        .WithMany()
+                        .HasForeignKey("FirewallHostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FirewallHost");
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.FirewallBlockSubjectEntity", b =>
+                {
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.BlocklistEntryEntity", "BlocklistEntry")
+                        .WithMany()
+                        .HasForeignKey("BlocklistEntryId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.FirewallHostEntity", "FirewallHost")
+                        .WithMany()
+                        .HasForeignKey("FirewallHostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BlocklistEntry");
+
+                    b.Navigation("FirewallHost");
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.FirewallGeneratedScriptEntity", b =>
+                {
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.FirewallHostEntity", "FirewallHost")
+                        .WithMany()
+                        .HasForeignKey("FirewallHostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.SyncRunEntity", "SyncRun")
+                        .WithMany()
+                        .HasForeignKey("SyncRunId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("FirewallHost");
+
+                    b.Navigation("SyncRun");
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.FirewallPortEntity", b =>
+                {
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.FirewallHostEntity", "FirewallHost")
+                        .WithMany()
+                        .HasForeignKey("FirewallHostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.ResourceEntity", "Resource")
+                        .WithMany()
+                        .HasForeignKey("ResourceId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("FirewallHost");
+
+                    b.Navigation("Resource");
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.FirewallSubnetEntity", b =>
+                {
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.FirewallHostEntity", "FirewallHost")
+                        .WithMany()
+                        .HasForeignKey("FirewallHostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FirewallHost");
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.NotificationDeliveryEntity", b =>
+                {
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.NotificationProviderEntity", "Provider")
+                        .WithMany()
+                        .HasForeignKey("ProviderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.NotificationRouteEntity", "Route")
+                        .WithMany()
+                        .HasForeignKey("RouteId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Provider");
+
+                    b.Navigation("Route");
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.NotificationRouteEntity", b =>
+                {
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.NotificationProviderEntity", "Provider")
+                        .WithMany()
+                        .HasForeignKey("ProviderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Provider");
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.ResourcePortEntity", b =>
+                {
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.ResourceEntity", "Resource")
+                        .WithMany()
+                        .HasForeignKey("ResourceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Resource");
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.ResourceTargetEntity", b =>
+                {
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.FirewallHostEntity", "FirewallHost")
+                        .WithMany()
+                        .HasForeignKey("FirewallHostId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.ResourceEntity", "Resource")
+                        .WithMany()
+                        .HasForeignKey("ResourceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FirewallHost");
+
+                    b.Navigation("Resource");
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.ScriptEntity", b =>
+                {
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.ConnectionEntity", null)
+                        .WithMany()
+                        .HasForeignKey("ConnectionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.ScriptEnvironmentVariableEntity", b =>
+                {
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.ScriptEntity", "Script")
+                        .WithMany()
+                        .HasForeignKey("ScriptId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.SecretRecordEntity", null)
+                        .WithMany()
+                        .HasForeignKey("SecretId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Script");
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.ScriptOutputEntity", b =>
+                {
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.ScriptRunEntity", "Run")
+                        .WithMany()
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Run");
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.ScriptRunEntity", b =>
+                {
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.ConnectionEntity", "Connection")
+                        .WithMany()
+                        .HasForeignKey("ConnectionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.ScriptEntity", "Script")
+                        .WithMany()
+                        .HasForeignKey("ScriptId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Connection");
+
+                    b.Navigation("Script");
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.ScriptTargetEntity", b =>
+                {
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.ConnectionEntity", "Connection")
+                        .WithMany()
+                        .HasForeignKey("ConnectionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.ScriptEntity", "Script")
+                        .WithMany()
+                        .HasForeignKey("ScriptId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Connection");
+
+                    b.Navigation("Script");
                 });
 
             modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.SyncDiffEntity", b =>
@@ -1662,6 +2643,17 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("SyncRun");
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.SystemResourceEntity", b =>
+                {
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.ResourceEntity", "Resource")
+                        .WithMany()
+                        .HasForeignKey("ResourceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Resource");
                 });
 
             modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.VaultWrappedKeyEntity", b =>

@@ -80,6 +80,125 @@ public sealed class FirewallHostEntity
     public DateTimeOffset? LastAppliedAtUtc { get; set; }
 }
 
+public sealed class FirewallSubnetEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid FirewallHostId { get; set; }
+
+    public FirewallHostEntity FirewallHost { get; set; } = null!;
+
+    public string Cidr { get; set; } = string.Empty;
+
+    public string Purpose { get; set; } = FirewallSubnetPurposeNames.Managed;
+
+    public string Ownership { get; set; } = FirewallRuleOwnershipNames.Managed;
+
+    public bool Enabled { get; set; } = true;
+}
+
+public sealed class FirewallPortEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid FirewallHostId { get; set; }
+
+    public FirewallHostEntity FirewallHost { get; set; } = null!;
+
+    public Guid? ResourceId { get; set; }
+
+    public ResourceEntity? Resource { get; set; }
+
+    public int PublicPort { get; set; }
+
+    public int TargetPort { get; set; }
+
+    public string Protocol { get; set; } = "tcp";
+
+    public string TargetHost { get; set; } = string.Empty;
+
+    public string Ownership { get; set; } = FirewallRuleOwnershipNames.Managed;
+
+    public bool Confirmed { get; set; }
+
+    public DateTimeOffset? ConfirmedAtUtc { get; set; }
+}
+
+public sealed class FirewallAllowedSubjectEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid FirewallHostId { get; set; }
+
+    public FirewallHostEntity FirewallHost { get; set; } = null!;
+
+    public string SubjectKind { get; set; } = FirewallSubjectKindNames.Ip;
+
+    public string SubjectValue { get; set; } = string.Empty;
+
+    public string Reason { get; set; } = string.Empty;
+
+    public string Ownership { get; set; } = FirewallRuleOwnershipNames.Managed;
+
+    public bool Enabled { get; set; } = true;
+}
+
+public sealed class FirewallBlockSubjectEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid FirewallHostId { get; set; }
+
+    public FirewallHostEntity FirewallHost { get; set; } = null!;
+
+    public Guid? BlocklistEntryId { get; set; }
+
+    public BlocklistEntryEntity? BlocklistEntry { get; set; }
+
+    public string SubjectKind { get; set; } = FirewallSubjectKindNames.Ip;
+
+    public string SubjectValue { get; set; } = string.Empty;
+
+    public string Reason { get; set; } = string.Empty;
+
+    public string Ownership { get; set; } = FirewallRuleOwnershipNames.Managed;
+
+    public bool Enabled { get; set; } = true;
+}
+
+public sealed class FirewallGeneratedScriptEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid FirewallHostId { get; set; }
+
+    public FirewallHostEntity FirewallHost { get; set; } = null!;
+
+    public Guid? SyncRunId { get; set; }
+
+    public SyncRunEntity? SyncRun { get; set; }
+
+    public string ScriptPath { get; set; } = "/opt/hashi/firewall/hashi-firewall.sh";
+
+    public string DesiredContentHash { get; set; } = string.Empty;
+
+    public string? AppliedContentHash { get; set; }
+
+    public string DesiredScript { get; set; } = string.Empty;
+
+    public string? AppliedScript { get; set; }
+
+    public string Status { get; set; } = FirewallGeneratedScriptStatusNames.Desired;
+
+    public string? DiffSummary { get; set; }
+
+    public string? ErrorDetails { get; set; }
+
+    public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+
+    public DateTimeOffset? AppliedAtUtc { get; set; }
+}
+
 public sealed class ResourceRouteEntity
 {
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -390,6 +509,56 @@ public sealed class NotificationProviderEntity
     public bool Enabled { get; set; } = true;
 }
 
+public sealed class NotificationRouteEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid ProviderId { get; set; }
+
+    public NotificationProviderEntity Provider { get; set; } = null!;
+
+    public string Name { get; set; } = string.Empty;
+
+    public string EventKind { get; set; } = "all";
+
+    public string Severity { get; set; } = "info";
+
+    public string MatchJson { get; set; } = "{}";
+
+    public bool Enabled { get; set; } = true;
+
+    public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public sealed class NotificationDeliveryEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid? RouteId { get; set; }
+
+    public NotificationRouteEntity? Route { get; set; }
+
+    public Guid ProviderId { get; set; }
+
+    public NotificationProviderEntity Provider { get; set; } = null!;
+
+    public string EventKind { get; set; } = string.Empty;
+
+    public string Subject { get; set; } = string.Empty;
+
+    public string Status { get; set; } = NotificationDeliveryStatusNames.Pending;
+
+    public int AttemptCount { get; set; }
+
+    public string? ErrorDetails { get; set; }
+
+    public string? ProviderMessageId { get; set; }
+
+    public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+
+    public DateTimeOffset? SentAtUtc { get; set; }
+}
+
 public sealed class ScriptEntity
 {
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -406,7 +575,138 @@ public sealed class ScriptEntity
 
     public bool Enabled { get; set; } = true;
 
+    public int RunTimeoutSeconds { get; set; } = 300;
+
     public DateTimeOffset? LastRunAtUtc { get; set; }
 
     public string? LastRunOutput { get; set; }
+
+    public string? LastRunError { get; set; }
+
+    public string LastRunStatus { get; set; } = ScriptRunStatusNames.NeverRun;
+
+    public Guid? LastRunId { get; set; }
+}
+
+public sealed class ScriptTargetEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid ScriptId { get; set; }
+
+    public ScriptEntity Script { get; set; } = null!;
+
+    public Guid ConnectionId { get; set; }
+
+    public ConnectionEntity Connection { get; set; } = null!;
+
+    public bool Enabled { get; set; } = true;
+}
+
+public sealed class ScriptEnvironmentVariableEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid ScriptId { get; set; }
+
+    public ScriptEntity Script { get; set; } = null!;
+
+    public string Name { get; set; } = string.Empty;
+
+    public bool IsSecret { get; set; }
+
+    public string? PlainValue { get; set; }
+
+    public Guid? SecretId { get; set; }
+}
+
+public sealed class ScriptRunEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid ScriptId { get; set; }
+
+    public ScriptEntity Script { get; set; } = null!;
+
+    public Guid ConnectionId { get; set; }
+
+    public ConnectionEntity Connection { get; set; } = null!;
+
+    public DateTimeOffset StartedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+
+    public DateTimeOffset? CompletedAtUtc { get; set; }
+
+    public string Status { get; set; } = ScriptRunStatusNames.Running;
+
+    public bool Succeeded { get; set; }
+
+    public string? Error { get; set; }
+}
+
+public sealed class ScriptOutputEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid RunId { get; set; }
+
+    public ScriptRunEntity Run { get; set; } = null!;
+
+    public string Stream { get; set; } = ScriptOutputStreamNames.Stdout;
+
+    public string Content { get; set; } = string.Empty;
+
+    public DateTimeOffset CapturedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public static class ScriptRunStatusNames
+{
+    public const string NeverRun = "never_run";
+    public const string Running = "running";
+    public const string Succeeded = "succeeded";
+    public const string Failed = "failed";
+}
+
+public static class ScriptOutputStreamNames
+{
+    public const string Stdout = "stdout";
+    public const string Stderr = "stderr";
+}
+
+public static class FirewallSubnetPurposeNames
+{
+    public const string Managed = "managed";
+    public const string NetBirdOverlay = "netbird_overlay";
+    public const string NetBirdRouted = "netbird_routed";
+}
+
+public static class FirewallRuleOwnershipNames
+{
+    public const string System = "system";
+    public const string Managed = "managed";
+    public const string Imported = "imported";
+    public const string UserCreated = "user_created";
+}
+
+public static class FirewallSubjectKindNames
+{
+    public const string Ip = "ip";
+    public const string Cidr = "cidr";
+    public const string Hostname = "hostname";
+    public const string Country = "country";
+    public const string Asn = "asn";
+}
+
+public static class FirewallGeneratedScriptStatusNames
+{
+    public const string Desired = "desired";
+    public const string Applied = "applied";
+    public const string Drifted = "drifted";
+    public const string Failed = "failed";
+}
+
+public static class NotificationDeliveryStatusNames
+{
+    public const string Pending = "pending";
+    public const string Sent = "sent";
+    public const string Failed = "failed";
 }

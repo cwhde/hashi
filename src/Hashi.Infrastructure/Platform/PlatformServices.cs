@@ -64,9 +64,9 @@ public sealed class ResourceService(
             return null;
         }
 
-        if (entity.IsSystem && request.Enabled == false)
+        if (entity.IsSystem)
         {
-            throw new InvalidOperationException("System resources cannot be disabled.");
+            throw new InvalidOperationException("System resources cannot be updated through the resource API.");
         }
 
         if (request.Name is not null)

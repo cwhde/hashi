@@ -78,7 +78,12 @@ public sealed class PassiveSyncSafetyTests
             TestPlatformHelpers.CreateTraefikPlatform(db, vault),
             TestPlatformHelpers.CreateTraefikSync(db, new FakeSshRemoteExecutor(), vault),
             TestPlatformHelpers.CreateFirewallApply(db, new FakeSshRemoteExecutor(), vault),
-            new AdGuardSyncService(db, new ServiceCollection().AddHttpClient().BuildServiceProvider().GetRequiredService<IHttpClientFactory>(), secrets),
+            new AdGuardSyncService(
+                db,
+                new ServiceCollection().AddHttpClient().BuildServiceProvider().GetRequiredService<IHttpClientFactory>(),
+                secrets,
+                new AuditService(db),
+                syncRuns),
             syncRuns,
             settings,
             new AuditService(db));

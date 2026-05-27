@@ -153,13 +153,14 @@ public static class AuthEndpoints
                 : Convert.FromBase64String(request.PrfOutputBase64);
 
             var result = await passkeys.CompleteLoginAsync(assertion, options, prfOutput, ct);
+            var sessionId = Guid.NewGuid().ToString("N");
             var vaultUnlocked = false;
             if (result.PrfOutput is { Length: >= 32 })
             {
-                vaultUnlocked = await vault.UnlockWithPrfAsync(result.CredentialId, result.PrfOutput, ct);
+                vaultUnlocked = await vault.UnlockWithPrfAsync(result.CredentialId, result.PrfOutput, sessionId, ct);
             }
 
-            await SignInAsync(httpContext, AdminAuthMethods.Passkey, vaultUnlocked);
+            await SignInAsync(httpContext, AdminAuthMethods.Passkey, vaultUnlocked, sessionId);
             return TypedResults.Ok(new PasskeyLoginCompleteResponse(true, vaultUnlocked));
         });
 
@@ -235,10 +236,13 @@ public static class AuthEndpoints
     private static bool IsAuthenticatedDuringSetup(HttpContext httpContext)
         => httpContext.User.Identity?.IsAuthenticated == true;
 
-    internal static async Task SignInAsync(HttpContext httpContext, string authMethod, bool vaultUnlocked)
+    internal static async Task SignInAsync(HttpContext httpContext, string authMethod, bool vaultUnlocked, string? sessionId = null)
     {
+        sessionId ??= Guid.NewGuid().ToString("N");
         var claims = new List<Claim>
         {
+            new(ClaimTypes.NameIdentifier, sessionId),
+            new(ClaimTypes.Sid, sessionId),
             new(ClaimTypes.Name, "admin"),
             new(AdminClaimTypes.AuthMethod, authMethod),
         };

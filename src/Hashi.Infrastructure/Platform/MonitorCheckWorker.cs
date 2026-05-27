@@ -148,89 +148,89 @@ public sealed class MonitorCheckWorker(
                 case "http":
                 case "https":
                 case "h2c":
-                {
-                    using var response = await client.GetAsync(endpoint.Url, cancellationToken);
-                    return response.IsSuccessStatusCode ? "up" : "down";
-                }
+                    {
+                        using var response = await client.GetAsync(endpoint.Url, cancellationToken);
+                        return response.IsSuccessStatusCode ? "up" : "down";
+                    }
                 case "tcp":
-                {
-                    if (!TryResolveHostPort(endpoint.Url, 80, out var host, out var port))
                     {
-                        return "down";
-                    }
+                        if (!TryResolveHostPort(endpoint.Url, 80, out var host, out var port))
+                        {
+                            return "down";
+                        }
 
-                    return await _networkProbe.CheckTcpAsync(host, port, timeout, cancellationToken) ? "up" : "down";
-                }
+                        return await _networkProbe.CheckTcpAsync(host, port, timeout, cancellationToken) ? "up" : "down";
+                    }
                 case "udp":
-                {
-                    if (!TryResolveHostPort(endpoint.Url, 53, out var host, out var port))
                     {
-                        return "down";
-                    }
+                        if (!TryResolveHostPort(endpoint.Url, 53, out var host, out var port))
+                        {
+                            return "down";
+                        }
 
-                    // UDP is connectionless; successful datagram send is a minimal liveness check.
-                    return await _networkProbe.ProbeUdpAsync(host, port, timeout, cancellationToken) ? "up" : "down";
-                }
+                        // UDP is connectionless; successful datagram send is a minimal liveness check.
+                        return await _networkProbe.ProbeUdpAsync(host, port, timeout, cancellationToken) ? "up" : "down";
+                    }
                 case "dns":
-                {
-                    var host = ResolveHost(endpoint.Url);
-                    if (string.IsNullOrWhiteSpace(host))
                     {
-                        return "down";
-                    }
+                        var host = ResolveHost(endpoint.Url);
+                        if (string.IsNullOrWhiteSpace(host))
+                        {
+                            return "down";
+                        }
 
-                    return await _networkProbe.ResolveDnsAsync(host, timeout, cancellationToken) ? "up" : "down";
-                }
+                        return await _networkProbe.ResolveDnsAsync(host, timeout, cancellationToken) ? "up" : "down";
+                    }
                 case "icmp":
-                {
-                    var host = ResolveHost(endpoint.Url);
-                    if (string.IsNullOrWhiteSpace(host))
                     {
-                        return "down";
-                    }
+                        var host = ResolveHost(endpoint.Url);
+                        if (string.IsNullOrWhiteSpace(host))
+                        {
+                            return "down";
+                        }
 
-                    return await _networkProbe.PingAsync(host, timeout, cancellationToken) ? "up" : "down";
-                }
+                        return await _networkProbe.PingAsync(host, timeout, cancellationToken) ? "up" : "down";
+                    }
                 case "tls":
-                {
-                    if (!TryResolveHostPort(endpoint.Url, 443, out var host, out var port))
                     {
-                        return "down";
-                    }
+                        if (!TryResolveHostPort(endpoint.Url, 443, out var host, out var port))
+                        {
+                            return "down";
+                        }
 
-                    var tlsResult = await _networkProbe.CheckTlsAsync(host, port, timeout, cancellationToken);
-                    if (!tlsResult.HandshakeSucceeded || tlsResult.NotAfterUtc is null)
-                    {
-                        return "down";
-                    }
+                        var tlsResult = await _networkProbe.CheckTlsAsync(host, port, timeout, cancellationToken);
+                        if (!tlsResult.HandshakeSucceeded || tlsResult.NotAfterUtc is null)
+                        {
+                            return "down";
+                        }
 
-                    var remaining = tlsResult.NotAfterUtc.Value - DateTimeOffset.UtcNow;
-                    if (remaining <= TimeSpan.Zero)
-                    {
-                        return "down";
-                    }
+                        var remaining = tlsResult.NotAfterUtc.Value - DateTimeOffset.UtcNow;
+                        if (remaining <= TimeSpan.Zero)
+                        {
+                            return "down";
+                        }
 
-                    return remaining <= TlsDegradedThreshold ? "degraded" : "up";
-                }
+                        return remaining <= TlsDegradedThreshold ? "degraded" : "up";
+                    }
                 case "pulse":
                 case "push":
-                {
-                    if (endpoint.ResourceId is not Guid resourceId
-                        || !pulseAgentByResourceId.TryGetValue(resourceId, out var pulseAgentId)
-                        || !pulseLastSeenById.TryGetValue(pulseAgentId, out var lastSeenAtUtc)
-                        || lastSeenAtUtc is null)
                     {
-                        return "down";
-                    }
+                        if (endpoint.ResourceId is not Guid resourceId
+                            || !pulseAgentByResourceId.TryGetValue(resourceId, out var pulseAgentId)
+                            || !pulseLastSeenById.TryGetValue(pulseAgentId, out var lastSeenAtUtc)
+                            || lastSeenAtUtc is null)
+                        {
+                            return "down";
+                        }
 
-                    var age = DateTimeOffset.UtcNow - lastSeenAtUtc.Value;
-                    if (age > PulseDownThreshold)
-                    {
-                        return "down";
-                    }
+                        var age = DateTimeOffset.UtcNow - lastSeenAtUtc.Value;
+                        if (age > PulseDownThreshold)
+                        {
+                            return "down";
+                        }
 
-                    return age > PulseDegradedThreshold ? "degraded" : "up";
-                }
+                        return age > PulseDegradedThreshold ? "degraded" : "up";
+                    }
                 default:
                     return "down";
             }

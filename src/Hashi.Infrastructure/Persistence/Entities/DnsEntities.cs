@@ -27,6 +27,27 @@ public sealed class ConnectionEntity
     public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }
 
+public sealed class ConnectionHealthEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid ConnectionId { get; set; }
+
+    public ConnectionEntity Connection { get; set; } = null!;
+
+    public string State { get; set; } = ConnectionHealthStateNames.Unknown;
+
+    public string CheckKind { get; set; } = "validation";
+
+    public int? LatencyMs { get; set; }
+
+    public string? Message { get; set; }
+
+    public string? DetailsJson { get; set; }
+
+    public DateTimeOffset CheckedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+}
+
 public sealed class DnsZoneEntity
 {
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -69,6 +90,47 @@ public sealed class DnsRecordEntity
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 
     public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public sealed class DnsRecordOwnershipEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid ZoneId { get; set; }
+
+    public DnsZoneEntity Zone { get; set; } = null!;
+
+    public Guid? DnsRecordId { get; set; }
+
+    public DnsRecordEntity? DnsRecord { get; set; }
+
+    public Guid? ResourceId { get; set; }
+
+    public ResourceEntity? Resource { get; set; }
+
+    public string ProviderRecordId { get; set; } = string.Empty;
+
+    public string Name { get; set; } = string.Empty;
+
+    public string Type { get; set; } = string.Empty;
+
+    public string Value { get; set; } = string.Empty;
+
+    public string Ownership { get; set; } = DnsOwnershipNames.Unknown;
+
+    public string OwnerWorkflow { get; set; } = "unknown";
+
+    public string SyncState { get; set; } = DnsOwnershipSyncStateNames.Desired;
+
+    public string? DesiredContentHash { get; set; }
+
+    public string? AppliedContentHash { get; set; }
+
+    public DateTimeOffset? LastObservedAtUtc { get; set; }
+
+    public DateTimeOffset? LastAppliedAtUtc { get; set; }
+
+    public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }
 
 public sealed class DnsImportDecisionEntity
@@ -122,6 +184,14 @@ public static class DnsOwnershipNames
     public const string Managed = "managed";
     public const string System = "system";
     public const string User = "user";
+}
+
+public static class DnsOwnershipSyncStateNames
+{
+    public const string Desired = "desired";
+    public const string Applied = "applied";
+    public const string Drifted = "drifted";
+    public const string Orphaned = "orphaned";
 }
 
 public static class DnsProviderTypeNames

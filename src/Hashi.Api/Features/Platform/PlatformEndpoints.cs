@@ -213,6 +213,12 @@ public static class FirewallEndpoints
             return host is null ? TypedResults.NotFound() : TypedResults.Ok(FirewallApplyService.ToResponse(host));
         })
             .Produces<FirewallHostResponse>(StatusCodes.Status200OK);
+        group.MapPost("/hosts/{firewallHostId:guid}/plan", async (
+            Guid firewallHostId,
+            FirewallApplyService firewall,
+            CancellationToken ct) =>
+            TypedResults.Ok(await firewall.PlanForHostAsync(firewallHostId, ct)))
+            .Produces<FirewallPlanPreviewResponse>(StatusCodes.Status200OK);
         group.MapPost("/apply", async Task<IResult> (FirewallApplyRequest request, FirewallApplyService firewall, CancellationToken ct) =>
         {
             var result = await firewall.ApplyAsync(request, ct);
@@ -388,9 +394,16 @@ public static class EdgeAuthEndpoints
                 return TypedResults.BadRequest(new ApiErrorResponse("Missing authorization code."));
             }
 
-            var result = await oidc.CompleteCallbackAsync(ctx, providerId, code, state, ct);
-            ctx.Response.Cookies.Append("hashi.edge.session", result.SessionKey, result.SessionCookie);
-            return TypedResults.Redirect(result.ReturnUrl);
+            try
+            {
+                var result = await oidc.CompleteCallbackAsync(ctx, providerId, code, state, ct);
+                ctx.Response.Cookies.Append("hashi.edge.session", result.SessionKey, result.SessionCookie);
+                return TypedResults.Redirect(result.ReturnUrl);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
+            }
         }).WithTags("EdgeAuth").AllowAnonymous();
 
         app.MapPost("/api/edge-auth/logout", async Task<IResult> (
@@ -447,15 +460,31 @@ public static class EdgeSsoAdminEndpoints
             CreateEdgeAuthRuleRequest request,
             OidcProviderAdminService admin,
             CancellationToken ct) =>
-            TypedResults.Ok(await admin.CreateRuleAsync(request, ct)));
+        {
+            try
+            {
+                return TypedResults.Ok(await admin.CreateRuleAsync(request, ct));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        });
         group.MapPut("/rules/{ruleId:guid}", async Task<IResult> (
             Guid ruleId,
             UpdateEdgeAuthRuleRequest request,
             OidcProviderAdminService admin,
             CancellationToken ct) =>
         {
-            var updated = await admin.UpdateRuleAsync(ruleId, request, ct);
-            return updated is null ? TypedResults.NotFound() : TypedResults.Ok(updated);
+            try
+            {
+                var updated = await admin.UpdateRuleAsync(ruleId, request, ct);
+                return updated is null ? TypedResults.NotFound() : TypedResults.Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
+            }
         });
         group.MapDelete("/rules/{ruleId:guid}", async Task<IResult> (
             Guid ruleId,
@@ -528,10 +557,15 @@ public static class PulseEndpoints
             return rotated is null ? TypedResults.NotFound() : TypedResults.Ok(rotated);
         })
             .Produces<RotatePulseAgentTokenResponse>(StatusCodes.Status200OK);
-        group.MapGet("/agents/{agentId:guid}/install", (HttpContext ctx, Guid agentId, string? token) =>
+        group.MapGet("/agents/{agentId:guid}/install", (HttpContext ctx, Guid agentId) =>
         {
+            if (ctx.Request.Query.ContainsKey("token"))
+            {
+                return Results.BadRequest(new ApiErrorResponse("Pulse tokens must not be sent in URLs."));
+            }
+
             var apiBase = $"{ctx.Request.Scheme}://{ctx.Request.Host}";
-            return TypedResults.Ok(PulseInstallRenderer.Render(apiBase, agentId, token));
+            return TypedResults.Ok(PulseInstallRenderer.Render(apiBase, agentId));
         })
             .Produces<PulseInstallResponse>(StatusCodes.Status200OK);
         group.MapGet("/install/linux.sh", () =>
@@ -608,9 +642,7 @@ public static class ScriptEndpoints
             ScriptExecutionService scripts,
             CancellationToken ct) =>
         {
-            var result = string.IsNullOrWhiteSpace(request.Host)
-                ? await scripts.RunWithConnectionAsync(scriptId, ct)
-                : await scripts.RunAsync(scriptId, request, ct);
+            var result = await scripts.RunAsync(scriptId, request, ct);
             return TypedResults.Ok(result);
         })
             .Produces<RunScriptResponse>(StatusCodes.Status200OK);
@@ -712,7 +744,7 @@ public static class AdGuardEndpoints
                 return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
             }
         })
-            .Produces<AdGuardRewriteResponse>(StatusCodes.Status200OK);
+            .Produces<AdGuardRewriteMutationResponse>(StatusCodes.Status200OK);
         group.MapDelete("/{connectionId:guid}/rewrites/{rewriteId:guid}", async Task<IResult> (
             Guid connectionId,
             Guid rewriteId,
@@ -721,22 +753,58 @@ public static class AdGuardEndpoints
         {
             try
             {
-                var deleted = await adguard.DeleteRewriteAsync(connectionId, rewriteId, ct);
-                return deleted ? TypedResults.NoContent() : TypedResults.NotFound();
+                var plan = await adguard.DeleteRewriteAsync(connectionId, rewriteId, ct);
+                return plan is null ? TypedResults.NotFound() : TypedResults.Ok(plan);
             }
             catch (InvalidOperationException ex)
             {
                 return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
             }
-        });
-        group.MapPost("/{connectionId:guid}/sync", async Task<IResult> (
+        })
+            .Produces<AdGuardRewriteMutationResponse>(StatusCodes.Status200OK);
+        group.MapPost("/{connectionId:guid}/rewrites/{rewriteId:guid}/delete/apply", async Task<IResult> (
             Guid connectionId,
+            Guid rewriteId,
+            AdGuardRewriteApplyRequest request,
             AdGuardSyncService adguard,
             CancellationToken ct) =>
         {
-            await adguard.SyncManagedRewritesAsync(connectionId, ct);
-            return TypedResults.Ok(new { synced = true });
-        });
+            try
+            {
+                return TypedResults.Ok(await adguard.ApplyPlanAsync(connectionId, request, rewriteId, ct));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        })
+            .Produces<AdGuardRewriteApplyResponse>(StatusCodes.Status200OK);
+        group.MapPost("/{connectionId:guid}/sync/plan", async Task<IResult> (
+            Guid connectionId,
+            AdGuardSyncService adguard,
+            CancellationToken ct) => TypedResults.Ok(await adguard.PlanSyncAsync(connectionId, updateTopologyDesiredState: true, cancellationToken: ct)))
+            .Produces<AdGuardRewritePlanResponse>(StatusCodes.Status200OK);
+        group.MapPost("/{connectionId:guid}/sync/apply", async Task<IResult> (
+            Guid connectionId,
+            AdGuardRewriteApplyRequest request,
+            AdGuardSyncService adguard,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                return TypedResults.Ok(await adguard.ApplyPlanAsync(connectionId, request, cancellationToken: ct));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        })
+            .Produces<AdGuardRewriteApplyResponse>(StatusCodes.Status200OK);
+        group.MapPost("/{connectionId:guid}/sync", async Task<IResult> (
+            Guid connectionId,
+            AdGuardSyncService adguard,
+            CancellationToken ct) => TypedResults.Ok(await adguard.SyncManagedRewritesAsync(connectionId, ct)))
+            .Produces<AdGuardRewriteApplyResponse>(StatusCodes.Status200OK);
         return app;
     }
 }

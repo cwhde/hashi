@@ -2,6 +2,7 @@ using Hashi.Infrastructure.Auth;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Platform;
 using Hashi.Infrastructure.Services;
+using Hashi.Infrastructure.Sync;
 using Hashi.UnitTests.Fakes;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -40,7 +41,8 @@ public static class TestPlatformHelpers
             ssh,
             secrets,
             new AuditService(db),
-            new FirewallTrustedIpResolver(NullLogger<FirewallTrustedIpResolver>.Instance));
+            new FirewallTrustedIpResolver(NullLogger<FirewallTrustedIpResolver>.Instance),
+            new SyncRunService(db));
     }
 
     public static ResourceService CreateResourceService(HashiDbContext db)

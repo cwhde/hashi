@@ -30,10 +30,21 @@ public sealed class EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp,
         var resource = await db.Resources.AsNoTracking()
             .Where(x => x.Enabled && x.Domain != null && x.Domain.ToLower() == normalizedHost)
             .FirstOrDefaultAsync(cancellationToken);
+        var hasOidcProvider = await db.OidcProviders.AsNoTracking().AnyAsync(x => x.Enabled, cancellationToken);
+        var hasValidSession = await oidc.ValidateSessionAsync(edgeSessionKey, cancellationToken);
 
         if (resource is not null)
         {
-            var resourceRuleResult = await EvaluateResourceRulesAsync(resource, path, clientIp, countryCode, regionCode, asn, cancellationToken);
+            var resourceRuleResult = await EvaluateResourceRulesAsync(
+                resource,
+                path,
+                clientIp,
+                countryCode,
+                regionCode,
+                asn,
+                hasValidSession,
+                hasOidcProvider,
+                cancellationToken);
             if (resourceRuleResult is not null)
             {
                 return resourceRuleResult;
@@ -79,15 +90,14 @@ public sealed class EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp,
             return new EdgeAuthForwardResponse("allow", null);
         }
 
-        if (await oidc.ValidateSessionAsync(edgeSessionKey, cancellationToken))
+        if (hasValidSession)
         {
             return new EdgeAuthForwardResponse("allow", null);
         }
 
-        var providers = await db.OidcProviders.AsNoTracking().AnyAsync(x => x.Enabled, cancellationToken);
-        if (!providers)
+        if (!hasOidcProvider && policy == ForwardAuthPolicy.SsoRequired)
         {
-            return new EdgeAuthForwardResponse("allow", null);
+            return new EdgeAuthForwardResponse("deny", null);
         }
 
         if (policy == ForwardAuthPolicy.SsoRequired)
@@ -104,6 +114,11 @@ public sealed class EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp,
 
         if (bucket?.State is "challenge")
         {
+            if (!hasOidcProvider)
+            {
+                return new EdgeAuthForwardResponse("deny", null);
+            }
+
             if (bucket.Score >= 15)
             {
                 return new EdgeAuthForwardResponse("rate_limited", BuildLoginUrl(host, path));
@@ -122,6 +137,8 @@ public sealed class EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp,
         string? countryCode,
         string? regionCode,
         string? asn,
+        bool hasValidSession,
+        bool hasOidcProvider,
         CancellationToken cancellationToken)
     {
         var rules = await db.ResourceRules.AsNoTracking()
@@ -140,13 +157,29 @@ public sealed class EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp,
             {
                 "bypass_auth" => new EdgeAuthForwardResponse("allow", null),
                 "block_access" => new EdgeAuthForwardResponse("deny", null),
-                "require_adaptive_challenge" => new EdgeAuthForwardResponse("challenge", BuildLoginUrl(resource.Domain ?? hostFallback(resource), path)),
-                "pass_to_auth" => new EdgeAuthForwardResponse("challenge", BuildLoginUrl(resource.Domain ?? hostFallback(resource), path)),
+                "require_adaptive_challenge" => AuthRuleDecision(resource, path, hasValidSession, hasOidcProvider),
+                "pass_to_auth" => AuthRuleDecision(resource, path, hasValidSession, hasOidcProvider),
                 _ => null,
             };
         }
 
         return null;
+    }
+
+    private static EdgeAuthForwardResponse AuthRuleDecision(
+        Persistence.Entities.ResourceEntity resource,
+        string path,
+        bool hasValidSession,
+        bool hasOidcProvider)
+    {
+        if (hasValidSession)
+        {
+            return new EdgeAuthForwardResponse("allow", null);
+        }
+
+        return hasOidcProvider
+            ? new EdgeAuthForwardResponse("challenge", BuildLoginUrl(resource.Domain ?? hostFallback(resource), path))
+            : new EdgeAuthForwardResponse("deny", null);
     }
 
     private static string hostFallback(Persistence.Entities.ResourceEntity resource) => resource.Domain ?? "localhost";

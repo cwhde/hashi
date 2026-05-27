@@ -67,26 +67,28 @@ public sealed class OidcEdgeAuthService(
         var provider = await GetProviderAsync(providerId, cancellationToken)
             ?? throw new InvalidOperationException("OIDC provider not found.");
 
-        var returnUrl = "/";
-        if (!string.IsNullOrWhiteSpace(state))
+        if (string.IsNullOrWhiteSpace(state))
         {
-            PendingOidcLogin? pending;
-            lock (PendingLogins)
-            {
-                PendingLogins.Remove(state, out pending);
-            }
-
-            if (pending is not null)
-            {
-                if (pending.ProviderId != providerId || pending.ExpiresAtUtc < DateTimeOffset.UtcNow)
-                {
-                    throw new InvalidOperationException("OIDC login state expired.");
-                }
-
-                returnUrl = pending.ReturnUrl;
-            }
+            throw new InvalidOperationException("OIDC login state is required.");
         }
 
+        PendingOidcLogin? pending;
+        lock (PendingLogins)
+        {
+            PendingLogins.Remove(state, out pending);
+        }
+
+        if (pending is null)
+        {
+            throw new InvalidOperationException("OIDC login state is unknown or expired.");
+        }
+
+        if (pending.ProviderId != providerId || pending.ExpiresAtUtc < DateTimeOffset.UtcNow)
+        {
+            throw new InvalidOperationException("OIDC login state expired.");
+        }
+
+        var returnUrl = pending.ReturnUrl;
         var subject = await ExchangeCodeForSubjectAsync(context, provider, code, cancellationToken);
         var sessionKey = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes($"{provider.Id}:{subject}:{code}"))).ToLowerInvariant();
         var appSettings = await settings.GetOrCreateAsync(cancellationToken);

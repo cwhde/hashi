@@ -1,17 +1,26 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Hashi.Contracts.Api;
 using Hashi.Core.Auth;
+using Hashi.Core.Sync;
 using Hashi.Infrastructure.Auth;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
+using Hashi.Infrastructure.Services;
+using Hashi.Infrastructure.Sync;
 using Microsoft.EntityFrameworkCore;
 
 namespace Hashi.Infrastructure.Platform;
 
-public sealed class AdGuardSyncService(HashiDbContext db, IHttpClientFactory httpClientFactory, SecretRecordService secrets)
+public sealed class AdGuardSyncService(
+    HashiDbContext db,
+    IHttpClientFactory httpClientFactory,
+    SecretRecordService secrets,
+    AuditService audit,
+    SyncRunService syncRuns)
 {
     public async Task<IReadOnlyList<AdGuardConnectionResponse>> ListConnectionsAsync(CancellationToken cancellationToken = default)
     {
@@ -29,7 +38,8 @@ public sealed class AdGuardSyncService(HashiDbContext db, IHttpClientFactory htt
             SecretPurpose.AdGuardCredential,
             $"AdGuard: {request.Name}",
             JsonSerializer.SerializeToUtf8Bytes(new { password = request.Password }),
-            cancellationToken);
+            cancellationToken,
+            serviceSyncEligible: true);
         var connection = new AdGuardConnectionEntity
         {
             Name = request.Name,
@@ -56,14 +66,14 @@ public sealed class AdGuardSyncService(HashiDbContext db, IHttpClientFactory htt
         }
     }
 
-    public async Task<bool> DeleteRewriteAsync(Guid connectionId, Guid rewriteId, CancellationToken cancellationToken = default)
+    public async Task<AdGuardRewritePlanResponse?> DeleteRewriteAsync(Guid connectionId, Guid rewriteId, CancellationToken cancellationToken = default)
     {
         var rewrite = await db.AdGuardRewrites.SingleOrDefaultAsync(
             x => x.Id == rewriteId && x.ConnectionId == connectionId,
             cancellationToken);
         if (rewrite is null)
         {
-            return false;
+            return null;
         }
 
         if (!rewrite.ManagedByHashi)
@@ -71,24 +81,9 @@ public sealed class AdGuardSyncService(HashiDbContext db, IHttpClientFactory htt
             throw new InvalidOperationException("Rewrite is managed manually and cannot be deleted by Hashi.");
         }
 
-        try
-        {
-            var remoteRewrites = await ListRemoteRewritesAsync(connectionId, cancellationToken);
-            var remote = remoteRewrites.FirstOrDefault(x =>
-                string.Equals(x.Domain, rewrite.Domain, StringComparison.OrdinalIgnoreCase));
-            if (remote is not null)
-            {
-                await DeleteRemoteRewriteAsync(connectionId, remote, cancellationToken);
-            }
-        }
-        catch
-        {
-            // Best effort remote delete; local row is still removed.
-        }
-
-        db.AdGuardRewrites.Remove(rewrite);
-        await db.SaveChangesAsync(cancellationToken);
-        return true;
+        var plan = await PlanSyncAsync(connectionId, deleteRewriteId: rewriteId, cancellationToken: cancellationToken);
+        await audit.WriteAsync("adguard", "rewrite_delete_planned", subjectType: "rewrite", subjectId: rewrite.Id.ToString(), cancellationToken: cancellationToken);
+        return plan;
     }
 
     public async Task<IReadOnlyList<AdGuardRewriteResponse>> ListRewritesAsync(Guid connectionId, CancellationToken cancellationToken = default)
@@ -100,20 +95,22 @@ public sealed class AdGuardSyncService(HashiDbContext db, IHttpClientFactory htt
         return items.Select(x => new AdGuardRewriteResponse(x.Id, x.Domain, x.Answer, x.ManagedByHashi)).ToList();
     }
 
-    public async Task<AdGuardRewriteResponse> UpsertRewriteAsync(
+    public async Task<AdGuardRewriteMutationResponse> UpsertRewriteAsync(
         Guid connectionId,
         UpsertAdGuardRewriteRequest request,
         CancellationToken cancellationToken = default)
     {
+        var domain = NormalizeDomain(request.Domain);
+        var answer = request.Answer.Trim();
         var rewrite = await db.AdGuardRewrites.SingleOrDefaultAsync(
-            x => x.ConnectionId == connectionId && x.Domain == request.Domain,
+            x => x.ConnectionId == connectionId && x.Domain == domain,
             cancellationToken);
         if (rewrite is null)
         {
             rewrite = new AdGuardRewriteEntity
             {
                 ConnectionId = connectionId,
-                Domain = request.Domain,
+                Domain = domain,
                 ManagedByHashi = true,
             };
             db.AdGuardRewrites.Add(rewrite);
@@ -123,47 +120,135 @@ public sealed class AdGuardSyncService(HashiDbContext db, IHttpClientFactory htt
             throw new InvalidOperationException("Rewrite is managed manually and cannot be changed by Hashi.");
         }
 
-        rewrite.Answer = request.Answer;
+        rewrite.Answer = answer;
         await db.SaveChangesAsync(cancellationToken);
-        await PushToAdGuardAsync(connectionId, rewrite, cancellationToken);
-        return new AdGuardRewriteResponse(rewrite.Id, rewrite.Domain, rewrite.Answer, rewrite.ManagedByHashi);
+        var plan = await PlanSyncAsync(connectionId, cancellationToken: cancellationToken);
+        await audit.WriteAsync("adguard", "rewrite_desired_saved", subjectType: "rewrite", subjectId: rewrite.Id.ToString(), cancellationToken: cancellationToken);
+        return new AdGuardRewriteMutationResponse(
+            new AdGuardRewriteResponse(rewrite.Id, rewrite.Domain, rewrite.Answer, rewrite.ManagedByHashi),
+            plan);
     }
 
-    public async Task SyncManagedRewritesAsync(Guid connectionId, CancellationToken cancellationToken = default)
+    public async Task<AdGuardRewriteApplyResponse> SyncManagedRewritesAsync(Guid connectionId, CancellationToken cancellationToken = default)
     {
-        await SyncResourceTopologyRewritesAsync(connectionId, cancellationToken);
+        var plan = await PlanSyncAsync(connectionId, updateTopologyDesiredState: true, cancellationToken: cancellationToken);
+        return await ApplyPlanAsync(connectionId, new AdGuardRewriteApplyRequest(plan.PlanId, ConfirmDestructive: true), cancellationToken: cancellationToken);
+    }
 
+    public async Task<AdGuardRewritePlanResponse> PlanSyncAsync(
+        Guid connectionId,
+        Guid? deleteRewriteId = null,
+        bool updateTopologyDesiredState = false,
+        CancellationToken cancellationToken = default)
+    {
+        if (updateTopologyDesiredState)
+        {
+            await SyncResourceTopologyRewritesAsync(connectionId, cancellationToken);
+        }
+
+        var deleteRewrite = deleteRewriteId is null
+            ? null
+            : await db.AdGuardRewrites.AsNoTracking().SingleOrDefaultAsync(
+                x => x.Id == deleteRewriteId && x.ConnectionId == connectionId && x.ManagedByHashi,
+                cancellationToken);
         var remoteRewrites = await ListRemoteRewritesAsync(connectionId, cancellationToken);
         var localManaged = await db.AdGuardRewrites
+            .AsNoTracking()
             .Where(x => x.ConnectionId == connectionId && x.ManagedByHashi)
             .ToListAsync(cancellationToken);
+        if (deleteRewrite is not null)
+        {
+            localManaged = localManaged.Where(x => x.Id != deleteRewrite.Id).ToList();
+        }
 
+        var changes = new List<AdGuardRewritePlanChange>();
         foreach (var rewrite in localManaged)
         {
             var remote = remoteRewrites.FirstOrDefault(x =>
                 string.Equals(x.Domain, rewrite.Domain, StringComparison.OrdinalIgnoreCase));
-            if (remote is null || !string.Equals(remote.Answer, rewrite.Answer, StringComparison.Ordinal))
+            if (remote is null)
             {
-                await PushToAdGuardAsync(connectionId, rewrite, cancellationToken);
+                changes.Add(new AdGuardRewritePlanChange("create", rewrite.Domain, null, rewrite.Answer, "Add Hashi-managed rewrite."));
+            }
+            else if (!string.Equals(remote.Answer, rewrite.Answer, StringComparison.Ordinal))
+            {
+                changes.Add(new AdGuardRewritePlanChange("update", rewrite.Domain, remote.Answer, rewrite.Answer, "Update Hashi-managed rewrite answer."));
             }
         }
 
-        var managedDomains = localManaged
-            .Select(x => x.Domain)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var remote in remoteRewrites)
+        if (deleteRewrite is not null)
         {
-            if (managedDomains.Contains(remote.Domain))
+            var remote = remoteRewrites.FirstOrDefault(x =>
+                string.Equals(x.Domain, deleteRewrite.Domain, StringComparison.OrdinalIgnoreCase));
+            changes.Add(new AdGuardRewritePlanChange("delete", deleteRewrite.Domain, remote?.Answer ?? deleteRewrite.Answer, null, "Delete Hashi-managed rewrite."));
+        }
+
+        var planId = ComputePlanId(connectionId, deleteRewriteId, remoteRewrites, localManaged, changes);
+        return new AdGuardRewritePlanResponse(
+            planId,
+            connectionId,
+            changes.Any(x => x.Kind == "delete"),
+            changes.Select(x => new AdGuardRewritePlanChangeResponse(x.Kind, x.Domain, x.CurrentAnswer, x.DesiredAnswer, x.Summary)).ToList());
+    }
+
+    public async Task<AdGuardRewriteApplyResponse> ApplyPlanAsync(
+        Guid connectionId,
+        AdGuardRewriteApplyRequest request,
+        Guid? deleteRewriteId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var plan = await PlanSyncAsync(connectionId, deleteRewriteId, cancellationToken: cancellationToken);
+        if (plan.PlanId != request.PlanId)
+        {
+            throw new InvalidOperationException("AdGuard plan is stale; preview the rewrite changes again.");
+        }
+
+        var run = await syncRuns.BeginRunAsync("adguard", cancellationToken);
+        var providerChanges = plan.Changes.Select(x => new ProviderChange(
+            "adguard-rewrite",
+            x.Domain,
+            MapProviderKind(x.Kind),
+            x.Summary));
+        await syncRuns.AddDiffsAsync(run.Id, providerChanges, cancellationToken);
+        await syncRuns.AddStepAsync(run.Id, "adguard-apply", SyncRunStatusNames.Applying, null, cancellationToken);
+
+        if (plan.RequiresConfirmation && !request.ConfirmDestructive)
+        {
+            await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.AwaitingConfirmation, SyncRiskLevel.Destructive, "AdGuard delete requires confirmation.", cancellationToken);
+            await audit.WriteAsync("adguard", "apply_awaiting_confirmation", subjectType: "sync_run", subjectId: run.Id.ToString(), cancellationToken: cancellationToken);
+            return new AdGuardRewriteApplyResponse(run.Id, false, SyncRunStatusNames.AwaitingConfirmation, "AdGuard delete requires confirmation.");
+        }
+
+        try
+        {
+            foreach (var change in plan.Changes)
             {
-                continue;
+                await ApplyChangeAsync(connectionId, change, cancellationToken);
             }
 
-            var tracked = await db.AdGuardRewrites.AsNoTracking()
-                .AnyAsync(x => x.ConnectionId == connectionId && x.ProviderRewriteId == remote.Id, cancellationToken);
-            if (tracked)
+            if (deleteRewriteId is Guid rewriteId)
             {
-                await DeleteRemoteRewriteAsync(connectionId, remote, cancellationToken);
+                var rewrite = await db.AdGuardRewrites.SingleOrDefaultAsync(
+                    x => x.Id == rewriteId && x.ConnectionId == connectionId && x.ManagedByHashi,
+                    cancellationToken);
+                if (rewrite is not null)
+                {
+                    db.AdGuardRewrites.Remove(rewrite);
+                    await db.SaveChangesAsync(cancellationToken);
+                }
             }
+
+            await syncRuns.AddStepAsync(run.Id, "adguard-apply", SyncRunStatusNames.Succeeded, $"{plan.Changes.Count} changes", cancellationToken);
+            await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Succeeded, plan.RequiresConfirmation ? SyncRiskLevel.Destructive : SyncRiskLevel.Low, null, cancellationToken);
+            await audit.WriteAsync("adguard", "apply_succeeded", subjectType: "sync_run", subjectId: run.Id.ToString(), metadata: new { connectionId, changes = plan.Changes.Count }, cancellationToken: cancellationToken);
+            return new AdGuardRewriteApplyResponse(run.Id, true, SyncRunStatusNames.Succeeded, null);
+        }
+        catch (Exception ex)
+        {
+            await syncRuns.AddStepAsync(run.Id, "adguard-apply", SyncRunStatusNames.Failed, ex.Message, cancellationToken);
+            await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Failed, SyncRiskLevel.High, ex.Message, cancellationToken);
+            await audit.WriteAsync("adguard", "apply_failed", "failure", subjectType: "sync_run", subjectId: run.Id.ToString(), metadata: new { connectionId, error = ex.Message }, cancellationToken: cancellationToken);
+            return new AdGuardRewriteApplyResponse(run.Id, false, SyncRunStatusNames.Failed, ex.Message);
         }
     }
 
@@ -294,19 +379,96 @@ public sealed class AdGuardSyncService(HashiDbContext db, IHttpClientFactory htt
 
     private sealed record RemoteAdGuardRewrite(string Domain, string Answer, string? Id);
 
-    private async Task PushToAdGuardAsync(Guid connectionId, AdGuardRewriteEntity rewrite, CancellationToken cancellationToken)
+    private sealed record AdGuardRewritePlanChange(string Kind, string Domain, string? CurrentAnswer, string? DesiredAnswer, string Summary);
+
+    private async Task ApplyChangeAsync(Guid connectionId, AdGuardRewritePlanChangeResponse change, CancellationToken cancellationToken)
+    {
+        switch (change.Kind)
+        {
+            case "create":
+                await PushToAdGuardAsync(connectionId, change.Domain, change.DesiredAnswer ?? string.Empty, cancellationToken);
+                break;
+            case "update":
+                var updateRemote = (await ListRemoteRewritesAsync(connectionId, cancellationToken))
+                    .FirstOrDefault(x => string.Equals(x.Domain, change.Domain, StringComparison.OrdinalIgnoreCase));
+                if (updateRemote is not null)
+                {
+                    await DeleteRemoteRewriteAsync(connectionId, updateRemote, cancellationToken);
+                }
+
+                await PushToAdGuardAsync(connectionId, change.Domain, change.DesiredAnswer ?? string.Empty, cancellationToken);
+                break;
+            case "delete":
+                var deleteRemote = (await ListRemoteRewritesAsync(connectionId, cancellationToken))
+                    .FirstOrDefault(x => string.Equals(x.Domain, change.Domain, StringComparison.OrdinalIgnoreCase));
+                if (deleteRemote is not null)
+                {
+                    await DeleteRemoteRewriteAsync(connectionId, deleteRemote, cancellationToken);
+                }
+
+                break;
+        }
+    }
+
+    private async Task PushToAdGuardAsync(Guid connectionId, string domain, string answer, CancellationToken cancellationToken)
     {
         var client = await CreateAuthorizedClientAsync(connectionId, cancellationToken);
-        var payload = new { domain = rewrite.Domain, answer = rewrite.Answer };
+        var payload = new { domain, answer };
         using var response = await client.PostAsJsonAsync("control/rewrite/add", payload, cancellationToken);
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
         using var doc = JsonDocument.Parse(body);
         if (doc.RootElement.TryGetProperty("id", out var idElement))
         {
-            rewrite.ProviderRewriteId = idElement.GetRawText();
-            await db.SaveChangesAsync(cancellationToken);
+            var rewrite = await db.AdGuardRewrites.SingleOrDefaultAsync(
+                x => x.ConnectionId == connectionId && x.Domain == domain && x.ManagedByHashi,
+                cancellationToken);
+            if (rewrite is not null)
+            {
+                rewrite.ProviderRewriteId = idElement.GetRawText();
+                await db.SaveChangesAsync(cancellationToken);
+            }
         }
+    }
+
+    private static ProviderResultKind MapProviderKind(string kind) => kind switch
+    {
+        "create" => ProviderResultKind.Created,
+        "update" => ProviderResultKind.Updated,
+        "delete" => ProviderResultKind.Deleted,
+        _ => ProviderResultKind.NoOp,
+    };
+
+    private static string NormalizeDomain(string domain) => domain.Trim().TrimEnd('.').ToLowerInvariant();
+
+    private static Guid ComputePlanId(
+        Guid connectionId,
+        Guid? deleteRewriteId,
+        IReadOnlyList<RemoteAdGuardRewrite> remote,
+        IReadOnlyList<AdGuardRewriteEntity> desired,
+        IReadOnlyList<AdGuardRewritePlanChange> changes)
+    {
+        var builder = new StringBuilder()
+            .Append("adguard-plan-v1|")
+            .Append(connectionId).Append('|')
+            .Append(deleteRewriteId).Append('|');
+        foreach (var item in remote.OrderBy(x => x.Domain, StringComparer.OrdinalIgnoreCase).ThenBy(x => x.Answer, StringComparer.Ordinal))
+        {
+            builder.Append("r:").Append(NormalizeDomain(item.Domain)).Append('=').Append(item.Answer).Append('|');
+        }
+
+        foreach (var item in desired.OrderBy(x => x.Domain, StringComparer.OrdinalIgnoreCase))
+        {
+            builder.Append("d:").Append(NormalizeDomain(item.Domain)).Append('=').Append(item.Answer).Append('|');
+        }
+
+        foreach (var change in changes.OrderBy(x => x.Domain, StringComparer.OrdinalIgnoreCase).ThenBy(x => x.Kind, StringComparer.Ordinal))
+        {
+            builder.Append("c:").Append(change.Kind).Append(':').Append(NormalizeDomain(change.Domain)).Append('|');
+        }
+
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(builder.ToString()));
+        return new Guid(hash[..16]);
     }
 
     private async Task<string?> ResolvePasswordAsync(Guid secretId, CancellationToken cancellationToken)

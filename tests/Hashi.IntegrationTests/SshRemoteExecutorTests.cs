@@ -19,16 +19,10 @@ public sealed class SshRemoteExecutorTests : IAsyncLifetime
     private SshRemoteExecutor _executor = null!;
     private int _mappedPort;
     private string _encryptedPrivateKeyPem = string.Empty;
-    private bool _dockerUnavailable;
+    private bool _sshUnavailable;
 
     public async Task InitializeAsync()
     {
-        if (ShouldSkipSshIntegrationTests())
-        {
-            _dockerUnavailable = true;
-            return;
-        }
-
         _executor = new SshRemoteExecutor();
         try
         {
@@ -42,32 +36,45 @@ public sealed class SshRemoteExecutorTests : IAsyncLifetime
             var publicKey = (await File.ReadAllTextAsync($"{keyPath}.pub")).Trim();
 
             _sshContainer = new ContainerBuilder()
-                .WithImage("linuxserver/openssh-server:latest")
+                .WithImage("alpine:3.20")
                 .WithPortBinding(22, true)
-                .WithEnvironment("PUID", "1000")
-                .WithEnvironment("PGID", "1000")
-                .WithEnvironment("TZ", "Etc/UTC")
-                .WithEnvironment("PASSWORD_ACCESS", "true")
-                .WithEnvironment("USER_NAME", Username)
-                .WithEnvironment("USER_PASSWORD", Password)
                 .WithEnvironment("PUBLIC_KEY", publicKey)
+                .WithCommand(
+                    "sh",
+                    "-c",
+                    $"""
+                    set -eu
+                    apk add --no-cache openssh-server >/dev/null
+                    adduser -D -s /bin/sh {Username}
+                    echo '{Username}:{Password}' | chpasswd
+                    mkdir -p /home/{Username}/.ssh /run/sshd /config
+                    printf '%s\n' "$PUBLIC_KEY" > /home/{Username}/.ssh/authorized_keys
+                    chown -R {Username}:{Username} /home/{Username}/.ssh /config
+                    chmod 700 /home/{Username}/.ssh
+                    chmod 600 /home/{Username}/.ssh/authorized_keys
+                    ssh-keygen -A >/dev/null
+                    exec /usr/sbin/sshd -D -e -p 22 -o PasswordAuthentication=yes -o PubkeyAuthentication=yes -o PermitRootLogin=no
+                    """)
                 .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(22))
                 .Build();
 
             using var startupCts = new CancellationTokenSource(ContainerStartupTimeout);
             await _sshContainer.StartAsync(startupCts.Token);
             _mappedPort = _sshContainer.GetMappedPublicPort(22);
+            await WaitForSshPasswordAuthAsync(startupCts.Token);
         }
         catch (Exception ex) when (IsDockerUnavailable(ex) || IsStartupTimeout(ex))
         {
-            Console.WriteLine($"Skipping SSH integration tests: {ex.Message}");
-            _dockerUnavailable = true;
+            var message = $"SSH integration tests unavailable: {ex.Message}";
+            Console.WriteLine(message);
+            _sshUnavailable = true;
+            FailIfCi(message);
         }
     }
 
     public async Task DisposeAsync()
     {
-        if (!_dockerUnavailable && _sshContainer is not null)
+        if (!_sshUnavailable && _sshContainer is not null)
         {
             await _sshContainer.DisposeAsync();
         }
@@ -76,7 +83,7 @@ public sealed class SshRemoteExecutorTests : IAsyncLifetime
     [Fact]
     public async Task Validate_with_password_detects_os_family()
     {
-        if (_dockerUnavailable)
+        if (_sshUnavailable)
         {
             return;
         }
@@ -90,7 +97,7 @@ public sealed class SshRemoteExecutorTests : IAsyncLifetime
     [Fact]
     public async Task WriteAtomic_creates_remote_file()
     {
-        if (_dockerUnavailable)
+        if (_sshUnavailable)
         {
             return;
         }
@@ -104,7 +111,7 @@ public sealed class SshRemoteExecutorTests : IAsyncLifetime
     [Fact]
     public async Task Validate_with_encrypted_private_key_succeeds()
     {
-        if (_dockerUnavailable)
+        if (_sshUnavailable)
         {
             return;
         }
@@ -116,7 +123,7 @@ public sealed class SshRemoteExecutorTests : IAsyncLifetime
     [Fact]
     public async Task WriteAtomic_with_encrypted_private_key_succeeds()
     {
-        if (_dockerUnavailable)
+        if (_sshUnavailable)
         {
             return;
         }
@@ -133,19 +140,43 @@ public sealed class SshRemoteExecutorTests : IAsyncLifetime
     }
 
     private SshConnectionSettings CreateSettings() => new(
-        "127.0.0.1",
+        _sshContainer.Hostname,
         _mappedPort,
         Username,
         OsFamily.Unknown,
         null,
         null);
 
-    private static bool ShouldSkipSshIntegrationTests()
-        => string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase)
-           && !string.Equals(
-               Environment.GetEnvironmentVariable("HASHI_RUN_SSH_INTEGRATION_TESTS"),
-               "1",
-               StringComparison.Ordinal);
+    private async Task WaitForSshPasswordAuthAsync(CancellationToken cancellationToken)
+    {
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(20);
+        Exception? lastException = null;
+        string? lastError = null;
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                var result = await _executor.ValidateAsync(CreateSettings(), Password);
+                if (result.Succeeded)
+                {
+                    return;
+                }
+
+                lastError = result.Error;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                lastException = ex;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken);
+        }
+
+        var detail = lastError ?? lastException?.Message ?? "no diagnostic was reported";
+        throw new TimeoutException($"SSH test container did not accept password authentication in time: {detail}", lastException);
+    }
 
     private static bool IsDockerUnavailable(Exception ex)
         => ex is ArgumentException { ParamName: "DockerEndpointAuthConfig" }
@@ -170,6 +201,14 @@ public sealed class SshRemoteExecutorTests : IAsyncLifetime
         {
             var stderr = await process.StandardError.ReadToEndAsync();
             throw new InvalidOperationException($"{fileName} failed: {stderr}");
+        }
+    }
+
+    private static void FailIfCi(string message)
+    {
+        if (string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(message);
         }
     }
 }

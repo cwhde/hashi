@@ -14,6 +14,18 @@ public sealed class ResourceEntity
 
     public bool IsSystem { get; set; }
 
+    public string Ownership { get; set; } = ResourceOwnershipNames.UserCreated;
+
+    public string? OwningWorkflow { get; set; }
+
+    public string DeletionPolicy { get; set; } = ResourceDeletionPolicyNames.Optional;
+
+    public string SyncState { get; set; } = ResourceSyncStateNames.Desired;
+
+    public string? LastAppliedHash { get; set; }
+
+    public DateTimeOffset? LastAppliedAtUtc { get; set; }
+
     public string? Domain { get; set; }
 
     public string TargetScheme { get; set; } = "http";
@@ -45,6 +57,69 @@ public sealed class ResourceEntity
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 
     public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public sealed class ResourceTargetEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid ResourceId { get; set; }
+
+    public ResourceEntity Resource { get; set; } = null!;
+
+    public int Priority { get; set; }
+
+    public string Scheme { get; set; } = "http";
+
+    public string Host { get; set; } = "127.0.0.1";
+
+    public int Port { get; set; } = 8080;
+
+    public Guid? FirewallHostId { get; set; }
+
+    public FirewallHostEntity? FirewallHost { get; set; }
+
+    public Guid? PulseAgentId { get; set; }
+
+    public bool Enabled { get; set; } = true;
+}
+
+public sealed class ResourcePortEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid ResourceId { get; set; }
+
+    public ResourceEntity Resource { get; set; } = null!;
+
+    public int PublicPort { get; set; }
+
+    public int TargetPort { get; set; }
+
+    public string Protocol { get; set; } = "tcp";
+
+    public string Ownership { get; set; } = ResourceOwnershipNames.UserCreated;
+
+    public bool Confirmed { get; set; }
+
+    public DateTimeOffset? ConfirmedAtUtc { get; set; }
+}
+
+public sealed class SystemResourceEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid ResourceId { get; set; }
+
+    public ResourceEntity Resource { get; set; } = null!;
+
+    public string SystemKey { get; set; } = string.Empty;
+
+    public string OwningWorkflow { get; set; } = "setup";
+
+    public bool RequiredForAppAccess { get; set; } = true;
+
+    public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }
 
 public sealed class MonitorEndpointEntity
@@ -89,4 +164,26 @@ public sealed class PulseAgentEntity
     public DateTimeOffset? DnsPendingAtUtc { get; set; }
 
     public string Status { get; set; } = "pending";
+}
+
+public static class ResourceOwnershipNames
+{
+    public const string System = "system";
+    public const string Managed = "managed";
+    public const string Imported = "imported";
+    public const string UserCreated = "user_created";
+}
+
+public static class ResourceDeletionPolicyNames
+{
+    public const string Optional = "optional";
+    public const string OwningWorkflowOnly = "owning_workflow_only";
+    public const string RequiredForAccess = "required_for_access";
+}
+
+public static class ResourceSyncStateNames
+{
+    public const string Desired = "desired";
+    public const string Applied = "applied";
+    public const string Drifted = "drifted";
 }

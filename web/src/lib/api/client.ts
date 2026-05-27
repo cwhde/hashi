@@ -29,7 +29,7 @@ const csrfMiddleware: Middleware = {
 		if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') {
 			return request;
 		}
-		if (!request.url.includes('/api/auth/')) {
+		if (!isCsrfExemptRequest(request.url, method)) {
 			if (!csrfToken) {
 				csrfToken = await ensureCsrfToken();
 			}
@@ -42,6 +42,15 @@ const csrfMiddleware: Middleware = {
 };
 
 client.use(csrfMiddleware);
+
+function isCsrfExemptRequest(url: string, method: string): boolean {
+	const path = new URL(url, 'http://hashi.local').pathname;
+	return (
+		(method === 'POST' && path === '/api/auth/bootstrap/login') ||
+		(method === 'POST' && path === '/api/auth/passkeys/login/begin') ||
+		(method === 'POST' && path === '/api/auth/passkeys/login/complete')
+	);
+}
 
 export class ApiRequestError extends Error {
 	constructor(
@@ -465,9 +474,18 @@ export const api = {
 	},
 	getPulseInstall: async (agentId: string, token?: string) => {
 		const r = await client.GET('/api/pulse/agents/{agentId}/install', {
-			params: { path: { agentId }, query: token ? { token } : {} }
+			params: { path: { agentId } }
 		});
-		return expectData(r.response, r.error, r.data);
+		const install = await expectData(r.response, r.error, r.data);
+		if (!token) {
+			return install;
+		}
+
+		return {
+			...install,
+			linuxInstallScript: install.linuxInstallScript.replaceAll('<PULSE_TOKEN>', token),
+			dockerRunCommand: install.dockerRunCommand.replaceAll('<PULSE_TOKEN>', token)
+		};
 	},
 	revokePulseAgent: async (agentId: string) => {
 		const r = await client.POST('/api/pulse/agents/{agentId}/revoke', {
@@ -607,7 +625,8 @@ export const api = {
 		const r = await client.GET('/api/adguard/{connectionId}/rewrites', {
 			params: { path: { connectionId } }
 		});
-		return expectData(r.response, r.error, r.data ?? []);
+		const rewrites = await expectData(r.response, r.error, r.data ?? []);
+		return rewrites.filter((rewrite): rewrite is NonNullable<typeof rewrite> => rewrite !== null);
 	},
 	upsertAdGuardRewrite: async (
 		connectionId: string,
@@ -630,6 +649,6 @@ export const api = {
 		const r = await client.DELETE('/api/adguard/{connectionId}/rewrites/{rewriteId}', {
 			params: { path: { connectionId, rewriteId } }
 		});
-		await expectOk(r.response, r.error);
+		return expectData(r.response, r.error, r.data);
 	}
 };

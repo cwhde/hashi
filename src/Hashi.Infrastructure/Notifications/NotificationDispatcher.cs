@@ -3,14 +3,20 @@ using System.Net.Http.Json;
 using System.Net.Mail;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Hashi.Contracts.Api;
+using Hashi.Core.Auth;
+using Hashi.Infrastructure.Auth;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace Hashi.Infrastructure.Notifications;
 
-public sealed class NotificationDispatcher(HashiDbContext db, IHttpClientFactory httpClientFactory)
+public sealed class NotificationDispatcher(
+    HashiDbContext db,
+    IHttpClientFactory httpClientFactory,
+    SecretRecordService secrets)
 {
     public async Task<IReadOnlyList<NotificationProviderResponse>> ListProvidersAsync(CancellationToken cancellationToken = default)
     {
@@ -26,7 +32,12 @@ public sealed class NotificationDispatcher(HashiDbContext db, IHttpClientFactory
         {
             Name = request.Name,
             Type = request.Type,
-            SettingsJson = request.SettingsJson,
+            SettingsJson = await BuildStoredSettingsJsonAsync(
+                request.Type,
+                request.Name,
+                request.SettingsJson,
+                existingSettingsJson: null,
+                cancellationToken),
             Enabled = request.Enabled,
         };
         db.NotificationProviders.Add(entity);
@@ -57,7 +68,12 @@ public sealed class NotificationDispatcher(HashiDbContext db, IHttpClientFactory
 
         if (request.SettingsJson is not null)
         {
-            entity.SettingsJson = request.SettingsJson;
+            entity.SettingsJson = await BuildStoredSettingsJsonAsync(
+                entity.Type,
+                entity.Name,
+                request.SettingsJson,
+                entity.SettingsJson,
+                cancellationToken);
         }
 
         if (request.Enabled is bool enabled)
@@ -184,18 +200,48 @@ public sealed class NotificationDispatcher(HashiDbContext db, IHttpClientFactory
             .ToListAsync(cancellationToken);
         foreach (var provider in providers)
         {
-            switch (provider.Type)
+            var delivery = new NotificationDeliveryEntity
             {
-                case "smtp":
-                    await SendSmtpAsync(provider, request.Subject, request.Body, cancellationToken);
-                    break;
-                case "telegram":
-                    await SendTelegramAsync(provider, request.Subject, request.Body, cancellationToken);
-                    break;
-                case "discord":
-                    await SendDiscordAsync(provider, request.Subject, request.Body, cancellationToken);
-                    break;
+                ProviderId = provider.Id,
+                EventKind = "notification",
+                Subject = request.Subject,
+                Status = NotificationDeliveryStatusNames.Pending,
+                AttemptCount = 1,
+            };
+            db.NotificationDeliveries.Add(delivery);
+
+            try
+            {
+                switch (provider.Type)
+                {
+                    case "smtp":
+                        await SendSmtpAsync(provider, request.Subject, request.Body, cancellationToken);
+                        break;
+                    case "telegram":
+                        await SendTelegramAsync(provider, request.Subject, request.Body, cancellationToken);
+                        break;
+                    case "discord":
+                        await SendDiscordAsync(provider, request.Subject, request.Body, cancellationToken);
+                        break;
+                    default:
+                        delivery.Status = NotificationDeliveryStatusNames.Failed;
+                        delivery.ErrorDetails = $"Unsupported provider type: {provider.Type}";
+                        await db.SaveChangesAsync(cancellationToken);
+                        continue;
+                }
+
+                delivery.Status = NotificationDeliveryStatusNames.Sent;
+                delivery.SentAtUtc = DateTimeOffset.UtcNow;
             }
+            catch (Exception ex)
+            {
+                delivery.Status = NotificationDeliveryStatusNames.Failed;
+                delivery.ErrorDetails = ex.Message;
+                await db.SaveChangesAsync(cancellationToken);
+                throw;
+            }
+
+            await db.SaveChangesAsync(cancellationToken);
         }
     }
 
@@ -203,13 +249,14 @@ public sealed class NotificationDispatcher(HashiDbContext db, IHttpClientFactory
     {
         using var doc = JsonDocument.Parse(provider.SettingsJson);
         var root = doc.RootElement;
+        var password = await ResolveSecretStringAsync(root, "passwordSecretId", "SMTP password", cancellationToken);
         using var client = new SmtpClient(root.GetProperty("host").GetString())
         {
             Port = root.GetProperty("port").GetInt32(),
             EnableSsl = root.TryGetProperty("useTls", out var tls) && tls.GetBoolean(),
             Credentials = new NetworkCredential(
                 root.GetProperty("username").GetString(),
-                root.GetProperty("password").GetString()),
+                password),
         };
         using var message = new MailMessage(
             root.GetProperty("from").GetString() ?? "hashi@localhost",
@@ -223,7 +270,7 @@ public sealed class NotificationDispatcher(HashiDbContext db, IHttpClientFactory
     {
         using var doc = JsonDocument.Parse(provider.SettingsJson);
         var root = doc.RootElement;
-        var token = root.GetProperty("botToken").GetString();
+        var token = await ResolveSecretStringAsync(root, "botTokenSecretId", "Telegram bot token", cancellationToken);
         var chatId = root.GetProperty("chatId").GetString();
         var client = httpClientFactory.CreateClient();
         var url = $"https://api.telegram.org/bot{token}/sendMessage";
@@ -235,12 +282,114 @@ public sealed class NotificationDispatcher(HashiDbContext db, IHttpClientFactory
     private async Task SendDiscordAsync(NotificationProviderEntity provider, string subject, string body, CancellationToken cancellationToken)
     {
         using var doc = JsonDocument.Parse(provider.SettingsJson);
-        var webhook = doc.RootElement.GetProperty("webhookUrl").GetString();
+        var webhook = await ResolveSecretStringAsync(doc.RootElement, "webhookSecretId", "Discord webhook URL", cancellationToken);
         var client = httpClientFactory.CreateClient();
         var payload = new { content = $"{subject}\n{body}" };
-        using var response = await client.PostAsJsonAsync(webhook!, payload, cancellationToken);
+        using var response = await client.PostAsJsonAsync(webhook, payload, cancellationToken);
         response.EnsureSuccessStatusCode();
     }
+
+    private async Task<string> BuildStoredSettingsJsonAsync(
+        string providerType,
+        string providerName,
+        string settingsJson,
+        string? existingSettingsJson,
+        CancellationToken cancellationToken)
+    {
+        var settings = ParseSettingsObject(settingsJson);
+        var existing = string.IsNullOrWhiteSpace(existingSettingsJson)
+            ? null
+            : ParseSettingsObject(existingSettingsJson);
+
+        switch (providerType)
+        {
+            case "smtp":
+                await MoveSecretToVaultAsync(
+                    settings,
+                    existing,
+                    plaintextProperty: "password",
+                    secretIdProperty: "passwordSecretId",
+                    label: $"Notification SMTP password: {providerName}",
+                    cancellationToken);
+                break;
+            case "telegram":
+                await MoveSecretToVaultAsync(
+                    settings,
+                    existing,
+                    plaintextProperty: "botToken",
+                    secretIdProperty: "botTokenSecretId",
+                    label: $"Notification Telegram token: {providerName}",
+                    cancellationToken);
+                break;
+            case "discord":
+                await MoveSecretToVaultAsync(
+                    settings,
+                    existing,
+                    plaintextProperty: "webhookUrl",
+                    secretIdProperty: "webhookSecretId",
+                    label: $"Notification Discord webhook: {providerName}",
+                    cancellationToken);
+                break;
+        }
+
+        return settings.ToJsonString();
+    }
+
+    private async Task MoveSecretToVaultAsync(
+        JsonObject settings,
+        JsonObject? existing,
+        string plaintextProperty,
+        string secretIdProperty,
+        string label,
+        CancellationToken cancellationToken)
+    {
+        var plaintext = ReadString(settings, plaintextProperty);
+        settings.Remove(plaintextProperty);
+        settings.Remove(secretIdProperty);
+
+        if (!string.IsNullOrWhiteSpace(plaintext))
+        {
+            var secret = await secrets.StoreAsync(
+                SecretPurpose.NotificationToken,
+                label,
+                Encoding.UTF8.GetBytes(plaintext),
+                cancellationToken);
+            settings[secretIdProperty] = secret.Id.ToString();
+            return;
+        }
+
+        var existingSecretId = existing is null ? null : ReadString(existing, secretIdProperty);
+        if (!string.IsNullOrWhiteSpace(existingSecretId))
+        {
+            settings[secretIdProperty] = existingSecretId;
+        }
+    }
+
+    private async Task<string> ResolveSecretStringAsync(
+        JsonElement settings,
+        string secretIdProperty,
+        string label,
+        CancellationToken cancellationToken)
+    {
+        if (!settings.TryGetProperty(secretIdProperty, out var secretIdElement)
+            || !Guid.TryParse(secretIdElement.GetString(), out var secretId))
+        {
+            throw new InvalidOperationException($"{label} is not configured.");
+        }
+
+        var plaintext = await secrets.DecryptForPurposeAsync(secretId, cancellationToken)
+            ?? throw new InvalidOperationException($"{label} unavailable; unlock vault or configure service-sync vault.");
+        return Encoding.UTF8.GetString(plaintext);
+    }
+
+    private static JsonObject ParseSettingsObject(string settingsJson)
+    {
+        var node = JsonNode.Parse(settingsJson);
+        return node as JsonObject ?? throw new InvalidOperationException("Notification provider settings must be a JSON object.");
+    }
+
+    private static string? ReadString(JsonObject settings, string property)
+        => settings.TryGetPropertyValue(property, out var node) ? node?.GetValue<string>() : null;
 
     private static bool TryExtractChat(JsonElement update, out string chatId, out string chatTitle)
     {

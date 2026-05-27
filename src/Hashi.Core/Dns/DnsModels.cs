@@ -46,7 +46,10 @@ public sealed record DnsPlanChange(
     string? CurrentValue,
     string? DesiredValue,
     int? Ttl,
-    string RiskReason);
+    string RiskReason)
+{
+    public string? ProviderRecordId { get; init; }
+}
 
 public sealed record DnsSyncPlan(
     Guid PlanId,
@@ -66,7 +69,7 @@ public static class DnsSafetyRules
     public static bool IsProtectedType(DnsRecordType type) => ProtectedTypes.Contains(type);
 
     public static bool CanDelete(DnsRecordSnapshot record)
-        => !record.IsManagedByHashi || IsProtectedType(record.Type);
+        => record.IsManagedByHashi && !IsProtectedType(record.Type);
 
     public static bool CanModify(DnsRecordSnapshot record, DnsChangeKind kind)
     {
@@ -75,7 +78,7 @@ public static class DnsSafetyRules
             return false;
         }
 
-        return kind is DnsChangeKind.Update or DnsChangeKind.NoOp;
+        return record.IsManagedByHashi && kind is (DnsChangeKind.Update or DnsChangeKind.NoOp);
     }
 
     public static DnsPlanChange? GuardChange(DnsPlanChange change)

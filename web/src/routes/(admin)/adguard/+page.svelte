@@ -134,14 +134,15 @@
 		error = null;
 		message = null;
 		try {
-			const saved = await withReauth(() =>
+			const result = await withReauth(() =>
 				api.upsertAdGuardRewrite(selectedConnectionId!, {
 					domain: rewriteForm.domain,
 					answer: rewriteForm.answer
 				})
 			);
-			if (saved) {
-				message = `Rewrite saved for ${saved.domain}.`;
+			if (result) {
+				const planned = result.plan.changes.length;
+				message = `Rewrite planned for ${result.rewrite?.domain ?? rewriteForm.domain}. ${planned} pending change${planned === 1 ? '' : 's'} will apply on push sync.`;
 				rewriteForm.domain = '';
 				rewriteForm.answer = '';
 				await loadRewrites(selectedConnectionId);
@@ -190,8 +191,9 @@
 		error = null;
 		message = null;
 		try {
-			await withReauth(() => api.deleteAdGuardRewrite(selectedConnectionId!, rewriteId));
-			message = 'Rewrite deleted.';
+			const result = await withReauth(() => api.deleteAdGuardRewrite(selectedConnectionId!, rewriteId));
+			const planned = result?.plan.changes.length ?? 0;
+			message = `Rewrite delete planned. ${planned} pending change${planned === 1 ? '' : 's'} will apply on push sync.`;
 			await loadRewrites(selectedConnectionId);
 		} catch (e) {
 			error = e instanceof ApiRequestError ? e.message : 'Failed to delete rewrite';
