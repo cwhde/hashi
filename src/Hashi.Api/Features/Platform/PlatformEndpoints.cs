@@ -631,9 +631,7 @@ public static class ScriptEndpoints
             ScriptExecutionService scripts,
             CancellationToken ct) =>
         {
-            var result = string.IsNullOrWhiteSpace(request.Host)
-                ? await scripts.RunWithConnectionAsync(scriptId, ct)
-                : await scripts.RunAsync(scriptId, request, ct);
+            var result = await scripts.RunAsync(scriptId, request, ct);
             return TypedResults.Ok(result);
         })
             .Produces<RunScriptResponse>(StatusCodes.Status200OK);

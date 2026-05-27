@@ -406,7 +406,99 @@ public sealed class ScriptEntity
 
     public bool Enabled { get; set; } = true;
 
+    public int RunTimeoutSeconds { get; set; } = 300;
+
     public DateTimeOffset? LastRunAtUtc { get; set; }
 
     public string? LastRunOutput { get; set; }
+
+    public string? LastRunError { get; set; }
+
+    public string LastRunStatus { get; set; } = ScriptRunStatusNames.NeverRun;
+
+    public Guid? LastRunId { get; set; }
+}
+
+public sealed class ScriptTargetEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid ScriptId { get; set; }
+
+    public ScriptEntity Script { get; set; } = null!;
+
+    public Guid ConnectionId { get; set; }
+
+    public ConnectionEntity Connection { get; set; } = null!;
+
+    public bool Enabled { get; set; } = true;
+}
+
+public sealed class ScriptEnvironmentVariableEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid ScriptId { get; set; }
+
+    public ScriptEntity Script { get; set; } = null!;
+
+    public string Name { get; set; } = string.Empty;
+
+    public bool IsSecret { get; set; }
+
+    public string? PlainValue { get; set; }
+
+    public Guid? SecretId { get; set; }
+}
+
+public sealed class ScriptRunEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid ScriptId { get; set; }
+
+    public ScriptEntity Script { get; set; } = null!;
+
+    public Guid ConnectionId { get; set; }
+
+    public ConnectionEntity Connection { get; set; } = null!;
+
+    public DateTimeOffset StartedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+
+    public DateTimeOffset? CompletedAtUtc { get; set; }
+
+    public string Status { get; set; } = ScriptRunStatusNames.Running;
+
+    public bool Succeeded { get; set; }
+
+    public string? Error { get; set; }
+}
+
+public sealed class ScriptOutputEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid RunId { get; set; }
+
+    public ScriptRunEntity Run { get; set; } = null!;
+
+    public string Stream { get; set; } = ScriptOutputStreamNames.Stdout;
+
+    public string Content { get; set; } = string.Empty;
+
+    public DateTimeOffset CapturedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public static class ScriptRunStatusNames
+{
+    public const string NeverRun = "never_run";
+    public const string Running = "running";
+    public const string Succeeded = "succeeded";
+    public const string Failed = "failed";
+}
+
+public static class ScriptOutputStreamNames
+{
+    public const string Stdout = "stdout";
+    public const string Stderr = "stderr";
 }

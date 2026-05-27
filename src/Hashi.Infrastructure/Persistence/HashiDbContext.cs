@@ -80,6 +80,14 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
 
     public DbSet<ScriptEntity> Scripts => Set<ScriptEntity>();
 
+    public DbSet<ScriptTargetEntity> ScriptTargets => Set<ScriptTargetEntity>();
+
+    public DbSet<ScriptEnvironmentVariableEntity> ScriptEnvironmentVariables => Set<ScriptEnvironmentVariableEntity>();
+
+    public DbSet<ScriptRunEntity> ScriptRuns => Set<ScriptRunEntity>();
+
+    public DbSet<ScriptOutputEntity> ScriptOutputs => Set<ScriptOutputEntity>();
+
     public DbSet<BackgroundJobEntity> BackgroundJobs => Set<BackgroundJobEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -427,6 +435,48 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.ToTable("scripts");
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Name).HasMaxLength(128);
+            entity.Property(x => x.LastRunStatus).HasMaxLength(32).HasDefaultValue(ScriptRunStatusNames.NeverRun);
+            entity.Property(x => x.RunTimeoutSeconds).HasDefaultValue(300);
+            entity.HasIndex(x => x.ConnectionId);
+            entity.HasOne<ConnectionEntity>().WithMany().HasForeignKey(x => x.ConnectionId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ScriptTargetEntity>(entity =>
+        {
+            entity.ToTable("host_script_targets");
+            entity.HasKey(x => x.Id);
+            entity.HasOne(x => x.Script).WithMany().HasForeignKey(x => x.ScriptId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Connection).WithMany().HasForeignKey(x => x.ConnectionId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(x => new { x.ScriptId, x.ConnectionId }).IsUnique();
+        });
+
+        modelBuilder.Entity<ScriptEnvironmentVariableEntity>(entity =>
+        {
+            entity.ToTable("host_script_environment_variables");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).HasMaxLength(128);
+            entity.HasOne(x => x.Script).WithMany().HasForeignKey(x => x.ScriptId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<SecretRecordEntity>().WithMany().HasForeignKey(x => x.SecretId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(x => new { x.ScriptId, x.Name }).IsUnique();
+        });
+
+        modelBuilder.Entity<ScriptRunEntity>(entity =>
+        {
+            entity.ToTable("host_script_runs");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Status).HasMaxLength(32);
+            entity.HasOne(x => x.Script).WithMany().HasForeignKey(x => x.ScriptId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Connection).WithMany().HasForeignKey(x => x.ConnectionId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(x => new { x.ScriptId, x.StartedAtUtc });
+        });
+
+        modelBuilder.Entity<ScriptOutputEntity>(entity =>
+        {
+            entity.ToTable("host_script_outputs");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Stream).HasMaxLength(16);
+            entity.HasOne(x => x.Run).WithMany().HasForeignKey(x => x.RunId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => x.RunId);
         });
 
         modelBuilder.Entity<BackgroundJobEntity>(entity =>
