@@ -139,7 +139,7 @@ public sealed class SshRemoteExecutorTests : IAsyncLifetime
     }
 
     private SshConnectionSettings CreateSettings() => new(
-        "127.0.0.1",
+        _sshContainer.Hostname,
         _mappedPort,
         Username,
         OsFamily.Unknown,
