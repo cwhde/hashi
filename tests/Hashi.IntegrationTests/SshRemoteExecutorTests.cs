@@ -36,15 +36,25 @@ public sealed class SshRemoteExecutorTests : IAsyncLifetime
             var publicKey = (await File.ReadAllTextAsync($"{keyPath}.pub")).Trim();
 
             _sshContainer = new ContainerBuilder()
-                .WithImage("linuxserver/openssh-server:latest")
+                .WithImage("alpine:3.20")
                 .WithPortBinding(22, true)
-                .WithEnvironment("PUID", "1000")
-                .WithEnvironment("PGID", "1000")
-                .WithEnvironment("TZ", "Etc/UTC")
-                .WithEnvironment("PASSWORD_ACCESS", "true")
-                .WithEnvironment("USER_NAME", Username)
-                .WithEnvironment("USER_PASSWORD", Password)
                 .WithEnvironment("PUBLIC_KEY", publicKey)
+                .WithCommand(
+                    "sh",
+                    "-c",
+                    $"""
+                    set -eu
+                    apk add --no-cache openssh-server >/dev/null
+                    adduser -D -s /bin/sh {Username}
+                    echo '{Username}:{Password}' | chpasswd
+                    mkdir -p /home/{Username}/.ssh /run/sshd /config
+                    printf '%s\n' "$PUBLIC_KEY" > /home/{Username}/.ssh/authorized_keys
+                    chown -R {Username}:{Username} /home/{Username}/.ssh /config
+                    chmod 700 /home/{Username}/.ssh
+                    chmod 600 /home/{Username}/.ssh/authorized_keys
+                    ssh-keygen -A >/dev/null
+                    exec /usr/sbin/sshd -D -e -p 22 -o PasswordAuthentication=yes -o PubkeyAuthentication=yes -o PermitRootLogin=no
+                    """)
                 .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(22))
                 .Build();
 

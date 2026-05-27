@@ -19,7 +19,10 @@ RUN dotnet publish src/Hashi.Api/Hashi.Api.csproj -c Release -o /app/publish /p:
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-preview AS final
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update \
+  && apt-get upgrade -y \
+  && apt-get install -y --no-install-recommends curl \
+  && rm -rf /var/lib/apt/lists/*
 COPY --from=dotnet-build /app/publish .
 ENV ASPNETCORE_URLS=http://0.0.0.0:8080
 EXPOSE 8080 8081 8082
