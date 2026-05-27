@@ -11,12 +11,8 @@ namespace Hashi.Api.Hosting;
 /// </summary>
 public sealed class AdminApiAuthMiddleware(RequestDelegate next)
 {
-    private static readonly PathString[] AlwaysPublicPrefixes =
+    private static readonly PathString[] AlwaysPublicPathPrefixes =
     [
-        new("/api/health"),
-        new("/api/auth"),
-        new("/api/setup/status"),
-        new("/api/setup/bootstrap-allowed"),
         new("/api/edge-auth"),
         new("/api/public"),
     ];
@@ -33,19 +29,13 @@ public sealed class AdminApiAuthMiddleware(RequestDelegate next)
             return;
         }
 
-        if (IsAlwaysPublic(path) || IsPulseHeartbeat(path) || IsAccessLogIngest(path))
+        if (IsPublicEndpoint(path, context.Request.Method) || IsPulseHeartbeat(path) || IsAccessLogIngest(path))
         {
             await next(context);
             return;
         }
 
         var setup = await setupState.GetOrCreateAsync(context.RequestAborted);
-        if (!setup.IsComplete && IsSetupPhasePath(path))
-        {
-            await next(context);
-            return;
-        }
-
         if (context.User.Identity?.IsAuthenticated != true)
         {
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
@@ -74,6 +64,12 @@ public sealed class AdminApiAuthMiddleware(RequestDelegate next)
     public static bool RequiresReauthentication(PathString path, string method)
     {
         var value = path.Value ?? string.Empty;
+        if (value.StartsWith("/api/vault/secrets/", StringComparison.OrdinalIgnoreCase)
+            && value.EndsWith("/reveal", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
         if (!IsUnsafeMethod(method))
         {
             return false;
@@ -166,15 +162,14 @@ public sealed class AdminApiAuthMiddleware(RequestDelegate next)
         return false;
     }
 
-    private static bool IsUnsafeMethod(string method) =>
-        method.Equals(HttpMethods.Post, StringComparison.OrdinalIgnoreCase)
-        || method.Equals(HttpMethods.Put, StringComparison.OrdinalIgnoreCase)
-        || method.Equals(HttpMethods.Patch, StringComparison.OrdinalIgnoreCase)
-        || method.Equals(HttpMethods.Delete, StringComparison.OrdinalIgnoreCase);
-
-    private static bool IsAlwaysPublic(PathString path)
+    public static bool IsPublicEndpoint(PathString path, string method)
     {
-        foreach (var prefix in AlwaysPublicPrefixes)
+        if (IsPublicExactEndpoint(path, method))
+        {
+            return true;
+        }
+
+        foreach (var prefix in AlwaysPublicPathPrefixes)
         {
             if (path.StartsWithSegments(prefix))
             {
@@ -185,16 +180,33 @@ public sealed class AdminApiAuthMiddleware(RequestDelegate next)
         return false;
     }
 
+    private static bool IsUnsafeMethod(string method) =>
+        method.Equals(HttpMethods.Post, StringComparison.OrdinalIgnoreCase)
+        || method.Equals(HttpMethods.Put, StringComparison.OrdinalIgnoreCase)
+        || method.Equals(HttpMethods.Patch, StringComparison.OrdinalIgnoreCase)
+        || method.Equals(HttpMethods.Delete, StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsPublicExactEndpoint(PathString path, string method)
+    {
+        var value = path.Value ?? string.Empty;
+
+        return IsEndpoint(value, method, "/api/health", HttpMethods.Get)
+               || IsEndpoint(value, method, "/api/setup/status", HttpMethods.Get)
+               || IsEndpoint(value, method, "/api/setup/bootstrap-allowed", HttpMethods.Get)
+               || IsEndpoint(value, method, "/api/auth/csrf", HttpMethods.Get)
+               || IsEndpoint(value, method, "/api/auth/bootstrap/login", HttpMethods.Post)
+               || IsEndpoint(value, method, "/api/auth/passkeys/login/begin", HttpMethods.Post)
+               || IsEndpoint(value, method, "/api/auth/passkeys/login/complete", HttpMethods.Post);
+    }
+
+    private static bool IsEndpoint(string actualPath, string actualMethod, string expectedPath, string expectedMethod)
+        => string.Equals(actualPath, expectedPath, StringComparison.OrdinalIgnoreCase)
+           && string.Equals(actualMethod, expectedMethod, StringComparison.OrdinalIgnoreCase);
+
     private static bool IsPulseHeartbeat(PathString path)
         => path.StartsWithSegments("/api/pulse")
            && path.Value?.EndsWith("/heartbeat", StringComparison.OrdinalIgnoreCase) == true;
 
     private static bool IsAccessLogIngest(PathString path)
         => string.Equals(path.Value, "/api/security/access-log", StringComparison.OrdinalIgnoreCase);
-
-    private static bool IsSetupPhasePath(PathString path)
-        => path.StartsWithSegments("/api/setup")
-           || path.StartsWithSegments("/api/vault")
-           || path.StartsWithSegments("/api/settings")
-           || path.StartsWithSegments("/api/activity");
 }

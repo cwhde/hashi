@@ -29,7 +29,7 @@ const csrfMiddleware: Middleware = {
 		if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') {
 			return request;
 		}
-		if (!request.url.includes('/api/auth/')) {
+		if (!isCsrfExemptRequest(request.url, method)) {
 			if (!csrfToken) {
 				csrfToken = await ensureCsrfToken();
 			}
@@ -42,6 +42,15 @@ const csrfMiddleware: Middleware = {
 };
 
 client.use(csrfMiddleware);
+
+function isCsrfExemptRequest(url: string, method: string): boolean {
+	const path = new URL(url, 'http://hashi.local').pathname;
+	return (
+		(method === 'POST' && path === '/api/auth/bootstrap/login') ||
+		(method === 'POST' && path === '/api/auth/passkeys/login/begin') ||
+		(method === 'POST' && path === '/api/auth/passkeys/login/complete')
+	);
+}
 
 export class ApiRequestError extends Error {
 	constructor(

@@ -28,6 +28,8 @@ public sealed class VaultStatusTests : IAsyncLifetime
         var connectionString = await _fixture.CreateDatabaseAsync();
         _factory = IntegrationTestApp.CreateFactory(connectionString);
         _client = _factory.CreateClient();
+        await IntegrationTestAuth.EnsureBootstrapCredentialsAsync(_factory.Services);
+        await IntegrationTestAuth.AuthenticateAsBootstrapAsync(_client);
     }
 
     public async Task DisposeAsync()
@@ -62,12 +64,10 @@ public sealed class VaultStatusTests : IAsyncLifetime
             return;
         }
 
-        var csrf = await _client.GetFromJsonAsync<CsrfToken>("/api/auth/csrf");
-        var request = new HttpRequestMessage(HttpMethod.Post, "/api/vault/recovery-key/generate");
-        if (!string.IsNullOrEmpty(csrf?.Token))
-        {
-            request.Headers.Add("X-CSRF-TOKEN", csrf.Token);
-        }
+        using var request = await IntegrationTestAuth.CreateCsrfRequestAsync(
+            _client,
+            HttpMethod.Post,
+            "/api/vault/recovery-key/generate");
 
         var response = await _client.SendAsync(request);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -86,9 +86,11 @@ public sealed class VaultStatusTests : IAsyncLifetime
             return;
         }
 
-        var blocked = await _client.PostAsync("/api/setup/steps/passkey-and-vault/complete", null);
+        using var request = await IntegrationTestAuth.CreateCsrfRequestAsync(
+            _client,
+            HttpMethod.Post,
+            "/api/setup/steps/passkey-and-vault/complete");
+        var blocked = await _client.SendAsync(request);
         Assert.Equal(HttpStatusCode.BadRequest, blocked.StatusCode);
     }
-
-    private sealed record CsrfToken(string? Token);
 }

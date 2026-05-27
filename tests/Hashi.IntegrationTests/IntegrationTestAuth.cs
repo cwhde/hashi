@@ -37,5 +37,24 @@ public static class IntegrationTestAuth
         response.EnsureSuccessStatusCode();
     }
 
+    public static async Task<HttpRequestMessage> CreateCsrfRequestAsync(
+        HttpClient client,
+        HttpMethod method,
+        string requestUri,
+        HttpContent? content = null)
+    {
+        var csrf = await client.GetFromJsonAsync<CsrfResponse>("/api/auth/csrf");
+        var request = new HttpRequestMessage(method, requestUri)
+        {
+            Content = content,
+        };
+        if (!string.IsNullOrEmpty(csrf?.Token))
+        {
+            request.Headers.Add("X-CSRF-TOKEN", csrf.Token);
+        }
+
+        return request;
+    }
+
     private sealed record CsrfResponse(string? Token);
 }
