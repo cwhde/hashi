@@ -36,7 +36,8 @@ public sealed class DnsConnectionService(
             SecretPurpose.DnsProviderToken,
             $"DNS: {name}",
             System.Text.Encoding.UTF8.GetBytes(apiToken),
-            cancellationToken);
+            cancellationToken,
+            serviceSyncEligible: true);
 
         var connection = new ConnectionEntity
         {

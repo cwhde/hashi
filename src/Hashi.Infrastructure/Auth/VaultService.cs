@@ -132,7 +132,11 @@ public sealed class VaultService(
         return true;
     }
 
-    public async Task<bool> UnlockWithPrfAsync(Guid passkeyCredentialId, byte[] prfOutput, CancellationToken cancellationToken = default)
+    public async Task<bool> UnlockWithPrfAsync(
+        Guid passkeyCredentialId,
+        byte[] prfOutput,
+        string? sessionKey = null,
+        CancellationToken cancellationToken = default)
     {
         var wrapped = await db.VaultWrappedKeys.SingleOrDefaultAsync(
             x => x.WrapMethod == VaultWrapMethodNames.PasskeyPrf && x.PasskeyCredentialId == passkeyCredentialId,
@@ -144,7 +148,15 @@ public sealed class VaultService(
 
         var credential = await db.PasskeyCredentials.SingleAsync(x => x.Id == passkeyCredentialId, cancellationToken);
         var rootKey = AesGcmCipher.Decrypt(wrapped.WrappedKeyBlob, KeyDerivation.DerivePrfWrapKey(prfOutput, credential.CredentialId));
-        session.Unlock(rootKey);
+        if (sessionKey is null)
+        {
+            session.Unlock(rootKey);
+        }
+        else
+        {
+            session.UnlockForSession(sessionKey, rootKey);
+        }
+
         CryptographicOperations.ZeroMemory(rootKey);
         await audit.WriteAsync("vault", "unlocked", metadata: new { method = "passkey_prf" }, cancellationToken: cancellationToken);
         return true;
@@ -158,7 +170,7 @@ public sealed class VaultService(
 
     public async Task EnsureServiceSyncWrapAsync(CancellationToken cancellationToken = default)
     {
-        if (!serviceSync.IsReady || session.IsUnlocked)
+        if (!serviceSync.IsReady)
         {
             return;
         }
@@ -174,7 +186,6 @@ public sealed class VaultService(
         try
         {
             var rootKey = AesGcmCipher.Decrypt(wrapped.WrappedKeyBlob, serviceSync.GetWrapKeyOrThrow());
-            session.Unlock(rootKey);
             CryptographicOperations.ZeroMemory(rootKey);
         }
         catch (CryptographicException ex)

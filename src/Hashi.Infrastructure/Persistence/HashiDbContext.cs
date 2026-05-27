@@ -167,7 +167,9 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Purpose).HasMaxLength(64);
             entity.Property(x => x.Label).HasMaxLength(256);
+            entity.Property(x => x.IsServiceSyncEligible).HasDefaultValue(false);
             entity.HasIndex(x => x.Purpose);
+            entity.HasIndex(x => x.IsServiceSyncEligible);
         });
 
         modelBuilder.Entity<ConnectionEntity>(entity =>

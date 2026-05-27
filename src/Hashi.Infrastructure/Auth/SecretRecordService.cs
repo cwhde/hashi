@@ -16,7 +16,8 @@ public sealed class SecretRecordService(
         SecretPurpose purpose,
         string label,
         byte[] plaintext,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool serviceSyncEligible = false)
     {
         if (!session.IsUnlocked)
         {
@@ -29,7 +30,7 @@ public sealed class SecretRecordService(
             var ciphertext = AesGcmCipher.Encrypt(plaintext, dek).ToBlob();
             var adminWrapped = AesGcmCipher.Encrypt(dek, session.GetRootKeyOrThrow()).ToBlob();
             byte[]? serviceWrapped = null;
-            if (serviceSync.IsReady)
+            if (serviceSyncEligible && serviceSync.IsReady)
             {
                 serviceWrapped = AesGcmCipher.Encrypt(dek, serviceSync.GetWrapKeyOrThrow()).ToBlob();
             }
@@ -40,6 +41,7 @@ public sealed class SecretRecordService(
                 Label = label,
                 AdminWrappedDekBlob = adminWrapped,
                 ServiceWrappedDekBlob = serviceWrapped,
+                IsServiceSyncEligible = serviceSyncEligible,
                 CiphertextBlob = ciphertext,
             };
             db.SecretRecords.Add(entity);
@@ -85,7 +87,7 @@ public sealed class SecretRecordService(
         }
 
         var entity = await db.SecretRecords.AsNoTracking().SingleOrDefaultAsync(x => x.Id == secretId, cancellationToken);
-        if (entity is null || entity.ServiceWrappedDekBlob is null)
+        if (entity is null || !entity.IsServiceSyncEligible || entity.ServiceWrappedDekBlob is null)
         {
             return null;
         }

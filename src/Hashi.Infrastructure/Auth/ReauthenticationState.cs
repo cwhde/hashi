@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 
 namespace Hashi.Infrastructure.Auth;
@@ -34,6 +35,7 @@ public sealed class ReauthenticationState
     private static string? SessionKey(HttpContext context)
     {
         var sessionId = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? context.User.FindFirst(ClaimTypes.Sid)?.Value
             ?? context.User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value;
         if (!string.IsNullOrEmpty(sessionId))
         {

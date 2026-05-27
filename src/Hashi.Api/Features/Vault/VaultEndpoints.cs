@@ -107,6 +107,7 @@ public static class VaultEndpoints
         group.MapGet("/secrets/{id:guid}/reveal", async Task<IResult> (
             Guid id,
             SecretRecordService secrets,
+            AuditService audit,
             CancellationToken ct) =>
         {
             var plaintext = await secrets.DecryptForAdminAsync(id, ct);
@@ -115,6 +116,7 @@ public static class VaultEndpoints
                 return TypedResults.NotFound();
             }
 
+            await audit.WriteAsync("vault", "secret_revealed", subjectType: "secret", subjectId: id.ToString(), cancellationToken: ct);
             return TypedResults.Ok(new SecretRevealResponse(Convert.ToBase64String(plaintext)));
         });
 

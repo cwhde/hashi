@@ -92,7 +92,8 @@ public sealed class CertificateSetupService(
                 SecretPurpose.AcmeEab,
                 "ACME EAB",
                 Encoding.UTF8.GetBytes(eabPayload),
-                cancellationToken);
+                cancellationToken,
+                serviceSyncEligible: true);
             appSettings.AcmeEabSecretId = stored.Id;
 
             var setup = await db.SetupStates.SingleOrDefaultAsync(cancellationToken);
@@ -143,7 +144,8 @@ public sealed class CertificateSetupService(
             SecretPurpose.AcmeEab,
             "ACME EAB",
             Encoding.UTF8.GetBytes(setup.PendingAcmeEabJson),
-            cancellationToken);
+            cancellationToken,
+            serviceSyncEligible: true);
         appSettings.AcmeEabSecretId = stored.Id;
         setup.PendingAcmeEabJson = null;
         await db.SaveChangesAsync(cancellationToken);

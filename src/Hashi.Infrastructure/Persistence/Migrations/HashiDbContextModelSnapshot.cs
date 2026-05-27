@@ -1344,6 +1344,11 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<bool>("IsServiceSyncEligible")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("Purpose")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -1356,6 +1361,8 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("IsServiceSyncEligible");
 
                     b.HasIndex("Purpose");
 
