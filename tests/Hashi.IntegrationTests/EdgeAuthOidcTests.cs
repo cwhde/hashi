@@ -4,6 +4,7 @@ using Hashi.Infrastructure.Auth;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -41,12 +42,23 @@ public sealed class EdgeAuthOidcTests : IAsyncLifetime
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<HashiDbContext>();
         var vault = scope.ServiceProvider.GetRequiredService<VaultSessionState>();
-        vault.Unlock(new byte[32]);
+        var sessionId = Guid.NewGuid().ToString("N");
+        vault.UnlockForSession(sessionId, new byte[32]);
+        var accessor = scope.ServiceProvider.GetRequiredService<IHttpContextAccessor>();
+        accessor.HttpContext = IntegrationTestAuth.CreateAdminHttpContext(sessionId);
         var secrets = scope.ServiceProvider.GetRequiredService<SecretRecordService>();
-        var stored = await secrets.StoreAsync(
-            SecretPurpose.OidcClientSecret,
-            "Edge SSO",
-            "fake-secret"u8.ToArray());
+        StoredSecretDescriptor stored;
+        try
+        {
+            stored = await secrets.StoreAsync(
+                SecretPurpose.OidcClientSecret,
+                "Edge SSO",
+                "fake-secret"u8.ToArray());
+        }
+        finally
+        {
+            accessor.HttpContext = null;
+        }
         db.OidcProviders.Add(new OidcProviderEntity
         {
             Name = "Fake IdP",
@@ -56,6 +68,7 @@ public sealed class EdgeAuthOidcTests : IAsyncLifetime
             Enabled = true,
         });
         await db.SaveChangesAsync();
+        IntegrationTestAuth.AuthenticateAsAdminSession(_client, _factory.Services, sessionId, unlockVault: true);
     }
 
     public async Task DisposeAsync()

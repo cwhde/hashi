@@ -132,8 +132,6 @@ public sealed class HetznerDnsPlanApplyTests : IAsyncLifetime
         }
 
         await using var factory = CreateFactory();
-        using var setupScope = factory.Services.CreateScope();
-        setupScope.ServiceProvider.GetRequiredService<VaultSessionState>().Unlock(new byte[32]);
         await IntegrationTestAuth.EnsureBootstrapCredentialsAsync(factory.Services);
 
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
@@ -141,8 +139,9 @@ public sealed class HetznerDnsPlanApplyTests : IAsyncLifetime
             HandleCookies = true,
             AllowAutoRedirect = false,
         });
-        await IntegrationTestAuth.AuthenticateAsBootstrapAsync(client);
-        IntegrationTestAuth.MarkRecentReauthentication(factory.Services);
+        var sessionId = Guid.NewGuid().ToString("N");
+        IntegrationTestAuth.AuthenticateAsAdminSession(client, factory.Services, sessionId, unlockVault: true);
+        IntegrationTestAuth.MarkRecentReauthentication(factory.Services, sessionId);
 
         var createConnection = await SendPostWithCsrfAsync(
             client,

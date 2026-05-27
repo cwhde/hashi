@@ -1,5 +1,8 @@
 using System.Net.Http.Json;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
 using Hashi.Core.Auth;
 using Hashi.Infrastructure.Auth;
 using Hashi.Infrastructure.Persistence;
@@ -41,21 +44,56 @@ public static class IntegrationTestAuth
         response.EnsureSuccessStatusCode();
     }
 
-    public static void MarkRecentReauthentication(IServiceProvider services)
+    public static void AuthenticateAsAdminSession(
+        HttpClient client,
+        IServiceProvider services,
+        string sessionId,
+        bool unlockVault = false)
+    {
+        var protector = services.GetRequiredService<IDataProtectionProvider>().CreateProtector(
+            "Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationMiddleware",
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            "v2");
+        var format = new TicketDataFormat(protector);
+        var ticket = new AuthenticationTicket(
+            CreateAdminPrincipal(sessionId),
+            new AuthenticationProperties
+            {
+                IssuedUtc = DateTimeOffset.UtcNow,
+                ExpiresUtc = DateTimeOffset.UtcNow.AddHours(1),
+                IsPersistent = false,
+            },
+            CookieAuthenticationDefaults.AuthenticationScheme);
+
+        client.DefaultRequestHeaders.Remove("Cookie");
+        client.DefaultRequestHeaders.Add("Cookie", $"hashi.session={Uri.EscapeDataString(format.Protect(ticket))}");
+
+        if (unlockVault)
+        {
+            services.GetRequiredService<VaultSessionState>().UnlockForSession(sessionId, new byte[32]);
+        }
+    }
+
+    public static DefaultHttpContext CreateAdminHttpContext(string sessionId)
+        => new() { User = CreateAdminPrincipal(sessionId) };
+
+    public static void MarkRecentReauthentication(IServiceProvider services, string sessionId = "admin")
     {
         var reauth = services.GetRequiredService<ReauthenticationState>();
+        reauth.MarkRecent(CreateAdminHttpContext(sessionId));
+    }
+
+    private static ClaimsPrincipal CreateAdminPrincipal(string sessionId)
+    {
         var identity = new ClaimsIdentity(
             [
+                new Claim(ClaimTypes.NameIdentifier, sessionId),
+                new Claim(ClaimTypes.Sid, sessionId),
                 new Claim(ClaimTypes.Name, "admin"),
                 new Claim(AdminClaimTypes.AuthMethod, AdminAuthMethods.Bootstrap),
             ],
-            "IntegrationTest");
-        var context = new DefaultHttpContext
-        {
-            User = new ClaimsPrincipal(identity),
-        };
-
-        reauth.MarkRecent(context);
+            CookieAuthenticationDefaults.AuthenticationScheme);
+        return new ClaimsPrincipal(identity);
     }
 
     public static async Task<HttpRequestMessage> CreateCsrfRequestAsync(
