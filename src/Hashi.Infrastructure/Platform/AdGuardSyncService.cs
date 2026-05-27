@@ -38,7 +38,8 @@ public sealed class AdGuardSyncService(
             SecretPurpose.AdGuardCredential,
             $"AdGuard: {request.Name}",
             JsonSerializer.SerializeToUtf8Bytes(new { password = request.Password }),
-            cancellationToken);
+            cancellationToken,
+            serviceSyncEligible: true);
         var connection = new AdGuardConnectionEntity
         {
             Name = request.Name,

@@ -48,6 +48,8 @@ public sealed class SecretRecordEntity
 
     public byte[]? ServiceWrappedDekBlob { get; set; }
 
+    public bool IsServiceSyncEligible { get; set; }
+
     public byte[] CiphertextBlob { get; set; } = [];
 
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
