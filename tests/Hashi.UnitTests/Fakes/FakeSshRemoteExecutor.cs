@@ -6,6 +6,9 @@ public sealed class FakeSshRemoteExecutor : ISshRemoteExecutor
 {
     public int WriteCount { get; private set; }
     public Dictionary<string, byte[]> ReadFiles { get; } = new(StringComparer.Ordinal);
+    public List<string> Commands { get; } = [];
+    public List<SshConnectionSettings> CommandSettings { get; } = [];
+    public RemoteCommandResult CommandResult { get; set; } = new(true, string.Empty, null);
 
     public Task<SshValidationResult> ValidateAsync(SshConnectionSettings settings, string password, CancellationToken cancellationToken = default)
         => Task.FromResult(new SshValidationResult(true, OsFamily.Debian, "linux", null));
@@ -61,5 +64,9 @@ public sealed class FakeSshRemoteExecutor : ISshRemoteExecutor
         string? privateKeyPassphrase,
         string command,
         CancellationToken cancellationToken = default)
-        => Task.FromResult(new RemoteCommandResult(true, string.Empty, null));
+    {
+        Commands.Add(command);
+        CommandSettings.Add(settings);
+        return Task.FromResult(CommandResult);
+    }
 }

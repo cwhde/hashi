@@ -1,6 +1,10 @@
 using System.Net.Http.Json;
+using System.Security.Claims;
+using Hashi.Infrastructure.Auth;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Services;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -35,6 +39,15 @@ public static class IntegrationTestAuth
 
         var response = await client.SendAsync(request);
         response.EnsureSuccessStatusCode();
+    }
+
+    public static void MarkBootstrapReauthenticated(IServiceProvider services)
+    {
+        var identity = new ClaimsIdentity(
+            [new Claim(ClaimTypes.Name, "admin")],
+            CookieAuthenticationDefaults.AuthenticationScheme);
+        var context = new DefaultHttpContext { User = new ClaimsPrincipal(identity) };
+        services.GetRequiredService<ReauthenticationState>().MarkRecent(context);
     }
 
     public static async Task<HttpRequestMessage> CreateCsrfRequestAsync(

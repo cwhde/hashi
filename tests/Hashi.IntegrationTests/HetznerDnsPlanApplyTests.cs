@@ -141,6 +141,7 @@ public sealed class HetznerDnsPlanApplyTests : IAsyncLifetime
             AllowAutoRedirect = false,
         });
         await IntegrationTestAuth.AuthenticateAsBootstrapAsync(client);
+        IntegrationTestAuth.MarkBootstrapReauthenticated(factory.Services);
 
         var createConnection = await SendPostWithCsrfAsync(
             client,
