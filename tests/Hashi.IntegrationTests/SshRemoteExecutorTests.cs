@@ -19,16 +19,10 @@ public sealed class SshRemoteExecutorTests : IAsyncLifetime
     private SshRemoteExecutor _executor = null!;
     private int _mappedPort;
     private string _encryptedPrivateKeyPem = string.Empty;
-    private bool _dockerUnavailable;
+    private bool _sshUnavailable;
 
     public async Task InitializeAsync()
     {
-        if (ShouldSkipSshIntegrationTests())
-        {
-            _dockerUnavailable = true;
-            return;
-        }
-
         _executor = new SshRemoteExecutor();
         try
         {
@@ -60,14 +54,16 @@ public sealed class SshRemoteExecutorTests : IAsyncLifetime
         }
         catch (Exception ex) when (IsDockerUnavailable(ex) || IsStartupTimeout(ex))
         {
-            Console.WriteLine($"Skipping SSH integration tests: {ex.Message}");
-            _dockerUnavailable = true;
+            var message = $"SSH integration tests unavailable: {ex.Message}";
+            Console.WriteLine(message);
+            _sshUnavailable = true;
+            FailIfCi(message);
         }
     }
 
     public async Task DisposeAsync()
     {
-        if (!_dockerUnavailable && _sshContainer is not null)
+        if (!_sshUnavailable && _sshContainer is not null)
         {
             await _sshContainer.DisposeAsync();
         }
@@ -76,7 +72,7 @@ public sealed class SshRemoteExecutorTests : IAsyncLifetime
     [Fact]
     public async Task Validate_with_password_detects_os_family()
     {
-        if (_dockerUnavailable)
+        if (_sshUnavailable)
         {
             return;
         }
@@ -90,7 +86,7 @@ public sealed class SshRemoteExecutorTests : IAsyncLifetime
     [Fact]
     public async Task WriteAtomic_creates_remote_file()
     {
-        if (_dockerUnavailable)
+        if (_sshUnavailable)
         {
             return;
         }
@@ -104,7 +100,7 @@ public sealed class SshRemoteExecutorTests : IAsyncLifetime
     [Fact]
     public async Task Validate_with_encrypted_private_key_succeeds()
     {
-        if (_dockerUnavailable)
+        if (_sshUnavailable)
         {
             return;
         }
@@ -116,7 +112,7 @@ public sealed class SshRemoteExecutorTests : IAsyncLifetime
     [Fact]
     public async Task WriteAtomic_with_encrypted_private_key_succeeds()
     {
-        if (_dockerUnavailable)
+        if (_sshUnavailable)
         {
             return;
         }
@@ -139,13 +135,6 @@ public sealed class SshRemoteExecutorTests : IAsyncLifetime
         OsFamily.Unknown,
         null,
         null);
-
-    private static bool ShouldSkipSshIntegrationTests()
-        => string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase)
-           && !string.Equals(
-               Environment.GetEnvironmentVariable("HASHI_RUN_SSH_INTEGRATION_TESTS"),
-               "1",
-               StringComparison.Ordinal);
 
     private static bool IsDockerUnavailable(Exception ex)
         => ex is ArgumentException { ParamName: "DockerEndpointAuthConfig" }
@@ -170,6 +159,14 @@ public sealed class SshRemoteExecutorTests : IAsyncLifetime
         {
             var stderr = await process.StandardError.ReadToEndAsync();
             throw new InvalidOperationException($"{fileName} failed: {stderr}");
+        }
+    }
+
+    private static void FailIfCi(string message)
+    {
+        if (string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(message);
         }
     }
 }

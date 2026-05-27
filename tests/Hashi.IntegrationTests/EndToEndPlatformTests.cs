@@ -1,7 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
 using Hashi.Contracts.Api;
+using Hashi.Infrastructure.Persistence;
+using Hashi.Infrastructure.Persistence.Entities;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Hashi.IntegrationTests;
@@ -110,6 +113,73 @@ public sealed class EndToEndPlatformTests : IAsyncLifetime
 
         var response = await _client.SendAsync(request);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Public_ports_expose_public_data_without_admin_api_access()
+    {
+        if (!_fixture.IsAvailable || _factory is null)
+        {
+            return;
+        }
+
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<HashiDbContext>();
+            var resource = new ResourceEntity
+            {
+                Name = "Public App",
+                Slug = "public-app",
+                Kind = "https",
+                Domain = "public.example.com",
+                TargetScheme = "http",
+                TargetHost = "10.0.0.10",
+                TargetPort = 8080,
+                DashboardEnabled = true,
+                StatusEnabled = true,
+            };
+            db.Resources.Add(resource);
+            db.MonitorEndpoints.Add(new MonitorEndpointEntity
+            {
+                Name = "Public App",
+                Url = "https://public.example.com/",
+                CheckType = "https",
+                Enabled = true,
+                Status = "up",
+                ResourceId = resource.Id,
+                LastLatencyMs = 42,
+                LastCheckedAtUtc = DateTimeOffset.UtcNow,
+            });
+            await db.SaveChangesAsync();
+        }
+
+        using var dashboardClient = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("http://localhost:8081"),
+            HandleCookies = false,
+            AllowAutoRedirect = false,
+        });
+        using var statusClient = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("http://localhost:8082"),
+            HandleCookies = false,
+            AllowAutoRedirect = false,
+        });
+
+        var apps = await dashboardClient.GetFromJsonAsync<IReadOnlyList<ResourceResponse>>("/api/public/apps");
+        Assert.NotNull(apps);
+        Assert.Contains(apps!, x => x.Name == "Public App" && x.Domain == "public.example.com");
+
+        var statusItems = await statusClient.GetFromJsonAsync<IReadOnlyList<PublicStatusItemResponse>>("/api/public/status");
+        Assert.NotNull(statusItems);
+        Assert.Contains(statusItems!, x => x.Name == "Public App" && x.Status == "Up" && x.LastLatencyMs == 42);
+
+        var adminFromDashboard = await dashboardClient.GetAsync("/api/resources");
+        var adminFromStatus = await statusClient.GetAsync("/api/resources");
+        var crossPortStatus = await dashboardClient.GetAsync("/api/public/status");
+        Assert.Equal(HttpStatusCode.NotFound, adminFromDashboard.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, adminFromStatus.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, crossPortStatus.StatusCode);
     }
 
     private sealed record CsrfToken(string? Token);
