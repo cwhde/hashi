@@ -3497,6 +3497,9 @@ export interface paths {
             parameters: {
                 query?: {
                     hours?: number | string;
+                    resource?: string;
+                    traefikHost?: string;
+                    firewallHostId?: string;
                 };
                 header?: never;
                 path?: never;
@@ -4175,6 +4178,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings/notifications/telegram/discover-chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["TelegramChatDiscoveryRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TelegramChatDiscoveryResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/settings/notifications/send": {
         parameters: {
             query?: never;
@@ -4358,7 +4400,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AdGuardRewriteResponse"];
+                        "application/json": components["schemas"]["AdGuardRewriteMutationResponse"];
                     };
                 };
             };
@@ -4396,10 +4438,132 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["AdGuardRewriteMutationResponse"];
+                    };
                 };
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/adguard/{connectionId}/rewrites/{rewriteId}/delete/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    connectionId: string;
+                    rewriteId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AdGuardRewriteApplyRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdGuardRewriteApplyResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/adguard/{connectionId}/sync/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    connectionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdGuardRewritePlanResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/adguard/{connectionId}/sync/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    connectionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AdGuardRewriteApplyRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdGuardRewriteApplyResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -4430,7 +4594,9 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["AdGuardRewriteApplyResponse"];
+                    };
                 };
             };
         };
@@ -4629,6 +4795,11 @@ export interface components {
             statusCode: number | string;
             countryCode: null | string;
             asn: null | string;
+            regionCode?: null | string;
+            method?: null | string;
+            pathPrefix?: null | string;
+            traefikInstance?: null | string;
+            resource?: null | string;
         };
         AdGuardConnectionResponse: {
             /** Format: uuid */
@@ -4641,7 +4812,39 @@ export interface components {
             connected: boolean;
             error: null | string;
         };
-        AdGuardRewriteResponse: {
+        AdGuardRewriteApplyRequest: {
+            /** Format: uuid */
+            planId: string;
+            /** @default false */
+            confirmDestructive: boolean;
+        };
+        AdGuardRewriteApplyResponse: {
+            /** Format: uuid */
+            runId: string;
+            succeeded: boolean;
+            status: string;
+            message: null | string;
+        };
+        AdGuardRewriteMutationResponse: {
+            rewrite: components["schemas"]["AdGuardRewriteResponse"];
+            plan: components["schemas"]["AdGuardRewritePlanResponse"];
+        };
+        AdGuardRewritePlanChangeResponse: {
+            kind: string;
+            domain: string;
+            currentAnswer: null | string;
+            desiredAnswer: null | string;
+            summary: string;
+        };
+        AdGuardRewritePlanResponse: {
+            /** Format: uuid */
+            planId: string;
+            /** Format: uuid */
+            connectionId: string;
+            requiresConfirmation: boolean;
+            changes: components["schemas"]["AdGuardRewritePlanChangeResponse"][];
+        };
+        AdGuardRewriteResponse: null | {
             /** Format: uuid */
             id: string;
             domain: string;
@@ -5310,17 +5513,56 @@ export interface components {
             blocked: number | string;
             /** Format: int64 */
             challenged: number | string;
+            /** Format: int64 */
+            wafDetections: number | string;
+            /** Format: int64 */
+            wafBlocks: number | string;
             /** Format: int32 */
             hours: number | string;
+            resourceFilter: null | string;
+            traefikHostFilter: null | string;
+            /** Format: uuid */
+            firewallHostIdFilter: null | string;
             topBlockedIps: string[];
             topCountries: components["schemas"]["SecurityRankItem"][];
             topAsns: components["schemas"]["SecurityRankItem"][];
+            topResourcesBlockedChallenged: components["schemas"]["SecurityResourceEnforcementItem"][];
+            recentEvents: components["schemas"]["SecurityRecentEventItem"][];
+            resourceFilters: components["schemas"]["SecurityFilterOption"][];
+            traefikHostFilters: components["schemas"]["SecurityFilterOption"][];
+            firewallHostFilters: components["schemas"]["SecurityFirewallHostOption"][];
+            /** Format: int64 */
+            firewallActiveIpBlocks: number | string;
             /** Format: int64 */
             blocklistCount: number | string;
             /** Format: int64 */
             securityEventCount: number | string;
         };
+        SecurityFilterOption: unknown;
+        SecurityFirewallHostOption: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            domain: string;
+            linkedTraefikHost: string;
+        };
         SecurityRankItem: unknown;
+        SecurityRecentEventItem: {
+            /** Format: date-time */
+            occurredAtUtc: string;
+            category: string;
+            action: string;
+            clientIp?: null | string;
+            host?: null | string;
+            path?: null | string;
+        };
+        SecurityResourceEnforcementItem: {
+            resource: string;
+            /** Format: int64 */
+            blocked: number | string;
+            /** Format: int64 */
+            challenged: number | string;
+        };
         SendNotificationRequest: {
             subject: string;
             body: string;
@@ -5390,6 +5632,15 @@ export interface components {
             /** Format: date-time */
             completedAtUtc: null | string;
             message: null | string;
+        };
+        TelegramChatDiscoveryRequest: {
+            botToken: string;
+        };
+        TelegramChatDiscoveryResponse: {
+            found: boolean;
+            chatId: null | string;
+            chatTitle: null | string;
+            error: null | string;
         };
         TraefikApplyConnectionRequest: {
             confirmReplaceExisting: boolean;

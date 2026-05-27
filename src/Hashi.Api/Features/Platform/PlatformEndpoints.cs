@@ -751,7 +751,8 @@ public static class AdGuardEndpoints
             {
                 return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
             }
-        });
+        })
+            .Produces<AdGuardRewriteMutationResponse>(StatusCodes.Status200OK);
         group.MapPost("/{connectionId:guid}/rewrites/{rewriteId:guid}/delete/apply", async Task<IResult> (
             Guid connectionId,
             Guid rewriteId,

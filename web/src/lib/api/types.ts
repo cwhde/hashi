@@ -122,7 +122,9 @@ export type TelegramChatDiscoveryResponse = {
 };
 export type AdGuardConnection = Schemas['AdGuardConnectionResponse'];
 export type CreateAdGuardConnectionRequest = Schemas['CreateAdGuardConnectionRequest'];
-export type AdGuardRewrite = Schemas['AdGuardRewriteResponse'];
+export type AdGuardRewrite = NonNullable<Schemas['AdGuardRewriteResponse']>;
+export type AdGuardRewriteMutation = Schemas['AdGuardRewriteMutationResponse'];
+export type AdGuardRewriteApply = Schemas['AdGuardRewriteApplyResponse'];
 export type UpsertAdGuardRewriteRequest = Schemas['UpsertAdGuardRewriteRequest'];
 
 export type MonitoringSettingsRequest = Schemas['MonitoringSettingsRequest'];

@@ -616,7 +616,8 @@ export const api = {
 		const r = await client.GET('/api/adguard/{connectionId}/rewrites', {
 			params: { path: { connectionId } }
 		});
-		return expectData(r.response, r.error, r.data ?? []);
+		const rewrites = await expectData(r.response, r.error, r.data ?? []);
+		return rewrites.filter((rewrite): rewrite is NonNullable<typeof rewrite> => rewrite !== null);
 	},
 	upsertAdGuardRewrite: async (
 		connectionId: string,
@@ -639,6 +640,6 @@ export const api = {
 		const r = await client.DELETE('/api/adguard/{connectionId}/rewrites/{rewriteId}', {
 			params: { path: { connectionId, rewriteId } }
 		});
-		await expectOk(r.response, r.error);
+		return expectData(r.response, r.error, r.data);
 	}
 };

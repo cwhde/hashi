@@ -43,7 +43,7 @@ public sealed class SecurityIngestionServiceTests
     public async Task SecurityRequestBuckets_groups_events_by_minute_and_dimensions()
     {
         await using var db = CreateDb();
-        var service = CreateService(db);
+        var service = CreateService(db, new FixedTimeProvider(new DateTimeOffset(2026, 5, 27, 6, 0, 30, TimeSpan.Zero)));
 
         for (var i = 0; i < 500; i++)
         {
@@ -166,7 +166,7 @@ public sealed class SecurityIngestionServiceTests
         return new HashiDbContext(options);
     }
 
-    private static SecurityIngestionService CreateService(HashiDbContext db)
+    private static SecurityIngestionService CreateService(HashiDbContext db, TimeProvider? timeProvider = null)
     {
         var audit = new AuditService(db);
         var secrets = new SecretRecordService(db, new VaultSessionState(), new ServiceSyncVaultState());
@@ -180,6 +180,12 @@ public sealed class SecurityIngestionServiceTests
             TestPlatformHelpers.CreateFirewallApply(db),
             audit,
             routing,
-            Microsoft.Extensions.Logging.Abstractions.NullLogger<SecurityIngestionService>.Instance);
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<SecurityIngestionService>.Instance,
+            timeProvider);
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => utcNow;
     }
 }

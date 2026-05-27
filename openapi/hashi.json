@@ -2480,6 +2480,28 @@
               ],
               "format": "int32"
             }
+          },
+          {
+            "name": "resource",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "traefikHost",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "firewallHostId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         ],
         "responses": {
@@ -3049,6 +3071,35 @@
         }
       }
     },
+    "/api/settings/notifications/telegram/discover-chat": {
+      "post": {
+        "tags": [
+          "Settings"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TelegramChatDiscoveryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramChatDiscoveryResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/settings/notifications/send": {
       "post": {
         "tags": [
@@ -3213,7 +3264,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdGuardRewriteResponse"
+                  "$ref": "#/components/schemas/AdGuardRewriteMutationResponse"
                 }
               }
             }
@@ -3248,7 +3299,133 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdGuardRewriteMutationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/adguard/{connectionId}/rewrites/{rewriteId}/delete/apply": {
+      "post": {
+        "tags": [
+          "AdGuard"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "rewriteId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdGuardRewriteApplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdGuardRewriteApplyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/adguard/{connectionId}/sync/plan": {
+      "post": {
+        "tags": [
+          "AdGuard"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdGuardRewritePlanResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/adguard/{connectionId}/sync/apply": {
+      "post": {
+        "tags": [
+          "AdGuard"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdGuardRewriteApplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdGuardRewriteApplyResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -3271,7 +3448,14 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdGuardRewriteApplyResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -3423,6 +3607,36 @@
               "null",
               "string"
             ]
+          },
+          "regionCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "method": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pathPrefix": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "traefikInstance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "resource": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -3468,6 +3682,125 @@
           }
         }
       },
+      "AdGuardRewriteApplyRequest": {
+        "required": [
+          "planId"
+        ],
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "confirmDestructive": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "AdGuardRewriteApplyResponse": {
+        "required": [
+          "runId",
+          "succeeded",
+          "status",
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "succeeded": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string"
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "AdGuardRewriteMutationResponse": {
+        "required": [
+          "rewrite",
+          "plan"
+        ],
+        "type": "object",
+        "properties": {
+          "rewrite": {
+            "$ref": "#/components/schemas/AdGuardRewriteResponse"
+          },
+          "plan": {
+            "$ref": "#/components/schemas/AdGuardRewritePlanResponse"
+          }
+        }
+      },
+      "AdGuardRewritePlanChangeResponse": {
+        "required": [
+          "kind",
+          "domain",
+          "currentAnswer",
+          "desiredAnswer",
+          "summary"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "currentAnswer": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "desiredAnswer": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "summary": {
+            "type": "string"
+          }
+        }
+      },
+      "AdGuardRewritePlanResponse": {
+        "required": [
+          "planId",
+          "connectionId",
+          "requiresConfirmation",
+          "changes"
+        ],
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "connectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "requiresConfirmation": {
+            "type": "boolean"
+          },
+          "changes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdGuardRewritePlanChangeResponse"
+            }
+          }
+        }
+      },
       "AdGuardRewriteResponse": {
         "required": [
           "id",
@@ -3475,7 +3808,10 @@
           "answer",
           "managedByHashi"
         ],
-        "type": "object",
+        "type": [
+          "null",
+          "object"
+        ],
         "properties": {
           "id": {
             "type": "string",
@@ -6258,10 +6594,21 @@
           "allowed",
           "blocked",
           "challenged",
+          "wafDetections",
+          "wafBlocks",
           "hours",
+          "resourceFilter",
+          "traefikHostFilter",
+          "firewallHostIdFilter",
           "topBlockedIps",
           "topCountries",
           "topAsns",
+          "topResourcesBlockedChallenged",
+          "recentEvents",
+          "resourceFilters",
+          "traefikHostFilters",
+          "firewallHostFilters",
+          "firewallActiveIpBlocks",
           "blocklistCount",
           "securityEventCount"
         ],
@@ -6291,6 +6638,22 @@
             ],
             "format": "int64"
           },
+          "wafDetections": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "wafBlocks": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
           "hours": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
@@ -6298,6 +6661,25 @@
               "string"
             ],
             "format": "int32"
+          },
+          "resourceFilter": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "traefikHostFilter": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "firewallHostIdFilter": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           },
           "topBlockedIps": {
             "type": "array",
@@ -6317,6 +6699,44 @@
               "$ref": "#/components/schemas/SecurityRankItem"
             }
           },
+          "topResourcesBlockedChallenged": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SecurityResourceEnforcementItem"
+            }
+          },
+          "recentEvents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SecurityRecentEventItem"
+            }
+          },
+          "resourceFilters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SecurityFilterOption"
+            }
+          },
+          "traefikHostFilters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SecurityFilterOption"
+            }
+          },
+          "firewallHostFilters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SecurityFirewallHostOption"
+            }
+          },
+          "firewallActiveIpBlocks": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
           "blocklistCount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
@@ -6335,7 +6755,99 @@
           }
         }
       },
+      "SecurityFilterOption": { },
+      "SecurityFirewallHostOption": {
+        "required": [
+          "id",
+          "name",
+          "domain",
+          "linkedTraefikHost"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "linkedTraefikHost": {
+            "type": "string"
+          }
+        }
+      },
       "SecurityRankItem": { },
+      "SecurityRecentEventItem": {
+        "required": [
+          "occurredAtUtc",
+          "category",
+          "action"
+        ],
+        "type": "object",
+        "properties": {
+          "occurredAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "category": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "clientIp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "host": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "path": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "SecurityResourceEnforcementItem": {
+        "required": [
+          "resource",
+          "blocked",
+          "challenged"
+        ],
+        "type": "object",
+        "properties": {
+          "resource": {
+            "type": "string"
+          },
+          "blocked": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "challenged": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        }
+      },
       "SendNotificationRequest": {
         "required": [
           "subject",
@@ -6615,6 +7127,49 @@
             "format": "date-time"
           },
           "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "TelegramChatDiscoveryRequest": {
+        "required": [
+          "botToken"
+        ],
+        "type": "object",
+        "properties": {
+          "botToken": {
+            "type": "string"
+          }
+        }
+      },
+      "TelegramChatDiscoveryResponse": {
+        "required": [
+          "found",
+          "chatId",
+          "chatTitle",
+          "error"
+        ],
+        "type": "object",
+        "properties": {
+          "found": {
+            "type": "boolean"
+          },
+          "chatId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "chatTitle": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "error": {
             "type": [
               "null",
               "string"
