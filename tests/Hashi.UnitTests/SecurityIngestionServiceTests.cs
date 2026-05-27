@@ -170,7 +170,10 @@ public sealed class SecurityIngestionServiceTests
     {
         var audit = new AuditService(db);
         var secrets = new SecretRecordService(db, new VaultSessionState(), new ServiceSyncVaultState());
-        var dispatcher = new NotificationDispatcher(db, new ServiceCollection().AddHttpClient().BuildServiceProvider().GetRequiredService<IHttpClientFactory>());
+        var dispatcher = new NotificationDispatcher(
+            db,
+            new ServiceCollection().AddHttpClient().BuildServiceProvider().GetRequiredService<IHttpClientFactory>(),
+            secrets);
         var routing = new NotificationRoutingService(db, dispatcher);
         return new SecurityIngestionService(
             db,
