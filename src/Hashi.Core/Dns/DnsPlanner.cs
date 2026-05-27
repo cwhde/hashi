@@ -30,6 +30,22 @@ public static class DnsPlanner
             if (!string.Equals(Normalize(existing.Value), Normalize(desiredRecord.Value), StringComparison.OrdinalIgnoreCase)
                 || existing.Ttl != desiredRecord.Ttl)
             {
+                if (!existing.IsManagedByHashi)
+                {
+                    changes.Add(Guard(new DnsPlanChange(
+                        DnsChangeKind.NoOp,
+                        desiredRecord.Name,
+                        desiredRecord.Type,
+                        existing.Value,
+                        desiredRecord.Value,
+                        desiredRecord.Ttl,
+                        "Provider record is not owned by Hashi; import or assign ownership before updating.")
+                    {
+                        ProviderRecordId = existing.ProviderRecordId,
+                    }));
+                    continue;
+                }
+
                 changes.Add(Guard(new DnsPlanChange(
                     DnsChangeKind.Update,
                     desiredRecord.Name,
@@ -37,7 +53,10 @@ public static class DnsPlanner
                     existing.Value,
                     desiredRecord.Value,
                     desiredRecord.Ttl,
-                    "Update managed record.")));
+                    "Update managed record.")
+                {
+                    ProviderRecordId = existing.ProviderRecordId,
+                }));
             }
             else
             {
@@ -48,7 +67,12 @@ public static class DnsPlanner
                     existing.Value,
                     desiredRecord.Value,
                     desiredRecord.Ttl,
-                    "No change.")));
+                    existing.IsManagedByHashi
+                        ? "No change."
+                        : "Provider record is not owned by Hashi; import or assign ownership before Hashi can manage it.")
+                {
+                    ProviderRecordId = existing.ProviderRecordId,
+                }));
             }
         }
 
@@ -66,7 +90,10 @@ public static class DnsPlanner
                 existing.Value,
                 null,
                 existing.Ttl,
-                "Remove stale managed record.")));
+                "Remove stale managed record.")
+            {
+                ProviderRecordId = existing.ProviderRecordId,
+            }));
         }
 
         return changes;
