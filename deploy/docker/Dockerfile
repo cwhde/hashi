@@ -12,6 +12,7 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0-preview AS dotnet-build
 WORKDIR /src
 COPY Directory.Build.props Hashi.slnx ./
 COPY src/ ./src/
+COPY agents/ ./agents/
 RUN dotnet restore src/Hashi.Api/Hashi.Api.csproj
 COPY --from=web-build /src/web/build ./web/build
 RUN dotnet publish src/Hashi.Api/Hashi.Api.csproj -c Release -o /app/publish /p:SkipFrontendBuild=true
