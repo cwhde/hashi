@@ -25,9 +25,13 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
 
     public DbSet<ConnectionEntity> Connections => Set<ConnectionEntity>();
 
+    public DbSet<ConnectionHealthEntity> ConnectionHealth => Set<ConnectionHealthEntity>();
+
     public DbSet<DnsZoneEntity> DnsZones => Set<DnsZoneEntity>();
 
     public DbSet<DnsRecordEntity> DnsRecords => Set<DnsRecordEntity>();
+
+    public DbSet<DnsRecordOwnershipEntity> DnsRecordOwnership => Set<DnsRecordOwnershipEntity>();
 
     public DbSet<DnsImportDecisionEntity> DnsImportDecisions => Set<DnsImportDecisionEntity>();
 
@@ -35,7 +39,13 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
 
     public DbSet<ResourceRouteEntity> ResourceRoutes => Set<ResourceRouteEntity>();
 
+    public DbSet<ResourceTargetEntity> ResourceTargets => Set<ResourceTargetEntity>();
+
     public DbSet<ResourceRuleEntity> ResourceRules => Set<ResourceRuleEntity>();
+
+    public DbSet<ResourcePortEntity> ResourcePorts => Set<ResourcePortEntity>();
+
+    public DbSet<SystemResourceEntity> SystemResources => Set<SystemResourceEntity>();
 
     public DbSet<TraefikEntryPointEntity> TraefikEntryPoints => Set<TraefikEntryPointEntity>();
 
@@ -54,6 +64,16 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
     public DbSet<TraefikUserMiddlewareEntity> TraefikUserMiddlewares => Set<TraefikUserMiddlewareEntity>();
 
     public DbSet<FirewallHostEntity> FirewallHosts => Set<FirewallHostEntity>();
+
+    public DbSet<FirewallSubnetEntity> FirewallSubnets => Set<FirewallSubnetEntity>();
+
+    public DbSet<FirewallPortEntity> FirewallPorts => Set<FirewallPortEntity>();
+
+    public DbSet<FirewallAllowedSubjectEntity> FirewallAllowedSubjects => Set<FirewallAllowedSubjectEntity>();
+
+    public DbSet<FirewallBlockSubjectEntity> FirewallBlockSubjects => Set<FirewallBlockSubjectEntity>();
+
+    public DbSet<FirewallGeneratedScriptEntity> FirewallGeneratedScripts => Set<FirewallGeneratedScriptEntity>();
 
     public DbSet<MonitorSampleEntity> MonitorSamples => Set<MonitorSampleEntity>();
 
@@ -77,6 +97,10 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
     public DbSet<AdGuardRewriteEntity> AdGuardRewrites => Set<AdGuardRewriteEntity>();
 
     public DbSet<NotificationProviderEntity> NotificationProviders => Set<NotificationProviderEntity>();
+
+    public DbSet<NotificationRouteEntity> NotificationRoutes => Set<NotificationRouteEntity>();
+
+    public DbSet<NotificationDeliveryEntity> NotificationDeliveries => Set<NotificationDeliveryEntity>();
 
     public DbSet<ScriptEntity> Scripts => Set<ScriptEntity>();
 
@@ -181,6 +205,16 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.HasIndex(x => x.Type);
         });
 
+        modelBuilder.Entity<ConnectionHealthEntity>(entity =>
+        {
+            entity.ToTable("connection_health");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.State).HasMaxLength(32);
+            entity.Property(x => x.CheckKind).HasMaxLength(64);
+            entity.HasOne(x => x.Connection).WithMany().HasForeignKey(x => x.ConnectionId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => new { x.ConnectionId, x.CheckedAtUtc });
+        });
+
         modelBuilder.Entity<DnsZoneEntity>(entity =>
         {
             entity.ToTable("dns_zones");
@@ -203,6 +237,24 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.HasIndex(x => x.ZoneId);
         });
 
+        modelBuilder.Entity<DnsRecordOwnershipEntity>(entity =>
+        {
+            entity.ToTable("dns_record_ownership");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ProviderRecordId).HasMaxLength(128);
+            entity.Property(x => x.Name).HasMaxLength(256);
+            entity.Property(x => x.Type).HasMaxLength(16);
+            entity.Property(x => x.Ownership).HasMaxLength(32);
+            entity.Property(x => x.OwnerWorkflow).HasMaxLength(64);
+            entity.Property(x => x.SyncState).HasMaxLength(32);
+            entity.HasOne(x => x.Zone).WithMany().HasForeignKey(x => x.ZoneId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.DnsRecord).WithMany().HasForeignKey(x => x.DnsRecordId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(x => x.Resource).WithMany().HasForeignKey(x => x.ResourceId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(x => new { x.ZoneId, x.Name, x.Type, x.Value }).IsUnique();
+            entity.HasIndex(x => x.ProviderRecordId);
+            entity.HasIndex(x => x.ResourceId);
+        });
+
         modelBuilder.Entity<DnsImportDecisionEntity>(entity =>
         {
             entity.ToTable("dns_import_decisions");
@@ -221,6 +273,10 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.Property(x => x.Name).HasMaxLength(128);
             entity.Property(x => x.Slug).HasMaxLength(128);
             entity.Property(x => x.Kind).HasMaxLength(16);
+            entity.Property(x => x.Ownership).HasMaxLength(32).HasDefaultValue(ResourceOwnershipNames.UserCreated);
+            entity.Property(x => x.OwningWorkflow).HasMaxLength(64);
+            entity.Property(x => x.DeletionPolicy).HasMaxLength(32).HasDefaultValue(ResourceDeletionPolicyNames.Optional);
+            entity.Property(x => x.SyncState).HasMaxLength(32).HasDefaultValue(ResourceSyncStateNames.Desired);
             entity.Property(x => x.ForwardAuthPolicy).HasMaxLength(32);
             entity.Property(x => x.WafMode).HasMaxLength(32);
             entity.HasIndex(x => x.Slug).IsUnique();
@@ -234,6 +290,17 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.HasIndex(x => x.ResourceId);
         });
 
+        modelBuilder.Entity<ResourceTargetEntity>(entity =>
+        {
+            entity.ToTable("resource_targets");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Scheme).HasMaxLength(16);
+            entity.Property(x => x.Host).HasMaxLength(256);
+            entity.HasOne(x => x.Resource).WithMany().HasForeignKey(x => x.ResourceId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.FirewallHost).WithMany().HasForeignKey(x => x.FirewallHostId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(x => new { x.ResourceId, x.Priority });
+        });
+
         modelBuilder.Entity<ResourceRuleEntity>(entity =>
         {
             entity.ToTable("resource_rules");
@@ -241,6 +308,28 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.Property(x => x.Action).HasMaxLength(32);
             entity.Property(x => x.MatchType).HasMaxLength(32);
             entity.HasIndex(x => x.ResourceId);
+        });
+
+        modelBuilder.Entity<ResourcePortEntity>(entity =>
+        {
+            entity.ToTable("resource_ports");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Protocol).HasMaxLength(8);
+            entity.Property(x => x.Ownership).HasMaxLength(32);
+            entity.HasOne(x => x.Resource).WithMany().HasForeignKey(x => x.ResourceId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => new { x.PublicPort, x.Protocol }).IsUnique();
+            entity.HasIndex(x => x.ResourceId);
+        });
+
+        modelBuilder.Entity<SystemResourceEntity>(entity =>
+        {
+            entity.ToTable("system_resources");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.SystemKey).HasMaxLength(128);
+            entity.Property(x => x.OwningWorkflow).HasMaxLength(64);
+            entity.HasOne(x => x.Resource).WithMany().HasForeignKey(x => x.ResourceId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => x.ResourceId).IsUnique();
+            entity.HasIndex(x => x.SystemKey).IsUnique();
         });
 
         modelBuilder.Entity<TraefikEntryPointEntity>(entity =>
@@ -316,6 +405,68 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Name).HasMaxLength(128);
             entity.HasIndex(x => new { x.ConnectionId, x.Name }).IsUnique();
+        });
+
+        modelBuilder.Entity<FirewallSubnetEntity>(entity =>
+        {
+            entity.ToTable("firewall_subnets");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Cidr).HasMaxLength(128);
+            entity.Property(x => x.Purpose).HasMaxLength(32);
+            entity.Property(x => x.Ownership).HasMaxLength(32);
+            entity.HasOne(x => x.FirewallHost).WithMany().HasForeignKey(x => x.FirewallHostId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => new { x.FirewallHostId, x.Cidr, x.Purpose }).IsUnique();
+        });
+
+        modelBuilder.Entity<FirewallPortEntity>(entity =>
+        {
+            entity.ToTable("firewall_ports");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Protocol).HasMaxLength(8);
+            entity.Property(x => x.TargetHost).HasMaxLength(256);
+            entity.Property(x => x.Ownership).HasMaxLength(32);
+            entity.HasOne(x => x.FirewallHost).WithMany().HasForeignKey(x => x.FirewallHostId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Resource).WithMany().HasForeignKey(x => x.ResourceId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(x => new { x.FirewallHostId, x.PublicPort, x.Protocol }).IsUnique();
+            entity.HasIndex(x => x.ResourceId);
+        });
+
+        modelBuilder.Entity<FirewallAllowedSubjectEntity>(entity =>
+        {
+            entity.ToTable("firewall_allowed_subjects");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.SubjectKind).HasMaxLength(32);
+            entity.Property(x => x.SubjectValue).HasMaxLength(256);
+            entity.Property(x => x.Ownership).HasMaxLength(32);
+            entity.HasOne(x => x.FirewallHost).WithMany().HasForeignKey(x => x.FirewallHostId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => new { x.FirewallHostId, x.SubjectKind, x.SubjectValue }).IsUnique();
+        });
+
+        modelBuilder.Entity<FirewallBlockSubjectEntity>(entity =>
+        {
+            entity.ToTable("firewall_block_subjects");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.SubjectKind).HasMaxLength(32);
+            entity.Property(x => x.SubjectValue).HasMaxLength(256);
+            entity.Property(x => x.Ownership).HasMaxLength(32);
+            entity.HasOne(x => x.FirewallHost).WithMany().HasForeignKey(x => x.FirewallHostId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.BlocklistEntry).WithMany().HasForeignKey(x => x.BlocklistEntryId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(x => new { x.FirewallHostId, x.SubjectKind, x.SubjectValue }).IsUnique();
+            entity.HasIndex(x => x.BlocklistEntryId);
+        });
+
+        modelBuilder.Entity<FirewallGeneratedScriptEntity>(entity =>
+        {
+            entity.ToTable("firewall_generated_scripts");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ScriptPath).HasMaxLength(512);
+            entity.Property(x => x.DesiredContentHash).HasMaxLength(128);
+            entity.Property(x => x.AppliedContentHash).HasMaxLength(128);
+            entity.Property(x => x.Status).HasMaxLength(32);
+            entity.HasOne(x => x.FirewallHost).WithMany().HasForeignKey(x => x.FirewallHostId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.SyncRun).WithMany().HasForeignKey(x => x.SyncRunId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(x => new { x.FirewallHostId, x.CreatedAtUtc });
+            entity.HasIndex(x => x.SyncRunId);
         });
 
         modelBuilder.Entity<MonitorSampleEntity>(entity =>
@@ -428,6 +579,31 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Name).HasMaxLength(128);
             entity.Property(x => x.Type).HasMaxLength(32);
+        });
+
+        modelBuilder.Entity<NotificationRouteEntity>(entity =>
+        {
+            entity.ToTable("notification_routes");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).HasMaxLength(128);
+            entity.Property(x => x.EventKind).HasMaxLength(64);
+            entity.Property(x => x.Severity).HasMaxLength(32);
+            entity.HasOne(x => x.Provider).WithMany().HasForeignKey(x => x.ProviderId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => new { x.ProviderId, x.EventKind });
+        });
+
+        modelBuilder.Entity<NotificationDeliveryEntity>(entity =>
+        {
+            entity.ToTable("notification_deliveries");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.EventKind).HasMaxLength(64);
+            entity.Property(x => x.Subject).HasMaxLength(256);
+            entity.Property(x => x.Status).HasMaxLength(32);
+            entity.Property(x => x.ProviderMessageId).HasMaxLength(256);
+            entity.HasOne(x => x.Route).WithMany().HasForeignKey(x => x.RouteId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(x => x.Provider).WithMany().HasForeignKey(x => x.ProviderId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => new { x.ProviderId, x.CreatedAtUtc });
+            entity.HasIndex(x => new { x.RouteId, x.CreatedAtUtc });
         });
 
         modelBuilder.Entity<ScriptEntity>(entity =>

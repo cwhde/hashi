@@ -200,18 +200,48 @@ public sealed class NotificationDispatcher(
             .ToListAsync(cancellationToken);
         foreach (var provider in providers)
         {
-            switch (provider.Type)
+            var delivery = new NotificationDeliveryEntity
             {
-                case "smtp":
-                    await SendSmtpAsync(provider, request.Subject, request.Body, cancellationToken);
-                    break;
-                case "telegram":
-                    await SendTelegramAsync(provider, request.Subject, request.Body, cancellationToken);
-                    break;
-                case "discord":
-                    await SendDiscordAsync(provider, request.Subject, request.Body, cancellationToken);
-                    break;
+                ProviderId = provider.Id,
+                EventKind = "notification",
+                Subject = request.Subject,
+                Status = NotificationDeliveryStatusNames.Pending,
+                AttemptCount = 1,
+            };
+            db.NotificationDeliveries.Add(delivery);
+
+            try
+            {
+                switch (provider.Type)
+                {
+                    case "smtp":
+                        await SendSmtpAsync(provider, request.Subject, request.Body, cancellationToken);
+                        break;
+                    case "telegram":
+                        await SendTelegramAsync(provider, request.Subject, request.Body, cancellationToken);
+                        break;
+                    case "discord":
+                        await SendDiscordAsync(provider, request.Subject, request.Body, cancellationToken);
+                        break;
+                    default:
+                        delivery.Status = NotificationDeliveryStatusNames.Failed;
+                        delivery.ErrorDetails = $"Unsupported provider type: {provider.Type}";
+                        await db.SaveChangesAsync(cancellationToken);
+                        continue;
+                }
+
+                delivery.Status = NotificationDeliveryStatusNames.Sent;
+                delivery.SentAtUtc = DateTimeOffset.UtcNow;
             }
+            catch (Exception ex)
+            {
+                delivery.Status = NotificationDeliveryStatusNames.Failed;
+                delivery.ErrorDetails = ex.Message;
+                await db.SaveChangesAsync(cancellationToken);
+                throw;
+            }
+
+            await db.SaveChangesAsync(cancellationToken);
         }
     }
 
