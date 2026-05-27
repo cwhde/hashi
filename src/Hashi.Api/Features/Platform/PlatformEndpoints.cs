@@ -551,10 +551,15 @@ public static class PulseEndpoints
             return rotated is null ? TypedResults.NotFound() : TypedResults.Ok(rotated);
         })
             .Produces<RotatePulseAgentTokenResponse>(StatusCodes.Status200OK);
-        group.MapGet("/agents/{agentId:guid}/install", (HttpContext ctx, Guid agentId, string? token) =>
+        group.MapGet("/agents/{agentId:guid}/install", (HttpContext ctx, Guid agentId) =>
         {
+            if (ctx.Request.Query.ContainsKey("token"))
+            {
+                return Results.BadRequest(new ApiErrorResponse("Pulse tokens must not be sent in URLs."));
+            }
+
             var apiBase = $"{ctx.Request.Scheme}://{ctx.Request.Host}";
-            return TypedResults.Ok(PulseInstallRenderer.Render(apiBase, agentId, token));
+            return TypedResults.Ok(PulseInstallRenderer.Render(apiBase, agentId));
         })
             .Produces<PulseInstallResponse>(StatusCodes.Status200OK);
         group.MapGet("/install/linux.sh", () =>
