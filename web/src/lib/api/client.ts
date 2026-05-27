@@ -474,9 +474,18 @@ export const api = {
 	},
 	getPulseInstall: async (agentId: string, token?: string) => {
 		const r = await client.GET('/api/pulse/agents/{agentId}/install', {
-			params: { path: { agentId }, query: token ? { token } : {} }
+			params: { path: { agentId } }
 		});
-		return expectData(r.response, r.error, r.data);
+		const install = await expectData(r.response, r.error, r.data);
+		if (!token) {
+			return install;
+		}
+
+		return {
+			...install,
+			linuxInstallScript: install.linuxInstallScript.replaceAll('<PULSE_TOKEN>', token),
+			dockerRunCommand: install.dockerRunCommand.replaceAll('<PULSE_TOKEN>', token)
+		};
 	},
 	revokePulseAgent: async (agentId: string) => {
 		const r = await client.POST('/api/pulse/agents/{agentId}/revoke', {
