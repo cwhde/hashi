@@ -2094,6 +2094,36 @@
         }
       }
     },
+    "/api/firewall/hosts/{firewallHostId}/plan": {
+      "post": {
+        "tags": [
+          "Firewall"
+        ],
+        "parameters": [
+          {
+            "name": "firewallHostId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirewallPlanPreviewResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/firewall/apply": {
       "post": {
         "tags": [
@@ -5150,6 +5180,61 @@
               "string"
             ],
             "format": "date-time"
+          }
+        }
+      },
+      "FirewallPlanChangeResponse": {
+        "required": [
+          "kind",
+          "resourceKey",
+          "summary"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "resourceKey": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          }
+        }
+      },
+      "FirewallPlanPreviewResponse": {
+        "required": [
+          "planId",
+          "firewallHostId",
+          "scriptHash",
+          "hasChanges",
+          "changes",
+          "preview"
+        ],
+        "type": "object",
+        "properties": {
+          "planId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "firewallHostId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "scriptHash": {
+            "type": "string"
+          },
+          "hasChanges": {
+            "type": "boolean"
+          },
+          "changes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FirewallPlanChangeResponse"
+            }
+          },
+          "preview": {
+            "type": "string"
           }
         }
       },

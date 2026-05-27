@@ -4,11 +4,13 @@ using System.Text.Json;
 using Hashi.Contracts.Api;
 using Hashi.Core.Connections;
 using Hashi.Core.Firewall;
+using Hashi.Core.Sync;
 using Hashi.Infrastructure.Auth;
 using Hashi.Infrastructure.Connections;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
 using Hashi.Infrastructure.Services;
+using Hashi.Infrastructure.Sync;
 using Microsoft.EntityFrameworkCore;
 
 namespace Hashi.Infrastructure.Platform;
@@ -18,7 +20,8 @@ public sealed class FirewallApplyService(
     ISshRemoteExecutor ssh,
     SecretRecordService secrets,
     AuditService audit,
-    FirewallTrustedIpResolver trustedIpResolver)
+    FirewallTrustedIpResolver trustedIpResolver,
+    SyncRunService syncRuns)
 {
     public async Task<IReadOnlyList<FirewallHostResponse>> ListHostsAsync(CancellationToken cancellationToken = default)
     {
@@ -119,22 +122,77 @@ public sealed class FirewallApplyService(
         return (script, hash);
     }
 
+    public async Task<FirewallPlanPreviewResponse> PlanForHostAsync(
+        Guid firewallHostId,
+        CancellationToken cancellationToken = default)
+    {
+        var host = await db.FirewallHosts.SingleAsync(x => x.Id == firewallHostId, cancellationToken);
+        var definition = await BuildHostDefinitionAsync(host, cancellationToken);
+        var plan = BuildPlan(host, definition);
+        await audit.WriteAsync(
+            "firewall",
+            "script_planned",
+            subjectType: "firewall_host",
+            subjectId: host.Id.ToString(),
+            metadata: new { plan.PlanId, plan.ScriptHash, changes = plan.Changes.Count },
+            cancellationToken: cancellationToken);
+        return plan;
+    }
+
     private async Task<FirewallApplyResponse> ApplyDefinitionAsync(
         FirewallHostEntity host,
         FirewallHostDefinition definition,
         FirewallApplyRequest request,
         CancellationToken cancellationToken)
     {
-        var script = FirewallScriptRenderer.Render(definition);
+        var plan = BuildPlan(host, definition);
+        var script = plan.Preview;
         var envFile = FirewallScriptRenderer.RenderEnvFile(definition);
-        var scriptHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(script))).ToLowerInvariant();
+        var scriptHash = plan.ScriptHash;
+        var run = await syncRuns.BeginRunAsync("firewall", cancellationToken);
+        var planChanges = plan.Changes.Select(change => new ProviderChange(
+            "firewall-script",
+            change.ResourceKey,
+            change.Kind == "noop" ? ProviderResultKind.NoOp : ProviderResultKind.Updated,
+            change.Summary));
+        await syncRuns.AddDiffsAsync(run.Id, planChanges, cancellationToken);
+        await audit.WriteAsync(
+            "firewall",
+            "script_apply_planned",
+            subjectType: "sync_run",
+            subjectId: run.Id.ToString(),
+            metadata: new { hostId = host.Id, plan.PlanId, scriptHash },
+            cancellationToken: cancellationToken);
 
         if (string.Equals(host.LastAppliedScriptHash, scriptHash, StringComparison.Ordinal))
         {
-            return new FirewallApplyResponse(true, true, host.NetBirdDetected, "Script unchanged; skipped apply.");
+            await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Succeeded, SyncRiskLevel.None, null, cancellationToken);
+            return new FirewallApplyResponse(
+                true,
+                true,
+                host.NetBirdDetected,
+                "Script unchanged; skipped apply.",
+                plan.PlanId,
+                scriptHash,
+                plan.Preview);
         }
 
         var settings = BuildSettings(request);
+        var validation = await ValidateConnectivityAsync(settings, request, cancellationToken);
+        if (!validation.Succeeded)
+        {
+            await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Failed, SyncRiskLevel.Medium, validation.Error, cancellationToken);
+            return new FirewallApplyResponse(false, false, host.NetBirdDetected, validation.Error, plan.PlanId, scriptHash, plan.Preview);
+        }
+
+        var preflight = await RunPreflightAsync(settings, request, cancellationToken);
+        if (!preflight.Succeeded)
+        {
+            var message = preflight.Error ?? preflight.Output;
+            await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Failed, SyncRiskLevel.Medium, message, cancellationToken);
+            return new FirewallApplyResponse(false, false, host.NetBirdDetected, message, plan.PlanId, scriptHash, plan.Preview);
+        }
+
         var netBird = await DetectNetBirdAsync(settings, request, cancellationToken);
         host.NetBirdDetected = netBird;
 
@@ -168,7 +226,8 @@ public sealed class FirewallApplyService(
         var write = await WriteScriptAsync(settings, request, host.ScriptPath, script, cancellationToken);
         if (!write.Succeeded)
         {
-            return new FirewallApplyResponse(false, false, netBird, write.Error);
+            await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Failed, SyncRiskLevel.Medium, write.Error, cancellationToken);
+            return new FirewallApplyResponse(false, false, netBird, write.Error, plan.PlanId, scriptHash, plan.Preview);
         }
 
         await WriteScriptAsync(settings, request, $"{scriptDir}/hashi-firewall.env", envFile, cancellationToken);
@@ -184,14 +243,44 @@ public sealed class FirewallApplyService(
                 await RollbackInternalAsync(settings, request, host, cancellationToken);
             }
 
-            return new FirewallApplyResponse(false, false, netBird, applyResult.Error);
+            var message = applyResult.Error ?? applyResult.Output;
+            await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Failed, SyncRiskLevel.High, message, cancellationToken);
+            return new FirewallApplyResponse(false, false, netBird, message, plan.PlanId, scriptHash, plan.Preview);
+        }
+
+        var verification = await VerifyPostApplyAsync(settings, request, cancellationToken);
+        if (!verification.Succeeded)
+        {
+            if (!string.IsNullOrWhiteSpace(host.RollbackScript))
+            {
+                await RollbackInternalAsync(settings, request, host, cancellationToken);
+            }
+
+            var message = verification.Error ?? verification.Output;
+            await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Failed, SyncRiskLevel.High, message, cancellationToken);
+            await audit.WriteAsync(
+                "firewall",
+                "script_apply_failed",
+                "failure",
+                subjectType: "sync_run",
+                subjectId: run.Id.ToString(),
+                metadata: new { hostId = host.Id, error = message },
+                cancellationToken: cancellationToken);
+            return new FirewallApplyResponse(false, false, netBird, message, plan.PlanId, scriptHash, plan.Preview);
         }
 
         host.LastAppliedScriptHash = scriptHash;
         host.LastAppliedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
-        await audit.WriteAsync("firewall", "script_applied", subjectType: "firewall_host", subjectId: host.Id.ToString(), cancellationToken: cancellationToken);
-        return new FirewallApplyResponse(true, false, netBird, null);
+        await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Succeeded, SyncRiskLevel.Low, null, cancellationToken);
+        await audit.WriteAsync(
+            "firewall",
+            "script_applied",
+            subjectType: "sync_run",
+            subjectId: run.Id.ToString(),
+            metadata: new { hostId = host.Id, plan.PlanId, scriptHash },
+            cancellationToken: cancellationToken);
+        return new FirewallApplyResponse(true, false, netBird, null, plan.PlanId, scriptHash, plan.Preview);
     }
 
     public async Task<FirewallHostEntity> UpsertHostAsync(CreateFirewallHostRequest request, CancellationToken cancellationToken = default)
@@ -390,6 +479,94 @@ public sealed class FirewallApplyService(
             cancellationToken);
     }
 
+    private FirewallPlanPreviewResponse BuildPlan(FirewallHostEntity host, FirewallHostDefinition definition)
+    {
+        var script = FirewallScriptRenderer.Render(definition);
+        var scriptHash = ComputeHash(script);
+        var hasChanges = !string.Equals(host.LastAppliedScriptHash, scriptHash, StringComparison.Ordinal);
+        var changes = new List<FirewallPlanChangeResponse>
+        {
+            new(
+                hasChanges ? "update" : "noop",
+                host.Name,
+                hasChanges
+                    ? $"Render Hashi firewall script {scriptHash} for {host.Name}."
+                    : $"Firewall script unchanged at {scriptHash}."),
+        };
+
+        return new FirewallPlanPreviewResponse(
+            ComputePlanId(host.Id, scriptHash),
+            host.Id,
+            scriptHash,
+            hasChanges,
+            changes,
+            script);
+    }
+
+    private async Task<SshValidationResult> ValidateConnectivityAsync(
+        SshConnectionSettings settings,
+        FirewallApplyRequest request,
+        CancellationToken cancellationToken)
+        => request.AuthMode switch
+        {
+            "password" when !string.IsNullOrWhiteSpace(request.Password) =>
+                await ssh.ValidateAsync(settings, request.Password, cancellationToken),
+            "private_key" when !string.IsNullOrWhiteSpace(request.PrivateKeyPem) =>
+                await ssh.ValidateWithPrivateKeyAsync(settings, request.PrivateKeyPem, request.PrivateKeyPassphrase, cancellationToken),
+            _ => new SshValidationResult(false, OsFamily.Unknown, null, "Unsupported auth mode."),
+        };
+
+    private Task<RemoteCommandResult> RunPreflightAsync(
+        SshConnectionSettings settings,
+        FirewallApplyRequest request,
+        CancellationToken cancellationToken)
+    {
+        const string command = """
+            missing=""
+            for cmd in iptables ipset ip sysctl; do
+              command -v "$cmd" >/dev/null 2>&1 || missing="$missing $cmd"
+            done
+            if ! command -v netfilter-persistent >/dev/null 2>&1 && ! command -v systemctl >/dev/null 2>&1 && [ ! -d /etc/cron.d ] && [ ! -w /etc ]; then
+              missing="$missing persistence"
+            fi
+            if [ -n "$missing" ]; then
+              echo "Missing required firewall capabilities:$missing" >&2
+              exit 2
+            fi
+            echo "hashi-firewall-preflight-ok"
+            """;
+        return ssh.RunCommandAsync(
+            settings,
+            request.AuthMode,
+            request.Password,
+            request.PrivateKeyPem,
+            request.PrivateKeyPassphrase,
+            command,
+            cancellationToken);
+    }
+
+    private Task<RemoteCommandResult> VerifyPostApplyAsync(
+        SshConnectionSettings settings,
+        FirewallApplyRequest request,
+        CancellationToken cancellationToken)
+    {
+        const string command = """
+            test ! -f /run/hashi-firewall.rollback.pid &&
+            iptables -C INPUT -j HASHI_INPUT &&
+            iptables -C FORWARD -j HASHI_FWD &&
+            iptables -t nat -C PREROUTING -j HASHI_DNAT &&
+            iptables -t nat -C POSTROUTING -j HASHI_POSTROUTING
+            """;
+        return ssh.RunCommandAsync(
+            settings,
+            request.AuthMode,
+            request.Password,
+            request.PrivateKeyPem,
+            request.PrivateKeyPassphrase,
+            command,
+            cancellationToken);
+    }
+
     private async Task<RemoteWriteResult> WriteScriptAsync(
         SshConnectionSettings settings,
         FirewallApplyRequest request,
@@ -425,6 +602,17 @@ public sealed class FirewallApplyService(
         OsFamily.Unknown,
         null,
         null);
+
+    private static string ComputeHash(string content)
+        => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(content))).ToLowerInvariant();
+
+    private static Guid ComputePlanId(Guid hostId, string scriptHash)
+    {
+        var input = $"{hostId:N}:{scriptHash}";
+        Span<byte> hash = stackalloc byte[32];
+        SHA256.HashData(Encoding.UTF8.GetBytes(input), hash);
+        return new Guid(hash[..16]);
+    }
 
     private static string Quote(string value) => $"'{value.Replace("'", "'\\''", StringComparison.Ordinal)}'";
 

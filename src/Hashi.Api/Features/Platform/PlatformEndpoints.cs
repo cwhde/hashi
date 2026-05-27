@@ -213,6 +213,12 @@ public static class FirewallEndpoints
             return host is null ? TypedResults.NotFound() : TypedResults.Ok(FirewallApplyService.ToResponse(host));
         })
             .Produces<FirewallHostResponse>(StatusCodes.Status200OK);
+        group.MapPost("/hosts/{firewallHostId:guid}/plan", async (
+            Guid firewallHostId,
+            FirewallApplyService firewall,
+            CancellationToken ct) =>
+            TypedResults.Ok(await firewall.PlanForHostAsync(firewallHostId, ct)))
+            .Produces<FirewallPlanPreviewResponse>(StatusCodes.Status200OK);
         group.MapPost("/apply", async Task<IResult> (FirewallApplyRequest request, FirewallApplyService firewall, CancellationToken ct) =>
         {
             var result = await firewall.ApplyAsync(request, ct);
