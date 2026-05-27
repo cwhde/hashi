@@ -186,6 +186,43 @@ public sealed class SyncOrchestratorService(
 
         await syncRuns.AddStepAsync(run.Id, "firewall-plan", SyncRunStatusNames.Succeeded, $"{firewallHosts.Count} hosts", cancellationToken);
 
+        await syncRuns.AddStepAsync(run.Id, "adguard-plan", SyncRunStatusNames.Planning, null, cancellationToken);
+        var adguardConnections = await db.AdGuardConnections.AsNoTracking()
+            .Where(x => x.Enabled)
+            .ToListAsync(cancellationToken);
+        foreach (var connection in adguardConnections)
+        {
+            try
+            {
+                var plan = await adguard.PlanSyncAsync(connection.Id, updateTopologyDesiredState: true, cancellationToken: cancellationToken);
+                changes.AddRange(plan.Changes.Select(c => new ProviderChange(
+                    "adguard-rewrite",
+                    c.Domain,
+                    c.Kind switch
+                    {
+                        "create" => ProviderResultKind.Created,
+                        "update" => ProviderResultKind.Updated,
+                        "delete" => ProviderResultKind.Deleted,
+                        _ => ProviderResultKind.NoOp,
+                    },
+                    c.Summary)));
+                if (plan.RequiresConfirmation)
+                {
+                    risk = MaxRisk(risk, SyncRiskLevel.Destructive);
+                }
+                else if (plan.Changes.Count > 0)
+                {
+                    risk = MaxRisk(risk, SyncRiskLevel.Low);
+                }
+
+                await syncRuns.AddStepAsync(run.Id, $"adguard-plan-{connection.Name}", SyncRunStatusNames.Succeeded, $"{plan.Changes.Count} changes", cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                await syncRuns.AddStepAsync(run.Id, $"adguard-plan-{connection.Name}", SyncRunStatusNames.Failed, ex.Message, cancellationToken);
+            }
+        }
+
         await syncRuns.AddDiffsAsync(run.Id, changes, cancellationToken);
         var requiresConfirmation = risk >= SyncRiskLevel.High;
         await syncRuns.CompleteRunAsync(
@@ -284,7 +321,12 @@ public sealed class SyncOrchestratorService(
             var adguardConnections = await db.AdGuardConnections.ToListAsync(cancellationToken);
             foreach (var connection in adguardConnections)
             {
-                await adguard.SyncManagedRewritesAsync(connection.Id, cancellationToken);
+                var result = await adguard.SyncManagedRewritesAsync(connection.Id, cancellationToken);
+                if (!result.Succeeded)
+                {
+                    await syncRuns.AddStepAsync(run.Id, $"adguard-sync-{connection.Name}", SyncRunStatusNames.Failed, result.Message, cancellationToken);
+                    throw new InvalidOperationException(result.Message ?? "AdGuard sync failed.");
+                }
             }
 
             await syncRuns.AddStepAsync(run.Id, "adguard-sync", SyncRunStatusNames.Succeeded, "Applied", cancellationToken);
