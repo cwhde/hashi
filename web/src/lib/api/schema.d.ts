@@ -3070,6 +3070,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/firewall/hosts/{firewallHostId}/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    firewallHostId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FirewallPlanPreviewResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/firewall/apply": {
         parameters: {
             query?: never;
@@ -5160,6 +5197,21 @@ export interface components {
             netBirdDetected: boolean;
             /** Format: date-time */
             lastAppliedAtUtc: null | string;
+        };
+        FirewallPlanChangeResponse: {
+            kind: string;
+            resourceKey: string;
+            summary: string;
+        };
+        FirewallPlanPreviewResponse: {
+            /** Format: uuid */
+            planId: string;
+            /** Format: uuid */
+            firewallHostId: string;
+            scriptHash: string;
+            hasChanges: boolean;
+            changes: components["schemas"]["FirewallPlanChangeResponse"][];
+            preview: string;
         };
         FirewallRenderRequest: {
             name: string;

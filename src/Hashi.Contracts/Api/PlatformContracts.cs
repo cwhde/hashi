@@ -233,7 +233,27 @@ public sealed record FirewallApplyRequest(
     string? PrivateKeyPem,
     string? PrivateKeyPassphrase);
 
-public sealed record FirewallApplyResponse(bool Succeeded, bool Skipped, bool NetBirdDetected, string? Message);
+public sealed record FirewallPlanChangeResponse(
+    string Kind,
+    string ResourceKey,
+    string Summary);
+
+public sealed record FirewallPlanPreviewResponse(
+    Guid PlanId,
+    Guid FirewallHostId,
+    string ScriptHash,
+    bool HasChanges,
+    IReadOnlyList<FirewallPlanChangeResponse> Changes,
+    string Preview);
+
+public sealed record FirewallApplyResponse(
+    bool Succeeded,
+    bool Skipped,
+    bool NetBirdDetected,
+    string? Message,
+    Guid? PlanId = null,
+    string? ScriptHash = null,
+    string? Preview = null);
 
 public sealed record FirewallHostResponse(
     Guid Id,
