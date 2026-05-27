@@ -1,5 +1,9 @@
 using System.Net;
+using System.Security.Cryptography;
 using System.Text;
+using Hashi.Contracts.Api;
+using Hashi.Core.Auth;
+using Hashi.Infrastructure.Auth;
 using Hashi.Infrastructure.Notifications;
 using Hashi.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -14,7 +18,7 @@ public sealed class NotificationDispatcherTests
     {
         await using var db = CreateDb();
         var client = new HttpClient(new TelegramGetUpdatesFakeHandler());
-        var dispatcher = new NotificationDispatcher(db, new FakeHttpClientFactory(client));
+        var dispatcher = CreateDispatcher(db, client);
 
         var result = await dispatcher.DiscoverTelegramChatAsync("telegram-token");
 
@@ -24,12 +28,79 @@ public sealed class NotificationDispatcherTests
         Assert.Null(result.Error);
     }
 
+    [Theory]
+    [InlineData("smtp", """{"host":"smtp.example.com","port":587,"username":"mailer","password":"smtp-secret","from":"hashi@example.com","to":"admin@example.com","useTls":true}""", "smtp-secret", "password", "passwordSecretId")]
+    [InlineData("telegram", """{"botToken":"telegram-secret","chatId":"-100123"}""", "telegram-secret", "botToken", "botTokenSecretId")]
+    [InlineData("discord", """{"webhookUrl":"https://discord.example/webhook-secret"}""", "webhook-secret", "webhookUrl", "webhookSecretId")]
+    public async Task CreateProviderAsync_moves_notification_secrets_to_secret_records(
+        string type,
+        string settingsJson,
+        string plaintextSecret,
+        string plaintextProperty,
+        string secretIdProperty)
+    {
+        await using var db = CreateDb();
+        var dispatcher = CreateDispatcher(db);
+
+        var response = await dispatcher.CreateProviderAsync(new CreateNotificationProviderRequest(
+            "Alerts",
+            type,
+            settingsJson,
+            Enabled: true));
+
+        var stored = await db.NotificationProviders.SingleAsync(x => x.Id == response.Id);
+        Assert.DoesNotContain(plaintextSecret, stored.SettingsJson, StringComparison.Ordinal);
+        Assert.DoesNotContain($"\"{plaintextProperty}\"", stored.SettingsJson, StringComparison.Ordinal);
+        Assert.Contains(secretIdProperty, stored.SettingsJson, StringComparison.Ordinal);
+        Assert.Single(await db.SecretRecords.ToListAsync());
+    }
+
+    [Fact]
+    public async Task UpdateProviderAsync_preserves_existing_secret_when_no_new_secret_is_submitted()
+    {
+        await using var db = CreateDb();
+        var dispatcher = CreateDispatcher(db);
+        var created = await dispatcher.CreateProviderAsync(new CreateNotificationProviderRequest(
+            "Alerts",
+            "telegram",
+            """{"botToken":"telegram-secret","chatId":"-100123"}""",
+            Enabled: true));
+        var before = await db.NotificationProviders.AsNoTracking().SingleAsync(x => x.Id == created.Id);
+
+        await dispatcher.UpdateProviderAsync(
+            created.Id,
+            new UpdateNotificationProviderRequest(
+                Name: null,
+                Type: null,
+                SettingsJson: """{"chatId":"-100456"}""",
+                Enabled: null));
+
+        var after = await db.NotificationProviders.AsNoTracking().SingleAsync(x => x.Id == created.Id);
+        Assert.Contains("\"chatId\":\"-100456\"", after.SettingsJson, StringComparison.Ordinal);
+        Assert.Contains(ExtractJsonString(before.SettingsJson, "botTokenSecretId"), after.SettingsJson, StringComparison.Ordinal);
+        Assert.Single(await db.SecretRecords.ToListAsync());
+    }
+
+    private static string ExtractJsonString(string json, string property)
+    {
+        using var doc = System.Text.Json.JsonDocument.Parse(json);
+        return doc.RootElement.GetProperty(property).GetString()!;
+    }
+
     private static HashiDbContext CreateDb()
     {
         var options = new DbContextOptionsBuilder<HashiDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
         return new HashiDbContext(options);
+    }
+
+    private static NotificationDispatcher CreateDispatcher(HashiDbContext db, HttpClient? client = null)
+    {
+        var vault = new VaultSessionState();
+        vault.Unlock(RandomNumberGenerator.GetBytes(32));
+        var secrets = new SecretRecordService(db, vault, new ServiceSyncVaultState());
+        return new NotificationDispatcher(db, new FakeHttpClientFactory(client ?? new HttpClient()), secrets);
     }
 
     private sealed class FakeHttpClientFactory(HttpClient client) : IHttpClientFactory
