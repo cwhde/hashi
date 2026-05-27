@@ -735,7 +735,7 @@ public static class AdGuardEndpoints
                 return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
             }
         })
-            .Produces<AdGuardRewriteResponse>(StatusCodes.Status200OK);
+            .Produces<AdGuardRewriteMutationResponse>(StatusCodes.Status200OK);
         group.MapDelete("/{connectionId:guid}/rewrites/{rewriteId:guid}", async Task<IResult> (
             Guid connectionId,
             Guid rewriteId,
@@ -744,22 +744,57 @@ public static class AdGuardEndpoints
         {
             try
             {
-                var deleted = await adguard.DeleteRewriteAsync(connectionId, rewriteId, ct);
-                return deleted ? TypedResults.NoContent() : TypedResults.NotFound();
+                var plan = await adguard.DeleteRewriteAsync(connectionId, rewriteId, ct);
+                return plan is null ? TypedResults.NotFound() : TypedResults.Ok(plan);
             }
             catch (InvalidOperationException ex)
             {
                 return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
             }
         });
-        group.MapPost("/{connectionId:guid}/sync", async Task<IResult> (
+        group.MapPost("/{connectionId:guid}/rewrites/{rewriteId:guid}/delete/apply", async Task<IResult> (
             Guid connectionId,
+            Guid rewriteId,
+            AdGuardRewriteApplyRequest request,
             AdGuardSyncService adguard,
             CancellationToken ct) =>
         {
-            await adguard.SyncManagedRewritesAsync(connectionId, ct);
-            return TypedResults.Ok(new { synced = true });
-        });
+            try
+            {
+                return TypedResults.Ok(await adguard.ApplyPlanAsync(connectionId, request, rewriteId, ct));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        })
+            .Produces<AdGuardRewriteApplyResponse>(StatusCodes.Status200OK);
+        group.MapPost("/{connectionId:guid}/sync/plan", async Task<IResult> (
+            Guid connectionId,
+            AdGuardSyncService adguard,
+            CancellationToken ct) => TypedResults.Ok(await adguard.PlanSyncAsync(connectionId, updateTopologyDesiredState: true, cancellationToken: ct)))
+            .Produces<AdGuardRewritePlanResponse>(StatusCodes.Status200OK);
+        group.MapPost("/{connectionId:guid}/sync/apply", async Task<IResult> (
+            Guid connectionId,
+            AdGuardRewriteApplyRequest request,
+            AdGuardSyncService adguard,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                return TypedResults.Ok(await adguard.ApplyPlanAsync(connectionId, request, cancellationToken: ct));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        })
+            .Produces<AdGuardRewriteApplyResponse>(StatusCodes.Status200OK);
+        group.MapPost("/{connectionId:guid}/sync", async Task<IResult> (
+            Guid connectionId,
+            AdGuardSyncService adguard,
+            CancellationToken ct) => TypedResults.Ok(await adguard.SyncManagedRewritesAsync(connectionId, ct)))
+            .Produces<AdGuardRewriteApplyResponse>(StatusCodes.Status200OK);
         return app;
     }
 }

@@ -546,6 +546,27 @@ public sealed record AccessLogIngestRequest(
 
 public sealed record AdGuardRewriteResponse(Guid Id, string Domain, string Answer, bool ManagedByHashi);
 
+public sealed record AdGuardRewritePlanChangeResponse(
+    string Kind,
+    string Domain,
+    string? CurrentAnswer,
+    string? DesiredAnswer,
+    string Summary);
+
+public sealed record AdGuardRewritePlanResponse(
+    Guid PlanId,
+    Guid ConnectionId,
+    bool RequiresConfirmation,
+    IReadOnlyList<AdGuardRewritePlanChangeResponse> Changes);
+
+public sealed record AdGuardRewriteMutationResponse(
+    AdGuardRewriteResponse? Rewrite,
+    AdGuardRewritePlanResponse Plan);
+
+public sealed record AdGuardRewriteApplyRequest(Guid PlanId, bool ConfirmDestructive = false);
+
+public sealed record AdGuardRewriteApplyResponse(Guid RunId, bool Succeeded, string Status, string? Message);
+
 public sealed record UpsertAdGuardRewriteRequest(string Domain, string Answer);
 
 public sealed record AdGuardConnectionResponse(Guid Id, string Name, string BaseUrl, bool Enabled);
