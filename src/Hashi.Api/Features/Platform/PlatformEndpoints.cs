@@ -388,9 +388,16 @@ public static class EdgeAuthEndpoints
                 return TypedResults.BadRequest(new ApiErrorResponse("Missing authorization code."));
             }
 
-            var result = await oidc.CompleteCallbackAsync(ctx, providerId, code, state, ct);
-            ctx.Response.Cookies.Append("hashi.edge.session", result.SessionKey, result.SessionCookie);
-            return TypedResults.Redirect(result.ReturnUrl);
+            try
+            {
+                var result = await oidc.CompleteCallbackAsync(ctx, providerId, code, state, ct);
+                ctx.Response.Cookies.Append("hashi.edge.session", result.SessionKey, result.SessionCookie);
+                return TypedResults.Redirect(result.ReturnUrl);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
+            }
         }).WithTags("EdgeAuth").AllowAnonymous();
 
         app.MapPost("/api/edge-auth/logout", async Task<IResult> (
@@ -447,15 +454,31 @@ public static class EdgeSsoAdminEndpoints
             CreateEdgeAuthRuleRequest request,
             OidcProviderAdminService admin,
             CancellationToken ct) =>
-            TypedResults.Ok(await admin.CreateRuleAsync(request, ct)));
+        {
+            try
+            {
+                return TypedResults.Ok(await admin.CreateRuleAsync(request, ct));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        });
         group.MapPut("/rules/{ruleId:guid}", async Task<IResult> (
             Guid ruleId,
             UpdateEdgeAuthRuleRequest request,
             OidcProviderAdminService admin,
             CancellationToken ct) =>
         {
-            var updated = await admin.UpdateRuleAsync(ruleId, request, ct);
-            return updated is null ? TypedResults.NotFound() : TypedResults.Ok(updated);
+            try
+            {
+                var updated = await admin.UpdateRuleAsync(ruleId, request, ct);
+                return updated is null ? TypedResults.NotFound() : TypedResults.Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
+            }
         });
         group.MapDelete("/rules/{ruleId:guid}", async Task<IResult> (
             Guid ruleId,

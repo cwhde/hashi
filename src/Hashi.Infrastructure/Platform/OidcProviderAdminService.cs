@@ -12,7 +12,8 @@ namespace Hashi.Infrastructure.Platform;
 public sealed class OidcProviderAdminService(
     HashiDbContext db,
     SecretRecordService secrets,
-    AuditService audit)
+    AuditService audit,
+    GeoIpLookupService geoIp)
 {
     public async Task<IReadOnlyList<OidcProviderResponse>> ListProvidersAsync(CancellationToken cancellationToken = default)
     {
@@ -115,6 +116,7 @@ public sealed class OidcProviderAdminService(
 
     public async Task<EdgeAuthRuleResponse> CreateRuleAsync(CreateEdgeAuthRuleRequest request, CancellationToken cancellationToken = default)
     {
+        ValidateRule(request.MatchJson, request.Enabled);
         var entity = new EdgeAuthRuleEntity
         {
             Name = request.Name,
@@ -148,6 +150,7 @@ public sealed class OidcProviderAdminService(
 
         if (request.MatchJson is not null)
         {
+            ValidateRule(request.MatchJson, request.Enabled ?? entity.Enabled);
             entity.MatchJson = request.MatchJson;
         }
 
@@ -158,6 +161,7 @@ public sealed class OidcProviderAdminService(
 
         if (request.Enabled is bool enabled)
         {
+            ValidateRule(request.MatchJson ?? entity.MatchJson, enabled);
             entity.Enabled = enabled;
         }
 
@@ -193,4 +197,18 @@ public sealed class OidcProviderAdminService(
         entity.MatchJson,
         entity.Action,
         entity.Enabled);
+
+    private void ValidateRule(string matchJson, bool enabled)
+    {
+        if (!enabled)
+        {
+            return;
+        }
+
+        var errors = geoIp.ValidateGeoMatchRules(matchJson);
+        if (errors.Count > 0)
+        {
+            throw new InvalidOperationException(string.Join(" ", errors));
+        }
+    }
 }

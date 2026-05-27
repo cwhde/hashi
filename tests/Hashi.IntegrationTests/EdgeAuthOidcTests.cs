@@ -79,11 +79,48 @@ public sealed class EdgeAuthOidcTests : IAsyncLifetime
         var db = scope.ServiceProvider.GetRequiredService<HashiDbContext>();
         var provider = await db.OidcProviders.SingleAsync();
 
+        var login = await _client.GetAsync($"/api/edge-auth/login?providerId={provider.Id}&returnUrl=%2F");
+        Assert.Equal(HttpStatusCode.Redirect, login.StatusCode);
+        var state = GetQueryValue(login.Headers.Location!, "state");
+
         var callback = await _client.GetAsync(
-            $"/api/edge-auth/callback?providerId={provider.Id}&code=subject:test-user");
+            $"/api/edge-auth/callback?providerId={provider.Id}&code=subject:test-user&state={Uri.EscapeDataString(state)}");
         Assert.Equal(HttpStatusCode.Redirect, callback.StatusCode);
 
         var forward = await _client.GetAsync("/api/edge-auth/forward");
         Assert.Equal(HttpStatusCode.NoContent, forward.StatusCode);
+    }
+
+    [Fact]
+    public async Task Callback_rejects_missing_state()
+    {
+        if (!_fixture.IsAvailable || _factory is null || _client is null)
+        {
+            return;
+        }
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<HashiDbContext>();
+        var provider = await db.OidcProviders.SingleAsync();
+
+        var callback = await _client.GetAsync(
+            $"/api/edge-auth/callback?providerId={provider.Id}&code=subject:test-user");
+
+        Assert.Equal(HttpStatusCode.BadRequest, callback.StatusCode);
+    }
+
+    private static string GetQueryValue(Uri uri, string key)
+    {
+        var query = uri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var pair in query)
+        {
+            var parts = pair.Split('=', 2);
+            if (parts.Length == 2 && string.Equals(Uri.UnescapeDataString(parts[0]), key, StringComparison.Ordinal))
+            {
+                return Uri.UnescapeDataString(parts[1]);
+            }
+        }
+
+        throw new InvalidOperationException($"Missing query value '{key}'.");
     }
 }

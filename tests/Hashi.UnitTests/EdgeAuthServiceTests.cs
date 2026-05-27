@@ -75,6 +75,18 @@ public sealed class EdgeAuthServiceTests
     }
 
     [Fact]
+    public async Task Sso_required_denies_when_no_oidc_provider_is_enabled()
+    {
+        await using var db = CreateDb();
+        db.Resources.Add(Resource("app.example.com", "sso_required"));
+        await db.SaveChangesAsync();
+
+        var result = await Evaluate(db, "app.example.com", "/dashboard");
+
+        Assert.Equal("deny", result.Decision);
+    }
+
+    [Fact]
     public async Task Valid_edge_session_allows_sso_required_resource()
     {
         await using var db = CreateDb();
@@ -95,6 +107,55 @@ public sealed class EdgeAuthServiceTests
         var result = await Evaluate(db, "app.example.com", "/", edgeSessionKey: sessionKey);
 
         Assert.Equal("allow", result.Decision);
+    }
+
+    [Fact]
+    public async Task Valid_edge_session_satisfies_matching_resource_auth_rule()
+    {
+        await using var db = CreateDb();
+        var providerId = await SeedProviderAsync(db);
+        var resource = Resource("app.example.com", "sso_required");
+        db.Resources.Add(resource);
+        db.ResourceRules.Add(new ResourceRuleEntity
+        {
+            ResourceId = resource.Id,
+            MatchType = "path",
+            MatchValue = "/",
+            Action = "pass_to_auth",
+        });
+        const string sessionKey = "test-session";
+        db.EdgeSessions.Add(new EdgeSessionEntity
+        {
+            SessionKey = sessionKey,
+            OidcProviderId = providerId,
+            Subject = "user",
+            ExpiresAtUtc = DateTimeOffset.UtcNow.AddHours(1),
+        });
+        await db.SaveChangesAsync();
+
+        var result = await Evaluate(db, "app.example.com", "/", edgeSessionKey: sessionKey);
+
+        Assert.Equal("allow", result.Decision);
+    }
+
+    [Fact]
+    public async Task Resource_auth_rule_denies_when_no_oidc_provider_is_enabled()
+    {
+        await using var db = CreateDb();
+        var resource = Resource("app.example.com", "adaptive");
+        db.Resources.Add(resource);
+        db.ResourceRules.Add(new ResourceRuleEntity
+        {
+            ResourceId = resource.Id,
+            MatchType = "path",
+            MatchValue = "/admin",
+            Action = "pass_to_auth",
+        });
+        await db.SaveChangesAsync();
+
+        var result = await Evaluate(db, "app.example.com", "/admin");
+
+        Assert.Equal("deny", result.Decision);
     }
 
     [Fact]
