@@ -5,7 +5,7 @@ namespace Hashi.Api.Hosting;
 
 /// <summary>
 /// Routes dedicated public ports (8081 dashboard, 8082 status) to root-only SPA views.
-/// API and OpenAPI are only available on the admin port (8080).
+/// Admin API and OpenAPI are only available on the admin port (8080).
 /// </summary>
 public sealed class PublicPortRoutingMiddleware(RequestDelegate next)
 {
@@ -14,7 +14,7 @@ public sealed class PublicPortRoutingMiddleware(RequestDelegate next)
         var port = context.Connection.LocalPort;
         var path = context.Request.Path.Value ?? "/";
 
-        if (port is HashiPorts.PublicDashboard or HashiPorts.PublicStatus && IsApiOrOpenApi(path))
+        if (port is HashiPorts.PublicDashboard or HashiPorts.PublicStatus && IsBlockedPublicPortPath(path, port))
         {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
@@ -32,6 +32,12 @@ public sealed class PublicPortRoutingMiddleware(RequestDelegate next)
             if (IsLegacyPublicSubpath(path, "/dashboard"))
             {
                 context.Response.Redirect("/");
+                return;
+            }
+
+            if (IsDashboardPublicApiPath(path))
+            {
+                await next(context);
                 return;
             }
 
@@ -57,6 +63,12 @@ public sealed class PublicPortRoutingMiddleware(RequestDelegate next)
                 return;
             }
 
+            if (IsStatusPublicApiPath(path))
+            {
+                await next(context);
+                return;
+            }
+
             if (!IsRootOrStaticAsset(path))
             {
                 context.Response.StatusCode = StatusCodes.Status404NotFound;
@@ -67,9 +79,32 @@ public sealed class PublicPortRoutingMiddleware(RequestDelegate next)
         await next(context);
     }
 
-    private static bool IsApiOrOpenApi(string path)
-        => path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase)
-            || path.StartsWith("/openapi/", StringComparison.OrdinalIgnoreCase);
+    private static bool IsBlockedPublicPortPath(string path, int port)
+    {
+        if (path.StartsWith("/openapi/", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return port switch
+        {
+            HashiPorts.PublicDashboard => !IsDashboardPublicApiPath(path),
+            HashiPorts.PublicStatus => !IsStatusPublicApiPath(path),
+            _ => true,
+        };
+    }
+
+    private static bool IsDashboardPublicApiPath(string path)
+        => path.Equals("/api/public/apps", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsStatusPublicApiPath(string path)
+        => path.Equals("/api/public/status", StringComparison.OrdinalIgnoreCase)
+            || path.Equals("/api/public/status/summary", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsLegacyPublicSubpath(string path, string prefix)
         => path.Equals(prefix, StringComparison.OrdinalIgnoreCase)

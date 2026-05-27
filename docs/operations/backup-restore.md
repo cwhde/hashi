@@ -18,7 +18,7 @@ Hashi V2 stores authoritative state in PostgreSQL and operational artifacts unde
 
 ## Locked vault behavior
 
-- Public status (port 8081) and app dashboard (port 8082) continue serving last known state.
+- Public app dashboard (port 8081) and status page (port 8082) continue serving last known state.
 - Monitoring checks that require no secrets may continue.
 - Provider syncs continue when service-sync vault mode is enabled.
 - Last applied firewall state remains active on managed hosts.

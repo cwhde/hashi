@@ -4,7 +4,7 @@
 
 - Run Hashi behind Traefik with TLS termination.
 - Restrict admin API (`8080`) to management networks.
-- Public ports `8081` (status) and `8082` (apps) expose only enabled dashboard/status data.
+- Public ports `8081` (app dashboard) and `8082` (status) expose only enabled dashboard/status data.
 - Store SSH, DNS, OIDC, and notification secrets in the vault.
 
 ## CI
