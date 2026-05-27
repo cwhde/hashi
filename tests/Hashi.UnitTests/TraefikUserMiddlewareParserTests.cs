@@ -59,6 +59,14 @@ public sealed class TraefikUserMiddlewareParserTests
         Assert.False(result.IsValid);
         Assert.Contains("Duplicate", result.Error, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Parse_rejects_invalid_yaml()
+    {
+        var result = TraefikUserMiddlewareParser.Parse("http:\n  middlewares:\n    broken: [");
+        Assert.False(result.IsValid);
+        Assert.Contains("YAML parse error", result.Error, StringComparison.Ordinal);
+    }
 }
 
 public sealed class TraefikConfigValidatorTests
@@ -69,5 +77,22 @@ public sealed class TraefikConfigValidatorTests
         var render = TraefikConfigRenderer.Render([]);
         var result = TraefikConfigValidator.ValidateRender(render);
         Assert.True(result.IsValid, string.Join("; ", result.Errors));
+    }
+
+    [Fact]
+    public void ValidateRender_rejects_invalid_generated_yaml()
+    {
+        var render = TraefikConfigRenderer.Render([]) with
+        {
+            DynamicFiles = TraefikConfigRenderer.Render([]).DynamicFiles with
+            {
+                HttpResourcesYaml = "http:\n  routers:\n    broken: [",
+            },
+        };
+
+        var result = TraefikConfigValidator.ValidateRender(render);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, x => x.Contains("YAML parse error", StringComparison.Ordinal));
     }
 }

@@ -6,9 +6,11 @@ public sealed class FakeSshRemoteExecutor : ISshRemoteExecutor
 {
     public int WriteCount { get; private set; }
     public Dictionary<string, byte[]> ReadFiles { get; } = new(StringComparer.Ordinal);
+    public Dictionary<string, byte[]> WrittenFiles { get; } = new(StringComparer.Ordinal);
     public List<string> Commands { get; } = [];
     public List<SshConnectionSettings> CommandSettings { get; } = [];
     public RemoteCommandResult CommandResult { get; set; } = new(true, string.Empty, null);
+    public Queue<RemoteCommandResult> CommandResults { get; } = [];
 
     public Task<SshValidationResult> ValidateAsync(SshConnectionSettings settings, string password, CancellationToken cancellationToken = default)
         => Task.FromResult(new SshValidationResult(true, OsFamily.Debian, "linux", null));
@@ -28,6 +30,7 @@ public sealed class FakeSshRemoteExecutor : ISshRemoteExecutor
         CancellationToken cancellationToken = default)
     {
         WriteCount++;
+        WrittenFiles[remotePath] = content.ToArray();
         return Task.FromResult(new RemoteWriteResult(true, remotePath, null));
     }
 
@@ -40,6 +43,7 @@ public sealed class FakeSshRemoteExecutor : ISshRemoteExecutor
         CancellationToken cancellationToken = default)
     {
         WriteCount++;
+        WrittenFiles[remotePath] = content.ToArray();
         return Task.FromResult(new RemoteWriteResult(true, remotePath, null));
     }
 
@@ -67,6 +71,6 @@ public sealed class FakeSshRemoteExecutor : ISshRemoteExecutor
     {
         Commands.Add(command);
         CommandSettings.Add(settings);
-        return Task.FromResult(CommandResult);
+        return Task.FromResult(CommandResults.TryDequeue(out var result) ? result : CommandResult);
     }
 }

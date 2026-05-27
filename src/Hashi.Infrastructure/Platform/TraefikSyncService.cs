@@ -33,12 +33,21 @@ public sealed class TraefikSyncService(
     public async Task<TraefikApplyResponse> ApplyAsync(TraefikApplyRequest request, CancellationToken cancellationToken = default)
     {
         var render = await traefik.RenderAsync(cancellationToken);
+        var localValidation = TraefikConfigValidator.ValidateRender(render);
+        if (!localValidation.IsValid)
+        {
+            var message = "Rendered Traefik config failed local YAML validation: " + string.Join("; ", localValidation.Errors);
+            await audit.WriteAsync("traefik", "config_validation_failed", subjectType: "connection", subjectId: request.ConnectionId.ToString(), metadata: message, cancellationToken: cancellationToken);
+            return new TraefikApplyResponse(false, render.ContentHash, false, message);
+        }
+
         var state = await db.TraefikHostStates.SingleOrDefaultAsync(x => x.ConnectionId == request.ConnectionId, cancellationToken);
         var isNew = state is null;
         state ??= CreateDefaultState(request.ConnectionId);
 
         if (string.Equals(state.LastAppliedContentHash, render.ContentHash, StringComparison.Ordinal))
         {
+            await audit.WriteAsync("traefik", "config_apply_noop", subjectType: "connection", subjectId: request.ConnectionId.ToString(), cancellationToken: cancellationToken);
             return new TraefikApplyResponse(true, render.ContentHash, true, "Config unchanged; skipped write.");
         }
 
@@ -71,10 +80,37 @@ public sealed class TraefikSyncService(
             state.LastBackupDynamicYaml = JsonSerializer.Serialize(dynamicBackup);
         }
 
-        await ssh.RunCommandAsync(
+        var mkdir = await ssh.RunCommandAsync(
             settings, request.AuthMode, request.Password, request.PrivateKeyPem, request.PrivateKeyPassphrase,
             $"mkdir -p $(dirname {Quote(state.StaticConfigPath)}) {Quote(DynamicDirectory)}",
             cancellationToken);
+        if (!mkdir.Succeeded)
+        {
+            return new TraefikApplyResponse(false, render.ContentHash, false, mkdir.Error ?? mkdir.Output);
+        }
+
+        if (RemoteContentMatches(staticBackup, render.StaticConfigYaml)
+            && DynamicFilesMatch(dynamicBackup, render.DynamicFiles))
+        {
+            state.LastAppliedContentHash = render.ContentHash;
+            state.LastAppliedAtUtc = DateTimeOffset.UtcNow;
+            state.DynamicConfigPath = $"{DynamicDirectory}/10-hashi-http-resources.yml";
+            if (isNew)
+            {
+                db.TraefikHostStates.Add(state);
+            }
+
+            await db.SaveChangesAsync(cancellationToken);
+            await audit.WriteAsync("traefik", "config_apply_noop", subjectType: "connection", subjectId: request.ConnectionId.ToString(), cancellationToken: cancellationToken);
+            return new TraefikApplyResponse(true, render.ContentHash, true, "Remote Traefik config already matches rendered content; skipped write.");
+        }
+
+        var remoteValidation = await ValidateStagedRemoteConfigAsync(settings, request, render, cancellationToken);
+        if (!remoteValidation.Succeeded)
+        {
+            await audit.WriteAsync("traefik", "config_validation_failed", subjectType: "connection", subjectId: request.ConnectionId.ToString(), metadata: remoteValidation.Message, cancellationToken: cancellationToken);
+            return new TraefikApplyResponse(false, render.ContentHash, false, remoteValidation.Message);
+        }
 
         var staticWrite = await WriteAsync(settings, request, state.StaticConfigPath, staticBytes, cancellationToken);
         if (!staticWrite.Succeeded)
@@ -237,7 +273,7 @@ public sealed class TraefikSyncService(
         export DEBIAN_FRONTEND=noninteractive
         mkdir -p /etc/hashi/traefik/dynamic /var/log/hashi/traefik /var/lib/hashi/traefik
         apt-get update
-        apt-get install -y traefik || apt-get install -y traefik2 || true
+        apt-get install -y traefik || apt-get install -y traefik2
         cat > /etc/systemd/system/traefik.service <<'UNIT'
         [Unit]
         Description=Hashi-managed Traefik
@@ -261,7 +297,7 @@ public sealed class TraefikSyncService(
     private static string BuildAlpineInstallScript() => """
         set -euo pipefail
         mkdir -p /etc/hashi/traefik/dynamic /var/log/hashi/traefik /var/lib/hashi/traefik
-        apk add --no-cache traefik || true
+        apk add --no-cache traefik
         cat > /etc/init.d/traefik <<'INIT'
         #!/sbin/openrc-run
         name="traefik"
@@ -329,6 +365,87 @@ public sealed class TraefikSyncService(
                     settings, request.PrivateKeyPem, request.PrivateKeyPassphrase, remotePath, content, cancellationToken),
             _ => new Hashi.Core.Connections.RemoteWriteResult(false, remotePath, "Unsupported auth mode."),
         };
+
+    private async Task<(bool Succeeded, string? Message)> ValidateStagedRemoteConfigAsync(
+        Hashi.Core.Connections.SshConnectionSettings settings,
+        TraefikApplyRequest request,
+        TraefikRenderResult render,
+        CancellationToken cancellationToken)
+    {
+        var stagingDirectory = $"/tmp/hashi-traefik-{render.ContentHash}";
+        var stagingDynamicDirectory = $"{stagingDirectory}/dynamic";
+        var mkdir = await ssh.RunCommandAsync(
+            settings,
+            request.AuthMode,
+            request.Password,
+            request.PrivateKeyPem,
+            request.PrivateKeyPassphrase,
+            $"rm -rf {Quote(stagingDirectory)} && mkdir -p {Quote(stagingDynamicDirectory)}",
+            cancellationToken);
+        if (!mkdir.Succeeded)
+        {
+            return (false, mkdir.Error ?? mkdir.Output);
+        }
+
+        var stagedStaticYaml = render.StaticConfigYaml.Replace(
+            "directory: /etc/hashi/traefik/dynamic",
+            $"directory: {stagingDynamicDirectory}",
+            StringComparison.Ordinal);
+        var staticWrite = await WriteAsync(
+            settings,
+            request,
+            $"{stagingDirectory}/traefik.yml",
+            System.Text.Encoding.UTF8.GetBytes(stagedStaticYaml),
+            cancellationToken);
+        if (!staticWrite.Succeeded)
+        {
+            return (false, staticWrite.Error);
+        }
+
+        foreach (var (fileName, selector) in DynamicFileMap)
+        {
+            var write = await WriteAsync(
+                settings,
+                request,
+                $"{stagingDynamicDirectory}/{fileName}",
+                System.Text.Encoding.UTF8.GetBytes(selector(render.DynamicFiles)),
+                cancellationToken);
+            if (!write.Succeeded)
+            {
+                return (false, write.Error);
+            }
+        }
+
+        var check = await ssh.RunCommandAsync(
+            settings,
+            request.AuthMode,
+            request.Password,
+            request.PrivateKeyPem,
+            request.PrivateKeyPassphrase,
+            $"traefik check --configFile {Quote($"{stagingDirectory}/traefik.yml")}",
+            cancellationToken);
+        _ = await ssh.RunCommandAsync(
+            settings,
+            request.AuthMode,
+            request.Password,
+            request.PrivateKeyPem,
+            request.PrivateKeyPassphrase,
+            $"rm -rf {Quote(stagingDirectory)}",
+            cancellationToken);
+
+        return check.Succeeded
+            ? (true, null)
+            : (false, check.Error ?? check.Output);
+    }
+
+    private static bool RemoteContentMatches(Hashi.Core.Connections.RemoteReadResult read, string expected)
+        => read.Succeeded
+            && read.Content is not null
+            && string.Equals(System.Text.Encoding.UTF8.GetString(read.Content), expected, StringComparison.Ordinal);
+
+    private static bool DynamicFilesMatch(Dictionary<string, string> remoteFiles, TraefikDynamicFiles expected)
+        => DynamicFileMap.All(x => remoteFiles.TryGetValue(x.FileName, out var remoteContent)
+            && string.Equals(remoteContent, x.Selector(expected), StringComparison.Ordinal));
 
     private static TraefikHostStateEntity CreateDefaultState(Guid connectionId) => new()
     {

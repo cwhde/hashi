@@ -1,4 +1,5 @@
-using System.Text;
+using System.IO;
+using YamlDotNet.RepresentationModel;
 
 namespace Hashi.Core.Traefik;
 
@@ -22,96 +23,42 @@ public static class TraefikUserMiddlewareParser
             return new(true, [], null, DefaultYaml);
         }
 
-        var lines = yaml.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
-        var httpIndex = -1;
-        for (var i = 0; i < lines.Length; i++)
+        YamlStream stream;
+        try
         {
-            if (lines[i].TrimStart().StartsWith("http:", StringComparison.Ordinal))
-            {
-                httpIndex = i;
-                break;
-            }
+            stream = LoadYaml(yaml);
+        }
+        catch (Exception ex) when (ex is YamlDotNet.Core.YamlException or ArgumentException or InvalidOperationException)
+        {
+            return new(false, [], $"YAML parse error: {ex.Message}", yaml);
         }
 
-        if (httpIndex < 0)
+        if (stream.Documents.Count == 0 || stream.Documents[0].RootNode is not YamlMappingNode root)
+        {
+            return new(false, [], "YAML must be a mapping with a top-level http: section.", yaml);
+        }
+
+        if (!TryGetMapping(root, "http", out var http))
         {
             return new(false, [], "YAML must contain a top-level http: section.", yaml);
         }
 
-        var middlewaresIndex = -1;
-        var httpIndent = LeadingSpaces(lines[httpIndex]);
-        for (var i = httpIndex + 1; i < lines.Length; i++)
-        {
-            var trimmed = lines[i].Trim();
-            if (trimmed.Length == 0 || trimmed.StartsWith('#'))
-            {
-                continue;
-            }
-
-            var indent = LeadingSpaces(lines[i]);
-            if (indent <= httpIndent)
-            {
-                break;
-            }
-
-            if (trimmed.StartsWith("middlewares:", StringComparison.Ordinal))
-            {
-                middlewaresIndex = i;
-                break;
-            }
-        }
-
-        if (middlewaresIndex < 0)
+        if (!TryGetNode(http, "middlewares", out var middlewaresNode))
         {
             return new(false, [], "YAML must define http.middlewares.", yaml);
         }
 
-        var middlewaresLine = lines[middlewaresIndex].Trim();
-        if (middlewaresLine.Equals("middlewares: {}", StringComparison.Ordinal)
-            || middlewaresLine.Equals("middlewares:{}", StringComparison.Ordinal))
+        if (middlewaresNode is not YamlMappingNode middlewares)
         {
-            return new(true, [], null, NormalizeYaml(yaml));
+            return new(false, [], "http.middlewares must be a YAML mapping.", yaml);
         }
 
-        var middlewareIndent = LeadingSpaces(lines[middlewaresIndex]);
-        var names = new List<string>();
-        for (var i = middlewaresIndex + 1; i < lines.Length; i++)
-        {
-            var trimmed = lines[i].Trim();
-            if (trimmed.Length == 0 || trimmed.StartsWith('#'))
-            {
-                continue;
-            }
-
-            var indent = LeadingSpaces(lines[i]);
-            if (indent <= middlewareIndent)
-            {
-                break;
-            }
-
-            if (indent != middlewareIndent + 2)
-            {
-                continue;
-            }
-
-            var name = trimmed.Split(':')[0].Trim();
-            if (name.Length == 0)
-            {
-                return new(false, [], $"Invalid middleware name near line {i + 1}.", yaml);
-            }
-
-            if (names.Contains(name, StringComparer.Ordinal))
-            {
-                return new(false, [], $"Duplicate middleware name '{name}'.", yaml);
-            }
-
-            names.Add(name);
-        }
-
-        if (names.Count == 0)
-        {
-            return new(false, [], "http.middlewares must define at least one middleware or use {}.", yaml);
-        }
+        var names = middlewares.Children.Keys
+            .OfType<YamlScalarNode>()
+            .Select(x => x.Value)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Cast<string>()
+            .ToList();
 
         return new(true, names, null, NormalizeYaml(yaml));
     }
@@ -122,21 +69,37 @@ public static class TraefikUserMiddlewareParser
         return normalized.Length == 0 ? DefaultYaml : normalized + "\n";
     }
 
-    private static int LeadingSpaces(string line)
+    private static YamlStream LoadYaml(string yaml)
     {
-        var count = 0;
-        foreach (var ch in line)
+        var stream = new YamlStream();
+        stream.Load(new StringReader(yaml));
+        return stream;
+    }
+
+    private static bool TryGetMapping(YamlMappingNode node, string key, out YamlMappingNode mapping)
+    {
+        if (TryGetNode(node, key, out var value) && value is YamlMappingNode child)
         {
-            if (ch == ' ')
+            mapping = child;
+            return true;
+        }
+
+        mapping = null!;
+        return false;
+    }
+
+    private static bool TryGetNode(YamlMappingNode node, string key, out YamlNode value)
+    {
+        foreach (var (candidateKey, candidateValue) in node.Children)
+        {
+            if (candidateKey is YamlScalarNode scalar && string.Equals(scalar.Value, key, StringComparison.Ordinal))
             {
-                count++;
-            }
-            else
-            {
-                break;
+                value = candidateValue;
+                return true;
             }
         }
 
-        return count;
+        value = null!;
+        return false;
     }
 }
