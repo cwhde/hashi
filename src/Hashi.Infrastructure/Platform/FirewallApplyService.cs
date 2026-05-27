@@ -129,6 +129,19 @@ public sealed class FirewallApplyService(
         var host = await db.FirewallHosts.SingleAsync(x => x.Id == firewallHostId, cancellationToken);
         var definition = await BuildHostDefinitionAsync(host, cancellationToken);
         var plan = BuildPlan(host, definition);
+        db.FirewallGeneratedScripts.Add(new FirewallGeneratedScriptEntity
+        {
+            FirewallHostId = host.Id,
+            ScriptPath = host.ScriptPath,
+            DesiredContentHash = plan.ScriptHash,
+            DesiredScript = plan.Preview,
+            Status = string.Equals(host.LastAppliedScriptHash, plan.ScriptHash, StringComparison.Ordinal)
+                ? FirewallGeneratedScriptStatusNames.Applied
+                : FirewallGeneratedScriptStatusNames.Desired,
+            AppliedContentHash = host.LastAppliedScriptHash,
+            DiffSummary = plan.Changes.SingleOrDefault()?.Summary,
+        });
+        await db.SaveChangesAsync(cancellationToken);
         await audit.WriteAsync(
             "firewall",
             "script_planned",
@@ -150,6 +163,20 @@ public sealed class FirewallApplyService(
         var envFile = FirewallScriptRenderer.RenderEnvFile(definition);
         var scriptHash = plan.ScriptHash;
         var run = await syncRuns.BeginRunAsync("firewall", cancellationToken);
+        var generatedScript = new FirewallGeneratedScriptEntity
+        {
+            FirewallHostId = host.Id,
+            SyncRunId = run.Id,
+            ScriptPath = host.ScriptPath,
+            DesiredContentHash = scriptHash,
+            DesiredScript = script,
+            Status = FirewallGeneratedScriptStatusNames.Desired,
+            AppliedContentHash = host.LastAppliedScriptHash,
+            AppliedAtUtc = host.LastAppliedAtUtc,
+            DiffSummary = plan.Changes.SingleOrDefault()?.Summary,
+        };
+        db.FirewallGeneratedScripts.Add(generatedScript);
+        await db.SaveChangesAsync(cancellationToken);
         var planChanges = plan.Changes.Select(change => new ProviderChange(
             "firewall-script",
             change.ResourceKey,
@@ -166,6 +193,11 @@ public sealed class FirewallApplyService(
 
         if (string.Equals(host.LastAppliedScriptHash, scriptHash, StringComparison.Ordinal))
         {
+            generatedScript.Status = FirewallGeneratedScriptStatusNames.Applied;
+            generatedScript.AppliedContentHash = scriptHash;
+            generatedScript.AppliedScript = script;
+            generatedScript.AppliedAtUtc = host.LastAppliedAtUtc;
+            await db.SaveChangesAsync(cancellationToken);
             await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Succeeded, SyncRiskLevel.None, null, cancellationToken);
             return new FirewallApplyResponse(
                 true,
@@ -181,6 +213,9 @@ public sealed class FirewallApplyService(
         var validation = await ValidateConnectivityAsync(settings, request, cancellationToken);
         if (!validation.Succeeded)
         {
+            generatedScript.Status = FirewallGeneratedScriptStatusNames.Failed;
+            generatedScript.ErrorDetails = validation.Error;
+            await db.SaveChangesAsync(cancellationToken);
             await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Failed, SyncRiskLevel.Medium, validation.Error, cancellationToken);
             return new FirewallApplyResponse(false, false, host.NetBirdDetected, validation.Error, plan.PlanId, scriptHash, plan.Preview);
         }
@@ -189,6 +224,9 @@ public sealed class FirewallApplyService(
         if (!preflight.Succeeded)
         {
             var message = preflight.Error ?? preflight.Output;
+            generatedScript.Status = FirewallGeneratedScriptStatusNames.Failed;
+            generatedScript.ErrorDetails = message;
+            await db.SaveChangesAsync(cancellationToken);
             await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Failed, SyncRiskLevel.Medium, message, cancellationToken);
             return new FirewallApplyResponse(false, false, host.NetBirdDetected, message, plan.PlanId, scriptHash, plan.Preview);
         }
@@ -226,6 +264,9 @@ public sealed class FirewallApplyService(
         var write = await WriteScriptAsync(settings, request, host.ScriptPath, script, cancellationToken);
         if (!write.Succeeded)
         {
+            generatedScript.Status = FirewallGeneratedScriptStatusNames.Failed;
+            generatedScript.ErrorDetails = write.Error;
+            await db.SaveChangesAsync(cancellationToken);
             await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Failed, SyncRiskLevel.Medium, write.Error, cancellationToken);
             return new FirewallApplyResponse(false, false, netBird, write.Error, plan.PlanId, scriptHash, plan.Preview);
         }
@@ -244,6 +285,9 @@ public sealed class FirewallApplyService(
             }
 
             var message = applyResult.Error ?? applyResult.Output;
+            generatedScript.Status = FirewallGeneratedScriptStatusNames.Failed;
+            generatedScript.ErrorDetails = message;
+            await db.SaveChangesAsync(cancellationToken);
             await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Failed, SyncRiskLevel.High, message, cancellationToken);
             return new FirewallApplyResponse(false, false, netBird, message, plan.PlanId, scriptHash, plan.Preview);
         }
@@ -257,6 +301,9 @@ public sealed class FirewallApplyService(
             }
 
             var message = verification.Error ?? verification.Output;
+            generatedScript.Status = FirewallGeneratedScriptStatusNames.Failed;
+            generatedScript.ErrorDetails = message;
+            await db.SaveChangesAsync(cancellationToken);
             await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Failed, SyncRiskLevel.High, message, cancellationToken);
             await audit.WriteAsync(
                 "firewall",
@@ -271,6 +318,10 @@ public sealed class FirewallApplyService(
 
         host.LastAppliedScriptHash = scriptHash;
         host.LastAppliedAtUtc = DateTimeOffset.UtcNow;
+        generatedScript.Status = FirewallGeneratedScriptStatusNames.Applied;
+        generatedScript.AppliedContentHash = scriptHash;
+        generatedScript.AppliedScript = script;
+        generatedScript.AppliedAtUtc = host.LastAppliedAtUtc;
         await db.SaveChangesAsync(cancellationToken);
         await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Succeeded, SyncRiskLevel.Low, null, cancellationToken);
         await audit.WriteAsync(
