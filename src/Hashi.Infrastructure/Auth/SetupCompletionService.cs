@@ -1,5 +1,6 @@
 using Hashi.Core.Setup;
 using Hashi.Infrastructure.Persistence;
+using Hashi.Infrastructure.Persistence.Entities;
 using Hashi.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 
@@ -44,6 +45,21 @@ public sealed class SetupCompletionService(
                 "Verify HTTPS access on the admin domain (POST /api/setup/verify-https) before completing setup.");
         }
 
+        if (!await HasEnabledConnectionAsync(ConnectionTypeNames.DnsProvider, cancellationToken))
+        {
+            return SetupCompletionResult.Failed("Add at least one DNS provider connection before completing setup.");
+        }
+
+        if (!await HasEnabledConnectionAsync(ConnectionTypeNames.TraefikHost, cancellationToken))
+        {
+            return SetupCompletionResult.Failed("Add at least one Traefik host connection before completing setup.");
+        }
+
+        if (!await db.FirewallHosts.AsNoTracking().AnyAsync(cancellationToken))
+        {
+            return SetupCompletionResult.Failed("Add at least one firewall host before completing setup.");
+        }
+
         await setupState.MarkCompleteAsync(cancellationToken);
         await setupState.MarkStepCompleteAsync(SetupStep.PasskeyAndVault, cancellationToken);
         await setupState.MarkStepCompleteAsync(SetupStep.Complete, cancellationToken);
@@ -52,6 +68,9 @@ public sealed class SetupCompletionService(
 
         return SetupCompletionResult.Ok();
     }
+
+    private Task<bool> HasEnabledConnectionAsync(string type, CancellationToken cancellationToken)
+        => db.Connections.AsNoTracking().AnyAsync(x => x.Type == type && x.Enabled, cancellationToken);
 }
 
 public sealed record SetupCompletionResult(bool Succeeded, string? Error)
