@@ -61,6 +61,7 @@ public sealed class SshRemoteExecutorTests : IAsyncLifetime
             using var startupCts = new CancellationTokenSource(ContainerStartupTimeout);
             await _sshContainer.StartAsync(startupCts.Token);
             _mappedPort = _sshContainer.GetMappedPublicPort(22);
+            await WaitForSshPasswordAuthAsync(startupCts.Token);
         }
         catch (Exception ex) when (IsDockerUnavailable(ex) || IsStartupTimeout(ex))
         {
@@ -145,6 +146,37 @@ public sealed class SshRemoteExecutorTests : IAsyncLifetime
         OsFamily.Unknown,
         null,
         null);
+
+    private async Task WaitForSshPasswordAuthAsync(CancellationToken cancellationToken)
+    {
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(20);
+        Exception? lastException = null;
+        string? lastError = null;
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                var result = await _executor.ValidateAsync(CreateSettings(), Password);
+                if (result.Succeeded)
+                {
+                    return;
+                }
+
+                lastError = result.Error;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                lastException = ex;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken);
+        }
+
+        var detail = lastError ?? lastException?.Message ?? "no diagnostic was reported";
+        throw new TimeoutException($"SSH test container did not accept password authentication in time: {detail}", lastException);
+    }
 
     private static bool IsDockerUnavailable(Exception ex)
         => ex is ArgumentException { ParamName: "DockerEndpointAuthConfig" }
