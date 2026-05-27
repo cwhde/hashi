@@ -4617,6 +4617,34 @@
           },
           "cronExpression": {
             "type": "string"
+          },
+          "targetConnectionIds": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "runTimeoutSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32",
+            "default": 300
+          },
+          "environmentVariables": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ScriptEnvironmentVariableRequest"
+            }
           }
         }
       },
@@ -6494,22 +6522,109 @@
               "null",
               "string"
             ]
+          },
+          "status": {
+            "type": "string",
+            "default": "unknown"
+          },
+          "runId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "runs": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ScriptRunResponse"
+            }
+          }
+        }
+      },
+      "ScriptEnvironmentVariableRequest": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "value": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isSecret": {
+            "type": "boolean",
+            "default": false
+          },
+          "secretId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "ScriptEnvironmentVariableResponse": {
+        "required": [
+          "id",
+          "name",
+          "isSecret",
+          "secretId"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "isSecret": {
+            "type": "boolean"
+          },
+          "secretId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },
       "ScriptResponse": {
         "required": [
           "id",
+          "connectionId",
           "name",
           "enabled",
           "description",
           "cronExpression",
+          "runTimeoutSeconds",
           "lastRunAtUtc",
-          "lastRunOutput"
+          "lastRunOutput",
+          "lastRunError",
+          "lastRunStatus",
+          "lastRunId",
+          "targets",
+          "environmentVariables"
         ],
         "type": "object",
         "properties": {
           "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "connectionId": {
             "type": "string",
             "format": "uuid"
           },
@@ -6525,6 +6640,14 @@
           "cronExpression": {
             "type": "string"
           },
+          "runTimeoutSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
           "lastRunAtUtc": {
             "type": [
               "null",
@@ -6537,6 +6660,105 @@
               "null",
               "string"
             ]
+          },
+          "lastRunError": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastRunStatus": {
+            "type": "string"
+          },
+          "lastRunId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "targets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScriptTargetResponse"
+            }
+          },
+          "environmentVariables": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ScriptEnvironmentVariableResponse"
+            }
+          }
+        }
+      },
+      "ScriptRunResponse": {
+        "required": [
+          "id",
+          "scriptId",
+          "connectionId",
+          "startedAtUtc",
+          "completedAtUtc",
+          "status",
+          "succeeded",
+          "error"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "scriptId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "connectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "startedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string"
+          },
+          "succeeded": {
+            "type": "boolean"
+          },
+          "error": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "ScriptTargetResponse": {
+        "required": [
+          "id",
+          "connectionId",
+          "enabled"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "connectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "enabled": {
+            "type": "boolean"
           }
         }
       },
@@ -8056,6 +8278,34 @@
               "null",
               "boolean"
             ]
+          },
+          "targetConnectionIds": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "runTimeoutSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "environmentVariables": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ScriptEnvironmentVariableRequest"
+            }
           }
         }
       },

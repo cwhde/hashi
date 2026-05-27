@@ -5030,6 +5030,13 @@ export interface components {
             description: string;
             body: string;
             cronExpression: string;
+            targetConnectionIds?: null | string[];
+            /**
+             * Format: int32
+             * @default 300
+             */
+            runTimeoutSeconds: number | string;
+            environmentVariables?: null | components["schemas"]["ScriptEnvironmentVariableRequest"][];
         };
         CreateSshConnectionRequest: {
             name: string;
@@ -5479,17 +5486,70 @@ export interface components {
             succeeded: boolean;
             output: string;
             error: null | string;
+            /** @default unknown */
+            status: string;
+            /** Format: uuid */
+            runId?: null | string;
+            runs?: null | components["schemas"]["ScriptRunResponse"][];
+        };
+        ScriptEnvironmentVariableRequest: {
+            name: string;
+            value?: null | string;
+            /** @default false */
+            isSecret: boolean;
+            /** Format: uuid */
+            secretId?: null | string;
+        };
+        ScriptEnvironmentVariableResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            isSecret: boolean;
+            /** Format: uuid */
+            secretId: null | string;
         };
         ScriptResponse: {
             /** Format: uuid */
             id: string;
+            /** Format: uuid */
+            connectionId: string;
             name: string;
             enabled: boolean;
             description: string;
             cronExpression: string;
+            /** Format: int32 */
+            runTimeoutSeconds: number | string;
             /** Format: date-time */
             lastRunAtUtc: null | string;
             lastRunOutput: null | string;
+            lastRunError: null | string;
+            lastRunStatus: string;
+            /** Format: uuid */
+            lastRunId: null | string;
+            targets: components["schemas"]["ScriptTargetResponse"][];
+            environmentVariables: components["schemas"]["ScriptEnvironmentVariableResponse"][];
+        };
+        ScriptRunResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            scriptId: string;
+            /** Format: uuid */
+            connectionId: string;
+            /** Format: date-time */
+            startedAtUtc: string;
+            /** Format: date-time */
+            completedAtUtc: null | string;
+            status: string;
+            succeeded: boolean;
+            error: null | string;
+        };
+        ScriptTargetResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            connectionId: string;
+            enabled: boolean;
         };
         SecretDescriptorResponse: {
             /** Format: uuid */
@@ -5828,6 +5888,10 @@ export interface components {
             body: null | string;
             cronExpression: null | string;
             enabled: null | boolean;
+            targetConnectionIds?: null | string[];
+            /** Format: int32 */
+            runTimeoutSeconds?: null | number | string;
+            environmentVariables?: null | components["schemas"]["ScriptEnvironmentVariableRequest"][];
         };
         UpdateTraefikUserMiddlewareRequest: {
             yaml: string;
