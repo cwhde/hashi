@@ -1,3 +1,7 @@
+using System.IO;
+using YamlDotNet.Core;
+using YamlDotNet.RepresentationModel;
+
 namespace Hashi.Core.Traefik;
 
 public sealed record TraefikConfigValidationResult(bool IsValid, IReadOnlyList<string> Errors);
@@ -25,31 +29,39 @@ public static class TraefikConfigValidator
 
     private static void ValidateStatic(string yaml, List<string> errors)
     {
-        if (string.IsNullOrWhiteSpace(yaml))
+        if (!TryParseYaml("Static config", yaml, errors, out var root))
         {
-            errors.Add("Static config is empty.");
             return;
         }
 
-        RequireContains(yaml, "entryPoints:", "Static config must define entryPoints.", errors);
-        RequireContains(yaml, "providers:", "Static config must define providers.", errors);
-        RequireContains(yaml, "directory: /etc/hashi/traefik/dynamic", "Static config must point at Hashi dynamic directory.", errors);
+        RequireMapping(root, "entryPoints", "Static config must define entryPoints.", errors);
+        if (!TryGetMapping(root, "providers", out var providers))
+        {
+            errors.Add("Static config must define providers.");
+            return;
+        }
+
+        if (!TryGetMapping(providers, "file", out var fileProvider)
+            || !TryGetScalar(fileProvider, "directory", out var directory)
+            || !string.Equals(directory, "/etc/hashi/traefik/dynamic", StringComparison.Ordinal))
+        {
+            errors.Add("Static config must point at Hashi dynamic directory.");
+        }
     }
 
     private static void ValidateDynamic(string name, string yaml, List<string> errors)
     {
-        if (string.IsNullOrWhiteSpace(yaml))
+        if (!TryParseYaml($"Dynamic file '{name}'", yaml, errors, out var root))
         {
-            errors.Add($"Dynamic file '{name}' is empty.");
             return;
         }
 
-        if (!yaml.Contains("http:", StringComparison.Ordinal)
-            && !yaml.Contains("tcp:", StringComparison.Ordinal)
-            && !yaml.Contains("udp:", StringComparison.Ordinal))
+        if (!HasKey(root, "http") && !HasKey(root, "tcp") && !HasKey(root, "udp"))
         {
             errors.Add($"Dynamic file '{name}' must contain http, tcp, or udp section.");
         }
+
+        ValidateReplacePathRegex(name, root, errors);
     }
 
     private static void ValidateUserMiddlewares(string yaml, List<string> errors)
@@ -61,11 +73,111 @@ public static class TraefikConfigValidator
         }
     }
 
-    private static void RequireContains(string haystack, string needle, string message, List<string> errors)
+    private static bool TryParseYaml(string name, string yaml, List<string> errors, out YamlMappingNode root)
     {
-        if (!haystack.Contains(needle, StringComparison.Ordinal))
+        root = null!;
+        if (string.IsNullOrWhiteSpace(yaml))
+        {
+            errors.Add($"{name} is empty.");
+            return false;
+        }
+
+        try
+        {
+            var stream = new YamlStream();
+            stream.Load(new StringReader(yaml));
+            if (stream.Documents.Count == 0 || stream.Documents[0].RootNode is not YamlMappingNode mapping)
+            {
+                errors.Add($"{name} must be a YAML mapping.");
+                return false;
+            }
+
+            root = mapping;
+            return true;
+        }
+        catch (Exception ex) when (ex is YamlException or ArgumentException or InvalidOperationException)
+        {
+            errors.Add($"{name} YAML parse error: {ex.Message}");
+            return false;
+        }
+    }
+
+    private static void ValidateReplacePathRegex(string name, YamlMappingNode root, List<string> errors)
+    {
+        if (!TryGetMapping(root, "http", out var http)
+            || !TryGetMapping(http, "middlewares", out var middlewares))
+        {
+            return;
+        }
+
+        foreach (var (middlewareKey, middlewareNode) in middlewares.Children)
+        {
+            if (middlewareNode is not YamlMappingNode middleware
+                || !TryGetMapping(middleware, "replacePathRegex", out var replacePathRegex))
+            {
+                continue;
+            }
+
+            var middlewareName = middlewareKey is YamlScalarNode scalar ? scalar.Value : middlewareKey.ToString();
+            if (!TryGetScalar(replacePathRegex, "regex", out var regex) || string.IsNullOrWhiteSpace(regex))
+            {
+                errors.Add($"Dynamic file '{name}' middleware '{middlewareName}' replacePathRegex must define regex.");
+            }
+
+            if (!TryGetScalar(replacePathRegex, "replacement", out var replacement) || string.IsNullOrWhiteSpace(replacement))
+            {
+                errors.Add($"Dynamic file '{name}' middleware '{middlewareName}' replacePathRegex must define replacement.");
+            }
+        }
+    }
+
+    private static void RequireMapping(YamlMappingNode node, string key, string message, List<string> errors)
+    {
+        if (!TryGetMapping(node, key, out _))
         {
             errors.Add(message);
         }
+    }
+
+    private static bool HasKey(YamlMappingNode node, string key)
+        => TryGetNode(node, key, out _);
+
+    private static bool TryGetMapping(YamlMappingNode node, string key, out YamlMappingNode mapping)
+    {
+        if (TryGetNode(node, key, out var value) && value is YamlMappingNode child)
+        {
+            mapping = child;
+            return true;
+        }
+
+        mapping = null!;
+        return false;
+    }
+
+    private static bool TryGetScalar(YamlMappingNode node, string key, out string? value)
+    {
+        if (TryGetNode(node, key, out var yamlNode) && yamlNode is YamlScalarNode scalar)
+        {
+            value = scalar.Value;
+            return true;
+        }
+
+        value = null;
+        return false;
+    }
+
+    private static bool TryGetNode(YamlMappingNode node, string key, out YamlNode value)
+    {
+        foreach (var (candidateKey, candidateValue) in node.Children)
+        {
+            if (candidateKey is YamlScalarNode scalar && string.Equals(scalar.Value, key, StringComparison.Ordinal))
+            {
+                value = candidateValue;
+                return true;
+            }
+        }
+
+        value = null!;
+        return false;
     }
 }

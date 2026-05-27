@@ -283,25 +283,45 @@ public static class TraefikConfigRenderer
     }
 
     private static string RenderRewriteMiddleware(string name, string value, string? mode)
-        => (mode ?? "replace_path").ToLowerInvariant() switch
+    {
+        var rewriteMode = (mode ?? "replace_path").ToLowerInvariant();
+        if (rewriteMode == "regex")
         {
-            "strip_prefix" => $$"""
+            var (regex, replacement) = SplitRegexRewrite(value);
+            return $$"""
+                  {{name}}:
+                    replacePathRegex:
+                      regex: "{{regex}}"
+                      replacement: "{{replacement}}"
+                """;
+        }
+
+        return rewriteMode == "strip_prefix"
+            ? $$"""
                   {{name}}:
                     stripPrefix:
                       prefixes:
                         - "{{value}}"
-                """,
-            "regex" => $$"""
-                  {{name}}:
-                    replacePathRegex:
-                      regex: "{{value}}"
-                """,
-            _ => $$"""
+                """
+            : $$"""
                   {{name}}:
                     replacePath:
                       path: "{{value}}"
-                """,
-        };
+                """;
+    }
+
+    private static (string Regex, string Replacement) SplitRegexRewrite(string value)
+    {
+        var separatorIndex = value.IndexOf("=>", StringComparison.Ordinal);
+        if (separatorIndex < 0)
+        {
+            return (value.Trim(), "/");
+        }
+
+        var regex = value[..separatorIndex].Trim();
+        var replacement = value[(separatorIndex + 2)..].Trim();
+        return (regex.Length == 0 ? "^/(.*)" : regex, replacement.Length == 0 ? "/" : replacement);
+    }
 
     private static string BuildPathRule(string? domain, string? pathMatchType, string? pathValue)
     {
@@ -359,18 +379,24 @@ public static class TraefikConfigRenderer
                         - address: "{{r.TargetHost}}:{{r.TargetPort}}"
                 """));
 
-        return $$"""
-            tcp:
-              routers:
-            {{(string.IsNullOrWhiteSpace(tcpRouters) ? "{}" : tcpRouters)}}
-              services:
-            {{(string.IsNullOrWhiteSpace(tcpServices) ? "{}" : tcpServices)}}
-            udp:
-              routers:
-            {{(string.IsNullOrWhiteSpace(udpRouters) ? "{}" : udpRouters)}}
-              services:
-            {{(string.IsNullOrWhiteSpace(udpServices) ? "{}" : udpServices)}}
-            """;
+        return string.Join('\n',
+            "tcp:",
+            RenderMapSection("routers", tcpRouters),
+            RenderMapSection("services", tcpServices),
+            "udp:",
+            RenderMapSection("routers", udpRouters),
+            RenderMapSection("services", udpServices)) + "\n";
+    }
+
+    private static string RenderMapSection(string name, string content)
+        => string.IsNullOrWhiteSpace(content)
+            ? $"  {name}: {{}}"
+            : $"  {name}:\n{IndentBlock(content, 2)}";
+
+    private static string IndentBlock(string block, int spaces)
+    {
+        var prefix = new string(' ', spaces);
+        return string.Join('\n', block.Split('\n').Select(line => prefix + line));
     }
 
     private static string RenderSecurity(IReadOnlyList<ResourceDefinition> resources)

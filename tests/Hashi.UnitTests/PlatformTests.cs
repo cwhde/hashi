@@ -71,6 +71,34 @@ public sealed class TraefikConfigRendererTests
 
         Assert.Contains("hashi-forward-auth-strict", result.DynamicFiles.HttpResourcesYaml);
     }
+
+    [Fact]
+    public void Render_regex_rewrite_includes_replacement()
+    {
+        var resources = new List<ResourceDefinition>
+        {
+            new(Guid.NewGuid(), "App", "app", ResourceKind.Http, true, false, "app.example.com", "http", "10.0.0.2", 8080,
+                Routes:
+                [
+                    new ResourceRouteDefinition(
+                        100,
+                        "regex",
+                        "/old/(.*)",
+                        "http",
+                        "10.0.0.2",
+                        8080,
+                        RewriteMode: "regex",
+                        RewriteValue: "^/old/(.*) => /new/$1"),
+                ]),
+        };
+
+        var result = TraefikConfigRenderer.Render(resources);
+
+        Assert.Contains("replacePathRegex:", result.DynamicFiles.HttpResourcesYaml);
+        Assert.Contains("regex: \"^/old/(.*)\"", result.DynamicFiles.HttpResourcesYaml);
+        Assert.Contains("replacement: \"/new/$1\"", result.DynamicFiles.HttpResourcesYaml);
+        Assert.True(TraefikConfigValidator.ValidateRender(result).IsValid);
+    }
 }
 
 public sealed class MonitorRollupServiceTests
@@ -144,5 +172,22 @@ public sealed class TraefikStreamRendererTests
         Assert.Contains("game-udp:", result.StaticConfigYaml);
         Assert.Contains(":27015/udp", result.StaticConfigYaml);
         Assert.Contains("udp:", result.DynamicFiles.StreamResourcesYaml);
+    }
+
+    [Theory]
+    [InlineData(ResourceKind.Tcp, "tcp-only", "tcp")]
+    [InlineData(ResourceKind.Udp, "udp-only", "udp")]
+    public void Render_stream_resource_with_single_protocol_parses(ResourceKind kind, string slug, string protocol)
+    {
+        var resources = new List<ResourceDefinition>
+        {
+            new(Guid.NewGuid(), "Stream", slug, kind, true, false, null, protocol, "10.0.0.5", 25565, PublicPort: 25565),
+        };
+        var options = new TraefikRenderOptions(ConfirmedStreamPorts: new HashSet<(int, string)> { (25565, protocol) });
+        var result = TraefikConfigRenderer.Render(resources, options);
+
+        var validation = TraefikConfigValidator.ValidateRender(result);
+
+        Assert.True(validation.IsValid, string.Join("; ", validation.Errors));
     }
 }
