@@ -3737,9 +3737,7 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: {
-                    token?: string;
-                };
+                query?: never;
                 header?: never;
                 path: {
                     agentId: string;
