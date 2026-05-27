@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Hashi.Contracts.Api;
 using Hashi.Core.Dns;
 using Hashi.Infrastructure.Auth;
@@ -170,6 +171,8 @@ public sealed class HetznerDnsPlanApplyTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, planResponse.StatusCode);
         var plan = await planResponse.Content.ReadFromJsonAsync<DnsSyncPlanResponse>();
         Assert.NotNull(plan);
+        Assert.NotEqual(Guid.Empty, plan!.PlanId);
+        Assert.Equal(connection!.Id, plan.ConnectionId);
         Assert.Contains(plan!.Changes, x => x.Kind == nameof(DnsChangeKind.Create) && x.Name == "endpoint-new");
 
         var applyResponse = await SendPostWithCsrfAsync(
@@ -178,6 +181,9 @@ public sealed class HetznerDnsPlanApplyTests : IAsyncLifetime
             new DnsSyncApplyRequest(plan.PlanId, connection.Id, ConfirmDestructive: true));
 
         Assert.Equal(HttpStatusCode.OK, applyResponse.StatusCode);
+        using var applyJson = await JsonDocument.ParseAsync(await applyResponse.Content.ReadAsStreamAsync());
+        Assert.True(applyJson.RootElement.GetProperty("applied").GetBoolean());
+        Assert.NotEqual(Guid.Empty, applyJson.RootElement.GetProperty("syncRunId").GetGuid());
         using var verifyScope = factory.Services.CreateScope();
         var verifyDb = verifyScope.ServiceProvider.GetRequiredService<HashiDbContext>();
         var record = await verifyDb.DnsRecords.SingleAsync(x => x.Name == "endpoint-new");
