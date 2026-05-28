@@ -39,7 +39,7 @@ public static class DnsDesiredStateBuilder
             .Select(h => new FirewallHostDnsTarget(
                 h.Id,
                 h.Name,
-                h.PublicIp ?? h.InternalTraefikIp ?? string.Empty,
+                h.PublicIp,
                 null,
                 JsonSerializer.Deserialize<List<string>>(h.ManagedSubnetsJson) ?? []))
             .ToList();
@@ -67,6 +67,7 @@ public static class DnsDesiredStateBuilder
                     resource.Name,
                     slug,
                     rootDomain,
+                    resource.Domain,
                     resource.FirewallHostId,
                     null,
                     pulseTarget),
