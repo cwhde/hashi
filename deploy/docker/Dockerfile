@@ -8,7 +8,7 @@ RUN pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile
 COPY web/ ./
 RUN pnpm run build
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0-preview AS dotnet-build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS dotnet-build
 WORKDIR /src
 COPY Directory.Build.props Hashi.slnx ./
 COPY src/ ./src/
@@ -17,7 +17,7 @@ RUN dotnet restore src/Hashi.Api/Hashi.Api.csproj
 COPY --from=web-build /src/web/build ./web/build
 RUN dotnet publish src/Hashi.Api/Hashi.Api.csproj -c Release -o /app/publish /p:SkipFrontendBuild=true
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0-preview AS final
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 RUN apt-get update \
   && apt-get upgrade -y \

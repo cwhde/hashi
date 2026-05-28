@@ -20,15 +20,16 @@
     <PackageReference Include="Cronos" Version="0.8.4" />
     <PackageReference Include="Fido2" Version="3.0.1" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.11.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.0-preview.2.25163.8" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0-preview.2.25163.8">
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.8" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.8">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.0-preview.2.25163.8" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.0-preview.2.25163.8" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0-preview.2.25163.8" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0-preview.2" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.8" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.8" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.8" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.8" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
     <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
     <PackageReference Include="MaxMind.GeoIP2" Version="5.2.0" />
