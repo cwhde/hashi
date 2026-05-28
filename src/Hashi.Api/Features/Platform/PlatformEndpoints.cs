@@ -254,6 +254,46 @@ public static class StatusEndpoints
             var items = await monitoring.ListAsync(ct);
             return TypedResults.Ok(items.Select(MonitoringService.ToResponse));
         });
+        group.MapPost("/endpoints", async Task<IResult> (
+            CreateMonitorEndpointRequest request,
+            MonitoringService monitoring,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                return TypedResults.Ok(MonitoringService.ToResponse(await monitoring.CreateManualAsync(request, ct)));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        })
+            .Produces<MonitorEndpointResponse>(StatusCodes.Status200OK);
+        group.MapPut("/endpoints/{endpointId:guid}", async Task<IResult> (
+            Guid endpointId,
+            UpdateMonitorEndpointRequest request,
+            MonitoringService monitoring,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                var updated = await monitoring.UpdateManualAsync(endpointId, request, ct);
+                return updated is null ? TypedResults.NotFound() : TypedResults.Ok(MonitoringService.ToResponse(updated));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        })
+            .Produces<MonitorEndpointResponse>(StatusCodes.Status200OK);
+        group.MapDelete("/endpoints/{endpointId:guid}", async Task<IResult> (
+            Guid endpointId,
+            MonitoringService monitoring,
+            CancellationToken ct) =>
+        {
+            var deleted = await monitoring.DeleteManualAsync(endpointId, ct);
+            return deleted ? TypedResults.NoContent() : TypedResults.NotFound();
+        });
         group.MapGet("/rollups", async Task<IResult> (
             Guid? endpointId,
             int? intervalMinutes,

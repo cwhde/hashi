@@ -422,6 +422,18 @@ public sealed record MonitorEndpointResponse(
     DateTimeOffset? LastCheckedAtUtc,
     int? LastLatencyMs);
 
+public sealed record CreateMonitorEndpointRequest(
+    string Name,
+    string Url,
+    string CheckType,
+    bool Enabled = true);
+
+public sealed record UpdateMonitorEndpointRequest(
+    string? Name = null,
+    string? Url = null,
+    string? CheckType = null,
+    bool? Enabled = null);
+
 public sealed record PulseInstallResponse(string LinuxInstallScript, string DockerRunCommand);
 
 public sealed record PulseAgentResponse(
