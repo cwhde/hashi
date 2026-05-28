@@ -43,6 +43,10 @@ public sealed class VaultSecretBoundaryTests
             SecretPurpose.ScriptEnvironment,
             "admin only",
             [42]);
+        var adminOnlySsh = await secrets.StoreAsync(
+            SecretPurpose.SshCredential,
+            "manual script ssh",
+            [45]);
         var eligible = await secrets.StoreAsync(
             SecretPurpose.DnsProviderToken,
             "routine dns",
@@ -50,6 +54,7 @@ public sealed class VaultSecretBoundaryTests
             serviceSyncEligible: true);
 
         Assert.Null(await secrets.DecryptForServiceSyncAsync(adminOnly.Id));
+        Assert.Null(await secrets.DecryptForServiceSyncAsync(adminOnlySsh.Id));
         Assert.Equal([43], await secrets.DecryptForServiceSyncAsync(eligible.Id));
     }
 

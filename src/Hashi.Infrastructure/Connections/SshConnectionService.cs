@@ -46,7 +46,8 @@ public sealed class SshConnectionService(
             SecretPurpose.SshCredential,
             $"SSH: {name}",
             credentialPayload,
-            cancellationToken);
+            cancellationToken,
+            serviceSyncEligible: RuntimeSecretEligibility.IsRuntimeSshConnectionType(connectionType));
         connection.SecretId = secret.Id;
 
         await db.SaveChangesAsync(cancellationToken);

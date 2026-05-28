@@ -29,7 +29,8 @@ public sealed class OidcProviderAdminService(
             SecretPurpose.OidcClientSecret,
             $"OIDC: {request.Name}",
             System.Text.Encoding.UTF8.GetBytes(request.ClientSecret),
-            cancellationToken);
+            cancellationToken,
+            serviceSyncEligible: RuntimeSecretEligibility.IsRuntimePurpose(SecretPurpose.OidcClientSecret));
         var entity = new OidcProviderEntity
         {
             Name = request.Name,
@@ -87,7 +88,8 @@ public sealed class OidcProviderAdminService(
                 SecretPurpose.OidcClientSecret,
                 $"OIDC: {entity.Name}",
                 System.Text.Encoding.UTF8.GetBytes(request.ClientSecret),
-                cancellationToken);
+                cancellationToken,
+                serviceSyncEligible: RuntimeSecretEligibility.IsRuntimePurpose(SecretPurpose.OidcClientSecret));
             entity.ClientSecretId = secret.Id;
         }
 
