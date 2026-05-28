@@ -521,7 +521,7 @@ public static class SecurityEndpoints
         {
             await security.IngestAccessLogAsync(request, ct);
             return TypedResults.Ok(new { accepted = true });
-        }).AllowAnonymous();
+        });
         group.MapPost("/blocklist/sync", async Task<IResult> (SecurityIngestionService security, CancellationToken ct) =>
         {
             var result = await security.SyncBlocklistToAllFirewallsAsync(ct);
