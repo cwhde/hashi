@@ -4,6 +4,7 @@ using Hashi.Infrastructure.Platform;
 using Hashi.Infrastructure.Services;
 using Hashi.Infrastructure.Sync;
 using Hashi.UnitTests.Fakes;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Hashi.UnitTests.Fakes;
@@ -45,6 +46,10 @@ public static class TestPlatformHelpers
             new SyncRunService(db));
     }
 
-    public static ResourceService CreateResourceService(HashiDbContext db)
-        => new(db, new AuditService(db), new TraefikEntryPointService(db));
+    public static ResourceService CreateResourceService(HashiDbContext db, GeoIpLookupService? geoIp = null)
+        => new(
+            db,
+            new AuditService(db),
+            new TraefikEntryPointService(db),
+            geoIp ?? new GeoIpLookupService(new ConfigurationBuilder().Build(), NullLogger<GeoIpLookupService>.Instance));
 }

@@ -41,8 +41,15 @@ public static class ResourceEndpoints
                 return TypedResults.ValidationProblem(validationErrors);
             }
 
-            var created = await resources.CreateAsync(request, ct);
-            return TypedResults.Ok(await resources.ToResponseAsync(created, ct));
+            try
+            {
+                var created = await resources.CreateAsync(request, ct);
+                return TypedResults.Ok(await resources.ToResponseAsync(created, ct));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
+            }
         });
 
         group.MapPut("/{id:guid}", async Task<IResult> (Guid id, UpdateResourceRequest request, ResourceService resources, CancellationToken ct) =>
