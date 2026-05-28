@@ -55,8 +55,6 @@ public sealed class SetupStateEntity
 
     public DateTimeOffset? HttpsDomainVerifiedAtUtc { get; set; }
 
-    public string? PendingAcmeEabJson { get; set; }
-
     public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }
 

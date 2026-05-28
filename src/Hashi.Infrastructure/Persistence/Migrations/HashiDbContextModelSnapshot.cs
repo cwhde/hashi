@@ -2063,9 +2063,6 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsComplete")
                         .HasColumnType("boolean");
 
-                    b.Property<string>("PendingAcmeEabJson")
-                        .HasColumnType("text");
-
                     b.Property<DateTimeOffset>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
