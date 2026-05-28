@@ -353,7 +353,8 @@ public sealed class NotificationDispatcher(
                 SecretPurpose.NotificationToken,
                 label,
                 Encoding.UTF8.GetBytes(plaintext),
-                cancellationToken);
+                cancellationToken,
+                serviceSyncEligible: RuntimeSecretEligibility.IsRuntimePurpose(SecretPurpose.NotificationToken));
             settings[secretIdProperty] = secret.Id.ToString();
             return;
         }
