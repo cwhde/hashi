@@ -219,11 +219,11 @@ public sealed class AdminApiAuthMiddlewareTests
 public sealed class DnsDesiredStateBuilderTests
 {
     [Fact]
-    public void MergeRecords_generated_overrides_manual_with_same_key()
+    public void MergeRecords_preserves_manual_record_with_same_name()
     {
         var manual = new[]
         {
-            new Hashi.Core.Dns.DnsRecordSnapshot("", "app.example.com", Hashi.Core.Dns.DnsRecordType.A, "1.2.3.4", 3600, false),
+            new Hashi.Core.Dns.DnsRecordSnapshot("", "app.example.com", Hashi.Core.Dns.DnsRecordType.A, "1.2.3.4", 3600, true),
         };
         var generated = new[]
         {
@@ -233,7 +233,7 @@ public sealed class DnsDesiredStateBuilderTests
         var merged = Hashi.Infrastructure.Dns.DnsDesiredStateBuilder.MergeRecords(manual, generated);
 
         Assert.Single(merged);
-        Assert.Equal("203.0.113.10", merged[0].Value);
+        Assert.Equal("1.2.3.4", merged[0].Value);
         Assert.True(merged[0].IsManagedByHashi);
     }
 

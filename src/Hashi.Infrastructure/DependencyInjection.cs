@@ -54,6 +54,7 @@ public static class DependencyInjection
         services.AddScoped<SystemResourceSetupService>();
         services.AddScoped<WebAuthnChallengeStore>();
         services.AddScoped<DnsConnectionService>();
+        services.AddScoped<DnsRecordService>();
         services.AddScoped<SshConnectionService>();
         services.AddScoped<CertificateSetupService>();
         services.AddScoped<TraefikEntryPointService>();

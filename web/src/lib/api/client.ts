@@ -282,9 +282,30 @@ export const api = {
 		postUndocumented('/api/dns/connections/{connectionId}/sync/plan', { params: { path: { connectionId } } }),
 	applyDnsSync: (connectionId: string, body: import('./types.js').DnsSyncApplyRequest) =>
 		postUndocumented('/api/dns/connections/{connectionId}/sync/apply', { params: { path: { connectionId } }, body }),
+	listDnsZones: async () => {
+		const r = await client.GET('/api/dns/zones' as never);
+		return (await expectData(r.response, r.error, r.data ?? [])) as import('./types.js').DnsZone[];
+	},
 	listDnsRecords: async () => {
 		const r = await client.GET('/api/dns/records');
-		return expectData(r.response, r.error, r.data ?? []);
+		return expectData(r.response, r.error, r.data ?? []) as Promise<import('./types.js').DnsRecord[]>;
+	},
+	createDnsRecord: async (body: import('./types.js').ManualDnsRecordRequest) => {
+		const r = await client.POST('/api/dns/records' as never, { body } as never);
+		return (await expectData(r.response, r.error, r.data)) as unknown as import('./types.js').DnsRecord;
+	},
+	updateDnsRecord: async (recordId: string, body: import('./types.js').ManualDnsRecordRequest) => {
+		const r = await client.PUT('/api/dns/records/{recordId}' as never, {
+			params: { path: { recordId } },
+			body
+		} as never);
+		return (await expectData(r.response, r.error, r.data)) as unknown as import('./types.js').DnsRecord;
+	},
+	deleteDnsRecord: async (recordId: string) => {
+		const r = await client.DELETE('/api/dns/records/{recordId}' as never, {
+			params: { path: { recordId } }
+		} as never);
+		await expectOk(r.response, r.error);
 	},
 
 	listConnections: async (type?: string) => {
