@@ -3,8 +3,8 @@
 ## Runtime
 
 - Run Hashi behind Traefik with TLS termination.
-- Restrict admin API (`8080`) to management networks.
-- Public ports `8081` (app dashboard) and `8082` (status) expose only enabled dashboard/status data.
+- Restrict the configured admin API port (`Hashi:Ports:Admin`, default `8080`) to management networks.
+- Public ports (`Hashi:Ports:PublicDashboard`, default `8081`; `Hashi:Ports:PublicStatus`, default `8082`) expose only enabled dashboard/status data.
 - Store SSH, DNS, OIDC, and notification secrets in the vault.
 
 ## CI
@@ -23,7 +23,7 @@
 | SSH remote exec | Host compromise | Vault-stored credentials; audited script runs; connection-scoped deployment paths |
 | Edge forward-auth | Session hijack, auth bypass | HttpOnly cookies; DB-backed sessions; blocklist + adaptive abuse scoring |
 | OIDC callback | Open redirect, token replay | State parameter; short-lived pending logins; issuer validation |
-| Public ports 8081/8082 | Data leakage | Feature toggles; only dashboard-enabled resources and monitor summaries exposed |
+| Configured public dashboard/status ports | Data leakage | Feature toggles; only dashboard-enabled resources and monitor summaries exposed |
 
 ## Release
 

@@ -18,14 +18,15 @@ using Microsoft.OpenApi;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+var portOptions = HashiPortOptions.FromConfiguration(builder.Configuration);
 
 if (!builder.Environment.IsEnvironment("OpenApiExport"))
 {
     builder.WebHost.ConfigureKestrel(options =>
     {
-        options.ListenAnyIP(8080);
-        options.ListenAnyIP(8081);
-        options.ListenAnyIP(8082);
+        options.ListenAnyIP(portOptions.Admin);
+        options.ListenAnyIP(portOptions.PublicDashboard);
+        options.ListenAnyIP(portOptions.PublicStatus);
     });
 }
 
@@ -48,6 +49,7 @@ builder.Services.AddOpenApi(options =>
         return Task.CompletedTask;
     });
 });
+builder.Services.AddSingleton(portOptions);
 builder.Services.AddHashiInfrastructure(builder.Configuration);
 builder.Services.AddScoped<BootstrapInitializer>();
 
@@ -64,14 +66,14 @@ builder.Services.AddAuthorization();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("PublicRead", policy =>
-        policy.SetIsOriginAllowed(static origin =>
+        policy.SetIsOriginAllowed(origin =>
         {
             if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
             {
                 return false;
             }
 
-            return uri.Port is HashiPorts.PublicDashboard or HashiPorts.PublicStatus;
+            return portOptions.IsPublicPort(uri.Port);
         })
         .AllowAnyHeader()
         .AllowAnyMethod());
@@ -100,6 +102,18 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<AdminApiAuthMiddleware>();
 app.UseMiddleware<AdminCsrfMiddleware>();
+app.MapGet("/hashi-runtime-config.js", (HashiPortOptions ports) =>
+    Results.Text(
+        $$"""
+        window.__HASHI_RUNTIME_CONFIG__ = {
+          ports: {
+            admin: {{ports.Admin}},
+            publicDashboard: {{ports.PublicDashboard}},
+            publicStatus: {{ports.PublicStatus}}
+          }
+        };
+        """,
+        "application/javascript; charset=utf-8"));
 app.UseDefaultFiles();
 app.UseStaticFiles();
 

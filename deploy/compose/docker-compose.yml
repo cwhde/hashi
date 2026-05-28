@@ -21,11 +21,13 @@ services:
       postgres:
         condition: service_healthy
     ports:
-      - "8080:8080"
-      - "8081:8081"
-      - "8082:8082"
+      - "${HASHI_ADMIN_PORT:-8080}:${HASHI_ADMIN_PORT:-8080}"
+      - "${HASHI_PUBLIC_DASHBOARD_PORT:-8081}:${HASHI_PUBLIC_DASHBOARD_PORT:-8081}"
+      - "${HASHI_PUBLIC_STATUS_PORT:-8082}:${HASHI_PUBLIC_STATUS_PORT:-8082}"
     environment:
-      ASPNETCORE_URLS: http://0.0.0.0:8080
+      Hashi__Ports__Admin: ${HASHI_ADMIN_PORT:-8080}
+      Hashi__Ports__PublicDashboard: ${HASHI_PUBLIC_DASHBOARD_PORT:-8081}
+      Hashi__Ports__PublicStatus: ${HASHI_PUBLIC_STATUS_PORT:-8082}
       ConnectionStrings__Hashi: Host=postgres;Port=5432;Database=hashi;Username=hashi;Password=hashi
       # 32-byte base64 key for unattended provider sync (generate: openssl rand -base64 32)
       HASHI_SERVICE_SYNC_VAULT_KEY: ${HASHI_SERVICE_SYNC_VAULT_KEY:-}
