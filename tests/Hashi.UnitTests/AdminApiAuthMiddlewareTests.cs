@@ -73,6 +73,7 @@ public sealed class AdminApiAuthMiddlewareTests
     [InlineData("/api/vault/secrets", "POST")]
     [InlineData("/api/settings/general", "GET")]
     [InlineData("/api/activity/audit", "GET")]
+    [InlineData("/api/security/access-log", "POST")]
     [InlineData("/api/setup/steps/bootstrap-access/complete", "POST")]
     public async Task Anonymous_protected_endpoints_are_rejected_even_before_setup_completes(string path, string method)
     {
@@ -85,10 +86,22 @@ public sealed class AdminApiAuthMiddlewareTests
     [Theory]
     [InlineData("/api/setup/status", "GET")]
     [InlineData("/api/pulse/agent-1/heartbeat", "POST")]
-    [InlineData("/api/security/access-log", "POST")]
     public async Task Anonymous_operational_public_endpoints_still_bypass_auth(string path, string method)
     {
         var (context, invoked) = await InvokeMiddlewareAsync(path, method, setupComplete: false);
+
+        Assert.True(invoked);
+        Assert.Equal(StatusCodes.Status204NoContent, context.Response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Access_log_ingest_allows_authenticated_admin_pipeline()
+    {
+        var (context, invoked) = await InvokeMiddlewareAsync(
+            "/api/security/access-log",
+            HttpMethods.Post,
+            setupComplete: true,
+            user: AuthenticatedUser());
 
         Assert.True(invoked);
         Assert.Equal(StatusCodes.Status204NoContent, context.Response.StatusCode);
