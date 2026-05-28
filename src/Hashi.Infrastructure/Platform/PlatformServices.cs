@@ -14,13 +14,23 @@ namespace Hashi.Infrastructure.Platform;
 public sealed class ResourceService(
     HashiDbContext db,
     AuditService audit,
-    TraefikEntryPointService entryPoints)
+    TraefikEntryPointService entryPoints,
+    GeoIpLookupService geoIp)
 {
+    private static readonly HashSet<string> GeoIpRuleTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "country",
+        "region",
+        "asn",
+    };
+
     public async Task<IReadOnlyList<ResourceEntity>> ListAsync(CancellationToken cancellationToken = default)
         => await db.Resources.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
 
     public async Task<ResourceEntity> CreateAsync(CreateResourceRequest request, CancellationToken cancellationToken = default)
     {
+        ValidateGeoIpRules(request.Rules);
+
         if (request.Kind is "tcp" or "udp")
         {
             await EnsureStreamPortConfirmedOrPendingAsync(request.PublicPort ?? request.TargetPort, request.Kind, cancellationToken);
@@ -68,6 +78,8 @@ public sealed class ResourceService(
         {
             throw new InvalidOperationException("System resources cannot be updated through the resource API.");
         }
+
+        ValidateGeoIpRules(request.Rules);
 
         if (request.Name is not null)
         {
@@ -344,6 +356,20 @@ public sealed class ResourceService(
         }
 
         await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private void ValidateGeoIpRules(IReadOnlyList<ResourceRuleRequest>? rules)
+    {
+        if (rules is null || geoIp.IsAvailable)
+        {
+            return;
+        }
+
+        var requiresGeoIp = rules.Any(rule => rule.Enabled && GeoIpRuleTypes.Contains(rule.MatchType));
+        if (requiresGeoIp)
+        {
+            throw new InvalidOperationException("Enabled country, region, and ASN resource rules require a GeoIP database under /data/geoip.");
+        }
     }
 
     private static string SerializeExtraMiddlewares(IReadOnlyList<string>? middlewares)
