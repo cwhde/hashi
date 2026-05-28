@@ -23,7 +23,10 @@ public sealed class CreateSshConnectionRequestValidator : AbstractValidator<Crea
     public CreateSshConnectionRequestValidator()
     {
         RuleFor(x => x.Name).NotEmpty();
-        RuleFor(x => x.ConnectionType).NotEmpty();
+        RuleFor(x => x.ConnectionType)
+            .NotEmpty()
+            .Must(ConnectionTypeContractNames.IsSshConnectionType)
+            .WithMessage($"Connection type must be one of: {string.Join(", ", ConnectionTypeContractNames.SshConnectionTypes)}.");
         RuleFor(x => x.Host).NotEmpty();
         RuleFor(x => x.Port).InclusiveBetween(1, 65535);
         RuleFor(x => x.Username).NotEmpty();

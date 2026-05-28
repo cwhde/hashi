@@ -1,5 +1,10 @@
 <script lang="ts">
 	import { api, ApiRequestError } from '$lib/api/client';
+	import {
+		CONNECTION_TYPES,
+		SSH_CONNECTION_TYPE_OPTIONS,
+		type SshConnectionType
+	} from '$lib/api/connection-types';
 	import type { ConnectionSummary } from '$lib/api/types';
 	import AdminSectionPage from '$lib/components/layout/AdminSectionPage.svelte';
 	import PanelSection from '$lib/components/layout/PanelSection.svelte';
@@ -21,9 +26,19 @@
 	let error = $state<string | null>(null);
 	let message = $state<string | null>(null);
 	let creating = $state(false);
-	let form = $state({
+	let form = $state<{
+		name: string;
+		connectionType: SshConnectionType;
+		host: string;
+		port: number;
+		username: string;
+		authMode: string;
+		password: string;
+		privateKeyPem: string;
+		privateKeyPassphrase: string;
+	}>({
 		name: 'traefik-ssh',
-		connectionType: 'traefik',
+		connectionType: CONNECTION_TYPES.traefikHost,
 		host: '',
 		port: 22,
 		username: 'root',
@@ -97,7 +112,15 @@
 				</div>
 				<div class="grid gap-1.5">
 					<Label for="conn-type">Type</Label>
-					<Input id="conn-type" bind:value={form.connectionType} placeholder="traefik" />
+					<select
+						id="conn-type"
+						bind:value={form.connectionType}
+						class="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+					>
+						{#each SSH_CONNECTION_TYPE_OPTIONS as option (option.value)}
+							<option value={option.value}>{option.label}</option>
+						{/each}
+					</select>
 				</div>
 			</div>
 			<div class="grid grid-cols-3 gap-3">
