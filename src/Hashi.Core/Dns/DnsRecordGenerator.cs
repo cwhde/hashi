@@ -6,7 +6,7 @@ namespace Hashi.Core.Dns;
 public sealed record FirewallHostDnsTarget(
     Guid Id,
     string Name,
-    string PublicIp,
+    string? PublicIp,
     string? OnRouteTarget = null,
     IReadOnlyList<string>? ManagedSubnets = null);
 
@@ -19,6 +19,7 @@ public sealed record ResourceDnsTarget(
     string ResourceName,
     string Slug,
     string RootDomain,
+    string? Domain,
     Guid? FirewallHostId,
     string? ManualIp,
     PulseDnsTarget? PulseTarget);
@@ -30,6 +31,11 @@ public static class DnsRecordGenerator
         string rootDomain,
         int ttl = 3600)
     {
+        if (string.IsNullOrWhiteSpace(host.PublicIp))
+        {
+            return [];
+        }
+
         var fqdn = $"{host.Name}.{rootDomain}".TrimEnd('.');
         var via = $"via.{host.Name}.{rootDomain}".TrimEnd('.');
         var on = $"on.{host.Name}.{rootDomain}".TrimEnd('.');
@@ -50,7 +56,7 @@ public static class DnsRecordGenerator
         IReadOnlyList<FirewallHostDnsTarget> hosts,
         int ttl = 3600)
     {
-        var resourceFqdn = $"{target.Slug}.{target.RootDomain}".TrimEnd('.');
+        var resourceFqdn = ResolveResourceFqdn(target);
         var matchedHost = ResolveManagedHost(target, hosts);
         if (matchedHost is not null)
         {
@@ -113,6 +119,19 @@ public static class DnsRecordGenerator
         }
 
         return null;
+    }
+
+    public static string ResolveResourceFqdn(ResourceDnsTarget target)
+    {
+        var configuredDomain = target.Domain?.Trim().TrimEnd('.');
+        if (!string.IsNullOrWhiteSpace(configuredDomain))
+        {
+            return configuredDomain == "@"
+                ? target.RootDomain.TrimEnd('.')
+                : configuredDomain;
+        }
+
+        return $"{target.Slug}.{target.RootDomain}".TrimEnd('.');
     }
 
     public static bool IpMatchesSubnet(string ipText, string cidr)

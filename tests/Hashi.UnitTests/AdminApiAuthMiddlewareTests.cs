@@ -236,4 +236,52 @@ public sealed class DnsDesiredStateBuilderTests
         Assert.Equal("203.0.113.10", merged[0].Value);
         Assert.True(merged[0].IsManagedByHashi);
     }
+
+    [Fact]
+    public async Task BuildAsync_uses_resource_domain_and_does_not_publish_internal_firewall_ip()
+    {
+        await using var db = CreateDb();
+        var zoneId = Guid.NewGuid();
+        var pulseAgentId = Guid.NewGuid();
+        db.AppSettings.Add(new Hashi.Infrastructure.Persistence.Entities.AppSettingsEntity { RootDomain = "example.com" });
+        db.FirewallHosts.Add(new Hashi.Infrastructure.Persistence.Entities.FirewallHostEntity
+        {
+            ConnectionId = Guid.NewGuid(),
+            Name = "edge",
+            Domain = "edge.example.com",
+            InternalTraefikIp = "10.0.0.2",
+            ManagedSubnetsJson = "[]",
+        });
+        db.PulseAgents.Add(new Hashi.Infrastructure.Persistence.Entities.PulseAgentEntity
+        {
+            Id = pulseAgentId,
+            Name = "pulse-1",
+            TokenHash = "hash",
+            LastPublicIp = "203.0.113.20",
+        });
+        db.Resources.Add(new Hashi.Infrastructure.Persistence.Entities.ResourceEntity
+        {
+            Name = "Custom",
+            Slug = "custom",
+            Domain = "service.custom.test",
+            Enabled = true,
+            PulseAgentId = pulseAgentId,
+        });
+        await db.SaveChangesAsync();
+
+        var records = await Hashi.Infrastructure.Dns.DnsDesiredStateBuilder.BuildAsync(db, zoneId, 3600);
+
+        Assert.Contains(records, x => x.Name == "service.custom.test" && x.Value == "203.0.113.20");
+        Assert.DoesNotContain(records, x => x.Name == "custom.example.com");
+        Assert.DoesNotContain(records, x => x.Value == "10.0.0.2");
+        Assert.DoesNotContain(records, x => x.Name == "edge.example.com");
+    }
+
+    private static HashiDbContext CreateDb()
+    {
+        var options = new DbContextOptionsBuilder<HashiDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        return new HashiDbContext(options);
+    }
 }
