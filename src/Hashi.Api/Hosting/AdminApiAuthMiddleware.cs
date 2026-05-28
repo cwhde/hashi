@@ -102,6 +102,11 @@ public sealed class AdminApiAuthMiddleware(RequestDelegate next)
             return true;
         }
 
+        if (value.StartsWith("/api/dns/records", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
         if (value.StartsWith("/api/settings", StringComparison.OrdinalIgnoreCase))
         {
             return true;

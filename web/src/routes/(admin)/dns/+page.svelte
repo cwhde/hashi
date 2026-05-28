@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { api, ApiRequestError } from '$lib/api/client';
-	import type { ConnectionSummary, DnsImportDecision, DnsRecord, DnsSyncPlan } from '$lib/api/types';
+	import type { ConnectionSummary, DnsImportDecision, DnsRecord, DnsSyncPlan, DnsZone } from '$lib/api/types';
 	import AdminSectionPage from '$lib/components/layout/AdminSectionPage.svelte';
 	import PanelSection from '$lib/components/layout/PanelSection.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -17,6 +17,7 @@
 	import { Globe } from 'lucide-svelte';
 
 	let connections = $state<ConnectionSummary[]>([]);
+	let zones = $state<DnsZone[]>([]);
 	let records = $state<DnsRecord[]>([]);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
@@ -29,6 +30,16 @@
 	let pruneConnectionId = $state<string | null>(null);
 	let prunePlan = $state<DnsSyncPlan | null>(null);
 	let pruneLoading = $state(false);
+	let recordSaving = $state(false);
+	let editingRecordId = $state<string | null>(null);
+	let recordForm = $state({
+		zoneId: '',
+		name: '',
+		type: 'A',
+		value: '',
+		ttl: 300,
+		enabled: true
+	});
 	let form = $state({
 		name: 'hetzner-primary',
 		apiToken: '',
@@ -44,10 +55,14 @@
 		loading = true;
 		error = null;
 		try {
-			[connections, records] = await Promise.all([
+			[connections, zones, records] = await Promise.all([
 				api.listDnsConnections(),
+				api.listDnsZones(),
 				api.listDnsRecords()
 			]);
+			if (!recordForm.zoneId && zones.length > 0) {
+				recordForm.zoneId = zones[0].id;
+			}
 		} catch (e) {
 			error = e instanceof ApiRequestError ? e.message : 'Failed to load DNS data';
 		} finally {
@@ -188,6 +203,82 @@
 			pruneLoading = false;
 		}
 	}
+
+	function editRecord(record: DnsRecord) {
+		editingRecordId = record.id;
+		recordForm = {
+			zoneId: record.zoneId,
+			name: record.name,
+			type: record.type,
+			value: record.value,
+			ttl: record.ttl ?? 300,
+			enabled: record.enabled
+		};
+	}
+
+	function resetRecordForm() {
+		editingRecordId = null;
+		recordForm = {
+			zoneId: zones[0]?.id ?? '',
+			name: '',
+			type: 'A',
+			value: '',
+			ttl: 300,
+			enabled: true
+		};
+	}
+
+	async function saveRecord() {
+		recordSaving = true;
+		error = null;
+		message = null;
+		try {
+			const ttl = Number(recordForm.ttl);
+			const payload = {
+				...recordForm,
+				ttl: Number.isFinite(ttl) && ttl > 0 ? ttl : null
+			};
+			if (editingRecordId) {
+				await api.updateDnsRecord(editingRecordId, payload);
+				message = 'Manual DNS record updated.';
+			} else {
+				await api.createDnsRecord(payload);
+				message = 'Manual DNS record created.';
+			}
+			resetRecordForm();
+			await load();
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Manual DNS record save failed';
+		} finally {
+			recordSaving = false;
+		}
+	}
+
+	async function toggleRecord(record: DnsRecord) {
+		try {
+			await api.updateDnsRecord(record.id, {
+				zoneId: record.zoneId,
+				name: record.name,
+				type: record.type,
+				value: record.value,
+				ttl: record.ttl ?? null,
+				enabled: !record.enabled
+			});
+			await load();
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Manual DNS record update failed';
+		}
+	}
+
+	async function deleteRecord(record: DnsRecord) {
+		try {
+			await api.deleteDnsRecord(record.id);
+			message = 'Manual DNS record deleted.';
+			await load();
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Manual DNS record delete failed';
+		}
+	}
 </script>
 
 <AdminSectionPage
@@ -232,6 +323,62 @@
 	{#if error}
 		<p class="text-xs text-destructive">{error}</p>
 	{/if}
+
+	<PanelSection title="Manual records" description="Create and maintain user-owned DNS records.">
+		<div class="grid gap-3 md:grid-cols-[1.2fr_0.8fr_1.8fr_0.7fr_auto]">
+			<div class="grid gap-1.5">
+				<Label for="manual-zone">Zone</Label>
+				<select
+					id="manual-zone"
+					class="h-10 rounded-md border border-input bg-background px-3 text-sm"
+					bind:value={recordForm.zoneId}
+				>
+					{#each zones as zone (zone.id)}
+						<option value={zone.id}>{zone.name}</option>
+					{/each}
+				</select>
+			</div>
+			<div class="grid gap-1.5">
+				<Label for="manual-type">Type</Label>
+				<select
+					id="manual-type"
+					class="h-10 rounded-md border border-input bg-background px-3 text-sm"
+					bind:value={recordForm.type}
+				>
+					{#each ['A', 'AAAA', 'CNAME', 'MX', 'TXT'] as type (type)}
+						<option value={type}>{type}</option>
+					{/each}
+				</select>
+			</div>
+			<div class="grid gap-1.5">
+				<Label for="manual-name">Name</Label>
+				<Input id="manual-name" bind:value={recordForm.name} placeholder="app.example.com" />
+			</div>
+			<div class="grid gap-1.5">
+				<Label for="manual-ttl">TTL</Label>
+				<Input id="manual-ttl" type="number" bind:value={recordForm.ttl} />
+			</div>
+			<div class="flex items-end gap-2">
+				<Button
+					onclick={() => saveRecord()}
+					disabled={recordSaving || !recordForm.zoneId || !recordForm.name || !recordForm.value}
+				>
+					{recordSaving ? 'Saving...' : editingRecordId ? 'Update' : 'Create'}
+				</Button>
+				{#if editingRecordId}
+					<Button variant="outline" onclick={() => resetRecordForm()}>Cancel</Button>
+				{/if}
+			</div>
+		</div>
+		<div class="mt-3 grid gap-1.5">
+			<Label for="manual-value">Value</Label>
+			<Input id="manual-value" bind:value={recordForm.value} placeholder="203.0.113.10" />
+		</div>
+		<label class="mt-3 flex items-center gap-2 text-sm">
+			<input type="checkbox" bind:checked={recordForm.enabled} />
+			Enabled
+		</label>
+	</PanelSection>
 
 	<PanelSection title="Connections" description="Provider connection health and sync actions.">
 		{#if loading}
@@ -345,6 +492,8 @@
 							<TableHead>Value</TableHead>
 							<TableHead>TTL</TableHead>
 							<TableHead>Ownership</TableHead>
+							<TableHead>State</TableHead>
+							<TableHead>Actions</TableHead>
 						</TableRow>
 					</TableHeader>
 					<TableBody>
@@ -355,6 +504,18 @@
 								<TableCell class="max-w-[14rem] truncate font-mono text-xs">{record.value}</TableCell>
 								<TableCell>{record.ttl ?? '—'}</TableCell>
 								<TableCell>{record.ownership}</TableCell>
+								<TableCell>{record.enabled ? 'enabled' : 'disabled'}</TableCell>
+								<TableCell class="space-x-2">
+									{#if record.ownership === 'user'}
+										<Button variant="outline" size="sm" onclick={() => editRecord(record)}>Edit</Button>
+										<Button variant="outline" size="sm" onclick={() => toggleRecord(record)}>
+											{record.enabled ? 'Disable' : 'Enable'}
+										</Button>
+										<Button variant="destructive" size="sm" onclick={() => deleteRecord(record)}>
+											Delete
+										</Button>
+									{/if}
+								</TableCell>
 							</TableRow>
 						{/each}
 					</TableBody>

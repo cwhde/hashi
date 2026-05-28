@@ -74,6 +74,7 @@ public static class DnsEndpoints
             var records = await dns.ListProviderRecordsAsync(connectionId, ct);
             return TypedResults.Ok(records.Select(x => new DnsRecordResponse(
                 Guid.Empty,
+                Guid.Empty,
                 x.Name,
                 DnsRecordTypeMapping.ToApiName(x.Type),
                 x.Value,
@@ -82,6 +83,18 @@ public static class DnsEndpoints
                 true)));
         })
             .Produces<IEnumerable<DnsRecordResponse>>(StatusCodes.Status200OK);
+
+        group.MapGet("/zones", async (DnsRecordService records, CancellationToken ct) =>
+        {
+            var zones = await records.ListZonesAsync(ct);
+            return TypedResults.Ok(zones.Select(x => new DnsZoneResponse(
+                x.Id,
+                x.ConnectionId,
+                x.ProviderZoneId,
+                x.Name,
+                x.DefaultTtl)));
+        })
+            .Produces<IEnumerable<DnsZoneResponse>>(StatusCodes.Status200OK);
 
         group.MapPost("/connections/{connectionId:guid}/import/preview", async Task<IResult> (
             Guid connectionId,
@@ -160,11 +173,70 @@ public static class DnsEndpoints
             return TypedResults.Ok(new { applied = true, syncRunId });
         });
 
-        group.MapGet("/records", async (HashiDbContext db, CancellationToken ct) =>
+        group.MapGet("/records", async (DnsRecordService records, CancellationToken ct) =>
         {
-            var records = await db.DnsRecords.AsNoTracking().OrderBy(x => x.Name).ToListAsync(ct);
-            return TypedResults.Ok(records.Select(x => new DnsRecordResponse(
-                x.Id, x.Name, x.Type, x.Value, x.Ttl, x.Ownership, x.Enabled)));
+            var items = await records.ListAsync(ct);
+            return TypedResults.Ok(items.Select(ToRecord));
+        });
+
+        group.MapPost("/records", async Task<IResult> (
+            UpsertDnsRecordRequest request,
+            DnsRecordService records,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                return TypedResults.Ok(ToRecord(await records.CreateManualAsync(
+                    request.ZoneId,
+                    request.Name,
+                    request.Type,
+                    request.Value,
+                    request.Ttl,
+                    request.Enabled,
+                    ct)));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        });
+
+        group.MapPut("/records/{recordId:guid}", async Task<IResult> (
+            Guid recordId,
+            UpsertDnsRecordRequest request,
+            DnsRecordService records,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                var updated = await records.UpdateManualAsync(
+                    recordId,
+                    request.ZoneId,
+                    request.Name,
+                    request.Type,
+                    request.Value,
+                    request.Ttl,
+                    request.Enabled,
+                    ct);
+                return updated is null
+                    ? TypedResults.NotFound(new ApiErrorResponse("Manual DNS record not found."))
+                    : TypedResults.Ok(ToRecord(updated));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        });
+
+        group.MapDelete("/records/{recordId:guid}", async Task<IResult> (
+            Guid recordId,
+            DnsRecordService records,
+            CancellationToken ct) =>
+        {
+            var deleted = await records.DeleteManualAsync(recordId, ct);
+            return deleted
+                ? TypedResults.NoContent()
+                : TypedResults.NotFound(new ApiErrorResponse("Manual DNS record not found."));
         });
 
         return app;
@@ -179,6 +251,17 @@ public static class DnsEndpoints
             connection.HealthState,
             connection.LastValidationMessage,
             connection.LastValidatedAtUtc);
+
+    private static DnsRecordResponse ToRecord(DnsRecordEntity record)
+        => new(
+            record.Id,
+            record.ZoneId,
+            record.Name,
+            record.Type,
+            record.Value,
+            record.Ttl,
+            record.Ownership,
+            record.Enabled);
 
     private static DnsSyncPlanResponse ToPlan(Hashi.Core.Dns.DnsSyncPlan plan)
         => new(
