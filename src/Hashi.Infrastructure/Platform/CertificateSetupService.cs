@@ -21,8 +21,7 @@ public sealed class CertificateSetupService(
     public async Task<CertificateSetupResponse> GetAsync(CancellationToken cancellationToken = default)
     {
         var appSettings = await settings.GetOrCreateAsync(cancellationToken);
-        var setup = await db.SetupStates.AsNoTracking().SingleOrDefaultAsync(cancellationToken);
-        var (keyId, _) = await ResolveEabCredentialsAsync(appSettings, setup, cancellationToken);
+        var (keyId, _) = await ResolveEabCredentialsAsync(appSettings, cancellationToken);
         var resolvers = ParseResolvers(appSettings.AcmeResolversJson);
         return new CertificateSetupResponse(
             appSettings.AcmeEmail,
@@ -85,79 +84,40 @@ public sealed class CertificateSetupService(
         appSettings.AcmeResolversJson = JsonSerializer.Serialize(request.Resolvers ?? ["1.1.1.1:53", "8.8.8.8:53"]);
         appSettings.UpdatedAtUtc = DateTimeOffset.UtcNow;
 
+        if (!vault.IsUnlocked)
+        {
+            await db.SaveChangesAsync(cancellationToken);
+            await audit.WriteAsync(
+                "setup",
+                "certificate_provider_saved_without_eab",
+                subjectType: "setup",
+                outcome: "failed",
+                cancellationToken: cancellationToken);
+            return new CertificateSetupSaveResponse(false, "Unlock the vault before saving ACME EAB credentials.");
+        }
+
         var eabPayload = JsonSerializer.Serialize(new AcmeEabPayload(request.EabKeyId.Trim(), request.EabHmac.Trim()));
-        if (vault.IsUnlocked)
-        {
-            var stored = await secrets.StoreAsync(
-                SecretPurpose.AcmeEab,
-                "ACME EAB",
-                Encoding.UTF8.GetBytes(eabPayload),
-                cancellationToken,
-                serviceSyncEligible: true);
-            appSettings.AcmeEabSecretId = stored.Id;
-
-            var setup = await db.SetupStates.SingleOrDefaultAsync(cancellationToken);
-            if (setup is not null)
-            {
-                setup.PendingAcmeEabJson = null;
-            }
-        }
-        else
-        {
-            var setup = await db.SetupStates.SingleOrDefaultAsync(cancellationToken)
-                ?? new SetupStateEntity();
-            if (setup.Id == 0)
-            {
-                db.SetupStates.Add(setup);
-            }
-
-            setup.PendingAcmeEabJson = eabPayload;
-        }
+        var stored = await secrets.StoreAsync(
+            SecretPurpose.AcmeEab,
+            "ACME EAB",
+            Encoding.UTF8.GetBytes(eabPayload),
+            cancellationToken,
+            serviceSyncEligible: true);
+        appSettings.AcmeEabSecretId = stored.Id;
 
         await db.SaveChangesAsync(cancellationToken);
         await audit.WriteAsync("setup", "certificate_provider_saved", subjectType: "setup", cancellationToken: cancellationToken);
         return new CertificateSetupSaveResponse(true, null);
     }
 
-    public async Task MigratePendingEabToVaultAsync(CancellationToken cancellationToken = default)
-    {
-        if (!vault.IsUnlocked)
-        {
-            return;
-        }
-
-        var setup = await db.SetupStates.SingleOrDefaultAsync(cancellationToken);
-        if (setup is null || string.IsNullOrWhiteSpace(setup.PendingAcmeEabJson))
-        {
-            return;
-        }
-
-        var appSettings = await settings.GetOrCreateAsync(cancellationToken);
-        if (appSettings.AcmeEabSecretId is not null)
-        {
-            setup.PendingAcmeEabJson = null;
-            await db.SaveChangesAsync(cancellationToken);
-            return;
-        }
-
-        var stored = await secrets.StoreAsync(
-            SecretPurpose.AcmeEab,
-            "ACME EAB",
-            Encoding.UTF8.GetBytes(setup.PendingAcmeEabJson),
-            cancellationToken,
-            serviceSyncEligible: true);
-        appSettings.AcmeEabSecretId = stored.Id;
-        setup.PendingAcmeEabJson = null;
-        await db.SaveChangesAsync(cancellationToken);
-    }
+    public Task MigratePendingEabToVaultAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
     public async Task<TraefikRenderOptions> BuildTraefikOptionsAsync(
         string adminDomain,
         CancellationToken cancellationToken = default)
     {
         var appSettings = await settings.GetOrCreateAsync(cancellationToken);
-        var setup = await db.SetupStates.AsNoTracking().SingleOrDefaultAsync(cancellationToken);
-        var (keyId, hmac) = await ResolveEabCredentialsAsync(appSettings, setup, cancellationToken);
+        var (keyId, hmac) = await ResolveEabCredentialsAsync(appSettings, cancellationToken);
         return new TraefikRenderOptions(
             AcmeEmail: appSettings.AcmeEmail,
             AcmeEabKeyId: keyId,
@@ -169,7 +129,6 @@ public sealed class CertificateSetupService(
 
     private async Task<(string? KeyId, string? Hmac)> ResolveEabCredentialsAsync(
         Persistence.Entities.AppSettingsEntity appSettings,
-        Persistence.Entities.SetupStateEntity? setup,
         CancellationToken cancellationToken)
     {
         if (appSettings.AcmeEabSecretId is Guid secretId)
@@ -179,11 +138,6 @@ public sealed class CertificateSetupService(
             {
                 return ParseEabPayload(plaintext);
             }
-        }
-
-        if (!string.IsNullOrWhiteSpace(setup?.PendingAcmeEabJson))
-        {
-            return ParseEabPayload(Encoding.UTF8.GetBytes(setup.PendingAcmeEabJson));
         }
 
         return (null, null);
