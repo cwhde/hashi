@@ -75,17 +75,12 @@ public sealed class FirewallApplyService(
             .Select(x => new { x.Port, x.Protocol })
             .ToListAsync(cancellationToken);
         var confirmedKeys = confirmedPorts.Select(x => (x.Port, x.Protocol)).ToHashSet();
-        var streamResources = await db.Resources.AsNoTracking()
-            .Where(x => x.Enabled && (x.Kind == "tcp" || x.Kind == "udp"))
+        confirmedKeys.Add((80, "tcp"));
+        confirmedKeys.Add((443, "tcp"));
+        var resources = await db.Resources.AsNoTracking()
+            .Where(x => x.Enabled)
             .ToListAsync(cancellationToken);
-        var portForwards = streamResources
-            .Where(x => confirmedKeys.Contains((x.PublicPort ?? x.TargetPort, x.Kind)))
-            .Select(x => new FirewallPortForward(
-                x.Kind,
-                x.PublicPort ?? x.TargetPort,
-                host.InternalTraefikIp,
-                x.TargetPort))
-            .ToList();
+        var portForwards = BuildPortForwards(resources, confirmedKeys, host.InternalTraefikIp);
 
         var overlayCidrs = JsonSerializer.Deserialize<List<string>>(host.NetBirdOverlayCidrsJson) ?? ["100.110.0.0/16"];
         var routedCidrs = JsonSerializer.Deserialize<List<string>>(host.NetBirdRoutedCidrsJson) ?? [];
@@ -666,6 +661,36 @@ public sealed class FirewallApplyService(
     }
 
     private static string Quote(string value) => $"'{value.Replace("'", "'\\''", StringComparison.Ordinal)}'";
+
+    private static IReadOnlyList<FirewallPortForward> BuildPortForwards(
+        IReadOnlyList<ResourceEntity> resources,
+        HashSet<(int Port, string Protocol)> confirmedKeys,
+        string internalTraefikIp)
+    {
+        var forwards = new List<FirewallPortForward>();
+        if (resources.Any(x => x.Kind is "http" or "https" or "h2c"))
+        {
+            forwards.Add(new FirewallPortForward("tcp", 80, internalTraefikIp, 80));
+            forwards.Add(new FirewallPortForward("tcp", 443, internalTraefikIp, 443));
+        }
+
+        forwards.AddRange(resources
+            .Where(x => x.Kind is "tcp" or "udp")
+            .Where(x => confirmedKeys.Contains((x.PublicPort ?? x.TargetPort, x.Kind)))
+            .Select(x => new FirewallPortForward(
+                x.Kind,
+                x.PublicPort ?? x.TargetPort,
+                internalTraefikIp,
+                x.TargetPort)));
+
+        return forwards
+            .GroupBy(x => (Protocol: x.Protocol.ToLowerInvariant(), x.PublicPort, x.TargetHost, x.TargetPort))
+            .Select(x => x.First())
+            .OrderBy(x => x.Protocol)
+            .ThenBy(x => x.PublicPort)
+            .ThenBy(x => x.TargetPort)
+            .ToList();
+    }
 
     public static FirewallHostResponse ToResponse(FirewallHostEntity host)
     {
