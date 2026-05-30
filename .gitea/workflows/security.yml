@@ -4,9 +4,13 @@ on:
   push:
     branches:
       - '**'
+    paths-ignore:
+      - 'hashi.old/**'
   pull_request:
     branches:
       - '**'
+    paths-ignore:
+      - 'hashi.old/**'
   schedule:
     - cron: '0 6 * * 1'
   workflow_dispatch:

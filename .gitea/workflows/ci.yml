@@ -4,9 +4,13 @@ on:
   push:
     branches:
       - '**'
+    paths-ignore:
+      - 'hashi.old/**'
   pull_request:
     branches:
       - '**'
+    paths-ignore:
+      - 'hashi.old/**'
   workflow_dispatch:
 
 concurrency:

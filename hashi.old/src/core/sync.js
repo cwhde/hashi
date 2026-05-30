@@ -109,6 +109,26 @@ export class DNSSync {
     const pairs = [];
     const rawResources = [];
 
+    // Map to keep track of dynamically learned prefix/location to CNAME mappings
+    const locationToCname = new Map();
+
+    const extractLocations = (subdomain, resourceName) => {
+      const locations = new Set();
+      if (subdomain) {
+        const parts = subdomain.split('.');
+        if (parts.length > 1) {
+          locations.add(parts[0].toLowerCase());
+        }
+      }
+      if (resourceName) {
+        const match = resourceName.match(/\(([^)]+)\)/);
+        if (match) {
+          locations.add(match[1].toLowerCase());
+        }
+      }
+      return Array.from(locations);
+    };
+
     for (let i = 0; i < resources.length; i++) {
       const resource = resources[i];
       const resourceId = resource.resourceId || resource.id;
@@ -219,16 +239,24 @@ export class DNSSync {
         continue;
       }
 
+      // Extract subdomain early so we can use it for location extraction
+      const subdomain = domain.replace(`.${this.config.domain}`, '');
+      const isRoot = subdomain === this.config.domain || subdomain === '';
+
       // Get CNAME for this IP (may be null if no host mapping available)
       const cname = this.topology.getCnameForIp(targetIp, hostMapping);
-      if (!cname) {
+      if (cname) {
+        const locations = extractLocations(subdomain, resourceName);
+        for (const loc of locations) {
+          if (!locationToCname.has(loc)) {
+            locationToCname.set(loc, cname);
+            this.logger.debug(`Learned location mapping: ${loc} -> ${cname}`);
+          }
+        }
+      } else {
         // No CNAME mapping, but we can still monitor via Gatus using the domain directly
         this.logger.debug(`No subnet match for ${resourceName} with IP ${targetIp}, will monitor domain directly`);
       }
-
-      // Extract subdomain
-      const subdomain = domain.replace(`.${this.config.domain}`, '');
-      const isRoot = subdomain === this.config.domain || subdomain === '';
 
       pairs.push({
         name: resourceName,
@@ -247,6 +275,22 @@ export class DNSSync {
         this.logger.info(`Mapped ${domain} -> ${cname}.${this.config.domain} (IP: ${targetIp}, Proto: ${targetProtocol})`);
       } else {
         this.logger.info(`Resource ${domain} (IP: ${targetIp}, Proto: ${targetProtocol}) - no CNAME mapping, Gatus only`);
+      }
+    }
+
+    // Second pass: resolve fallback CNAMEs for resources without subnet match using dynamically learned location mappings
+    for (const pair of pairs) {
+      if (!pair.cname) {
+        const locations = extractLocations(pair.subdomain, pair.name);
+        for (const loc of locations) {
+          if (locationToCname.has(loc)) {
+            const fallbackCname = locationToCname.get(loc);
+            pair.cname = fallbackCname;
+            pair.cname_full = `${fallbackCname}.${this.config.domain}`;
+            this.logger.info(`Mapped fallback CNAME for ${pair.domain} via location "${loc}" -> ${fallbackCname}.${this.config.domain}`);
+            break;
+          }
+        }
       }
     }
 
