@@ -4,6 +4,39 @@
  */
 
 export interface paths {
+    "/hashi-runtime-config.js": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -834,6 +867,158 @@ export interface paths {
                     content: {
                         "application/json": components["schemas"]["EdgeSsoSettingsResponse"];
                     };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DashboardSettingsResponse"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DashboardSettingsRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DashboardSettingsResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiErrorResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/categories/{category}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    category: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CategorySettingsResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    category: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CategorySettingsRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CategorySettingsResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiErrorResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
                 };
             };
         };
@@ -1864,6 +2049,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/dns/zones": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DnsZoneResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/dns/connections/{connectionId}/import/preview": {
         parameters: {
             query?: never;
@@ -2120,8 +2340,87 @@ export interface paths {
             };
         };
         put?: never;
-        post?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpsertDnsRecordRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dns/records/{recordId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    recordId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpsertDnsRecordRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    recordId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -3211,8 +3510,91 @@ export interface paths {
             };
         };
         put?: never;
-        post?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateMonitorEndpointRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MonitorEndpointResponse"];
+                    };
+                };
+            };
+        };
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/status/endpoints/{endpointId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    endpointId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateMonitorEndpointRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MonitorEndpointResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    endpointId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -4861,7 +5243,7 @@ export interface components {
             message: null | string;
         };
         AdGuardRewriteMutationResponse: {
-            rewrite: components["schemas"]["AdGuardRewriteResponse"];
+            rewrite: null | components["schemas"]["AdGuardRewriteResponse"];
             plan: components["schemas"]["AdGuardRewritePlanResponse"];
         };
         AdGuardRewritePlanChangeResponse: {
@@ -4879,7 +5261,7 @@ export interface components {
             requiresConfirmation: boolean;
             changes: components["schemas"]["AdGuardRewritePlanChangeResponse"][];
         };
-        AdGuardRewriteResponse: null | {
+        AdGuardRewriteResponse: {
             /** Format: uuid */
             id: string;
             domain: string;
@@ -4892,6 +5274,9 @@ export interface components {
         AnonymousTypeOfstringAndstring: {
             slug: null | string;
             yaml: null | string;
+        };
+        ApiErrorResponse: {
+            error: string;
         };
         AuditEventResponse: {
             /** Format: uuid */
@@ -4936,6 +5321,15 @@ export interface components {
         BootstrapLoginRequest: {
             username: string;
             password: string;
+        };
+        CategorySettingsRequest: {
+            settingsJson: null | string;
+        };
+        CategorySettingsResponse: {
+            category: string;
+            settingsJson: string;
+            /** Format: date-time */
+            updatedAtUtc: null | string;
         };
         CertificateSetupRequest: {
             acmeEmail: string;
@@ -5011,6 +5405,13 @@ export interface components {
             /** Format: int32 */
             defaultTtl: number | string;
         };
+        CreateMonitorEndpointRequest: {
+            name: string;
+            url: string;
+            checkType: string;
+            /** @default true */
+            enabled: boolean;
+        };
         CreateNotificationProviderRequest: {
             name: string;
             type: string;
@@ -5085,6 +5486,14 @@ export interface components {
             privateKeyPem: null | string;
             privateKeyPassphrase: null | string;
         };
+        DashboardSettingsRequest: {
+            overviewWidgetsJson: null | string;
+        };
+        DashboardSettingsResponse: {
+            overviewWidgetsJson: string;
+            /** Format: date-time */
+            updatedAtUtc: null | string;
+        };
         DnsImportApplyRequest: {
             selectedDecisionIds: string[];
         };
@@ -5116,6 +5525,8 @@ export interface components {
         DnsRecordResponse: {
             /** Format: uuid */
             id: string;
+            /** Format: uuid */
+            zoneId: string;
             name: string;
             type: string;
             value: string;
@@ -5142,6 +5553,16 @@ export interface components {
         };
         DnsWriteValidationRequest: {
             confirmDryRun: boolean;
+        };
+        DnsZoneResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            connectionId: string;
+            providerZoneId: string;
+            name: string;
+            /** Format: int32 */
+            defaultTtl: number | string;
         };
         EdgeAuthRuleResponse: {
             /** Format: uuid */
@@ -5648,7 +6069,10 @@ export interface components {
             /** Format: int64 */
             securityEventCount: number | string;
         };
-        SecurityFilterOption: unknown;
+        SecurityFilterOption: {
+            value: string;
+            label: string;
+        };
         SecurityFirewallHostOption: {
             /** Format: uuid */
             id: string;
@@ -5656,7 +6080,11 @@ export interface components {
             domain: string;
             linkedTraefikHost: string;
         };
-        SecurityRankItem: unknown;
+        SecurityRankItem: {
+            label: string;
+            /** Format: int64 */
+            count: number | string;
+        };
         SecurityRecentEventItem: {
             /** Format: date-time */
             occurredAtUtc: string;
@@ -5782,7 +6210,7 @@ export interface components {
             preview: null | string;
             remotePath: string;
         };
-        TraefikDynamicFilesResponse: null | {
+        TraefikDynamicFilesResponse: {
             coreYaml: string;
             httpResourcesYaml: string;
             streamResourcesYaml: string;
@@ -5834,7 +6262,7 @@ export interface components {
             staticConfigYaml: string;
             dynamicHttpYaml: string;
             contentHash: string;
-            dynamicFiles?: components["schemas"]["TraefikDynamicFilesResponse"];
+            dynamicFiles?: null | components["schemas"]["TraefikDynamicFilesResponse"];
         };
         TraefikUserMiddlewareResponse: {
             yaml: string;
@@ -5881,6 +6309,12 @@ export interface components {
             netBirdRoutingPeer?: null | boolean;
             /** Format: int32 */
             rollbackTimerSeconds?: null | number | string;
+        };
+        UpdateMonitorEndpointRequest: {
+            name?: null | string;
+            url?: null | string;
+            checkType?: null | string;
+            enabled?: null | boolean;
         };
         UpdateNotificationProviderRequest: {
             name: null | string;
@@ -5949,6 +6383,16 @@ export interface components {
         UpsertAdGuardRewriteRequest: {
             domain: string;
             answer: string;
+        };
+        UpsertDnsRecordRequest: {
+            /** Format: uuid */
+            zoneId: string;
+            name: string;
+            type: string;
+            value: string;
+            /** Format: int32 */
+            ttl: null | number | string;
+            enabled: boolean;
         };
         VaultGenerateRecoveryKeyResponse: {
             recoveryKey: string;

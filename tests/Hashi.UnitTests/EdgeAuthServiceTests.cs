@@ -6,6 +6,7 @@ using Hashi.Infrastructure.Persistence.Entities;
 using Hashi.Infrastructure.Platform;
 using Hashi.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -300,7 +301,13 @@ public sealed class EdgeAuthServiceTests
             db,
             new SecretRecordService(db, new VaultSessionState(), new ServiceSyncVaultState()),
             new ServiceCollection().AddHttpClient().BuildServiceProvider().GetRequiredService<IHttpClientFactory>(),
-            new AppSettingsService(db));
+            new AppSettingsService(db),
+            new Microsoft.Extensions.Configuration.ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["Hashi:Oidc:AllowUnsignedTestTokens"] = "true",
+                })
+                .Build());
         var service = new EdgeAuthService(db, geoIp, oidc);
         return service.EvaluateForwardAsync(
             host,

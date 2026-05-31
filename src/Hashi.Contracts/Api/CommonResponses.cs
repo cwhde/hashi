@@ -66,6 +66,19 @@ public sealed record GeneralSettingsRequest(
 
 public sealed record GeneralSettingsUpdateResponse(bool Updated, DateTimeOffset UpdatedAtUtc);
 
+public sealed record DashboardSettingsResponse(
+    string OverviewWidgetsJson,
+    DateTimeOffset? UpdatedAtUtc);
+
+public sealed record DashboardSettingsRequest(string? OverviewWidgetsJson);
+
+public sealed record CategorySettingsResponse(
+    string Category,
+    string SettingsJson,
+    DateTimeOffset? UpdatedAtUtc);
+
+public sealed record CategorySettingsRequest(string? SettingsJson);
+
 public sealed record ApiErrorResponse(string Error);
 
 public sealed record SystemResourceSyncResponse(

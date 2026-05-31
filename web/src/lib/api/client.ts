@@ -464,6 +464,30 @@ export const api = {
 		const r = await client.PUT('/api/settings/edge-sso/session', { body });
 		return expectData(r.response, r.error, r.data);
 	},
+	getDashboardSettings: async () => {
+		const r = await client.GET('/api/settings/dashboard' as never);
+		return (await expectData(r.response, r.error, r.data)) as unknown as import('./types.js').DashboardSettings;
+	},
+	updateDashboardSettings: async (body: import('./types.js').DashboardSettingsRequest) => {
+		const r = await client.PUT('/api/settings/dashboard' as never, { body } as never);
+		return (await expectData(r.response, r.error, r.data)) as unknown as import('./types.js').DashboardSettings;
+	},
+	getCategorySettings: async (category: string) => {
+		const r = await client.GET('/api/settings/categories/{category}' as never, {
+			params: { path: { category } }
+		} as never);
+		return (await expectData(r.response, r.error, r.data)) as unknown as import('./types.js').CategorySettings;
+	},
+	updateCategorySettings: async (
+		category: string,
+		body: import('./types.js').CategorySettingsRequest
+	) => {
+		const r = await client.PUT('/api/settings/categories/{category}' as never, {
+			params: { path: { category } },
+			body
+		} as never);
+		return (await expectData(r.response, r.error, r.data)) as unknown as import('./types.js').CategorySettings;
+	},
 	createEdgeSsoProvider: async (body: import('./types.js').CreateOidcProviderRequest) => {
 		const result = await postUndocumented('/api/settings/edge-sso/providers', { body });
 		return {

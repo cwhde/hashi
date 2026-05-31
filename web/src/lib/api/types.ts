@@ -144,6 +144,10 @@ export type UpsertAdGuardRewriteRequest = Schemas['UpsertAdGuardRewriteRequest']
 
 export type MonitoringSettingsRequest = Schemas['MonitoringSettingsRequest'];
 export type EdgeSsoSettingsRequest = Schemas['EdgeSsoSettingsRequest'];
+export type DashboardSettings = Schemas['DashboardSettingsResponse'];
+export type DashboardSettingsRequest = Schemas['DashboardSettingsRequest'];
+export type CategorySettings = Schemas['CategorySettingsResponse'];
+export type CategorySettingsRequest = Schemas['CategorySettingsRequest'];
 export type OidcProvider = Schemas['OidcProviderResponse'];
 export type CreateOidcProviderRequest = Schemas['CreateOidcProviderRequest'];
 export type RotatePulseAgentResult = Schemas['CreatePulseAgentResponse'];

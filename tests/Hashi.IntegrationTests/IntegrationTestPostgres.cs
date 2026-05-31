@@ -17,6 +17,7 @@ internal static class IntegrationTestApp
             {
                 builder.UseSetting("ConnectionStrings:Hashi", connectionString);
                 builder.UseSetting("Hashi:SkipStartupHooks", "true");
+                builder.UseSetting("Hashi:Oidc:AllowUnsignedTestTokens", "true");
                 builder.ConfigureServices(services =>
                 {
                     services.AddSingleton<IStartupFilter, LoopbackRemoteIpStartupFilter>();

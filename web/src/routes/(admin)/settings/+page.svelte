@@ -7,6 +7,7 @@
 	import {
 		DEFAULT_WIDGETS,
 		loadWidgetPrefs,
+		parseWidgetPrefsJson,
 		saveWidgetPrefs,
 		type WidgetPrefs
 	} from '$lib/overview/widgets';
@@ -19,6 +20,8 @@
 
 	let saving = $state(false);
 	let message = $state<string | null>(null);
+	let widgetSaving = $state(false);
+	let widgetMessage = $state<string | null>(null);
 	let widgetPrefs = $state<WidgetPrefs>(loadWidgetPrefs());
 	let form = $state({
 		rootDomain: '',
@@ -45,6 +48,14 @@
 		} catch {
 			// offline dev
 		}
+
+		try {
+			const dashboard = await api.getDashboardSettings();
+			widgetPrefs = parseWidgetPrefsJson(dashboard.overviewWidgetsJson);
+			saveWidgetPrefs(widgetPrefs);
+		} catch {
+			// offline dev
+		}
 	});
 
 	async function save() {
@@ -65,6 +76,24 @@
 			message = e instanceof Error ? e.message : 'Failed to save settings';
 		} finally {
 			saving = false;
+		}
+	}
+
+	async function setWidgetEnabled(id: string, enabled: boolean) {
+		widgetSaving = true;
+		widgetMessage = null;
+		widgetPrefs = {
+			...widgetPrefs,
+			enabled: { ...widgetPrefs.enabled, [id]: enabled }
+		};
+		saveWidgetPrefs(widgetPrefs);
+		try {
+			await api.updateDashboardSettings({ overviewWidgetsJson: JSON.stringify(widgetPrefs) });
+			widgetMessage = 'Widget preferences saved.';
+		} catch (e) {
+			widgetMessage = e instanceof Error ? e.message : 'Failed to save widget preferences';
+		} finally {
+			widgetSaving = false;
 		}
 	}
 </script>
@@ -121,17 +150,15 @@
 
 		<PanelSection
 			title="Overview widgets"
-			description="Toggle and reorder default overview widgets (stored locally until settings API ships)."
+			description="Toggle and reorder default overview widgets."
 		>
 			<ul class="space-y-2">
 				{#each DEFAULT_WIDGETS as widget (widget.id)}
 					<li class="flex items-center gap-3 rounded-md border border-border px-3 py-2">
 						<Checkbox
 							checked={widgetPrefs.enabled[widget.id]}
-							onCheckedChange={(checked) => {
-								widgetPrefs.enabled[widget.id] = checked === true;
-								saveWidgetPrefs(widgetPrefs);
-							}}
+							disabled={widgetSaving}
+							onCheckedChange={(checked) => setWidgetEnabled(widget.id, checked === true)}
 							id={`widget-${widget.id}`}
 						/>
 						<Label for={`widget-${widget.id}`} class="min-w-0 flex-1">
@@ -141,6 +168,9 @@
 					</li>
 				{/each}
 			</ul>
+			{#if widgetMessage}
+				<p class="mt-3 text-xs text-muted-foreground">{widgetMessage}</p>
+			{/if}
 		</PanelSection>
 
 		<PanelSection
