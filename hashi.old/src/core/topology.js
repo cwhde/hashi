@@ -178,7 +178,7 @@ export class TopologyResolver {
    * Get the CNAME prefix for a given IP based on subnet mapping.
    * @param {string} ip - IP address to look up
    * @param {Object} mapping - Dict of CNAME prefixes to subnets
-   * @returns {string|null} - CNAME prefix (e.g., "on.kanae") or null
+   * @returns {string|null} - CNAME prefix (e.g., "on.hostname") or null
    */
   getCnameForIp(ip, mapping) {
     for (const [cnamePrefix, subnet] of Object.entries(mapping)) {
