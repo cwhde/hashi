@@ -1,9 +1,14 @@
+using Hashi.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace Hashi.Infrastructure.Persistence.Migrations;
 
+[DbContext(typeof(HashiDbContext))]
+[Migration("20260531120000_AddSettingsCategoryStorage")]
 public partial class AddSettingsCategoryStorage : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)

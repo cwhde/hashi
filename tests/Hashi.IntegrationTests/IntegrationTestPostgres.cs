@@ -102,6 +102,7 @@ internal sealed class IntegrationTestPostgres : IAsyncDisposable
 
         if (!File.Exists("/var/run/docker.sock"))
         {
+            FailIfCi("PostgreSQL integration tests require ConnectionStrings__Hashi or Docker in CI.");
             return;
         }
 
@@ -127,6 +128,8 @@ internal sealed class IntegrationTestPostgres : IAsyncDisposable
                 await _container.DisposeAsync();
                 _container = null;
             }
+
+            FailIfCi(message);
         }
     }
 
@@ -163,4 +166,12 @@ internal sealed class IntegrationTestPostgres : IAsyncDisposable
     private static bool IsTransientConnectionFailure(Exception ex)
         => ex is NpgsqlException or InvalidOperationException
            || ex.InnerException is System.Net.Sockets.SocketException;
+
+    private static void FailIfCi(string message)
+    {
+        if (string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(message);
+        }
+    }
 }

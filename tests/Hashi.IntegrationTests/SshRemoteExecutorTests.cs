@@ -68,6 +68,7 @@ public sealed class SshRemoteExecutorTests : IAsyncLifetime
             var message = $"SSH integration tests unavailable: {ex.Message}";
             Console.WriteLine(message);
             _sshUnavailable = true;
+            FailIfCi(message);
         }
     }
 
@@ -200,6 +201,14 @@ public sealed class SshRemoteExecutorTests : IAsyncLifetime
         {
             var stderr = await process.StandardError.ReadToEndAsync();
             throw new InvalidOperationException($"{fileName} failed: {stderr}");
+        }
+    }
+
+    private static void FailIfCi(string message)
+    {
+        if (string.Equals(Environment.GetEnvironmentVariable("CI"), "true", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(message);
         }
     }
 }
