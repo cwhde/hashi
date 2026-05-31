@@ -109,6 +109,41 @@ export class DNSSync {
     const pairs = [];
     const rawResources = [];
 
+    // Map to keep track of dynamically learned prefix/location to CNAME mappings
+    const locationToCname = new Map();
+
+    const extractLocations = (subdomain, resourceName) => {
+      const locations = new Set();
+      
+      const isValidLocation = (loc) => {
+        // Matches standard region codes like fra1, zrh1, ams1, nyc3 (3 letters followed by digits)
+        return /^[a-z]{3}\d+$/.test(loc);
+      };
+
+      if (subdomain) {
+        const parts = subdomain.split('.');
+        if (parts.length > 1) {
+          const loc = parts[0].toLowerCase();
+          if (isValidLocation(loc)) {
+            locations.add(loc);
+          }
+        }
+      }
+      if (resourceName) {
+        const match = resourceName.match(/\(([^)]+)\)/);
+        if (match) {
+          const loc = match[1].toLowerCase();
+          if (isValidLocation(loc)) {
+            locations.add(loc);
+          }
+        }
+      }
+      return Array.from(locations);
+    };
+
+    // Temporary list to store HTTP resources for Pass 2 processing
+    const processedResources = [];
+
     for (let i = 0; i < resources.length; i++) {
       const resource = resources[i];
       const resourceId = resource.resourceId || resource.id;
@@ -219,34 +254,91 @@ export class DNSSync {
         continue;
       }
 
-      // Get CNAME for this IP (may be null if no host mapping available)
-      const cname = this.topology.getCnameForIp(targetIp, hostMapping);
-      if (!cname) {
-        // No CNAME mapping, but we can still monitor via Gatus using the domain directly
-        this.logger.debug(`No subnet match for ${resourceName} with IP ${targetIp}, will monitor domain directly`);
-      }
-
-      // Extract subdomain
+      // Extract subdomain early so we can use it for location extraction
       const subdomain = domain.replace(`.${this.config.domain}`, '');
       const isRoot = subdomain === this.config.domain || subdomain === '';
 
-      pairs.push({
-        name: resourceName,
+      // Get CNAME for this IP (may be null if no host mapping available)
+      const subnetCname = this.topology.getCnameForIp(targetIp, hostMapping);
+
+      processedResources.push({
+        resourceName,
         domain,
         subdomain,
+        isRoot,
+        targetIp,
+        targetPort,
+        targetProtocol,
+        subnetCname,
+      });
+    }
+
+    // Pass 1: Learn all location-to-CNAME mappings from resources with a valid subnet match
+    for (const pr of processedResources) {
+      if (pr.subnetCname) {
+        const locations = extractLocations(pr.subdomain, pr.resourceName);
+        for (const loc of locations) {
+          if (!locationToCname.has(loc)) {
+            locationToCname.set(loc, pr.subnetCname);
+            this.logger.debug(`Learned location mapping: ${loc} -> ${pr.subnetCname}`);
+          }
+        }
+      }
+    }
+
+    // Pass 2: Determine final CNAME and build pairs, prioritizing location-based CNAMEs
+    for (const pr of processedResources) {
+      let cname = null;
+      const locations = extractLocations(pr.subdomain, pr.resourceName);
+
+      // Try location-based mapping first
+      for (const loc of locations) {
+        if (locationToCname.has(loc)) {
+          cname = locationToCname.get(loc);
+          break;
+        }
+      }
+
+      // Fallback to subnet CNAME if no location mapping found
+      if (!cname) {
+        cname = pr.subnetCname;
+      } else if (pr.subnetCname && cname !== pr.subnetCname) {
+        this.logger.info(`Location mapping took precedence for ${pr.domain}: resolved to ${cname} (subnet match was ${pr.subnetCname})`);
+      }
+
+      pairs.push({
+        name: pr.resourceName,
+        domain: pr.domain,
+        subdomain: pr.subdomain,
         cname: cname || null,
         cname_full: cname ? `${cname}.${this.config.domain}` : null,
-        is_root: isRoot,
-        resource_name: resourceName,
-        target: targetIp,
-        port: targetPort,
-        protocol: targetProtocol,
+        is_root: pr.isRoot,
+        resource_name: pr.resourceName,
+        target: pr.targetIp,
+        port: pr.targetPort,
+        protocol: pr.targetProtocol,
       });
 
       if (cname) {
-        this.logger.info(`Mapped ${domain} -> ${cname}.${this.config.domain} (IP: ${targetIp}, Proto: ${targetProtocol})`);
+        this.logger.info(`Mapped ${pr.domain} -> ${cname}.${this.config.domain} (IP: ${pr.targetIp}, Proto: ${pr.targetProtocol})`);
       } else {
-        this.logger.info(`Resource ${domain} (IP: ${targetIp}, Proto: ${targetProtocol}) - no CNAME mapping, Gatus only`);
+        this.logger.info(`Resource ${pr.domain} (IP: ${pr.targetIp}, Proto: ${pr.targetProtocol}) - no CNAME mapping, Gatus only`);
+      }
+    }
+
+    // Second pass: resolve fallback CNAMEs for resources without subnet match using dynamically learned location mappings
+    for (const pair of pairs) {
+      if (!pair.cname) {
+        const locations = extractLocations(pair.subdomain, pair.name);
+        for (const loc of locations) {
+          if (locationToCname.has(loc)) {
+            const fallbackCname = locationToCname.get(loc);
+            pair.cname = fallbackCname;
+            pair.cname_full = `${fallbackCname}.${this.config.domain}`;
+            this.logger.info(`Mapped fallback CNAME for ${pair.domain} via location "${loc}" -> ${fallbackCname}.${this.config.domain}`);
+            break;
+          }
+        }
       }
     }
 
