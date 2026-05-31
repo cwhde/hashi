@@ -220,6 +220,10 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.Property<int>("MonitorSampleRetentionDays")
                         .HasColumnType("integer");
 
+                    b.Property<string>("OverviewWidgetsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<bool>("PublicDashboardEnabled")
                         .HasColumnType("boolean");
 
@@ -227,6 +231,10 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean");
 
                     b.Property<string>("RootDomain")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SettingsCategoriesJson")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("Theme")
@@ -2062,9 +2070,6 @@ namespace Hashi.Infrastructure.Persistence.Migrations
 
                     b.Property<bool>("IsComplete")
                         .HasColumnType("boolean");
-
-                    b.Property<string>("PendingAcmeEabJson")
-                        .HasColumnType("text");
 
                     b.Property<DateTimeOffset>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");

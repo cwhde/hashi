@@ -81,6 +81,26 @@ public sealed class NotificationDispatcherTests
         Assert.Single(await db.SecretRecords.ToListAsync());
     }
 
+    [Fact]
+    public async Task CreateProviderAsync_stores_notification_token_for_service_sync()
+    {
+        await using var db = CreateDb();
+        var serviceSync = ReadyServiceSync();
+        var secrets = CreateSecrets(db, serviceSync);
+        var dispatcher = new NotificationDispatcher(db, new FakeHttpClientFactory(new HttpClient()), secrets);
+
+        await dispatcher.CreateProviderAsync(new CreateNotificationProviderRequest(
+            "Alerts",
+            "telegram",
+            """{"botToken":"telegram-secret","chatId":"-100123"}""",
+            Enabled: true));
+
+        var secret = await db.SecretRecords.SingleAsync();
+        Assert.True(secret.IsServiceSyncEligible);
+        Assert.NotNull(secret.ServiceWrappedDekBlob);
+        Assert.Equal("telegram-secret", Encoding.UTF8.GetString((await secrets.DecryptForServiceSyncAsync(secret.Id))!));
+    }
+
     private static string ExtractJsonString(string json, string property)
     {
         using var doc = System.Text.Json.JsonDocument.Parse(json);
@@ -96,11 +116,20 @@ public sealed class NotificationDispatcherTests
     }
 
     private static NotificationDispatcher CreateDispatcher(HashiDbContext db, HttpClient? client = null)
+        => new(db, new FakeHttpClientFactory(client ?? new HttpClient()), CreateSecrets(db, new ServiceSyncVaultState()));
+
+    private static SecretRecordService CreateSecrets(HashiDbContext db, ServiceSyncVaultState serviceSync)
     {
         var vault = new VaultSessionState();
         vault.Unlock(RandomNumberGenerator.GetBytes(32));
-        var secrets = new SecretRecordService(db, vault, new ServiceSyncVaultState());
-        return new NotificationDispatcher(db, new FakeHttpClientFactory(client ?? new HttpClient()), secrets);
+        return new SecretRecordService(db, vault, serviceSync);
+    }
+
+    private static ServiceSyncVaultState ReadyServiceSync()
+    {
+        var serviceSync = new ServiceSyncVaultState();
+        serviceSync.Initialize(RandomNumberGenerator.GetBytes(32));
+        return serviceSync;
     }
 
     private sealed class FakeHttpClientFactory(HttpClient client) : IHttpClientFactory

@@ -29,7 +29,7 @@ public sealed class AdminApiAuthMiddleware(RequestDelegate next)
             return;
         }
 
-        if (IsPublicEndpoint(path, context.Request.Method) || IsPulseHeartbeat(path) || IsAccessLogIngest(path))
+        if (IsPublicEndpoint(path, context.Request.Method) || IsPulseHeartbeat(path))
         {
             await next(context);
             return;
@@ -98,6 +98,11 @@ public sealed class AdminApiAuthMiddleware(RequestDelegate next)
 
         if (value.StartsWith("/api/dns/connections", StringComparison.OrdinalIgnoreCase)
             && method.Equals(HttpMethods.Post, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (value.StartsWith("/api/dns/records", StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
@@ -207,6 +212,4 @@ public sealed class AdminApiAuthMiddleware(RequestDelegate next)
         => path.StartsWithSegments("/api/pulse")
            && path.Value?.EndsWith("/heartbeat", StringComparison.OrdinalIgnoreCase) == true;
 
-    private static bool IsAccessLogIngest(PathString path)
-        => string.Equals(path.Value, "/api/security/access-log", StringComparison.OrdinalIgnoreCase);
 }

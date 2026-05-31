@@ -4,23 +4,23 @@ using Microsoft.AspNetCore.Http;
 namespace Hashi.Api.Hosting;
 
 /// <summary>
-/// Routes dedicated public ports (8081 dashboard, 8082 status) to root-only SPA views.
-/// Admin API and OpenAPI are only available on the admin port (8080).
+/// Routes dedicated public ports to root-only SPA views.
+/// Admin API and OpenAPI are only available on the configured admin port.
 /// </summary>
 public sealed class PublicPortRoutingMiddleware(RequestDelegate next)
 {
-    public async Task InvokeAsync(HttpContext context, AppSettingsService settings)
+    public async Task InvokeAsync(HttpContext context, AppSettingsService settings, HashiPortOptions ports)
     {
         var port = context.Connection.LocalPort;
         var path = context.Request.Path.Value ?? "/";
 
-        if (port is HashiPorts.PublicDashboard or HashiPorts.PublicStatus && IsBlockedPublicPortPath(path, port))
+        if (ports.IsPublicPort(port) && IsBlockedPublicPortPath(path, port, ports))
         {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
         }
 
-        if (port == HashiPorts.PublicDashboard)
+        if (port == ports.PublicDashboard)
         {
             var appSettings = await settings.GetOrCreateAsync(context.RequestAborted);
             if (!appSettings.PublicDashboardEnabled)
@@ -48,7 +48,7 @@ public sealed class PublicPortRoutingMiddleware(RequestDelegate next)
             }
         }
 
-        if (port == HashiPorts.PublicStatus)
+        if (port == ports.PublicStatus)
         {
             var appSettings = await settings.GetOrCreateAsync(context.RequestAborted);
             if (!appSettings.PublicStatusEnabled)
@@ -79,7 +79,7 @@ public sealed class PublicPortRoutingMiddleware(RequestDelegate next)
         await next(context);
     }
 
-    private static bool IsBlockedPublicPortPath(string path, int port)
+    private static bool IsBlockedPublicPortPath(string path, int port, HashiPortOptions ports)
     {
         if (path.StartsWith("/openapi/", StringComparison.OrdinalIgnoreCase))
         {
@@ -93,8 +93,8 @@ public sealed class PublicPortRoutingMiddleware(RequestDelegate next)
 
         return port switch
         {
-            HashiPorts.PublicDashboard => !IsDashboardPublicApiPath(path),
-            HashiPorts.PublicStatus => !IsStatusPublicApiPath(path),
+            var value when value == ports.PublicDashboard => !IsDashboardPublicApiPath(path),
+            var value when value == ports.PublicStatus => !IsStatusPublicApiPath(path),
             _ => true,
         };
     }
@@ -123,6 +123,7 @@ public sealed class PublicPortRoutingMiddleware(RequestDelegate next)
         }
 
         return path.Equals("/favicon.ico", StringComparison.OrdinalIgnoreCase)
+            || path.Equals("/hashi-runtime-config.js", StringComparison.OrdinalIgnoreCase)
             || path.Equals("/robots.txt", StringComparison.OrdinalIgnoreCase);
     }
 }

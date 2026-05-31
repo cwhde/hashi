@@ -41,8 +41,15 @@ public static class ResourceEndpoints
                 return TypedResults.ValidationProblem(validationErrors);
             }
 
-            var created = await resources.CreateAsync(request, ct);
-            return TypedResults.Ok(await resources.ToResponseAsync(created, ct));
+            try
+            {
+                var created = await resources.CreateAsync(request, ct);
+                return TypedResults.Ok(await resources.ToResponseAsync(created, ct));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
+            }
         });
 
         group.MapPut("/{id:guid}", async Task<IResult> (Guid id, UpdateResourceRequest request, ResourceService resources, CancellationToken ct) =>
@@ -246,6 +253,46 @@ public static class StatusEndpoints
         {
             var items = await monitoring.ListAsync(ct);
             return TypedResults.Ok(items.Select(MonitoringService.ToResponse));
+        });
+        group.MapPost("/endpoints", async Task<IResult> (
+            CreateMonitorEndpointRequest request,
+            MonitoringService monitoring,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                return TypedResults.Ok(MonitoringService.ToResponse(await monitoring.CreateManualAsync(request, ct)));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        })
+            .Produces<MonitorEndpointResponse>(StatusCodes.Status200OK);
+        group.MapPut("/endpoints/{endpointId:guid}", async Task<IResult> (
+            Guid endpointId,
+            UpdateMonitorEndpointRequest request,
+            MonitoringService monitoring,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                var updated = await monitoring.UpdateManualAsync(endpointId, request, ct);
+                return updated is null ? TypedResults.NotFound() : TypedResults.Ok(MonitoringService.ToResponse(updated));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        })
+            .Produces<MonitorEndpointResponse>(StatusCodes.Status200OK);
+        group.MapDelete("/endpoints/{endpointId:guid}", async Task<IResult> (
+            Guid endpointId,
+            MonitoringService monitoring,
+            CancellationToken ct) =>
+        {
+            var deleted = await monitoring.DeleteManualAsync(endpointId, ct);
+            return deleted ? TypedResults.NoContent() : TypedResults.NotFound();
         });
         group.MapGet("/rollups", async Task<IResult> (
             Guid? endpointId,
@@ -521,7 +568,7 @@ public static class SecurityEndpoints
         {
             await security.IngestAccessLogAsync(request, ct);
             return TypedResults.Ok(new { accepted = true });
-        }).AllowAnonymous();
+        });
         group.MapPost("/blocklist/sync", async Task<IResult> (SecurityIngestionService security, CancellationToken ct) =>
         {
             var result = await security.SyncBlocklistToAllFirewallsAsync(ct);

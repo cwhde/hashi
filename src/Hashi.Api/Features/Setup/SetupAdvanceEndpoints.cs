@@ -6,6 +6,7 @@ using Hashi.Infrastructure.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace Hashi.Api.Features.Setup;
 
@@ -105,6 +106,18 @@ public static class SetupAdvanceEndpoints
 
 public static class SettingsEndpoints
 {
+    private static readonly HashSet<string> AllowedCategories = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "security",
+        "appearance",
+        "dashboard",
+        "dns",
+        "traefik",
+        "firewall",
+        "notifications",
+        "pulse",
+    };
+
     public static IEndpointRouteBuilder MapSettingsEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/settings").WithTags("Settings");
@@ -244,6 +257,113 @@ public static class SettingsEndpoints
             return TypedResults.Ok(new EdgeSsoSettingsResponse(s.EdgeSsoSessionHours, s.UpdatedAtUtc));
         });
 
+        group.MapGet("/dashboard", async (AppSettingsService settings, CancellationToken ct) =>
+        {
+            var s = await settings.GetOrCreateAsync(ct);
+            return TypedResults.Ok(new DashboardSettingsResponse(s.OverviewWidgetsJson, s.UpdatedAtUtc));
+        });
+
+        group.MapPut("/dashboard", async Task<Results<Ok<DashboardSettingsResponse>, BadRequest<ApiErrorResponse>>> (
+            DashboardSettingsRequest request,
+            AppSettingsService settings,
+            AuditService audit,
+            CancellationToken ct) =>
+        {
+            var s = await settings.GetOrCreateAsync(ct);
+            if (request.OverviewWidgetsJson is not null)
+            {
+                if (!TryEnsureJsonObject(request.OverviewWidgetsJson, "Overview widget preferences", out var error))
+                {
+                    return TypedResults.BadRequest(new ApiErrorResponse(error));
+                }
+
+                s.OverviewWidgetsJson = request.OverviewWidgetsJson;
+            }
+
+            s.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            await settings.SaveAsync(ct);
+            await audit.WriteAsync("settings", "dashboard_updated", subjectType: "app_settings", cancellationToken: ct);
+            return TypedResults.Ok(new DashboardSettingsResponse(s.OverviewWidgetsJson, s.UpdatedAtUtc));
+        });
+
+        group.MapGet("/categories/{category}", async Task<Results<Ok<CategorySettingsResponse>, NotFound>> (
+            string category,
+            AppSettingsService settings,
+            CancellationToken ct) =>
+        {
+            if (!AllowedCategories.Contains(category))
+            {
+                return TypedResults.NotFound();
+            }
+
+            var s = await settings.GetOrCreateAsync(ct);
+            var map = ReadCategoryMap(s.SettingsCategoriesJson);
+            map.TryGetValue(category.ToLowerInvariant(), out var json);
+            return TypedResults.Ok(new CategorySettingsResponse(category.ToLowerInvariant(), json ?? "{}", s.UpdatedAtUtc));
+        });
+
+        group.MapPut("/categories/{category}", async Task<Results<Ok<CategorySettingsResponse>, NotFound, BadRequest<ApiErrorResponse>>> (
+            string category,
+            CategorySettingsRequest request,
+            AppSettingsService settings,
+            AuditService audit,
+            CancellationToken ct) =>
+        {
+            if (!AllowedCategories.Contains(category))
+            {
+                return TypedResults.NotFound();
+            }
+
+            var json = string.IsNullOrWhiteSpace(request.SettingsJson) ? "{}" : request.SettingsJson!;
+            if (!TryEnsureJsonObject(json, "Category settings", out var error))
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(error));
+            }
+
+            var s = await settings.GetOrCreateAsync(ct);
+            var map = ReadCategoryMap(s.SettingsCategoriesJson);
+            var normalized = category.ToLowerInvariant();
+            map[normalized] = json;
+            s.SettingsCategoriesJson = JsonSerializer.Serialize(map);
+            s.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            await settings.SaveAsync(ct);
+            await audit.WriteAsync("settings", $"{normalized}_updated", subjectType: "app_settings", cancellationToken: ct);
+            return TypedResults.Ok(new CategorySettingsResponse(normalized, json, s.UpdatedAtUtc));
+        });
+
         return app;
+    }
+
+    private static Dictionary<string, string> ReadCategoryMap(string json)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? [];
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    private static bool TryEnsureJsonObject(string json, string label, out string error)
+    {
+        error = string.Empty;
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                error = $"{label} must be a JSON object.";
+                return false;
+            }
+
+            return true;
+        }
+        catch (JsonException)
+        {
+            error = $"{label} must be valid JSON.";
+            return false;
+        }
     }
 }

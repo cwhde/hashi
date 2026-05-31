@@ -95,6 +95,92 @@ public sealed class FirewallApplySafetyTests
         Assert.True(await db.AuditEvents.AnyAsync(x => x.Action == "script_applied"));
     }
 
+    [Fact]
+    public async Task BuildHostDefinition_adds_standard_web_forwards_for_http_resources()
+    {
+        await using var db = CreateDb();
+        var host = SeedFirewallHost(db);
+        db.Resources.Add(new ResourceEntity
+        {
+            Name = "web app",
+            Slug = "web-app",
+            Kind = "https",
+            Enabled = true,
+            TargetPort = 8443,
+        });
+        await db.SaveChangesAsync();
+
+        var service = TestPlatformHelpers.CreateFirewallApply(db);
+
+        var definition = await service.BuildHostDefinitionAsync(host);
+
+        Assert.Contains(definition.PortForwards!, x =>
+            x.Protocol == "tcp" && x.PublicPort == 80 && x.TargetHost == host.InternalTraefikIp && x.TargetPort == 80);
+        Assert.Contains(definition.PortForwards!, x =>
+            x.Protocol == "tcp" && x.PublicPort == 443 && x.TargetHost == host.InternalTraefikIp && x.TargetPort == 443);
+    }
+
+    [Fact]
+    public async Task BuildHostDefinition_adds_web_forwards_for_system_resource()
+    {
+        await using var db = CreateDb();
+        var host = SeedFirewallHost(db);
+        var resource = new ResourceEntity
+        {
+            Name = "Hashi Admin",
+            Slug = "hashi-admin",
+            Kind = "https",
+            Enabled = true,
+            IsSystem = true,
+            TargetPort = 8080,
+        };
+        db.Resources.Add(resource);
+        db.SystemResources.Add(new SystemResourceEntity
+        {
+            Resource = resource,
+            SystemKey = "hashi-admin",
+        });
+        await db.SaveChangesAsync();
+
+        var service = TestPlatformHelpers.CreateFirewallApply(db);
+
+        var definition = await service.BuildHostDefinitionAsync(host);
+
+        Assert.Contains(definition.PortForwards!, x => x.Protocol == "tcp" && x.PublicPort == 80 && x.TargetPort == 80);
+        Assert.Contains(definition.PortForwards!, x => x.Protocol == "tcp" && x.PublicPort == 443 && x.TargetPort == 443);
+    }
+
+    [Fact]
+    public async Task BuildHostDefinition_deduplicates_web_and_stream_forwards()
+    {
+        await using var db = CreateDb();
+        var host = SeedFirewallHost(db);
+        db.Resources.Add(new ResourceEntity
+        {
+            Name = "web app",
+            Slug = "web-app",
+            Kind = "https",
+            Enabled = true,
+            TargetPort = 8443,
+        });
+        db.Resources.Add(new ResourceEntity
+        {
+            Name = "tcp app",
+            Slug = "tcp-app",
+            Kind = "tcp",
+            Enabled = true,
+            TargetPort = 443,
+            PublicPort = 443,
+        });
+        await db.SaveChangesAsync();
+
+        var service = TestPlatformHelpers.CreateFirewallApply(db);
+
+        var definition = await service.BuildHostDefinitionAsync(host);
+
+        Assert.Single(definition.PortForwards!, x => x.Protocol == "tcp" && x.PublicPort == 443 && x.TargetPort == 443);
+    }
+
     private static HashiDbContext CreateDb()
     {
         var options = new DbContextOptionsBuilder<HashiDbContext>()

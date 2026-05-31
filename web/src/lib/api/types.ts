@@ -21,7 +21,22 @@ export type SecretDescriptor = Schemas['SecretDescriptorResponse'];
 export type ConnectionSummary = Schemas['ConnectionSummaryResponse'];
 export type CreateHetznerDnsConnectionRequest = Schemas['CreateHetznerDnsConnectionRequest'];
 export type DnsProviderValidationRequest = Schemas['DnsProviderValidationRequest'];
-export type DnsRecord = Schemas['DnsRecordResponse'];
+export type DnsZone = {
+	id: string;
+	connectionId: string;
+	providerZoneId: string;
+	name: string;
+	defaultTtl: number;
+};
+export type DnsRecord = Omit<Schemas['DnsRecordResponse'], 'ttl'> & { zoneId: string; ttl: number | null };
+export type ManualDnsRecordRequest = {
+	zoneId: string;
+	name: string;
+	type: string;
+	value: string;
+	ttl: number | null;
+	enabled: boolean;
+};
 export type DnsImportApplyRequest = Schemas['DnsImportApplyRequest'];
 export type DnsImportDecision = Schemas['DnsImportDecisionResponse'];
 export type DnsWriteValidationRequest = Schemas['DnsWriteValidationRequest'];
@@ -129,6 +144,10 @@ export type UpsertAdGuardRewriteRequest = Schemas['UpsertAdGuardRewriteRequest']
 
 export type MonitoringSettingsRequest = Schemas['MonitoringSettingsRequest'];
 export type EdgeSsoSettingsRequest = Schemas['EdgeSsoSettingsRequest'];
+export type DashboardSettings = Schemas['DashboardSettingsResponse'];
+export type DashboardSettingsRequest = Schemas['DashboardSettingsRequest'];
+export type CategorySettings = Schemas['CategorySettingsResponse'];
+export type CategorySettingsRequest = Schemas['CategorySettingsRequest'];
 export type OidcProvider = Schemas['OidcProviderResponse'];
 export type CreateOidcProviderRequest = Schemas['CreateOidcProviderRequest'];
 export type RotatePulseAgentResult = Schemas['CreatePulseAgentResponse'];

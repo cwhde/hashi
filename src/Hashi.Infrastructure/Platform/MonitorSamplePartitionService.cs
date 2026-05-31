@@ -31,13 +31,13 @@ internal static class MonitorSamplePartitionService
     {
         var partitionName = GetPartitionName(weekStart);
         var weekEnd = weekStart.AddDays(7);
-        await db.Database.ExecuteSqlRawAsync(
+        var createSql = FormattableString.Invariant(
             $"""
-            CREATE TABLE IF NOT EXISTS "{partitionName}"
+            CREATE TABLE IF NOT EXISTS {QuoteIdentifier(partitionName)}
                 PARTITION OF monitor_samples_raw
                 FOR VALUES FROM ('{weekStart:yyyy-MM-dd}') TO ('{weekEnd:yyyy-MM-dd}');
-            """,
-            cancellationToken);
+            """);
+        await db.Database.ExecuteSqlRawAsync(createSql, cancellationToken);
     }
 
     public static async Task<int> DropExpiredPartitionsAsync(
@@ -70,14 +70,16 @@ internal static class MonitorSamplePartitionService
                 continue;
             }
 
-            await db.Database.ExecuteSqlRawAsync(
-                $"""DROP TABLE IF EXISTS "{partitionName}";""",
-                cancellationToken);
+            var dropSql = FormattableString.Invariant($"""DROP TABLE IF EXISTS {QuoteIdentifier(partitionName)};""");
+            await db.Database.ExecuteSqlRawAsync(dropSql, cancellationToken);
             dropped++;
         }
 
         return dropped;
     }
+
+    private static string QuoteIdentifier(string identifier)
+        => "\"" + identifier.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
 
     internal static bool TryParsePartitionWeekStart(string partitionName, out DateOnly weekStart)
     {

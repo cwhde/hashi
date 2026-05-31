@@ -25,17 +25,41 @@ export type WidgetPrefs = {
 };
 
 export function loadWidgetPrefs(): WidgetPrefs {
+	return normalizeWidgetPrefs(readStoredWidgetPrefs());
+}
+
+export function parseWidgetPrefsJson(json: string | null | undefined): WidgetPrefs {
+	if (!json) return loadWidgetPrefs();
+	try {
+		return normalizeWidgetPrefs(JSON.parse(json) as Partial<WidgetPrefs>);
+	} catch {
+		return loadWidgetPrefs();
+	}
+}
+
+export function normalizeWidgetPrefs(prefs?: Partial<WidgetPrefs> | null): WidgetPrefs {
 	const defaults: WidgetPrefs = {
 		enabled: Object.fromEntries(DEFAULT_WIDGETS.map((w) => [w.id, true])),
 		order: DEFAULT_WIDGETS.map((w) => w.id)
 	};
-	if (typeof localStorage === 'undefined') return defaults;
+	const enabled = { ...defaults.enabled, ...(prefs?.enabled ?? {}) };
+	const requestedOrder = Array.isArray(prefs?.order) ? prefs.order : [];
+	const known = new Set(DEFAULT_WIDGETS.map((w) => w.id));
+	const order = [
+		...requestedOrder.filter((id) => known.has(id)),
+		...defaults.order.filter((id) => !requestedOrder.includes(id))
+	];
+	return { enabled, order };
+}
+
+function readStoredWidgetPrefs(): Partial<WidgetPrefs> | null {
+	if (typeof localStorage === 'undefined') return null;
 	try {
 		const raw = localStorage.getItem(STORAGE_KEY);
-		if (!raw) return defaults;
-		return { ...defaults, ...JSON.parse(raw) };
+		if (!raw) return null;
+		return JSON.parse(raw) as Partial<WidgetPrefs>;
 	} catch {
-		return defaults;
+		return null;
 	}
 }
 

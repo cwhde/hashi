@@ -36,6 +36,10 @@ public sealed class AppSettingsEntity
 
     public int EdgeSsoSessionHours { get; set; } = 8;
 
+    public string OverviewWidgetsJson { get; set; } = "{}";
+
+    public string SettingsCategoriesJson { get; set; } = "{}";
+
     public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }
 
@@ -54,8 +58,6 @@ public sealed class SetupStateEntity
     public string? BootstrapPasswordHash { get; set; }
 
     public DateTimeOffset? HttpsDomainVerifiedAtUtc { get; set; }
-
-    public string? PendingAcmeEabJson { get; set; }
 
     public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }

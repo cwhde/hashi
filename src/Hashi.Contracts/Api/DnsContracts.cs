@@ -25,8 +25,17 @@ public sealed record ConnectionSummaryResponse(
 
 public sealed record DnsZoneResponse(Guid Id, Guid ConnectionId, string ProviderZoneId, string Name, int DefaultTtl);
 
+public sealed record UpsertDnsRecordRequest(
+    Guid ZoneId,
+    string Name,
+    string Type,
+    string Value,
+    int? Ttl,
+    bool Enabled);
+
 public sealed record DnsRecordResponse(
     Guid Id,
+    Guid ZoneId,
     string Name,
     string Type,
     string Value,

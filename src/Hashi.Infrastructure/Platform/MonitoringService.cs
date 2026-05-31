@@ -3,36 +3,42 @@ using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
 using Hashi.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace Hashi.Infrastructure.Platform;
 
 public sealed class MonitoringService(HashiDbContext db, AppSettingsService settings)
 {
+    private static readonly HashSet<string> AllowedCheckTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "http",
+        "https",
+        "h2c",
+        "tcp",
+        "udp",
+        "dns",
+        "icmp",
+        "tls",
+        "pulse",
+    };
+
     public async Task SyncEndpointsFromResourcesAsync(CancellationToken cancellationToken = default)
     {
         var resources = await db.Resources.AsNoTracking()
-            .Where(x => x.Enabled && x.StatusEnabled && x.Domain != null && x.Domain != "")
+            .Where(x => x.Enabled && x.StatusEnabled)
             .ToListAsync(cancellationToken);
         var existing = await db.MonitorEndpoints.ToListAsync(cancellationToken);
 
         foreach (var resource in resources)
         {
-            var checkType = resource.Kind.Equals("http", StringComparison.OrdinalIgnoreCase) ? "http" : "https";
-            var url = $"{resource.TargetScheme}://{resource.Domain}/";
-            var monitor = existing.SingleOrDefault(x => x.ResourceId == resource.Id)
-                ?? existing.SingleOrDefault(x => x.Name == resource.Name);
-            if (monitor is null)
-            {
-                monitor = new MonitorEndpointEntity { ResourceId = resource.Id };
-                db.MonitorEndpoints.Add(monitor);
-                existing.Add(monitor);
-            }
-
-            monitor.ResourceId = resource.Id;
-            monitor.Name = resource.Name;
-            monitor.Url = url;
-            monitor.CheckType = checkType;
-            monitor.Enabled = true;
+            var checkType = ResolveResourceCheckType(resource);
+            UpsertProvisionedEndpoint(
+                existing,
+                resource.Id,
+                resource.Name,
+                BuildResourceMonitorUrl(resource, checkType),
+                checkType,
+                enabled: true);
         }
 
         foreach (var monitor in existing.Where(x => x.ResourceId is not null))
@@ -43,6 +49,7 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
             }
         }
 
+        await SyncInfrastructureEndpointsAsync(existing, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
     }
 
@@ -70,6 +77,80 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
 
     public async Task<IReadOnlyList<MonitorEndpointEntity>> ListAsync(CancellationToken cancellationToken = default)
         => await db.MonitorEndpoints.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
+
+    public async Task<MonitorEndpointEntity> CreateManualAsync(
+        CreateMonitorEndpointRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var endpoint = new MonitorEndpointEntity
+        {
+            Name = RequireName(request.Name),
+            Url = RequireUrl(request.Url),
+            CheckType = NormalizeManualCheckType(request.CheckType),
+            Enabled = request.Enabled,
+        };
+        db.MonitorEndpoints.Add(endpoint);
+        await db.SaveChangesAsync(cancellationToken);
+        return endpoint;
+    }
+
+    public async Task<MonitorEndpointEntity?> UpdateManualAsync(
+        Guid endpointId,
+        UpdateMonitorEndpointRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var endpoint = await db.MonitorEndpoints.SingleOrDefaultAsync(x => x.Id == endpointId, cancellationToken);
+        if (endpoint is null)
+        {
+            return null;
+        }
+
+        if (endpoint.ResourceId is not null)
+        {
+            throw new InvalidOperationException("Provisioned resource monitor endpoints are managed by the resource.");
+        }
+
+        if (request.Name is not null)
+        {
+            endpoint.Name = RequireName(request.Name);
+        }
+
+        if (request.Url is not null)
+        {
+            endpoint.Url = RequireUrl(request.Url);
+        }
+
+        if (request.CheckType is not null)
+        {
+            endpoint.CheckType = NormalizeManualCheckType(request.CheckType);
+        }
+
+        if (request.Enabled is bool enabled)
+        {
+            endpoint.Enabled = enabled;
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        return endpoint;
+    }
+
+    public async Task<bool> DeleteManualAsync(Guid endpointId, CancellationToken cancellationToken = default)
+    {
+        var endpoint = await db.MonitorEndpoints.SingleOrDefaultAsync(x => x.Id == endpointId, cancellationToken);
+        if (endpoint is null)
+        {
+            return false;
+        }
+
+        if (endpoint.ResourceId is not null)
+        {
+            throw new InvalidOperationException("Provisioned resource monitor endpoints are managed by the resource.");
+        }
+
+        db.MonitorEndpoints.Remove(endpoint);
+        await db.SaveChangesAsync(cancellationToken);
+        return true;
+    }
 
     public async Task<IReadOnlyList<MonitorEventEntity>> ListEventsAsync(
         Guid? endpointId,
@@ -200,4 +281,224 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
         "paused" => "Paused",
         _ => "Unknown",
     };
+
+    private async Task SyncInfrastructureEndpointsAsync(
+        List<MonitorEndpointEntity> existing,
+        CancellationToken cancellationToken)
+    {
+        UpsertProvisionedEndpoint(
+            existing,
+            resourceId: null,
+            "Hashi API",
+            "http://127.0.0.1:8080/api/health",
+            "http",
+            enabled: true);
+
+        var firewallHosts = await db.FirewallHosts.AsNoTracking().ToListAsync(cancellationToken);
+        foreach (var host in firewallHosts)
+        {
+            var target = FirstNonEmpty(host.PublicIp, host.Domain, host.LinkedTraefikHost, host.InternalTraefikIp);
+            if (target is null)
+            {
+                continue;
+            }
+
+            UpsertProvisionedEndpoint(
+                existing,
+                resourceId: null,
+                $"Firewall: {host.Name}",
+                $"icmp://{target}",
+                "icmp",
+                enabled: true);
+        }
+
+        var connections = await db.Connections.AsNoTracking()
+            .Where(x => x.Enabled && (x.Type == ConnectionTypeNames.TraefikHost || x.Type == ConnectionTypeNames.FirewallHost))
+            .ToListAsync(cancellationToken);
+        foreach (var connection in connections.Where(x => x.Type == ConnectionTypeNames.TraefikHost))
+        {
+            if (!TryReadSshTarget(connection.SettingsJson, out var host, out var port))
+            {
+                continue;
+            }
+
+            UpsertProvisionedEndpoint(
+                existing,
+                resourceId: null,
+                $"Traefik SSH: {connection.Name}",
+                $"tcp://{host}:{port}",
+                "tcp",
+                enabled: true);
+        }
+
+        var adGuardConnections = await db.AdGuardConnections.AsNoTracking()
+            .Where(x => x.Enabled)
+            .ToListAsync(cancellationToken);
+        foreach (var connection in adGuardConnections)
+        {
+            UpsertProvisionedEndpoint(
+                existing,
+                resourceId: null,
+                $"AdGuard: {connection.Name}",
+                connection.BaseUrl,
+                "http",
+                enabled: true);
+        }
+
+        var manualDnsRecords = await db.DnsRecords.AsNoTracking()
+            .Where(x => x.Enabled && x.Ownership == DnsOwnershipNames.User)
+            .ToListAsync(cancellationToken);
+        foreach (var record in manualDnsRecords)
+        {
+            UpsertProvisionedEndpoint(
+                existing,
+                resourceId: null,
+                $"DNS: {record.Name}",
+                $"dns://{record.Name}",
+                "dns",
+                enabled: true);
+        }
+
+        var pulseAgents = await db.PulseAgents.AsNoTracking().ToListAsync(cancellationToken);
+        foreach (var agent in pulseAgents)
+        {
+            var target = FirstNonEmpty(agent.LastPublicIp, agent.LastPrivateIp, agent.LastHostname);
+            if (target is null)
+            {
+                continue;
+            }
+
+            UpsertProvisionedEndpoint(
+                existing,
+                resourceId: null,
+                $"Pulse network: {agent.Name}",
+                $"icmp://{target}",
+                "icmp",
+                enabled: agent.Status != "revoked");
+        }
+    }
+
+    private MonitorEndpointEntity UpsertProvisionedEndpoint(
+        List<MonitorEndpointEntity> existing,
+        Guid? resourceId,
+        string name,
+        string url,
+        string checkType,
+        bool enabled)
+    {
+        var monitor = resourceId is Guid id
+            ? existing.SingleOrDefault(x => x.ResourceId == id)
+            : existing.SingleOrDefault(x => x.ResourceId == null && x.Name == name);
+        if (monitor is null)
+        {
+            monitor = new MonitorEndpointEntity { ResourceId = resourceId };
+            db.MonitorEndpoints.Add(monitor);
+            existing.Add(monitor);
+        }
+
+        monitor.ResourceId = resourceId;
+        monitor.Name = name;
+        monitor.Url = url;
+        monitor.CheckType = NormalizeManualCheckType(checkType);
+        monitor.Enabled = enabled;
+        return monitor;
+    }
+
+    private static string ResolveResourceCheckType(ResourceEntity resource)
+    {
+        var kind = (resource.Kind ?? string.Empty).Trim().ToLowerInvariant();
+        return kind switch
+        {
+            "http" => "http",
+            "https" => "https",
+            "h2c" => "h2c",
+            "tcp" => "tcp",
+            "udp" => "udp",
+            "pulse" or "push" => "pulse",
+            _ when resource.TargetScheme.Equals("h2c", StringComparison.OrdinalIgnoreCase) => "h2c",
+            _ when resource.TargetScheme.Equals("http", StringComparison.OrdinalIgnoreCase) => "http",
+            _ => "https",
+        };
+    }
+
+    private static string BuildResourceMonitorUrl(ResourceEntity resource, string checkType)
+    {
+        var domainOrHost = FirstNonEmpty(resource.Domain, resource.TargetHost) ?? "127.0.0.1";
+        return checkType switch
+        {
+            "http" => $"http://{domainOrHost}/",
+            "https" => $"https://{domainOrHost}/",
+            "h2c" => $"http://{domainOrHost}/",
+            "tcp" => $"tcp://{resource.TargetHost}:{resource.PublicPort ?? resource.TargetPort}",
+            "udp" => $"udp://{resource.TargetHost}:{resource.PublicPort ?? resource.TargetPort}",
+            "pulse" => $"pulse://{resource.Id}",
+            _ => $"{resource.TargetScheme}://{domainOrHost}/",
+        };
+    }
+
+    private static string NormalizeManualCheckType(string checkType)
+    {
+        var normalized = (checkType ?? string.Empty).Trim().ToLowerInvariant();
+        if (normalized == "push")
+        {
+            normalized = "pulse";
+        }
+
+        if (!AllowedCheckTypes.Contains(normalized))
+        {
+            throw new InvalidOperationException($"Unsupported monitor check type '{checkType}'.");
+        }
+
+        return normalized;
+    }
+
+    private static string RequireName(string name)
+    {
+        var trimmed = (name ?? string.Empty).Trim();
+        return string.IsNullOrWhiteSpace(trimmed)
+            ? throw new InvalidOperationException("Monitor endpoint name is required.")
+            : trimmed;
+    }
+
+    private static string RequireUrl(string url)
+    {
+        var trimmed = (url ?? string.Empty).Trim();
+        return string.IsNullOrWhiteSpace(trimmed)
+            ? throw new InvalidOperationException("Monitor endpoint URL is required.")
+            : trimmed;
+    }
+
+    private static string? FirstNonEmpty(params string?[] values)
+        => values.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x))?.Trim();
+
+    private static bool TryReadSshTarget(string settingsJson, out string host, out int port)
+    {
+        host = string.Empty;
+        port = 22;
+        if (string.IsNullOrWhiteSpace(settingsJson))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(settingsJson);
+            var root = doc.RootElement;
+            if (root.TryGetProperty("Host", out var hostProperty) || root.TryGetProperty("host", out hostProperty))
+            {
+                host = hostProperty.GetString() ?? string.Empty;
+            }
+
+            if (root.TryGetProperty("Port", out var portProperty) || root.TryGetProperty("port", out portProperty))
+            {
+                port = portProperty.GetInt32();
+            }
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+
+        return !string.IsNullOrWhiteSpace(host) && port > 0;
+    }
 }

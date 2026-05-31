@@ -23,7 +23,7 @@ public sealed class DnsRecordGeneratorTests
     {
         var hosts = new[] { new FirewallHostDnsTarget(Guid.NewGuid(), "machine1", "10.0.0.5", null) };
         var records = DnsRecordGenerator.GenerateResourceRecords(
-            new ResourceDnsTarget("App", "app", "example.com", null, null, new PulseDnsTarget(Guid.NewGuid(), "203.0.113.10", "10.0.0.5")),
+            new ResourceDnsTarget("App", "app", "example.com", null, null, null, new PulseDnsTarget(Guid.NewGuid(), "203.0.113.10", "10.0.0.5")),
             hosts);
 
         Assert.Single(records);
@@ -37,12 +37,46 @@ public sealed class DnsRecordGeneratorTests
         var hostId = Guid.NewGuid();
         var hosts = new[] { new FirewallHostDnsTarget(hostId, "machine1", "203.0.113.10", null) };
         var records = DnsRecordGenerator.GenerateResourceRecords(
-            new ResourceDnsTarget("App", "app", "example.com", hostId, null, null),
+            new ResourceDnsTarget("App", "app", "example.com", null, hostId, null, null),
             hosts);
 
         Assert.Single(records);
         Assert.Equal(DnsRecordType.Cname, records[0].Type);
         Assert.Contains("on.machine1.example.com", records[0].Value);
+    }
+
+    [Fact]
+    public void GenerateResourceRecords_uses_configured_custom_domain()
+    {
+        var records = DnsRecordGenerator.GenerateResourceRecords(
+            new ResourceDnsTarget("App", "app", "example.com", "service.custom.test", null, null, new PulseDnsTarget(Guid.NewGuid(), "203.0.113.20", null)),
+            []);
+
+        Assert.Single(records);
+        Assert.Equal("service.custom.test", records[0].Name);
+        Assert.Equal("203.0.113.20", records[0].Value);
+    }
+
+    [Theory]
+    [InlineData("example.com", "example.com")]
+    [InlineData("@", "example.com")]
+    [InlineData(null, "app.example.com")]
+    public void ResolveResourceFqdn_supports_root_and_slug_fallback(string? domain, string expected)
+    {
+        var fqdn = DnsRecordGenerator.ResolveResourceFqdn(
+            new ResourceDnsTarget("App", "app", "example.com", domain, null, null, null));
+
+        Assert.Equal(expected, fqdn);
+    }
+
+    [Fact]
+    public void GenerateHostRecords_skips_hosts_without_public_ip()
+    {
+        var records = DnsRecordGenerator.GenerateHostRecords(
+            new FirewallHostDnsTarget(Guid.NewGuid(), "machine1", null, null),
+            "example.com");
+
+        Assert.Empty(records);
     }
 }
 

@@ -17,6 +17,8 @@ public static class DnsDesiredStateBuilder
     {
         var manual = await db.DnsRecords.AsNoTracking()
             .Where(x => x.ZoneId == zoneId && x.Enabled)
+            .ToListAsync(cancellationToken);
+        var manualSnapshots = manual
             .Select(x => new DnsRecordSnapshot(
                 x.ProviderRecordId,
                 x.Name,
@@ -24,13 +26,13 @@ public static class DnsDesiredStateBuilder
                 x.Value,
                 x.Ttl ?? defaultTtl,
                 true))
-            .ToListAsync(cancellationToken);
+            .ToList();
 
         var settings = await db.AppSettings.AsNoTracking().SingleOrDefaultAsync(cancellationToken);
         var rootDomain = settings?.RootDomain;
         if (string.IsNullOrWhiteSpace(rootDomain))
         {
-            return manual;
+            return manualSnapshots;
         }
 
         var generated = new List<DnsRecordSnapshot>();
@@ -39,7 +41,7 @@ public static class DnsDesiredStateBuilder
             .Select(h => new FirewallHostDnsTarget(
                 h.Id,
                 h.Name,
-                h.PublicIp ?? h.InternalTraefikIp ?? string.Empty,
+                h.PublicIp,
                 null,
                 JsonSerializer.Deserialize<List<string>>(h.ManagedSubnetsJson) ?? []))
             .ToList();
@@ -67,6 +69,7 @@ public static class DnsDesiredStateBuilder
                     resource.Name,
                     slug,
                     rootDomain,
+                    resource.Domain,
                     resource.FirewallHostId,
                     null,
                     pulseTarget),
@@ -79,8 +82,35 @@ public static class DnsDesiredStateBuilder
     }
 
     internal static IReadOnlyList<DnsRecordSnapshot> MergeRecords(
+        IReadOnlyList<DnsRecordEntity> manual,
+        IReadOnlyList<DnsRecordSnapshot> generated)
+    {
+        var preserveNames = manual
+            .Where(x => x.Ownership is DnsOwnershipNames.User or DnsOwnershipNames.Imported)
+            .Select(x => x.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var snapshots = manual
+            .Select(x => new DnsRecordSnapshot(
+                x.ProviderRecordId,
+                x.Name,
+                DnsRecordTypeMapping.Parse(x.Type),
+                x.Value,
+                x.Ttl,
+                true))
+            .ToList();
+
+        return MergeRecords(snapshots, generated, preserveNames);
+    }
+
+    internal static IReadOnlyList<DnsRecordSnapshot> MergeRecords(
         IReadOnlyList<DnsRecordSnapshot> manual,
         IReadOnlyList<DnsRecordSnapshot> generated)
+        => MergeRecords(manual, generated, manual.Select(x => x.Name).ToHashSet(StringComparer.OrdinalIgnoreCase));
+
+    private static IReadOnlyList<DnsRecordSnapshot> MergeRecords(
+        IReadOnlyList<DnsRecordSnapshot> manual,
+        IReadOnlyList<DnsRecordSnapshot> generated,
+        HashSet<string> preservedManualNames)
     {
         var merged = new Dictionary<string, DnsRecordSnapshot>(StringComparer.OrdinalIgnoreCase);
         foreach (var record in manual)
@@ -90,6 +120,11 @@ public static class DnsDesiredStateBuilder
 
         foreach (var record in generated)
         {
+            if (preservedManualNames.Contains(record.Name))
+            {
+                continue;
+            }
+
             var conflicting = merged.Keys
                 .Where(k => k.StartsWith($"{record.Name}|", StringComparison.OrdinalIgnoreCase))
                 .ToList();

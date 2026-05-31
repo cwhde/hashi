@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { api, ApiRequestError } from '$lib/api/client';
+	import { CONNECTION_TYPES } from '$lib/api/connection-types';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -29,7 +30,7 @@
 	function sshBody() {
 		return {
 			name,
-			connectionType: 'firewall',
+			connectionType: CONNECTION_TYPES.firewallHost,
 			host,
 			port: 22,
 			username: sshUser,

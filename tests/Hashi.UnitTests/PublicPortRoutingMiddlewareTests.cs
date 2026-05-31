@@ -11,9 +11,9 @@ namespace Hashi.UnitTests;
 public sealed class PublicPortRoutingMiddlewareTests
 {
     [Theory]
-    [InlineData(HashiPorts.PublicDashboard, "/api/public/apps")]
-    [InlineData(HashiPorts.PublicStatus, "/api/public/status")]
-    [InlineData(HashiPorts.PublicStatus, "/api/public/status/summary")]
+    [InlineData(HashiPorts.DefaultPublicDashboard, "/api/public/apps")]
+    [InlineData(HashiPorts.DefaultPublicStatus, "/api/public/status")]
+    [InlineData(HashiPorts.DefaultPublicStatus, "/api/public/status/summary")]
     public async Task Public_ports_allow_only_their_public_api_contract(int port, string path)
     {
         var (context, invoked) = await InvokeMiddlewareAsync(port, path);
@@ -23,12 +23,12 @@ public sealed class PublicPortRoutingMiddlewareTests
     }
 
     [Theory]
-    [InlineData(HashiPorts.PublicDashboard, "/api/resources")]
-    [InlineData(HashiPorts.PublicDashboard, "/api/public/status")]
-    [InlineData(HashiPorts.PublicDashboard, "/openapi/v1.json")]
-    [InlineData(HashiPorts.PublicStatus, "/api/resources")]
-    [InlineData(HashiPorts.PublicStatus, "/api/public/apps")]
-    [InlineData(HashiPorts.PublicStatus, "/openapi/v1.json")]
+    [InlineData(HashiPorts.DefaultPublicDashboard, "/api/resources")]
+    [InlineData(HashiPorts.DefaultPublicDashboard, "/api/public/status")]
+    [InlineData(HashiPorts.DefaultPublicDashboard, "/openapi/v1.json")]
+    [InlineData(HashiPorts.DefaultPublicStatus, "/api/resources")]
+    [InlineData(HashiPorts.DefaultPublicStatus, "/api/public/apps")]
+    [InlineData(HashiPorts.DefaultPublicStatus, "/openapi/v1.json")]
     public async Task Public_ports_block_admin_and_cross_port_api_paths(int port, string path)
     {
         var (context, invoked) = await InvokeMiddlewareAsync(port, path);
@@ -41,11 +41,11 @@ public sealed class PublicPortRoutingMiddlewareTests
     public async Task Disabled_public_dashboard_blocks_page_and_public_api()
     {
         var (pageContext, pageInvoked) = await InvokeMiddlewareAsync(
-            HashiPorts.PublicDashboard,
+            HashiPorts.DefaultPublicDashboard,
             "/",
             configureSettings: s => s.PublicDashboardEnabled = false);
         var (apiContext, apiInvoked) = await InvokeMiddlewareAsync(
-            HashiPorts.PublicDashboard,
+            HashiPorts.DefaultPublicDashboard,
             "/api/public/apps",
             configureSettings: s => s.PublicDashboardEnabled = false);
 
@@ -59,11 +59,11 @@ public sealed class PublicPortRoutingMiddlewareTests
     public async Task Disabled_public_status_blocks_page_and_public_api()
     {
         var (pageContext, pageInvoked) = await InvokeMiddlewareAsync(
-            HashiPorts.PublicStatus,
+            HashiPorts.DefaultPublicStatus,
             "/",
             configureSettings: s => s.PublicStatusEnabled = false);
         var (apiContext, apiInvoked) = await InvokeMiddlewareAsync(
-            HashiPorts.PublicStatus,
+            HashiPorts.DefaultPublicStatus,
             "/api/public/status",
             configureSettings: s => s.PublicStatusEnabled = false);
 
@@ -73,10 +73,35 @@ public sealed class PublicPortRoutingMiddlewareTests
         Assert.Equal(StatusCodes.Status404NotFound, apiContext.Response.StatusCode);
     }
 
+    [Fact]
+    public async Task Public_ports_honor_configured_port_values()
+    {
+        var ports = new HashiPortOptions
+        {
+            Admin = 9080,
+            PublicDashboard = 9081,
+            PublicStatus = 9082,
+        };
+        var (dashboardContext, dashboardInvoked) = await InvokeMiddlewareAsync(
+            9081,
+            "/api/public/apps",
+            ports: ports);
+        var (oldDashboardContext, oldDashboardInvoked) = await InvokeMiddlewareAsync(
+            HashiPorts.DefaultPublicDashboard,
+            "/api/resources",
+            ports: ports);
+
+        Assert.True(dashboardInvoked);
+        Assert.Equal(StatusCodes.Status204NoContent, dashboardContext.Response.StatusCode);
+        Assert.True(oldDashboardInvoked);
+        Assert.Equal(StatusCodes.Status204NoContent, oldDashboardContext.Response.StatusCode);
+    }
+
     private static async Task<(DefaultHttpContext Context, bool Invoked)> InvokeMiddlewareAsync(
         int port,
         string path,
-        Action<AppSettingsEntity>? configureSettings = null)
+        Action<AppSettingsEntity>? configureSettings = null,
+        HashiPortOptions? ports = null)
     {
         await using var db = CreateDb();
         var settings = new AppSettingsService(db);
@@ -96,7 +121,7 @@ public sealed class PublicPortRoutingMiddlewareTests
             return Task.CompletedTask;
         });
 
-        await middleware.InvokeAsync(context, settings);
+        await middleware.InvokeAsync(context, settings, ports ?? new HashiPortOptions());
         return (context, invoked);
     }
 

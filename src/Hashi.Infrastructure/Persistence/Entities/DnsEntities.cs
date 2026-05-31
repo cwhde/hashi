@@ -1,3 +1,5 @@
+using Hashi.Contracts.Api;
+
 namespace Hashi.Infrastructure.Persistence.Entities;
 
 public sealed class ConnectionEntity
@@ -156,9 +158,9 @@ public sealed class DnsImportDecisionEntity
 
 public static class ConnectionTypeNames
 {
-    public const string DnsProvider = "dns_provider";
-    public const string TraefikHost = "traefik_host";
-    public const string FirewallHost = "firewall_host";
+    public const string DnsProvider = ConnectionTypeContractNames.DnsProvider;
+    public const string TraefikHost = ConnectionTypeContractNames.TraefikHost;
+    public const string FirewallHost = ConnectionTypeContractNames.FirewallHost;
 }
 
 public static class ConnectionHealthStateNames

@@ -5,7 +5,24 @@
     "description": "Hashi V2 admin and edge API. Frontend clients must consume this contract only.",
     "version": "2.0.0-alpha"
   },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:5099/"
+    }
+  ],
   "paths": {
+    "/hashi-runtime-config.js": {
+      "get": {
+        "tags": [
+          "Hashi.Api"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/health": {
       "get": {
         "tags": [
@@ -523,6 +540,144 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/EdgeSsoSettingsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/dashboard": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardSettingsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Settings"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DashboardSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardSettingsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/categories/{category}": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "parameters": [
+          {
+            "name": "category",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategorySettingsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Settings"
+        ],
+        "parameters": [
+          {
+            "name": "category",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategorySettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategorySettingsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
                 }
               }
             }
@@ -1153,6 +1308,28 @@
         }
       }
     },
+    "/api/dns/zones": {
+      "get": {
+        "tags": [
+          "DNS"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DnsZoneResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/dns/connections/{connectionId}/import/preview": {
       "post": {
         "tags": [
@@ -1363,6 +1540,80 @@
                 }
               }
             }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "DNS"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertDnsRecordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/dns/records/{recordId}": {
+      "put": {
+        "tags": [
+          "DNS"
+        ],
+        "parameters": [
+          {
+            "name": "recordId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertDnsRecordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "DNS"
+        ],
+        "parameters": [
+          {
+            "name": "recordId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
           }
         }
       }
@@ -2197,6 +2448,94 @@
                 }
               }
             }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Status"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMonitorEndpointRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonitorEndpointResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/status/endpoints/{endpointId}": {
+      "put": {
+        "tags": [
+          "Status"
+        ],
+        "parameters": [
+          {
+            "name": "endpointId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMonitorEndpointRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonitorEndpointResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Status"
+        ],
+        "parameters": [
+          {
+            "name": "endpointId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
           }
         }
       }
@@ -3756,7 +4095,14 @@
         "type": "object",
         "properties": {
           "rewrite": {
-            "$ref": "#/components/schemas/AdGuardRewriteResponse"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AdGuardRewriteResponse"
+              }
+            ]
           },
           "plan": {
             "$ref": "#/components/schemas/AdGuardRewritePlanResponse"
@@ -3831,10 +4177,7 @@
           "answer",
           "managedByHashi"
         ],
-        "type": [
-          "null",
-          "object"
-        ],
+        "type": "object",
         "properties": {
           "id": {
             "type": "string",
@@ -3883,6 +4226,17 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "ApiErrorResponse": {
+        "required": [
+          "error"
+        ],
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
           }
         }
       },
@@ -4071,6 +4425,43 @@
           },
           "password": {
             "type": "string"
+          }
+        }
+      },
+      "CategorySettingsRequest": {
+        "required": [
+          "settingsJson"
+        ],
+        "type": "object",
+        "properties": {
+          "settingsJson": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "CategorySettingsResponse": {
+        "required": [
+          "category",
+          "settingsJson",
+          "updatedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "settingsJson": {
+            "type": "string"
+          },
+          "updatedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },
@@ -4406,6 +4797,29 @@
           }
         }
       },
+      "CreateMonitorEndpointRequest": {
+        "required": [
+          "name",
+          "url",
+          "checkType"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "checkType": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": true
+          }
+        }
+      },
       "CreateNotificationProviderRequest": {
         "required": [
           "name",
@@ -4728,6 +5142,39 @@
           }
         }
       },
+      "DashboardSettingsRequest": {
+        "required": [
+          "overviewWidgetsJson"
+        ],
+        "type": "object",
+        "properties": {
+          "overviewWidgetsJson": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "DashboardSettingsResponse": {
+        "required": [
+          "overviewWidgetsJson",
+          "updatedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "overviewWidgetsJson": {
+            "type": "string"
+          },
+          "updatedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
       "DnsImportApplyRequest": {
         "required": [
           "selectedDecisionIds"
@@ -4847,6 +5294,7 @@
       "DnsRecordResponse": {
         "required": [
           "id",
+          "zoneId",
           "name",
           "type",
           "value",
@@ -4857,6 +5305,10 @@
         "type": "object",
         "properties": {
           "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "zoneId": {
             "type": "string",
             "format": "uuid"
           },
@@ -4947,6 +5399,40 @@
         "properties": {
           "confirmDryRun": {
             "type": "boolean"
+          }
+        }
+      },
+      "DnsZoneResponse": {
+        "required": [
+          "id",
+          "connectionId",
+          "providerZoneId",
+          "name",
+          "defaultTtl"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "connectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "providerZoneId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "defaultTtl": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         }
       },
@@ -7055,7 +7541,21 @@
           }
         }
       },
-      "SecurityFilterOption": { },
+      "SecurityFilterOption": {
+        "required": [
+          "value",
+          "label"
+        ],
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        }
+      },
       "SecurityFirewallHostOption": {
         "required": [
           "id",
@@ -7080,7 +7580,26 @@
           }
         }
       },
-      "SecurityRankItem": { },
+      "SecurityRankItem": {
+        "required": [
+          "label",
+          "count"
+        ],
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        }
+      },
       "SecurityRecentEventItem": {
         "required": [
           "occurredAtUtc",
@@ -7617,10 +8136,7 @@
           "securityYaml",
           "healthYaml"
         ],
-        "type": [
-          "null",
-          "object"
-        ],
+        "type": "object",
         "properties": {
           "coreYaml": {
             "type": "string"
@@ -7833,7 +8349,14 @@
             "type": "string"
           },
           "dynamicFiles": {
-            "$ref": "#/components/schemas/TraefikDynamicFilesResponse"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TraefikDynamicFilesResponse"
+              }
+            ]
           }
         }
       },
@@ -8066,6 +8589,35 @@
               "string"
             ],
             "format": "int32"
+          }
+        }
+      },
+      "UpdateMonitorEndpointRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "url": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "checkType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "enabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           }
         }
       },
@@ -8413,6 +8965,44 @@
           }
         }
       },
+      "UpsertDnsRecordRequest": {
+        "required": [
+          "zoneId",
+          "name",
+          "type",
+          "value",
+          "ttl",
+          "enabled"
+        ],
+        "type": "object",
+        "properties": {
+          "zoneId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "ttl": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
       "VaultGenerateRecoveryKeyResponse": {
         "required": [
           "recoveryKey"
@@ -8510,6 +9100,9 @@
     }
   },
   "tags": [
+    {
+      "name": "Hashi.Api"
+    },
     {
       "name": "Health"
     },
