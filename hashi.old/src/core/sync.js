@@ -114,16 +114,28 @@ export class DNSSync {
 
     const extractLocations = (subdomain, resourceName) => {
       const locations = new Set();
+      
+      const isValidLocation = (loc) => {
+        // Matches standard region codes like fra1, zrh1, ams1, nyc3 (3 letters followed by digits)
+        return /^[a-z]{3}\d+$/.test(loc);
+      };
+
       if (subdomain) {
         const parts = subdomain.split('.');
         if (parts.length > 1) {
-          locations.add(parts[0].toLowerCase());
+          const loc = parts[0].toLowerCase();
+          if (isValidLocation(loc)) {
+            locations.add(loc);
+          }
         }
       }
       if (resourceName) {
         const match = resourceName.match(/\(([^)]+)\)/);
         if (match) {
-          locations.add(match[1].toLowerCase());
+          const loc = match[1].toLowerCase();
+          if (isValidLocation(loc)) {
+            locations.add(loc);
+          }
         }
       }
       return Array.from(locations);
