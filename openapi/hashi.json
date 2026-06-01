@@ -4203,7 +4203,8 @@
           "id",
           "domain",
           "answer",
-          "managedByHashi"
+          "managedByHashi",
+          "source"
         ],
         "type": "object",
         "properties": {
@@ -4219,6 +4220,9 @@
           },
           "managedByHashi": {
             "type": "boolean"
+          },
+          "source": {
+            "type": "string"
           }
         }
       },

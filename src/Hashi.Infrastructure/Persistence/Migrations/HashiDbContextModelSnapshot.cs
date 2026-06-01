@@ -166,6 +166,11 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.Property<string>("ProviderRewriteId")
                         .HasColumnType("text");
 
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ConnectionId", "Domain")

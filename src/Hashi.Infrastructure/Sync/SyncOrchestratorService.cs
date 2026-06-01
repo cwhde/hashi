@@ -321,7 +321,18 @@ public sealed class SyncOrchestratorService(
             var adguardConnections = await db.AdGuardConnections.ToListAsync(cancellationToken);
             foreach (var connection in adguardConnections)
             {
-                var result = await adguard.SyncManagedRewritesAsync(connection.Id, cancellationToken);
+                var plan = await adguard.PlanSyncAsync(connection.Id, updateTopologyDesiredState: true, cancellationToken: cancellationToken);
+                if (plan.RequiresConfirmation && !confirmDestructive)
+                {
+                    await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.AwaitingConfirmation, SyncRiskLevel.Destructive, "Destructive AdGuard changes require confirmation.", cancellationToken);
+                    return new SyncApplyResponse(run.Id, false, SyncRunStatusNames.AwaitingConfirmation, "Destructive AdGuard changes require confirmation.");
+                }
+
+                var result = await adguard.ApplyPlanAsync(
+                    connection.Id,
+                    new AdGuardRewriteApplyRequest(plan.PlanId, confirmDestructive),
+                    updateTopologyDesiredState: true,
+                    cancellationToken: cancellationToken);
                 if (!result.Succeeded)
                 {
                     await syncRuns.AddStepAsync(run.Id, $"adguard-sync-{connection.Name}", SyncRunStatusNames.Failed, result.Message, cancellationToken);
@@ -422,7 +433,43 @@ public sealed class SyncOrchestratorService(
             var adguardConnections = await db.AdGuardConnections.ToListAsync(cancellationToken);
             foreach (var connection in adguardConnections)
             {
-                await adguard.SyncManagedRewritesAsync(connection.Id, cancellationToken);
+                var plan = await adguard.PlanSyncAsync(connection.Id, updateTopologyDesiredState: true, cancellationToken: cancellationToken);
+                var adguardChanges = plan.Changes
+                    .Select(x => new ProviderChange("adguard-rewrite", x.Domain, MapAdGuardKind(x.Kind), x.Summary))
+                    .ToList();
+                if (adguardChanges.Count > 0)
+                {
+                    await syncRuns.AddDiffsAsync(run.Id, adguardChanges, cancellationToken);
+                }
+
+                if (plan.RequiresConfirmation)
+                {
+                    hasPendingDestructive = true;
+                    await adguard.ApplyPlanAsync(
+                        connection.Id,
+                        new AdGuardRewriteApplyRequest(plan.PlanId, ConfirmDestructive: false),
+                        updateTopologyDesiredState: true,
+                        cancellationToken: cancellationToken);
+                    await syncRuns.AddStepAsync(
+                        run.Id,
+                        $"adguard-reconcile-{connection.Name}",
+                        SyncRunStatusNames.Succeeded,
+                        "Destructive changes pending confirmation.",
+                        cancellationToken);
+                }
+                else if (plan.Changes.Count > 0)
+                {
+                    await adguard.ApplyPlanAsync(
+                        connection.Id,
+                        new AdGuardRewriteApplyRequest(plan.PlanId, ConfirmDestructive: false),
+                        updateTopologyDesiredState: true,
+                        cancellationToken: cancellationToken);
+                    await syncRuns.AddStepAsync(run.Id, $"adguard-reconcile-{connection.Name}", SyncRunStatusNames.Succeeded, "Applied", cancellationToken);
+                }
+                else
+                {
+                    await syncRuns.AddStepAsync(run.Id, $"adguard-reconcile-{connection.Name}", SyncRunStatusNames.Succeeded, "No changes", cancellationToken);
+                }
             }
 
             if (await db.FirewallHosts.AnyAsync(cancellationToken))
@@ -449,7 +496,7 @@ public sealed class SyncOrchestratorService(
                 run.Id,
                 hasPendingDestructive ? SyncRunStatusNames.AwaitingConfirmation : SyncRunStatusNames.Succeeded,
                 hasPendingDestructive ? SyncRiskLevel.Destructive : SyncRiskLevel.None,
-                hasPendingDestructive ? "Destructive DNS changes require confirmation." : null,
+                hasPendingDestructive ? "Destructive changes require confirmation." : null,
                 cancellationToken);
             return new SyncReconcileResponse(run.Id, true, subsystems);
         }
@@ -474,6 +521,14 @@ public sealed class SyncOrchestratorService(
         Core.Dns.DnsChangeKind.Create => ProviderResultKind.Created,
         Core.Dns.DnsChangeKind.Update => ProviderResultKind.Updated,
         Core.Dns.DnsChangeKind.Delete => ProviderResultKind.Deleted,
+        _ => ProviderResultKind.NoOp,
+    };
+
+    private static ProviderResultKind MapAdGuardKind(string kind) => kind switch
+    {
+        "create" => ProviderResultKind.Created,
+        "update" => ProviderResultKind.Updated,
+        "delete" => ProviderResultKind.Deleted,
         _ => ProviderResultKind.NoOp,
     };
 

@@ -841,7 +841,7 @@ public static class AdGuardEndpoints
         {
             try
             {
-                return TypedResults.Ok(await adguard.ApplyPlanAsync(connectionId, request, rewriteId, ct));
+                return TypedResults.Ok(await adguard.ApplyPlanAsync(connectionId, request, deleteRewriteId: rewriteId, cancellationToken: ct));
             }
             catch (InvalidOperationException ex)
             {
@@ -862,7 +862,7 @@ public static class AdGuardEndpoints
         {
             try
             {
-                return TypedResults.Ok(await adguard.ApplyPlanAsync(connectionId, request, cancellationToken: ct));
+                return TypedResults.Ok(await adguard.ApplyPlanAsync(connectionId, request, updateTopologyDesiredState: true, cancellationToken: ct));
             }
             catch (InvalidOperationException ex)
             {
@@ -873,7 +873,7 @@ public static class AdGuardEndpoints
         group.MapPost("/{connectionId:guid}/sync", async Task<IResult> (
             Guid connectionId,
             AdGuardSyncService adguard,
-            CancellationToken ct) => TypedResults.Ok(await adguard.SyncManagedRewritesAsync(connectionId, ct)))
+            CancellationToken ct) => TypedResults.Ok(await adguard.SyncManagedRewritesAsync(connectionId, cancellationToken: ct)))
             .Produces<AdGuardRewriteApplyResponse>(StatusCodes.Status200OK);
         return app;
     }
