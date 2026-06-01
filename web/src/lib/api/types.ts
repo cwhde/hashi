@@ -68,6 +68,7 @@ export type FirewallRenderResponse = Schemas['FirewallRenderResponse'];
 export type FirewallHost = Schemas['FirewallHostResponse'];
 
 export type MonitorEndpoint = Schemas['MonitorEndpointResponse'];
+export type UpdateMonitorEndpointRequest = Schemas['UpdateMonitorEndpointRequest'];
 export type MonitorRollup = Schemas['MonitorRollupResponse'];
 export type PublicStatusItem = Schemas['PublicStatusItemResponse'];
 export type PublicStatusStripBucket = Schemas['PublicStatusStripBucket'];

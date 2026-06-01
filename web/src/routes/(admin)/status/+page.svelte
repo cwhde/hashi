@@ -15,6 +15,7 @@
 		TableHeader,
 		TableRow
 	} from '$lib/components/ui/table';
+	import { Switch } from '$lib/components/ui/switch';
 	import { HeartPulse, Search } from 'lucide-svelte';
 
 	let endpoints = $state<MonitorEndpoint[]>([]);
@@ -24,6 +25,7 @@
 	let search = $state('');
 	let selectedId = $state<string | null>(null);
 	let hours = $state(1);
+	let savingPublicId = $state<string | null>(null);
 
 	$effect(() => {
 		void load();
@@ -76,6 +78,19 @@
 	});
 
 	const selectedEndpoint = $derived(endpoints.find((e) => e.id === selectedId) ?? null);
+
+	async function togglePublicStatus(endpoint: MonitorEndpoint, checked: boolean) {
+		savingPublicId = endpoint.id;
+		error = null;
+		try {
+			const updated = await api.updateStatusEndpoint(endpoint.id, { publicStatusEnabled: checked });
+			endpoints = endpoints.map((item) => (item.id === endpoint.id ? updated : item));
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Failed to update public status selection';
+		} finally {
+			savingPublicId = null;
+		}
+	}
 </script>
 
 <AdminSectionPage
@@ -130,6 +145,7 @@
 						<TableHead>Name</TableHead>
 						<TableHead>60 min</TableHead>
 						<TableHead>Status</TableHead>
+						<TableHead>Public</TableHead>
 						<TableHead>Latency</TableHead>
 						<TableHead>Last check</TableHead>
 					</TableRow>
@@ -145,6 +161,14 @@
 								<MonitorStatusStrip buckets={stripFor(endpoint.id)} />
 							</TableCell>
 							<TableCell>{endpoint.status}</TableCell>
+							<TableCell>
+								<Switch
+									checked={endpoint.publicStatusEnabled}
+									disabled={savingPublicId === endpoint.id}
+									onclick={(event) => event.stopPropagation()}
+									onCheckedChange={(checked) => void togglePublicStatus(endpoint, checked)}
+								/>
+							</TableCell>
 							<TableCell>{endpoint.lastLatencyMs ?? '—'} ms</TableCell>
 							<TableCell class="text-xs">
 								{endpoint.lastCheckedAtUtc
