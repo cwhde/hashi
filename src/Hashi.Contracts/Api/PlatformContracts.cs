@@ -22,7 +22,8 @@ public sealed record ResourceResponse(
     string WafMode,
     IReadOnlyList<string> ExtraMiddlewares,
     IReadOnlyList<ResourceRouteResponse> Routes,
-    IReadOnlyList<ResourceRuleResponse> Rules);
+    IReadOnlyList<ResourceRuleResponse> Rules,
+    IReadOnlyList<string> WafExclusions);
 
 public sealed record ResourceRouteResponse(
     Guid Id,
@@ -82,7 +83,8 @@ public sealed record CreateResourceRequest(
     string? WafMode = null,
     IReadOnlyList<string>? ExtraMiddlewares = null,
     IReadOnlyList<ResourceRouteRequest>? Routes = null,
-    IReadOnlyList<ResourceRuleRequest>? Rules = null);
+    IReadOnlyList<ResourceRuleRequest>? Rules = null,
+    IReadOnlyList<string>? WafExclusions = null);
 
 public sealed record UpdateResourceRequest(
     string? Name,
@@ -108,7 +110,9 @@ public sealed record UpdateResourceRequest(
     IReadOnlyList<string>? ExtraMiddlewares = null,
     bool ClearExtraMiddlewares = false,
     IReadOnlyList<ResourceRouteRequest>? Routes = null,
-    IReadOnlyList<ResourceRuleRequest>? Rules = null);
+    IReadOnlyList<ResourceRuleRequest>? Rules = null,
+    IReadOnlyList<string>? WafExclusions = null,
+    bool ClearWafExclusions = false);
 
 public sealed record TraefikDynamicFilesResponse(
     string CoreYaml,
@@ -522,6 +526,12 @@ public sealed record ForwardAuthDecisionIngestRequest(
     string Decision,
     string? CountryCode,
     string? Asn);
+
+public sealed record WafEventIngestRequest(
+    string ClientIp,
+    string Host,
+    string Path,
+    string Action);
 
 public sealed record ScriptResponse(
     Guid Id,

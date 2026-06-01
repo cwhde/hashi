@@ -569,6 +569,11 @@ public static class SecurityEndpoints
             await security.IngestAccessLogAsync(request, ct);
             return TypedResults.Ok(new { accepted = true });
         });
+        group.MapPost("/waf-events", async Task<IResult> (WafEventIngestRequest request, SecurityIngestionService security, CancellationToken ct) =>
+        {
+            await security.IngestWafEventAsync(request, ct);
+            return TypedResults.Ok(new { accepted = true });
+        });
         group.MapPost("/blocklist/sync", async Task<IResult> (SecurityIngestionService security, CancellationToken ct) =>
         {
             var result = await security.SyncBlocklistToAllFirewallsAsync(ct);

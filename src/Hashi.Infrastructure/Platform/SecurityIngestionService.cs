@@ -200,6 +200,16 @@ public sealed class SecurityIngestionService(
         await db.SaveChangesAsync(cancellationToken);
     }
 
+    public Task IngestWafEventAsync(
+        WafEventIngestRequest request,
+        CancellationToken cancellationToken = default)
+        => RecordWafEventAsync(
+            request.ClientIp,
+            request.Host,
+            string.IsNullOrWhiteSpace(request.Path) ? "/" : request.Path,
+            NormalizeWafAction(request.Action),
+            cancellationToken);
+
     public async Task<SecurityDashboardResponse> GetDashboardAsync(
         int hours = 24,
         string? resourceFilter = null,
@@ -450,6 +460,15 @@ public sealed class SecurityIngestionService(
 
     private static string NormalizeMethod(string? method)
         => string.IsNullOrWhiteSpace(method) ? "GET" : method.Trim().ToUpperInvariant();
+
+    private static string NormalizeWafAction(string? action)
+        => (action ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "block" or "blocked" or "deny" or "denied" => "blocked",
+            "detect" or "detected" or "match" or "matched" => "detected",
+            "" => "detected",
+            var normalized => normalized,
+        };
 
     private static string NormalizePathPrefix(string? pathPrefix, string path)
     {

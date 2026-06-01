@@ -75,6 +75,7 @@ public sealed class AdminApiAuthMiddlewareTests
     [InlineData("/api/settings/general", "GET")]
     [InlineData("/api/activity/audit", "GET")]
     [InlineData("/api/security/access-log", "POST")]
+    [InlineData("/api/security/waf-events", "POST")]
     [InlineData("/api/setup/steps/bootstrap-access/complete", "POST")]
     public async Task Anonymous_protected_endpoints_are_rejected_even_before_setup_completes(string path, string method)
     {

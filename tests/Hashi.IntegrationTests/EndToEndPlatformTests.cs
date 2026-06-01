@@ -4,6 +4,7 @@ using Hashi.Contracts.Api;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -120,6 +121,30 @@ public sealed class EndToEndPlatformTests : IAsyncLifetime
         var dashboard = await _client.GetFromJsonAsync<SecurityDashboardResponse>("/api/security/dashboard");
         Assert.NotNull(dashboard);
         Assert.True(dashboard.Allowed >= 0);
+    }
+
+    [Fact]
+    public async Task Waf_event_ingest_endpoint_records_security_event()
+    {
+        if (!_fixture.IsAvailable || _client is null || _factory is null)
+        {
+            return;
+        }
+
+        var request = await IntegrationTestAuth.CreateCsrfRequestAsync(
+            _client,
+            HttpMethod.Post,
+            "/api/security/waf-events",
+            JsonContent.Create(new WafEventIngestRequest("203.0.113.10", "app.example.com", "/admin", "deny")));
+
+        var response = await _client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<HashiDbContext>();
+        var stored = await db.SecurityEvents.SingleAsync(x => x.Category == "waf");
+        Assert.Equal("blocked", stored.Action);
+        Assert.Equal("203.0.113.10", stored.ClientIp);
     }
 
     [Fact]

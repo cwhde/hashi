@@ -410,10 +410,11 @@ public static class TraefikConfigRenderer
 
     private static string RenderSecurity(IReadOnlyList<ResourceDefinition> resources)
     {
-        var wafBlocks = string.Join('\n', resources
+        var middlewares = resources
             .Where(r => r.WafMode != WafMode.Off)
-            .Select(r => WafMiddlewareRenderer.RenderCorazaMiddleware(r.Slug, r.WafMode).TrimEnd()));
-        return string.IsNullOrEmpty(wafBlocks) ? "http:\n  middlewares: {}\n" : wafBlocks + "\n";
+            .Select(r => new WafMiddlewareDefinition(r.Slug, r.WafMode, r.WafExclusions))
+            .ToList();
+        return WafMiddlewareRenderer.RenderCorazaMiddlewares(middlewares);
     }
 
     private static IReadOnlyList<string> BuildResourceMiddlewares(

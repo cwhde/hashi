@@ -50,6 +50,28 @@ public sealed class TraefikConfigRendererTests
     }
 
     [Fact]
+    public void Render_multiple_waf_resources_uses_single_security_http_map_and_validates()
+    {
+        var resources = new List<ResourceDefinition>
+        {
+            new(Guid.NewGuid(), "App", "app", ResourceKind.Https, true, false, "app.example.com", "http", "10.0.0.2", 8080,
+                WafMode: WafMode.On, WafExclusions: ["SecRuleRemoveById 941100"]),
+            new(Guid.NewGuid(), "Admin", "admin", ResourceKind.Https, true, false, "admin.example.com", "http", "10.0.0.3", 8080,
+                WafMode: WafMode.DetectOnly, WafExclusions: ["SecRuleUpdateTargetById 942100 !ARGS:search"]),
+        };
+
+        var result = TraefikConfigRenderer.Render(resources);
+        var validation = TraefikConfigValidator.ValidateRender(result);
+
+        Assert.Equal(1, result.DynamicFiles.SecurityYaml.Split('\n').Count(line => line == "http:"));
+        Assert.Contains("app-waf:", result.DynamicFiles.SecurityYaml);
+        Assert.Contains("admin-waf:", result.DynamicFiles.SecurityYaml);
+        Assert.Contains("SecRuleRemoveById 941100", result.DynamicFiles.SecurityYaml);
+        Assert.Contains("SecRuleUpdateTargetById 942100 !ARGS:search", result.DynamicFiles.SecurityYaml);
+        Assert.True(validation.IsValid, string.Join("; ", validation.Errors));
+    }
+
+    [Fact]
     public void Render_omits_forward_auth_when_policy_off()
     {
         var resources = new List<ResourceDefinition>
@@ -149,6 +171,31 @@ public sealed class TraefikConfigRendererTests
         Assert.Contains("http://hashi.internal:19090/api/edge-auth/forward", render.DynamicFiles.CoreYaml);
         Assert.Contains("http://hashi.internal:19090/api/health", render.DynamicFiles.HealthYaml);
         Assert.DoesNotContain("127.0.0.1:8080", generated, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Platform_render_includes_persisted_waf_exclusions()
+    {
+        await using var db = CreateDb();
+        db.Resources.Add(new ResourceEntity
+        {
+            Name = "App",
+            Slug = "app",
+            Kind = "https",
+            Enabled = true,
+            Domain = "app.example.com",
+            TargetScheme = "http",
+            TargetHost = "10.0.0.2",
+            TargetPort = 8080,
+            WafMode = "on",
+            WafExclusionsJson = JsonSerializer.Serialize(new[] { "SecRuleRemoveById 941100" }),
+        });
+        await db.SaveChangesAsync();
+
+        var render = await TestPlatformHelpers.CreateTraefikPlatform(db).RenderAsync();
+
+        Assert.Contains("app-waf:", render.DynamicFiles.SecurityYaml);
+        Assert.Contains("SecRuleRemoveById 941100", render.DynamicFiles.SecurityYaml);
     }
 
     [Fact]

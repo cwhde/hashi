@@ -3982,6 +3982,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/security/waf-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["WafEventIngestRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/security/blocklist/sync": {
         parameters: {
             query?: never;
@@ -5458,6 +5495,7 @@ export interface components {
             extraMiddlewares?: null | string[];
             routes?: null | components["schemas"]["ResourceRouteRequest"][];
             rules?: null | components["schemas"]["ResourceRuleRequest"][];
+            wafExclusions?: null | string[];
         };
         CreateScriptRequest: {
             /** Format: uuid */
@@ -5884,6 +5922,7 @@ export interface components {
             extraMiddlewares: string[];
             routes: components["schemas"]["ResourceRouteResponse"][];
             rules: components["schemas"]["ResourceRuleResponse"][];
+            wafExclusions: string[];
         };
         ResourceRouteRequest: {
             enabled: boolean;
@@ -6365,6 +6404,9 @@ export interface components {
             clearExtraMiddlewares: boolean;
             routes?: null | components["schemas"]["ResourceRouteRequest"][];
             rules?: null | components["schemas"]["ResourceRuleRequest"][];
+            wafExclusions?: null | string[];
+            /** @default false */
+            clearWafExclusions: boolean;
         };
         UpdateScriptRequest: {
             name: null | string;
@@ -6417,6 +6459,12 @@ export interface components {
         };
         VaultUnlockRequest: {
             recoveryKey: string;
+        };
+        WafEventIngestRequest: {
+            clientIp: string;
+            host: string;
+            path: string;
+            action: string;
         };
     };
     responses: never;
