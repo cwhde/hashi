@@ -235,6 +235,7 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.Property(x => x.Name).HasMaxLength(256);
             entity.Property(x => x.Type).HasMaxLength(16);
             entity.Property(x => x.Ownership).HasMaxLength(32);
+            entity.Property(x => x.DashboardDisplayName).HasMaxLength(128);
             entity.HasOne(x => x.Zone).WithMany().HasForeignKey(x => x.ZoneId);
             entity.HasIndex(x => x.ZoneId);
         });

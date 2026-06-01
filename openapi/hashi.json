@@ -100,13 +100,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ResourceResponse"
-                  }
+                  "$ref": "#/components/schemas/PublicDashboardResponse"
                 }
               }
             }
+          },
+          "404": {
+            "description": "Not Found"
           }
         }
       }
@@ -5345,7 +5345,9 @@
           "value",
           "ttl",
           "ownership",
-          "enabled"
+          "enabled",
+          "dashboardEnabled",
+          "dashboardDisplayName"
         ],
         "type": "object",
         "properties": {
@@ -5380,6 +5382,15 @@
           },
           "enabled": {
             "type": "boolean"
+          },
+          "dashboardEnabled": {
+            "type": "boolean"
+          },
+          "dashboardDisplayName": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -6442,6 +6453,101 @@
           "createdAtUtc": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "PublicDashboardItemResponse": {
+        "required": [
+          "id",
+          "source",
+          "displayName",
+          "publicUrl",
+          "domain",
+          "status",
+          "lastLatencyMs"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "source": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "publicUrl": {
+            "type": "string"
+          },
+          "domain": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "lastLatencyMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "PublicDashboardResponse": {
+        "required": [
+          "items",
+          "hostsOnline",
+          "totalHosts",
+          "linuxFirewallHostsAvailable",
+          "totalLinuxFirewallHosts"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicDashboardItemResponse"
+            }
+          },
+          "hostsOnline": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "totalHosts": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "linuxFirewallHostsAvailable": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "totalLinuxFirewallHosts": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         }
       },
@@ -9075,6 +9181,16 @@
           },
           "enabled": {
             "type": "boolean"
+          },
+          "dashboardEnabled": {
+            "type": "boolean",
+            "default": false
+          },
+          "dashboardDisplayName": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

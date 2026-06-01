@@ -31,7 +31,9 @@ public sealed record UpsertDnsRecordRequest(
     string Type,
     string Value,
     int? Ttl,
-    bool Enabled);
+    bool Enabled,
+    bool DashboardEnabled = false,
+    string? DashboardDisplayName = null);
 
 public sealed record DnsRecordResponse(
     Guid Id,
@@ -41,7 +43,9 @@ public sealed record DnsRecordResponse(
     string Value,
     int? Ttl,
     string Ownership,
-    bool Enabled);
+    bool Enabled,
+    bool DashboardEnabled,
+    string? DashboardDisplayName);
 
 public sealed record DnsImportDecisionResponse(
     Guid Id,

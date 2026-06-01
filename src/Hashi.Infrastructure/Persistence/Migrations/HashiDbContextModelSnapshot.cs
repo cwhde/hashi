@@ -509,6 +509,13 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("DashboardDisplayName")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<bool>("DashboardEnabled")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("Enabled")
                         .HasColumnType("boolean");
 

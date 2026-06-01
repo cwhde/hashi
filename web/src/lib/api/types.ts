@@ -36,6 +36,8 @@ export type ManualDnsRecordRequest = {
 	value: string;
 	ttl: number | null;
 	enabled: boolean;
+	dashboardEnabled: boolean;
+	dashboardDisplayName: string | null;
 };
 export type DnsImportApplyRequest = Schemas['DnsImportApplyRequest'];
 export type DnsImportDecision = Schemas['DnsImportDecisionResponse'];
@@ -71,6 +73,8 @@ export type MonitorEndpoint = Schemas['MonitorEndpointResponse'];
 export type UpdateMonitorEndpointRequest = Schemas['UpdateMonitorEndpointRequest'];
 export type MonitorRollup = Schemas['MonitorRollupResponse'];
 export type PublicStatusItem = Schemas['PublicStatusItemResponse'];
+export type PublicDashboard = Schemas['PublicDashboardResponse'];
+export type PublicDashboardItem = Schemas['PublicDashboardItemResponse'];
 export type PublicStatusStripBucket = Schemas['PublicStatusStripBucket'];
 export type SecurityRankItem = { label: string; count: number };
 export type SecurityResourceEnforcementItem = {

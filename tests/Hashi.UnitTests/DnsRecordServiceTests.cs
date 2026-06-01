@@ -125,6 +125,40 @@ public sealed class DnsRecordServiceTests
         Assert.Contains("same name and type", ex.Message);
     }
 
+    [Fact]
+    public async Task Dashboard_selection_requires_display_name_for_manual_dns_record()
+    {
+        await using var db = CreateDb();
+        var zone = await SeedZoneAsync(db);
+        var service = CreateService(db);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.CreateManualAsync(
+                zone.Id,
+                "portal.example.com",
+                "A",
+                "203.0.113.10",
+                300,
+                true,
+                dashboardEnabled: true,
+                dashboardDisplayName: " "));
+
+        Assert.Contains("Dashboard display name is required", ex.Message);
+
+        var created = await service.CreateManualAsync(
+            zone.Id,
+            "portal.example.com",
+            "A",
+            "203.0.113.10",
+            300,
+            true,
+            dashboardEnabled: true,
+            dashboardDisplayName: " Portal ");
+
+        Assert.True(created.DashboardEnabled);
+        Assert.Equal("Portal", created.DashboardDisplayName);
+    }
+
     [Theory]
     [InlineData("MX", "10 mail1.example.com", "20 mail2.example.com")]
     [InlineData("TXT", "v=spf1 include:one.example.com", "v=spf1 include:two.example.com")]

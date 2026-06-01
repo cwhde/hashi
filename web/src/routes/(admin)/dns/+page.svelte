@@ -38,7 +38,9 @@
 		type: 'A',
 		value: '',
 		ttl: 300,
-		enabled: true
+		enabled: true,
+		dashboardEnabled: false,
+		dashboardDisplayName: ''
 	});
 	let form = $state({
 		name: 'hetzner-primary',
@@ -212,7 +214,9 @@
 			type: record.type,
 			value: record.value,
 			ttl: record.ttl ?? 300,
-			enabled: record.enabled
+			enabled: record.enabled,
+			dashboardEnabled: record.dashboardEnabled,
+			dashboardDisplayName: record.dashboardDisplayName ?? ''
 		};
 	}
 
@@ -224,7 +228,9 @@
 			type: 'A',
 			value: '',
 			ttl: 300,
-			enabled: true
+			enabled: true,
+			dashboardEnabled: false,
+			dashboardDisplayName: ''
 		};
 	}
 
@@ -236,7 +242,8 @@
 			const ttl = Number(recordForm.ttl);
 			const payload = {
 				...recordForm,
-				ttl: Number.isFinite(ttl) && ttl > 0 ? ttl : null
+				ttl: Number.isFinite(ttl) && ttl > 0 ? ttl : null,
+				dashboardDisplayName: recordForm.dashboardDisplayName.trim() || null
 			};
 			if (editingRecordId) {
 				await api.updateDnsRecord(editingRecordId, payload);
@@ -262,7 +269,9 @@
 				type: record.type,
 				value: record.value,
 				ttl: record.ttl ?? null,
-				enabled: !record.enabled
+				enabled: !record.enabled,
+				dashboardEnabled: record.dashboardEnabled,
+				dashboardDisplayName: record.dashboardDisplayName ?? null
 			});
 			await load();
 		} catch (e) {
@@ -378,6 +387,24 @@
 			<input type="checkbox" bind:checked={recordForm.enabled} />
 			Enabled
 		</label>
+		<div class="mt-3 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+			<div class="grid gap-1.5">
+				<Label for="manual-dashboard-name">Dashboard display name</Label>
+				<Input
+					id="manual-dashboard-name"
+					bind:value={recordForm.dashboardDisplayName}
+					placeholder="Customer portal"
+				/>
+			</div>
+			<label class="flex h-10 items-center gap-2 text-sm">
+				<input
+					type="checkbox"
+					bind:checked={recordForm.dashboardEnabled}
+					disabled={!recordForm.dashboardDisplayName.trim()}
+				/>
+				Show on dashboard
+			</label>
+		</div>
 	</PanelSection>
 
 	<PanelSection title="Connections" description="Provider connection health and sync actions.">
@@ -492,6 +519,7 @@
 							<TableHead>Value</TableHead>
 							<TableHead>TTL</TableHead>
 							<TableHead>Ownership</TableHead>
+							<TableHead>Dashboard</TableHead>
 							<TableHead>State</TableHead>
 							<TableHead>Actions</TableHead>
 						</TableRow>
@@ -504,6 +532,9 @@
 								<TableCell class="max-w-[14rem] truncate font-mono text-xs">{record.value}</TableCell>
 								<TableCell>{record.ttl ?? '—'}</TableCell>
 								<TableCell>{record.ownership}</TableCell>
+								<TableCell>
+									{record.dashboardEnabled ? (record.dashboardDisplayName ?? 'selected') : 'not shown'}
+								</TableCell>
 								<TableCell>{record.enabled ? 'enabled' : 'disabled'}</TableCell>
 								<TableCell class="space-x-2">
 									{#if record.ownership === 'user'}
