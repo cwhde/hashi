@@ -339,6 +339,22 @@ public sealed record PublicStatusSummaryResponse(
     int FirewallHostCount,
     int FirewallHostsApplied);
 
+public sealed record PublicDashboardResponse(
+    IReadOnlyList<PublicDashboardItemResponse> Items,
+    int HostsOnline,
+    int TotalHosts,
+    int LinuxFirewallHostsAvailable,
+    int TotalLinuxFirewallHosts);
+
+public sealed record PublicDashboardItemResponse(
+    Guid Id,
+    string Source,
+    string DisplayName,
+    string PublicUrl,
+    string? Domain,
+    string Status,
+    int? LastLatencyMs);
+
 public sealed record MonitorEventResponse(
     Guid Id,
     Guid MonitorEndpointId,

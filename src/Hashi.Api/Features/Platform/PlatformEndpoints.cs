@@ -355,20 +355,20 @@ public static class PublicEndpoints
             .RequireCors("PublicRead")
             .Produces<PublicStatusSummaryResponse>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound);
-        app.MapGet("/api/public/apps", async (ResourceService resources, CancellationToken ct) =>
+        app.MapGet("/api/public/apps", async Task<IResult> (PublicDashboardService dashboard, CancellationToken ct) =>
         {
-            var items = await resources.ListAsync(ct);
-            var responses = new List<ResourceResponse>();
-            foreach (var item in items.Where(x => x.DashboardEnabled))
+            if (!await dashboard.IsPublicDashboardEnabledAsync(ct))
             {
-                responses.Add(await resources.ToResponseAsync(item, ct));
+                return TypedResults.NotFound();
             }
 
-            return TypedResults.Ok(responses);
+            return TypedResults.Ok(await dashboard.GetAsync(ct));
         })
             .WithTags("Public")
             .AllowAnonymous()
-            .RequireCors("PublicRead");
+            .RequireCors("PublicRead")
+            .Produces<PublicDashboardResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
         return app;
     }
 }

@@ -36,8 +36,11 @@ public sealed class DnsRecordService(HashiDbContext db, AuditService audit)
         string value,
         int? ttl,
         bool enabled,
+        bool dashboardEnabled = false,
+        string? dashboardDisplayName = null,
         CancellationToken cancellationToken = default)
     {
+        var displayName = NormalizeDashboardDisplayName(dashboardEnabled, dashboardDisplayName);
         var normalized = await ValidateAsync(zoneId, name, type, value, ttl, null, cancellationToken);
         var record = new DnsRecordEntity
         {
@@ -48,6 +51,8 @@ public sealed class DnsRecordService(HashiDbContext db, AuditService audit)
             Ttl = normalized.Ttl,
             Enabled = enabled,
             Ownership = DnsOwnershipNames.User,
+            DashboardEnabled = dashboardEnabled,
+            DashboardDisplayName = displayName,
         };
         db.DnsRecords.Add(record);
         db.DnsRecordOwnership.Add(new DnsRecordOwnershipEntity
@@ -74,6 +79,8 @@ public sealed class DnsRecordService(HashiDbContext db, AuditService audit)
         string value,
         int? ttl,
         bool enabled,
+        bool dashboardEnabled = false,
+        string? dashboardDisplayName = null,
         CancellationToken cancellationToken = default)
     {
         var record = await GetMutableUserRecordAsync(recordId, cancellationToken);
@@ -82,6 +89,7 @@ public sealed class DnsRecordService(HashiDbContext db, AuditService audit)
             return null;
         }
 
+        var displayName = NormalizeDashboardDisplayName(dashboardEnabled, dashboardDisplayName);
         var normalized = await ValidateAsync(zoneId, name, type, value, ttl, recordId, cancellationToken);
         record.ZoneId = zoneId;
         record.Name = normalized.Name;
@@ -89,6 +97,8 @@ public sealed class DnsRecordService(HashiDbContext db, AuditService audit)
         record.Value = normalized.Value;
         record.Ttl = normalized.Ttl;
         record.Enabled = enabled;
+        record.DashboardEnabled = dashboardEnabled;
+        record.DashboardDisplayName = displayName;
         record.UpdatedAtUtc = DateTimeOffset.UtcNow;
 
         var ownership = await db.DnsRecordOwnership
@@ -205,6 +215,17 @@ public sealed class DnsRecordService(HashiDbContext db, AuditService audit)
         }
 
         return normalized;
+    }
+
+    private static string? NormalizeDashboardDisplayName(bool dashboardEnabled, string? displayName)
+    {
+        var normalized = displayName?.Trim();
+        if (dashboardEnabled && string.IsNullOrWhiteSpace(normalized))
+        {
+            throw new InvalidOperationException("Dashboard display name is required before a manual DNS record can be shown on the public dashboard.");
+        }
+
+        return string.IsNullOrWhiteSpace(normalized) ? null : normalized;
     }
 
     private static bool IsMultiValue(DnsRecordType type)

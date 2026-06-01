@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { api, ApiRequestError } from '$lib/api/client';
-	import type { Resource } from '$lib/api/types';
+	import type { PublicDashboard, PublicDashboardItem } from '$lib/api/types';
 	import AdminSectionPage from '$lib/components/layout/AdminSectionPage.svelte';
 	import PanelSection from '$lib/components/layout/PanelSection.svelte';
 	import {
@@ -13,14 +13,14 @@
 	} from '$lib/components/ui/table';
 	import { Monitor } from 'lucide-svelte';
 
-	let apps = $state<Resource[]>([]);
+	let dashboard = $state<PublicDashboard | null>(null);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 
 	$effect(() => {
 		void (async () => {
 			try {
-				apps = await api.getPublicApps();
+				dashboard = await api.getPublicApps();
 			} catch (e) {
 				error = e instanceof ApiRequestError ? e.message : 'Failed to load dashboard apps';
 			} finally {
@@ -28,6 +28,8 @@
 			}
 		})();
 	});
+
+	const apps = $derived((dashboard?.items ?? []) as PublicDashboardItem[]);
 </script>
 
 <AdminSectionPage
@@ -35,30 +37,30 @@
 	description="Public dashboard tiles, grouping, and port 8081 presentation."
 	icon={Monitor}
 >
-	<PanelSection title="Dashboard-enabled resources" description="Tiles served on /dashboard via /api/public/apps.">
+	<PanelSection title="Dashboard tiles" description="Safe tiles served on /dashboard via /api/public/apps.">
 		{#if loading}
-			<p class="text-sm text-muted-foreground">Loading…</p>
+			<p class="text-sm text-muted-foreground">Loading...</p>
 		{:else if error}
 			<p class="text-sm text-destructive">{error}</p>
 		{:else if apps.length === 0}
-			<p class="text-sm text-muted-foreground">No dashboard tiles enabled. Enable on Resources page.</p>
+			<p class="text-sm text-muted-foreground">No dashboard tiles enabled.</p>
 		{:else}
 			<Table>
 				<TableHeader>
 					<TableRow>
 						<TableHead>Display name</TableHead>
-						<TableHead>Domain</TableHead>
-						<TableHead>Target</TableHead>
+						<TableHead>Source</TableHead>
+						<TableHead>Public URL</TableHead>
+						<TableHead>Status</TableHead>
 					</TableRow>
 				</TableHeader>
 				<TableBody>
 					{#each apps as app (app.id)}
 						<TableRow>
-							<TableCell>{app.name}</TableCell>
-							<TableCell class="font-mono text-xs">{app.domain ?? '—'}</TableCell>
-							<TableCell class="font-mono text-xs">
-								{app.targetScheme}://{app.targetHost}:{app.targetPort}
-							</TableCell>
+							<TableCell>{app.displayName}</TableCell>
+							<TableCell>{app.source}</TableCell>
+							<TableCell class="font-mono text-xs">{app.publicUrl}</TableCell>
+							<TableCell>{app.status}</TableCell>
 						</TableRow>
 					{/each}
 				</TableBody>

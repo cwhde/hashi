@@ -178,8 +178,15 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ResourceResponse"][];
+                        "application/json": components["schemas"]["PublicDashboardResponse"];
                     };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
                 };
             };
         };
@@ -5588,6 +5595,8 @@ export interface components {
             ttl: null | number | string;
             ownership: string;
             enabled: boolean;
+            dashboardEnabled: boolean;
+            dashboardDisplayName: null | string;
         };
         DnsSyncApplyRequest: {
             /** Format: uuid */
@@ -5849,6 +5858,28 @@ export interface components {
             prfSupported: boolean;
             /** Format: date-time */
             createdAtUtc: string;
+        };
+        PublicDashboardItemResponse: {
+            /** Format: uuid */
+            id: string;
+            source: string;
+            displayName: string;
+            publicUrl: string;
+            domain: null | string;
+            status: string;
+            /** Format: int32 */
+            lastLatencyMs: null | number | string;
+        };
+        PublicDashboardResponse: {
+            items: components["schemas"]["PublicDashboardItemResponse"][];
+            /** Format: int32 */
+            hostsOnline: number | string;
+            /** Format: int32 */
+            totalHosts: number | string;
+            /** Format: int32 */
+            linuxFirewallHostsAvailable: number | string;
+            /** Format: int32 */
+            totalLinuxFirewallHosts: number | string;
         };
         PublicStatusItemResponse: {
             name: string;
@@ -6453,6 +6484,9 @@ export interface components {
             /** Format: int32 */
             ttl: null | number | string;
             enabled: boolean;
+            /** @default false */
+            dashboardEnabled: boolean;
+            dashboardDisplayName?: null | string;
         };
         VaultGenerateRecoveryKeyResponse: {
             recoveryKey: string;

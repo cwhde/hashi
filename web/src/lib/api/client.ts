@@ -627,7 +627,7 @@ export const api = {
 	},
 	getPublicApps: async () => {
 		const r = await client.GET('/api/public/apps');
-		return expectData(r.response, r.error, r.data ?? []);
+		return expectData(r.response, r.error, r.data) as Promise<import('./types.js').PublicDashboard>;
 	},
 	getPublicStatus: async () => {
 		const r = await client.GET('/api/public/status');
