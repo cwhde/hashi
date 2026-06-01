@@ -11,6 +11,16 @@ namespace Hashi.IntegrationTests;
 
 internal static class IntegrationTestApp
 {
+    public static WebApplicationFactoryClientOptions HttpsClientOptions(
+        bool handleCookies = true,
+        bool allowAutoRedirect = true)
+        => new()
+        {
+            BaseAddress = new Uri("https://localhost"),
+            HandleCookies = handleCookies,
+            AllowAutoRedirect = allowAutoRedirect,
+        };
+
     public static WebApplicationFactory<Program> CreateFactory(string connectionString)
         => new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>

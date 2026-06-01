@@ -31,11 +31,7 @@ public sealed class EndToEndPlatformTests : IAsyncLifetime
         Environment.SetEnvironmentVariable("HASHI_SKIP_STARTUP_HOOKS", "1");
         var connectionString = await _fixture.CreateDatabaseAsync();
         _factory = IntegrationTestApp.CreateFactory(connectionString);
-        _client = _factory.CreateClient(new WebApplicationFactoryClientOptions
-        {
-            HandleCookies = true,
-            AllowAutoRedirect = false,
-        });
+        _client = _factory.CreateClient(IntegrationTestApp.HttpsClientOptions(allowAutoRedirect: false));
         await IntegrationTestAuth.EnsureBootstrapCredentialsAsync(_factory.Services);
         await IntegrationTestAuth.AuthenticateAsBootstrapAsync(_client);
     }
@@ -47,6 +43,36 @@ public sealed class EndToEndPlatformTests : IAsyncLifetime
         {
             await _factory.DisposeAsync();
         }
+    }
+
+    [Fact]
+    public async Task Admin_login_and_csrf_cookies_are_secure()
+    {
+        if (!_fixture.IsAvailable || _factory is null)
+        {
+            return;
+        }
+
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("http://localhost"),
+            HandleCookies = false,
+            AllowAutoRedirect = false,
+        });
+
+        var csrf = await client.GetAsync("/api/auth/csrf");
+        csrf.EnsureSuccessStatusCode();
+        AssertSetCookieFlag(csrf, "hashi.csrf", "Secure");
+        AssertSetCookieFlag(csrf, "hashi.csrf", "HttpOnly");
+
+        var login = await client.PostAsJsonAsync("/api/auth/bootstrap/login", new
+        {
+            username = IntegrationTestAuth.Username,
+            password = IntegrationTestAuth.Password,
+        });
+        login.EnsureSuccessStatusCode();
+        AssertSetCookieFlag(login, "hashi.session", "Secure");
+        AssertSetCookieFlag(login, "hashi.session", "HttpOnly");
     }
 
     [Fact]
@@ -183,4 +209,21 @@ public sealed class EndToEndPlatformTests : IAsyncLifetime
     }
 
     private sealed record CsrfToken(string? Token);
+
+    private static void AssertSetCookieFlag(HttpResponseMessage response, string cookieName, string flag)
+    {
+        var cookie = GetSetCookie(response, cookieName);
+        Assert.Contains(
+            cookie.Split(';', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries),
+            value => string.Equals(value, flag, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string GetSetCookie(HttpResponseMessage response, string cookieName)
+    {
+        Assert.True(response.Headers.TryGetValues("Set-Cookie", out var values));
+        var cookie = values.FirstOrDefault(value =>
+            value.StartsWith($"{cookieName}=", StringComparison.OrdinalIgnoreCase));
+        Assert.NotNull(cookie);
+        return cookie;
+    }
 }

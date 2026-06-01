@@ -27,7 +27,7 @@ public sealed class VaultStatusTests : IAsyncLifetime
 
         var connectionString = await _fixture.CreateDatabaseAsync();
         _factory = IntegrationTestApp.CreateFactory(connectionString);
-        _client = _factory.CreateClient();
+        _client = _factory.CreateClient(IntegrationTestApp.HttpsClientOptions());
         await IntegrationTestAuth.EnsureBootstrapCredentialsAsync(_factory.Services);
         await IntegrationTestAuth.AuthenticateAsBootstrapAsync(_client);
     }

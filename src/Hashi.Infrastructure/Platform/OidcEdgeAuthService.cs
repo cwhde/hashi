@@ -300,7 +300,7 @@ public sealed class OidcEdgeAuthService(
         var cookie = new CookieOptions
         {
             HttpOnly = true,
-            Secure = context.Request.IsHttps,
+            Secure = true,
             SameSite = SameSiteMode.Lax,
             Expires = expires,
         };

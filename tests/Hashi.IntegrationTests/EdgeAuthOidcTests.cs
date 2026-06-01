@@ -33,11 +33,7 @@ public sealed class EdgeAuthOidcTests : IAsyncLifetime
         Environment.SetEnvironmentVariable("HASHI_SKIP_STARTUP_HOOKS", "1");
         var connectionString = await _fixture.CreateDatabaseAsync();
         _factory = IntegrationTestApp.CreateFactory(connectionString);
-        _client = _factory.CreateClient(new WebApplicationFactoryClientOptions
-        {
-            HandleCookies = true,
-            AllowAutoRedirect = false,
-        });
+        _client = _factory.CreateClient(IntegrationTestApp.HttpsClientOptions(allowAutoRedirect: false));
 
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<HashiDbContext>();
@@ -99,9 +95,41 @@ public sealed class EdgeAuthOidcTests : IAsyncLifetime
         var callback = await _client.GetAsync(
             $"/api/edge-auth/callback?providerId={provider.Id}&code=subject:test-user&state={Uri.EscapeDataString(state)}");
         Assert.Equal(HttpStatusCode.Redirect, callback.StatusCode);
+        AssertSetCookieFlag(callback, "hashi.edge.session", "Secure");
+        AssertSetCookieFlag(callback, "hashi.edge.session", "HttpOnly");
 
         var forward = await _client.GetAsync("/api/edge-auth/forward");
         Assert.Equal(HttpStatusCode.NoContent, forward.StatusCode);
+    }
+
+    [Fact]
+    public async Task Callback_cookie_is_secure_even_when_request_scheme_is_http()
+    {
+        if (!_fixture.IsAvailable || _factory is null)
+        {
+            return;
+        }
+
+        using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("http://localhost"),
+            HandleCookies = false,
+            AllowAutoRedirect = false,
+        });
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<HashiDbContext>();
+        var provider = await db.OidcProviders.SingleAsync();
+
+        var login = await client.GetAsync($"/api/edge-auth/login?providerId={provider.Id}&returnUrl=%2F");
+        Assert.Equal(HttpStatusCode.Redirect, login.StatusCode);
+        var state = GetQueryValue(login.Headers.Location!, "state");
+
+        var callback = await client.GetAsync(
+            $"/api/edge-auth/callback?providerId={provider.Id}&code=subject:http-user&state={Uri.EscapeDataString(state)}");
+
+        Assert.Equal(HttpStatusCode.Redirect, callback.StatusCode);
+        AssertSetCookieFlag(callback, "hashi.edge.session", "Secure");
+        AssertSetCookieFlag(callback, "hashi.edge.session", "HttpOnly");
     }
 
     [Fact]
@@ -135,5 +163,16 @@ public sealed class EdgeAuthOidcTests : IAsyncLifetime
         }
 
         throw new InvalidOperationException($"Missing query value '{key}'.");
+    }
+
+    private static void AssertSetCookieFlag(HttpResponseMessage response, string cookieName, string flag)
+    {
+        Assert.True(response.Headers.TryGetValues("Set-Cookie", out var values));
+        var cookie = values.FirstOrDefault(value =>
+            value.StartsWith($"{cookieName}=", StringComparison.OrdinalIgnoreCase));
+        Assert.NotNull(cookie);
+        Assert.Contains(
+            cookie.Split(';', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries),
+            value => string.Equals(value, flag, StringComparison.OrdinalIgnoreCase));
     }
 }
