@@ -57,7 +57,7 @@ public sealed class EndToEndPlatformTests : IAsyncLifetime
 
         using var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
         {
-            BaseAddress = new Uri("http://localhost"),
+            BaseAddress = new Uri("https://localhost"),
             HandleCookies = false,
             AllowAutoRedirect = false,
         });
