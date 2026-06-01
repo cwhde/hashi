@@ -112,33 +112,42 @@ public static class DnsDesiredStateBuilder
         IReadOnlyList<DnsRecordSnapshot> generated,
         HashSet<string> preservedManualNames)
     {
-        var merged = new Dictionary<string, DnsRecordSnapshot>(StringComparer.OrdinalIgnoreCase);
+        var merged = new List<DnsRecordSnapshot>();
         foreach (var record in manual)
         {
-            merged[Key(record)] = record;
+            merged.RemoveAll(x => string.Equals(Key(x), Key(record), StringComparison.OrdinalIgnoreCase));
+            merged.Add(record);
         }
 
         foreach (var record in generated)
         {
-            if (preservedManualNames.Contains(record.Name))
+            var managed = record with { IsManagedByHashi = true };
+            if (preservedManualNames.Contains(record.Name)
+                && manual.Any(x => string.Equals(Key(x), Key(record), StringComparison.OrdinalIgnoreCase)))
             {
+                merged.Add(managed);
                 continue;
             }
 
-            var conflicting = merged.Keys
-                .Where(k => k.StartsWith($"{record.Name}|", StringComparison.OrdinalIgnoreCase))
-                .ToList();
-            foreach (var key in conflicting)
-            {
-                merged.Remove(key);
-            }
-
-            merged[Key(record)] = record with { IsManagedByHashi = true };
+            merged.RemoveAll(x => !IsPreservedManual(x, preservedManualNames)
+                && string.Equals(Key(x), Key(record), StringComparison.OrdinalIgnoreCase));
+            merged.Add(managed);
         }
 
-        return merged.Values.ToList();
+        return merged;
     }
 
     private static string Key(DnsRecordSnapshot record)
-        => $"{record.Name}|{record.Type}";
+    {
+        var key = $"{record.Name}|{record.Type}";
+        return IsMultiValue(record.Type)
+            ? $"{key}|{record.Value.Trim().TrimEnd('.')}"
+            : key;
+    }
+
+    private static bool IsPreservedManual(DnsRecordSnapshot record, HashSet<string> preservedManualNames)
+        => preservedManualNames.Contains(record.Name);
+
+    private static bool IsMultiValue(DnsRecordType type)
+        => type is DnsRecordType.Mx or DnsRecordType.Txt;
 }

@@ -76,7 +76,7 @@ public sealed class DnsRecordServiceTests
     }
 
     [Fact]
-    public async Task Generated_records_do_not_replace_user_or_imported_manual_names()
+    public async Task Generated_records_that_conflict_with_manual_names_remain_visible_for_planning()
     {
         await using var db = CreateDb();
         var zone = await SeedZoneAsync(db);
@@ -101,13 +101,18 @@ public sealed class DnsRecordServiceTests
         await db.SaveChangesAsync();
 
         var desired = await DnsDesiredStateBuilder.BuildAsync(db, zone.Id, zone.DefaultTtl);
+        var plan = DnsPlanner.BuildPlan([], desired);
 
         Assert.Contains(desired, x => x.Name == "app.example.com" && x.Value == "198.51.100.10");
-        Assert.DoesNotContain(desired, x => x.Name == "app.example.com" && x.Value == "203.0.113.20");
+        Assert.Contains(desired, x => x.Name == "app.example.com" && x.Value == "203.0.113.20");
+        Assert.Contains(plan, x =>
+            x.Kind == DnsChangeKind.NoOp
+            && x.Name == "app.example.com"
+            && x.RiskReason.Contains("conflict", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
-    public async Task Duplicate_enabled_manual_record_key_is_rejected()
+    public async Task Duplicate_enabled_single_value_manual_record_key_is_rejected()
     {
         await using var db = CreateDb();
         var zone = await SeedZoneAsync(db);
@@ -118,6 +123,44 @@ public sealed class DnsRecordServiceTests
             service.CreateManualAsync(zone.Id, "app.example.com", "A", "203.0.113.11", 300, true));
 
         Assert.Contains("same name and type", ex.Message);
+    }
+
+    [Theory]
+    [InlineData("MX", "10 mail1.example.com", "20 mail2.example.com")]
+    [InlineData("TXT", "v=spf1 include:one.example.com", "v=spf1 include:two.example.com")]
+    public async Task Multi_value_manual_record_types_allow_same_name_with_different_values(
+        string type,
+        string firstValue,
+        string secondValue)
+    {
+        await using var db = CreateDb();
+        var zone = await SeedZoneAsync(db);
+        var service = CreateService(db);
+
+        var first = await service.CreateManualAsync(zone.Id, "example.com", type, firstValue, 300, true);
+        var second = await service.CreateManualAsync(zone.Id, "example.com", type, secondValue, 300, true);
+
+        Assert.NotEqual(first.Id, second.Id);
+        var records = await db.DnsRecords.Where(x => x.Name == "example.com" && x.Type == type).ToListAsync();
+        Assert.Equal(2, records.Count);
+        Assert.Contains(records, x => x.Value == firstValue);
+        Assert.Contains(records, x => x.Value == secondValue);
+    }
+
+    [Theory]
+    [InlineData("MX", "10 mail1.example.com")]
+    [InlineData("TXT", "v=spf1 include:one.example.com")]
+    public async Task Multi_value_manual_record_types_reject_exact_duplicate_values(string type, string value)
+    {
+        await using var db = CreateDb();
+        var zone = await SeedZoneAsync(db);
+        var service = CreateService(db);
+        await service.CreateManualAsync(zone.Id, "example.com", type, value, 300, true);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.CreateManualAsync(zone.Id, "example.com", type, value, 300, true));
+
+        Assert.Contains("same name, type, and value", ex.Message);
     }
 
     private static HashiDbContext CreateDb()

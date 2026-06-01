@@ -174,16 +174,23 @@ public sealed class DnsRecordService(HashiDbContext db, AuditService audit)
         }
 
         var apiType = DnsRecordTypeMapping.ToApiName(parsedType);
-        var duplicate = await db.DnsRecords.AnyAsync(
+        var duplicateQuery = db.DnsRecords.Where(
             x => x.ZoneId == zoneId
                 && x.Id != existingId
                 && x.Enabled
                 && x.Name == normalizedName
-                && x.Type == apiType,
-            cancellationToken);
+                && x.Type == apiType);
+        if (IsMultiValue(parsedType))
+        {
+            duplicateQuery = duplicateQuery.Where(x => x.Value == normalizedValue);
+        }
+
+        var duplicate = await duplicateQuery.AnyAsync(cancellationToken);
         if (duplicate)
         {
-            throw new InvalidOperationException("A DNS record with the same name and type already exists in this zone.");
+            throw new InvalidOperationException(IsMultiValue(parsedType)
+                ? "A DNS record with the same name, type, and value already exists in this zone."
+                : "A DNS record with the same name and type already exists in this zone.");
         }
 
         return new ValidatedRecord(normalizedName, apiType, normalizedValue, ttl);
@@ -199,6 +206,9 @@ public sealed class DnsRecordService(HashiDbContext db, AuditService audit)
 
         return normalized;
     }
+
+    private static bool IsMultiValue(DnsRecordType type)
+        => type is DnsRecordType.Mx or DnsRecordType.Txt;
 
     private sealed record ValidatedRecord(string Name, string Type, string Value, int? Ttl);
 }
