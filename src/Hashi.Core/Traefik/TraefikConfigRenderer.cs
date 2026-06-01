@@ -474,6 +474,11 @@ public static class TraefikConfigRenderer
 
     private static string RenderAcmeBlock(TraefikRenderOptions options)
     {
+        if (string.IsNullOrWhiteSpace(options.DnsProviderName))
+        {
+            throw new InvalidOperationException("ACME DNS provider is required when ACME email is configured.");
+        }
+
         var eabBlock = string.IsNullOrWhiteSpace(options.AcmeEabKeyId) || string.IsNullOrWhiteSpace(options.AcmeEabHmac)
             ? string.Empty
             : $$"""
@@ -495,7 +500,7 @@ public static class TraefikConfigRenderer
                   storage: /var/lib/hashi/traefik/acme.json
                   caServer: https://dv.acme-v02.api.pki.goog/directory
                   dnsChallenge:
-                    provider: hetzner
+                    provider: {{options.DnsProviderName}}
                     delayBeforeCheck: {{options.DnsChallengeDelaySeconds}}s
                     resolvers:
             {{resolvers}}{{eabBlock}}

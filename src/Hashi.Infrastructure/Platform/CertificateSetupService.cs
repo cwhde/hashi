@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Hashi.Contracts.Api;
 using Hashi.Core.Auth;
 using Hashi.Core.Traefik;
@@ -10,6 +11,13 @@ using Hashi.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace Hashi.Infrastructure.Platform;
+
+public sealed class CertificateSetupValidationException(string message) : InvalidOperationException(message);
+
+public sealed record TraefikAcmeDnsCredential(
+    string ProviderName,
+    string EnvironmentVariable,
+    string Token);
 
 public sealed class CertificateSetupService(
     HashiDbContext db,
@@ -28,7 +36,10 @@ public sealed class CertificateSetupService(
             !string.IsNullOrWhiteSpace(keyId),
             appSettings.DnsChallengeDelaySeconds,
             resolvers,
-            HasDnsProvider: await db.Connections.AsNoTracking().AnyAsync(x => x.Type == "dns" && x.Enabled, cancellationToken));
+            HasDnsProvider: await db.Connections.AsNoTracking().AnyAsync(
+                x => x.Type == ConnectionTypeNames.DnsProvider && x.Enabled,
+                cancellationToken),
+            appSettings.AcmeDnsProviderConnectionId);
     }
 
     public async Task<CertificateSetupValidateResponse> ValidateAsync(
@@ -46,11 +57,11 @@ public sealed class CertificateSetupService(
             errors.Add("EAB key ID and HMAC are required for Google Trust Services.");
         }
 
-        var hasDns = await db.Connections.AsNoTracking().AnyAsync(x => x.Type == "dns" && x.Enabled, cancellationToken);
-        if (!hasDns)
-        {
-            errors.Add("Configure an enabled DNS provider connection before ACME setup.");
-        }
+        await ValidateDnsProviderBindingAsync(
+            request.DnsProviderConnectionId,
+            requireServiceSyncCredential: true,
+            errors,
+            cancellationToken);
 
         if (request.DnsChallengeDelaySeconds is < 0 or > 600)
         {
@@ -80,6 +91,7 @@ public sealed class CertificateSetupService(
 
         var appSettings = await settings.GetOrCreateAsync(cancellationToken);
         appSettings.AcmeEmail = request.AcmeEmail.Trim();
+        appSettings.AcmeDnsProviderConnectionId = request.DnsProviderConnectionId;
         appSettings.DnsChallengeDelaySeconds = request.DnsChallengeDelaySeconds;
         appSettings.AcmeResolversJson = JsonSerializer.Serialize(request.Resolvers ?? ["1.1.1.1:53", "8.8.8.8:53"]);
         appSettings.UpdatedAtUtc = DateTimeOffset.UtcNow;
@@ -118,13 +130,39 @@ public sealed class CertificateSetupService(
     {
         var appSettings = await settings.GetOrCreateAsync(cancellationToken);
         var (keyId, hmac) = await ResolveEabCredentialsAsync(appSettings, cancellationToken);
+        var provider = string.IsNullOrWhiteSpace(appSettings.AcmeEmail)
+            ? null
+            : await ResolveDnsProviderBindingOrThrowAsync(
+                appSettings.AcmeDnsProviderConnectionId,
+                requireServiceSyncCredential: false,
+                cancellationToken);
         return new TraefikRenderOptions(
             AcmeEmail: appSettings.AcmeEmail,
             AcmeEabKeyId: keyId,
             AcmeEabHmac: hmac,
+            DnsProviderName: provider?.ProviderName,
             DnsChallengeDelaySeconds: appSettings.DnsChallengeDelaySeconds,
             AcmeResolvers: ParseResolvers(appSettings.AcmeResolversJson),
             AdminDomain: adminDomain);
+    }
+
+    public async Task<TraefikAcmeDnsCredential?> BuildTraefikAcmeDnsCredentialAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var appSettings = await settings.GetOrCreateAsync(cancellationToken);
+        if (string.IsNullOrWhiteSpace(appSettings.AcmeEmail))
+        {
+            return null;
+        }
+
+        var provider = await ResolveDnsProviderBindingOrThrowAsync(
+            appSettings.AcmeDnsProviderConnectionId,
+            requireServiceSyncCredential: true,
+            cancellationToken);
+        return new TraefikAcmeDnsCredential(
+            provider.ProviderName,
+            provider.EnvironmentVariable,
+            provider.Token ?? throw new CertificateSetupValidationException("Selected DNS provider credentials are unavailable to service sync."));
     }
 
     private async Task<(string? KeyId, string? Hmac)> ResolveEabCredentialsAsync(
@@ -168,5 +206,129 @@ public sealed class CertificateSetupService(
         }
     }
 
+    private async Task<DnsProviderBinding> ResolveDnsProviderBindingOrThrowAsync(
+        Guid? connectionId,
+        bool requireServiceSyncCredential,
+        CancellationToken cancellationToken)
+    {
+        var errors = new List<string>();
+        var binding = await ValidateDnsProviderBindingAsync(
+            connectionId,
+            requireServiceSyncCredential,
+            errors,
+            cancellationToken);
+        if (errors.Count > 0 || binding is null)
+        {
+            throw new CertificateSetupValidationException(string.Join(' ', errors));
+        }
+
+        return binding;
+    }
+
+    private async Task<DnsProviderBinding?> ValidateDnsProviderBindingAsync(
+        Guid? connectionId,
+        bool requireServiceSyncCredential,
+        List<string> errors,
+        CancellationToken cancellationToken)
+    {
+        if (connectionId is null)
+        {
+            errors.Add("Select an enabled DNS provider connection for ACME DNS challenge.");
+            return null;
+        }
+
+        var connection = await db.Connections.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Id == connectionId.Value, cancellationToken);
+        if (connection is null || connection.Type != ConnectionTypeNames.DnsProvider)
+        {
+            errors.Add("Selected DNS provider connection was not found.");
+            return null;
+        }
+
+        if (!connection.Enabled)
+        {
+            errors.Add("Selected DNS provider connection is disabled.");
+            return null;
+        }
+
+        var provider = ParseDnsProviderType(connection.SettingsJson);
+        if (string.IsNullOrWhiteSpace(provider))
+        {
+            errors.Add("Selected DNS provider connection has no provider type configured.");
+            return null;
+        }
+
+        if (!TryMapTraefikDnsProvider(provider, out var traefikProvider, out var envVar))
+        {
+            errors.Add($"Selected DNS provider '{provider}' is not supported for Traefik ACME DNS challenge.");
+            return null;
+        }
+
+        if (connection.SecretId is null)
+        {
+            errors.Add("Selected DNS provider connection has no stored credentials.");
+            return null;
+        }
+
+        string? token = null;
+        if (requireServiceSyncCredential)
+        {
+            var tokenBytes = await secrets.DecryptForServiceSyncAsync(connection.SecretId.Value, cancellationToken);
+            if (tokenBytes is null)
+            {
+                errors.Add("Selected DNS provider credentials are unavailable to service sync; configure the service-sync vault and re-save the DNS provider connection.");
+                return null;
+            }
+
+            token = Encoding.UTF8.GetString(tokenBytes);
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                errors.Add("Selected DNS provider credential is empty.");
+                return null;
+            }
+        }
+
+        return new DnsProviderBinding(traefikProvider, envVar, token);
+    }
+
+    private static string? ParseDnsProviderType(string settingsJson)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<DnsConnectionSettings>(settingsJson)?.Provider;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static bool TryMapTraefikDnsProvider(
+        string provider,
+        out string traefikProvider,
+        out string environmentVariable)
+    {
+        if (string.Equals(provider, DnsProviderTypeNames.Hetzner, StringComparison.OrdinalIgnoreCase))
+        {
+            traefikProvider = DnsProviderTypeNames.Hetzner;
+            environmentVariable = "HETZNER_API_KEY";
+            return true;
+        }
+
+        traefikProvider = string.Empty;
+        environmentVariable = string.Empty;
+        return false;
+    }
+
     private sealed record AcmeEabPayload(string KeyId, string Hmac);
+
+    private sealed record DnsProviderBinding(
+        string ProviderName,
+        string EnvironmentVariable,
+        string? Token);
+
+    private sealed record DnsConnectionSettings(
+        [property: JsonPropertyName("provider")] string Provider,
+        [property: JsonPropertyName("zoneName")] string? ZoneName = null,
+        [property: JsonPropertyName("defaultTtl")] int? DefaultTtl = null);
 }

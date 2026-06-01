@@ -22,6 +22,8 @@ public sealed class AppSettingsEntity
 
     public Guid? AcmeEabSecretId { get; set; }
 
+    public Guid? AcmeDnsProviderConnectionId { get; set; }
+
     public int DnsChallengeDelaySeconds { get; set; } = 30;
 
     public string AcmeResolversJson { get; set; } = "[\"1.1.1.1:53\",\"8.8.8.8:53\"]";

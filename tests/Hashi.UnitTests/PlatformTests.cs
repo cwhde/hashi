@@ -39,10 +39,12 @@ public sealed class TraefikConfigRendererTests
         var options = new TraefikRenderOptions(
             AcmeEmail: "admin@example.com",
             AcmeEabKeyId: "eab-key",
-            AcmeEabHmac: "eab-hmac");
+            AcmeEabHmac: "eab-hmac",
+            DnsProviderName: "hetzner");
         var result = TraefikConfigRenderer.Render(resources, options);
 
         Assert.Contains("certificatesResolvers:", result.StaticConfigYaml);
+        Assert.Contains("provider: hetzner", result.StaticConfigYaml);
         Assert.Contains("externalAccountBinding:", result.StaticConfigYaml);
         Assert.Contains("coraza:", result.StaticConfigYaml);
         Assert.Contains("app-waf:", result.DynamicFiles.SecurityYaml);

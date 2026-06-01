@@ -166,14 +166,16 @@ public sealed record CertificateSetupRequest(
     string EabKeyId,
     string EabHmac,
     int DnsChallengeDelaySeconds,
-    IReadOnlyList<string>? Resolvers);
+    IReadOnlyList<string>? Resolvers,
+    Guid? DnsProviderConnectionId);
 
 public sealed record CertificateSetupResponse(
     string? AcmeEmail,
     bool HasEabCredentials,
     int DnsChallengeDelaySeconds,
     IReadOnlyList<string> Resolvers,
-    bool HasDnsProvider);
+    bool HasDnsProvider,
+    Guid? DnsProviderConnectionId);
 
 public sealed record CertificateSetupValidateResponse(bool IsValid, IReadOnlyList<string> Errors);
 
