@@ -104,6 +104,116 @@ public sealed class ScriptExecutionServiceTests
         Assert.Contains("configured target connections", ex.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task SyncAllEnabledScriptsAsync_writes_manifest_and_host_cron_without_disabled_scripts()
+    {
+        await using var db = CreateDb();
+        var vault = new VaultSessionState();
+        vault.Unlock(RandomNumberGenerator.GetBytes(32));
+        var secrets = new SecretRecordService(db, vault, new ServiceSyncVaultState());
+        var connectionId = await AddConnectionAsync(db, secrets, "firewall", "10.0.0.40");
+        db.Scripts.AddRange(
+            new ScriptEntity
+            {
+                ConnectionId = connectionId,
+                Name = "Enabled",
+                Body = "echo enabled",
+                CronExpression = "*/5 * * * *",
+                Enabled = true,
+                RunTimeoutSeconds = 120,
+            },
+            new ScriptEntity
+            {
+                ConnectionId = connectionId,
+                Name = "Disabled",
+                Body = "echo disabled",
+                CronExpression = "* * * * *",
+                Enabled = false,
+            });
+        await db.SaveChangesAsync();
+        var enabledScript = await db.Scripts.SingleAsync(x => x.Name == "Enabled");
+        var ssh = new FakeSshRemoteExecutor();
+        var scripts = CreateService(db, ssh, secrets);
+
+        await scripts.SyncAllEnabledScriptsAsync();
+
+        Assert.True(ssh.WrittenFiles.ContainsKey("/opt/hashi/scripts/manifest.json"));
+        Assert.True(ssh.WrittenFiles.ContainsKey("/etc/cron.d/hashi-scripts"));
+        Assert.True(ssh.WrittenFiles.ContainsKey($"/opt/hashi/scripts/{enabledScript.Id:N}.sh"));
+        var manifest = System.Text.Encoding.UTF8.GetString(ssh.WrittenFiles["/opt/hashi/scripts/manifest.json"]);
+        var cron = System.Text.Encoding.UTF8.GetString(ssh.WrittenFiles["/etc/cron.d/hashi-scripts"]);
+        Assert.Contains(enabledScript.Id.ToString(), manifest);
+        Assert.Contains("sha256", manifest);
+        Assert.Contains("*/5 * * * * root timeout 120 bash", cron);
+        Assert.Contains($"/opt/hashi/scripts/{enabledScript.Id:N}.sh", cron);
+        Assert.DoesNotContain("Disabled", manifest, StringComparison.Ordinal);
+        Assert.DoesNotContain("disabled", cron, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(ssh.Commands, command => command.Contains("/etc/cron.d/hashi-scripts", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Scripts_without_explicit_targets_default_to_all_enabled_firewall_hosts()
+    {
+        await using var db = CreateDb();
+        var vault = new VaultSessionState();
+        vault.Unlock(RandomNumberGenerator.GetBytes(32));
+        var secrets = new SecretRecordService(db, vault, new ServiceSyncVaultState());
+        var firstConnectionId = await AddConnectionAsync(db, secrets, "firewall-a", "10.0.0.51");
+        var secondConnectionId = await AddConnectionAsync(db, secrets, "firewall-b", "10.0.0.52");
+        await AddConnectionAsync(db, secrets, "firewall-disabled", "10.0.0.53", enabled: false);
+        var ssh = new FakeSshRemoteExecutor();
+        var scripts = CreateService(db, ssh, secrets);
+
+        var created = await scripts.CreateAsync(new CreateScriptRequest(
+            firstConnectionId,
+            "Default Target",
+            "Runs everywhere",
+            "echo all",
+            "0 * * * *"));
+
+        Assert.Contains(created.Targets, x => x.ConnectionId == firstConnectionId && x.Enabled);
+        Assert.Contains(created.Targets, x => x.ConnectionId == secondConnectionId && x.Enabled);
+        Assert.Equal(2, created.Targets.Count);
+
+        await scripts.SyncAllEnabledScriptsAsync();
+
+        var hosts = ssh.CommandSettings.Select(x => x.Host).Distinct().ToList();
+        Assert.Contains("10.0.0.51", hosts);
+        Assert.Contains("10.0.0.52", hosts);
+        Assert.DoesNotContain("10.0.0.53", hosts);
+    }
+
+    [Fact]
+    public void Script_rendering_outputs_manifest_hashes_and_cleans_stale_cron_entries()
+    {
+        var enabled = new ScriptEntity
+        {
+            Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            Name = "Enabled",
+            Body = "echo enabled",
+            CronExpression = "15 * * * *",
+            Enabled = true,
+            RunTimeoutSeconds = 60,
+        };
+        var disabled = new ScriptEntity
+        {
+            Id = Guid.Parse("22222222-2222-2222-2222-222222222222"),
+            Name = "Disabled",
+            Body = "echo disabled",
+            CronExpression = "* * * * *",
+            Enabled = false,
+        };
+
+        var manifest = ScriptExecutionService.RenderManifest([enabled]);
+        var cron = ScriptExecutionService.RenderCron([enabled, disabled]);
+
+        Assert.Contains("11111111-1111-1111-1111-111111111111", manifest);
+        Assert.Contains("sha256", manifest);
+        Assert.Contains("15 * * * * root timeout 60 bash /opt/hashi/scripts/11111111111111111111111111111111.sh", cron);
+        Assert.DoesNotContain("22222222-2222-2222-2222-222222222222", manifest);
+        Assert.DoesNotContain("Disabled", cron);
+    }
+
     private static HashiDbContext CreateDb()
     {
         var options = new DbContextOptionsBuilder<HashiDbContext>()
@@ -119,7 +229,8 @@ public sealed class ScriptExecutionServiceTests
         HashiDbContext db,
         SecretRecordService secrets,
         string name,
-        string host)
+        string host,
+        bool enabled = true)
     {
         var credential = await secrets.StoreAsync(
             SecretPurpose.SshCredential,
@@ -129,6 +240,7 @@ public sealed class ScriptExecutionServiceTests
         {
             Name = name,
             Type = ConnectionTypeNames.FirewallHost,
+            Enabled = enabled,
             SecretId = credential.Id,
             SettingsJson = $$"""{"Host":"{{host}}","Port":22,"Username":"root"}""",
         };
