@@ -37,6 +37,28 @@ public sealed class DnsRecordServiceTests
         Assert.Empty(await db.DnsRecordOwnership.ToListAsync());
     }
 
+    [Fact]
+    public async Task Manual_record_changes_write_subject_based_success_audit_events()
+    {
+        await using var db = CreateDb();
+        var zone = await SeedZoneAsync(db);
+        var service = CreateService(db);
+
+        var created = await service.CreateManualAsync(zone.Id, "app.example.com", "A", "203.0.113.10", 300, true);
+        await service.UpdateManualAsync(created.Id, zone.Id, "app.example.com", "TXT", "hashi", 600, false);
+        await service.DeleteManualAsync(created.Id);
+
+        var events = await db.AuditEvents
+            .Where(x => x.Category == "dns" && x.Action.StartsWith("manual_record_"))
+            .ToListAsync();
+
+        Assert.Equal(3, events.Count);
+        AssertManualDnsAuditEvent(events.Single(x => x.Action == "manual_record_created"), "manual_record_created", created.Id);
+        AssertManualDnsAuditEvent(events.Single(x => x.Action == "manual_record_updated"), "manual_record_updated", created.Id);
+        AssertManualDnsAuditEvent(events.Single(x => x.Action == "manual_record_deleted"), "manual_record_deleted", created.Id);
+        Assert.DoesNotContain(events, x => x.Outcome == "dns_record");
+    }
+
     [Theory]
     [InlineData("NS")]
     [InlineData("SOA")]
@@ -108,6 +130,15 @@ public sealed class DnsRecordServiceTests
 
     private static DnsRecordService CreateService(HashiDbContext db)
         => new(db, new AuditService(db));
+
+    private static void AssertManualDnsAuditEvent(AuditEventEntity auditEvent, string action, Guid recordId)
+    {
+        Assert.Equal("dns", auditEvent.Category);
+        Assert.Equal(action, auditEvent.Action);
+        Assert.Equal("success", auditEvent.Outcome);
+        Assert.Equal("dns_record", auditEvent.SubjectType);
+        Assert.Equal(recordId.ToString(), auditEvent.SubjectId);
+    }
 
     private static async Task<DnsZoneEntity> SeedZoneAsync(HashiDbContext db)
     {

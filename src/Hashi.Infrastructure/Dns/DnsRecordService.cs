@@ -62,7 +62,7 @@ public sealed class DnsRecordService(HashiDbContext db, AuditService audit)
             SyncState = DnsOwnershipSyncStateNames.Desired,
         });
         await db.SaveChangesAsync(cancellationToken);
-        await audit.WriteAsync("dns", "manual_record_created", "dns_record", record.Id.ToString(), cancellationToken: cancellationToken);
+        await audit.WriteAsync("dns", "manual_record_created", subjectType: "dns_record", subjectId: record.Id.ToString(), cancellationToken: cancellationToken);
         return record;
     }
 
@@ -119,7 +119,7 @@ public sealed class DnsRecordService(HashiDbContext db, AuditService audit)
         }
 
         await db.SaveChangesAsync(cancellationToken);
-        await audit.WriteAsync("dns", "manual_record_updated", "dns_record", record.Id.ToString(), cancellationToken: cancellationToken);
+        await audit.WriteAsync("dns", "manual_record_updated", subjectType: "dns_record", subjectId: record.Id.ToString(), cancellationToken: cancellationToken);
         return record;
     }
 
@@ -137,7 +137,7 @@ public sealed class DnsRecordService(HashiDbContext db, AuditService audit)
         db.DnsRecordOwnership.RemoveRange(ownership);
         db.DnsRecords.Remove(record);
         await db.SaveChangesAsync(cancellationToken);
-        await audit.WriteAsync("dns", "manual_record_deleted", "dns_record", record.Id.ToString(), cancellationToken: cancellationToken);
+        await audit.WriteAsync("dns", "manual_record_deleted", subjectType: "dns_record", subjectId: record.Id.ToString(), cancellationToken: cancellationToken);
         return true;
     }
 
