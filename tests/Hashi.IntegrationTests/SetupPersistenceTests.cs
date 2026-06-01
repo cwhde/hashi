@@ -28,7 +28,7 @@ public sealed class SetupPersistenceTests : IAsyncLifetime
 
         _connectionString = await _fixture.CreateDatabaseAsync();
         _factory = IntegrationTestApp.CreateFactory(_connectionString);
-        _client = _factory.CreateClient();
+        _client = _factory.CreateClient(IntegrationTestApp.HttpsClientOptions());
     }
 
     public async Task DisposeAsync()
@@ -68,7 +68,7 @@ public sealed class SetupPersistenceTests : IAsyncLifetime
         Assert.Equal("base-settings", updated.CurrentStep);
 
         await using var factory2 = IntegrationTestApp.CreateFactory(_connectionString);
-        using var client2 = factory2.CreateClient();
+        using var client2 = factory2.CreateClient(IntegrationTestApp.HttpsClientOptions());
         var resumed = await client2.GetFromJsonAsync<SetupStatusResponse>("/api/setup/status");
         Assert.NotNull(resumed);
         Assert.Contains("bootstrap-access", resumed.CompletedSteps);
