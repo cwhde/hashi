@@ -124,6 +124,26 @@ public sealed class SecurityIngestionServiceTests
     }
 
     [Fact]
+    public async Task IngestWafEventAsync_records_security_event()
+    {
+        await using var db = CreateDb();
+        var service = CreateService(db);
+
+        await service.IngestWafEventAsync(new WafEventIngestRequest(
+            "203.0.113.10",
+            "app.example.com",
+            "/admin",
+            "deny"));
+
+        var stored = await db.SecurityEvents.SingleAsync();
+        Assert.Equal("waf", stored.Category);
+        Assert.Equal("blocked", stored.Action);
+        Assert.Equal("203.0.113.10", stored.ClientIp);
+        Assert.Equal("app.example.com", stored.Host);
+        Assert.Equal("/admin", stored.Path);
+    }
+
+    [Fact]
     public async Task IngestAccessLogAsync_promotes_abuse_bucket_to_block()
     {
         await using var db = CreateDb();

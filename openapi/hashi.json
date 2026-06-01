@@ -2909,6 +2909,28 @@
         }
       }
     },
+    "/api/security/waf-events": {
+      "post": {
+        "tags": [
+          "Security"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WafEventIngestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/security/blocklist/sync": {
       "post": {
         "tags": [
@@ -5026,6 +5048,15 @@
             "items": {
               "$ref": "#/components/schemas/ResourceRuleRequest"
             }
+          },
+          "wafExclusions": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -6683,7 +6714,8 @@
           "wafMode",
           "extraMiddlewares",
           "routes",
-          "rules"
+          "rules",
+          "wafExclusions"
         ],
         "type": "object",
         "properties": {
@@ -6789,6 +6821,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ResourceRuleResponse"
+            }
+          },
+          "wafExclusions": {
+            "type": "array",
+            "items": {
+              "type": "string"
             }
           }
         }
@@ -8866,6 +8904,19 @@
             "items": {
               "$ref": "#/components/schemas/ResourceRuleRequest"
             }
+          },
+          "wafExclusions": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "clearWafExclusions": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -9093,6 +9144,29 @@
         "type": "object",
         "properties": {
           "recoveryKey": {
+            "type": "string"
+          }
+        }
+      },
+      "WafEventIngestRequest": {
+        "required": [
+          "clientIp",
+          "host",
+          "path",
+          "action"
+        ],
+        "type": "object",
+        "properties": {
+          "clientIp": {
+            "type": "string"
+          },
+          "host": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "action": {
             "type": "string"
           }
         }

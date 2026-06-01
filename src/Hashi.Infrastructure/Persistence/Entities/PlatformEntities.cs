@@ -44,6 +44,8 @@ public sealed class ResourceEntity
 
     public string WafMode { get; set; } = "detect_only";
 
+    public string WafExclusionsJson { get; set; } = "[]";
+
     public Guid? FirewallHostId { get; set; }
 
     public Guid? PulseAgentId { get; set; }
