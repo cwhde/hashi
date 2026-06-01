@@ -9,8 +9,28 @@ public static class DnsPlanner
         IReadOnlyList<DnsRecordSnapshot> desired)
     {
         var changes = new List<DnsPlanChange>();
-        var currentByKey = current.ToDictionary(Key, StringComparer.OrdinalIgnoreCase);
-        var desiredByKey = desired.ToDictionary(Key, StringComparer.OrdinalIgnoreCase);
+        var currentByKey = BuildIndex(current);
+        var desiredGroups = desired
+            .GroupBy(Key, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var desiredByKey = desiredGroups.ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+
+        foreach (var group in desiredGroups.Where(x => x.Count() > 1))
+        {
+            var records = group.ToList();
+            var first = records[0];
+            foreach (var duplicate in records.Skip(1))
+            {
+                changes.Add(Guard(new DnsPlanChange(
+                    DnsChangeKind.NoOp,
+                    duplicate.Name,
+                    duplicate.Type,
+                    first.Value,
+                    duplicate.Value,
+                    duplicate.Ttl,
+                    "Desired DNS records conflict on the same name and type; resolve the manual/imported record before Hashi can create the generated record.")));
+            }
+        }
 
         foreach (var (key, desiredRecord) in desiredByKey)
         {
@@ -102,8 +122,29 @@ public static class DnsPlanner
     private static DnsPlanChange Guard(DnsPlanChange change)
         => DnsSafetyRules.GuardChange(change) ?? change;
 
+    private static Dictionary<string, DnsRecordSnapshot> BuildIndex(IReadOnlyList<DnsRecordSnapshot> records)
+    {
+        var index = new Dictionary<string, DnsRecordSnapshot>(StringComparer.OrdinalIgnoreCase);
+        foreach (var record in records
+            .OrderBy(x => x.ProviderRecordId, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.Value, StringComparer.OrdinalIgnoreCase))
+        {
+            index.TryAdd(Key(record), record);
+        }
+
+        return index;
+    }
+
     private static string Key(DnsRecordSnapshot record)
-        => $"{record.Name}|{DnsRecordTypeMapping.ToApiName(record.Type)}";
+    {
+        var key = $"{record.Name}|{DnsRecordTypeMapping.ToApiName(record.Type)}";
+        return IsMultiValue(record.Type)
+            ? $"{key}|{Normalize(record.Value)}"
+            : key;
+    }
+
+    private static bool IsMultiValue(DnsRecordType type)
+        => type is DnsRecordType.Mx or DnsRecordType.Txt;
 
     private static string Normalize(string value) => value.Trim().TrimEnd('.');
 }

@@ -69,6 +69,62 @@ public sealed class DnsSafetyRulesTests
     }
 
     [Fact]
+    public void Planner_creates_multiple_mx_records_with_the_same_name()
+    {
+        IReadOnlyList<DnsRecordSnapshot> desired =
+        [
+            new DnsRecordSnapshot(string.Empty, "example.com", DnsRecordType.Mx, "10 mail1.example.com", 3600, true),
+            new DnsRecordSnapshot(string.Empty, "example.com", DnsRecordType.Mx, "20 mail2.example.com", 3600, true),
+        ];
+
+        var plan = DnsPlanner.BuildPlan([], desired);
+
+        Assert.Equal(2, plan.Count(x => x.Kind == DnsChangeKind.Create && x.Type == DnsRecordType.Mx));
+    }
+
+    [Fact]
+    public void Planner_creates_multiple_txt_records_with_the_same_name()
+    {
+        IReadOnlyList<DnsRecordSnapshot> desired =
+        [
+            new DnsRecordSnapshot(string.Empty, "example.com", DnsRecordType.Txt, "v=spf1 include:one.example.com", 3600, true),
+            new DnsRecordSnapshot(string.Empty, "example.com", DnsRecordType.Txt, "v=spf1 include:two.example.com", 3600, true),
+        ];
+
+        var plan = DnsPlanner.BuildPlan([], desired);
+
+        Assert.Equal(2, plan.Count(x => x.Kind == DnsChangeKind.Create && x.Type == DnsRecordType.Txt));
+    }
+
+    [Fact]
+    public void Planner_handles_duplicate_provider_records_without_throwing()
+    {
+        IReadOnlyList<DnsRecordSnapshot> current =
+        [
+            new DnsRecordSnapshot("provider-app-1", "app", DnsRecordType.A, "1.2.3.4", 3600, true),
+            new DnsRecordSnapshot("provider-app-2", "app", DnsRecordType.A, "1.2.3.5", 3600, true),
+        ];
+
+        var plan = DnsPlanner.BuildPlan(current, []);
+
+        Assert.NotEmpty(plan);
+    }
+
+    [Fact]
+    public void Planner_reports_desired_conflicts_for_single_value_record_keys()
+    {
+        IReadOnlyList<DnsRecordSnapshot> desired =
+        [
+            new DnsRecordSnapshot(string.Empty, "app", DnsRecordType.A, "1.2.3.4", 3600, true),
+            new DnsRecordSnapshot(string.Empty, "app", DnsRecordType.A, "1.2.3.5", 3600, true),
+        ];
+
+        var plan = DnsPlanner.BuildPlan([], desired);
+
+        Assert.Contains(plan, x => x.Kind == DnsChangeKind.NoOp && x.RiskReason.Contains("conflict", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public void Planner_blocks_update_when_desired_collides_with_unowned_provider_record()
     {
         IReadOnlyList<DnsRecordSnapshot> current =
