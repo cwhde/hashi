@@ -5641,10 +5641,18 @@ export interface components {
         EdgeSsoSettingsRequest: {
             /** Format: int32 */
             edgeSsoSessionHours: null | number | string;
+            /** Format: int32 */
+            edgeSsoIdleTimeoutMinutes: null | number | string;
+            /** Format: int32 */
+            edgeSsoRememberDeviceDays: null | number | string;
         };
         EdgeSsoSettingsResponse: {
             /** Format: int32 */
             edgeSsoSessionHours: number | string;
+            /** Format: int32 */
+            edgeSsoIdleTimeoutMinutes: number | string;
+            /** Format: int32 */
+            edgeSsoRememberDeviceDays: number | string;
             /** Format: date-time */
             updatedAtUtc: null | string;
         };

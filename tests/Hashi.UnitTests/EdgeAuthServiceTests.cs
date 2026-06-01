@@ -5,6 +5,7 @@ using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
 using Hashi.Infrastructure.Platform;
 using Hashi.Infrastructure.Services;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -108,6 +109,35 @@ public sealed class EdgeAuthServiceTests
         var result = await Evaluate(db, "app.example.com", "/", edgeSessionKey: sessionKey);
 
         Assert.Equal("allow", result.Decision);
+    }
+
+    [Fact]
+    public async Task Edge_session_idle_timeout_denies_and_removes_session()
+    {
+        await using var db = CreateDb();
+        var providerId = await SeedProviderAsync(db);
+        db.Resources.Add(Resource("app.example.com", "sso_required"));
+        db.AppSettings.Add(new AppSettingsEntity
+        {
+            EdgeSsoSessionHours = 8,
+            EdgeSsoIdleTimeoutMinutes = 30,
+            EdgeSsoRememberDeviceDays = 30,
+        });
+        const string sessionKey = "idle-session";
+        db.EdgeSessions.Add(new EdgeSessionEntity
+        {
+            SessionKey = sessionKey,
+            OidcProviderId = providerId,
+            Subject = "user",
+            ExpiresAtUtc = DateTimeOffset.UtcNow.AddHours(1),
+            LastSeenAtUtc = DateTimeOffset.UtcNow.AddMinutes(-31),
+        });
+        await db.SaveChangesAsync();
+
+        var result = await Evaluate(db, "app.example.com", "/", edgeSessionKey: sessionKey);
+
+        Assert.Equal("challenge", result.Decision);
+        Assert.False(await db.EdgeSessions.AnyAsync(x => x.SessionKey == sessionKey));
     }
 
     [Fact]
@@ -302,12 +332,8 @@ public sealed class EdgeAuthServiceTests
             new SecretRecordService(db, new VaultSessionState(), new ServiceSyncVaultState()),
             new ServiceCollection().AddHttpClient().BuildServiceProvider().GetRequiredService<IHttpClientFactory>(),
             new AppSettingsService(db),
-            new Microsoft.Extensions.Configuration.ConfigurationBuilder()
-                .AddInMemoryCollection(new Dictionary<string, string?>
-                {
-                    ["Hashi:Oidc:AllowUnsignedTestTokens"] = "true",
-                })
-                .Build());
+            new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build(),
+            new EphemeralDataProtectionProvider());
         var service = new EdgeAuthService(db, geoIp, oidc);
         return service.EvaluateForwardAsync(
             host,

@@ -210,6 +210,12 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.Property<int>("EdgeSsoSessionHours")
                         .HasColumnType("integer");
 
+                    b.Property<int>("EdgeSsoIdleTimeoutMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("EdgeSsoRememberDeviceDays")
+                        .HasColumnType("integer");
+
                     b.Property<string>("InternalUrl")
                         .HasColumnType("text");
 
@@ -712,8 +718,14 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("ExpiresAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTimeOffset>("LastSeenAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<Guid>("OidcProviderId")
                         .HasColumnType("uuid");
+
+                    b.Property<bool>("RememberMe")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("Subject")
                         .IsRequired()
@@ -723,6 +735,8 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.HasKey("SessionKey");
 
                     b.HasIndex("ExpiresAtUtc");
+
+                    b.HasIndex("LastSeenAtUtc");
 
                     b.ToTable("edge_sessions", (string)null);
                 });
