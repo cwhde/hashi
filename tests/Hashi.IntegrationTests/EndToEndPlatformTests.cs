@@ -145,10 +145,20 @@ public sealed class EndToEndPlatformTests : IAsyncLifetime
                 Url = "https://public.example.com/",
                 CheckType = "https",
                 Enabled = true,
+                PublicStatusEnabled = true,
                 Status = "up",
                 ResourceId = resource.Id,
                 LastLatencyMs = 42,
                 LastCheckedAtUtc = DateTimeOffset.UtcNow,
+            });
+            db.MonitorEndpoints.Add(new MonitorEndpointEntity
+            {
+                Name = "Private App",
+                Url = "https://private.example.com/",
+                CheckType = "https",
+                Enabled = true,
+                PublicStatusEnabled = false,
+                Status = "up",
             });
             await db.SaveChangesAsync();
         }
@@ -173,6 +183,7 @@ public sealed class EndToEndPlatformTests : IAsyncLifetime
         var statusItems = await statusClient.GetFromJsonAsync<IReadOnlyList<PublicStatusItemResponse>>("/api/public/status");
         Assert.NotNull(statusItems);
         Assert.Contains(statusItems!, x => x.Name == "Public App" && x.Status == "Up" && x.LastLatencyMs == 42);
+        Assert.DoesNotContain(statusItems!, x => x.Name == "Private App");
 
         var adminFromDashboard = await dashboardClient.GetAsync("/api/resources");
         var adminFromStatus = await statusClient.GetAsync("/api/resources");
@@ -180,6 +191,55 @@ public sealed class EndToEndPlatformTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.NotFound, adminFromDashboard.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, adminFromStatus.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, crossPortStatus.StatusCode);
+    }
+
+    [Fact]
+    public async Task Public_status_disabled_returns_not_found_on_admin_and_status_ports()
+    {
+        if (!_fixture.IsAvailable || _factory is null || _client is null)
+        {
+            return;
+        }
+
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<HashiDbContext>();
+            var settings = await db.AppSettings.FindAsync(1);
+            if (settings is null)
+            {
+                settings = new AppSettingsEntity();
+                db.AppSettings.Add(settings);
+            }
+
+            settings.PublicStatusEnabled = false;
+            db.MonitorEndpoints.Add(new MonitorEndpointEntity
+            {
+                Name = "Selected Public App",
+                Url = "https://selected.example.com/",
+                CheckType = "https",
+                Enabled = true,
+                PublicStatusEnabled = true,
+                Status = "up",
+            });
+            await db.SaveChangesAsync();
+        }
+
+        using var statusClient = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("http://localhost:8082"),
+            HandleCookies = false,
+            AllowAutoRedirect = false,
+        });
+
+        var adminStatus = await _client.GetAsync("/api/public/status");
+        var adminSummary = await _client.GetAsync("/api/public/status/summary");
+        var publicStatus = await statusClient.GetAsync("/api/public/status");
+        var publicSummary = await statusClient.GetAsync("/api/public/status/summary");
+
+        Assert.Equal(HttpStatusCode.NotFound, adminStatus.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, adminSummary.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, publicStatus.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, publicSummary.StatusCode);
     }
 
     private sealed record CsrfToken(string? Token);

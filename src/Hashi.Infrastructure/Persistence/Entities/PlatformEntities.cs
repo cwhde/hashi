@@ -134,6 +134,8 @@ public sealed class MonitorEndpointEntity
 
     public bool Enabled { get; set; } = true;
 
+    public bool PublicStatusEnabled { get; set; }
+
     public string Status { get; set; } = "unknown";
 
     public Guid? ResourceId { get; set; }

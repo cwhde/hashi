@@ -417,6 +417,16 @@ export const api = {
 		const r = await client.GET('/api/status/endpoints');
 		return expectData(r.response, r.error, r.data ?? []);
 	},
+	updateStatusEndpoint: async (
+		endpointId: string,
+		body: import('./types.js').UpdateMonitorEndpointRequest
+	) => {
+		const r = await client.PUT('/api/status/endpoints/{endpointId}', {
+			params: { path: { endpointId } },
+			body
+		});
+		return expectData(r.response, r.error, r.data);
+	},
 	listStatusRollups: async (params?: {
 		endpointId?: string;
 		intervalMinutes?: number;

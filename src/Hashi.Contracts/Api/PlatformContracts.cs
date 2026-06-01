@@ -418,6 +418,7 @@ public sealed record MonitorEndpointResponse(
     string Url,
     string CheckType,
     bool Enabled,
+    bool PublicStatusEnabled,
     string Status,
     DateTimeOffset? LastCheckedAtUtc,
     int? LastLatencyMs);
@@ -426,13 +427,15 @@ public sealed record CreateMonitorEndpointRequest(
     string Name,
     string Url,
     string CheckType,
-    bool Enabled = true);
+    bool Enabled = true,
+    bool PublicStatusEnabled = false);
 
 public sealed record UpdateMonitorEndpointRequest(
     string? Name = null,
     string? Url = null,
     string? CheckType = null,
-    bool? Enabled = null);
+    bool? Enabled = null,
+    bool? PublicStatusEnabled = null);
 
 public sealed record PulseInstallResponse(string LinuxInstallScript, string DockerRunCommand);
 

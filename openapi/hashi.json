@@ -60,6 +60,9 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "Not Found"
           }
         }
       }
@@ -79,6 +82,9 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "Not Found"
           }
         }
       }
@@ -4817,6 +4823,10 @@
           "enabled": {
             "type": "boolean",
             "default": true
+          },
+          "publicStatusEnabled": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -5998,6 +6008,7 @@
           "url",
           "checkType",
           "enabled",
+          "publicStatusEnabled",
           "status",
           "lastCheckedAtUtc",
           "lastLatencyMs"
@@ -6018,6 +6029,9 @@
             "type": "string"
           },
           "enabled": {
+            "type": "boolean"
+          },
+          "publicStatusEnabled": {
             "type": "boolean"
           },
           "status": {
@@ -8614,6 +8628,12 @@
             ]
           },
           "enabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "publicStatusEnabled": {
             "type": [
               "null",
               "boolean"

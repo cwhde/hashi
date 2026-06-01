@@ -327,16 +327,34 @@ public static class PublicEndpoints
 {
     public static IEndpointRouteBuilder MapPublicEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/public/status", async (MonitoringService monitoring, CancellationToken ct) =>
-            TypedResults.Ok(await monitoring.PublicStatusAsync(ct)))
+        app.MapGet("/api/public/status", async Task<IResult> (MonitoringService monitoring, CancellationToken ct) =>
+        {
+            if (!await monitoring.IsPublicStatusEnabledAsync(ct))
+            {
+                return TypedResults.NotFound();
+            }
+
+            return TypedResults.Ok(await monitoring.PublicStatusAsync(ct));
+        })
             .WithTags("Public")
             .AllowAnonymous()
-            .RequireCors("PublicRead");
-        app.MapGet("/api/public/status/summary", async (MonitoringService monitoring, CancellationToken ct) =>
-            TypedResults.Ok(await monitoring.PublicSummaryAsync(ct)))
+            .RequireCors("PublicRead")
+            .Produces<IEnumerable<PublicStatusItemResponse>>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
+        app.MapGet("/api/public/status/summary", async Task<IResult> (MonitoringService monitoring, CancellationToken ct) =>
+        {
+            if (!await monitoring.IsPublicStatusEnabledAsync(ct))
+            {
+                return TypedResults.NotFound();
+            }
+
+            return TypedResults.Ok(await monitoring.PublicSummaryAsync(ct));
+        })
             .WithTags("Public")
             .AllowAnonymous()
-            .RequireCors("PublicRead");
+            .RequireCors("PublicRead")
+            .Produces<PublicStatusSummaryResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
         app.MapGet("/api/public/apps", async (ResourceService resources, CancellationToken ct) =>
         {
             var items = await resources.ListAsync(ct);

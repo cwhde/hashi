@@ -97,6 +97,13 @@ export interface paths {
                         "application/json": components["schemas"]["PublicStatusItemResponse"][];
                     };
                 };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
             };
         };
         put?: never;
@@ -131,6 +138,13 @@ export interface paths {
                     content: {
                         "application/json": components["schemas"]["PublicStatusSummaryResponse"];
                     };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
                 };
             };
         };
@@ -5411,6 +5425,8 @@ export interface components {
             checkType: string;
             /** @default true */
             enabled: boolean;
+            /** @default false */
+            publicStatusEnabled: boolean;
         };
         CreateNotificationProviderRequest: {
             name: string;
@@ -5696,6 +5712,7 @@ export interface components {
             url: string;
             checkType: string;
             enabled: boolean;
+            publicStatusEnabled: boolean;
             status: string;
             /** Format: date-time */
             lastCheckedAtUtc: null | string;
@@ -6315,6 +6332,7 @@ export interface components {
             url?: null | string;
             checkType?: null | string;
             enabled?: null | boolean;
+            publicStatusEnabled?: null | boolean;
         };
         UpdateNotificationProviderRequest: {
             name: null | string;
