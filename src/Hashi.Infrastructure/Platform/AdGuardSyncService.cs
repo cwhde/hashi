@@ -325,7 +325,7 @@ public sealed class AdGuardSyncService(
             }
             else if (resource.PulseAgentId is Guid pulseId && pulseAgents.TryGetValue(pulseId, out var agent))
             {
-                answer = agent.LastPrivateIp ?? agent.LastPublicIp;
+                answer = agent.LastSelectedIp ?? agent.LastPrivateIp ?? agent.LastPublicIp;
             }
 
             if (string.IsNullOrWhiteSpace(answer))

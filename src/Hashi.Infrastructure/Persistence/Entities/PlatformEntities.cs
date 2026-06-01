@@ -155,19 +155,64 @@ public sealed class PulseAgentEntity
 
     public string TokenHash { get; set; } = string.Empty;
 
+    public string InstallType { get; set; } = "linux_service";
+
+    public string AllowedScopesJson { get; set; } = """["heartbeat"]""";
+
+    public int HeartbeatIntervalSeconds { get; set; } = 60;
+
     public DateTimeOffset? LastSeenAtUtc { get; set; }
 
     public string? LastPublicIp { get; set; }
 
     public string? LastPrivateIp { get; set; }
 
+    public string LastPrivateIpv4CandidatesJson { get; set; } = "[]";
+
+    public string LastPrivateIpv6CandidatesJson { get; set; } = "[]";
+
+    public string? LastSelectedIp { get; set; }
+
+    public string? LastSelectedInterface { get; set; }
+
     public string? LastHostname { get; set; }
 
     public string? LastAgentVersion { get; set; }
 
+    public string? LastDockerMetadataJson { get; set; }
+
     public DateTimeOffset? DnsPendingAtUtc { get; set; }
 
     public string Status { get; set; } = "pending";
+}
+
+public sealed class PulseHeartbeatEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid PulseAgentId { get; set; }
+
+    public PulseAgentEntity? PulseAgent { get; set; }
+
+    public DateTimeOffset ReceivedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+
+    public DateTimeOffset AgentTimestampUtc { get; set; }
+
+    public string? RemotePublicIp { get; set; }
+
+    public string Version { get; set; } = string.Empty;
+
+    public string Hostname { get; set; } = string.Empty;
+
+    public string PrivateIpv4CandidatesJson { get; set; } = "[]";
+
+    public string PrivateIpv6CandidatesJson { get; set; } = "[]";
+
+    public string? SelectedIp { get; set; }
+
+    public string? SelectedInterface { get; set; }
+
+    public string? DockerMetadataJson { get; set; }
 }
 
 public static class ResourceOwnershipNames

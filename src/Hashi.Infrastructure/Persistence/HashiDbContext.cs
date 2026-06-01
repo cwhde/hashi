@@ -59,6 +59,8 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
 
     public DbSet<PulseAgentEntity> PulseAgents => Set<PulseAgentEntity>();
 
+    public DbSet<PulseHeartbeatEntity> PulseHeartbeats => Set<PulseHeartbeatEntity>();
+
     public DbSet<TraefikHostStateEntity> TraefikHostStates => Set<TraefikHostStateEntity>();
 
     public DbSet<TraefikUserMiddlewareEntity> TraefikUserMiddlewares => Set<TraefikUserMiddlewareEntity>();
@@ -389,6 +391,31 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.Property(x => x.Name).HasMaxLength(128);
             entity.Property(x => x.Status).HasMaxLength(32);
             entity.Property(x => x.TokenHash).HasMaxLength(128);
+            entity.Property(x => x.InstallType).HasMaxLength(32).HasDefaultValue("linux_service");
+            entity.Property(x => x.AllowedScopesJson).HasColumnType("jsonb").HasDefaultValueSql("'[\"heartbeat\"]'::jsonb");
+            entity.Property(x => x.HeartbeatIntervalSeconds).HasDefaultValue(60);
+            entity.Property(x => x.LastPrivateIpv4CandidatesJson).HasColumnType("jsonb").HasDefaultValueSql("'[]'::jsonb");
+            entity.Property(x => x.LastPrivateIpv6CandidatesJson).HasColumnType("jsonb").HasDefaultValueSql("'[]'::jsonb");
+            entity.Property(x => x.LastSelectedInterface).HasMaxLength(128);
+            entity.Property(x => x.LastDockerMetadataJson).HasColumnType("jsonb");
+            entity.HasIndex(x => x.Status);
+        });
+
+        modelBuilder.Entity<PulseHeartbeatEntity>(entity =>
+        {
+            entity.ToTable("pulse_heartbeats");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Version).HasMaxLength(64);
+            entity.Property(x => x.Hostname).HasMaxLength(256);
+            entity.Property(x => x.PrivateIpv4CandidatesJson).HasColumnType("jsonb");
+            entity.Property(x => x.PrivateIpv6CandidatesJson).HasColumnType("jsonb");
+            entity.Property(x => x.SelectedInterface).HasMaxLength(128);
+            entity.Property(x => x.DockerMetadataJson).HasColumnType("jsonb");
+            entity.HasOne(x => x.PulseAgent)
+                .WithMany()
+                .HasForeignKey(x => x.PulseAgentId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => new { x.PulseAgentId, x.ReceivedAtUtc });
         });
 
         modelBuilder.Entity<TraefikHostStateEntity>(entity =>

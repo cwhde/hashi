@@ -462,14 +462,35 @@ public sealed record PulseInstallResponse(string LinuxInstallScript, string Dock
 public sealed record PulseAgentResponse(
     Guid Id,
     string Name,
+    string InstallType,
+    IReadOnlyList<string> AllowedScopes,
+    int HeartbeatIntervalSeconds,
     string Status,
     DateTimeOffset? LastSeenAtUtc,
     string? LastPublicIp,
+    string? LastPrivateIp,
+    IReadOnlyList<string> LastPrivateIpv4Candidates,
+    IReadOnlyList<string> LastPrivateIpv6Candidates,
+    string? LastSelectedIp,
+    string? LastSelectedInterface,
     string? LastHostname,
     string? LastAgentVersion,
     DateTimeOffset? DnsPendingAtUtc);
 
-public sealed record PulseHeartbeatRequest(string Version, string Hostname, IReadOnlyList<string> PrivateIpv4Candidates);
+public sealed record PulseDockerMetadataRequest(
+    string? ContainerId,
+    string? Image,
+    string? NetworkMode);
+
+public sealed record PulseHeartbeatRequest(
+    string Version,
+    string Hostname,
+    IReadOnlyList<string> PrivateIpv4Candidates,
+    IReadOnlyList<string> PrivateIpv6Candidates,
+    string? SelectedInterface,
+    string? SelectedIp,
+    DateTimeOffset Timestamp,
+    PulseDockerMetadataRequest? Docker);
 
 public sealed record EdgeAuthForwardResponse(string Decision, string? RedirectUrl);
 
@@ -691,8 +712,21 @@ public sealed record RunScriptResponse(
     Guid? RunId = null,
     IReadOnlyList<ScriptRunResponse>? Runs = null);
 
-public sealed record CreatePulseAgentRequest(string Name);
+public sealed record CreatePulseAgentRequest(
+    string Name,
+    string InstallType = "linux_service",
+    IReadOnlyList<string>? AllowedScopes = null,
+    int? HeartbeatIntervalSeconds = null);
 
 public sealed record CreatePulseAgentResponse(Guid Id, string Name, string Token);
 
-public sealed record PulseHeartbeatAuthRequest(string Token, string Version, string Hostname, IReadOnlyList<string> PrivateIpv4Candidates);
+public sealed record PulseHeartbeatAuthRequest(
+    string Token,
+    string Version,
+    string Hostname,
+    IReadOnlyList<string> PrivateIpv4Candidates,
+    IReadOnlyList<string> PrivateIpv6Candidates,
+    string? SelectedInterface,
+    string? SelectedIp,
+    DateTimeOffset Timestamp,
+    PulseDockerMetadataRequest? Docker);

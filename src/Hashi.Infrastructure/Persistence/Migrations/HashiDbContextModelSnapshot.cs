@@ -1382,11 +1382,32 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("AllowedScopesJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasDefaultValueSql("'[\"heartbeat\"]'::jsonb");
+
                     b.Property<DateTimeOffset?>("DnsPendingAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int>("HeartbeatIntervalSeconds")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(60);
+
+                    b.Property<string>("InstallType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("linux_service");
+
                     b.Property<string>("LastAgentVersion")
                         .HasColumnType("text");
+
+                    b.Property<string>("LastDockerMetadataJson")
+                        .HasColumnType("jsonb");
 
                     b.Property<string>("LastHostname")
                         .HasColumnType("text");
@@ -1394,7 +1415,26 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.Property<string>("LastPrivateIp")
                         .HasColumnType("text");
 
+                    b.Property<string>("LastPrivateIpv4CandidatesJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasDefaultValueSql("'[]'::jsonb");
+
+                    b.Property<string>("LastPrivateIpv6CandidatesJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("jsonb")
+                        .HasDefaultValueSql("'[]'::jsonb");
+
                     b.Property<string>("LastPublicIp")
+                        .HasColumnType("text");
+
+                    b.Property<string>("LastSelectedInterface")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("LastSelectedIp")
                         .HasColumnType("text");
 
                     b.Property<DateTimeOffset?>("LastSeenAtUtc")
@@ -1417,7 +1457,62 @@ namespace Hashi.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Status");
+
                     b.ToTable("pulse_agents", (string)null);
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.PulseHeartbeatEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("AgentTimestampUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DockerMetadataJson")
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("Hostname")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("PrivateIpv4CandidatesJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("PrivateIpv6CandidatesJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<Guid>("PulseAgentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ReceivedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RemotePublicIp")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SelectedInterface")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("SelectedIp")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Version")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PulseAgentId", "ReceivedAtUtc");
+
+                    b.ToTable("pulse_heartbeats", (string)null);
                 });
 
             modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.ResourceEntity", b =>
@@ -2544,6 +2639,17 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("Provider");
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.PulseHeartbeatEntity", b =>
+                {
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.PulseAgentEntity", "PulseAgent")
+                        .WithMany()
+                        .HasForeignKey("PulseAgentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PulseAgent");
                 });
 
             modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.ResourcePortEntity", b =>
