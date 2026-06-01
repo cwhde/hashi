@@ -619,7 +619,7 @@ public sealed record AccessLogIngestRequest(
     string? TraefikInstance = null,
     string? Resource = null);
 
-public sealed record AdGuardRewriteResponse(Guid Id, string Domain, string Answer, bool ManagedByHashi);
+public sealed record AdGuardRewriteResponse(Guid Id, string Domain, string Answer, bool ManagedByHashi, string Source);
 
 public sealed record AdGuardRewritePlanChangeResponse(
     string Kind,

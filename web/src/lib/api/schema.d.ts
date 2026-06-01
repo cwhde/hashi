@@ -5318,6 +5318,7 @@ export interface components {
             domain: string;
             answer: string;
             managedByHashi: boolean;
+            source: string;
         };
         AnonymousTypeOfstring: {
             token: null | string;

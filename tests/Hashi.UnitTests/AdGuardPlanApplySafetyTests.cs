@@ -70,6 +70,104 @@ public sealed class AdGuardPlanApplySafetyTests
         Assert.Contains(await db.AuditEvents.ToListAsync(), x => x.Category == "adguard" && x.Action == "apply_failed");
     }
 
+    [Fact]
+    public async Task Topology_sync_preserves_manual_hashi_rewrites_outside_resource_desired_set()
+    {
+        await using var db = CreateDb();
+        db.AppSettings.Add(new AppSettingsEntity { RootDomain = "example.com" });
+        var connectionId = await AddConnectionAsync(db);
+        var firewallHostId = Guid.NewGuid();
+        db.FirewallHosts.Add(new FirewallHostEntity
+        {
+            Id = firewallHostId,
+            ConnectionId = Guid.NewGuid(),
+            Name = "edge",
+            Domain = "edge.example.com",
+            LinkedTraefikHost = "edge.example.com",
+            InternalTraefikIp = "10.0.0.2",
+        });
+        db.Resources.Add(new ResourceEntity
+        {
+            Name = "App",
+            Slug = "app",
+            Domain = "app.example.com",
+            FirewallHostId = firewallHostId,
+            Enabled = true,
+        });
+        db.AdGuardRewrites.Add(new AdGuardRewriteEntity
+        {
+            ConnectionId = connectionId,
+            Domain = "manual.example.com",
+            Answer = "10.0.0.50",
+            ManagedByHashi = true,
+            Source = AdGuardRewriteSourceNames.Manual,
+        });
+        await db.SaveChangesAsync();
+
+        var handler = new FakeAdGuardHandler("""{"rewrites":[]}""");
+        var service = CreateService(db, handler);
+
+        var plan = await service.PlanSyncAsync(connectionId, updateTopologyDesiredState: true);
+
+        Assert.DoesNotContain(plan.Changes, x => x.Kind == "delete" && x.Domain == "manual.example.com");
+        Assert.True(await db.AdGuardRewrites.AnyAsync(x =>
+            x.ConnectionId == connectionId &&
+            x.Domain == "manual.example.com" &&
+            x.Source == AdGuardRewriteSourceNames.Manual));
+        Assert.True(await db.AdGuardRewrites.AnyAsync(x =>
+            x.ConnectionId == connectionId &&
+            x.Domain == "app.example.com" &&
+            x.Source == AdGuardRewriteSourceNames.Topology));
+    }
+
+    [Fact]
+    public async Task Topology_stale_rewrites_plan_as_confirmed_deletes_before_remote_cleanup()
+    {
+        await using var db = CreateDb();
+        db.AppSettings.Add(new AppSettingsEntity { RootDomain = "example.com" });
+        var connectionId = await AddConnectionAsync(db);
+        db.AdGuardRewrites.Add(new AdGuardRewriteEntity
+        {
+            ConnectionId = connectionId,
+            Domain = "stale.example.com",
+            Answer = "10.0.0.99",
+            ManagedByHashi = true,
+            Source = AdGuardRewriteSourceNames.Topology,
+        });
+        await db.SaveChangesAsync();
+
+        var handler = new FakeAdGuardHandler("""{"rewrites":[{"domain":"stale.example.com","answer":"10.0.0.99","id":"remote-1"}]}""");
+        var service = CreateService(db, handler);
+
+        var plan = await service.PlanSyncAsync(connectionId, updateTopologyDesiredState: true);
+
+        Assert.True(plan.RequiresConfirmation);
+        Assert.Contains(plan.Changes, x =>
+            x.Kind == "delete" &&
+            x.Domain == "stale.example.com" &&
+            x.Summary.Contains("topology", StringComparison.OrdinalIgnoreCase));
+
+        var unconfirmed = await service.ApplyPlanAsync(
+            connectionId,
+            new AdGuardRewriteApplyRequest(plan.PlanId, ConfirmDestructive: false),
+            updateTopologyDesiredState: true);
+
+        Assert.False(unconfirmed.Succeeded);
+        Assert.Equal(SyncRunStatusNames.AwaitingConfirmation, unconfirmed.Status);
+        Assert.Equal(0, handler.DeleteCalls);
+        Assert.True(await db.AdGuardRewrites.AnyAsync(x => x.Domain == "stale.example.com"));
+
+        var confirmedPlan = await service.PlanSyncAsync(connectionId, updateTopologyDesiredState: true);
+        var confirmed = await service.ApplyPlanAsync(
+            connectionId,
+            new AdGuardRewriteApplyRequest(confirmedPlan.PlanId, ConfirmDestructive: true),
+            updateTopologyDesiredState: true);
+
+        Assert.True(confirmed.Succeeded);
+        Assert.Equal(1, handler.DeleteCalls);
+        Assert.False(await db.AdGuardRewrites.AnyAsync(x => x.Domain == "stale.example.com"));
+    }
+
     private static HashiDbContext CreateDb()
     {
         var options = new DbContextOptionsBuilder<HashiDbContext>()
@@ -128,6 +226,8 @@ public sealed class AdGuardPlanApplySafetyTests
     {
         public int AddCalls { get; private set; }
 
+        public int DeleteCalls { get; private set; }
+
         public HttpStatusCode DeleteStatusCode { get; init; } = HttpStatusCode.OK;
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -145,6 +245,7 @@ public sealed class AdGuardPlanApplySafetyTests
 
             if (request.RequestUri?.AbsolutePath.EndsWith("/control/rewrite/delete", StringComparison.Ordinal) == true)
             {
+                DeleteCalls++;
                 return Task.FromResult(new HttpResponseMessage(DeleteStatusCode)
                 {
                     Content = new StringContent("{}", Encoding.UTF8, "application/json"),
