@@ -1,4 +1,5 @@
 using Hashi.Infrastructure.Auth;
+using Hashi.Core.Hosting;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Platform;
 using Hashi.Infrastructure.Services;
@@ -11,7 +12,10 @@ namespace Hashi.UnitTests.Fakes;
 
 public static class TestPlatformHelpers
 {
-    public static TraefikPlatformService CreateTraefikPlatform(HashiDbContext db, VaultSessionState? vault = null)
+    public static TraefikPlatformService CreateTraefikPlatform(
+        HashiDbContext db,
+        VaultSessionState? vault = null,
+        HashiPortOptions? ports = null)
     {
         vault ??= new VaultSessionState();
         var settings = new AppSettingsService(db);
@@ -20,7 +24,13 @@ public static class TestPlatformHelpers
         var secrets = new SecretRecordService(db, vault, new ServiceSyncVaultState());
         var certificate = new CertificateSetupService(db, settings, secrets, vault, audit);
         var entryPoints = new TraefikEntryPointService(db);
-        return new TraefikPlatformService(db, settings, userMiddlewares, certificate, entryPoints);
+        return new TraefikPlatformService(
+            db,
+            settings,
+            userMiddlewares,
+            certificate,
+            entryPoints,
+            new HashiInternalUrlResolver(ports ?? new HashiPortOptions()));
     }
 
     public static TraefikSyncService CreateTraefikSync(HashiDbContext db, FakeSshRemoteExecutor? ssh = null, VaultSessionState? vault = null)

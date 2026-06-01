@@ -1,9 +1,13 @@
 using Hashi.Core.Resources;
 using Hashi.Core.Security;
 using Hashi.Core.Traefik;
+using Hashi.Core.Hosting;
 using Hashi.Core.Firewall;
+using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
 using Hashi.Infrastructure.Platform;
+using Hashi.UnitTests.Fakes;
+using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using Xunit;
 
@@ -73,6 +77,81 @@ public sealed class TraefikConfigRendererTests
     }
 
     [Fact]
+    public void Render_uses_configured_internal_urls_for_hashi_middlewares_and_health_service()
+    {
+        var resources = new List<ResourceDefinition>
+        {
+            new(Guid.NewGuid(), "App", "app", ResourceKind.Http, true, false, "app.example.com", "http", "10.0.0.2", 8080,
+                ForwardAuth: ForwardAuthPolicy.Adaptive),
+        };
+        var options = new TraefikRenderOptions(
+            HashiForwardAuthUrl: "http://127.0.0.1:18080/api/edge-auth/forward",
+            HashiHealthUrl: "http://127.0.0.1:18080/api/health");
+
+        var result = TraefikConfigRenderer.Render(resources, options);
+        var generated = string.Concat(
+            result.DynamicFiles.CoreYaml,
+            result.DynamicFiles.HttpResourcesYaml,
+            result.DynamicFiles.HealthYaml);
+
+        Assert.Contains("http://127.0.0.1:18080/api/edge-auth/forward", result.DynamicFiles.CoreYaml);
+        Assert.Contains("http://127.0.0.1:18080/api/health", result.DynamicFiles.HealthYaml);
+        Assert.DoesNotContain("127.0.0.1:8080", generated, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Platform_render_derives_hashi_internal_urls_from_configured_admin_port()
+    {
+        await using var db = CreateDb();
+        db.Resources.Add(new ResourceEntity
+        {
+            Name = "App",
+            Slug = "app",
+            Kind = "http",
+            Enabled = true,
+            DashboardEnabled = true,
+            Domain = "app.example.com",
+            TargetScheme = "http",
+            TargetHost = "10.0.0.2",
+            TargetPort = 8080,
+            ForwardAuthPolicy = "adaptive",
+        });
+        await db.SaveChangesAsync();
+
+        var render = await TestPlatformHelpers
+            .CreateTraefikPlatform(db, ports: new HashiPortOptions { Admin = 18080 })
+            .RenderAsync();
+        var generated = string.Concat(
+            render.DynamicFiles.CoreYaml,
+            render.DynamicFiles.HttpResourcesYaml,
+            render.DynamicFiles.HealthYaml);
+
+        Assert.Contains("http://127.0.0.1:18080/api/edge-auth/forward", render.DynamicFiles.CoreYaml);
+        Assert.Contains("http://127.0.0.1:18080/api/health", render.DynamicFiles.HealthYaml);
+        Assert.DoesNotContain("127.0.0.1:8080", generated, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Platform_render_prefers_app_settings_internal_url()
+    {
+        await using var db = CreateDb();
+        db.AppSettings.Add(new AppSettingsEntity
+        {
+            InternalUrl = "http://hashi.internal:19090/",
+        });
+        await db.SaveChangesAsync();
+
+        var render = await TestPlatformHelpers
+            .CreateTraefikPlatform(db, ports: new HashiPortOptions { Admin = 18080 })
+            .RenderAsync();
+        var generated = string.Concat(render.DynamicFiles.CoreYaml, render.DynamicFiles.HealthYaml);
+
+        Assert.Contains("http://hashi.internal:19090/api/edge-auth/forward", render.DynamicFiles.CoreYaml);
+        Assert.Contains("http://hashi.internal:19090/api/health", render.DynamicFiles.HealthYaml);
+        Assert.DoesNotContain("127.0.0.1:8080", generated, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Render_regex_rewrite_includes_replacement()
     {
         var resources = new List<ResourceDefinition>
@@ -98,6 +177,14 @@ public sealed class TraefikConfigRendererTests
         Assert.Contains("regex: \"^/old/(.*)\"", result.DynamicFiles.HttpResourcesYaml);
         Assert.Contains("replacement: \"/new/$1\"", result.DynamicFiles.HttpResourcesYaml);
         Assert.True(TraefikConfigValidator.ValidateRender(result).IsValid);
+    }
+
+    private static HashiDbContext CreateDb()
+    {
+        var options = new Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<HashiDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        return new HashiDbContext(options);
     }
 }
 

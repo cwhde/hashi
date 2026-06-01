@@ -6,6 +6,7 @@ using Hashi.Api.Features.Setup;
 using Hashi.Api.Features.Sync;
 using Hashi.Api.Features.Vault;
 using Hashi.Api.Hosting;
+using Hashi.Core.Hosting;
 using Hashi.Infrastructure;
 using Hashi.Infrastructure.Auth;
 using Hashi.Infrastructure.Bootstrap;

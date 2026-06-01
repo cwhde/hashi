@@ -7,7 +7,7 @@ using System.Text.Json;
 
 namespace Hashi.Infrastructure.Platform;
 
-public sealed class MonitoringService(HashiDbContext db, AppSettingsService settings)
+public sealed class MonitoringService(HashiDbContext db, AppSettingsService settings, HashiInternalUrlResolver internalUrls)
 {
     private static readonly HashSet<string> AllowedCheckTypes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -286,11 +286,12 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
         List<MonitorEndpointEntity> existing,
         CancellationToken cancellationToken)
     {
+        var appSettings = await settings.GetOrCreateAsync(cancellationToken);
         UpsertProvisionedEndpoint(
             existing,
             resourceId: null,
             "Hashi API",
-            "http://127.0.0.1:8080/api/health",
+            internalUrls.ResolveUrl(appSettings, "/api/health"),
             "http",
             enabled: true);
 

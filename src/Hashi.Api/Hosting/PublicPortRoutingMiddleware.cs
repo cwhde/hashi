@@ -1,3 +1,4 @@
+using Hashi.Core.Hosting;
 using Hashi.Infrastructure.Services;
 using Microsoft.AspNetCore.Http;
 
