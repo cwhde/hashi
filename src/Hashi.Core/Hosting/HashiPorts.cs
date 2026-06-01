@@ -1,8 +1,11 @@
-namespace Hashi.Api.Hosting;
+using Microsoft.Extensions.Configuration;
+
+namespace Hashi.Core.Hosting;
 
 public static class HashiPorts
 {
     public const int DefaultAdmin = 8080;
+    public const string DefaultAdminText = "8080";
     public const int DefaultPublicDashboard = 8081;
     public const int DefaultPublicStatus = 8082;
 }

@@ -1,4 +1,5 @@
 using FluentValidation;
+using Hashi.Core.Hosting;
 using Hashi.Core.Dns;
 using Hashi.Core.Validation;
 using Fido2NetLib;
@@ -16,6 +17,7 @@ using Hashi.Infrastructure.Sync;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Hashi.Infrastructure;
 
@@ -34,6 +36,7 @@ public static class DependencyInjection
         services.AddSingleton<VaultSessionState>();
         services.AddSingleton<ServiceSyncVaultState>();
         services.AddSingleton<ReauthenticationState>();
+        services.TryAddSingleton(_ => HashiPortOptions.FromConfiguration(configuration));
 
         services.AddHttpClient("hetzner-dns", client =>
         {
@@ -58,6 +61,7 @@ public static class DependencyInjection
         services.AddScoped<SshConnectionService>();
         services.AddScoped<CertificateSetupService>();
         services.AddScoped<TraefikEntryPointService>();
+        services.AddScoped<HashiInternalUrlResolver>();
         services.AddScoped<FirewallTrustedIpResolver>();
         services.AddScoped<ResourceService>();
         services.AddScoped<TraefikUserMiddlewareService>();

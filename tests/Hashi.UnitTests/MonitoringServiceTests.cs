@@ -1,4 +1,5 @@
 using Hashi.Contracts.Api;
+using Hashi.Core.Hosting;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
 using Hashi.Infrastructure.Platform;
@@ -127,6 +128,35 @@ public sealed class MonitoringServiceTests
     }
 
     [Fact]
+    public async Task SyncEndpointsFromResourcesAsync_uses_configured_admin_port_for_hashi_api_monitor()
+    {
+        await using var db = CreateDb();
+
+        await CreateService(db, new HashiPortOptions { Admin = 18080 }).SyncEndpointsFromResourcesAsync();
+
+        var endpoint = await db.MonitorEndpoints.SingleAsync(x => x.Name == "Hashi API");
+        Assert.Equal("http://127.0.0.1:18080/api/health", endpoint.Url);
+        Assert.DoesNotContain("127.0.0.1:8080", endpoint.Url, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SyncEndpointsFromResourcesAsync_prefers_internal_url_for_hashi_api_monitor()
+    {
+        await using var db = CreateDb();
+        db.AppSettings.Add(new AppSettingsEntity
+        {
+            InternalUrl = "http://hashi.internal:19090/",
+        });
+        await db.SaveChangesAsync();
+
+        await CreateService(db, new HashiPortOptions { Admin = 18080 }).SyncEndpointsFromResourcesAsync();
+
+        var endpoint = await db.MonitorEndpoints.SingleAsync(x => x.Name == "Hashi API");
+        Assert.Equal("http://hashi.internal:19090/api/health", endpoint.Url);
+        Assert.DoesNotContain("127.0.0.1:8080", endpoint.Url, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Manual_endpoint_crud_validates_check_type_and_preserves_resource_owned_rows()
     {
         await using var db = CreateDb();
@@ -178,8 +208,8 @@ public sealed class MonitoringServiceTests
             Enabled = true,
         };
 
-    private static MonitoringService CreateService(HashiDbContext db)
-        => new(db, new AppSettingsService(db));
+    private static MonitoringService CreateService(HashiDbContext db, HashiPortOptions? ports = null)
+        => new(db, new AppSettingsService(db), new HashiInternalUrlResolver(ports ?? new HashiPortOptions()));
 
     private static HashiDbContext CreateDb()
     {

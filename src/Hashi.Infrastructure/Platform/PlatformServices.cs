@@ -437,7 +437,8 @@ public sealed class TraefikPlatformService(
     AppSettingsService settings,
     TraefikUserMiddlewareService userMiddlewares,
     CertificateSetupService certificateSetup,
-    TraefikEntryPointService entryPoints)
+    TraefikEntryPointService entryPoints,
+    HashiInternalUrlResolver internalUrls)
 {
     public async Task<TraefikRenderResult> RenderAsync(CancellationToken cancellationToken = default)
     {
@@ -448,6 +449,8 @@ public sealed class TraefikPlatformService(
         var options = acmeOptions with
         {
             AdminDomain = appSettings.AdminDomain ?? "hashi.local",
+            HashiForwardAuthUrl = internalUrls.ResolveUrl(appSettings, "/api/edge-auth/forward"),
+            HashiHealthUrl = internalUrls.ResolveUrl(appSettings, "/api/health"),
             ConfirmedStreamPorts = confirmedPorts,
         };
         var userYaml = await userMiddlewares.GetAppliedYamlAsync(cancellationToken);

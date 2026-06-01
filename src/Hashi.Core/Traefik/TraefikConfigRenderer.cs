@@ -1,7 +1,15 @@
+using Hashi.Core.Hosting;
 using Hashi.Core.Resources;
 using Hashi.Core.Security;
 
 namespace Hashi.Core.Traefik;
+
+internal static class HashiInternalUrlDefaults
+{
+    public const string BaseUrl = "http://127.0.0.1:" + HashiPorts.DefaultAdminText;
+    public const string ForwardAuthUrl = BaseUrl + "/api/edge-auth/forward";
+    public const string HealthUrl = BaseUrl + "/api/health";
+}
 
 public sealed record TraefikDynamicFiles(
     string CoreYaml,
@@ -24,7 +32,8 @@ public sealed record TraefikRenderOptions(
     int DnsChallengeDelaySeconds = 30,
     IReadOnlyList<string>? AcmeResolvers = null,
     string AdminDomain = "hashi.local",
-    string HashiForwardAuthUrl = "http://127.0.0.1:8080/api/edge-auth/forward",
+    string HashiForwardAuthUrl = HashiInternalUrlDefaults.ForwardAuthUrl,
+    string HashiHealthUrl = HashiInternalUrlDefaults.HealthUrl,
     IReadOnlySet<(int Port, string Protocol)>? ConfirmedStreamPorts = null);
 
 public static class TraefikConfigRenderer
@@ -506,6 +515,6 @@ public static class TraefikConfigRenderer
             hashi-health:
               loadBalancer:
                 servers:
-                  - url: "http://127.0.0.1:8080/api/health"
+                  - url: "{{options.HashiHealthUrl}}"
         """;
 }
