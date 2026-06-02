@@ -1,4 +1,5 @@
 using Hashi.Contracts.Api;
+using Hashi.Core.Resources;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
 using Hashi.Infrastructure.Services;
@@ -16,6 +17,8 @@ public sealed class PublicDashboardService(HashiDbContext db, AppSettingsService
 
     public async Task<PublicDashboardResponse> GetAsync(CancellationToken cancellationToken = default)
     {
+        var appSettings = await settings.GetOrCreateAsync(cancellationToken);
+        var rootDomain = appSettings.RootDomain;
         var resources = await db.Resources.AsNoTracking()
             .Where(x => x.DashboardEnabled)
             .OrderBy(x => x.Name)
@@ -36,7 +39,8 @@ public sealed class PublicDashboardService(HashiDbContext db, AppSettingsService
         var items = new List<PublicDashboardItemResponse>();
         foreach (var resource in resources)
         {
-            var publicUrl = BuildResourcePublicUrl(resource);
+            var resolvedDomain = ResourceDomainResolver.Resolve(resource.DomainMode, resource.Domain, resource.Slug, rootDomain);
+            var publicUrl = BuildResourcePublicUrl(resource, resolvedDomain);
             if (publicUrl is null)
             {
                 continue;
@@ -48,7 +52,7 @@ public sealed class PublicDashboardService(HashiDbContext db, AppSettingsService
                 "resource",
                 resource.Name,
                 publicUrl,
-                NormalizeOptional(resource.Domain),
+                resolvedDomain,
                 ResolveStatus(monitor?.Status, resource.Enabled),
                 monitor?.LastLatencyMs));
         }
@@ -79,9 +83,9 @@ public sealed class PublicDashboardService(HashiDbContext db, AppSettingsService
             firewallHosts.Count);
     }
 
-    private static string? BuildResourcePublicUrl(ResourceEntity resource)
+    private static string? BuildResourcePublicUrl(ResourceEntity resource, string? resolvedDomain)
     {
-        var domain = NormalizeOptional(resource.Domain);
+        var domain = NormalizeOptional(resolvedDomain);
         if (domain is null)
         {
             return null;

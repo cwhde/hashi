@@ -26,6 +26,8 @@ public sealed class ResourceEntity
 
     public DateTimeOffset? LastAppliedAtUtc { get; set; }
 
+    public string DomainMode { get; set; } = "custom";
+
     public string? Domain { get; set; }
 
     public string TargetScheme { get; set; } = "http";
@@ -51,6 +53,8 @@ public sealed class ResourceEntity
     public Guid? PulseAgentId { get; set; }
 
     public string? PathPrefix { get; set; }
+
+    public string? PathRewriteMode { get; set; }
 
     public string? PathRewrite { get; set; }
 

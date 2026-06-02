@@ -45,7 +45,10 @@ public static class TraefikConfigRenderer
     {
         options ??= new TraefikRenderOptions();
         var enabled = resources.Where(r => r.Enabled).ToList();
-        var httpResources = enabled.Where(r => r.Kind is ResourceKind.Http or ResourceKind.Https or ResourceKind.H2c).ToList();
+        var httpResources = enabled
+            .Where(r => r.Kind is ResourceKind.Http or ResourceKind.Https or ResourceKind.H2c)
+            .Where(r => !string.IsNullOrWhiteSpace(r.Domain))
+            .ToList();
         var streamResources = enabled.Where(r => r.Kind is ResourceKind.Tcp or ResourceKind.Udp).ToList();
         var confirmedPorts = options.ConfirmedStreamPorts;
         if (confirmedPorts is not null)
@@ -195,18 +198,29 @@ public static class TraefikConfigRenderer
             if (r.Routes is { Count: > 0 })
             {
                 return r.Routes.Where(route => route.Enabled && !string.IsNullOrWhiteSpace(route.RewriteValue))
-                    .Select(route => (Name: $"{r.Slug}-route-{route.Priority}-rewrite", Value: route.RewriteValue!, Mode: route.RewriteMode));
+                    .Select(route => (
+                        Name: $"{r.Slug}-route-{route.Priority}-rewrite",
+                        Value: route.RewriteValue!,
+                        Mode: route.RewriteMode,
+                        MatchPrefix: (string?)route.PathValue));
             }
 
             if (!string.IsNullOrWhiteSpace(r.PathRewrite))
             {
-                return [(Name: $"{r.Slug}-rewrite", Value: r.PathRewrite!, Mode: (string?)null)];
+                return
+                [
+                    (
+                        Name: $"{r.Slug}-rewrite",
+                        Value: r.PathRewrite!,
+                        Mode: r.PathRewriteMode,
+                        MatchPrefix: r.PathPrefix)
+                ];
             }
 
             return [];
         });
 
-        var middlewareEntries = rewriteMiddlewares.Select(x => RenderRewriteMiddleware(x.Name, x.Value, x.Mode)).ToList();
+        var middlewareEntries = rewriteMiddlewares.Select(x => RenderRewriteMiddleware(x.Name, x.Value, x.Mode, x.MatchPrefix)).ToList();
         var middlewareBlock = middlewareEntries.Count > 0
             ? "  middlewares:\n" + string.Join('\n', middlewareEntries) + "\n"
             : string.Empty;
@@ -260,7 +274,6 @@ public static class TraefikConfigRenderer
         var routerName = route is null ? resource.Slug : $"{resource.Slug}-route-{route.Priority}";
         var serviceName = route is null ? resource.Slug : $"{resource.Slug}-route-{route.Priority}";
         var rewriteValue = route?.RewriteValue ?? resource.PathRewrite;
-        var rewriteMode = route?.RewriteMode;
         var lines = new List<string>
         {
             $"    {routerName}:",
@@ -291,10 +304,10 @@ public static class TraefikConfigRenderer
         return string.Join('\n', lines);
     }
 
-    private static string RenderRewriteMiddleware(string name, string value, string? mode)
+    private static string RenderRewriteMiddleware(string name, string value, string? mode, string? matchPrefix)
     {
-        var rewriteMode = (mode ?? "replace_path").ToLowerInvariant();
-        if (rewriteMode == "regex")
+        var rewriteMode = (mode ?? ResourceRewriteModeNames.ReplacePath).ToLowerInvariant();
+        if (rewriteMode == ResourceRewriteModeNames.Regex)
         {
             var (regex, replacement) = SplitRegexRewrite(value);
             return $$"""
@@ -305,14 +318,29 @@ public static class TraefikConfigRenderer
                 """;
         }
 
-        return rewriteMode == "strip_prefix"
-            ? $$"""
+        if (rewriteMode == ResourceRewriteModeNames.StripPrefix)
+        {
+            return $$"""
                   {{name}}:
                     stripPrefix:
                       prefixes:
                         - "{{value}}"
-                """
-            : $$"""
+                """;
+        }
+
+        if (rewriteMode == ResourceRewriteModeNames.ReplacePrefix)
+        {
+            var regex = BuildReplacePrefixRegex(matchPrefix);
+            var replacement = BuildReplacePrefixReplacement(value);
+            return $$"""
+                  {{name}}:
+                    replacePathRegex:
+                      regex: "{{regex}}"
+                      replacement: "{{replacement}}"
+                """;
+        }
+
+        return $$"""
                   {{name}}:
                     replacePath:
                       path: "{{value}}"
@@ -332,9 +360,37 @@ public static class TraefikConfigRenderer
         return (regex.Length == 0 ? "^/(.*)" : regex, replacement.Length == 0 ? "/" : replacement);
     }
 
+    private static string BuildReplacePrefixRegex(string? matchPrefix)
+    {
+        var normalized = NormalizePath(matchPrefix);
+        var escaped = System.Text.RegularExpressions.Regex.Escape(normalized);
+        return $"^{escaped}(.*)";
+    }
+
+    private static string BuildReplacePrefixReplacement(string value)
+    {
+        var normalized = NormalizePath(value);
+        return normalized == "/"
+            ? "/$1"
+            : $"{normalized}$1";
+    }
+
+    private static string NormalizePath(string? value)
+    {
+        var normalized = string.IsNullOrWhiteSpace(value) ? "/" : value.Trim();
+        return normalized.StartsWith("/", StringComparison.Ordinal)
+            ? normalized
+            : $"/{normalized}";
+    }
+
     private static string BuildPathRule(string? domain, string? pathMatchType, string? pathValue)
     {
-        var hostRule = string.IsNullOrWhiteSpace(domain) ? "HostRegexp(`{host:.+}`)" : $"Host(`{domain}`)";
+        if (string.IsNullOrWhiteSpace(domain))
+        {
+            throw new InvalidOperationException("HTTP resources require a resolved public domain.");
+        }
+
+        var hostRule = $"Host(`{domain}`)";
         if (string.IsNullOrWhiteSpace(pathValue))
         {
             return hostRule;

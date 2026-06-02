@@ -7,7 +7,9 @@ public sealed record ResourceResponse(
     string Kind,
     bool Enabled,
     bool IsSystem,
+    string DomainMode,
     string? Domain,
+    string? ResolvedDomain,
     string TargetScheme,
     string TargetHost,
     int TargetPort,
@@ -17,6 +19,7 @@ public sealed record ResourceResponse(
     Guid? FirewallHostId,
     Guid? PulseAgentId,
     string? PathPrefix,
+    string? PathRewriteMode,
     string? PathRewrite,
     string ForwardAuthPolicy,
     string WafMode,
@@ -84,7 +87,9 @@ public sealed record CreateResourceRequest(
     IReadOnlyList<string>? ExtraMiddlewares = null,
     IReadOnlyList<ResourceRouteRequest>? Routes = null,
     IReadOnlyList<ResourceRuleRequest>? Rules = null,
-    IReadOnlyList<string>? WafExclusions = null);
+    IReadOnlyList<string>? WafExclusions = null,
+    string? DomainMode = null,
+    string? PathRewriteMode = null);
 
 public sealed record UpdateResourceRequest(
     string? Name,
@@ -96,6 +101,8 @@ public sealed record UpdateResourceRequest(
     bool? DashboardEnabled,
     bool? StatusEnabled,
     int? PublicPort = null,
+    string? DomainMode = null,
+    bool ClearDomain = false,
     bool ClearPublicPort = false,
     Guid? FirewallHostId = null,
     bool ClearFirewallHostId = false,
@@ -103,6 +110,8 @@ public sealed record UpdateResourceRequest(
     bool ClearPulseAgentId = false,
     string? PathPrefix = null,
     bool ClearPathPrefix = false,
+    string? PathRewriteMode = null,
+    bool ClearPathRewriteMode = false,
     string? PathRewrite = null,
     bool ClearPathRewrite = false,
     string? ForwardAuthPolicy = null,

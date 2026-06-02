@@ -228,6 +228,63 @@ public sealed class TraefikConfigRendererTests
         Assert.True(TraefikConfigValidator.ValidateRender(result).IsValid);
     }
 
+    [Fact]
+    public void Render_replace_prefix_rewrite_preserves_suffix()
+    {
+        var resources = new List<ResourceDefinition>
+        {
+            new(Guid.NewGuid(), "App", "app", ResourceKind.Http, true, false, "app.example.com", "http", "10.0.0.2", 8080,
+                PathPrefix: "/api",
+                PathRewriteMode: "replace_prefix",
+                PathRewrite: "/v1"),
+        };
+
+        var result = TraefikConfigRenderer.Render(resources);
+
+        Assert.Contains("replacePathRegex:", result.DynamicFiles.HttpResourcesYaml);
+        Assert.Contains("regex: \"^/api(.*)\"", result.DynamicFiles.HttpResourcesYaml);
+        Assert.Contains("replacement: \"/v1$1\"", result.DynamicFiles.HttpResourcesYaml);
+        Assert.True(TraefikConfigValidator.ValidateRender(result).IsValid);
+    }
+
+    [Fact]
+    public void Render_supports_replace_path_and_strip_prefix_rewrites()
+    {
+        var resources = new List<ResourceDefinition>
+        {
+            new(Guid.NewGuid(), "Exact", "exact", ResourceKind.Http, true, false, "exact.example.com", "http", "10.0.0.2", 8080,
+                PathRewriteMode: "replace_path",
+                PathRewrite: "/"),
+            new(Guid.NewGuid(), "Strip", "strip", ResourceKind.Http, true, false, "strip.example.com", "http", "10.0.0.3", 8080,
+                PathPrefix: "/api",
+                PathRewriteMode: "strip_prefix",
+                PathRewrite: "/api"),
+        };
+
+        var result = TraefikConfigRenderer.Render(resources);
+
+        Assert.Contains("replacePath:", result.DynamicFiles.HttpResourcesYaml);
+        Assert.Contains("path: \"/\"", result.DynamicFiles.HttpResourcesYaml);
+        Assert.Contains("stripPrefix:", result.DynamicFiles.HttpResourcesYaml);
+        Assert.Contains("- \"/api\"", result.DynamicFiles.HttpResourcesYaml);
+        Assert.True(TraefikConfigValidator.ValidateRender(result).IsValid);
+    }
+
+    [Fact]
+    public void Render_http_resource_without_domain_does_not_use_catch_all_host()
+    {
+        var resources = new List<ResourceDefinition>
+        {
+            new(Guid.NewGuid(), "Blank", "blank", ResourceKind.Http, true, false, null, "http", "10.0.0.2", 8080),
+        };
+
+        var result = TraefikConfigRenderer.Render(resources);
+
+        Assert.DoesNotContain("HostRegexp", result.DynamicFiles.HttpResourcesYaml);
+        Assert.DoesNotContain("blank:", result.DynamicFiles.HttpResourcesYaml);
+        Assert.True(TraefikConfigValidator.ValidateRender(result).IsValid);
+    }
+
     private static HashiDbContext CreateDb()
     {
         var options = new Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<HashiDbContext>()

@@ -1,5 +1,6 @@
 using FluentValidation;
 using Hashi.Contracts.Api;
+using Hashi.Core.Resources;
 
 namespace Hashi.Core.Validation;
 
@@ -15,6 +16,25 @@ public sealed class CreateResourceRequestValidator : AbstractValidator<CreateRes
         RuleFor(x => x.PublicPort)
             .InclusiveBetween(1, 65535)
             .When(x => x.PublicPort.HasValue);
+        RuleFor(x => x.DomainMode)
+            .Must(mode => string.IsNullOrWhiteSpace(mode) || ResourceDomainModeNames.IsValid(mode))
+            .WithMessage($"Domain mode must be one of: {string.Join(", ", ResourceDomainModeNames.All)}.");
+        RuleFor(x => x.PathRewriteMode)
+            .Must(mode => string.IsNullOrWhiteSpace(mode) || ResourceRewriteModeNames.IsValid(mode))
+            .WithMessage($"Path rewrite mode must be one of: {string.Join(", ", ResourceRewriteModeNames.All)}.");
+        RuleFor(x => x.PathRewrite)
+            .NotEmpty()
+            .When(x => !string.IsNullOrWhiteSpace(x.PathRewriteMode));
+        RuleForEach(x => x.Routes)
+            .ChildRules(route =>
+            {
+                route.RuleFor(x => x.RewriteMode)
+                    .Must(mode => string.IsNullOrWhiteSpace(mode) || ResourceRewriteModeNames.IsValid(mode))
+                    .WithMessage($"Rewrite mode must be one of: {string.Join(", ", ResourceRewriteModeNames.All)}.");
+                route.RuleFor(x => x.RewriteValue)
+                    .NotEmpty()
+                    .When(x => !string.IsNullOrWhiteSpace(x.RewriteMode));
+            });
     }
 }
 

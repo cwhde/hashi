@@ -283,8 +283,10 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.Property(x => x.OwningWorkflow).HasMaxLength(64);
             entity.Property(x => x.DeletionPolicy).HasMaxLength(32).HasDefaultValue(ResourceDeletionPolicyNames.Optional);
             entity.Property(x => x.SyncState).HasMaxLength(32).HasDefaultValue(ResourceSyncStateNames.Desired);
+            entity.Property(x => x.DomainMode).HasMaxLength(32).HasDefaultValue("custom");
             entity.Property(x => x.ForwardAuthPolicy).HasMaxLength(32);
             entity.Property(x => x.WafMode).HasMaxLength(32);
+            entity.Property(x => x.PathRewriteMode).HasMaxLength(32);
             entity.Property(x => x.WafExclusionsJson);
             entity.HasIndex(x => x.Slug).IsUnique();
         });

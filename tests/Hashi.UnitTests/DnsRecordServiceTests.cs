@@ -112,6 +112,56 @@ public sealed class DnsRecordServiceTests
     }
 
     [Fact]
+    public async Task Desired_state_generates_subdomain_resource_dns_from_blank_domain()
+    {
+        await using var db = CreateDb();
+        var zone = await SeedZoneAsync(db);
+        db.AppSettings.Add(new AppSettingsEntity { RootDomain = "example.com" });
+        db.Resources.Add(new ResourceEntity
+        {
+            Name = "App",
+            Slug = "app",
+            Kind = "https",
+            Enabled = true,
+            DomainMode = "subdomain",
+            Domain = null,
+            TargetHost = "203.0.113.50",
+            TargetPort = 443,
+        });
+        await db.SaveChangesAsync();
+
+        var desired = await DnsDesiredStateBuilder.BuildAsync(db, zone.Id, zone.DefaultTtl);
+
+        Assert.Contains(desired, x =>
+            x.Name == "app.example.com"
+            && x.Type == DnsRecordType.A
+            && x.Value == "203.0.113.50");
+    }
+
+    [Fact]
+    public async Task Desired_state_skips_public_record_for_private_manual_target_without_firewall_or_pulse()
+    {
+        await using var db = CreateDb();
+        var zone = await SeedZoneAsync(db);
+        db.AppSettings.Add(new AppSettingsEntity { RootDomain = "example.com" });
+        db.Resources.Add(new ResourceEntity
+        {
+            Name = "App",
+            Slug = "app",
+            Kind = "https",
+            Enabled = true,
+            DomainMode = "subdomain",
+            TargetHost = "192.168.1.10",
+            TargetPort = 443,
+        });
+        await db.SaveChangesAsync();
+
+        var desired = await DnsDesiredStateBuilder.BuildAsync(db, zone.Id, zone.DefaultTtl);
+
+        Assert.DoesNotContain(desired, x => x.Name == "app.example.com");
+    }
+
+    [Fact]
     public async Task Duplicate_enabled_single_value_manual_record_key_is_rejected()
     {
         await using var db = CreateDb();
