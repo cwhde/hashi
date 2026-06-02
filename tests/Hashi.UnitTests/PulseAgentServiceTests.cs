@@ -42,17 +42,29 @@ public sealed class PulseAgentServiceTests
         var rendered = PulseInstallRenderer.Render("https://hashi.example.com", Guid.NewGuid());
 
         Assert.Contains("<PULSE_TOKEN>", rendered.LinuxInstallScript);
-        Assert.Contains("<PULSE_TOKEN>", rendered.DockerRunCommand);
+        Assert.Contains("<PULSE_TOKEN>", rendered.DockerComposeSnippet);
+        Assert.Contains("sudo env", rendered.LinuxInstallScript);
         Assert.DoesNotContain(token, rendered.LinuxInstallScript);
-        Assert.DoesNotContain(token, rendered.DockerRunCommand);
+        Assert.DoesNotContain(token, rendered.DockerComposeSnippet);
         Assert.DoesNotContain("?token=", rendered.LinuxInstallScript, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("&token=", rendered.LinuxInstallScript, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("?token=", rendered.DockerRunCommand, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("&token=", rendered.DockerRunCommand, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("?token=", rendered.DockerComposeSnippet, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("&token=", rendered.DockerComposeSnippet, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("services:", rendered.DockerComposeSnippet);
+        Assert.Contains("hashi-pulse:", rendered.DockerComposeSnippet);
+        Assert.DoesNotContain("docker run", rendered.DockerComposeSnippet, StringComparison.OrdinalIgnoreCase);
 
         var installer = File.ReadAllText(FindRepoFile("agents", "pulse", "install.sh"));
-        Assert.Contains("EnvironmentFile=", installer);
+        Assert.Contains("detect_arch()", installer);
+        Assert.Contains("hashi-pulse-linux-${arch}", installer);
+        Assert.Contains("sha256_file()", installer);
+        Assert.Contains("install_systemd_timer()", installer);
+        Assert.Contains("install_cron()", installer);
         Assert.Contains("install -m 0600 -o root -g root", installer);
+        Assert.Contains("ExecStart=${RUNNER}", installer);
+        Assert.Contains("/etc/cron.d/${SERVICE_NAME}", installer);
+        Assert.DoesNotContain("HASHI_PULSE_SOURCE_DIR", installer);
+        Assert.DoesNotContain("go build", installer);
         Assert.DoesNotContain("Environment=HASHI_PULSE_TOKEN", installer);
     }
 

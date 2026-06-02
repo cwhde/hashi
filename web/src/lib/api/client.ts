@@ -539,7 +539,7 @@ export const api = {
 		return {
 			...install,
 			linuxInstallScript: install.linuxInstallScript.replaceAll('<PULSE_TOKEN>', token),
-			dockerRunCommand: install.dockerRunCommand.replaceAll('<PULSE_TOKEN>', token)
+			dockerComposeSnippet: install.dockerComposeSnippet.replaceAll('<PULSE_TOKEN>', token)
 		};
 	},
 	revokePulseAgent: async (agentId: string) => {

@@ -5967,7 +5967,7 @@ export interface components {
         };
         PulseInstallResponse: {
             linuxInstallScript: string;
-            dockerRunCommand: string;
+            dockerComposeSnippet: string;
         };
         RemoteWriteRequest: {
             remotePath: string;
