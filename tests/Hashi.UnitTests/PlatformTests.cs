@@ -1,9 +1,13 @@
 using Hashi.Core.Resources;
 using Hashi.Core.Security;
 using Hashi.Core.Traefik;
+using Hashi.Core.Hosting;
 using Hashi.Core.Firewall;
+using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
 using Hashi.Infrastructure.Platform;
+using Hashi.UnitTests.Fakes;
+using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using Xunit;
 
@@ -35,14 +39,38 @@ public sealed class TraefikConfigRendererTests
         var options = new TraefikRenderOptions(
             AcmeEmail: "admin@example.com",
             AcmeEabKeyId: "eab-key",
-            AcmeEabHmac: "eab-hmac");
+            AcmeEabHmac: "eab-hmac",
+            DnsProviderName: "hetzner");
         var result = TraefikConfigRenderer.Render(resources, options);
 
         Assert.Contains("certificatesResolvers:", result.StaticConfigYaml);
+        Assert.Contains("provider: hetzner", result.StaticConfigYaml);
         Assert.Contains("externalAccountBinding:", result.StaticConfigYaml);
         Assert.Contains("coraza:", result.StaticConfigYaml);
         Assert.Contains("app-waf:", result.DynamicFiles.SecurityYaml);
         Assert.Contains("hashi-forward-auth", result.DynamicFiles.HttpResourcesYaml);
+    }
+
+    [Fact]
+    public void Render_multiple_waf_resources_uses_single_security_http_map_and_validates()
+    {
+        var resources = new List<ResourceDefinition>
+        {
+            new(Guid.NewGuid(), "App", "app", ResourceKind.Https, true, false, "app.example.com", "http", "10.0.0.2", 8080,
+                WafMode: WafMode.On, WafExclusions: ["SecRuleRemoveById 941100"]),
+            new(Guid.NewGuid(), "Admin", "admin", ResourceKind.Https, true, false, "admin.example.com", "http", "10.0.0.3", 8080,
+                WafMode: WafMode.DetectOnly, WafExclusions: ["SecRuleUpdateTargetById 942100 !ARGS:search"]),
+        };
+
+        var result = TraefikConfigRenderer.Render(resources);
+        var validation = TraefikConfigValidator.ValidateRender(result);
+
+        Assert.Equal(1, result.DynamicFiles.SecurityYaml.Split('\n').Count(line => line == "http:"));
+        Assert.Contains("app-waf:", result.DynamicFiles.SecurityYaml);
+        Assert.Contains("admin-waf:", result.DynamicFiles.SecurityYaml);
+        Assert.Contains("SecRuleRemoveById 941100", result.DynamicFiles.SecurityYaml);
+        Assert.Contains("SecRuleUpdateTargetById 942100 !ARGS:search", result.DynamicFiles.SecurityYaml);
+        Assert.True(validation.IsValid, string.Join("; ", validation.Errors));
     }
 
     [Fact]
@@ -73,6 +101,106 @@ public sealed class TraefikConfigRendererTests
     }
 
     [Fact]
+    public void Render_uses_configured_internal_urls_for_hashi_middlewares_and_health_service()
+    {
+        var resources = new List<ResourceDefinition>
+        {
+            new(Guid.NewGuid(), "App", "app", ResourceKind.Http, true, false, "app.example.com", "http", "10.0.0.2", 8080,
+                ForwardAuth: ForwardAuthPolicy.Adaptive),
+        };
+        var options = new TraefikRenderOptions(
+            HashiForwardAuthUrl: "http://127.0.0.1:18080/api/edge-auth/forward",
+            HashiHealthUrl: "http://127.0.0.1:18080/api/health");
+
+        var result = TraefikConfigRenderer.Render(resources, options);
+        var generated = string.Concat(
+            result.DynamicFiles.CoreYaml,
+            result.DynamicFiles.HttpResourcesYaml,
+            result.DynamicFiles.HealthYaml);
+
+        Assert.Contains("http://127.0.0.1:18080/api/edge-auth/forward", result.DynamicFiles.CoreYaml);
+        Assert.Contains("http://127.0.0.1:18080/api/health", result.DynamicFiles.HealthYaml);
+        Assert.DoesNotContain("127.0.0.1:8080", generated, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Platform_render_derives_hashi_internal_urls_from_configured_admin_port()
+    {
+        await using var db = CreateDb();
+        db.Resources.Add(new ResourceEntity
+        {
+            Name = "App",
+            Slug = "app",
+            Kind = "http",
+            Enabled = true,
+            DashboardEnabled = true,
+            Domain = "app.example.com",
+            TargetScheme = "http",
+            TargetHost = "10.0.0.2",
+            TargetPort = 8080,
+            ForwardAuthPolicy = "adaptive",
+        });
+        await db.SaveChangesAsync();
+
+        var render = await TestPlatformHelpers
+            .CreateTraefikPlatform(db, ports: new HashiPortOptions { Admin = 18080 })
+            .RenderAsync();
+        var generated = string.Concat(
+            render.DynamicFiles.CoreYaml,
+            render.DynamicFiles.HttpResourcesYaml,
+            render.DynamicFiles.HealthYaml);
+
+        Assert.Contains("http://127.0.0.1:18080/api/edge-auth/forward", render.DynamicFiles.CoreYaml);
+        Assert.Contains("http://127.0.0.1:18080/api/health", render.DynamicFiles.HealthYaml);
+        Assert.DoesNotContain("127.0.0.1:8080", generated, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Platform_render_prefers_app_settings_internal_url()
+    {
+        await using var db = CreateDb();
+        db.AppSettings.Add(new AppSettingsEntity
+        {
+            InternalUrl = "http://hashi.internal:19090/",
+        });
+        await db.SaveChangesAsync();
+
+        var render = await TestPlatformHelpers
+            .CreateTraefikPlatform(db, ports: new HashiPortOptions { Admin = 18080 })
+            .RenderAsync();
+        var generated = string.Concat(render.DynamicFiles.CoreYaml, render.DynamicFiles.HealthYaml);
+
+        Assert.Contains("http://hashi.internal:19090/api/edge-auth/forward", render.DynamicFiles.CoreYaml);
+        Assert.Contains("http://hashi.internal:19090/api/health", render.DynamicFiles.HealthYaml);
+        Assert.DoesNotContain("127.0.0.1:8080", generated, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Platform_render_includes_persisted_waf_exclusions()
+    {
+        await using var db = CreateDb();
+        db.Resources.Add(new ResourceEntity
+        {
+            Name = "App",
+            Slug = "app",
+            Kind = "https",
+            Enabled = true,
+            Domain = "app.example.com",
+            TargetScheme = "http",
+            TargetHost = "10.0.0.2",
+            TargetPort = 8080,
+            WafMode = "on",
+            WafExclusionsJson = JsonSerializer.Serialize(new[] { "SecRuleRemoveById 941100" }),
+        });
+        await db.SaveChangesAsync();
+
+        var render = await TestPlatformHelpers.CreateTraefikPlatform(db).RenderAsync();
+
+        Assert.Contains("app-waf:", render.DynamicFiles.SecurityYaml);
+        Assert.Contains("SecRuleRemoveById 941100", render.DynamicFiles.SecurityYaml);
+    }
+
+    [Fact]
     public void Render_regex_rewrite_includes_replacement()
     {
         var resources = new List<ResourceDefinition>
@@ -98,6 +226,14 @@ public sealed class TraefikConfigRendererTests
         Assert.Contains("regex: \"^/old/(.*)\"", result.DynamicFiles.HttpResourcesYaml);
         Assert.Contains("replacement: \"/new/$1\"", result.DynamicFiles.HttpResourcesYaml);
         Assert.True(TraefikConfigValidator.ValidateRender(result).IsValid);
+    }
+
+    private static HashiDbContext CreateDb()
+    {
+        var options = new Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<HashiDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        return new HashiDbContext(options);
     }
 }
 

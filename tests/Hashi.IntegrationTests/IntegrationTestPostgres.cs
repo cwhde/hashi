@@ -11,16 +11,28 @@ namespace Hashi.IntegrationTests;
 
 internal static class IntegrationTestApp
 {
-    public static WebApplicationFactory<Program> CreateFactory(string connectionString)
+    public static WebApplicationFactoryClientOptions HttpsClientOptions(
+        bool handleCookies = true,
+        bool allowAutoRedirect = true)
+        => new()
+        {
+            BaseAddress = new Uri("https://localhost"),
+            HandleCookies = handleCookies,
+            AllowAutoRedirect = allowAutoRedirect,
+        };
+
+    public static WebApplicationFactory<Program> CreateFactory(
+        string connectionString,
+        Action<IServiceCollection>? configureServices = null)
         => new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
                 builder.UseSetting("ConnectionStrings:Hashi", connectionString);
                 builder.UseSetting("Hashi:SkipStartupHooks", "true");
-                builder.UseSetting("Hashi:Oidc:AllowUnsignedTestTokens", "true");
                 builder.ConfigureServices(services =>
                 {
                     services.AddSingleton<IStartupFilter, LoopbackRemoteIpStartupFilter>();
+                    configureServices?.Invoke(services);
                 });
             });
 

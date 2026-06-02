@@ -1,7 +1,15 @@
+using Hashi.Core.Hosting;
 using Hashi.Core.Resources;
 using Hashi.Core.Security;
 
 namespace Hashi.Core.Traefik;
+
+internal static class HashiInternalUrlDefaults
+{
+    public const string BaseUrl = "http://127.0.0.1:" + HashiPorts.DefaultAdminText;
+    public const string ForwardAuthUrl = BaseUrl + "/api/edge-auth/forward";
+    public const string HealthUrl = BaseUrl + "/api/health";
+}
 
 public sealed record TraefikDynamicFiles(
     string CoreYaml,
@@ -24,7 +32,8 @@ public sealed record TraefikRenderOptions(
     int DnsChallengeDelaySeconds = 30,
     IReadOnlyList<string>? AcmeResolvers = null,
     string AdminDomain = "hashi.local",
-    string HashiForwardAuthUrl = "http://127.0.0.1:8080/api/edge-auth/forward",
+    string HashiForwardAuthUrl = HashiInternalUrlDefaults.ForwardAuthUrl,
+    string HashiHealthUrl = HashiInternalUrlDefaults.HealthUrl,
     IReadOnlySet<(int Port, string Protocol)>? ConfirmedStreamPorts = null);
 
 public static class TraefikConfigRenderer
@@ -401,10 +410,11 @@ public static class TraefikConfigRenderer
 
     private static string RenderSecurity(IReadOnlyList<ResourceDefinition> resources)
     {
-        var wafBlocks = string.Join('\n', resources
+        var middlewares = resources
             .Where(r => r.WafMode != WafMode.Off)
-            .Select(r => WafMiddlewareRenderer.RenderCorazaMiddleware(r.Slug, r.WafMode).TrimEnd()));
-        return string.IsNullOrEmpty(wafBlocks) ? "http:\n  middlewares: {}\n" : wafBlocks + "\n";
+            .Select(r => new WafMiddlewareDefinition(r.Slug, r.WafMode, r.WafExclusions))
+            .ToList();
+        return WafMiddlewareRenderer.RenderCorazaMiddlewares(middlewares);
     }
 
     private static IReadOnlyList<string> BuildResourceMiddlewares(
@@ -464,6 +474,11 @@ public static class TraefikConfigRenderer
 
     private static string RenderAcmeBlock(TraefikRenderOptions options)
     {
+        if (string.IsNullOrWhiteSpace(options.DnsProviderName))
+        {
+            throw new InvalidOperationException("ACME DNS provider is required when ACME email is configured.");
+        }
+
         var eabBlock = string.IsNullOrWhiteSpace(options.AcmeEabKeyId) || string.IsNullOrWhiteSpace(options.AcmeEabHmac)
             ? string.Empty
             : $$"""
@@ -485,7 +500,7 @@ public static class TraefikConfigRenderer
                   storage: /var/lib/hashi/traefik/acme.json
                   caServer: https://dv.acme-v02.api.pki.goog/directory
                   dnsChallenge:
-                    provider: hetzner
+                    provider: {{options.DnsProviderName}}
                     delayBeforeCheck: {{options.DnsChallengeDelaySeconds}}s
                     resolvers:
             {{resolvers}}{{eabBlock}}
@@ -506,6 +521,6 @@ public static class TraefikConfigRenderer
             hashi-health:
               loadBalancer:
                 servers:
-                  - url: "http://127.0.0.1:8080/api/health"
+                  - url: "{{options.HashiHealthUrl}}"
         """;
 }

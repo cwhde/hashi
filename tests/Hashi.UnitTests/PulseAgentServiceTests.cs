@@ -29,10 +29,10 @@ public sealed class PulseAgentServiceTests
 
         var accepted = await service.AcceptHeartbeatAsync(
             created.Id,
-            new Hashi.Contracts.Api.PulseHeartbeatAuthRequest(created.Token, "0.1.0", "host", ["10.0.0.5"]),
+            Heartbeat(created.Token),
             "203.0.113.10");
 
-        Assert.False(accepted);
+        Assert.Equal(PulseHeartbeatAcceptResult.Unauthorized, accepted);
     }
 
     [Fact]
@@ -49,6 +49,11 @@ public sealed class PulseAgentServiceTests
         Assert.DoesNotContain("&token=", rendered.LinuxInstallScript, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("?token=", rendered.DockerRunCommand, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("&token=", rendered.DockerRunCommand, StringComparison.OrdinalIgnoreCase);
+
+        var installer = File.ReadAllText(FindRepoFile("agents", "pulse", "install.sh"));
+        Assert.Contains("EnvironmentFile=", installer);
+        Assert.Contains("install -m 0600 -o root -g root", installer);
+        Assert.DoesNotContain("Environment=HASHI_PULSE_TOKEN", installer);
     }
 
     [Fact]
@@ -72,6 +77,100 @@ public sealed class PulseAgentServiceTests
     }
 
     [Fact]
+    public async Task CreateAgent_persists_contract_fields()
+    {
+        await using var db = CreateDb();
+        var service = CreateService(db);
+
+        var created = await service.CreateAgentAsync(new Hashi.Contracts.Api.CreatePulseAgentRequest(
+            "edge-1",
+            "docker",
+            ["heartbeat", "heartbeat", "status"],
+            30));
+
+        var agent = await db.PulseAgents.SingleAsync(x => x.Id == created.Id);
+        var response = PulseAgentService.ToResponse(agent);
+        Assert.Equal("docker", response.InstallType);
+        Assert.Equal(["heartbeat", "status"], response.AllowedScopes);
+        Assert.Equal(30, response.HeartbeatIntervalSeconds);
+        Assert.Equal("pending", response.Status);
+        Assert.Empty(response.LastPrivateIpv4Candidates);
+        Assert.Empty(response.LastPrivateIpv6Candidates);
+    }
+
+    [Fact]
+    public async Task Heartbeat_persists_timestamp_candidates_selected_interface_and_docker_metadata()
+    {
+        await using var db = CreateDb();
+        var service = CreateService(db);
+        var created = await service.CreateAgentAsync(new Hashi.Contracts.Api.CreatePulseAgentRequest("edge-1"));
+        var timestamp = DateTimeOffset.UtcNow;
+
+        var accepted = await service.AcceptHeartbeatAsync(
+            created.Id,
+            new Hashi.Contracts.Api.PulseHeartbeatAuthRequest(
+                created.Token,
+                "0.2.0",
+                "host",
+                ["10.0.0.5", "203.0.113.7", "10.0.0.5"],
+                ["fd00::5", "2001:db8::5"],
+                "eth0",
+                "fd00::5",
+                timestamp,
+                new Hashi.Contracts.Api.PulseDockerMetadataRequest("container-1", "hashi-pulse:latest", "bridge")),
+            "203.0.113.10");
+
+        Assert.Equal(PulseHeartbeatAcceptResult.Accepted, accepted);
+        var agent = await db.PulseAgents.SingleAsync(x => x.Id == created.Id);
+        Assert.Equal("203.0.113.10", agent.LastPublicIp);
+        Assert.Equal("fd00::5", agent.LastPrivateIp);
+        Assert.Equal("fd00::5", agent.LastSelectedIp);
+        Assert.Equal("eth0", agent.LastSelectedInterface);
+        Assert.Equal("0.2.0", agent.LastAgentVersion);
+        Assert.Equal("docker", agent.InstallType);
+        Assert.Equal("online", agent.Status);
+        Assert.Equal("""["10.0.0.5"]""", agent.LastPrivateIpv4CandidatesJson);
+        Assert.Equal("""["fd00::5"]""", agent.LastPrivateIpv6CandidatesJson);
+        Assert.Contains("container-1", agent.LastDockerMetadataJson);
+
+        var heartbeat = await db.PulseHeartbeats.SingleAsync(x => x.PulseAgentId == created.Id);
+        Assert.Equal(timestamp, heartbeat.AgentTimestampUtc);
+        Assert.Equal("""["10.0.0.5"]""", heartbeat.PrivateIpv4CandidatesJson);
+        Assert.Equal("""["fd00::5"]""", heartbeat.PrivateIpv6CandidatesJson);
+        Assert.Equal("fd00::5", heartbeat.SelectedIp);
+        Assert.Equal("eth0", heartbeat.SelectedInterface);
+        Assert.Contains("hashi-pulse:latest", heartbeat.DockerMetadataJson);
+    }
+
+    [Fact]
+    public async Task Heartbeat_rejects_stale_timestamp_without_persisting()
+    {
+        await using var db = CreateDb();
+        var service = CreateService(db);
+        var created = await service.CreateAgentAsync(new Hashi.Contracts.Api.CreatePulseAgentRequest("edge-1"));
+
+        var accepted = await service.AcceptHeartbeatAsync(
+            created.Id,
+            new Hashi.Contracts.Api.PulseHeartbeatAuthRequest(
+                created.Token,
+                "0.2.0",
+                "host",
+                ["10.0.0.5"],
+                [],
+                "eth0",
+                "10.0.0.5",
+                DateTimeOffset.UtcNow.AddMinutes(-10),
+                null),
+            "203.0.113.10");
+
+        Assert.Equal(PulseHeartbeatAcceptResult.InvalidTimestamp, accepted);
+        Assert.False(await db.PulseHeartbeats.AnyAsync());
+        var agent = await db.PulseAgents.SingleAsync(x => x.Id == created.Id);
+        Assert.Null(agent.LastSeenAtUtc);
+        Assert.Equal("pending", agent.Status);
+    }
+
+    [Fact]
     public async Task Pulse_dns_sync_records_destructive_plan_as_pending_without_delete()
     {
         await using var db = CreateDb();
@@ -86,10 +185,10 @@ public sealed class PulseAgentServiceTests
 
         var accepted = await service.AcceptHeartbeatAsync(
             created.Id,
-            new Hashi.Contracts.Api.PulseHeartbeatAuthRequest(created.Token, "0.1.0", "host", ["10.0.0.5"]),
+            Heartbeat(created.Token),
             "203.0.113.10");
 
-        Assert.True(accepted);
+        Assert.Equal(PulseHeartbeatAcceptResult.Accepted, accepted);
         var run = await db.SyncRuns.Include(x => x.Diffs).SingleAsync(x => x.Subsystem == "dns-pulse");
         Assert.Equal(SyncRunStatusNames.AwaitingConfirmation, run.Status);
         Assert.Equal(nameof(SyncRiskLevel.Destructive), run.RiskLevel);
@@ -126,10 +225,10 @@ public sealed class PulseAgentServiceTests
         var service = CreateService(db, providerFactory, vault);
         var accepted = await service.AcceptHeartbeatAsync(
             agentId,
-            new Hashi.Contracts.Api.PulseHeartbeatAuthRequest("pulse-token", "0.1.0", "host", ["10.0.0.5"]),
+            Heartbeat("pulse-token"),
             "203.0.113.10");
 
-        Assert.True(accepted);
+        Assert.Equal(PulseHeartbeatAcceptResult.Accepted, accepted);
         var run = await db.SyncRuns.Include(x => x.Diffs).SingleAsync(x => x.Subsystem == "dns-pulse");
         Assert.Equal(SyncRunStatusNames.Succeeded, run.Status);
         Assert.Contains(run.Diffs, x => x.ChangeKind == nameof(ProviderResultKind.Created));
@@ -205,4 +304,24 @@ public sealed class PulseAgentServiceTests
 
     private static string HashToken(string token)
         => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(token))).ToLowerInvariant();
+
+    private static Hashi.Contracts.Api.PulseHeartbeatAuthRequest Heartbeat(string token)
+        => new(token, "0.1.0", "host", ["10.0.0.5"], [], "eth0", "10.0.0.5", DateTimeOffset.UtcNow, null);
+
+    private static string FindRepoFile(params string[] parts)
+    {
+        var current = new DirectoryInfo(AppContext.BaseDirectory);
+        while (current is not null)
+        {
+            var path = Path.Combine([current.FullName, .. parts]);
+            if (File.Exists(path))
+            {
+                return path;
+            }
+
+            current = current.Parent;
+        }
+
+        throw new FileNotFoundException(string.Join(Path.DirectorySeparatorChar, parts));
+    }
 }

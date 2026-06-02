@@ -22,6 +22,8 @@ public sealed class AppSettingsEntity
 
     public Guid? AcmeEabSecretId { get; set; }
 
+    public Guid? AcmeDnsProviderConnectionId { get; set; }
+
     public int DnsChallengeDelaySeconds { get; set; } = 30;
 
     public string AcmeResolversJson { get; set; } = "[\"1.1.1.1:53\",\"8.8.8.8:53\"]";
@@ -35,6 +37,10 @@ public sealed class AppSettingsEntity
     public int MonitorDegradedLatencyMs { get; set; } = 1500;
 
     public int EdgeSsoSessionHours { get; set; } = 8;
+
+    public int EdgeSsoIdleTimeoutMinutes { get; set; } = 60;
+
+    public int EdgeSsoRememberDeviceDays { get; set; } = 30;
 
     public string OverviewWidgetsJson { get; set; } = "{}";
 

@@ -1,35 +1,36 @@
 <script lang="ts">
 	import { api } from '$lib/api/client';
-	import type { Resource } from '$lib/api/types';
+	import type { PublicDashboard, PublicDashboardItem } from '$lib/api/types';
+	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { Search } from 'lucide-svelte';
+	import { Search, X } from 'lucide-svelte';
 
 	let { subtitle = 'Public homelab services.' }: { subtitle?: string } = $props();
 
-	let apps = $state<Resource[]>([]);
+	let dashboard = $state<PublicDashboard | null>(null);
 	let search = $state('');
 	let sort = $state('name');
 	let loading = $state(true);
+	let searchOpen = $state(false);
 
 	$effect(() => {
 		void (async () => {
 			try {
-				apps = await api.getPublicApps();
+				dashboard = await api.getPublicApps();
 			} catch {
-				apps = [];
+				dashboard = null;
 			} finally {
 				loading = false;
 			}
 		})();
 	});
 
+	const apps = $derived((dashboard?.items ?? []) as PublicDashboardItem[]);
 	const filtered = $derived(
 		apps
-			.filter((a) => a.name.toLowerCase().includes(search.toLowerCase()))
-			.sort((a, b) => a.name.localeCompare(b.name))
+			.filter((a) => a.displayName.toLowerCase().includes(search.toLowerCase()))
+			.sort((a, b) => a.displayName.localeCompare(b.displayName))
 	);
-
-	const online = $derived(apps.filter((a) => a.enabled).length);
 </script>
 
 <section class="space-y-6">
@@ -38,16 +39,30 @@
 			<h1 class="text-xl font-semibold text-white">Homelab Dashboard</h1>
 			<p class="text-sm text-muted-foreground">{subtitle}</p>
 		</div>
-		<div class="flex items-center gap-2 text-xs text-muted-foreground">
-			<span>{online} / {apps.length} services online</span>
+		<div class="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+			<span>{dashboard?.hostsOnline ?? 0} / {dashboard?.totalHosts ?? 0} hosts online</span>
+			<span class="text-border">|</span>
+			<span>
+				{dashboard?.linuxFirewallHostsAvailable ?? 0} /
+				{dashboard?.totalLinuxFirewallHosts ?? 0} Linux firewall hosts available
+			</span>
 		</div>
 	</div>
 
 	<div class="flex flex-wrap items-center gap-3">
-		<div class="relative min-w-[12rem] flex-1">
-			<Search class="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
-			<Input bind:value={search} placeholder="Search services…" class="pl-9" />
-		</div>
+		<Button variant="outline" size="icon" onclick={() => (searchOpen = !searchOpen)} aria-label="Search">
+			{#if searchOpen}
+				<X class="size-4" />
+			{:else}
+				<Search class="size-4" />
+			{/if}
+		</Button>
+		{#if searchOpen}
+			<div class="relative min-w-[12rem] flex-1">
+				<Search class="absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
+				<Input bind:value={search} placeholder="Search services..." class="pl-9" />
+			</div>
+		{/if}
 		<label class="flex items-center gap-2 text-xs text-muted-foreground">
 			Sort
 			<select
@@ -60,21 +75,22 @@
 	</div>
 
 	{#if loading}
-		<p class="text-sm text-muted-foreground">Loading services…</p>
+		<p class="text-sm text-muted-foreground">Loading services...</p>
 	{:else if filtered.length === 0}
 		<p class="text-sm text-muted-foreground">No public dashboard tiles configured.</p>
 	{:else}
 		<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
 			{#each filtered as app (app.id)}
 				<a
-					href={app.domain ? `https://${app.domain}` : '#'}
+					href={app.publicUrl}
+					rel="external noreferrer"
 					class="rounded-lg border border-border bg-card/50 p-4 transition-colors hover:border-hashi-hover/50"
 				>
-					<p class="font-medium text-white">{app.name}</p>
+					<p class="font-medium text-white">{app.displayName}</p>
 					<p class="mt-1 truncate font-mono text-xs text-muted-foreground">
-						{app.domain ?? `${app.targetHost}:${app.targetPort}`}
+						{app.domain ?? app.publicUrl}
 					</p>
-					<p class="mt-2 text-[11px] text-emerald-300">{app.enabled ? 'online' : 'offline'}</p>
+					<p class="mt-2 text-[11px] text-emerald-300">{app.status}</p>
 				</a>
 			{/each}
 		</div>

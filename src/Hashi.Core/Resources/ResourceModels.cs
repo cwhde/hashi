@@ -46,7 +46,8 @@ public sealed record ResourceDefinition(
     Hashi.Core.Security.WafMode WafMode = Hashi.Core.Security.WafMode.DetectOnly,
     IReadOnlyList<string>? ExtraMiddlewares = null,
     IReadOnlyList<ResourceRouteDefinition>? Routes = null,
-    IReadOnlyList<ResourceRuleDefinition>? Rules = null)
+    IReadOnlyList<ResourceRuleDefinition>? Rules = null,
+    IReadOnlyList<string>? WafExclusions = null)
 {
     public int EffectivePublicPort => PublicPort ?? TargetPort;
 }

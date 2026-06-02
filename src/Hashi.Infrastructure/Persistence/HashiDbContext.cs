@@ -59,6 +59,8 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
 
     public DbSet<PulseAgentEntity> PulseAgents => Set<PulseAgentEntity>();
 
+    public DbSet<PulseHeartbeatEntity> PulseHeartbeats => Set<PulseHeartbeatEntity>();
+
     public DbSet<TraefikHostStateEntity> TraefikHostStates => Set<TraefikHostStateEntity>();
 
     public DbSet<TraefikUserMiddlewareEntity> TraefikUserMiddlewares => Set<TraefikUserMiddlewareEntity>();
@@ -122,6 +124,7 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Theme).HasMaxLength(32);
             entity.Property(x => x.AcmeEmail).HasMaxLength(256);
+            entity.HasIndex(x => x.AcmeDnsProviderConnectionId);
         });
 
         modelBuilder.Entity<SetupStateEntity>(entity =>
@@ -235,6 +238,7 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.Property(x => x.Name).HasMaxLength(256);
             entity.Property(x => x.Type).HasMaxLength(16);
             entity.Property(x => x.Ownership).HasMaxLength(32);
+            entity.Property(x => x.DashboardDisplayName).HasMaxLength(128);
             entity.HasOne(x => x.Zone).WithMany().HasForeignKey(x => x.ZoneId);
             entity.HasIndex(x => x.ZoneId);
         });
@@ -281,6 +285,7 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.Property(x => x.SyncState).HasMaxLength(32).HasDefaultValue(ResourceSyncStateNames.Desired);
             entity.Property(x => x.ForwardAuthPolicy).HasMaxLength(32);
             entity.Property(x => x.WafMode).HasMaxLength(32);
+            entity.Property(x => x.WafExclusionsJson);
             entity.HasIndex(x => x.Slug).IsUnique();
         });
 
@@ -368,6 +373,7 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.Property(x => x.SessionKey).HasMaxLength(128);
             entity.Property(x => x.Subject).HasMaxLength(256);
             entity.HasIndex(x => x.ExpiresAtUtc);
+            entity.HasIndex(x => x.LastSeenAtUtc);
         });
 
         modelBuilder.Entity<MonitorEndpointEntity>(entity =>
@@ -377,6 +383,7 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.Property(x => x.Name).HasMaxLength(128);
             entity.Property(x => x.CheckType).HasMaxLength(16);
             entity.Property(x => x.Status).HasMaxLength(16);
+            entity.Property(x => x.PublicStatusEnabled).HasDefaultValue(false);
         });
 
         modelBuilder.Entity<PulseAgentEntity>(entity =>
@@ -386,6 +393,31 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.Property(x => x.Name).HasMaxLength(128);
             entity.Property(x => x.Status).HasMaxLength(32);
             entity.Property(x => x.TokenHash).HasMaxLength(128);
+            entity.Property(x => x.InstallType).HasMaxLength(32).HasDefaultValue("linux_service");
+            entity.Property(x => x.AllowedScopesJson).HasColumnType("jsonb").HasDefaultValueSql("'[\"heartbeat\"]'::jsonb");
+            entity.Property(x => x.HeartbeatIntervalSeconds).HasDefaultValue(60);
+            entity.Property(x => x.LastPrivateIpv4CandidatesJson).HasColumnType("jsonb").HasDefaultValueSql("'[]'::jsonb");
+            entity.Property(x => x.LastPrivateIpv6CandidatesJson).HasColumnType("jsonb").HasDefaultValueSql("'[]'::jsonb");
+            entity.Property(x => x.LastSelectedInterface).HasMaxLength(128);
+            entity.Property(x => x.LastDockerMetadataJson).HasColumnType("jsonb");
+            entity.HasIndex(x => x.Status);
+        });
+
+        modelBuilder.Entity<PulseHeartbeatEntity>(entity =>
+        {
+            entity.ToTable("pulse_heartbeats");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Version).HasMaxLength(64);
+            entity.Property(x => x.Hostname).HasMaxLength(256);
+            entity.Property(x => x.PrivateIpv4CandidatesJson).HasColumnType("jsonb");
+            entity.Property(x => x.PrivateIpv6CandidatesJson).HasColumnType("jsonb");
+            entity.Property(x => x.SelectedInterface).HasMaxLength(128);
+            entity.Property(x => x.DockerMetadataJson).HasColumnType("jsonb");
+            entity.HasOne(x => x.PulseAgent)
+                .WithMany()
+                .HasForeignKey(x => x.PulseAgentId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => new { x.PulseAgentId, x.ReceivedAtUtc });
         });
 
         modelBuilder.Entity<TraefikHostStateEntity>(entity =>
@@ -572,6 +604,7 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.ToTable("adguard_rewrites");
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Domain).HasMaxLength(256);
+            entity.Property(x => x.Source).HasMaxLength(32);
             entity.HasIndex(x => new { x.ConnectionId, x.Domain }).IsUnique();
         });
 

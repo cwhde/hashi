@@ -327,30 +327,48 @@ public static class PublicEndpoints
 {
     public static IEndpointRouteBuilder MapPublicEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/public/status", async (MonitoringService monitoring, CancellationToken ct) =>
-            TypedResults.Ok(await monitoring.PublicStatusAsync(ct)))
-            .WithTags("Public")
-            .AllowAnonymous()
-            .RequireCors("PublicRead");
-        app.MapGet("/api/public/status/summary", async (MonitoringService monitoring, CancellationToken ct) =>
-            TypedResults.Ok(await monitoring.PublicSummaryAsync(ct)))
-            .WithTags("Public")
-            .AllowAnonymous()
-            .RequireCors("PublicRead");
-        app.MapGet("/api/public/apps", async (ResourceService resources, CancellationToken ct) =>
+        app.MapGet("/api/public/status", async Task<IResult> (MonitoringService monitoring, CancellationToken ct) =>
         {
-            var items = await resources.ListAsync(ct);
-            var responses = new List<ResourceResponse>();
-            foreach (var item in items.Where(x => x.DashboardEnabled))
+            if (!await monitoring.IsPublicStatusEnabledAsync(ct))
             {
-                responses.Add(await resources.ToResponseAsync(item, ct));
+                return TypedResults.NotFound();
             }
 
-            return TypedResults.Ok(responses);
+            return TypedResults.Ok(await monitoring.PublicStatusAsync(ct));
         })
             .WithTags("Public")
             .AllowAnonymous()
-            .RequireCors("PublicRead");
+            .RequireCors("PublicRead")
+            .Produces<IEnumerable<PublicStatusItemResponse>>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
+        app.MapGet("/api/public/status/summary", async Task<IResult> (MonitoringService monitoring, CancellationToken ct) =>
+        {
+            if (!await monitoring.IsPublicStatusEnabledAsync(ct))
+            {
+                return TypedResults.NotFound();
+            }
+
+            return TypedResults.Ok(await monitoring.PublicSummaryAsync(ct));
+        })
+            .WithTags("Public")
+            .AllowAnonymous()
+            .RequireCors("PublicRead")
+            .Produces<PublicStatusSummaryResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
+        app.MapGet("/api/public/apps", async Task<IResult> (PublicDashboardService dashboard, CancellationToken ct) =>
+        {
+            if (!await dashboard.IsPublicDashboardEnabledAsync(ct))
+            {
+                return TypedResults.NotFound();
+            }
+
+            return TypedResults.Ok(await dashboard.GetAsync(ct));
+        })
+            .WithTags("Public")
+            .AllowAnonymous()
+            .RequireCors("PublicRead")
+            .Produces<PublicDashboardResponse>(StatusCodes.Status200OK)
+            .Produces(StatusCodes.Status404NotFound);
         return app;
     }
 }
@@ -412,6 +430,7 @@ public static class EdgeAuthEndpoints
             HttpContext ctx,
             Guid? providerId,
             string? returnUrl,
+            bool? rememberMe,
             OidcEdgeAuthService oidc,
             CancellationToken ct) =>
         {
@@ -424,7 +443,7 @@ public static class EdgeAuthEndpoints
                 return TypedResults.BadRequest(new ApiErrorResponse("No enabled OIDC provider configured."));
             }
 
-            var authorizationUrl = await oidc.BuildAuthorizationUrlAsync(ctx, provider.Id, returnUrl ?? "/", ct);
+            var authorizationUrl = await oidc.BuildAuthorizationUrlAsync(ctx, provider.Id, returnUrl ?? "/", rememberMe == true, ct);
             return TypedResults.Redirect(authorizationUrl);
         }).WithTags("EdgeAuth").AllowAnonymous();
 
@@ -569,6 +588,11 @@ public static class SecurityEndpoints
             await security.IngestAccessLogAsync(request, ct);
             return TypedResults.Ok(new { accepted = true });
         });
+        group.MapPost("/waf-events", async Task<IResult> (WafEventIngestRequest request, SecurityIngestionService security, CancellationToken ct) =>
+        {
+            await security.IngestWafEventAsync(request, ct);
+            return TypedResults.Ok(new { accepted = true });
+        });
         group.MapPost("/blocklist/sync", async Task<IResult> (SecurityIngestionService security, CancellationToken ct) =>
         {
             var result = await security.SyncBlocklistToAllFirewallsAsync(ct);
@@ -638,12 +662,17 @@ public static class PulseEndpoints
             PulseAgentService pulse,
             CancellationToken ct) =>
         {
-            var accepted = await pulse.AcceptHeartbeatAsync(
+            var result = await pulse.AcceptHeartbeatAsync(
                 agentId,
                 request,
                 ctx.Connection.RemoteIpAddress?.ToString(),
                 ct);
-            return accepted ? TypedResults.Ok(new { accepted = true }) : TypedResults.Unauthorized();
+            return result switch
+            {
+                PulseHeartbeatAcceptResult.Accepted => TypedResults.Ok(new { accepted = true }),
+                PulseHeartbeatAcceptResult.InvalidTimestamp => TypedResults.BadRequest(new ApiErrorResponse("Heartbeat timestamp is outside the accepted clock skew.")),
+                _ => TypedResults.Unauthorized(),
+            };
         }).AllowAnonymous();
         return app;
     }
@@ -818,7 +847,7 @@ public static class AdGuardEndpoints
         {
             try
             {
-                return TypedResults.Ok(await adguard.ApplyPlanAsync(connectionId, request, rewriteId, ct));
+                return TypedResults.Ok(await adguard.ApplyPlanAsync(connectionId, request, deleteRewriteId: rewriteId, cancellationToken: ct));
             }
             catch (InvalidOperationException ex)
             {
@@ -839,7 +868,7 @@ public static class AdGuardEndpoints
         {
             try
             {
-                return TypedResults.Ok(await adguard.ApplyPlanAsync(connectionId, request, cancellationToken: ct));
+                return TypedResults.Ok(await adguard.ApplyPlanAsync(connectionId, request, updateTopologyDesiredState: true, cancellationToken: ct));
             }
             catch (InvalidOperationException ex)
             {
@@ -850,7 +879,7 @@ public static class AdGuardEndpoints
         group.MapPost("/{connectionId:guid}/sync", async Task<IResult> (
             Guid connectionId,
             AdGuardSyncService adguard,
-            CancellationToken ct) => TypedResults.Ok(await adguard.SyncManagedRewritesAsync(connectionId, ct)))
+            CancellationToken ct) => TypedResults.Ok(await adguard.SyncManagedRewritesAsync(connectionId, cancellationToken: ct)))
             .Produces<AdGuardRewriteApplyResponse>(StatusCodes.Status200OK);
         return app;
     }

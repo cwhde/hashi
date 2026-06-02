@@ -22,7 +22,8 @@ public sealed record ResourceResponse(
     string WafMode,
     IReadOnlyList<string> ExtraMiddlewares,
     IReadOnlyList<ResourceRouteResponse> Routes,
-    IReadOnlyList<ResourceRuleResponse> Rules);
+    IReadOnlyList<ResourceRuleResponse> Rules,
+    IReadOnlyList<string> WafExclusions);
 
 public sealed record ResourceRouteResponse(
     Guid Id,
@@ -82,7 +83,8 @@ public sealed record CreateResourceRequest(
     string? WafMode = null,
     IReadOnlyList<string>? ExtraMiddlewares = null,
     IReadOnlyList<ResourceRouteRequest>? Routes = null,
-    IReadOnlyList<ResourceRuleRequest>? Rules = null);
+    IReadOnlyList<ResourceRuleRequest>? Rules = null,
+    IReadOnlyList<string>? WafExclusions = null);
 
 public sealed record UpdateResourceRequest(
     string? Name,
@@ -108,7 +110,9 @@ public sealed record UpdateResourceRequest(
     IReadOnlyList<string>? ExtraMiddlewares = null,
     bool ClearExtraMiddlewares = false,
     IReadOnlyList<ResourceRouteRequest>? Routes = null,
-    IReadOnlyList<ResourceRuleRequest>? Rules = null);
+    IReadOnlyList<ResourceRuleRequest>? Rules = null,
+    IReadOnlyList<string>? WafExclusions = null,
+    bool ClearWafExclusions = false);
 
 public sealed record TraefikDynamicFilesResponse(
     string CoreYaml,
@@ -162,14 +166,16 @@ public sealed record CertificateSetupRequest(
     string EabKeyId,
     string EabHmac,
     int DnsChallengeDelaySeconds,
-    IReadOnlyList<string>? Resolvers);
+    IReadOnlyList<string>? Resolvers,
+    Guid? DnsProviderConnectionId);
 
 public sealed record CertificateSetupResponse(
     string? AcmeEmail,
     bool HasEabCredentials,
     int DnsChallengeDelaySeconds,
     IReadOnlyList<string> Resolvers,
-    bool HasDnsProvider);
+    bool HasDnsProvider,
+    Guid? DnsProviderConnectionId);
 
 public sealed record CertificateSetupValidateResponse(bool IsValid, IReadOnlyList<string> Errors);
 
@@ -335,6 +341,22 @@ public sealed record PublicStatusSummaryResponse(
     int FirewallHostCount,
     int FirewallHostsApplied);
 
+public sealed record PublicDashboardResponse(
+    IReadOnlyList<PublicDashboardItemResponse> Items,
+    int HostsOnline,
+    int TotalHosts,
+    int LinuxFirewallHostsAvailable,
+    int TotalLinuxFirewallHosts);
+
+public sealed record PublicDashboardItemResponse(
+    Guid Id,
+    string Source,
+    string DisplayName,
+    string PublicUrl,
+    string? Domain,
+    string Status,
+    int? LastLatencyMs);
+
 public sealed record MonitorEventResponse(
     Guid Id,
     Guid MonitorEndpointId,
@@ -358,9 +380,14 @@ public sealed record MonitoringSettingsRequest(
 
 public sealed record EdgeSsoSettingsResponse(
     int EdgeSsoSessionHours,
+    int EdgeSsoIdleTimeoutMinutes,
+    int EdgeSsoRememberDeviceDays,
     DateTimeOffset? UpdatedAtUtc);
 
-public sealed record EdgeSsoSettingsRequest(int? EdgeSsoSessionHours);
+public sealed record EdgeSsoSettingsRequest(
+    int? EdgeSsoSessionHours,
+    int? EdgeSsoIdleTimeoutMinutes,
+    int? EdgeSsoRememberDeviceDays);
 
 public sealed record OidcProviderResponse(
     Guid Id,
@@ -418,6 +445,7 @@ public sealed record MonitorEndpointResponse(
     string Url,
     string CheckType,
     bool Enabled,
+    bool PublicStatusEnabled,
     string Status,
     DateTimeOffset? LastCheckedAtUtc,
     int? LastLatencyMs);
@@ -426,27 +454,50 @@ public sealed record CreateMonitorEndpointRequest(
     string Name,
     string Url,
     string CheckType,
-    bool Enabled = true);
+    bool Enabled = true,
+    bool PublicStatusEnabled = false);
 
 public sealed record UpdateMonitorEndpointRequest(
     string? Name = null,
     string? Url = null,
     string? CheckType = null,
-    bool? Enabled = null);
+    bool? Enabled = null,
+    bool? PublicStatusEnabled = null);
 
 public sealed record PulseInstallResponse(string LinuxInstallScript, string DockerRunCommand);
 
 public sealed record PulseAgentResponse(
     Guid Id,
     string Name,
+    string InstallType,
+    IReadOnlyList<string> AllowedScopes,
+    int HeartbeatIntervalSeconds,
     string Status,
     DateTimeOffset? LastSeenAtUtc,
     string? LastPublicIp,
+    string? LastPrivateIp,
+    IReadOnlyList<string> LastPrivateIpv4Candidates,
+    IReadOnlyList<string> LastPrivateIpv6Candidates,
+    string? LastSelectedIp,
+    string? LastSelectedInterface,
     string? LastHostname,
     string? LastAgentVersion,
     DateTimeOffset? DnsPendingAtUtc);
 
-public sealed record PulseHeartbeatRequest(string Version, string Hostname, IReadOnlyList<string> PrivateIpv4Candidates);
+public sealed record PulseDockerMetadataRequest(
+    string? ContainerId,
+    string? Image,
+    string? NetworkMode);
+
+public sealed record PulseHeartbeatRequest(
+    string Version,
+    string Hostname,
+    IReadOnlyList<string> PrivateIpv4Candidates,
+    IReadOnlyList<string> PrivateIpv6Candidates,
+    string? SelectedInterface,
+    string? SelectedIp,
+    DateTimeOffset Timestamp,
+    PulseDockerMetadataRequest? Docker);
 
 public sealed record EdgeAuthForwardResponse(string Decision, string? RedirectUrl);
 
@@ -522,6 +573,12 @@ public sealed record ForwardAuthDecisionIngestRequest(
     string Decision,
     string? CountryCode,
     string? Asn);
+
+public sealed record WafEventIngestRequest(
+    string ClientIp,
+    string Host,
+    string Path,
+    string Action);
 
 public sealed record ScriptResponse(
     Guid Id,
@@ -606,7 +663,7 @@ public sealed record AccessLogIngestRequest(
     string? TraefikInstance = null,
     string? Resource = null);
 
-public sealed record AdGuardRewriteResponse(Guid Id, string Domain, string Answer, bool ManagedByHashi);
+public sealed record AdGuardRewriteResponse(Guid Id, string Domain, string Answer, bool ManagedByHashi, string Source);
 
 public sealed record AdGuardRewritePlanChangeResponse(
     string Kind,
@@ -662,8 +719,21 @@ public sealed record RunScriptResponse(
     Guid? RunId = null,
     IReadOnlyList<ScriptRunResponse>? Runs = null);
 
-public sealed record CreatePulseAgentRequest(string Name);
+public sealed record CreatePulseAgentRequest(
+    string Name,
+    string InstallType = "linux_service",
+    IReadOnlyList<string>? AllowedScopes = null,
+    int? HeartbeatIntervalSeconds = null);
 
 public sealed record CreatePulseAgentResponse(Guid Id, string Name, string Token);
 
-public sealed record PulseHeartbeatAuthRequest(string Token, string Version, string Hostname, IReadOnlyList<string> PrivateIpv4Candidates);
+public sealed record PulseHeartbeatAuthRequest(
+    string Token,
+    string Version,
+    string Hostname,
+    IReadOnlyList<string> PrivateIpv4Candidates,
+    IReadOnlyList<string> PrivateIpv6Candidates,
+    string? SelectedInterface,
+    string? SelectedIp,
+    DateTimeOffset Timestamp,
+    PulseDockerMetadataRequest? Docker);

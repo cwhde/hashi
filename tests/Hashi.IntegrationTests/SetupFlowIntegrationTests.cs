@@ -27,7 +27,7 @@ public sealed class SetupFlowIntegrationTests : IAsyncLifetime
 
         var connectionString = await _fixture.CreateDatabaseAsync();
         _factory = IntegrationTestApp.CreateFactory(connectionString);
-        _client = _factory.CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = true });
+        _client = _factory.CreateClient(IntegrationTestApp.HttpsClientOptions());
     }
 
     public async Task DisposeAsync()

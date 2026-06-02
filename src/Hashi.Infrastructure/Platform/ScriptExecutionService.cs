@@ -1,4 +1,6 @@
+using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Hashi.Contracts.Api;
 using Hashi.Core.Auth;
@@ -19,6 +21,12 @@ public sealed partial class ScriptExecutionService(
     AuditService audit)
 {
     private const string ScriptDirectory = "/opt/hashi/scripts";
+    private const string ManifestPath = $"{ScriptDirectory}/manifest.json";
+    private const string CronPath = "/etc/cron.d/hashi-scripts";
+    private static readonly JsonSerializerOptions ManifestJsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        WriteIndented = true,
+    };
 
     public async Task<IReadOnlyList<ScriptResponse>> ListAsync(CancellationToken cancellationToken = default)
     {
@@ -107,9 +115,12 @@ public sealed partial class ScriptExecutionService(
 
     public async Task<ScriptResponse> CreateAsync(CreateScriptRequest request, CancellationToken cancellationToken = default)
     {
-        var targets = NormalizeTargets(request.ConnectionId, request.TargetConnectionIds);
         await ValidateTargetConnectionsAsync([request.ConnectionId], cancellationToken);
-        await ValidateTargetConnectionsAsync(targets, cancellationToken);
+        var targets = NormalizeTargets(request.TargetConnectionIds);
+        if (targets.Count > 0)
+        {
+            await ValidateTargetConnectionsAsync(targets, cancellationToken);
+        }
 
         var entity = new ScriptEntity
         {
@@ -176,7 +187,20 @@ public sealed partial class ScriptExecutionService(
 
     public async Task SyncAllEnabledScriptsAsync(CancellationToken cancellationToken = default)
     {
-        var scripts = await db.Scripts.Where(x => x.Enabled).ToListAsync(cancellationToken);
+        var scripts = await db.Scripts.AsNoTracking()
+            .Where(x => x.Enabled)
+            .OrderBy(x => x.Name)
+            .ToListAsync(cancellationToken);
+        var targetConnections = await db.Connections.AsNoTracking()
+            .Where(x => x.Type == ConnectionTypeNames.FirewallHost && x.Enabled)
+            .OrderBy(x => x.Name)
+            .ToListAsync(cancellationToken);
+        var scriptsByConnection = new Dictionary<Guid, List<ScriptEntity>>();
+        foreach (var connection in targetConnections)
+        {
+            scriptsByConnection[connection.Id] = [];
+        }
+
         foreach (var script in scripts)
         {
             try
@@ -185,9 +209,23 @@ public sealed partial class ScriptExecutionService(
                 await ValidateTargetConnectionsAsync(targetConnectionIds, cancellationToken);
                 foreach (var connectionId in targetConnectionIds)
                 {
-                    var connection = await db.Connections.SingleAsync(x => x.Id == connectionId, cancellationToken);
-                    await DeployScriptAsync(script, connection, cancellationToken);
+                    if (scriptsByConnection.TryGetValue(connectionId, out var hostScripts))
+                    {
+                        hostScripts.Add(script);
+                    }
                 }
+            }
+            catch (Exception)
+            {
+                // Keep cron loop resilient; individual runs will surface errors.
+            }
+        }
+
+        foreach (var connection in targetConnections)
+        {
+            try
+            {
+                await SyncHostScriptsAsync(connection, scriptsByConnection[connection.Id], cancellationToken);
             }
             catch (Exception)
             {
@@ -283,6 +321,85 @@ public sealed partial class ScriptExecutionService(
         if (!harden.Succeeded)
         {
             throw new InvalidOperationException(harden.Error ?? "Failed to harden script permissions.");
+        }
+    }
+
+    private async Task SyncHostScriptsAsync(
+        ConnectionEntity connection,
+        IReadOnlyList<ScriptEntity> scripts,
+        CancellationToken cancellationToken)
+    {
+        var credentials = await ConnectionSshCredentialResolver.ResolveAsync(connection, secrets, cancellationToken)
+            ?? throw new InvalidOperationException("SSH credentials unavailable; unlock vault or configure service-sync vault.");
+
+        await RunRequiredCommandAsync(
+            credentials,
+            $"install -d -o root -g root -m 0750 {ShellQuote(ScriptDirectory)} && install -d -o root -g root -m 0750 /var/log/hashi/scripts && install -d -o root -g root -m 0755 /etc/cron.d",
+            "Failed to prepare script sync directories.",
+            cancellationToken);
+
+        foreach (var script in scripts)
+        {
+            await WriteRemoteFileAsync(credentials, RemotePath(script), Encoding.UTF8.GetBytes(script.Body), cancellationToken);
+            await RunRequiredCommandAsync(
+                credentials,
+                $"chown root:root {ShellQuote(RemotePath(script))} && chmod 0750 {ShellQuote(RemotePath(script))}",
+                "Failed to harden script permissions.",
+                cancellationToken);
+        }
+
+        await WriteRemoteFileAsync(credentials, ManifestPath, Encoding.UTF8.GetBytes(RenderManifest(scripts)), cancellationToken);
+        await WriteRemoteFileAsync(credentials, CronPath, Encoding.UTF8.GetBytes(RenderCron(scripts)), cancellationToken);
+        await RunRequiredCommandAsync(
+            credentials,
+            $"chown root:root {ShellQuote(ManifestPath)} {ShellQuote(CronPath)} && chmod 0640 {ShellQuote(ManifestPath)} && chmod 0644 {ShellQuote(CronPath)}",
+            "Failed to harden script manifest and cron files.",
+            cancellationToken);
+    }
+
+    private async Task WriteRemoteFileAsync(
+        ResolvedSshCredentials credentials,
+        string remotePath,
+        byte[] content,
+        CancellationToken cancellationToken)
+    {
+        var write = credentials.AuthMode switch
+        {
+            "password" when !string.IsNullOrWhiteSpace(credentials.Password) =>
+                await ssh.WriteAtomicAsync(credentials.Settings, credentials.Password, remotePath, content, cancellationToken),
+            "private_key" when !string.IsNullOrWhiteSpace(credentials.PrivateKeyPem) =>
+                await ssh.WriteAtomicWithPrivateKeyAsync(
+                    credentials.Settings,
+                    credentials.PrivateKeyPem,
+                    credentials.PrivateKeyPassphrase,
+                    remotePath,
+                    content,
+                    cancellationToken),
+            _ => new RemoteWriteResult(false, remotePath, "Unsupported auth mode."),
+        };
+        if (!write.Succeeded)
+        {
+            throw new InvalidOperationException(write.Error ?? $"Failed to write {remotePath}.");
+        }
+    }
+
+    private async Task RunRequiredCommandAsync(
+        ResolvedSshCredentials credentials,
+        string command,
+        string errorMessage,
+        CancellationToken cancellationToken)
+    {
+        var result = await ssh.RunCommandAsync(
+            credentials.Settings,
+            credentials.AuthMode,
+            credentials.Password,
+            credentials.PrivateKeyPem,
+            credentials.PrivateKeyPassphrase,
+            command,
+            cancellationToken);
+        if (!result.Succeeded)
+        {
+            throw new InvalidOperationException(result.Error ?? errorMessage);
         }
     }
 
@@ -398,8 +515,12 @@ public sealed partial class ScriptExecutionService(
 
     private async Task ReplaceTargetsAsync(Guid scriptId, IReadOnlyList<Guid> targetConnectionIds, CancellationToken cancellationToken)
     {
-        var targets = NormalizeTargets(null, targetConnectionIds);
-        await ValidateTargetConnectionsAsync(targets, cancellationToken);
+        var targets = NormalizeTargets(targetConnectionIds);
+        if (targets.Count > 0)
+        {
+            await ValidateTargetConnectionsAsync(targets, cancellationToken);
+        }
+
         db.ScriptTargets.RemoveRange(db.ScriptTargets.Where(x => x.ScriptId == scriptId));
         foreach (var connectionId in targets)
         {
@@ -472,7 +593,16 @@ public sealed partial class ScriptExecutionService(
             .OrderBy(x => x.ConnectionId)
             .Select(x => x.ConnectionId)
             .ToListAsync(cancellationToken);
-        return targets.Count > 0 ? targets : [script.ConnectionId];
+        return targets.Count > 0 ? targets : await GetDefaultTargetConnectionIdsAsync(cancellationToken);
+    }
+
+    private async Task<IReadOnlyList<Guid>> GetDefaultTargetConnectionIdsAsync(CancellationToken cancellationToken)
+    {
+        return await db.Connections.AsNoTracking()
+            .Where(x => x.Type == ConnectionTypeNames.FirewallHost && x.Enabled)
+            .OrderBy(x => x.Name)
+            .Select(x => x.Id)
+            .ToListAsync(cancellationToken);
     }
 
     private async Task ValidateTargetConnectionsAsync(IReadOnlyList<Guid> connectionIds, CancellationToken cancellationToken)
@@ -509,7 +639,10 @@ public sealed partial class ScriptExecutionService(
             .ToListAsync(cancellationToken);
         if (targets.Count == 0)
         {
-            targets.Add(new ScriptTargetResponse(Guid.Empty, entity.ConnectionId, true));
+            foreach (var connectionId in await GetDefaultTargetConnectionIdsAsync(cancellationToken))
+            {
+                targets.Add(new ScriptTargetResponse(Guid.Empty, connectionId, true));
+            }
         }
 
         var environment = await db.ScriptEnvironmentVariables.AsNoTracking()
@@ -545,14 +678,63 @@ public sealed partial class ScriptExecutionService(
         entity.Succeeded,
         entity.Error);
 
-    private static IReadOnlyList<Guid> NormalizeTargets(Guid? connectionId, IReadOnlyList<Guid>? targetConnectionIds)
+    internal static string RenderManifest(IReadOnlyList<ScriptEntity> scripts)
     {
-        var targets = (targetConnectionIds is { Count: > 0 } ? targetConnectionIds : connectionId is Guid id ? [id] : [])
+        var entries = scripts
+            .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(x => new ScriptManifestEntry(
+                x.Id,
+                x.Name,
+                RemotePath(x),
+                Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(x.Body))).ToLowerInvariant(),
+                x.Enabled,
+                string.IsNullOrWhiteSpace(x.CronExpression) ? null : x.CronExpression,
+                x.RunTimeoutSeconds))
+            .ToList();
+        return JsonSerializer.Serialize(new ScriptManifest(entries), ManifestJsonOptions) + Environment.NewLine;
+    }
+
+    internal static string RenderCron(IReadOnlyList<ScriptEntity> scripts)
+    {
+        var builder = new StringBuilder()
+            .AppendLine("# Hashi-managed script schedules. Do not edit by hand.")
+            .AppendLine("SHELL=/bin/bash")
+            .AppendLine("PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
+            .AppendLine();
+
+        foreach (var script in scripts
+            .Where(x => x.Enabled && !string.IsNullOrWhiteSpace(x.CronExpression))
+            .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            builder
+                .Append("# ")
+                .AppendLine(SanitizeCronComment(script.Name))
+                .Append(script.CronExpression.Trim())
+                .Append(" root timeout ")
+                .Append(script.RunTimeoutSeconds)
+                .Append(" bash ")
+                .Append(RemotePath(script))
+                .Append(" >> /var/log/hashi/scripts/")
+                .Append(script.Id.ToString("N"))
+                .Append(".log 2>&1")
+                .AppendLine()
+                .AppendLine();
+        }
+
+        return builder.ToString();
+    }
+
+    private static IReadOnlyList<Guid> NormalizeTargets(IReadOnlyList<Guid>? targetConnectionIds)
+    {
+        var targets = (targetConnectionIds is { Count: > 0 } ? targetConnectionIds : [])
             .Where(x => x != Guid.Empty)
             .Distinct()
             .ToList();
         return targets;
     }
+
+    private static string SanitizeCronComment(string value)
+        => value.ReplaceLineEndings(" ").Replace("#", string.Empty, StringComparison.Ordinal).Trim();
 
     private static int ValidateRunTimeout(int seconds)
     {
@@ -597,4 +779,15 @@ public sealed partial class ScriptExecutionService(
 
     [GeneratedRegex("^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.CultureInvariant)]
     private static partial Regex EnvironmentNameRegex();
+
+    private sealed record ScriptManifest(IReadOnlyList<ScriptManifestEntry> Scripts);
+
+    private sealed record ScriptManifestEntry(
+        Guid Id,
+        string Name,
+        string Path,
+        string Sha256,
+        bool Enabled,
+        string? CronExpression,
+        int RunTimeoutSeconds);
 }

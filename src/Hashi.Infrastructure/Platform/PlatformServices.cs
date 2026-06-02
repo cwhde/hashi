@@ -55,6 +55,7 @@ public sealed class ResourceService(
             ForwardAuthPolicy = request.ForwardAuthPolicy ?? "adaptive",
             WafMode = request.WafMode ?? "detect_only",
             ExtraMiddlewaresJson = SerializeExtraMiddlewares(request.ExtraMiddlewares),
+            WafExclusionsJson = SerializeWafExclusions(request.WafExclusions),
         };
         db.Resources.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
@@ -185,6 +186,15 @@ public sealed class ResourceService(
             entity.ExtraMiddlewaresJson = SerializeExtraMiddlewares(request.ExtraMiddlewares);
         }
 
+        if (request.ClearWafExclusions)
+        {
+            entity.WafExclusionsJson = "[]";
+        }
+        else if (request.WafExclusions is not null)
+        {
+            entity.WafExclusionsJson = SerializeWafExclusions(request.WafExclusions);
+        }
+
         if (entity.Kind is "tcp" or "udp")
         {
             await EnsureStreamPortConfirmedOrPendingAsync(entity.PublicPort ?? entity.TargetPort, entity.Kind, cancellationToken);
@@ -261,7 +271,8 @@ public sealed class ResourceService(
             entity.WafMode,
             TraefikUserMiddlewareService.ParseExtraMiddlewares(entity.ExtraMiddlewaresJson),
             routes.Select(ToRouteResponse).ToList(),
-            rules.Select(ToRuleResponse).ToList());
+            rules.Select(ToRuleResponse).ToList(),
+            ParseWafExclusions(entity.WafExclusionsJson));
     }
 
     public static ResourceRouteResponse ToRouteResponse(ResourceRouteEntity entity) => new(
@@ -375,6 +386,35 @@ public sealed class ResourceService(
     private static string SerializeExtraMiddlewares(IReadOnlyList<string>? middlewares)
         => JsonSerializer.Serialize(middlewares ?? []);
 
+    private static string SerializeWafExclusions(IReadOnlyList<string>? exclusions)
+        => JsonSerializer.Serialize(NormalizeWafExclusions(exclusions));
+
+    private static IReadOnlyList<string> ParseWafExclusions(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return [];
+        }
+
+        try
+        {
+            var values = JsonSerializer.Deserialize<IReadOnlyList<string>>(json);
+            return NormalizeWafExclusions(values);
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    private static IReadOnlyList<string> NormalizeWafExclusions(IReadOnlyList<string>? exclusions)
+        => exclusions?
+            .Select(x => x.Trim())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.Ordinal)
+            .ToList()
+            ?? [];
+
     public static async Task<IReadOnlyList<ResourceDefinition>> BuildDefinitionsAsync(
         HashiDbContext db,
         CancellationToken cancellationToken = default)
@@ -420,7 +460,8 @@ public sealed class ResourceService(
                 ParseWafMode(entity.WafMode),
                 TraefikUserMiddlewareService.ParseExtraMiddlewares(entity.ExtraMiddlewaresJson),
                 resourceRoutes.Count > 0 ? resourceRoutes : null,
-                resourceRules.Count > 0 ? resourceRules : null);
+                resourceRules.Count > 0 ? resourceRules : null,
+                ParseWafExclusions(entity.WafExclusionsJson));
         }).ToList();
     }
 
@@ -437,7 +478,8 @@ public sealed class TraefikPlatformService(
     AppSettingsService settings,
     TraefikUserMiddlewareService userMiddlewares,
     CertificateSetupService certificateSetup,
-    TraefikEntryPointService entryPoints)
+    TraefikEntryPointService entryPoints,
+    HashiInternalUrlResolver internalUrls)
 {
     public async Task<TraefikRenderResult> RenderAsync(CancellationToken cancellationToken = default)
     {
@@ -448,6 +490,8 @@ public sealed class TraefikPlatformService(
         var options = acmeOptions with
         {
             AdminDomain = appSettings.AdminDomain ?? "hashi.local",
+            HashiForwardAuthUrl = internalUrls.ResolveUrl(appSettings, "/api/edge-auth/forward"),
+            HashiHealthUrl = internalUrls.ResolveUrl(appSettings, "/api/health"),
             ConfirmedStreamPorts = confirmedPorts,
         };
         var userYaml = await userMiddlewares.GetAppliedYamlAsync(cancellationToken);

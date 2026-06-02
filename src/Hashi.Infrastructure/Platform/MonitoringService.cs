@@ -7,7 +7,7 @@ using System.Text.Json;
 
 namespace Hashi.Infrastructure.Platform;
 
-public sealed class MonitoringService(HashiDbContext db, AppSettingsService settings)
+public sealed class MonitoringService(HashiDbContext db, AppSettingsService settings, HashiInternalUrlResolver internalUrls)
 {
     private static readonly HashSet<string> AllowedCheckTypes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -88,6 +88,7 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
             Url = RequireUrl(request.Url),
             CheckType = NormalizeManualCheckType(request.CheckType),
             Enabled = request.Enabled,
+            PublicStatusEnabled = request.PublicStatusEnabled,
         };
         db.MonitorEndpoints.Add(endpoint);
         await db.SaveChangesAsync(cancellationToken);
@@ -105,7 +106,11 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
             return null;
         }
 
-        if (endpoint.ResourceId is not null)
+        var updatesManagedFields = request.Name is not null
+            || request.Url is not null
+            || request.CheckType is not null
+            || request.Enabled is not null;
+        if (endpoint.ResourceId is not null && updatesManagedFields)
         {
             throw new InvalidOperationException("Provisioned resource monitor endpoints are managed by the resource.");
         }
@@ -128,6 +133,11 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
         if (request.Enabled is bool enabled)
         {
             endpoint.Enabled = enabled;
+        }
+
+        if (request.PublicStatusEnabled is bool publicStatusEnabled)
+        {
+            endpoint.PublicStatusEnabled = publicStatusEnabled;
         }
 
         await db.SaveChangesAsync(cancellationToken);
@@ -190,10 +200,9 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
 
     public async Task<IReadOnlyList<PublicStatusItemResponse>> PublicStatusAsync(CancellationToken cancellationToken = default)
     {
-        var appSettings = await settings.GetOrCreateAsync(cancellationToken);
         var hours = 1;
         var endpoints = await db.MonitorEndpoints.AsNoTracking()
-            .Where(x => x.Enabled)
+            .Where(x => x.Enabled && x.PublicStatusEnabled)
             .OrderBy(x => x.Name)
             .ToListAsync(cancellationToken);
         var since = DateTimeOffset.UtcNow.AddHours(-hours);
@@ -232,7 +241,9 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
 
     public async Task<PublicStatusSummaryResponse> PublicSummaryAsync(CancellationToken cancellationToken = default)
     {
-        var endpoints = await db.MonitorEndpoints.AsNoTracking().Where(x => x.Enabled).ToListAsync(cancellationToken);
+        var endpoints = await db.MonitorEndpoints.AsNoTracking()
+            .Where(x => x.Enabled && x.PublicStatusEnabled)
+            .ToListAsync(cancellationToken);
         var hosts = await db.FirewallHosts.AsNoTracking().ToListAsync(cancellationToken);
         var up = endpoints.Count(x => x.Status.Equals("up", StringComparison.OrdinalIgnoreCase));
         var down = endpoints.Count(x => x.Status.Equals("down", StringComparison.OrdinalIgnoreCase));
@@ -252,9 +263,16 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
         entity.Url,
         entity.CheckType,
         entity.Enabled,
+        entity.PublicStatusEnabled,
         NormalizeStatus(entity.Status),
         entity.LastCheckedAtUtc,
         entity.LastLatencyMs);
+
+    public async Task<bool> IsPublicStatusEnabledAsync(CancellationToken cancellationToken = default)
+    {
+        var appSettings = await settings.GetOrCreateAsync(cancellationToken);
+        return appSettings.PublicStatusEnabled;
+    }
 
     public static MonitorRollupResponse ToRollupResponse(MonitorRollupEntity entity) => new(
         entity.MonitorEndpointId,
@@ -286,11 +304,12 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
         List<MonitorEndpointEntity> existing,
         CancellationToken cancellationToken)
     {
+        var appSettings = await settings.GetOrCreateAsync(cancellationToken);
         UpsertProvisionedEndpoint(
             existing,
             resourceId: null,
             "Hashi API",
-            "http://127.0.0.1:8080/api/health",
+            internalUrls.ResolveUrl(appSettings, "/api/health"),
             "http",
             enabled: true);
 
@@ -362,7 +381,7 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
         var pulseAgents = await db.PulseAgents.AsNoTracking().ToListAsync(cancellationToken);
         foreach (var agent in pulseAgents)
         {
-            var target = FirstNonEmpty(agent.LastPublicIp, agent.LastPrivateIp, agent.LastHostname);
+            var target = FirstNonEmpty(agent.LastPublicIp, agent.LastSelectedIp, agent.LastPrivateIp, agent.LastHostname);
             if (target is null)
             {
                 continue;

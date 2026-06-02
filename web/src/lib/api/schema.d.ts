@@ -97,6 +97,13 @@ export interface paths {
                         "application/json": components["schemas"]["PublicStatusItemResponse"][];
                     };
                 };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
             };
         };
         put?: never;
@@ -132,6 +139,13 @@ export interface paths {
                         "application/json": components["schemas"]["PublicStatusSummaryResponse"];
                     };
                 };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
             };
         };
         put?: never;
@@ -164,8 +178,15 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ResourceResponse"][];
+                        "application/json": components["schemas"]["PublicDashboardResponse"];
                     };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
                 };
             };
         };
@@ -222,6 +243,7 @@ export interface paths {
                 query?: {
                     providerId?: string;
                     returnUrl?: string;
+                    rememberMe?: boolean;
                 };
                 header?: never;
                 path?: never;
@@ -3982,6 +4004,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/security/waf-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["WafEventIngestRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/security/blocklist/sync": {
         parameters: {
             query?: never;
@@ -5267,6 +5326,7 @@ export interface components {
             domain: string;
             answer: string;
             managedByHashi: boolean;
+            source: string;
         };
         AnonymousTypeOfstring: {
             token: null | string;
@@ -5338,6 +5398,8 @@ export interface components {
             /** Format: int32 */
             dnsChallengeDelaySeconds: number | string;
             resolvers: null | string[];
+            /** Format: uuid */
+            dnsProviderConnectionId: null | string;
         };
         CertificateSetupResponse: {
             acmeEmail: null | string;
@@ -5346,6 +5408,8 @@ export interface components {
             dnsChallengeDelaySeconds: number | string;
             resolvers: string[];
             hasDnsProvider: boolean;
+            /** Format: uuid */
+            dnsProviderConnectionId: null | string;
         };
         CertificateSetupSaveResponse: {
             saved: boolean;
@@ -5411,6 +5475,8 @@ export interface components {
             checkType: string;
             /** @default true */
             enabled: boolean;
+            /** @default false */
+            publicStatusEnabled: boolean;
         };
         CreateNotificationProviderRequest: {
             name: string;
@@ -5428,6 +5494,11 @@ export interface components {
         };
         CreatePulseAgentRequest: {
             name: string;
+            /** @default linux_service */
+            installType: string;
+            allowedScopes?: null | string[];
+            /** Format: int32 */
+            heartbeatIntervalSeconds?: null | number | string;
         };
         CreatePulseAgentResponse: {
             /** Format: uuid */
@@ -5458,6 +5529,7 @@ export interface components {
             extraMiddlewares?: null | string[];
             routes?: null | components["schemas"]["ResourceRouteRequest"][];
             rules?: null | components["schemas"]["ResourceRuleRequest"][];
+            wafExclusions?: null | string[];
         };
         CreateScriptRequest: {
             /** Format: uuid */
@@ -5534,6 +5606,8 @@ export interface components {
             ttl: null | number | string;
             ownership: string;
             enabled: boolean;
+            dashboardEnabled: boolean;
+            dashboardDisplayName: null | string;
         };
         DnsSyncApplyRequest: {
             /** Format: uuid */
@@ -5577,10 +5651,18 @@ export interface components {
         EdgeSsoSettingsRequest: {
             /** Format: int32 */
             edgeSsoSessionHours: null | number | string;
+            /** Format: int32 */
+            edgeSsoIdleTimeoutMinutes: null | number | string;
+            /** Format: int32 */
+            edgeSsoRememberDeviceDays: null | number | string;
         };
         EdgeSsoSettingsResponse: {
             /** Format: int32 */
             edgeSsoSessionHours: number | string;
+            /** Format: int32 */
+            edgeSsoIdleTimeoutMinutes: number | string;
+            /** Format: int32 */
+            edgeSsoRememberDeviceDays: number | string;
             /** Format: date-time */
             updatedAtUtc: null | string;
         };
@@ -5696,6 +5778,7 @@ export interface components {
             url: string;
             checkType: string;
             enabled: boolean;
+            publicStatusEnabled: boolean;
             status: string;
             /** Format: date-time */
             lastCheckedAtUtc: null | string;
@@ -5795,6 +5878,28 @@ export interface components {
             /** Format: date-time */
             createdAtUtc: string;
         };
+        PublicDashboardItemResponse: {
+            /** Format: uuid */
+            id: string;
+            source: string;
+            displayName: string;
+            publicUrl: string;
+            domain: null | string;
+            status: string;
+            /** Format: int32 */
+            lastLatencyMs: null | number | string;
+        };
+        PublicDashboardResponse: {
+            items: components["schemas"]["PublicDashboardItemResponse"][];
+            /** Format: int32 */
+            hostsOnline: number | string;
+            /** Format: int32 */
+            totalHosts: number | string;
+            /** Format: int32 */
+            linuxFirewallHostsAvailable: number | string;
+            /** Format: int32 */
+            totalLinuxFirewallHosts: number | string;
+        };
         PublicStatusItemResponse: {
             name: string;
             status: string;
@@ -5825,20 +5930,40 @@ export interface components {
             /** Format: uuid */
             id: string;
             name: string;
+            installType: string;
+            allowedScopes: string[];
+            /** Format: int32 */
+            heartbeatIntervalSeconds: number | string;
             status: string;
             /** Format: date-time */
             lastSeenAtUtc: null | string;
             lastPublicIp: null | string;
+            lastPrivateIp: null | string;
+            lastPrivateIpv4Candidates: string[];
+            lastPrivateIpv6Candidates: string[];
+            lastSelectedIp: null | string;
+            lastSelectedInterface: null | string;
             lastHostname: null | string;
             lastAgentVersion: null | string;
             /** Format: date-time */
             dnsPendingAtUtc: null | string;
+        };
+        PulseDockerMetadataRequest: {
+            containerId: null | string;
+            image: null | string;
+            networkMode: null | string;
         };
         PulseHeartbeatAuthRequest: {
             token: string;
             version: string;
             hostname: string;
             privateIpv4Candidates: string[];
+            privateIpv6Candidates: string[];
+            selectedInterface: null | string;
+            selectedIp: null | string;
+            /** Format: date-time */
+            timestamp: string;
+            docker: null | components["schemas"]["PulseDockerMetadataRequest"];
         };
         PulseInstallResponse: {
             linuxInstallScript: string;
@@ -5884,6 +6009,7 @@ export interface components {
             extraMiddlewares: string[];
             routes: components["schemas"]["ResourceRouteResponse"][];
             rules: components["schemas"]["ResourceRuleResponse"][];
+            wafExclusions: string[];
         };
         ResourceRouteRequest: {
             enabled: boolean;
@@ -6315,6 +6441,7 @@ export interface components {
             url?: null | string;
             checkType?: null | string;
             enabled?: null | boolean;
+            publicStatusEnabled?: null | boolean;
         };
         UpdateNotificationProviderRequest: {
             name: null | string;
@@ -6365,6 +6492,9 @@ export interface components {
             clearExtraMiddlewares: boolean;
             routes?: null | components["schemas"]["ResourceRouteRequest"][];
             rules?: null | components["schemas"]["ResourceRuleRequest"][];
+            wafExclusions?: null | string[];
+            /** @default false */
+            clearWafExclusions: boolean;
         };
         UpdateScriptRequest: {
             name: null | string;
@@ -6393,6 +6523,9 @@ export interface components {
             /** Format: int32 */
             ttl: null | number | string;
             enabled: boolean;
+            /** @default false */
+            dashboardEnabled: boolean;
+            dashboardDisplayName?: null | string;
         };
         VaultGenerateRecoveryKeyResponse: {
             recoveryKey: string;
@@ -6417,6 +6550,12 @@ export interface components {
         };
         VaultUnlockRequest: {
             recoveryKey: string;
+        };
+        WafEventIngestRequest: {
+            clientIp: string;
+            host: string;
+            path: string;
+            action: string;
         };
     };
     responses: never;

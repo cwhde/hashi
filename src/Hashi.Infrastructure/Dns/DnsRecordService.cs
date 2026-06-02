@@ -36,8 +36,11 @@ public sealed class DnsRecordService(HashiDbContext db, AuditService audit)
         string value,
         int? ttl,
         bool enabled,
+        bool dashboardEnabled = false,
+        string? dashboardDisplayName = null,
         CancellationToken cancellationToken = default)
     {
+        var displayName = NormalizeDashboardDisplayName(dashboardEnabled, dashboardDisplayName);
         var normalized = await ValidateAsync(zoneId, name, type, value, ttl, null, cancellationToken);
         var record = new DnsRecordEntity
         {
@@ -48,6 +51,8 @@ public sealed class DnsRecordService(HashiDbContext db, AuditService audit)
             Ttl = normalized.Ttl,
             Enabled = enabled,
             Ownership = DnsOwnershipNames.User,
+            DashboardEnabled = dashboardEnabled,
+            DashboardDisplayName = displayName,
         };
         db.DnsRecords.Add(record);
         db.DnsRecordOwnership.Add(new DnsRecordOwnershipEntity
@@ -62,7 +67,7 @@ public sealed class DnsRecordService(HashiDbContext db, AuditService audit)
             SyncState = DnsOwnershipSyncStateNames.Desired,
         });
         await db.SaveChangesAsync(cancellationToken);
-        await audit.WriteAsync("dns", "manual_record_created", "dns_record", record.Id.ToString(), cancellationToken: cancellationToken);
+        await audit.WriteAsync("dns", "manual_record_created", subjectType: "dns_record", subjectId: record.Id.ToString(), cancellationToken: cancellationToken);
         return record;
     }
 
@@ -74,6 +79,8 @@ public sealed class DnsRecordService(HashiDbContext db, AuditService audit)
         string value,
         int? ttl,
         bool enabled,
+        bool dashboardEnabled = false,
+        string? dashboardDisplayName = null,
         CancellationToken cancellationToken = default)
     {
         var record = await GetMutableUserRecordAsync(recordId, cancellationToken);
@@ -82,6 +89,7 @@ public sealed class DnsRecordService(HashiDbContext db, AuditService audit)
             return null;
         }
 
+        var displayName = NormalizeDashboardDisplayName(dashboardEnabled, dashboardDisplayName);
         var normalized = await ValidateAsync(zoneId, name, type, value, ttl, recordId, cancellationToken);
         record.ZoneId = zoneId;
         record.Name = normalized.Name;
@@ -89,6 +97,8 @@ public sealed class DnsRecordService(HashiDbContext db, AuditService audit)
         record.Value = normalized.Value;
         record.Ttl = normalized.Ttl;
         record.Enabled = enabled;
+        record.DashboardEnabled = dashboardEnabled;
+        record.DashboardDisplayName = displayName;
         record.UpdatedAtUtc = DateTimeOffset.UtcNow;
 
         var ownership = await db.DnsRecordOwnership
@@ -119,7 +129,7 @@ public sealed class DnsRecordService(HashiDbContext db, AuditService audit)
         }
 
         await db.SaveChangesAsync(cancellationToken);
-        await audit.WriteAsync("dns", "manual_record_updated", "dns_record", record.Id.ToString(), cancellationToken: cancellationToken);
+        await audit.WriteAsync("dns", "manual_record_updated", subjectType: "dns_record", subjectId: record.Id.ToString(), cancellationToken: cancellationToken);
         return record;
     }
 
@@ -137,7 +147,7 @@ public sealed class DnsRecordService(HashiDbContext db, AuditService audit)
         db.DnsRecordOwnership.RemoveRange(ownership);
         db.DnsRecords.Remove(record);
         await db.SaveChangesAsync(cancellationToken);
-        await audit.WriteAsync("dns", "manual_record_deleted", "dns_record", record.Id.ToString(), cancellationToken: cancellationToken);
+        await audit.WriteAsync("dns", "manual_record_deleted", subjectType: "dns_record", subjectId: record.Id.ToString(), cancellationToken: cancellationToken);
         return true;
     }
 
@@ -174,16 +184,23 @@ public sealed class DnsRecordService(HashiDbContext db, AuditService audit)
         }
 
         var apiType = DnsRecordTypeMapping.ToApiName(parsedType);
-        var duplicate = await db.DnsRecords.AnyAsync(
+        var duplicateQuery = db.DnsRecords.Where(
             x => x.ZoneId == zoneId
                 && x.Id != existingId
                 && x.Enabled
                 && x.Name == normalizedName
-                && x.Type == apiType,
-            cancellationToken);
+                && x.Type == apiType);
+        if (IsMultiValue(parsedType))
+        {
+            duplicateQuery = duplicateQuery.Where(x => x.Value == normalizedValue);
+        }
+
+        var duplicate = await duplicateQuery.AnyAsync(cancellationToken);
         if (duplicate)
         {
-            throw new InvalidOperationException("A DNS record with the same name and type already exists in this zone.");
+            throw new InvalidOperationException(IsMultiValue(parsedType)
+                ? "A DNS record with the same name, type, and value already exists in this zone."
+                : "A DNS record with the same name and type already exists in this zone.");
         }
 
         return new ValidatedRecord(normalizedName, apiType, normalizedValue, ttl);
@@ -199,6 +216,20 @@ public sealed class DnsRecordService(HashiDbContext db, AuditService audit)
 
         return normalized;
     }
+
+    private static string? NormalizeDashboardDisplayName(bool dashboardEnabled, string? displayName)
+    {
+        var normalized = displayName?.Trim();
+        if (dashboardEnabled && string.IsNullOrWhiteSpace(normalized))
+        {
+            throw new InvalidOperationException("Dashboard display name is required before a manual DNS record can be shown on the public dashboard.");
+        }
+
+        return string.IsNullOrWhiteSpace(normalized) ? null : normalized;
+    }
+
+    private static bool IsMultiValue(DnsRecordType type)
+        => type is DnsRecordType.Mx or DnsRecordType.Txt;
 
     private sealed record ValidatedRecord(string Name, string Type, string Value, int? Ttl);
 }

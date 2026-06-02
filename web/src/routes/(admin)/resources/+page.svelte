@@ -27,7 +27,9 @@
 	let pulseAgents = $state<PulseAgent[]>([]);
 	let availableMiddlewares = $state<string[]>([]);
 	let routeDrafts = $state<Record<string, ResourceRouteRequest[]>>({});
+	let wafExclusionDrafts = $state<Record<string, string>>({});
 	let routeSaving = $state<Record<string, boolean>>({});
+	let wafExclusionSaving = $state<Record<string, boolean>>({});
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 	let saving = $state(false);
@@ -43,6 +45,7 @@
 		pathRewrite: '',
 		forwardAuthPolicy: 'adaptive',
 		wafMode: 'detect_only',
+		wafExclusions: '',
 		firewallHostId: '',
 		dashboardEnabled: false,
 		statusEnabled: true,
@@ -66,6 +69,9 @@
 			resources = resourceList;
 			routeDrafts = Object.fromEntries(
 				resourceList.map((resource) => [resource.id, cloneResourceRoutes(resource)])
+			);
+			wafExclusionDrafts = Object.fromEntries(
+				resourceList.map((resource) => [resource.id, (resource.wafExclusions ?? []).join('\n')])
 			);
 			firewallHosts = hostList;
 			pulseAgents = agents;
@@ -96,6 +102,7 @@
 				publicPort: form.kind === 'tcp' || form.kind === 'udp' ? Number(form.publicPort) : null,
 				forwardAuthPolicy: form.forwardAuthPolicy,
 				wafMode: form.wafMode,
+				wafExclusions: parseLineList(form.wafExclusions),
 				dashboardEnabled: form.dashboardEnabled,
 				statusEnabled: form.statusEnabled,
 				firewallHostId: form.firewallHostId || null,
@@ -108,6 +115,7 @@
 			form.targetHost = '';
 			form.pathPrefix = '';
 			form.pathRewrite = '';
+			form.wafExclusions = '';
 			form.firewallHostId = '';
 			form.routes = [];
 			await load();
@@ -124,7 +132,8 @@
 		clearPulseAgentId: false,
 		clearPathPrefix: false,
 		clearPathRewrite: false,
-		clearExtraMiddlewares: false
+		clearExtraMiddlewares: false,
+		clearWafExclusions: false
 	} as const;
 
 	async function toggleEnabled(resource: Resource) {
@@ -209,6 +218,36 @@
 			await load();
 		} catch (e) {
 			error = e instanceof ApiRequestError ? e.message : 'Failed to update middlewares';
+		}
+	}
+
+	function parseLineList(value: string): string[] {
+		return value
+			.split('\n')
+			.map((line) => line.trim())
+			.filter(Boolean);
+	}
+
+	async function saveWafExclusions(resource: Resource) {
+		wafExclusionSaving = { ...wafExclusionSaving, [resource.id]: true };
+		try {
+			await api.updateResource(resource.id, {
+				name: null,
+				enabled: null,
+				domain: null,
+				targetScheme: null,
+				targetHost: null,
+				targetPort: null,
+				dashboardEnabled: null,
+				statusEnabled: null,
+				...resourcePatchFlags,
+				wafExclusions: parseLineList(wafExclusionDrafts[resource.id] ?? '')
+			});
+			await load();
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Failed to update WAF exclusions';
+		} finally {
+			wafExclusionSaving = { ...wafExclusionSaving, [resource.id]: false };
 		}
 	}
 
@@ -365,6 +404,15 @@
 					</select>
 				</div>
 			</div>
+			<div class="grid gap-1.5">
+				<Label for="res-waf-exclusions">WAF exclusions</Label>
+				<textarea
+					id="res-waf-exclusions"
+					class="min-h-20 rounded-md border border-border bg-background px-3 py-2 font-mono text-xs text-white"
+					bind:value={form.wafExclusions}
+					placeholder="SecRuleRemoveById 941100"
+				></textarea>
+			</div>
 			<ResourceRoutesEditor
 				title="Advanced routes (optional)"
 				bind:routes={form.routes}
@@ -410,6 +458,7 @@
 							<TableHead>Pulse agent</TableHead>
 							<TableHead>Target</TableHead>
 							<TableHead>Extra middlewares</TableHead>
+							<TableHead>WAF exclusions</TableHead>
 							<TableHead>Advanced routes</TableHead>
 							<TableHead>Enabled</TableHead>
 							<TableHead class="w-12"></TableHead>
@@ -480,6 +529,26 @@
 													{middleware}
 												</label>
 											{/each}
+										</div>
+									{:else}
+										<span class="text-xs text-muted-foreground">n/a</span>
+									{/if}
+								</TableCell>
+								<TableCell class="min-w-[16rem]">
+									{#if ['http', 'https', 'h2c'].includes(resource.kind.toLowerCase())}
+										<div class="grid gap-2">
+											<textarea
+												class="min-h-20 rounded-md border border-border bg-background px-2 py-1 font-mono text-[11px] text-white"
+												bind:value={wafExclusionDrafts[resource.id]}
+											></textarea>
+											<Button
+												size="sm"
+												variant="outline"
+												onclick={() => saveWafExclusions(resource)}
+												disabled={wafExclusionSaving[resource.id] === true}
+											>
+												{wafExclusionSaving[resource.id] ? 'Saving...' : 'Save WAF'}
+											</Button>
 										</div>
 									{:else}
 										<span class="text-xs text-muted-foreground">n/a</span>

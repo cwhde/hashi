@@ -15,10 +15,12 @@ public sealed class TraefikSyncService(
     HashiDbContext db,
     ISshRemoteExecutor ssh,
     TraefikPlatformService traefik,
+    CertificateSetupService certificateSetup,
     SecretRecordService secrets,
     AuditService audit)
 {
     private const string DynamicDirectory = "/etc/hashi/traefik/dynamic";
+    private const string AcmeEnvironmentPath = "/etc/hashi/traefik/acme.env";
 
     private static readonly (string FileName, Func<TraefikDynamicFiles, string> Selector)[] DynamicFileMap =
     [
@@ -32,7 +34,17 @@ public sealed class TraefikSyncService(
 
     public async Task<TraefikApplyResponse> ApplyAsync(TraefikApplyRequest request, CancellationToken cancellationToken = default)
     {
-        var render = await traefik.RenderAsync(cancellationToken);
+        TraefikRenderResult render;
+        try
+        {
+            render = await traefik.RenderAsync(cancellationToken);
+        }
+        catch (CertificateSetupValidationException ex)
+        {
+            await audit.WriteAsync("traefik", "acme_dns_provider_invalid", subjectType: "connection", subjectId: request.ConnectionId.ToString(), metadata: ex.Message, outcome: "failed", cancellationToken: cancellationToken);
+            return new TraefikApplyResponse(false, string.Empty, false, ex.Message);
+        }
+
         var localValidation = TraefikConfigValidator.ValidateRender(render);
         if (!localValidation.IsValid)
         {
@@ -41,11 +53,27 @@ public sealed class TraefikSyncService(
             return new TraefikApplyResponse(false, render.ContentHash, false, message);
         }
 
+        TraefikAcmeDnsCredential? acmeCredential;
+        try
+        {
+            acmeCredential = await certificateSetup.BuildTraefikAcmeDnsCredentialAsync(cancellationToken);
+        }
+        catch (CertificateSetupValidationException ex)
+        {
+            await audit.WriteAsync("traefik", "acme_dns_provider_invalid", subjectType: "connection", subjectId: request.ConnectionId.ToString(), metadata: ex.Message, outcome: "failed", cancellationToken: cancellationToken);
+            return new TraefikApplyResponse(false, render.ContentHash, false, ex.Message);
+        }
+
+        var acmeEnvironmentBytes = acmeCredential is null
+            ? null
+            : System.Text.Encoding.UTF8.GetBytes(RenderAcmeEnvironmentFile(acmeCredential));
+
         var state = await db.TraefikHostStates.SingleOrDefaultAsync(x => x.ConnectionId == request.ConnectionId, cancellationToken);
         var isNew = state is null;
         state ??= CreateDefaultState(request.ConnectionId);
 
-        if (string.Equals(state.LastAppliedContentHash, render.ContentHash, StringComparison.Ordinal))
+        if (acmeEnvironmentBytes is null
+            && string.Equals(state.LastAppliedContentHash, render.ContentHash, StringComparison.Ordinal))
         {
             await audit.WriteAsync("traefik", "config_apply_noop", subjectType: "connection", subjectId: request.ConnectionId.ToString(), cancellationToken: cancellationToken);
             return new TraefikApplyResponse(true, render.ContentHash, true, "Config unchanged; skipped write.");
@@ -61,6 +89,17 @@ public sealed class TraefikSyncService(
         {
             state.LastBackupStaticYaml = System.Text.Encoding.UTF8.GetString(staticBackup.Content);
         }
+
+        var acmeEnvironmentRead = acmeEnvironmentBytes is null
+            ? null
+            : await ssh.ReadFileAsync(
+                settings, request.AuthMode, request.Password, request.PrivateKeyPem, request.PrivateKeyPassphrase,
+                AcmeEnvironmentPath, cancellationToken);
+        var acmeEnvironmentMatches = acmeEnvironmentBytes is null
+            || (acmeEnvironmentRead is not null
+                && acmeEnvironmentRead.Succeeded
+                && acmeEnvironmentRead.Content is not null
+                && acmeEnvironmentRead.Content.SequenceEqual(acmeEnvironmentBytes));
 
         var dynamicBackup = new Dictionary<string, string>();
         foreach (var (fileName, _) in DynamicFileMap)
@@ -90,7 +129,8 @@ public sealed class TraefikSyncService(
         }
 
         if (RemoteContentMatches(staticBackup, render.StaticConfigYaml)
-            && DynamicFilesMatch(dynamicBackup, render.DynamicFiles))
+            && DynamicFilesMatch(dynamicBackup, render.DynamicFiles)
+            && acmeEnvironmentMatches)
         {
             state.LastAppliedContentHash = render.ContentHash;
             state.LastAppliedAtUtc = DateTimeOffset.UtcNow;
@@ -105,11 +145,26 @@ public sealed class TraefikSyncService(
             return new TraefikApplyResponse(true, render.ContentHash, true, "Remote Traefik config already matches rendered content; skipped write.");
         }
 
-        var remoteValidation = await ValidateStagedRemoteConfigAsync(settings, request, render, cancellationToken);
+        var remoteValidation = await ValidateStagedRemoteConfigAsync(settings, request, render, acmeEnvironmentBytes, cancellationToken);
         if (!remoteValidation.Succeeded)
         {
             await audit.WriteAsync("traefik", "config_validation_failed", subjectType: "connection", subjectId: request.ConnectionId.ToString(), metadata: remoteValidation.Message, cancellationToken: cancellationToken);
             return new TraefikApplyResponse(false, render.ContentHash, false, remoteValidation.Message);
+        }
+
+        if (acmeEnvironmentBytes is not null)
+        {
+            var acmeWrite = await WriteAsync(settings, request, AcmeEnvironmentPath, acmeEnvironmentBytes, cancellationToken);
+            if (!acmeWrite.Succeeded)
+            {
+                return new TraefikApplyResponse(false, render.ContentHash, false, acmeWrite.Error);
+            }
+
+            var configure = await ConfigureAcmeEnvironmentAsync(settings, request, cancellationToken);
+            if (!configure.Succeeded)
+            {
+                return new TraefikApplyResponse(false, render.ContentHash, false, configure.Error ?? configure.Output);
+            }
         }
 
         var staticWrite = await WriteAsync(settings, request, state.StaticConfigPath, staticBytes, cancellationToken);
@@ -282,6 +337,7 @@ public sealed class TraefikSyncService(
 
         [Service]
         Type=simple
+        EnvironmentFile=-/etc/hashi/traefik/acme.env
         ExecStart=/usr/bin/traefik --configFile=/etc/hashi/traefik/traefik.yml
         Restart=on-failure
         RestartSec=5
@@ -370,6 +426,7 @@ public sealed class TraefikSyncService(
         Hashi.Core.Connections.SshConnectionSettings settings,
         TraefikApplyRequest request,
         TraefikRenderResult render,
+        byte[]? acmeEnvironmentBytes,
         CancellationToken cancellationToken)
     {
         var stagingDirectory = $"/tmp/hashi-traefik-{render.ContentHash}";
@@ -402,6 +459,20 @@ public sealed class TraefikSyncService(
             return (false, staticWrite.Error);
         }
 
+        if (acmeEnvironmentBytes is not null)
+        {
+            var envWrite = await WriteAsync(
+                settings,
+                request,
+                $"{stagingDirectory}/acme.env",
+                acmeEnvironmentBytes,
+                cancellationToken);
+            if (!envWrite.Succeeded)
+            {
+                return (false, envWrite.Error);
+            }
+        }
+
         foreach (var (fileName, selector) in DynamicFileMap)
         {
             var write = await WriteAsync(
@@ -422,7 +493,7 @@ public sealed class TraefikSyncService(
             request.Password,
             request.PrivateKeyPem,
             request.PrivateKeyPassphrase,
-            $"traefik check --configFile {Quote($"{stagingDirectory}/traefik.yml")}",
+            BuildTraefikCheckCommand(stagingDirectory, acmeEnvironmentBytes is not null),
             cancellationToken);
         _ = await ssh.RunCommandAsync(
             settings,
@@ -437,6 +508,35 @@ public sealed class TraefikSyncService(
             ? (true, null)
             : (false, check.Error ?? check.Output);
     }
+
+    private async Task<Hashi.Core.Connections.RemoteCommandResult> ConfigureAcmeEnvironmentAsync(
+        Hashi.Core.Connections.SshConnectionSettings settings,
+        TraefikApplyRequest request,
+        CancellationToken cancellationToken)
+        => await ssh.RunCommandAsync(
+            settings,
+            request.AuthMode,
+            request.Password,
+            request.PrivateKeyPem,
+            request.PrivateKeyPassphrase,
+            $$"""
+            set -e
+            chmod 600 {{Quote(AcmeEnvironmentPath)}}
+            if command -v systemctl >/dev/null 2>&1; then
+              mkdir -p /etc/systemd/system/traefik.service.d
+              cat > /etc/systemd/system/traefik.service.d/10-hashi-acme-env.conf <<'UNIT'
+            [Service]
+            EnvironmentFile=-/etc/hashi/traefik/acme.env
+            UNIT
+              systemctl daemon-reload
+            fi
+            if [ -d /etc/conf.d ]; then
+              cat > /etc/conf.d/traefik <<'CONF'
+            . /etc/hashi/traefik/acme.env
+            CONF
+            fi
+            """,
+            cancellationToken);
 
     private static bool RemoteContentMatches(Hashi.Core.Connections.RemoteReadResult read, string expected)
         => read.Succeeded
@@ -467,6 +567,24 @@ public sealed class TraefikSyncService(
         Hashi.Core.Connections.OsFamily.Unknown,
         null,
         null);
+
+    private static string RenderAcmeEnvironmentFile(TraefikAcmeDnsCredential credential)
+        => $"{credential.EnvironmentVariable}={QuoteEnvironmentValue(credential.Token)}\n";
+
+    private static string QuoteEnvironmentValue(string value)
+        => $"'{value.Replace("'", "'\"'\"'", StringComparison.Ordinal)}'";
+
+    private static string BuildTraefikCheckCommand(string stagingDirectory, bool hasAcmeEnvironment)
+    {
+        var configPath = Quote($"{stagingDirectory}/traefik.yml");
+        if (!hasAcmeEnvironment)
+        {
+            return $"traefik check --configFile {configPath}";
+        }
+
+        var envPath = Quote($"{stagingDirectory}/acme.env");
+        return $"set -a && . {envPath} && set +a && traefik check --configFile {configPath}";
+    }
 
     private static string Quote(string value) => $"'{value.Replace("'", "'\\''", StringComparison.Ordinal)}'";
 }

@@ -1,4 +1,5 @@
 using Hashi.Api.Hosting;
+using Hashi.Core.Hosting;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
 using Hashi.Infrastructure.Services;

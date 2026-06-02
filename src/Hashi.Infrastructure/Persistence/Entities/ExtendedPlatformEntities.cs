@@ -306,6 +306,10 @@ public sealed class EdgeSessionEntity
 
     public DateTimeOffset ExpiresAtUtc { get; set; }
 
+    public DateTimeOffset LastSeenAtUtc { get; set; } = DateTimeOffset.UtcNow;
+
+    public bool RememberMe { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }
 
@@ -493,7 +497,16 @@ public sealed class AdGuardRewriteEntity
 
     public bool ManagedByHashi { get; set; } = true;
 
+    public string Source { get; set; } = AdGuardRewriteSourceNames.Manual;
+
     public string? ProviderRewriteId { get; set; }
+}
+
+public static class AdGuardRewriteSourceNames
+{
+    public const string Manual = "manual";
+
+    public const string Topology = "topology";
 }
 
 public sealed class NotificationProviderEntity

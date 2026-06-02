@@ -60,6 +60,9 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "Not Found"
           }
         }
       }
@@ -79,6 +82,9 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "Not Found"
           }
         }
       }
@@ -94,13 +100,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/ResourceResponse"
-                  }
+                  "$ref": "#/components/schemas/PublicDashboardResponse"
                 }
               }
             }
+          },
+          "404": {
+            "description": "Not Found"
           }
         }
       }
@@ -136,6 +142,13 @@
             "in": "query",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "rememberMe",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -2909,6 +2922,28 @@
         }
       }
     },
+    "/api/security/waf-events": {
+      "post": {
+        "tags": [
+          "Security"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WafEventIngestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/security/blocklist/sync": {
       "post": {
         "tags": [
@@ -4175,7 +4210,8 @@
           "id",
           "domain",
           "answer",
-          "managedByHashi"
+          "managedByHashi",
+          "source"
         ],
         "type": "object",
         "properties": {
@@ -4191,6 +4227,9 @@
           },
           "managedByHashi": {
             "type": "boolean"
+          },
+          "source": {
+            "type": "string"
           }
         }
       },
@@ -4471,7 +4510,8 @@
           "eabKeyId",
           "eabHmac",
           "dnsChallengeDelaySeconds",
-          "resolvers"
+          "resolvers",
+          "dnsProviderConnectionId"
         ],
         "type": "object",
         "properties": {
@@ -4500,6 +4540,13 @@
             "items": {
               "type": "string"
             }
+          },
+          "dnsProviderConnectionId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },
@@ -4509,7 +4556,8 @@
           "hasEabCredentials",
           "dnsChallengeDelaySeconds",
           "resolvers",
-          "hasDnsProvider"
+          "hasDnsProvider",
+          "dnsProviderConnectionId"
         ],
         "type": "object",
         "properties": {
@@ -4538,6 +4586,13 @@
           },
           "hasDnsProvider": {
             "type": "boolean"
+          },
+          "dnsProviderConnectionId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },
@@ -4817,6 +4872,10 @@
           "enabled": {
             "type": "boolean",
             "default": true
+          },
+          "publicStatusEnabled": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -4885,6 +4944,28 @@
         "properties": {
           "name": {
             "type": "string"
+          },
+          "installType": {
+            "type": "string",
+            "default": "linux_service"
+          },
+          "allowedScopes": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "heartbeatIntervalSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         }
       },
@@ -5025,6 +5106,15 @@
             ],
             "items": {
               "$ref": "#/components/schemas/ResourceRuleRequest"
+            }
+          },
+          "wafExclusions": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
             }
           }
         }
@@ -5300,7 +5390,9 @@
           "value",
           "ttl",
           "ownership",
-          "enabled"
+          "enabled",
+          "dashboardEnabled",
+          "dashboardDisplayName"
         ],
         "type": "object",
         "properties": {
@@ -5335,6 +5427,15 @@
           },
           "enabled": {
             "type": "boolean"
+          },
+          "dashboardEnabled": {
+            "type": "boolean"
+          },
+          "dashboardDisplayName": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -5475,11 +5576,31 @@
       },
       "EdgeSsoSettingsRequest": {
         "required": [
-          "edgeSsoSessionHours"
+          "edgeSsoSessionHours",
+          "edgeSsoIdleTimeoutMinutes",
+          "edgeSsoRememberDeviceDays"
         ],
         "type": "object",
         "properties": {
           "edgeSsoSessionHours": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "edgeSsoIdleTimeoutMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "edgeSsoRememberDeviceDays": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
@@ -5493,11 +5614,29 @@
       "EdgeSsoSettingsResponse": {
         "required": [
           "edgeSsoSessionHours",
+          "edgeSsoIdleTimeoutMinutes",
+          "edgeSsoRememberDeviceDays",
           "updatedAtUtc"
         ],
         "type": "object",
         "properties": {
           "edgeSsoSessionHours": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "edgeSsoIdleTimeoutMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "edgeSsoRememberDeviceDays": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",
@@ -5998,6 +6137,7 @@
           "url",
           "checkType",
           "enabled",
+          "publicStatusEnabled",
           "status",
           "lastCheckedAtUtc",
           "lastLatencyMs"
@@ -6018,6 +6158,9 @@
             "type": "string"
           },
           "enabled": {
+            "type": "boolean"
+          },
+          "publicStatusEnabled": {
             "type": "boolean"
           },
           "status": {
@@ -6396,6 +6539,101 @@
           }
         }
       },
+      "PublicDashboardItemResponse": {
+        "required": [
+          "id",
+          "source",
+          "displayName",
+          "publicUrl",
+          "domain",
+          "status",
+          "lastLatencyMs"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "source": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "publicUrl": {
+            "type": "string"
+          },
+          "domain": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "lastLatencyMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "PublicDashboardResponse": {
+        "required": [
+          "items",
+          "hostsOnline",
+          "totalHosts",
+          "linuxFirewallHostsAvailable",
+          "totalLinuxFirewallHosts"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicDashboardItemResponse"
+            }
+          },
+          "hostsOnline": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "totalHosts": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "linuxFirewallHostsAvailable": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "totalLinuxFirewallHosts": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "PublicStatusItemResponse": {
         "required": [
           "name",
@@ -6509,9 +6747,17 @@
         "required": [
           "id",
           "name",
+          "installType",
+          "allowedScopes",
+          "heartbeatIntervalSeconds",
           "status",
           "lastSeenAtUtc",
           "lastPublicIp",
+          "lastPrivateIp",
+          "lastPrivateIpv4Candidates",
+          "lastPrivateIpv6Candidates",
+          "lastSelectedIp",
+          "lastSelectedInterface",
           "lastHostname",
           "lastAgentVersion",
           "dnsPendingAtUtc"
@@ -6525,6 +6771,23 @@
           "name": {
             "type": "string"
           },
+          "installType": {
+            "type": "string"
+          },
+          "allowedScopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "heartbeatIntervalSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
           "status": {
             "type": "string"
           },
@@ -6536,6 +6799,36 @@
             "format": "date-time"
           },
           "lastPublicIp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastPrivateIp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastPrivateIpv4Candidates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "lastPrivateIpv6Candidates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "lastSelectedIp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastSelectedInterface": {
             "type": [
               "null",
               "string"
@@ -6562,12 +6855,45 @@
           }
         }
       },
+      "PulseDockerMetadataRequest": {
+        "required": [
+          "containerId",
+          "image",
+          "networkMode"
+        ],
+        "type": "object",
+        "properties": {
+          "containerId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "image": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "networkMode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "PulseHeartbeatAuthRequest": {
         "required": [
           "token",
           "version",
           "hostname",
-          "privateIpv4Candidates"
+          "privateIpv4Candidates",
+          "privateIpv6Candidates",
+          "selectedInterface",
+          "selectedIp",
+          "timestamp",
+          "docker"
         ],
         "type": "object",
         "properties": {
@@ -6585,6 +6911,38 @@
             "items": {
               "type": "string"
             }
+          },
+          "privateIpv6Candidates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "selectedInterface": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "selectedIp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "docker": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PulseDockerMetadataRequest"
+              }
+            ]
           }
         }
       },
@@ -6683,7 +7041,8 @@
           "wafMode",
           "extraMiddlewares",
           "routes",
-          "rules"
+          "rules",
+          "wafExclusions"
         ],
         "type": "object",
         "properties": {
@@ -6789,6 +7148,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ResourceRuleResponse"
+            }
+          },
+          "wafExclusions": {
+            "type": "array",
+            "items": {
+              "type": "string"
             }
           }
         }
@@ -8618,6 +8983,12 @@
               "null",
               "boolean"
             ]
+          },
+          "publicStatusEnabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           }
         }
       },
@@ -8866,6 +9237,19 @@
             "items": {
               "$ref": "#/components/schemas/ResourceRuleRequest"
             }
+          },
+          "wafExclusions": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "clearWafExclusions": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -9000,6 +9384,16 @@
           },
           "enabled": {
             "type": "boolean"
+          },
+          "dashboardEnabled": {
+            "type": "boolean",
+            "default": false
+          },
+          "dashboardDisplayName": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -9093,6 +9487,29 @@
         "type": "object",
         "properties": {
           "recoveryKey": {
+            "type": "string"
+          }
+        }
+      },
+      "WafEventIngestRequest": {
+        "required": [
+          "clientIp",
+          "host",
+          "path",
+          "action"
+        ],
+        "type": "object",
+        "properties": {
+          "clientIp": {
+            "type": "string"
+          },
+          "host": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "action": {
             "type": "string"
           }
         }

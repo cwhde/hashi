@@ -134,11 +134,7 @@ public sealed class HetznerDnsPlanApplyTests : IAsyncLifetime
         await using var factory = CreateFactory();
         await IntegrationTestAuth.EnsureBootstrapCredentialsAsync(factory.Services);
 
-        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
-        {
-            HandleCookies = true,
-            AllowAutoRedirect = false,
-        });
+        using var client = factory.CreateClient(IntegrationTestApp.HttpsClientOptions(allowAutoRedirect: false));
         var sessionId = Guid.NewGuid().ToString("N");
         IntegrationTestAuth.AuthenticateAsAdminSession(client, factory.Services, sessionId, unlockVault: true);
         IntegrationTestAuth.MarkRecentReauthentication(factory.Services, sessionId);

@@ -451,6 +451,7 @@ public sealed class DnsConnectionService(
                 && x.Enabled
                 && x.Name == change.Name
                 && x.Type == DnsRecordTypeMapping.ToApiName(change.Type))
+            .Where(x => !IsMultiValue(change.Type) || x.Value == (change.DesiredValue ?? string.Empty))
             .OrderBy(x => x.ProviderRecordId == string.Empty ? 0 : 1)
             .FirstOrDefaultAsync(cancellationToken);
         if (record is null)
@@ -477,7 +478,9 @@ public sealed class DnsConnectionService(
             .Where(x => x.ZoneId == zoneId
                 && x.Enabled
                 && (x.ProviderRecordId == updated.ProviderRecordId
-                    || (x.Name == change.Name && x.Type == DnsRecordTypeMapping.ToApiName(change.Type))))
+                    || (x.Name == change.Name
+                        && x.Type == DnsRecordTypeMapping.ToApiName(change.Type)
+                        && (!IsMultiValue(change.Type) || x.Value == (change.CurrentValue ?? string.Empty)))))
             .FirstOrDefaultAsync(cancellationToken);
         if (record is null)
         {
@@ -553,8 +556,26 @@ public sealed class DnsConnectionService(
     }
 
     private static bool IsSameRecordKey(DnsRecordSnapshot record, DnsPlanChange change)
-        => string.Equals(record.Name, change.Name, StringComparison.OrdinalIgnoreCase)
-            && record.Type == change.Type;
+    {
+        if (!string.Equals(record.Name, change.Name, StringComparison.OrdinalIgnoreCase)
+            || record.Type != change.Type)
+        {
+            return false;
+        }
+
+        if (!IsMultiValue(record.Type))
+        {
+            return true;
+        }
+
+        var changeValue = change.DesiredValue ?? change.CurrentValue ?? string.Empty;
+        return string.Equals(Normalize(record.Value), Normalize(changeValue), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsMultiValue(DnsRecordType type)
+        => type is DnsRecordType.Mx or DnsRecordType.Txt;
+
+    private static string Normalize(string value) => value.Trim().TrimEnd('.');
 
     private static SyncRiskLevel GetRiskLevel(DnsSyncPlan plan)
     {

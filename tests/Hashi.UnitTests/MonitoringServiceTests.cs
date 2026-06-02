@@ -1,4 +1,5 @@
 using Hashi.Contracts.Api;
+using Hashi.Core.Hosting;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
 using Hashi.Infrastructure.Platform;
@@ -127,6 +128,35 @@ public sealed class MonitoringServiceTests
     }
 
     [Fact]
+    public async Task SyncEndpointsFromResourcesAsync_uses_configured_admin_port_for_hashi_api_monitor()
+    {
+        await using var db = CreateDb();
+
+        await CreateService(db, new HashiPortOptions { Admin = 18080 }).SyncEndpointsFromResourcesAsync();
+
+        var endpoint = await db.MonitorEndpoints.SingleAsync(x => x.Name == "Hashi API");
+        Assert.Equal("http://127.0.0.1:18080/api/health", endpoint.Url);
+        Assert.DoesNotContain("127.0.0.1:8080", endpoint.Url, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SyncEndpointsFromResourcesAsync_prefers_internal_url_for_hashi_api_monitor()
+    {
+        await using var db = CreateDb();
+        db.AppSettings.Add(new AppSettingsEntity
+        {
+            InternalUrl = "http://hashi.internal:19090/",
+        });
+        await db.SaveChangesAsync();
+
+        await CreateService(db, new HashiPortOptions { Admin = 18080 }).SyncEndpointsFromResourcesAsync();
+
+        var endpoint = await db.MonitorEndpoints.SingleAsync(x => x.Name == "Hashi API");
+        Assert.Equal("http://hashi.internal:19090/api/health", endpoint.Url);
+        Assert.DoesNotContain("127.0.0.1:8080", endpoint.Url, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Manual_endpoint_crud_validates_check_type_and_preserves_resource_owned_rows()
     {
         await using var db = CreateDb();
@@ -134,16 +164,23 @@ public sealed class MonitoringServiceTests
         var created = await service.CreateManualAsync(new CreateMonitorEndpointRequest(
             "Manual TCP",
             "tcp://db.internal:5432",
-            "tcp"));
+            "tcp",
+            PublicStatusEnabled: true));
 
         Assert.Equal("tcp", created.CheckType);
+        Assert.True(created.PublicStatusEnabled);
 
         var updated = await service.UpdateManualAsync(
             created.Id,
-            new UpdateMonitorEndpointRequest(Url: "udp://dns.internal:53", CheckType: "udp", Enabled: false));
+            new UpdateMonitorEndpointRequest(
+                Url: "udp://dns.internal:53",
+                CheckType: "udp",
+                Enabled: false,
+                PublicStatusEnabled: false));
         Assert.NotNull(updated);
         Assert.Equal("udp", updated.CheckType);
         Assert.False(updated.Enabled);
+        Assert.False(updated.PublicStatusEnabled);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             service.CreateManualAsync(new CreateMonitorEndpointRequest("Bad", "bad://thing", "smtp")));
@@ -164,6 +201,81 @@ public sealed class MonitoringServiceTests
         Assert.False(await db.MonitorEndpoints.AnyAsync(x => x.Id == created.Id));
     }
 
+    [Fact]
+    public async Task Provisioned_endpoint_allows_public_selection_without_releasing_managed_fields()
+    {
+        await using var db = CreateDb();
+        var service = CreateService(db);
+        db.MonitorEndpoints.Add(new MonitorEndpointEntity
+        {
+            Name = "Owned",
+            Url = "http://owned.example.com/",
+            CheckType = "http",
+            ResourceId = Guid.NewGuid(),
+        });
+        await db.SaveChangesAsync();
+        var owned = await db.MonitorEndpoints.SingleAsync(x => x.Name == "Owned");
+
+        var selected = await service.UpdateManualAsync(
+            owned.Id,
+            new UpdateMonitorEndpointRequest(PublicStatusEnabled: true));
+
+        Assert.NotNull(selected);
+        Assert.True(selected.PublicStatusEnabled);
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.UpdateManualAsync(owned.Id, new UpdateMonitorEndpointRequest(Name: "Renamed")));
+    }
+
+    [Fact]
+    public async Task Public_status_includes_only_enabled_public_selected_endpoints()
+    {
+        await using var db = CreateDb();
+        db.MonitorEndpoints.AddRange(
+            new MonitorEndpointEntity
+            {
+                Name = "Private enabled",
+                Url = "https://private.example.com/",
+                CheckType = "https",
+                Enabled = true,
+                PublicStatusEnabled = false,
+                Status = "up",
+            },
+            new MonitorEndpointEntity
+            {
+                Name = "Public enabled",
+                Url = "https://public.example.com/",
+                CheckType = "https",
+                Enabled = true,
+                PublicStatusEnabled = true,
+                Status = "degraded",
+                LastLatencyMs = 123,
+            },
+            new MonitorEndpointEntity
+            {
+                Name = "Public disabled",
+                Url = "https://disabled.example.com/",
+                CheckType = "https",
+                Enabled = false,
+                PublicStatusEnabled = true,
+                Status = "down",
+            });
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+
+        var status = await service.PublicStatusAsync();
+        var summary = await service.PublicSummaryAsync();
+
+        var item = Assert.Single(status);
+        Assert.Equal("Public enabled", item.Name);
+        Assert.Equal("Degraded", item.Status);
+        Assert.Equal(123, item.LastLatencyMs);
+        Assert.Equal(1, summary.TotalEndpoints);
+        Assert.Equal(0, summary.UpCount);
+        Assert.Equal(1, summary.DegradedCount);
+        Assert.Equal(0, summary.DownCount);
+    }
+
     private static ResourceEntity Resource(string name, string kind, string? domain, string host, int port)
         => new()
         {
@@ -178,8 +290,8 @@ public sealed class MonitoringServiceTests
             Enabled = true,
         };
 
-    private static MonitoringService CreateService(HashiDbContext db)
-        => new(db, new AppSettingsService(db));
+    private static MonitoringService CreateService(HashiDbContext db, HashiPortOptions? ports = null)
+        => new(db, new AppSettingsService(db), new HashiInternalUrlResolver(ports ?? new HashiPortOptions()));
 
     private static HashiDbContext CreateDb()
     {

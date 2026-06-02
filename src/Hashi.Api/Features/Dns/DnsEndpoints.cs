@@ -80,7 +80,9 @@ public static class DnsEndpoints
                 x.Value,
                 x.Ttl,
                 x.IsManagedByHashi ? "managed" : "unknown",
-                true)));
+                true,
+                false,
+                null)));
         })
             .Produces<IEnumerable<DnsRecordResponse>>(StatusCodes.Status200OK);
 
@@ -193,6 +195,8 @@ public static class DnsEndpoints
                     request.Value,
                     request.Ttl,
                     request.Enabled,
+                    request.DashboardEnabled,
+                    request.DashboardDisplayName,
                     ct)));
             }
             catch (InvalidOperationException ex)
@@ -217,6 +221,8 @@ public static class DnsEndpoints
                     request.Value,
                     request.Ttl,
                     request.Enabled,
+                    request.DashboardEnabled,
+                    request.DashboardDisplayName,
                     ct);
                 return updated is null
                     ? TypedResults.NotFound(new ApiErrorResponse("Manual DNS record not found."))
@@ -261,7 +267,9 @@ public static class DnsEndpoints
             record.Value,
             record.Ttl,
             record.Ownership,
-            record.Enabled);
+            record.Enabled,
+            record.DashboardEnabled,
+            record.DashboardDisplayName);
 
     private static DnsSyncPlanResponse ToPlan(Hashi.Core.Dns.DnsSyncPlan plan)
         => new(

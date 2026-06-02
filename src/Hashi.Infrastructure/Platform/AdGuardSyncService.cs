@@ -92,7 +92,7 @@ public sealed class AdGuardSyncService(
             .Where(x => x.ConnectionId == connectionId)
             .OrderBy(x => x.Domain)
             .ToListAsync(cancellationToken);
-        return items.Select(x => new AdGuardRewriteResponse(x.Id, x.Domain, x.Answer, x.ManagedByHashi)).ToList();
+        return items.Select(ToResponse).ToList();
     }
 
     public async Task<AdGuardRewriteMutationResponse> UpsertRewriteAsync(
@@ -112,6 +112,7 @@ public sealed class AdGuardSyncService(
                 ConnectionId = connectionId,
                 Domain = domain,
                 ManagedByHashi = true,
+                Source = AdGuardRewriteSourceNames.Manual,
             };
             db.AdGuardRewrites.Add(rewrite);
         }
@@ -125,14 +126,21 @@ public sealed class AdGuardSyncService(
         var plan = await PlanSyncAsync(connectionId, cancellationToken: cancellationToken);
         await audit.WriteAsync("adguard", "rewrite_desired_saved", subjectType: "rewrite", subjectId: rewrite.Id.ToString(), cancellationToken: cancellationToken);
         return new AdGuardRewriteMutationResponse(
-            new AdGuardRewriteResponse(rewrite.Id, rewrite.Domain, rewrite.Answer, rewrite.ManagedByHashi),
+            ToResponse(rewrite),
             plan);
     }
 
-    public async Task<AdGuardRewriteApplyResponse> SyncManagedRewritesAsync(Guid connectionId, CancellationToken cancellationToken = default)
+    public async Task<AdGuardRewriteApplyResponse> SyncManagedRewritesAsync(
+        Guid connectionId,
+        bool confirmDestructive = false,
+        CancellationToken cancellationToken = default)
     {
         var plan = await PlanSyncAsync(connectionId, updateTopologyDesiredState: true, cancellationToken: cancellationToken);
-        return await ApplyPlanAsync(connectionId, new AdGuardRewriteApplyRequest(plan.PlanId, ConfirmDestructive: true), cancellationToken: cancellationToken);
+        return await ApplyPlanAsync(
+            connectionId,
+            new AdGuardRewriteApplyRequest(plan.PlanId, confirmDestructive),
+            updateTopologyDesiredState: true,
+            cancellationToken: cancellationToken);
     }
 
     public async Task<AdGuardRewritePlanResponse> PlanSyncAsync(
@@ -141,9 +149,10 @@ public sealed class AdGuardSyncService(
         bool updateTopologyDesiredState = false,
         CancellationToken cancellationToken = default)
     {
+        HashSet<string>? topologyDesiredDomains = null;
         if (updateTopologyDesiredState)
         {
-            await SyncResourceTopologyRewritesAsync(connectionId, cancellationToken);
+            topologyDesiredDomains = await SyncResourceTopologyRewritesAsync(connectionId, cancellationToken);
         }
 
         var deleteRewrite = deleteRewriteId is null
@@ -162,7 +171,16 @@ public sealed class AdGuardSyncService(
         }
 
         var changes = new List<AdGuardRewritePlanChange>();
-        foreach (var rewrite in localManaged)
+        IReadOnlyList<AdGuardRewriteEntity> staleTopology = topologyDesiredDomains is null
+            ? Array.Empty<AdGuardRewriteEntity>()
+            : localManaged
+                .Where(x => x.Source == AdGuardRewriteSourceNames.Topology && !topologyDesiredDomains.Contains(x.Domain))
+                .ToList();
+        var staleTopologyDomains = staleTopology
+            .Select(x => x.Domain)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var rewrite in localManaged.Where(x => !staleTopologyDomains.Contains(x.Domain)))
         {
             var remote = remoteRewrites.FirstOrDefault(x =>
                 string.Equals(x.Domain, rewrite.Domain, StringComparison.OrdinalIgnoreCase));
@@ -183,6 +201,13 @@ public sealed class AdGuardSyncService(
             changes.Add(new AdGuardRewritePlanChange("delete", deleteRewrite.Domain, remote?.Answer ?? deleteRewrite.Answer, null, "Delete Hashi-managed rewrite."));
         }
 
+        foreach (var rewrite in staleTopology)
+        {
+            var remote = remoteRewrites.FirstOrDefault(x =>
+                string.Equals(x.Domain, rewrite.Domain, StringComparison.OrdinalIgnoreCase));
+            changes.Add(new AdGuardRewritePlanChange("delete", rewrite.Domain, remote?.Answer ?? rewrite.Answer, null, "Delete stale topology-generated rewrite."));
+        }
+
         var planId = ComputePlanId(connectionId, deleteRewriteId, remoteRewrites, localManaged, changes);
         return new AdGuardRewritePlanResponse(
             planId,
@@ -195,9 +220,10 @@ public sealed class AdGuardSyncService(
         Guid connectionId,
         AdGuardRewriteApplyRequest request,
         Guid? deleteRewriteId = null,
+        bool updateTopologyDesiredState = false,
         CancellationToken cancellationToken = default)
     {
-        var plan = await PlanSyncAsync(connectionId, deleteRewriteId, cancellationToken: cancellationToken);
+        var plan = await PlanSyncAsync(connectionId, deleteRewriteId, updateTopologyDesiredState, cancellationToken);
         if (plan.PlanId != request.PlanId)
         {
             throw new InvalidOperationException("AdGuard plan is stale; preview the rewrite changes again.");
@@ -238,6 +264,28 @@ public sealed class AdGuardSyncService(
                 }
             }
 
+            var deletedDomains = plan.Changes
+                .Where(x => x.Kind == "delete")
+                .Select(x => x.Domain)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (deletedDomains.Count > 0)
+            {
+                var staleTopology = await db.AdGuardRewrites
+                    .Where(x =>
+                        x.ConnectionId == connectionId &&
+                        x.ManagedByHashi &&
+                        x.Source == AdGuardRewriteSourceNames.Topology)
+                    .ToListAsync(cancellationToken);
+                staleTopology = staleTopology
+                    .Where(x => deletedDomains.Contains(x.Domain))
+                    .ToList();
+                if (staleTopology.Count > 0)
+                {
+                    db.AdGuardRewrites.RemoveRange(staleTopology);
+                    await db.SaveChangesAsync(cancellationToken);
+                }
+            }
+
             await syncRuns.AddStepAsync(run.Id, "adguard-apply", SyncRunStatusNames.Succeeded, $"{plan.Changes.Count} changes", cancellationToken);
             await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Succeeded, plan.RequiresConfirmation ? SyncRiskLevel.Destructive : SyncRiskLevel.Low, null, cancellationToken);
             await audit.WriteAsync("adguard", "apply_succeeded", subjectType: "sync_run", subjectId: run.Id.ToString(), metadata: new { connectionId, changes = plan.Changes.Count }, cancellationToken: cancellationToken);
@@ -252,13 +300,14 @@ public sealed class AdGuardSyncService(
         }
     }
 
-    private async Task SyncResourceTopologyRewritesAsync(Guid connectionId, CancellationToken cancellationToken)
+    private async Task<HashSet<string>> SyncResourceTopologyRewritesAsync(Guid connectionId, CancellationToken cancellationToken)
     {
         var settings = await db.AppSettings.AsNoTracking().SingleOrDefaultAsync(cancellationToken);
         var rootDomain = settings?.RootDomain;
+        var desiredDomains = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         if (string.IsNullOrWhiteSpace(rootDomain))
         {
-            return;
+            return desiredDomains;
         }
 
         var hosts = await db.FirewallHosts.AsNoTracking().ToDictionaryAsync(x => x.Id, cancellationToken);
@@ -266,7 +315,6 @@ public sealed class AdGuardSyncService(
         var resources = await db.Resources
             .Where(x => x.Enabled && (x.FirewallHostId != null || x.PulseAgentId != null))
             .ToListAsync(cancellationToken);
-        var desiredDomains = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var resource in resources)
         {
@@ -277,7 +325,7 @@ public sealed class AdGuardSyncService(
             }
             else if (resource.PulseAgentId is Guid pulseId && pulseAgents.TryGetValue(pulseId, out var agent))
             {
-                answer = agent.LastPrivateIp ?? agent.LastPublicIp;
+                answer = agent.LastSelectedIp ?? agent.LastPrivateIp ?? agent.LastPublicIp;
             }
 
             if (string.IsNullOrWhiteSpace(answer))
@@ -300,6 +348,7 @@ public sealed class AdGuardSyncService(
                     ConnectionId = connectionId,
                     Domain = domain,
                     ManagedByHashi = true,
+                    Source = AdGuardRewriteSourceNames.Topology,
                 };
                 db.AdGuardRewrites.Add(rewrite);
             }
@@ -307,22 +356,16 @@ public sealed class AdGuardSyncService(
             {
                 continue;
             }
+            else if (rewrite.Source != AdGuardRewriteSourceNames.Topology)
+            {
+                continue;
+            }
 
             rewrite.Answer = answer;
         }
 
-        var staleManaged = await db.AdGuardRewrites
-            .Where(x => x.ConnectionId == connectionId && x.ManagedByHashi)
-            .ToListAsync(cancellationToken);
-        foreach (var rewrite in staleManaged)
-        {
-            if (!desiredDomains.Contains(rewrite.Domain))
-            {
-                db.AdGuardRewrites.Remove(rewrite);
-            }
-        }
-
         await db.SaveChangesAsync(cancellationToken);
+        return desiredDomains;
     }
 
     private async Task<IReadOnlyList<RemoteAdGuardRewrite>> ListRemoteRewritesAsync(
@@ -440,6 +483,13 @@ public sealed class AdGuardSyncService(
     };
 
     private static string NormalizeDomain(string domain) => domain.Trim().TrimEnd('.').ToLowerInvariant();
+
+    private static AdGuardRewriteResponse ToResponse(AdGuardRewriteEntity rewrite) => new(
+        rewrite.Id,
+        rewrite.Domain,
+        rewrite.Answer,
+        rewrite.ManagedByHashi,
+        rewrite.Source);
 
     private static Guid ComputePlanId(
         Guid connectionId,

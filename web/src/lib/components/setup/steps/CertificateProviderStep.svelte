@@ -17,6 +17,8 @@
 	let eabHmac = $state('');
 	let dnsDelay = $state(30);
 	let resolvers = $state('1.1.1.1:53,8.8.8.8:53');
+	let dnsConnections = $state<Array<{ id: string; name: string; enabled: boolean }>>([]);
+	let dnsProviderConnectionId = $state('');
 	let validationMessage = $state<string | null>(null);
 	let saving = $state(false);
 	let error = $state<string | null>(null);
@@ -31,8 +33,18 @@
 			acmeEmail = existing.acmeEmail ?? '';
 			dnsDelay = Number(existing.dnsChallengeDelaySeconds ?? 30);
 			resolvers = (existing.resolvers ?? ['1.1.1.1:53', '8.8.8.8:53']).join(',');
+			dnsProviderConnectionId = existing.dnsProviderConnectionId ?? '';
 		} catch {
 			// Setup may not expose certificate settings yet during bootstrap.
+		}
+
+		try {
+			dnsConnections = (await api.listDnsConnections()).filter((connection) => connection.enabled);
+			if (!dnsProviderConnectionId && dnsConnections.length === 1) {
+				dnsProviderConnectionId = dnsConnections[0].id;
+			}
+		} catch {
+			dnsConnections = [];
 		}
 	}
 
@@ -45,7 +57,8 @@
 			resolvers: resolvers
 				.split(',')
 				.map((entry) => entry.trim())
-				.filter(Boolean)
+				.filter(Boolean),
+			dnsProviderConnectionId: dnsProviderConnectionId || null
 		};
 	}
 
@@ -98,13 +111,26 @@
 	</div>
 	<div class="grid grid-cols-2 gap-3">
 		<div class="grid gap-1.5">
+			<Label for="dns-provider-connection">DNS provider</Label>
+			<select
+				id="dns-provider-connection"
+				class="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+				bind:value={dnsProviderConnectionId}
+			>
+				<option value="">Select provider</option>
+				{#each dnsConnections as connection (connection.id)}
+					<option value={connection.id}>{connection.name}</option>
+				{/each}
+			</select>
+		</div>
+		<div class="grid gap-1.5">
 			<Label for="dns-delay">DNS challenge delay (seconds)</Label>
 			<Input id="dns-delay" type="number" bind:value={dnsDelay} />
 		</div>
-		<div class="grid gap-1.5">
-			<Label for="resolvers">Resolver list</Label>
-			<Input id="resolvers" bind:value={resolvers} />
-		</div>
+	</div>
+	<div class="grid gap-1.5">
+		<Label for="resolvers">Resolver list</Label>
+		<Input id="resolvers" bind:value={resolvers} />
 	</div>
 
 	{#if error}
@@ -117,7 +143,7 @@
 	<div class="flex gap-2">
 		<Button variant="outline" onclick={() => validateAcme()}>Validate ACME</Button>
 		<Button onclick={() => saveAndContinue()} disabled={advancing || saving}>
-			{saving || advancing ? 'Saving…' : 'Save & continue'}
+			{saving || advancing ? 'Saving...' : 'Save & continue'}
 		</Button>
 	</div>
 </div>
