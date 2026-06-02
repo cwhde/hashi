@@ -5116,6 +5116,18 @@
             "items": {
               "type": "string"
             }
+          },
+          "domainMode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pathRewriteMode": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -7026,7 +7038,9 @@
           "kind",
           "enabled",
           "isSystem",
+          "domainMode",
           "domain",
+          "resolvedDomain",
           "targetScheme",
           "targetHost",
           "targetPort",
@@ -7036,6 +7050,7 @@
           "firewallHostId",
           "pulseAgentId",
           "pathPrefix",
+          "pathRewriteMode",
           "pathRewrite",
           "forwardAuthPolicy",
           "wafMode",
@@ -7065,7 +7080,16 @@
           "isSystem": {
             "type": "boolean"
           },
+          "domainMode": {
+            "type": "string"
+          },
           "domain": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "resolvedDomain": {
             "type": [
               "null",
               "string"
@@ -7115,6 +7139,12 @@
             "format": "uuid"
           },
           "pathPrefix": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pathRewriteMode": {
             "type": [
               "null",
               "string"
@@ -9149,6 +9179,16 @@
             ],
             "format": "int32"
           },
+          "domainMode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clearDomain": {
+            "type": "boolean",
+            "default": false
+          },
           "clearPublicPort": {
             "type": "boolean",
             "default": false
@@ -9182,6 +9222,16 @@
             ]
           },
           "clearPathPrefix": {
+            "type": "boolean",
+            "default": false
+          },
+          "pathRewriteMode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clearPathRewriteMode": {
             "type": "boolean",
             "default": false
           },

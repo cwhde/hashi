@@ -36,12 +36,14 @@
 	let form = $state({
 		name: '',
 		kind: 'http',
+		domainMode: 'subdomain',
 		domain: '',
 		targetScheme: 'https',
 		targetHost: '',
 		targetPort: 443,
 		publicPort: 443,
 		pathPrefix: '',
+		pathRewriteMode: '',
 		pathRewrite: '',
 		forwardAuthPolicy: 'adaptive',
 		wafMode: 'detect_only',
@@ -95,7 +97,8 @@
 			await api.createResource({
 				name: form.name,
 				kind: form.kind,
-				domain: form.domain || null,
+				domainMode: form.domainMode,
+				domain: form.domainMode === 'root' ? null : form.domain || null,
 				targetScheme: form.targetScheme,
 				targetHost: form.targetHost,
 				targetPort: Number(form.targetPort),
@@ -107,13 +110,16 @@
 				statusEnabled: form.statusEnabled,
 				firewallHostId: form.firewallHostId || null,
 				pathPrefix: form.pathPrefix || null,
-				pathRewrite: form.pathRewrite || null,
+				pathRewriteMode: form.pathRewriteMode || null,
+				pathRewrite: form.pathRewriteMode ? form.pathRewrite || null : null,
 				routes: form.routes.length > 0 ? normalizeRoutes(form.routes) : null
 			});
 			form.name = '';
+			form.domainMode = 'subdomain';
 			form.domain = '';
 			form.targetHost = '';
 			form.pathPrefix = '';
+			form.pathRewriteMode = '';
 			form.pathRewrite = '';
 			form.wafExclusions = '';
 			form.firewallHostId = '';
@@ -127,10 +133,12 @@
 	}
 
 	const resourcePatchFlags = {
+		clearDomain: false,
 		clearPublicPort: false,
 		clearFirewallHostId: false,
 		clearPulseAgentId: false,
 		clearPathPrefix: false,
+		clearPathRewriteMode: false,
 		clearPathRewrite: false,
 		clearExtraMiddlewares: false,
 		clearWafExclusions: false
@@ -334,13 +342,52 @@
 					<Input id="res-path-prefix" bind:value={form.pathPrefix} placeholder="/api" />
 				</div>
 				<div class="grid gap-1.5">
-					<Label for="res-path-rewrite">Path rewrite target (optional)</Label>
-					<Input id="res-path-rewrite" bind:value={form.pathRewrite} placeholder="/" />
+					<Label for="res-path-rewrite-mode">Rewrite mode</Label>
+					<select
+						id="res-path-rewrite-mode"
+						class="h-9 rounded-md border border-border bg-background px-3 text-sm text-white"
+						bind:value={form.pathRewriteMode}
+					>
+						<option value="">None</option>
+						<option value="replace_path">Replace path</option>
+						<option value="replace_prefix">Replace prefix</option>
+						<option value="strip_prefix">Strip prefix</option>
+						<option value="regex">Regex replace</option>
+					</select>
 				</div>
 			</div>
-			<div class="grid gap-1.5">
-				<Label for="res-domain">Domain</Label>
-				<Input id="res-domain" bind:value={form.domain} placeholder="app.example.com" />
+			{#if form.pathRewriteMode}
+				<div class="grid gap-1.5">
+					<Label for="res-path-rewrite">Path rewrite target</Label>
+					<Input
+						id="res-path-rewrite"
+						bind:value={form.pathRewrite}
+						placeholder={form.pathRewriteMode === 'regex' ? '^/api/(.*) => /v1/$1' : '/'}
+					/>
+				</div>
+			{/if}
+			<div class="grid grid-cols-2 gap-3">
+				<div class="grid gap-1.5">
+					<Label for="res-domain-mode">Domain mode</Label>
+					<select
+						id="res-domain-mode"
+						class="h-9 rounded-md border border-border bg-background px-3 text-sm text-white"
+						bind:value={form.domainMode}
+					>
+						<option value="subdomain">Subdomain</option>
+						<option value="root">Root domain</option>
+						<option value="custom">Custom domain</option>
+					</select>
+				</div>
+				<div class="grid gap-1.5">
+					<Label for="res-domain">Domain</Label>
+					<Input
+						id="res-domain"
+						bind:value={form.domain}
+						placeholder={form.domainMode === 'custom' ? 'app.example.com' : 'app'}
+						disabled={form.domainMode === 'root'}
+					/>
+				</div>
 			</div>
 			<div class="grid gap-1.5">
 				<Label for="res-firewall-host">Linux firewall host (optional)</Label>
@@ -473,7 +520,9 @@
 										<span class="ml-1 text-[10px] text-hashi-contrast">system</span>
 									{/if}
 								</TableCell>
-								<TableCell class="font-mono text-xs">{resource.domain ?? '—'}</TableCell>
+								<TableCell class="font-mono text-xs">
+									{resource.resolvedDomain ?? resource.domain ?? '—'}
+								</TableCell>
 								<TableCell>
 									<select
 										class="h-8 max-w-[12rem] rounded-md border border-border bg-background px-2 text-xs text-white"

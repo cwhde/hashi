@@ -77,6 +77,30 @@ public sealed class EdgeAuthServiceTests
     }
 
     [Fact]
+    public async Task Sso_required_challenges_subdomain_mode_resource_by_resolved_host()
+    {
+        await using var db = CreateDb();
+        db.AppSettings.Add(new AppSettingsEntity { RootDomain = "example.com" });
+        db.Resources.Add(new ResourceEntity
+        {
+            Name = "App",
+            Slug = "app",
+            DomainMode = "subdomain",
+            Domain = null,
+            ForwardAuthPolicy = "sso_required",
+            Enabled = true,
+        });
+        await SeedProviderAsync(db);
+        await db.SaveChangesAsync();
+
+        var result = await Evaluate(db, "app.example.com", "/dashboard");
+
+        Assert.Equal("challenge", result.Decision);
+        Assert.Contains("app.example.com%2Fdashboard", result.RedirectUrl, StringComparison.Ordinal);
+    }
+
+
+    [Fact]
     public async Task Sso_required_denies_when_no_oidc_provider_is_enabled()
     {
         await using var db = CreateDb();

@@ -5530,6 +5530,8 @@ export interface components {
             routes?: null | components["schemas"]["ResourceRouteRequest"][];
             rules?: null | components["schemas"]["ResourceRuleRequest"][];
             wafExclusions?: null | string[];
+            domainMode?: null | string;
+            pathRewriteMode?: null | string;
         };
         CreateScriptRequest: {
             /** Format: uuid */
@@ -5989,7 +5991,9 @@ export interface components {
             kind: string;
             enabled: boolean;
             isSystem: boolean;
+            domainMode: string;
             domain: null | string;
+            resolvedDomain: null | string;
             targetScheme: string;
             targetHost: string;
             /** Format: int32 */
@@ -6003,6 +6007,7 @@ export interface components {
             /** Format: uuid */
             pulseAgentId: null | string;
             pathPrefix: null | string;
+            pathRewriteMode: null | string;
             pathRewrite: null | string;
             forwardAuthPolicy: string;
             wafMode: string;
@@ -6469,6 +6474,9 @@ export interface components {
             statusEnabled: null | boolean;
             /** Format: int32 */
             publicPort?: null | number | string;
+            domainMode?: null | string;
+            /** @default false */
+            clearDomain: boolean;
             /** @default false */
             clearPublicPort: boolean;
             /** Format: uuid */
@@ -6482,6 +6490,9 @@ export interface components {
             pathPrefix?: null | string;
             /** @default false */
             clearPathPrefix: boolean;
+            pathRewriteMode?: null | string;
+            /** @default false */
+            clearPathRewriteMode: boolean;
             pathRewrite?: null | string;
             /** @default false */
             clearPathRewrite: boolean;

@@ -160,6 +160,7 @@
 							>
 								<option value="">None</option>
 								<option value="replace_path">Replace path</option>
+								<option value="replace_prefix">Replace prefix</option>
 								<option value="strip_prefix">Strip prefix</option>
 								<option value="regex">Regex replace</option>
 							</select>
@@ -172,7 +173,7 @@
 							<Input
 								id={`route-rewrite-value-${routeIndex}`}
 								bind:value={route.rewriteValue}
-								placeholder={route.rewriteMode === 'regex' ? '^/api/(.*)' : '/'}
+								placeholder={route.rewriteMode === 'regex' ? '^/api/(.*) => /v1/$1' : '/'}
 								disabled={disabled}
 							/>
 						</div>

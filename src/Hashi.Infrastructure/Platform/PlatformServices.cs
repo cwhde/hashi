@@ -30,6 +30,10 @@ public sealed class ResourceService(
     public async Task<ResourceEntity> CreateAsync(CreateResourceRequest request, CancellationToken cancellationToken = default)
     {
         ValidateGeoIpRules(request.Rules);
+        var domainMode = NormalizeCreateDomainMode(request.DomainMode, request.Domain);
+        var rootDomain = await GetRootDomainAsync(cancellationToken);
+        ValidateDomain(domainMode, request.Domain, request.Name, rootDomain);
+        ValidateRewrite(request.PathRewriteMode, request.PathRewrite, request.PathPrefix, request.Routes);
 
         if (request.Kind is "tcp" or "udp")
         {
@@ -41,7 +45,8 @@ public sealed class ResourceService(
             Name = request.Name,
             Slug = ResourceSlug.Normalize(request.Name),
             Kind = request.Kind,
-            Domain = request.Domain,
+            DomainMode = domainMode,
+            Domain = NormalizeStoredDomain(domainMode, request.Domain),
             TargetScheme = request.TargetScheme,
             TargetHost = request.TargetHost,
             TargetPort = request.TargetPort,
@@ -51,6 +56,7 @@ public sealed class ResourceService(
             FirewallHostId = request.FirewallHostId,
             PulseAgentId = request.PulseAgentId,
             PathPrefix = request.PathPrefix,
+            PathRewriteMode = NormalizeRewriteMode(request.PathRewriteMode),
             PathRewrite = request.PathRewrite,
             ForwardAuthPolicy = request.ForwardAuthPolicy ?? "adaptive",
             WafMode = request.WafMode ?? "detect_only",
@@ -81,6 +87,7 @@ public sealed class ResourceService(
         }
 
         ValidateGeoIpRules(request.Rules);
+        var rootDomain = await GetRootDomainAsync(cancellationToken);
 
         if (request.Name is not null)
         {
@@ -92,9 +99,17 @@ public sealed class ResourceService(
             entity.Enabled = enabled;
         }
 
-        if (request.Domain is not null)
+        var nextDomainMode = NormalizeUpdateDomainMode(request.DomainMode, entity.DomainMode);
+        var nextDomain = request.ClearDomain
+            ? null
+            : request.Domain is not null
+                ? request.Domain
+                : entity.Domain;
+        ValidateDomain(nextDomainMode, nextDomain, entity.Name, rootDomain);
+        entity.DomainMode = nextDomainMode;
+        if (request.ClearDomain || request.Domain is not null || request.DomainMode is not null)
         {
-            entity.Domain = request.Domain;
+            entity.Domain = NormalizeStoredDomain(nextDomainMode, nextDomain);
         }
 
         if (request.TargetScheme is not null)
@@ -166,6 +181,27 @@ public sealed class ResourceService(
         else if (request.PathPrefix is not null)
         {
             entity.PathPrefix = request.PathPrefix;
+        }
+
+        var nextPathRewriteMode = request.ClearPathRewriteMode
+            ? null
+            : request.PathRewriteMode is not null
+                ? request.PathRewriteMode
+                : entity.PathRewriteMode;
+        var nextPathRewrite = request.ClearPathRewrite
+            ? null
+            : request.PathRewrite is not null
+                ? request.PathRewrite
+                : entity.PathRewrite;
+        var nextPathPrefix = entity.PathPrefix;
+        ValidateRewrite(nextPathRewriteMode, nextPathRewrite, nextPathPrefix, request.Routes);
+        if (request.ClearPathRewriteMode)
+        {
+            entity.PathRewriteMode = null;
+        }
+        else if (request.PathRewriteMode is not null)
+        {
+            entity.PathRewriteMode = NormalizeRewriteMode(request.PathRewriteMode);
         }
 
         if (request.ClearPathRewrite)
@@ -256,7 +292,9 @@ public sealed class ResourceService(
             entity.Kind,
             entity.Enabled,
             entity.IsSystem,
+            entity.DomainMode,
             entity.Domain,
+            ResourceDomainResolver.Resolve(entity.DomainMode, entity.Domain, entity.Slug, await GetRootDomainAsync(cancellationToken)),
             entity.TargetScheme,
             entity.TargetHost,
             entity.TargetPort,
@@ -266,6 +304,7 @@ public sealed class ResourceService(
             entity.FirewallHostId,
             entity.PulseAgentId,
             entity.PathPrefix,
+            entity.PathRewriteMode,
             entity.PathRewrite,
             entity.ForwardAuthPolicy,
             entity.WafMode,
@@ -335,7 +374,7 @@ public sealed class ResourceService(
                 TargetScheme = route.TargetScheme,
                 TargetHost = route.TargetHost,
                 TargetPort = route.TargetPort,
-                RewriteMode = route.RewriteMode,
+                RewriteMode = NormalizeRewriteMode(route.RewriteMode),
                 RewriteValue = route.RewriteValue,
                 ExtraMiddlewaresJson = SerializeExtraMiddlewares(route.ExtraMiddlewares),
             });
@@ -383,6 +422,145 @@ public sealed class ResourceService(
         }
     }
 
+    private async Task<string?> GetRootDomainAsync(CancellationToken cancellationToken)
+    {
+        var settings = await db.AppSettings.AsNoTracking().SingleOrDefaultAsync(cancellationToken);
+        return settings?.RootDomain;
+    }
+
+    private static string NormalizeCreateDomainMode(string? requestedMode, string? domain)
+    {
+        if (!string.IsNullOrWhiteSpace(requestedMode))
+        {
+            return ResourceDomainResolver.NormalizeMode(requestedMode);
+        }
+
+        var normalizedDomain = ResourceDomainResolver.NormalizeDomain(domain);
+        if (string.IsNullOrWhiteSpace(normalizedDomain))
+        {
+            return ResourceDomainModeNames.Subdomain;
+        }
+
+        return normalizedDomain == "@"
+            ? ResourceDomainModeNames.Root
+            : ResourceDomainModeNames.Custom;
+    }
+
+    private static string NormalizeUpdateDomainMode(string? requestedMode, string existingMode)
+        => string.IsNullOrWhiteSpace(requestedMode)
+            ? ResourceDomainResolver.NormalizeMode(existingMode)
+            : ResourceDomainResolver.NormalizeMode(requestedMode);
+
+    private static string? NormalizeStoredDomain(string domainMode, string? domain)
+    {
+        var normalized = ResourceDomainResolver.NormalizeDomain(domain);
+        return domainMode switch
+        {
+            ResourceDomainModeNames.Root => null,
+            ResourceDomainModeNames.Subdomain => normalized,
+            _ => normalized,
+        };
+    }
+
+    private static void ValidateDomain(string domainMode, string? domain, string name, string? rootDomain)
+    {
+        if (!ResourceDomainModeNames.IsValid(domainMode))
+        {
+            throw new InvalidOperationException($"Domain mode must be one of: {string.Join(", ", ResourceDomainModeNames.All)}.");
+        }
+
+        var normalizedDomain = ResourceDomainResolver.NormalizeDomain(domain);
+        var normalizedRoot = ResourceDomainResolver.NormalizeDomain(rootDomain);
+        if (domainMode is ResourceDomainModeNames.Root or ResourceDomainModeNames.Subdomain
+            && string.IsNullOrWhiteSpace(normalizedRoot))
+        {
+            throw new InvalidOperationException("Root domain must be configured before using root or subdomain resource domain modes.");
+        }
+
+        if (domainMode == ResourceDomainModeNames.Root
+            && normalizedDomain is not null
+            && normalizedDomain != "@"
+            && !string.Equals(normalizedDomain, normalizedRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Root domain mode does not accept a custom domain value.");
+        }
+
+        if (domainMode == ResourceDomainModeNames.Subdomain
+            && normalizedDomain is not null
+            && normalizedDomain.Contains('.', StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("Subdomain mode accepts only a subdomain label. Use custom mode for a full domain.");
+        }
+
+        if (domainMode == ResourceDomainModeNames.Custom && string.IsNullOrWhiteSpace(normalizedDomain))
+        {
+            throw new InvalidOperationException("Custom domain mode requires a full domain.");
+        }
+
+        if (domainMode == ResourceDomainModeNames.Custom && normalizedDomain == "@")
+        {
+            throw new InvalidOperationException("Use root domain mode for the root domain.");
+        }
+
+        if (domainMode == ResourceDomainModeNames.Subdomain && string.IsNullOrWhiteSpace(ResourceSlug.Normalize(name)))
+        {
+            throw new InvalidOperationException("Subdomain mode requires a resource name that can produce a slug.");
+        }
+    }
+
+    private static void ValidateRewrite(
+        string? pathRewriteMode,
+        string? pathRewrite,
+        string? pathPrefix,
+        IReadOnlyList<ResourceRouteRequest>? routes)
+    {
+        var normalizedMode = NormalizeRewriteMode(pathRewriteMode);
+        if (normalizedMode is not null && string.IsNullOrWhiteSpace(pathRewrite))
+        {
+            throw new InvalidOperationException("Path rewrite mode requires a path rewrite value.");
+        }
+
+        if (normalizedMode == ResourceRewriteModeNames.ReplacePrefix && string.IsNullOrWhiteSpace(pathPrefix))
+        {
+            throw new InvalidOperationException("Replace-prefix rewrites require a path prefix.");
+        }
+
+        if (routes is null)
+        {
+            return;
+        }
+
+        foreach (var route in routes)
+        {
+            var routeMode = NormalizeRewriteMode(route.RewriteMode);
+            if (routeMode is not null && string.IsNullOrWhiteSpace(route.RewriteValue))
+            {
+                throw new InvalidOperationException("Route rewrite mode requires a route rewrite value.");
+            }
+
+            if (routeMode == ResourceRewriteModeNames.ReplacePrefix && string.IsNullOrWhiteSpace(route.PathValue))
+            {
+                throw new InvalidOperationException("Replace-prefix route rewrites require a route path value.");
+            }
+        }
+    }
+
+    private static string? NormalizeRewriteMode(string? rewriteMode)
+    {
+        if (string.IsNullOrWhiteSpace(rewriteMode))
+        {
+            return null;
+        }
+
+        var normalized = rewriteMode.Trim().ToLowerInvariant();
+        if (!ResourceRewriteModeNames.IsValid(normalized))
+        {
+            throw new InvalidOperationException($"Rewrite mode must be one of: {string.Join(", ", ResourceRewriteModeNames.All)}.");
+        }
+
+        return normalized;
+    }
+
     private static string SerializeExtraMiddlewares(IReadOnlyList<string>? middlewares)
         => JsonSerializer.Serialize(middlewares ?? []);
 
@@ -422,6 +600,7 @@ public sealed class ResourceService(
         var resources = await db.Resources.AsNoTracking().ToListAsync(cancellationToken);
         var routes = await db.ResourceRoutes.AsNoTracking().ToListAsync(cancellationToken);
         var rules = await db.ResourceRules.AsNoTracking().ToListAsync(cancellationToken);
+        var rootDomain = (await db.AppSettings.AsNoTracking().SingleOrDefaultAsync(cancellationToken))?.RootDomain;
         return resources.Select(entity =>
         {
             var resourceRoutes = routes.Where(x => x.ResourceId == entity.Id)
@@ -449,7 +628,7 @@ public sealed class ResourceService(
                 Enum.Parse<ResourceKind>(entity.Kind, ignoreCase: true),
                 entity.Enabled,
                 entity.IsSystem,
-                entity.Domain,
+                ResourceDomainResolver.Resolve(entity.DomainMode, entity.Domain, entity.Slug, rootDomain),
                 entity.TargetScheme,
                 entity.TargetHost,
                 entity.TargetPort,
@@ -461,7 +640,9 @@ public sealed class ResourceService(
                 TraefikUserMiddlewareService.ParseExtraMiddlewares(entity.ExtraMiddlewaresJson),
                 resourceRoutes.Count > 0 ? resourceRoutes : null,
                 resourceRules.Count > 0 ? resourceRules : null,
-                ParseWafExclusions(entity.WafExclusionsJson));
+                ParseWafExclusions(entity.WafExclusionsJson),
+                entity.DomainMode,
+                entity.PathRewriteMode);
         }).ToList();
     }
 

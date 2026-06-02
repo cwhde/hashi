@@ -122,6 +122,33 @@ public sealed class PublicDashboardServiceTests
         Assert.Empty(dashboard.Items);
     }
 
+    [Fact]
+    public async Task GetAsync_uses_resolved_subdomain_mode_public_url()
+    {
+        await using var db = CreateDb();
+        db.AppSettings.Add(new AppSettingsEntity { RootDomain = "example.com" });
+        db.Resources.Add(new ResourceEntity
+        {
+            Name = "App",
+            Slug = "app",
+            Kind = "https",
+            Enabled = true,
+            DomainMode = "subdomain",
+            Domain = null,
+            TargetHost = "10.0.0.10",
+            TargetPort = 8443,
+            DashboardEnabled = true,
+        });
+        await db.SaveChangesAsync();
+
+        var dashboard = await CreateService(db).GetAsync();
+
+        Assert.Contains(dashboard.Items, x =>
+            x.DisplayName == "App"
+            && x.Domain == "app.example.com"
+            && x.PublicUrl == "https://app.example.com");
+    }
+
     private static PublicDashboardService CreateService(HashiDbContext db)
         => new(db, new AppSettingsService(db));
 

@@ -27,6 +27,62 @@ public sealed class RequestValidatorTests
     }
 
     [Fact]
+    public void CreateResourceValidator_rejects_invalid_domain_and_rewrite_modes()
+    {
+        var validator = new CreateResourceRequestValidator();
+        var request = new CreateResourceRequest(
+            "App",
+            "http",
+            "app.example.com",
+            "http",
+            "localhost",
+            8080,
+            DashboardEnabled: true,
+            StatusEnabled: true,
+            DomainMode: "wildcard",
+            PathRewriteMode: "prefix_magic");
+
+        var result = validator.Validate(request);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, x => x.PropertyName == nameof(CreateResourceRequest.DomainMode));
+        Assert.Contains(result.Errors, x => x.PropertyName == nameof(CreateResourceRequest.PathRewriteMode));
+    }
+
+    [Fact]
+    public void CreateResourceValidator_rejects_invalid_route_rewrite_mode()
+    {
+        var validator = new CreateResourceRequestValidator();
+        var request = new CreateResourceRequest(
+            "App",
+            "http",
+            "app.example.com",
+            "http",
+            "localhost",
+            8080,
+            DashboardEnabled: true,
+            StatusEnabled: true,
+            Routes:
+            [
+                new ResourceRouteRequest(
+                    true,
+                    100,
+                    "prefix",
+                    "/",
+                    "http",
+                    "localhost",
+                    8080,
+                    RewriteMode: "prefix_magic",
+                    RewriteValue: "/")
+            ]);
+
+        var result = validator.Validate(request);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, x => x.PropertyName.Contains(nameof(ResourceRouteRequest.RewriteMode), StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void SshConnectionValidator_rejects_invalid_port()
     {
         var validator = new CreateSshConnectionRequestValidator();

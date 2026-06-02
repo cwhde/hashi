@@ -1556,6 +1556,13 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.Property<string>("Domain")
                         .HasColumnType("text");
 
+                    b.Property<string>("DomainMode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("custom");
+
                     b.Property<bool>("Enabled")
                         .HasColumnType("boolean");
 
@@ -1606,6 +1613,10 @@ namespace Hashi.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("PathRewrite")
                         .HasColumnType("text");
+
+                    b.Property<string>("PathRewriteMode")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<int?>("PublicPort")
                         .HasColumnType("integer");

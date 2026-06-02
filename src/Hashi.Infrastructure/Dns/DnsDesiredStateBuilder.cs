@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Net;
 using Hashi.Core.Dns;
 using Hashi.Core.Resources;
 using Hashi.Infrastructure.Persistence;
@@ -52,7 +53,7 @@ public static class DnsDesiredStateBuilder
         }
 
         var resources = await db.Resources.AsNoTracking()
-            .Where(x => x.Enabled && x.Domain != null)
+            .Where(x => x.Enabled)
             .ToListAsync(cancellationToken);
         var pulseAgents = await db.PulseAgents.AsNoTracking().ToDictionaryAsync(x => x.Id, cancellationToken);
         foreach (var resource in resources)
@@ -64,14 +65,24 @@ public static class DnsDesiredStateBuilder
                 pulseTarget = new PulseDnsTarget(agent.Id, agent.LastPublicIp, agent.LastSelectedIp ?? agent.LastPrivateIp);
             }
 
+            var resolvedDomain = ResourceDomainResolver.Resolve(
+                resource.DomainMode,
+                resource.Domain,
+                resource.Slug,
+                rootDomain);
+            if (string.IsNullOrWhiteSpace(resolvedDomain))
+            {
+                continue;
+            }
+
             var records = DnsRecordGenerator.GenerateResourceRecords(
                 new ResourceDnsTarget(
                     resource.Name,
                     slug,
                     rootDomain,
-                    resource.Domain,
+                    resolvedDomain,
                     resource.FirewallHostId,
-                    null,
+                    ResolveManualPublicIp(resource.TargetHost),
                     pulseTarget),
                 hostTargets,
                 defaultTtl);
@@ -150,4 +161,31 @@ public static class DnsDesiredStateBuilder
 
     private static bool IsMultiValue(DnsRecordType type)
         => type is DnsRecordType.Mx or DnsRecordType.Txt;
+
+    private static string? ResolveManualPublicIp(string? targetHost)
+    {
+        if (!IPAddress.TryParse(targetHost, out var ip))
+        {
+            return null;
+        }
+
+        if (IPAddress.IsLoopback(ip)
+            || ip.IsIPv6LinkLocal
+            || ip.IsIPv6SiteLocal
+            || IsPrivateIpv4(ip))
+        {
+            return null;
+        }
+
+        return ip.ToString();
+    }
+
+    private static bool IsPrivateIpv4(IPAddress ip)
+    {
+        var bytes = ip.GetAddressBytes();
+        return bytes.Length == 4
+            && (bytes[0] == 10
+                || (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31)
+                || (bytes[0] == 192 && bytes[1] == 168));
+    }
 }
