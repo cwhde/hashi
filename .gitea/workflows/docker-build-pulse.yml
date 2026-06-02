@@ -39,7 +39,9 @@ jobs:
           sha256sum hashi-pulse-linux-amd64 > hashi-pulse-linux-amd64.sha256
           sha256sum hashi-pulse-linux-arm64 > hashi-pulse-linux-arm64.sha256
 
-      - uses: actions/upload-artifact@v4
+      # Gitea/GHES-compatible runners used here do not support the artifact v2 API
+      # required by actions/upload-artifact@v4.
+      - uses: actions/upload-artifact@v3
         with:
           name: hashi-pulse-linux-binaries
           path: |

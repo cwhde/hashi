@@ -10,7 +10,7 @@ OUTPUT="${ROOT}/openapi/hashi.json"
 
 mkdir -p "${ROOT}/openapi"
 
-dotnet build src/Hashi.Api/Hashi.Api.csproj -c Release >/dev/null
+dotnet build src/Hashi.Api/Hashi.Api.csproj -c Release -p:SkipFrontendBuild=true >/dev/null
 
 export ASPNETCORE_ENVIRONMENT=OpenApiExport
 export DOTNET_ENVIRONMENT=OpenApiExport
@@ -28,6 +28,9 @@ trap cleanup EXIT
 
 for _ in $(seq 1 30); do
   if curl -sf "${OPENAPI_URL}" -o "${OUTPUT}.tmp"; then
+    if [[ -s "${OUTPUT}.tmp" && -n "$(tail -c 1 "${OUTPUT}.tmp")" ]]; then
+      printf '\n' >> "${OUTPUT}.tmp"
+    fi
     mv "${OUTPUT}.tmp" "${OUTPUT}"
     echo "Wrote ${OUTPUT}"
     exit 0

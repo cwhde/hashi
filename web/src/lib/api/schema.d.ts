@@ -6372,18 +6372,6 @@ export interface components {
             /** Format: int64 */
             count: number | string;
         };
-        SecurityTopBlockedIpItem: {
-            ip: string;
-            /** Format: int64 */
-            count: number | string;
-            /** Format: date-time */
-            lastSeenAtUtc: string;
-            countryCode?: null | string;
-            asn?: null | string;
-            reason?: null | string;
-            /** Format: date-time */
-            expiresAtUtc?: null | string;
-        };
         SecurityRecentEventItem: {
             /** Format: date-time */
             occurredAtUtc: string;
@@ -6399,6 +6387,18 @@ export interface components {
             blocked: number | string;
             /** Format: int64 */
             challenged: number | string;
+        };
+        SecurityTopBlockedIpItem: {
+            ip: string;
+            /** Format: int64 */
+            count: number | string;
+            /** Format: date-time */
+            lastSeenAtUtc: string;
+            countryCode?: null | string;
+            asn?: null | string;
+            reason?: null | string;
+            /** Format: date-time */
+            expiresAtUtc?: null | string;
         };
         SendNotificationRequest: {
             subject: string;
