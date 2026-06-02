@@ -662,12 +662,17 @@ public static class PulseEndpoints
             PulseAgentService pulse,
             CancellationToken ct) =>
         {
-            var accepted = await pulse.AcceptHeartbeatAsync(
+            var result = await pulse.AcceptHeartbeatAsync(
                 agentId,
                 request,
                 ctx.Connection.RemoteIpAddress?.ToString(),
                 ct);
-            return accepted ? TypedResults.Ok(new { accepted = true }) : TypedResults.Unauthorized();
+            return result switch
+            {
+                PulseHeartbeatAcceptResult.Accepted => TypedResults.Ok(new { accepted = true }),
+                PulseHeartbeatAcceptResult.InvalidTimestamp => TypedResults.BadRequest(new ApiErrorResponse("Heartbeat timestamp is outside the accepted clock skew.")),
+                _ => TypedResults.Unauthorized(),
+            };
         }).AllowAnonymous();
         return app;
     }

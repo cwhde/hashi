@@ -381,7 +381,7 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
         var pulseAgents = await db.PulseAgents.AsNoTracking().ToListAsync(cancellationToken);
         foreach (var agent in pulseAgents)
         {
-            var target = FirstNonEmpty(agent.LastPublicIp, agent.LastPrivateIp, agent.LastHostname);
+            var target = FirstNonEmpty(agent.LastPublicIp, agent.LastSelectedIp, agent.LastPrivateIp, agent.LastHostname);
             if (target is null)
             {
                 continue;

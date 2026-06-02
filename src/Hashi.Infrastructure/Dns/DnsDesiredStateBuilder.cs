@@ -61,7 +61,7 @@ public static class DnsDesiredStateBuilder
             PulseDnsTarget? pulseTarget = null;
             if (resource.PulseAgentId is Guid pulseId && pulseAgents.TryGetValue(pulseId, out var agent))
             {
-                pulseTarget = new PulseDnsTarget(agent.Id, agent.LastPublicIp, agent.LastPrivateIp);
+                pulseTarget = new PulseDnsTarget(agent.Id, agent.LastPublicIp, agent.LastSelectedIp ?? agent.LastPrivateIp);
             }
 
             var records = DnsRecordGenerator.GenerateResourceRecords(
