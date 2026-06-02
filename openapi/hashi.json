@@ -4503,7 +4503,8 @@
           "eabKeyId",
           "eabHmac",
           "dnsChallengeDelaySeconds",
-          "resolvers"
+          "resolvers",
+          "dnsProviderConnectionId"
         ],
         "type": "object",
         "properties": {
@@ -4532,6 +4533,13 @@
             "items": {
               "type": "string"
             }
+          },
+          "dnsProviderConnectionId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },
@@ -4541,7 +4549,8 @@
           "hasEabCredentials",
           "dnsChallengeDelaySeconds",
           "resolvers",
-          "hasDnsProvider"
+          "hasDnsProvider",
+          "dnsProviderConnectionId"
         ],
         "type": "object",
         "properties": {
@@ -4570,6 +4579,13 @@
           },
           "hasDnsProvider": {
             "type": "boolean"
+          },
+          "dnsProviderConnectionId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },

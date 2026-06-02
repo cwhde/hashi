@@ -5397,6 +5397,8 @@ export interface components {
             /** Format: int32 */
             dnsChallengeDelaySeconds: number | string;
             resolvers: null | string[];
+            /** Format: uuid */
+            dnsProviderConnectionId: null | string;
         };
         CertificateSetupResponse: {
             acmeEmail: null | string;
@@ -5405,6 +5407,8 @@ export interface components {
             dnsChallengeDelaySeconds: number | string;
             resolvers: string[];
             hasDnsProvider: boolean;
+            /** Format: uuid */
+            dnsProviderConnectionId: null | string;
         };
         CertificateSetupSaveResponse: {
             saved: boolean;

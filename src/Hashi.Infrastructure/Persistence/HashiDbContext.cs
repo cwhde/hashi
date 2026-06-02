@@ -122,6 +122,7 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Theme).HasMaxLength(32);
             entity.Property(x => x.AcmeEmail).HasMaxLength(256);
+            entity.HasIndex(x => x.AcmeDnsProviderConnectionId);
         });
 
         modelBuilder.Entity<SetupStateEntity>(entity =>

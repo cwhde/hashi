@@ -190,6 +190,9 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("AcmeEabSecretId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("AcmeDnsProviderConnectionId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("AcmeEmail")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
@@ -251,6 +254,8 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AcmeDnsProviderConnectionId");
 
                     b.ToTable("app_settings", (string)null);
                 });
