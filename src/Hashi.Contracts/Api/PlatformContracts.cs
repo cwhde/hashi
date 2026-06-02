@@ -556,6 +556,7 @@ public sealed record SecurityTopBlockedIpItem
     public string? Asn { get; init; }
     public string? Reason { get; init; }
     public DateTimeOffset? ExpiresAtUtc { get; init; }
+    public string? SubjectState { get; init; }
 }
 
 public sealed record SecurityDashboardResponse(

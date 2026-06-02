@@ -3,6 +3,7 @@ using System.Text.Json;
 using Hashi.Contracts.Api;
 using Hashi.Core.Resources;
 using Hashi.Infrastructure.Persistence;
+using Hashi.Infrastructure.Persistence.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace Hashi.Infrastructure.Platform;
@@ -21,17 +22,36 @@ public sealed class EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp,
         CancellationToken cancellationToken = default)
     {
         var clientIpText = clientIp.ToString();
-        var blocklistMatch = await FindMatchingBlocklistEntryAsync(
+        var manualBlocklistMatch = await FindMatchingBlocklistEntryAsync(
             clientIpText,
             countryCode,
             regionCode,
             asn,
+            BlocklistSourceNames.Manual,
             cancellationToken);
-        if (blocklistMatch is not null)
+        if (manualBlocklistMatch is not null)
         {
-            blocklistMatch.LastHitAtUtc = DateTimeOffset.UtcNow;
+            manualBlocklistMatch.LastHitAtUtc = DateTimeOffset.UtcNow;
             await db.SaveChangesAsync(cancellationToken);
             return new EdgeAuthForwardResponse("deny", null);
+        }
+
+        var manuallyAllowed = await IsManuallyAllowedAsync(clientIp, countryCode, regionCode, asn, cancellationToken);
+        if (!manuallyAllowed)
+        {
+            var blocklistMatch = await FindMatchingBlocklistEntryAsync(
+                clientIpText,
+                countryCode,
+                regionCode,
+                asn,
+                null,
+                cancellationToken);
+            if (blocklistMatch is not null)
+            {
+                blocklistMatch.LastHitAtUtc = DateTimeOffset.UtcNow;
+                await db.SaveChangesAsync(cancellationToken);
+                return new EdgeAuthForwardResponse("deny", null);
+            }
         }
 
         var normalizedHost = NormalizeForwardedHost(host);
@@ -121,21 +141,24 @@ public sealed class EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp,
 
         var bucket = await db.AbuseBuckets.AsNoTracking()
             .SingleOrDefaultAsync(x => x.ClientIp == clientIpText, cancellationToken);
-        if (bucket?.State is "block")
+        if (manuallyAllowed)
+        {
+            return new EdgeAuthForwardResponse("allow", null);
+        }
+
+        var bucketState = SecuritySubjectStateNames.Normalize(bucket?.State);
+        if (bucketState is SecuritySubjectStateNames.FirewallBlocked
+            or SecuritySubjectStateNames.SoftBlocked
+            or SecuritySubjectStateNames.ManuallyBlocked)
         {
             return new EdgeAuthForwardResponse("deny", null);
         }
 
-        if (bucket?.State is "challenge")
+        if (bucketState is SecuritySubjectStateNames.Suspect or SecuritySubjectStateNames.Challenged)
         {
             if (!hasOidcProvider)
             {
                 return new EdgeAuthForwardResponse("deny", null);
-            }
-
-            if (bucket.Score >= 15)
-            {
-                return new EdgeAuthForwardResponse("rate_limited", BuildLoginUrl(host, path));
             }
 
             return new EdgeAuthForwardResponse("challenge", BuildLoginUrl(host, path));
@@ -215,17 +238,28 @@ public sealed class EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp,
             : normalized;
     }
 
-    private async Task<Persistence.Entities.BlocklistEntryEntity?> FindMatchingBlocklistEntryAsync(
+    private async Task<BlocklistEntryEntity?> FindMatchingBlocklistEntryAsync(
         string clientIp,
         string? countryCode,
         string? regionCode,
         string? asn,
+        string? source,
         CancellationToken cancellationToken)
     {
         var now = DateTimeOffset.UtcNow;
-        var entries = await db.BlocklistEntries
+        var query = db.BlocklistEntries
             .Where(x => x.ExpiresAtUtc == null || x.ExpiresAtUtc > now)
-            .ToListAsync(cancellationToken);
+            .AsQueryable();
+        if (source is not null)
+        {
+            query = query.Where(x => x.Source == source);
+        }
+        else
+        {
+            query = query.Where(x => x.Source != BlocklistSourceNames.Manual);
+        }
+
+        var entries = await query.ToListAsync(cancellationToken);
 
         foreach (var entry in entries)
         {
@@ -247,12 +281,40 @@ public sealed class EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp,
         return null;
     }
 
-    private static string NormalizeBlockType(Persistence.Entities.BlocklistEntryEntity entry)
+    private async Task<bool> IsManuallyAllowedAsync(
+        IPAddress clientIp,
+        string? countryCode,
+        string? regionCode,
+        string? asn,
+        CancellationToken cancellationToken)
+    {
+        var subjects = await db.FirewallAllowedSubjects.AsNoTracking()
+            .Where(x => x.Enabled)
+            .ToListAsync(cancellationToken);
+        return subjects.Any(x => MatchesAllowedSubject(x, clientIp, countryCode, regionCode, asn));
+    }
+
+    private static bool MatchesAllowedSubject(
+        FirewallAllowedSubjectEntity subject,
+        IPAddress clientIp,
+        string? countryCode,
+        string? regionCode,
+        string? asn)
+        => subject.SubjectKind.Trim().ToLowerInvariant() switch
+        {
+            FirewallSubjectKindNames.Ip => string.Equals(subject.SubjectValue, clientIp.ToString(), StringComparison.OrdinalIgnoreCase),
+            FirewallSubjectKindNames.Cidr => IsInCidr(clientIp, subject.SubjectValue),
+            FirewallSubjectKindNames.Country => string.Equals(subject.SubjectValue, countryCode, StringComparison.OrdinalIgnoreCase),
+            FirewallSubjectKindNames.Asn => string.Equals(subject.SubjectValue, asn, StringComparison.OrdinalIgnoreCase),
+            _ => false,
+        };
+
+    private static string NormalizeBlockType(BlocklistEntryEntity entry)
         => string.IsNullOrWhiteSpace(entry.Type)
-            ? Persistence.Entities.BlocklistTypeNames.Ip
+            ? BlocklistTypeNames.Ip
             : entry.Type.Trim().ToLowerInvariant();
 
-    private static string NormalizeBlockValue(Persistence.Entities.BlocklistEntryEntity entry)
+    private static string NormalizeBlockValue(BlocklistEntryEntity entry)
     {
         if (!string.IsNullOrWhiteSpace(entry.Value))
         {

@@ -1,3 +1,4 @@
+using System.Net;
 using Hashi.Contracts.Api;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
@@ -26,21 +27,37 @@ public sealed class SecurityIngestionService(
             db.AbuseBuckets.Add(bucket);
         }
 
-        bucket.Score += request.StatusCode >= 400 ? 2 : 1;
-        bucket.UpdatedAtUtc = now;
-        bucket.State = bucket.Score switch
-        {
-            >= 20 => "block",
-            >= 10 => "challenge",
-            _ => "watch",
-        };
+        var manualBlock = await FindActiveBlocklistEntryAsync(
+            request.ClientIp,
+            BlocklistSourceNames.Manual,
+            cancellationToken);
+        var manualAllow = manualBlock is null
+            && await IsManuallyAllowedAsync(request.ClientIp, request.CountryCode, request.RegionCode, request.Asn, cancellationToken);
 
-        var decision = bucket.State switch
+        if (manualBlock is not null)
         {
-            "block" => "blocked",
-            "challenge" => "challenged",
-            _ => "allowed",
-        };
+            bucket.State = SecuritySubjectStateNames.ManuallyBlocked;
+        }
+        else if (manualAllow)
+        {
+            bucket.State = SecuritySubjectStateNames.ManuallyAllowed;
+        }
+        else
+        {
+            bucket.Score += request.StatusCode >= 400 ? 2 : 1;
+            var activeFirewallBlock = await FindActiveBlocklistEntryAsync(
+                request.ClientIp,
+                BlocklistSourceNames.Automatic,
+                cancellationToken);
+            bucket.State = activeFirewallBlock?.SyncedToFirewall == true
+                ? SecuritySubjectStateNames.FirewallBlocked
+                : StateForScore(bucket.Score);
+        }
+
+        bucket.UpdatedAtUtc = now;
+
+        var normalizedState = SecuritySubjectStateNames.Normalize(bucket.State);
+        var decision = DecisionForState(normalizedState);
 
         var statusClass = request.StatusCode is >= 100 and < 600 ? request.StatusCode / 100 : 0;
         var resource = NormalizeResource(request.Resource, request.Host);
@@ -112,8 +129,8 @@ public sealed class SecurityIngestionService(
             Path = request.Path,
         });
 
-        var createdBlocklistEntry = false;
-        if (bucket.State == "block")
+        var shouldSyncFirewallBlock = false;
+        if (manualBlock is null && !manualAllow && bucket.Score >= 20)
         {
             var exists = await db.BlocklistEntries.AnyAsync(
                 x => x.Scope == BlocklistScopeNames.Global
@@ -134,18 +151,37 @@ public sealed class SecurityIngestionService(
                     CreatedBy = "hashi",
                     CreatedAtUtc = now,
                 });
-                createdBlocklistEntry = true;
+            }
+
+            shouldSyncFirewallBlock = true;
+            if (normalizedState != SecuritySubjectStateNames.FirewallBlocked)
+            {
+                bucket.State = SecuritySubjectStateNames.SoftBlocked;
             }
         }
 
         await db.SaveChangesAsync(cancellationToken);
 
-        if (createdBlocklistEntry)
+        if (shouldSyncFirewallBlock)
         {
-            await TrySyncBlocklistToAllFirewallsAsync(cancellationToken);
+            var syncResult = await TrySyncBlocklistToAllFirewallsAsync(cancellationToken);
+            if (syncResult?.Synced == true)
+            {
+                var syncedBucket = await db.AbuseBuckets.SingleAsync(x => x.ClientIp == request.ClientIp, cancellationToken);
+                if (SecuritySubjectStateNames.Normalize(syncedBucket.State) == SecuritySubjectStateNames.SoftBlocked)
+                {
+                    syncedBucket.State = SecuritySubjectStateNames.FirewallBlocked;
+                    syncedBucket.UpdatedAtUtc = timeProvider?.GetUtcNow() ?? DateTimeOffset.UtcNow;
+                    await db.SaveChangesAsync(cancellationToken);
+                }
+            }
         }
 
-        if (bucket.State is "block" or "challenge")
+        var notificationState = SecuritySubjectStateNames.Normalize(bucket.State);
+        if (notificationState is SecuritySubjectStateNames.FirewallBlocked
+            or SecuritySubjectStateNames.SoftBlocked
+            or SecuritySubjectStateNames.Challenged
+            or SecuritySubjectStateNames.ManuallyBlocked)
         {
             await notificationRouting.RouteSecurityEventAsync(
                 $"Security {bucket.State}: {request.ClientIp}",
@@ -380,11 +416,19 @@ public sealed class SecurityIngestionService(
         var activeIpBlockByValue = activeIpBlocks
             .GroupBy(x => string.IsNullOrWhiteSpace(x.Value) ? x.ClientIp : x.Value, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(x => x.Key, x => x.OrderByDescending(y => y.CreatedAtUtc).First(), StringComparer.OrdinalIgnoreCase);
+        var activeBucketStates = await db.AbuseBuckets.AsNoTracking()
+            .Where(x => topIpValues.Contains(x.ClientIp))
+            .ToDictionaryAsync(
+                x => x.ClientIp,
+                x => SecuritySubjectStateNames.Normalize(x.State),
+                StringComparer.OrdinalIgnoreCase,
+                cancellationToken);
         var topIps = topIpStats
             .Select(x =>
             {
                 latestTopIpContext.TryGetValue(x.Ip, out var latest);
                 activeIpBlockByValue.TryGetValue(x.Ip, out var block);
+                activeBucketStates.TryGetValue(x.Ip, out var subjectState);
                 return new SecurityTopBlockedIpItem
                 {
                     Ip = x.Ip,
@@ -394,6 +438,7 @@ public sealed class SecurityIngestionService(
                     Asn = latest?.Asn,
                     Reason = block?.Reason,
                     ExpiresAtUtc = block?.ExpiresAtUtc,
+                    SubjectState = subjectState,
                 };
             })
             .ToList();
@@ -518,6 +563,23 @@ public sealed class SecurityIngestionService(
             .ToList();
         if (pending.Count == 0)
         {
+            var reconciledAt = timeProvider?.GetUtcNow() ?? DateTimeOffset.UtcNow;
+            var reconciled = false;
+            foreach (var entry in activeIpEntries)
+            {
+                if (!entry.SyncedToFirewall)
+                {
+                    entry.SyncedToFirewall = true;
+                    reconciled = true;
+                }
+            }
+
+            reconciled |= await MarkSyncedAutomaticBucketsAsync(activeIpEntries, reconciledAt, cancellationToken);
+            if (reconciled)
+            {
+                await db.SaveChangesAsync(cancellationToken);
+            }
+
             return new BlocklistSyncResponse(true, 0, 0, []);
         }
 
@@ -558,6 +620,8 @@ public sealed class SecurityIngestionService(
             entry.SyncedToFirewall = true;
         }
 
+        await MarkSyncedAutomaticBucketsAsync(pending, appliedAt, cancellationToken);
+
         await db.SaveChangesAsync(cancellationToken);
         await audit.WriteAsync(
             "security",
@@ -593,6 +657,42 @@ public sealed class SecurityIngestionService(
             state.AppliedAtUtc = appliedAtUtc;
             state.LastError = error;
         }
+    }
+
+    private async Task<bool> MarkSyncedAutomaticBucketsAsync(
+        IReadOnlyList<BlocklistEntryEntity> syncedEntries,
+        DateTimeOffset syncedAt,
+        CancellationToken cancellationToken)
+    {
+        var syncedIpValues = syncedEntries
+            .Where(x => x.Source != BlocklistSourceNames.Manual)
+            .Select(x => string.IsNullOrWhiteSpace(x.Value) ? x.ClientIp : x.Value)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (syncedIpValues.Count == 0)
+        {
+            return false;
+        }
+
+        var changed = false;
+        var syncedBuckets = await db.AbuseBuckets
+            .Where(x => syncedIpValues.Contains(x.ClientIp))
+            .ToListAsync(cancellationToken);
+        foreach (var bucket in syncedBuckets)
+        {
+            var state = SecuritySubjectStateNames.Normalize(bucket.State);
+            if (state is SecuritySubjectStateNames.ManuallyAllowed or SecuritySubjectStateNames.FirewallBlocked)
+            {
+                continue;
+            }
+
+            bucket.State = SecuritySubjectStateNames.FirewallBlocked;
+            bucket.UpdatedAtUtc = syncedAt;
+            changed = true;
+        }
+
+        return changed;
     }
 
     private static DateTimeOffset TruncateToMinuteUtc(DateTimeOffset value)
@@ -639,15 +739,121 @@ public sealed class SecurityIngestionService(
     private static string EnsureLeadingSlash(string value)
         => value.StartsWith('/') ? value : "/" + value;
 
-    private async Task TrySyncBlocklistToAllFirewallsAsync(CancellationToken cancellationToken)
+    private async Task<BlocklistSyncResponse?> TrySyncBlocklistToAllFirewallsAsync(CancellationToken cancellationToken)
     {
         try
         {
-            await SyncBlocklistToAllFirewallsAsync(cancellationToken);
+            return await SyncBlocklistToAllFirewallsAsync(cancellationToken);
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Automatic blocklist sync failed after abuse block.");
+            return null;
         }
+    }
+
+    private static string StateForScore(int score)
+        => score switch
+        {
+            >= 20 => SecuritySubjectStateNames.SoftBlocked,
+            >= 15 => SecuritySubjectStateNames.SoftBlocked,
+            >= 10 => SecuritySubjectStateNames.Challenged,
+            >= 8 => SecuritySubjectStateNames.Suspect,
+            >= 4 => SecuritySubjectStateNames.Warm,
+            _ => SecuritySubjectStateNames.Observed,
+        };
+
+    private static string DecisionForState(string state)
+        => state switch
+        {
+            SecuritySubjectStateNames.ManuallyBlocked => "blocked",
+            SecuritySubjectStateNames.FirewallBlocked => "blocked",
+            SecuritySubjectStateNames.SoftBlocked => "blocked",
+            SecuritySubjectStateNames.Challenged => "challenged",
+            _ => "allowed",
+        };
+
+    private async Task<BlocklistEntryEntity?> FindActiveBlocklistEntryAsync(
+        string clientIp,
+        string source,
+        CancellationToken cancellationToken)
+    {
+        var now = timeProvider?.GetUtcNow() ?? DateTimeOffset.UtcNow;
+        return await db.BlocklistEntries
+            .Where(x => x.ExpiresAtUtc == null || x.ExpiresAtUtc > now)
+            .Where(x => x.Scope == BlocklistScopeNames.Global)
+            .Where(x => x.Source == source)
+            .Where(x => x.Type == BlocklistTypeNames.Ip || x.Type == string.Empty)
+            .Where(x => x.Value == clientIp || x.ClientIp == clientIp)
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    private async Task<bool> IsManuallyAllowedAsync(
+        string clientIp,
+        string? countryCode,
+        string? regionCode,
+        string? asn,
+        CancellationToken cancellationToken)
+    {
+        var subjects = await db.FirewallAllowedSubjects.AsNoTracking()
+            .Where(x => x.Enabled)
+            .ToListAsync(cancellationToken);
+
+        return subjects.Any(x => MatchesAllowedSubject(x, clientIp, countryCode, regionCode, asn));
+    }
+
+    private static bool MatchesAllowedSubject(
+        FirewallAllowedSubjectEntity subject,
+        string clientIp,
+        string? countryCode,
+        string? regionCode,
+        string? asn)
+        => subject.SubjectKind.Trim().ToLowerInvariant() switch
+        {
+            FirewallSubjectKindNames.Ip => string.Equals(subject.SubjectValue, clientIp, StringComparison.OrdinalIgnoreCase),
+            FirewallSubjectKindNames.Cidr => IsInCidr(clientIp, subject.SubjectValue),
+            FirewallSubjectKindNames.Country => string.Equals(subject.SubjectValue, countryCode, StringComparison.OrdinalIgnoreCase),
+            FirewallSubjectKindNames.Asn => string.Equals(subject.SubjectValue, asn, StringComparison.OrdinalIgnoreCase),
+            _ => false,
+        };
+
+    private static bool IsInCidr(string ipText, string cidr)
+    {
+        if (!IPAddress.TryParse(ipText, out var ip) || string.IsNullOrWhiteSpace(cidr) || !cidr.Contains('/'))
+        {
+            return false;
+        }
+
+        var parts = cidr.Split('/');
+        if (!IPAddress.TryParse(parts[0], out var network) || !int.TryParse(parts[1], out var prefixLength))
+        {
+            return false;
+        }
+
+        var ipBytes = ip.GetAddressBytes();
+        var networkBytes = network.GetAddressBytes();
+        if (ipBytes.Length != networkBytes.Length)
+        {
+            return false;
+        }
+
+        var fullBytes = prefixLength / 8;
+        var remainingBits = prefixLength % 8;
+        for (var i = 0; i < fullBytes; i++)
+        {
+            if (ipBytes[i] != networkBytes[i])
+            {
+                return false;
+            }
+        }
+
+        if (remainingBits == 0)
+        {
+            return true;
+        }
+
+        var mask = (byte)(0xFF << (8 - remainingBits));
+        return (ipBytes[fullBytes] & mask) == (networkBytes[fullBytes] & mask);
     }
 }

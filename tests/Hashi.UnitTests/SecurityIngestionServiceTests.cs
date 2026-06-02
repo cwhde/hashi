@@ -27,6 +27,11 @@ public sealed class SecurityIngestionServiceTests
             Event("1.1.1.1", "blocked", "US", "AS13335"),
             Event("2.2.2.2", "blocked", "DE", "AS24940"),
             Event("3.3.3.3", "challenged", "US", "AS13335"));
+        db.AbuseBuckets.Add(new AbuseBucketEntity
+        {
+            ClientIp = "1.1.1.1",
+            State = SecuritySubjectStateNames.FirewallBlocked,
+        });
         await db.SaveChangesAsync();
 
         var service = CreateService(db);
@@ -40,6 +45,7 @@ public sealed class SecurityIngestionServiceTests
         Assert.Equal(1, topBlockedIp.Count);
         Assert.Equal("US", topBlockedIp.CountryCode);
         Assert.Equal("AS13335", topBlockedIp.Asn);
+        Assert.Equal(SecuritySubjectStateNames.FirewallBlocked, topBlockedIp.SubjectState);
         Assert.Equal("US", dashboard.TopCountries[0].Label);
         Assert.Equal(3, dashboard.TopCountries[0].Count);
         Assert.Equal("AS13335", dashboard.TopAsns[0].Label);
@@ -73,8 +79,8 @@ public sealed class SecurityIngestionServiceTests
         var bucket = buckets[0];
         Assert.Equal(500, bucket.TotalCount);
         Assert.Equal(4, bucket.AllowedCount);
-        Assert.Equal(491, bucket.BlockedCount);
-        Assert.Equal(5, bucket.ChallengedCount);
+        Assert.Equal(493, bucket.BlockedCount);
+        Assert.Equal(3, bucket.ChallengedCount);
         Assert.Equal("203.0.113.25", bucket.ClientIp);
         Assert.Equal("resource-api", bucket.Resource);
         Assert.Equal("traefik-a", bucket.TraefikInstance);
@@ -159,12 +165,35 @@ public sealed class SecurityIngestionServiceTests
     }
 
     [Fact]
-    public async Task IngestAccessLogAsync_promotes_abuse_bucket_to_block()
+    public async Task IngestAccessLogAsync_stages_abuse_bucket_before_firewall_block()
     {
         await using var db = CreateDb();
         var service = CreateService(db);
 
-        for (var i = 0; i < 12; i++)
+        for (var i = 0; i < 4; i++)
+        {
+            await service.IngestAccessLogAsync(new AccessLogIngestRequest(
+                "198.51.100.50",
+                "app.example.com",
+                "/",
+                404,
+                "US",
+                "AS13335"));
+        }
+
+        Assert.Equal(SecuritySubjectStateNames.Suspect, (await db.AbuseBuckets.SingleAsync()).State);
+
+        await service.IngestAccessLogAsync(new AccessLogIngestRequest(
+            "198.51.100.50",
+            "app.example.com",
+            "/",
+            404,
+            "US",
+            "AS13335"));
+
+        Assert.Equal(SecuritySubjectStateNames.Challenged, (await db.AbuseBuckets.SingleAsync()).State);
+
+        for (var i = 0; i < 5; i++)
         {
             await service.IngestAccessLogAsync(new AccessLogIngestRequest(
                 "198.51.100.50",
@@ -176,7 +205,7 @@ public sealed class SecurityIngestionServiceTests
         }
 
         var bucket = await db.AbuseBuckets.SingleAsync();
-        Assert.Equal("block", bucket.State);
+        Assert.Equal(SecuritySubjectStateNames.SoftBlocked, bucket.State);
         var block = Assert.Single(await db.BlocklistEntries.ToListAsync());
         Assert.Equal(BlocklistScopeNames.Global, block.Scope);
         Assert.Equal(BlocklistTypeNames.Ip, block.Type);
@@ -184,6 +213,69 @@ public sealed class SecurityIngestionServiceTests
         Assert.Equal("abuse_score_threshold", block.Reason);
         Assert.Equal(BlocklistSourceNames.Automatic, block.Source);
         Assert.Equal("hashi", block.CreatedBy);
+        Assert.False(block.SyncedToFirewall);
+    }
+
+    [Fact]
+    public async Task IngestAccessLogAsync_manual_allow_keeps_bucket_manually_allowed_and_skips_blocklist()
+    {
+        await using var db = CreateDb();
+        db.FirewallAllowedSubjects.Add(new FirewallAllowedSubjectEntity
+        {
+            FirewallHostId = Guid.NewGuid(),
+            SubjectKind = FirewallSubjectKindNames.Ip,
+            SubjectValue = "198.51.100.52",
+            Ownership = FirewallRuleOwnershipNames.UserCreated,
+        });
+        await db.SaveChangesAsync();
+        var service = CreateService(db);
+
+        for (var i = 0; i < 12; i++)
+        {
+            await service.IngestAccessLogAsync(new AccessLogIngestRequest(
+                "198.51.100.52",
+                "app.example.com",
+                "/",
+                404,
+                "US",
+                "AS13335"));
+        }
+
+        var bucket = await db.AbuseBuckets.SingleAsync();
+        Assert.Equal(SecuritySubjectStateNames.ManuallyAllowed, bucket.State);
+        Assert.Equal(0, bucket.Score);
+        Assert.Empty(await db.BlocklistEntries.ToListAsync());
+        Assert.All(await db.AccessLogEvents.ToListAsync(), x => Assert.Equal("allowed", x.Decision));
+    }
+
+    [Fact]
+    public async Task IngestAccessLogAsync_manual_block_sets_manual_blocked_state()
+    {
+        await using var db = CreateDb();
+        db.BlocklistEntries.Add(new BlocklistEntryEntity
+        {
+            ClientIp = "198.51.100.53",
+            Type = BlocklistTypeNames.Ip,
+            Value = "198.51.100.53",
+            Source = BlocklistSourceNames.Manual,
+            CreatedBy = "admin",
+            Reason = "operator",
+        });
+        await db.SaveChangesAsync();
+        var service = CreateService(db);
+
+        await service.IngestAccessLogAsync(new AccessLogIngestRequest(
+            "198.51.100.53",
+            "app.example.com",
+            "/",
+            200,
+            "US",
+            "AS13335"));
+
+        var bucket = await db.AbuseBuckets.SingleAsync();
+        Assert.Equal(SecuritySubjectStateNames.ManuallyBlocked, bucket.State);
+        Assert.Equal(0, bucket.Score);
+        Assert.Equal("blocked", (await db.AccessLogEvents.SingleAsync()).Decision);
     }
 
     [Fact]
@@ -257,6 +349,68 @@ public sealed class SecurityIngestionServiceTests
         Assert.Equal(BlocklistApplyStatusNames.Applied, applied.Status);
         Assert.NotNull(applied.AppliedAtUtc);
         Assert.True((await db.BlocklistEntries.SingleAsync(x => x.Id == activeIpBlock.Id)).SyncedToFirewall);
+    }
+
+    [Fact]
+    public async Task SyncBlocklistToAllFirewallsAsync_marks_automatic_soft_block_as_firewall_blocked_after_success()
+    {
+        await using var db = CreateDb();
+        var vault = new VaultSessionState();
+        vault.Unlock(new byte[32]);
+        var secretService = new SecretRecordService(db, vault, new ServiceSyncVaultState());
+        var credential = await secretService.StoreAsync(
+            SecretPurpose.SshCredential,
+            "fw1 ssh",
+            ConnectionSshCredentialResolver.SerializeCredentialPayload("password", "secret", null, null));
+        var connection = new ConnectionEntity
+        {
+            Name = "fw1",
+            Type = ConnectionTypeNames.FirewallHost,
+            SecretId = credential.Id,
+            SettingsJson = JsonSerializer.Serialize(new
+            {
+                Host = "203.0.113.5",
+                Port = 22,
+                Username = "root",
+            }),
+        };
+        db.Connections.Add(connection);
+        db.FirewallHosts.Add(new FirewallHostEntity
+        {
+            ConnectionId = connection.Id,
+            Name = "fw1",
+            Domain = "example.com",
+            ManagedSubnetsJson = "[]",
+            LinkedTraefikHost = "traefik.local",
+            InternalTraefikIp = "10.0.0.2",
+        });
+        db.AbuseBuckets.Add(new AbuseBucketEntity
+        {
+            ClientIp = "198.51.100.60",
+            Score = 20,
+            State = SecuritySubjectStateNames.SoftBlocked,
+        });
+        db.BlocklistEntries.Add(new BlocklistEntryEntity
+        {
+            Type = BlocklistTypeNames.Ip,
+            Value = "198.51.100.60",
+            ClientIp = "198.51.100.60",
+            Reason = "abuse",
+            Source = BlocklistSourceNames.Automatic,
+        });
+        await db.SaveChangesAsync();
+        var ssh = new FakeSshRemoteExecutor();
+        ssh.CommandResults.Enqueue(new RemoteCommandResult(true, "hashi-firewall-preflight-ok", null));
+        ssh.CommandResults.Enqueue(new RemoteCommandResult(true, "no", null));
+        ssh.CommandResults.Enqueue(new RemoteCommandResult(true, string.Empty, null));
+        ssh.CommandResults.Enqueue(new RemoteCommandResult(true, string.Empty, null));
+        ssh.CommandResults.Enqueue(new RemoteCommandResult(true, string.Empty, null));
+        var service = CreateService(db, ssh: ssh, vault: vault);
+
+        var result = await service.SyncBlocklistToAllFirewallsAsync();
+
+        Assert.True(result.Synced);
+        Assert.Equal(SecuritySubjectStateNames.FirewallBlocked, (await db.AbuseBuckets.SingleAsync()).State);
     }
 
     private static AccessLogEventEntity Event(string ip, string decision, string country, string asn)
