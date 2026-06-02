@@ -7835,7 +7835,7 @@
           "topBlockedIps": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/SecurityTopBlockedIpItem"
             }
           },
           "topCountries": {
@@ -7962,6 +7962,56 @@
               "string"
             ],
             "format": "int64"
+          }
+        }
+      },
+      "SecurityTopBlockedIpItem": {
+        "required": [
+          "ip",
+          "count",
+          "lastSeenAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "ip": {
+            "type": "string"
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "lastSeenAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "countryCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "asn": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "expiresAtUtc": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
           }
         }
       },

@@ -382,6 +382,7 @@ public static class EdgeAuthEndpoints
             EdgeAuthService edgeAuth,
             SecurityIngestionService security,
             GeoIpLookupService geoIp,
+            ForwardedClientContextResolver forwardedContext,
             CancellationToken ct) =>
         {
             var host = ctx.Request.Headers["X-Forwarded-Host"].FirstOrDefault() ?? ctx.Request.Host.Value ?? string.Empty;
@@ -389,10 +390,11 @@ public static class EdgeAuthEndpoints
                 ?? ctx.Request.Headers["X-Original-URL"].FirstOrDefault()
                 ?? ctx.Request.Path.Value
                 ?? "/";
-            var clientIp = ctx.Connection.RemoteIpAddress ?? System.Net.IPAddress.Loopback;
-            var country = ctx.Request.Headers["X-Geo-Country"].FirstOrDefault();
-            var region = ctx.Request.Headers["X-Geo-Region"].FirstOrDefault();
-            var asn = ctx.Request.Headers["X-Geo-Asn"].FirstOrDefault();
+            var requestContext = forwardedContext.Resolve(ctx);
+            var clientIp = requestContext.ClientIp;
+            var country = requestContext.TrustedProxy ? ctx.Request.Headers["X-Geo-Country"].FirstOrDefault() : null;
+            var region = requestContext.TrustedProxy ? ctx.Request.Headers["X-Geo-Region"].FirstOrDefault() : null;
+            var asn = requestContext.TrustedProxy ? ctx.Request.Headers["X-Geo-Asn"].FirstOrDefault() : null;
             if (country is null && region is null && asn is null)
             {
                 var lookup = geoIp.Lookup(clientIp);
@@ -414,7 +416,10 @@ public static class EdgeAuthEndpoints
                 path,
                 result.Decision,
                 country,
-                asn), ct);
+                asn,
+                region,
+                requestContext.Method,
+                path), ct);
 
             return result.Decision switch
             {

@@ -94,6 +94,8 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
 
     public DbSet<BlocklistEntryEntity> BlocklistEntries => Set<BlocklistEntryEntity>();
 
+    public DbSet<BlocklistAppliedHostEntity> BlocklistAppliedHosts => Set<BlocklistAppliedHostEntity>();
+
     public DbSet<AdGuardConnectionEntity> AdGuardConnections => Set<AdGuardConnectionEntity>();
 
     public DbSet<AdGuardRewriteEntity> AdGuardRewrites => Set<AdGuardRewriteEntity>();
@@ -590,6 +592,25 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.ToTable("blocklist_entries");
             entity.HasKey(x => x.Id);
             entity.Property(x => x.ClientIp).HasMaxLength(64);
+            entity.Property(x => x.Scope).HasMaxLength(32);
+            entity.Property(x => x.Type).HasMaxLength(32);
+            entity.Property(x => x.Value).HasMaxLength(128);
+            entity.Property(x => x.Reason).HasMaxLength(256);
+            entity.Property(x => x.Source).HasMaxLength(64);
+            entity.Property(x => x.CreatedBy).HasMaxLength(128);
+            entity.HasIndex(x => new { x.Scope, x.Type, x.Value });
+            entity.HasIndex(x => x.ExpiresAtUtc);
+        });
+
+        modelBuilder.Entity<BlocklistAppliedHostEntity>(entity =>
+        {
+            entity.ToTable("blocklist_applied_hosts");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Status).HasMaxLength(32);
+            entity.HasOne(x => x.BlocklistEntry).WithMany().HasForeignKey(x => x.BlocklistEntryId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.FirewallHost).WithMany().HasForeignKey(x => x.FirewallHostId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => new { x.BlocklistEntryId, x.FirewallHostId }).IsUnique();
+            entity.HasIndex(x => x.FirewallHostId);
         });
 
         modelBuilder.Entity<AdGuardConnectionEntity>(entity =>

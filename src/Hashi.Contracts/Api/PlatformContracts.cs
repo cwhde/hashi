@@ -538,6 +538,17 @@ public sealed record SecurityFirewallHostOption
     public required string LinkedTraefikHost { get; init; }
 }
 
+public sealed record SecurityTopBlockedIpItem
+{
+    public required string Ip { get; init; }
+    public required long Count { get; init; }
+    public required DateTimeOffset LastSeenAtUtc { get; init; }
+    public string? CountryCode { get; init; }
+    public string? Asn { get; init; }
+    public string? Reason { get; init; }
+    public DateTimeOffset? ExpiresAtUtc { get; init; }
+}
+
 public sealed record SecurityDashboardResponse(
     long Allowed,
     long Blocked,
@@ -548,7 +559,7 @@ public sealed record SecurityDashboardResponse(
     string? ResourceFilter,
     string? TraefikHostFilter,
     Guid? FirewallHostIdFilter,
-    IReadOnlyList<string> TopBlockedIps,
+    IReadOnlyList<SecurityTopBlockedIpItem> TopBlockedIps,
     IReadOnlyList<SecurityRankItem> TopCountries,
     IReadOnlyList<SecurityRankItem> TopAsns,
     IReadOnlyList<SecurityResourceEnforcementItem> TopResourcesBlockedChallenged,
@@ -572,7 +583,10 @@ public sealed record ForwardAuthDecisionIngestRequest(
     string Path,
     string Decision,
     string? CountryCode,
-    string? Asn);
+    string? Asn,
+    string? RegionCode = null,
+    string? Method = null,
+    string? PathPrefix = null);
 
 public sealed record WafEventIngestRequest(
     string ClientIp,

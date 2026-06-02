@@ -21,8 +21,16 @@ public sealed class EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp,
         CancellationToken cancellationToken = default)
     {
         var clientIpText = clientIp.ToString();
-        if (await db.BlocklistEntries.AsNoTracking().AnyAsync(x => x.ClientIp == clientIpText, cancellationToken))
+        var blocklistMatch = await FindMatchingBlocklistEntryAsync(
+            clientIpText,
+            countryCode,
+            regionCode,
+            asn,
+            cancellationToken);
+        if (blocklistMatch is not null)
         {
+            blocklistMatch.LastHitAtUtc = DateTimeOffset.UtcNow;
+            await db.SaveChangesAsync(cancellationToken);
             return new EdgeAuthForwardResponse("deny", null);
         }
 
@@ -191,6 +199,53 @@ public sealed class EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp,
     {
         var returnUrl = Uri.EscapeDataString($"https://{host}{path}");
         return $"/api/edge-auth/login?returnUrl={returnUrl}";
+    }
+
+    private async Task<Persistence.Entities.BlocklistEntryEntity?> FindMatchingBlocklistEntryAsync(
+        string clientIp,
+        string? countryCode,
+        string? regionCode,
+        string? asn,
+        CancellationToken cancellationToken)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var entries = await db.BlocklistEntries
+            .Where(x => x.ExpiresAtUtc == null || x.ExpiresAtUtc > now)
+            .ToListAsync(cancellationToken);
+
+        foreach (var entry in entries)
+        {
+            var type = NormalizeBlockType(entry);
+            var value = NormalizeBlockValue(entry);
+            if (type switch
+            {
+                Persistence.Entities.BlocklistTypeNames.Ip => string.Equals(clientIp, value, StringComparison.OrdinalIgnoreCase),
+                Persistence.Entities.BlocklistTypeNames.Asn => string.Equals(asn, value, StringComparison.OrdinalIgnoreCase),
+                Persistence.Entities.BlocklistTypeNames.Country => string.Equals(countryCode, value, StringComparison.OrdinalIgnoreCase),
+                Persistence.Entities.BlocklistTypeNames.Region => string.Equals(regionCode, value, StringComparison.OrdinalIgnoreCase),
+                _ => false,
+            })
+            {
+                return entry;
+            }
+        }
+
+        return null;
+    }
+
+    private static string NormalizeBlockType(Persistence.Entities.BlocklistEntryEntity entry)
+        => string.IsNullOrWhiteSpace(entry.Type)
+            ? Persistence.Entities.BlocklistTypeNames.Ip
+            : entry.Type.Trim().ToLowerInvariant();
+
+    private static string NormalizeBlockValue(Persistence.Entities.BlocklistEntryEntity entry)
+    {
+        if (!string.IsNullOrWhiteSpace(entry.Value))
+        {
+            return entry.Value.Trim();
+        }
+
+        return entry.ClientIp.Trim();
     }
 
     private static bool MatchesResourceRule(

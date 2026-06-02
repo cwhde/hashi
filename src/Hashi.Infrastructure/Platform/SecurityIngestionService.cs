@@ -115,13 +115,24 @@ public sealed class SecurityIngestionService(
         var createdBlocklistEntry = false;
         if (bucket.State == "block")
         {
-            var exists = await db.BlocklistEntries.AnyAsync(x => x.ClientIp == request.ClientIp, cancellationToken);
+            var exists = await db.BlocklistEntries.AnyAsync(
+                x => x.Scope == BlocklistScopeNames.Global
+                    && (x.Type == BlocklistTypeNames.Ip || x.Type == string.Empty)
+                    && (x.Value == request.ClientIp || x.ClientIp == request.ClientIp)
+                    && (x.ExpiresAtUtc == null || x.ExpiresAtUtc > now),
+                cancellationToken);
             if (!exists)
             {
                 db.BlocklistEntries.Add(new BlocklistEntryEntity
                 {
                     ClientIp = request.ClientIp,
+                    Scope = BlocklistScopeNames.Global,
+                    Type = BlocklistTypeNames.Ip,
+                    Value = request.ClientIp,
                     Reason = "abuse_score_threshold",
+                    Source = BlocklistSourceNames.Automatic,
+                    CreatedBy = "hashi",
+                    CreatedAtUtc = now,
                 });
                 createdBlocklistEntry = true;
             }
@@ -147,6 +158,8 @@ public sealed class SecurityIngestionService(
         ForwardAuthDecisionIngestRequest request,
         CancellationToken cancellationToken = default)
     {
+        var now = timeProvider?.GetUtcNow() ?? DateTimeOffset.UtcNow;
+        var bucketStartUtc = TruncateToMinuteUtc(now);
         var decision = request.Decision.ToLowerInvariant() switch
         {
             "deny" => "blocked",
@@ -159,6 +172,54 @@ public sealed class SecurityIngestionService(
             "challenge" or "redirect" => 401,
             _ => 204,
         };
+        var statusClass = statusCode / 100;
+        var method = NormalizeMethod(request.Method);
+        var pathPrefix = NormalizePathPrefix(request.PathPrefix, request.Path);
+        var resource = NormalizeResource(null, request.Host);
+        var requestBucket = await db.SecurityRequestBuckets.SingleOrDefaultAsync(
+            x => x.BucketStartUtc == bucketStartUtc
+                && x.ClientIp == request.ClientIp
+                && x.Resource == resource
+                && x.TraefikInstance == "forward-auth"
+                && x.CountryCode == request.CountryCode
+                && x.RegionCode == request.RegionCode
+                && x.Asn == request.Asn
+                && x.StatusClass == statusClass
+                && x.Method == method
+                && x.PathPrefix == pathPrefix,
+            cancellationToken);
+        if (requestBucket is null)
+        {
+            requestBucket = new SecurityRequestBucketEntity
+            {
+                BucketStartUtc = bucketStartUtc,
+                ClientIp = request.ClientIp,
+                Resource = resource,
+                TraefikInstance = "forward-auth",
+                CountryCode = request.CountryCode,
+                RegionCode = request.RegionCode,
+                Asn = request.Asn,
+                StatusClass = statusClass,
+                Method = method,
+                PathPrefix = pathPrefix,
+            };
+            db.SecurityRequestBuckets.Add(requestBucket);
+        }
+
+        requestBucket.TotalCount++;
+        requestBucket.UpdatedAtUtc = now;
+        switch (decision)
+        {
+            case "blocked":
+                requestBucket.BlockedCount++;
+                break;
+            case "challenged":
+                requestBucket.ChallengedCount++;
+                break;
+            default:
+                requestBucket.AllowedCount++;
+                break;
+        }
 
         db.AccessLogEvents.Add(new AccessLogEventEntity
         {
@@ -218,7 +279,8 @@ public sealed class SecurityIngestionService(
         CancellationToken cancellationToken = default)
     {
         var windowHours = Math.Clamp(hours, 1, 720);
-        var since = DateTimeOffset.UtcNow.AddHours(-windowHours);
+        var dashboardNow = timeProvider?.GetUtcNow() ?? DateTimeOffset.UtcNow;
+        var since = dashboardNow.AddHours(-windowHours);
         var normalizedResourceFilter = string.IsNullOrWhiteSpace(resourceFilter) ? null : resourceFilter.Trim();
         var normalizedTraefikHostFilter = string.IsNullOrWhiteSpace(traefikHostFilter) ? null : traefikHostFilter.Trim();
 
@@ -292,15 +354,49 @@ public sealed class SecurityIngestionService(
         var blocked = await accessEventsQuery.Where(x => x.Decision == "blocked").LongCountAsync(cancellationToken);
         var challenged = await accessEventsQuery.Where(x => x.Decision == "challenged").LongCountAsync(cancellationToken);
 
-        var topIps = await accessEventsQuery
+        var topIpStats = await accessEventsQuery
             .Where(x => x.Decision == "blocked")
             .GroupBy(x => x.ClientIp)
-            .Select(x => new { Ip = x.Key, Count = x.LongCount() })
+            .Select(x => new { Ip = x.Key, Count = x.LongCount(), LastSeenAtUtc = x.Max(y => y.ReceivedAtUtc) })
             .OrderByDescending(x => x.Count)
             .ThenBy(x => x.Ip)
             .Take(10)
-            .Select(x => x.Ip)
             .ToListAsync(cancellationToken);
+        var topIpValues = topIpStats.Select(x => x.Ip).ToList();
+        var latestTopIpEvents = await accessEventsQuery
+            .Where(x => x.Decision == "blocked")
+            .Where(x => topIpValues.Contains(x.ClientIp))
+            .OrderByDescending(x => x.ReceivedAtUtc)
+            .Select(x => new { x.ClientIp, x.CountryCode, x.Asn, x.ReceivedAtUtc })
+            .ToListAsync(cancellationToken);
+        var latestTopIpContext = latestTopIpEvents
+            .GroupBy(x => x.ClientIp)
+            .ToDictionary(x => x.Key, x => x.First());
+        var activeIpBlocks = await db.BlocklistEntries.AsNoTracking()
+            .Where(x => x.ExpiresAtUtc == null || x.ExpiresAtUtc > dashboardNow)
+            .Where(x => x.Type == BlocklistTypeNames.Ip || x.Type == string.Empty)
+            .Where(x => topIpValues.Contains(x.Value) || topIpValues.Contains(x.ClientIp))
+            .ToListAsync(cancellationToken);
+        var activeIpBlockByValue = activeIpBlocks
+            .GroupBy(x => string.IsNullOrWhiteSpace(x.Value) ? x.ClientIp : x.Value, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(x => x.Key, x => x.OrderByDescending(y => y.CreatedAtUtc).First(), StringComparer.OrdinalIgnoreCase);
+        var topIps = topIpStats
+            .Select(x =>
+            {
+                latestTopIpContext.TryGetValue(x.Ip, out var latest);
+                activeIpBlockByValue.TryGetValue(x.Ip, out var block);
+                return new SecurityTopBlockedIpItem
+                {
+                    Ip = x.Ip,
+                    Count = x.Count,
+                    LastSeenAtUtc = x.LastSeenAtUtc,
+                    CountryCode = latest?.CountryCode,
+                    Asn = latest?.Asn,
+                    Reason = block?.Reason,
+                    ExpiresAtUtc = block?.ExpiresAtUtc,
+                };
+            })
+            .ToList();
 
         var topCountries = await accessEventsQuery
             .Where(x => !string.IsNullOrWhiteSpace(x.CountryCode))
@@ -365,7 +461,13 @@ public sealed class SecurityIngestionService(
             .Where(x => x.Action == "blocked" || x.Action == "block" || x.Action == "deny")
             .LongCountAsync(cancellationToken);
 
-        var firewallActiveIpBlocks = await db.BlocklistEntries.AsNoTracking().LongCountAsync(cancellationToken);
+        var firewallActiveIpBlocks = await db.BlocklistEntries.AsNoTracking()
+            .Where(x => x.ExpiresAtUtc == null || x.ExpiresAtUtc > dashboardNow)
+            .Where(x => x.Type == BlocklistTypeNames.Ip || x.Type == string.Empty)
+            .LongCountAsync(cancellationToken);
+        var blocklistCount = await db.BlocklistEntries.AsNoTracking()
+            .Where(x => x.ExpiresAtUtc == null || x.ExpiresAtUtc > dashboardNow)
+            .LongCountAsync(cancellationToken);
         var securityEventCount = await securityEventsQuery.LongCountAsync(cancellationToken);
 
         return new SecurityDashboardResponse(
@@ -387,26 +489,41 @@ public sealed class SecurityIngestionService(
             traefikHostFilters,
             firewallHostFilters,
             firewallActiveIpBlocks,
-            firewallActiveIpBlocks,
+            blocklistCount,
             securityEventCount);
     }
 
     public async Task<BlocklistSyncResponse> SyncBlocklistToAllFirewallsAsync(CancellationToken cancellationToken = default)
     {
-        var pending = await db.BlocklistEntries.Where(x => !x.SyncedToFirewall).ToListAsync(cancellationToken);
+        var now = timeProvider?.GetUtcNow() ?? DateTimeOffset.UtcNow;
+        var hosts = await db.FirewallHosts.ToListAsync(cancellationToken);
+        var activeIpEntries = await db.BlocklistEntries
+            .Where(x => x.ExpiresAtUtc == null || x.ExpiresAtUtc > now)
+            .Where(x => x.Type == BlocklistTypeNames.Ip || x.Type == string.Empty)
+            .ToListAsync(cancellationToken);
+        if (hosts.Count == 0 && activeIpEntries.Count > 0)
+        {
+            return new BlocklistSyncResponse(false, activeIpEntries.Count, 0, ["No firewall hosts configured."]);
+        }
+
+        var entryIds = activeIpEntries.Select(x => x.Id).ToList();
+        var appliedStates = await db.BlocklistAppliedHosts
+            .Where(x => entryIds.Contains(x.BlocklistEntryId))
+            .ToListAsync(cancellationToken);
+        var pending = activeIpEntries
+            .Where(entry => hosts.Any(host => !appliedStates.Any(
+                state => state.BlocklistEntryId == entry.Id
+                    && state.FirewallHostId == host.Id
+                    && state.Status == BlocklistApplyStatusNames.Applied)))
+            .ToList();
         if (pending.Count == 0)
         {
             return new BlocklistSyncResponse(true, 0, 0, []);
         }
 
-        var hosts = await db.FirewallHosts.ToListAsync(cancellationToken);
-        if (hosts.Count == 0)
-        {
-            return new BlocklistSyncResponse(false, pending.Count, 0, ["No firewall hosts configured."]);
-        }
-
         var failures = new List<string>();
         var appliedHosts = 0;
+        var appliedAt = timeProvider?.GetUtcNow() ?? DateTimeOffset.UtcNow;
         foreach (var host in hosts)
         {
             try
@@ -415,19 +532,23 @@ public sealed class SecurityIngestionService(
                 if (!result.Succeeded)
                 {
                     failures.Add($"{host.Name}: {result.Message}");
+                    UpsertApplyStates(appliedStates, pending, host.Id, BlocklistApplyStatusNames.Failed, null, result.Message);
                     continue;
                 }
 
                 appliedHosts++;
+                UpsertApplyStates(appliedStates, pending, host.Id, BlocklistApplyStatusNames.Applied, appliedAt, null);
             }
             catch (Exception ex)
             {
                 failures.Add($"{host.Name}: {ex.Message}");
+                UpsertApplyStates(appliedStates, pending, host.Id, BlocklistApplyStatusNames.Failed, null, ex.Message);
             }
         }
 
         if (failures.Count > 0)
         {
+            await db.SaveChangesAsync(cancellationToken);
             logger.LogWarning("Blocklist sync failed on {Count} firewall host(s): {Errors}", failures.Count, string.Join("; ", failures));
             return new BlocklistSyncResponse(false, pending.Count, appliedHosts, failures);
         }
@@ -444,6 +565,34 @@ public sealed class SecurityIngestionService(
             metadata: new { hosts = appliedHosts, entries = pending.Count },
             cancellationToken: cancellationToken);
         return new BlocklistSyncResponse(true, pending.Count, appliedHosts, []);
+    }
+
+    private void UpsertApplyStates(
+        List<BlocklistAppliedHostEntity> trackedStates,
+        IReadOnlyList<BlocklistEntryEntity> entries,
+        Guid firewallHostId,
+        string status,
+        DateTimeOffset? appliedAtUtc,
+        string? error)
+    {
+        foreach (var entry in entries)
+        {
+            var state = trackedStates.FirstOrDefault(x => x.BlocklistEntryId == entry.Id && x.FirewallHostId == firewallHostId);
+            if (state is null)
+            {
+                state = new BlocklistAppliedHostEntity
+                {
+                    BlocklistEntryId = entry.Id,
+                    FirewallHostId = firewallHostId,
+                };
+                trackedStates.Add(state);
+                db.BlocklistAppliedHosts.Add(state);
+            }
+
+            state.Status = status;
+            state.AppliedAtUtc = appliedAtUtc;
+            state.LastError = error;
+        }
     }
 
     private static DateTimeOffset TruncateToMinuteUtc(DateTimeOffset value)

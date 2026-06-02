@@ -100,6 +100,15 @@ export type SecurityFirewallHostOption = {
 	domain: string;
 	linkedTraefikHost: string;
 };
+export type SecurityTopBlockedIpItem = {
+	ip: string;
+	count: number;
+	lastSeenAtUtc: string;
+	countryCode: string | null;
+	asn: string | null;
+	reason: string | null;
+	expiresAtUtc: string | null;
+};
 export type SecurityDashboard = {
 	allowed: number;
 	blocked: number;
@@ -110,7 +119,7 @@ export type SecurityDashboard = {
 	resourceFilter: string | null;
 	traefikHostFilter: string | null;
 	firewallHostIdFilter: string | null;
-	topBlockedIps: string[];
+	topBlockedIps: SecurityTopBlockedIpItem[];
 	topCountries: SecurityRankItem[];
 	topAsns: SecurityRankItem[];
 	topResourcesBlockedChallenged: SecurityResourceEnforcementItem[];

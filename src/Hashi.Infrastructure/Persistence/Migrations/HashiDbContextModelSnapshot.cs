@@ -365,16 +365,85 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset?>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("LastHitAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Reason")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<bool>("SyncedToFirewall")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
                     b.HasKey("Id");
 
+                    b.HasIndex("ExpiresAtUtc");
+
+                    b.HasIndex("Scope", "Type", "Value");
+
                     b.ToTable("blocklist_entries", (string)null);
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.BlocklistAppliedHostEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("AppliedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("BlocklistEntryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("FirewallHostId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("LastError")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FirewallHostId");
+
+                    b.HasIndex("BlocklistEntryId", "FirewallHostId")
+                        .IsUnique();
+
+                    b.ToTable("blocklist_applied_hosts", (string)null);
                 });
 
             modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.ConnectionEntity", b =>
@@ -2562,6 +2631,25 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .HasForeignKey("FirewallHostId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("FirewallHost");
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.BlocklistAppliedHostEntity", b =>
+                {
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.BlocklistEntryEntity", "BlocklistEntry")
+                        .WithMany()
+                        .HasForeignKey("BlocklistEntryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.FirewallHostEntity", "FirewallHost")
+                        .WithMany()
+                        .HasForeignKey("FirewallHostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BlocklistEntry");
 
                     b.Navigation("FirewallHost");
                 });
