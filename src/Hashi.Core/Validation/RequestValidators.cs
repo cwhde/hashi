@@ -35,6 +35,17 @@ public sealed class CreateResourceRequestValidator : AbstractValidator<CreateRes
                     .NotEmpty()
                     .When(x => !string.IsNullOrWhiteSpace(x.RewriteMode));
             });
+        RuleForEach(x => x.Rules)
+            .ChildRules(rule =>
+            {
+                rule.RuleFor(x => x.Action)
+                    .Must(ResourceRuleActionNames.IsValid)
+                    .WithMessage($"Resource rule action must be one of: {string.Join(", ", ResourceRuleActionNames.All)}.");
+                rule.RuleFor(x => x.MatchType)
+                    .Must(ResourceRuleMatchTypeNames.IsValid)
+                    .WithMessage($"Resource rule match type must be one of: {string.Join(", ", ResourceRuleMatchTypeNames.All)}.");
+                rule.RuleFor(x => x.MatchValue).NotEmpty();
+            });
     }
 }
 

@@ -45,6 +45,86 @@ public static class ResourceRewriteModeNames
         => !string.IsNullOrWhiteSpace(mode) && All.Contains(mode.Trim());
 }
 
+public static class ResourceRuleActionNames
+{
+    public const string BypassAuth = "bypass_auth";
+    public const string BlockAccess = "block_access";
+    public const string PassToAuth = "pass_to_auth";
+    public const string RequireAdaptiveChallenge = "require_adaptive_challenge";
+
+    public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        BypassAuth,
+        BlockAccess,
+        PassToAuth,
+        RequireAdaptiveChallenge,
+    };
+
+    private static readonly IReadOnlyDictionary<string, string> Aliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        [BypassAuth] = BypassAuth,
+        ["allow"] = BypassAuth,
+        ["bypass"] = BypassAuth,
+        [BlockAccess] = BlockAccess,
+        ["block"] = BlockAccess,
+        ["deny"] = BlockAccess,
+        [PassToAuth] = PassToAuth,
+        ["auth"] = PassToAuth,
+        ["require_auth"] = PassToAuth,
+        [RequireAdaptiveChallenge] = RequireAdaptiveChallenge,
+        ["challenge"] = RequireAdaptiveChallenge,
+        ["adaptive_challenge"] = RequireAdaptiveChallenge,
+    };
+
+    public static bool TryNormalize(string? action, out string normalized)
+    {
+        normalized = string.Empty;
+        if (string.IsNullOrWhiteSpace(action))
+        {
+            return false;
+        }
+
+        if (!Aliases.TryGetValue(action.Trim().ToLowerInvariant(), out var value))
+        {
+            return false;
+        }
+
+        normalized = value;
+        return true;
+    }
+
+    public static string Normalize(string? action)
+        => TryNormalize(action, out var normalized)
+            ? normalized
+            : throw new InvalidOperationException($"Resource rule action must be one of: {string.Join(", ", All)}.");
+
+    public static bool IsValid(string? action)
+        => TryNormalize(action, out _);
+}
+
+public static class ResourceRuleMatchTypeNames
+{
+    public const string Ip = "ip";
+    public const string Cidr = "cidr";
+    public const string Path = "path";
+    public const string Country = "country";
+    public const string Region = "region";
+    public const string Asn = "asn";
+
+    public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        Ip,
+        Cidr,
+        Path,
+        Country,
+        Region,
+        Asn,
+    };
+
+    public static bool IsValid(string? matchType)
+        => !string.IsNullOrWhiteSpace(matchType) && All.Contains(matchType.Trim());
+}
+
 public sealed record ResourceRouteDefinition(
     int Priority,
     string PathMatchType,

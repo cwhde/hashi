@@ -168,12 +168,17 @@ public sealed class EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp,
                 continue;
             }
 
-            return rule.Action.ToLowerInvariant() switch
+            if (!ResourceRuleActionNames.TryNormalize(rule.Action, out var action))
             {
-                "bypass_auth" => new EdgeAuthForwardResponse("allow", null),
-                "block_access" => new EdgeAuthForwardResponse("deny", null),
-                "require_adaptive_challenge" => AuthRuleDecision(host, path, hasValidSession, hasOidcProvider),
-                "pass_to_auth" => AuthRuleDecision(host, path, hasValidSession, hasOidcProvider),
+                return null;
+            }
+
+            return action switch
+            {
+                ResourceRuleActionNames.BypassAuth => new EdgeAuthForwardResponse("allow", null),
+                ResourceRuleActionNames.BlockAccess => new EdgeAuthForwardResponse("deny", null),
+                ResourceRuleActionNames.RequireAdaptiveChallenge => AuthRuleDecision(host, path, hasValidSession, hasOidcProvider),
+                ResourceRuleActionNames.PassToAuth => AuthRuleDecision(host, path, hasValidSession, hasOidcProvider),
                 _ => null,
             };
         }
@@ -271,12 +276,12 @@ public sealed class EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp,
         string? asn)
         => rule.MatchType.ToLowerInvariant() switch
         {
-            "ip" => string.Equals(clientIp.ToString(), rule.MatchValue, StringComparison.OrdinalIgnoreCase),
-            "cidr" => IsInCidr(clientIp, rule.MatchValue),
-            "path" => path.StartsWith(rule.MatchValue, StringComparison.OrdinalIgnoreCase),
-            "country" => string.Equals(countryCode, rule.MatchValue, StringComparison.OrdinalIgnoreCase),
-            "region" => string.Equals(regionCode, rule.MatchValue, StringComparison.OrdinalIgnoreCase),
-            "asn" => string.Equals(asn, rule.MatchValue, StringComparison.OrdinalIgnoreCase),
+            ResourceRuleMatchTypeNames.Ip => string.Equals(clientIp.ToString(), rule.MatchValue, StringComparison.OrdinalIgnoreCase),
+            ResourceRuleMatchTypeNames.Cidr => IsInCidr(clientIp, rule.MatchValue),
+            ResourceRuleMatchTypeNames.Path => path.StartsWith(rule.MatchValue, StringComparison.OrdinalIgnoreCase),
+            ResourceRuleMatchTypeNames.Country => string.Equals(countryCode, rule.MatchValue, StringComparison.OrdinalIgnoreCase),
+            ResourceRuleMatchTypeNames.Region => string.Equals(regionCode, rule.MatchValue, StringComparison.OrdinalIgnoreCase),
+            ResourceRuleMatchTypeNames.Asn => string.Equals(asn, rule.MatchValue, StringComparison.OrdinalIgnoreCase),
             _ => false,
         };
 

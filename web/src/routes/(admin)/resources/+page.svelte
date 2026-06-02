@@ -6,6 +6,8 @@
 		normalizeRoutes,
 		type ResourceRouteRequest
 	} from '$lib/components/resources/resource-routes';
+	import ResourceRulesEditor from '$lib/components/resources/ResourceRulesEditor.svelte';
+	import { normalizeRules, type ResourceRuleRequest } from '$lib/components/resources/resource-rules';
 	import AdminSectionPage from '$lib/components/layout/AdminSectionPage.svelte';
 	import PanelSection from '$lib/components/layout/PanelSection.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -27,8 +29,10 @@
 	let pulseAgents = $state<PulseAgent[]>([]);
 	let availableMiddlewares = $state<string[]>([]);
 	let routeDrafts = $state<Record<string, ResourceRouteRequest[]>>({});
+	let ruleDrafts = $state<Record<string, ResourceRuleRequest[]>>({});
 	let wafExclusionDrafts = $state<Record<string, string>>({});
 	let routeSaving = $state<Record<string, boolean>>({});
+	let ruleSaving = $state<Record<string, boolean>>({});
 	let wafExclusionSaving = $state<Record<string, boolean>>({});
 	let loading = $state(true);
 	let error = $state<string | null>(null);
@@ -51,7 +55,8 @@
 		firewallHostId: '',
 		dashboardEnabled: false,
 		statusEnabled: true,
-		routes: [] as ResourceRouteRequest[]
+		routes: [] as ResourceRouteRequest[],
+		rules: [] as ResourceRuleRequest[]
 	});
 
 	$effect(() => {
@@ -71,6 +76,9 @@
 			resources = resourceList;
 			routeDrafts = Object.fromEntries(
 				resourceList.map((resource) => [resource.id, cloneResourceRoutes(resource)])
+			);
+			ruleDrafts = Object.fromEntries(
+				resourceList.map((resource) => [resource.id, cloneResourceRules(resource)])
 			);
 			wafExclusionDrafts = Object.fromEntries(
 				resourceList.map((resource) => [resource.id, (resource.wafExclusions ?? []).join('\n')])
@@ -112,7 +120,8 @@
 				pathPrefix: form.pathPrefix || null,
 				pathRewriteMode: form.pathRewriteMode || null,
 				pathRewrite: form.pathRewriteMode ? form.pathRewrite || null : null,
-				routes: form.routes.length > 0 ? normalizeRoutes(form.routes) : null
+				routes: form.routes.length > 0 ? normalizeRoutes(form.routes) : null,
+				rules: form.rules.length > 0 ? normalizeRules(form.rules) : null
 			});
 			form.name = '';
 			form.domainMode = 'subdomain';
@@ -124,6 +133,7 @@
 			form.wafExclusions = '';
 			form.firewallHostId = '';
 			form.routes = [];
+			form.rules = [];
 			await load();
 		} catch (e) {
 			error = e instanceof ApiRequestError ? e.message : 'Failed to create resource';
@@ -274,6 +284,16 @@
 		}));
 	}
 
+	function cloneResourceRules(resource: Resource): ResourceRuleRequest[] {
+		return (resource.rules ?? []).map((rule) => ({
+			enabled: rule.enabled,
+			priority: Number(rule.priority),
+			action: rule.action,
+			matchType: rule.matchType,
+			matchValue: rule.matchValue
+		}));
+	}
+
 	async function saveResourceRoutes(resource: Resource) {
 		const draft = normalizeRoutes(routeDrafts[resource.id] ?? []);
 		routeSaving = { ...routeSaving, [resource.id]: true };
@@ -295,6 +315,30 @@
 			error = e instanceof ApiRequestError ? e.message : 'Failed to update resource routes';
 		} finally {
 			routeSaving = { ...routeSaving, [resource.id]: false };
+		}
+	}
+
+	async function saveResourceRules(resource: Resource) {
+		const draft = normalizeRules(ruleDrafts[resource.id] ?? []);
+		ruleSaving = { ...ruleSaving, [resource.id]: true };
+		try {
+			await api.updateResource(resource.id, {
+				name: null,
+				enabled: null,
+				domain: null,
+				targetScheme: null,
+				targetHost: null,
+				targetPort: null,
+				dashboardEnabled: null,
+				statusEnabled: null,
+				...resourcePatchFlags,
+				rules: draft
+			});
+			await load();
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Failed to update resource rules';
+		} finally {
+			ruleSaving = { ...ruleSaving, [resource.id]: false };
 		}
 	}
 
@@ -471,6 +515,11 @@
 				}}
 				disabled={saving}
 			/>
+			<ResourceRulesEditor
+				title="Resource rules (optional)"
+				bind:rules={form.rules}
+				disabled={saving}
+			/>
 			<div class="flex flex-wrap gap-4">
 				<div class="flex items-center gap-2">
 					<Switch bind:checked={form.dashboardEnabled} id="res-dash" />
@@ -507,6 +556,7 @@
 							<TableHead>Extra middlewares</TableHead>
 							<TableHead>WAF exclusions</TableHead>
 							<TableHead>Advanced routes</TableHead>
+							<TableHead>Resource rules</TableHead>
 							<TableHead>Enabled</TableHead>
 							<TableHead class="w-12"></TableHead>
 						</TableRow>
@@ -623,6 +673,23 @@
 											disabled={routeSaving[resource.id] === true}
 										>
 											{routeSaving[resource.id] ? 'Saving…' : 'Save routes'}
+										</Button>
+									</div>
+								</TableCell>
+								<TableCell class="min-w-[24rem]">
+									<div class="grid gap-2">
+										<ResourceRulesEditor
+											title="Rules"
+											bind:rules={ruleDrafts[resource.id]}
+											disabled={ruleSaving[resource.id] === true}
+										/>
+										<Button
+											size="sm"
+											variant="outline"
+											onclick={() => saveResourceRules(resource)}
+											disabled={ruleSaving[resource.id] === true}
+										>
+											{ruleSaving[resource.id] ? 'Saving...' : 'Save rules'}
 										</Button>
 									</div>
 								</TableCell>
