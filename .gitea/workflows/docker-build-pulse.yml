@@ -1,6 +1,6 @@
-name: Build and Publish Pulse Agent Image
+name: Build and Publish Pulse Agent
 
-# Pulse agent images on version tags and main — not every feature-branch push.
+# Pulse agent images and binaries on version tags and main - not every feature-branch push.
 on:
   workflow_dispatch:
   push:
@@ -18,6 +18,61 @@ env:
   IMAGE_NAME: juzo/hashi-pulse
 
 jobs:
+  build-native-artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: agents/pulse/go.mod
+
+      - name: Build Linux binaries
+        working-directory: agents/pulse
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          for arch in amd64 arm64; do
+            GOOS=linux GOARCH="${arch}" CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o "dist/hashi-pulse-linux-${arch}" ./cmd/hashi-pulse
+          done
+          cd dist
+          sha256sum hashi-pulse-linux-amd64 > hashi-pulse-linux-amd64.sha256
+          sha256sum hashi-pulse-linux-arm64 > hashi-pulse-linux-arm64.sha256
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hashi-pulse-linux-binaries
+          path: |
+            agents/pulse/dist/hashi-pulse-linux-amd64
+            agents/pulse/dist/hashi-pulse-linux-amd64.sha256
+            agents/pulse/dist/hashi-pulse-linux-arm64
+            agents/pulse/dist/hashi-pulse-linux-arm64.sha256
+
+      - name: Attach binaries to tag release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          api="${GITHUB_SERVER_URL}/api/v1/repos/${GITHUB_REPOSITORY}"
+          auth_header="Authorization: token ${GITHUB_TOKEN}"
+          release_json="$(curl -fsS -H "${auth_header}" "${api}/releases/tags/${tag}" || true)"
+          if [ -z "${release_json}" ]; then
+            release_json="$(printf '{"tag_name":"%s","name":"%s","draft":false,"prerelease":false}' "${tag}" "${tag}" |
+              curl -fsS -H "${auth_header}" -H "Content-Type: application/json" -d @- "${api}/releases")"
+          fi
+          release_id="$(printf '%s' "${release_json}" | jq -r '.id')"
+          for file in agents/pulse/dist/hashi-pulse-linux-*; do
+            name="$(basename "${file}")"
+            existing_id="$(curl -fsS -H "${auth_header}" "${api}/releases/${release_id}/assets" |
+              jq -r --arg name "${name}" '.[] | select(.name == $name) | .id' | head -n1)"
+            if [ -n "${existing_id}" ]; then
+              curl -fsS -X DELETE -H "${auth_header}" "${api}/releases/${release_id}/assets/${existing_id}"
+            fi
+            curl -fsS -H "${auth_header}" -F "attachment=@${file}" "${api}/releases/${release_id}/assets?name=${name}"
+          done
+
   build-and-push:
     runs-on: ubuntu-latest
     steps:

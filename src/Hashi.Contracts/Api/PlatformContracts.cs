@@ -464,7 +464,7 @@ public sealed record UpdateMonitorEndpointRequest(
     bool? Enabled = null,
     bool? PublicStatusEnabled = null);
 
-public sealed record PulseInstallResponse(string LinuxInstallScript, string DockerRunCommand);
+public sealed record PulseInstallResponse(string LinuxInstallScript, string DockerComposeSnippet);
 
 public sealed record PulseAgentResponse(
     Guid Id,
