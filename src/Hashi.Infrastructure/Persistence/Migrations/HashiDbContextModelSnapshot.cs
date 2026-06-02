@@ -219,6 +219,39 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.Property<int>("EdgeSsoRememberDeviceDays")
                         .HasColumnType("integer");
 
+                    b.Property<string>("GeoIpAccountId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<bool>("GeoIpEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTimeOffset?>("GeoIpLastUpdateAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("GeoIpLastUpdateMessage")
+                        .HasColumnType("text");
+
+                    b.Property<string>("GeoIpLastUpdateStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("never_run");
+
+                    b.Property<Guid?>("GeoIpLicenseKeySecretId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("GeoIpNextUpdateAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("GeoIpUpdateIntervalHours")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(72);
+
                     b.Property<string>("InternalUrl")
                         .HasColumnType("text");
 
@@ -1123,6 +1156,61 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("firewall_subnets", (string)null);
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.GeoIpDatabaseEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContentHash")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("EditionId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Error")
+                        .HasColumnType("text");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset?>("LastDownloadedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("LastModifiedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Path")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<long?>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("never_run");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EditionId")
+                        .IsUnique();
+
+                    b.ToTable("geoip_databases", (string)null);
                 });
 
             modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.MonitorEndpointEntity", b =>

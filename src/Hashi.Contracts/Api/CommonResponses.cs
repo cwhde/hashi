@@ -79,6 +79,42 @@ public sealed record CategorySettingsResponse(
 
 public sealed record CategorySettingsRequest(string? SettingsJson);
 
+public sealed record GeoIpSettingsResponse(
+    bool Enabled,
+    string? AccountId,
+    bool HasLicenseKey,
+    Guid? LicenseKeySecretId,
+    int UpdateIntervalHours,
+    string LastUpdateStatus,
+    string? LastUpdateMessage,
+    DateTimeOffset? LastUpdateAtUtc,
+    DateTimeOffset? NextUpdateAtUtc,
+    bool DatabaseAvailable,
+    IReadOnlyList<GeoIpDatabaseResponse> Databases,
+    DateTimeOffset? UpdatedAtUtc);
+
+public sealed record GeoIpSettingsRequest(
+    bool? Enabled,
+    string? AccountId,
+    string? LicenseKey,
+    int? UpdateIntervalHours);
+
+public sealed record GeoIpUpdateResponse(
+    bool Succeeded,
+    string Status,
+    string? Message,
+    IReadOnlyList<GeoIpDatabaseResponse> Databases);
+
+public sealed record GeoIpDatabaseResponse(
+    string EditionId,
+    string FileName,
+    string Status,
+    DateTimeOffset? LastDownloadedAtUtc,
+    DateTimeOffset? LastModifiedUtc,
+    long? SizeBytes,
+    string? ContentHash,
+    string? Error);
+
 public sealed record ApiErrorResponse(string Error);
 
 public sealed record SystemResourceSyncResponse(

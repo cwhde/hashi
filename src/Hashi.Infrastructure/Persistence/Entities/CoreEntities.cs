@@ -46,6 +46,22 @@ public sealed class AppSettingsEntity
 
     public string SettingsCategoriesJson { get; set; } = "{}";
 
+    public bool GeoIpEnabled { get; set; }
+
+    public string? GeoIpAccountId { get; set; }
+
+    public Guid? GeoIpLicenseKeySecretId { get; set; }
+
+    public int GeoIpUpdateIntervalHours { get; set; } = 72;
+
+    public string GeoIpLastUpdateStatus { get; set; } = GeoIpUpdateStatusNames.NeverRun;
+
+    public string? GeoIpLastUpdateMessage { get; set; }
+
+    public DateTimeOffset? GeoIpLastUpdateAtUtc { get; set; }
+
+    public DateTimeOffset? GeoIpNextUpdateAtUtc { get; set; }
+
     public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }
 
@@ -183,4 +199,38 @@ public static class SyncRunStatusNames
     public const string Succeeded = "succeeded";
     public const string Failed = "failed";
     public const string Cancelled = "cancelled";
+}
+
+public sealed class GeoIpDatabaseEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public string EditionId { get; set; } = string.Empty;
+
+    public string FileName { get; set; } = string.Empty;
+
+    public string Path { get; set; } = string.Empty;
+
+    public string Status { get; set; } = GeoIpUpdateStatusNames.NeverRun;
+
+    public DateTimeOffset? LastDownloadedAtUtc { get; set; }
+
+    public DateTimeOffset? LastModifiedUtc { get; set; }
+
+    public long? SizeBytes { get; set; }
+
+    public string? ContentHash { get; set; }
+
+    public string? Error { get; set; }
+
+    public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public static class GeoIpUpdateStatusNames
+{
+    public const string NeverRun = "never_run";
+    public const string Running = "running";
+    public const string Succeeded = "succeeded";
+    public const string Failed = "failed";
+    public const string Disabled = "disabled";
 }

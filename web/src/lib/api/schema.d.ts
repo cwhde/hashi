@@ -966,6 +966,117 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings/geoip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GeoIpSettingsResponse"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["GeoIpSettingsRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GeoIpSettingsResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiErrorResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/geoip/update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GeoIpUpdateResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GeoIpUpdateResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/settings/categories/{category}": {
         parameters: {
             query?: never;
@@ -5764,6 +5875,51 @@ export interface components {
             updated: boolean;
             /** Format: date-time */
             updatedAtUtc: string;
+        };
+        GeoIpDatabaseResponse: {
+            editionId: string;
+            fileName: string;
+            status: string;
+            /** Format: date-time */
+            lastDownloadedAtUtc: null | string;
+            /** Format: date-time */
+            lastModifiedUtc: null | string;
+            /** Format: int64 */
+            sizeBytes: null | number | string;
+            contentHash: null | string;
+            error: null | string;
+        };
+        GeoIpSettingsRequest: {
+            enabled: null | boolean;
+            accountId: null | string;
+            licenseKey: null | string;
+            /** Format: int32 */
+            updateIntervalHours: null | number | string;
+        };
+        GeoIpSettingsResponse: {
+            enabled: boolean;
+            accountId: null | string;
+            hasLicenseKey: boolean;
+            /** Format: uuid */
+            licenseKeySecretId: null | string;
+            /** Format: int32 */
+            updateIntervalHours: number | string;
+            lastUpdateStatus: string;
+            lastUpdateMessage: null | string;
+            /** Format: date-time */
+            lastUpdateAtUtc: null | string;
+            /** Format: date-time */
+            nextUpdateAtUtc: null | string;
+            databaseAvailable: boolean;
+            databases: components["schemas"]["GeoIpDatabaseResponse"][];
+            /** Format: date-time */
+            updatedAtUtc: null | string;
+        };
+        GeoIpUpdateResponse: {
+            succeeded: boolean;
+            status: string;
+            message: null | string;
+            databases: components["schemas"]["GeoIpDatabaseResponse"][];
         };
         HealthResponse: {
             status: string;

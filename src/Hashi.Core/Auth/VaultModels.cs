@@ -15,6 +15,7 @@ public enum SecretPurpose
     AdGuardCredential,
     NotificationToken,
     OidcClientSecret,
+    MaxMindLicenseKey,
     ScriptEnvironment,
     Generic,
 }

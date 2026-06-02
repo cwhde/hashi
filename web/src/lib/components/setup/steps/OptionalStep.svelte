@@ -49,6 +49,17 @@
 		enabled: true
 	});
 
+	let geoipSaving = $state(false);
+	let geoipUpdating = $state(false);
+	let geoipMessage = $state<string | null>(null);
+	let geoipError = $state<string | null>(null);
+	let geoipForm = $state({
+		accountId: '',
+		licenseKey: '',
+		updateIntervalHours: 72,
+		enabled: true
+	});
+
 	async function saveAdGuard() {
 		if (!adguardForm.name || !adguardForm.baseUrl || !adguardForm.password) {
 			adguardError = 'Name, base URL, and password are required.';
@@ -110,6 +121,36 @@
 			oidcError = e instanceof ApiRequestError ? e.message : 'Failed to save OIDC provider';
 		} finally {
 			oidcSaving = false;
+		}
+	}
+
+	async function saveGeoIpSettings(runUpdate = false) {
+		if (!geoipForm.accountId || !geoipForm.licenseKey) {
+			geoipError = 'Account ID and license key are required.';
+			return;
+		}
+		geoipSaving = true;
+		geoipError = null;
+		geoipMessage = null;
+		try {
+			const saved = await api.updateGeoIpSettings({
+				enabled: geoipForm.enabled,
+				accountId: geoipForm.accountId,
+				licenseKey: geoipForm.licenseKey,
+				updateIntervalHours: geoipForm.updateIntervalHours
+			});
+			geoipForm.licenseKey = '';
+			geoipMessage = saved.enabled ? 'Saved GeoIP update settings.' : 'Saved GeoIP settings.';
+			if (runUpdate) {
+				geoipUpdating = true;
+				const result = await api.runGeoIpUpdate();
+				geoipMessage = result.message ?? 'GeoIP update completed.';
+			}
+		} catch (e) {
+			geoipError = e instanceof ApiRequestError ? e.message : 'Failed to save GeoIP settings';
+		} finally {
+			geoipSaving = false;
+			geoipUpdating = false;
 		}
 	}
 </script>
@@ -254,12 +295,42 @@
 		<Switch bind:checked={geoip} />
 	</div>
 	{#if geoip}
-		<div class="grid gap-2 rounded-md border border-border bg-hashi-bg-dark p-3">
-			<p class="text-sm text-muted-foreground">
-				Download MaxMind GeoLite2 City and ASN databases, then mount them at
-				<code>/data/geoip</code> as <code>GeoLite2-City.mmdb</code> and <code>GeoLite2-ASN.mmdb</code>.
-			</p>
+		<div class="grid gap-3 rounded-md border border-border bg-hashi-bg-dark p-3">
+			<div class="grid grid-cols-2 gap-3">
+				<div class="grid gap-1.5">
+					<Label for="setup-geoip-account">Account ID</Label>
+					<Input id="setup-geoip-account" bind:value={geoipForm.accountId} />
+				</div>
+				<div class="grid gap-1.5">
+					<Label for="setup-geoip-license">License key</Label>
+					<Input id="setup-geoip-license" type="password" bind:value={geoipForm.licenseKey} />
+				</div>
+			</div>
+			<div class="grid gap-1.5">
+				<Label for="setup-geoip-interval">Update interval (hours)</Label>
+				<Input
+					id="setup-geoip-interval"
+					type="number"
+					min="12"
+					max="168"
+					bind:value={geoipForm.updateIntervalHours}
+				/>
+			</div>
+			<div class="flex items-center justify-between rounded-md border border-border px-3 py-2">
+				<span class="text-sm text-white">Automatic updates</span>
+				<Switch bind:checked={geoipForm.enabled} />
+			</div>
 			<div class="flex gap-2">
+				<Button onclick={() => saveGeoIpSettings(false)} disabled={geoipSaving || advancing}>
+					{geoipSaving && !geoipUpdating ? 'Saving...' : 'Save GeoIP settings'}
+				</Button>
+				<Button
+					variant="outline"
+					onclick={() => saveGeoIpSettings(true)}
+					disabled={geoipSaving || geoipUpdating || advancing}
+				>
+					{geoipUpdating ? 'Updating...' : 'Save and update'}
+				</Button>
 				<Button
 					variant="outline"
 					href="https://www.maxmind.com/en/geolite2/signup"
@@ -270,6 +341,8 @@
 				</Button>
 				<Button variant="outline" href="/security">Open security dashboard</Button>
 			</div>
+			{#if geoipError}<p class="text-xs text-destructive">{geoipError}</p>{/if}
+			{#if geoipMessage}<p class="text-xs text-emerald-300">{geoipMessage}</p>{/if}
 		</div>
 	{/if}
 
