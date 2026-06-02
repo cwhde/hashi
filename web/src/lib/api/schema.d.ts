@@ -6185,7 +6185,7 @@ export interface components {
             traefikHostFilter: null | string;
             /** Format: uuid */
             firewallHostIdFilter: null | string;
-            topBlockedIps: string[];
+            topBlockedIps: components["schemas"]["SecurityTopBlockedIpItem"][];
             topCountries: components["schemas"]["SecurityRankItem"][];
             topAsns: components["schemas"]["SecurityRankItem"][];
             topResourcesBlockedChallenged: components["schemas"]["SecurityResourceEnforcementItem"][];
@@ -6215,6 +6215,18 @@ export interface components {
             label: string;
             /** Format: int64 */
             count: number | string;
+        };
+        SecurityTopBlockedIpItem: {
+            ip: string;
+            /** Format: int64 */
+            count: number | string;
+            /** Format: date-time */
+            lastSeenAtUtc: string;
+            countryCode?: null | string;
+            asn?: null | string;
+            reason?: null | string;
+            /** Format: date-time */
+            expiresAtUtc?: null | string;
         };
         SecurityRecentEventItem: {
             /** Format: date-time */

@@ -465,11 +465,44 @@ public sealed class BlocklistEntryEntity
 
     public string ClientIp { get; set; } = string.Empty;
 
+    public string Scope { get; set; } = BlocklistScopeNames.Global;
+
+    public string Type { get; set; } = BlocklistTypeNames.Ip;
+
+    public string Value { get; set; } = string.Empty;
+
     public string Reason { get; set; } = string.Empty;
+
+    public string Source { get; set; } = BlocklistSourceNames.Automatic;
+
+    public string CreatedBy { get; set; } = "hashi";
 
     public bool SyncedToFirewall { get; set; }
 
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+
+    public DateTimeOffset? ExpiresAtUtc { get; set; }
+
+    public DateTimeOffset? LastHitAtUtc { get; set; }
+}
+
+public sealed class BlocklistAppliedHostEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid BlocklistEntryId { get; set; }
+
+    public BlocklistEntryEntity BlocklistEntry { get; set; } = null!;
+
+    public Guid FirewallHostId { get; set; }
+
+    public FirewallHostEntity FirewallHost { get; set; } = null!;
+
+    public string Status { get; set; } = BlocklistApplyStatusNames.Pending;
+
+    public DateTimeOffset? AppliedAtUtc { get; set; }
+
+    public string? LastError { get; set; }
 }
 
 public sealed class AdGuardConnectionEntity
@@ -707,6 +740,34 @@ public static class FirewallSubjectKindNames
     public const string Hostname = "hostname";
     public const string Country = "country";
     public const string Asn = "asn";
+}
+
+public static class BlocklistScopeNames
+{
+    public const string Global = "global";
+    public const string Resource = "resource";
+    public const string FirewallHost = "firewall_host";
+}
+
+public static class BlocklistTypeNames
+{
+    public const string Ip = "ip";
+    public const string Asn = "asn";
+    public const string Country = "country";
+    public const string Region = "region";
+}
+
+public static class BlocklistSourceNames
+{
+    public const string Automatic = "automatic";
+    public const string Manual = "manual";
+}
+
+public static class BlocklistApplyStatusNames
+{
+    public const string Pending = "pending";
+    public const string Applied = "applied";
+    public const string Failed = "failed";
 }
 
 public static class FirewallGeneratedScriptStatusNames
