@@ -6,7 +6,10 @@ Scope: full reread of `docs/implementation-spec/hashi-v2-implementation-spec.md`
 
 - `git diff --check` returned clean.
 - Added audit files were checked for trailing whitespace, final newlines, and non-ASCII characters.
-- Runtime/frontend/Go verification was not rerun because this audit adds documentation-only issue files.
+- `dotnet test Hashi.slnx -p:SkipFrontendBuild=true` passed: 279 unit tests and 28 integration tests.
+- `corepack pnpm check` passed with 0 errors and 0 warnings.
+- `corepack pnpm test` passed: 9 test files and 21 tests.
+- Go verification was not rerun because `go` was not available in the worker environment that implemented the Pulse installer.
 
 ## New Issues
 
@@ -21,3 +24,7 @@ Scope: full reread of `docs/implementation-spec/hashi-v2-implementation-spec.md`
 ## Notes
 
 I did not re-file prior A/B/C issues that appear materially addressed in the current tree, including Edge OIDC token validation, secure cookie flags, WAF event ingestion/exclusions, public dashboard safe DTOs, public status selection, script cron/manifest sync, and Pulse heartbeat metadata. The D-series issues focus on remaining spec conflicts observed in the current implementation.
+
+## Resolution
+
+The D-series issues are considered addressed by the audit-series-4 implementation branch. See `D00-d-series-completed.md`.
