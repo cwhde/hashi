@@ -21,16 +21,18 @@ internal static class IntegrationTestApp
             AllowAutoRedirect = allowAutoRedirect,
         };
 
-    public static WebApplicationFactory<Program> CreateFactory(string connectionString)
+    public static WebApplicationFactory<Program> CreateFactory(
+        string connectionString,
+        Action<IServiceCollection>? configureServices = null)
         => new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
                 builder.UseSetting("ConnectionStrings:Hashi", connectionString);
                 builder.UseSetting("Hashi:SkipStartupHooks", "true");
-                builder.UseSetting("Hashi:Oidc:AllowUnsignedTestTokens", "true");
                 builder.ConfigureServices(services =>
                 {
                     services.AddSingleton<IStartupFilter, LoopbackRemoteIpStartupFilter>();
+                    configureServices?.Invoke(services);
                 });
             });
 

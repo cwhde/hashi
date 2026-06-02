@@ -38,6 +38,10 @@ public sealed class AppSettingsEntity
 
     public int EdgeSsoSessionHours { get; set; } = 8;
 
+    public int EdgeSsoIdleTimeoutMinutes { get; set; } = 60;
+
+    public int EdgeSsoRememberDeviceDays { get; set; } = 30;
+
     public string OverviewWidgetsJson { get; set; } = "{}";
 
     public string SettingsCategoriesJson { get; set; } = "{}";

@@ -32,6 +32,7 @@ public static class DependencyInjection
             options.UseNpgsql(connectionString, npgsql => npgsql.MigrationsAssembly(typeof(HashiDbContext).Assembly.FullName)));
 
         services.AddMemoryCache();
+        services.AddDataProtection();
         services.AddHttpContextAccessor();
         services.AddSingleton<VaultSessionState>();
         services.AddSingleton<ServiceSyncVaultState>();

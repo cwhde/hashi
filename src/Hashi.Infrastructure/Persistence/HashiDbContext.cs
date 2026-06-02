@@ -371,6 +371,7 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.Property(x => x.SessionKey).HasMaxLength(128);
             entity.Property(x => x.Subject).HasMaxLength(256);
             entity.HasIndex(x => x.ExpiresAtUtc);
+            entity.HasIndex(x => x.LastSeenAtUtc);
         });
 
         modelBuilder.Entity<MonitorEndpointEntity>(entity =>

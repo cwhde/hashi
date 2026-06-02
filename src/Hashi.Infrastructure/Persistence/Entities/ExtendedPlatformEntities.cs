@@ -306,6 +306,10 @@ public sealed class EdgeSessionEntity
 
     public DateTimeOffset ExpiresAtUtc { get; set; }
 
+    public DateTimeOffset LastSeenAtUtc { get; set; } = DateTimeOffset.UtcNow;
+
+    public bool RememberMe { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }
 

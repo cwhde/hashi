@@ -236,7 +236,11 @@ public static class SettingsEndpoints
         group.MapGet("/edge-sso/session", async (AppSettingsService settings, CancellationToken ct) =>
         {
             var s = await settings.GetOrCreateAsync(ct);
-            return TypedResults.Ok(new EdgeSsoSettingsResponse(s.EdgeSsoSessionHours, s.UpdatedAtUtc));
+            return TypedResults.Ok(new EdgeSsoSettingsResponse(
+                s.EdgeSsoSessionHours,
+                s.EdgeSsoIdleTimeoutMinutes,
+                s.EdgeSsoRememberDeviceDays,
+                s.UpdatedAtUtc));
         });
 
         group.MapPut("/edge-sso/session", async (
@@ -251,10 +255,24 @@ public static class SettingsEndpoints
                 s.EdgeSsoSessionHours = Math.Min(hours, 168);
             }
 
+            if (request.EdgeSsoIdleTimeoutMinutes is int idleMinutes && idleMinutes >= 5)
+            {
+                s.EdgeSsoIdleTimeoutMinutes = Math.Min(idleMinutes, 10080);
+            }
+
+            if (request.EdgeSsoRememberDeviceDays is int rememberDays && rememberDays >= 0)
+            {
+                s.EdgeSsoRememberDeviceDays = Math.Min(rememberDays, 365);
+            }
+
             s.UpdatedAtUtc = DateTimeOffset.UtcNow;
             await settings.SaveAsync(ct);
             await audit.WriteAsync("settings", "edge_sso_updated", subjectType: "app_settings", cancellationToken: ct);
-            return TypedResults.Ok(new EdgeSsoSettingsResponse(s.EdgeSsoSessionHours, s.UpdatedAtUtc));
+            return TypedResults.Ok(new EdgeSsoSettingsResponse(
+                s.EdgeSsoSessionHours,
+                s.EdgeSsoIdleTimeoutMinutes,
+                s.EdgeSsoRememberDeviceDays,
+                s.UpdatedAtUtc));
         });
 
         group.MapGet("/dashboard", async (AppSettingsService settings, CancellationToken ct) =>

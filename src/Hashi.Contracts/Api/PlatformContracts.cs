@@ -380,9 +380,14 @@ public sealed record MonitoringSettingsRequest(
 
 public sealed record EdgeSsoSettingsResponse(
     int EdgeSsoSessionHours,
+    int EdgeSsoIdleTimeoutMinutes,
+    int EdgeSsoRememberDeviceDays,
     DateTimeOffset? UpdatedAtUtc);
 
-public sealed record EdgeSsoSettingsRequest(int? EdgeSsoSessionHours);
+public sealed record EdgeSsoSettingsRequest(
+    int? EdgeSsoSessionHours,
+    int? EdgeSsoIdleTimeoutMinutes,
+    int? EdgeSsoRememberDeviceDays);
 
 public sealed record OidcProviderResponse(
     Guid Id,

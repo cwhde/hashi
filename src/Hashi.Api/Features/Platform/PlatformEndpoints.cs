@@ -430,6 +430,7 @@ public static class EdgeAuthEndpoints
             HttpContext ctx,
             Guid? providerId,
             string? returnUrl,
+            bool? rememberMe,
             OidcEdgeAuthService oidc,
             CancellationToken ct) =>
         {
@@ -442,7 +443,7 @@ public static class EdgeAuthEndpoints
                 return TypedResults.BadRequest(new ApiErrorResponse("No enabled OIDC provider configured."));
             }
 
-            var authorizationUrl = await oidc.BuildAuthorizationUrlAsync(ctx, provider.Id, returnUrl ?? "/", ct);
+            var authorizationUrl = await oidc.BuildAuthorizationUrlAsync(ctx, provider.Id, returnUrl ?? "/", rememberMe == true, ct);
             return TypedResults.Redirect(authorizationUrl);
         }).WithTags("EdgeAuth").AllowAnonymous();
 
