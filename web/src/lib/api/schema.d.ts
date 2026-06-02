@@ -243,6 +243,7 @@ export interface paths {
                 query?: {
                     providerId?: string;
                     returnUrl?: string;
+                    rememberMe?: boolean;
                 };
                 header?: never;
                 path?: never;
@@ -5493,6 +5494,11 @@ export interface components {
         };
         CreatePulseAgentRequest: {
             name: string;
+            /** @default linux_service */
+            installType: string;
+            allowedScopes?: null | string[];
+            /** Format: int32 */
+            heartbeatIntervalSeconds?: null | number | string;
         };
         CreatePulseAgentResponse: {
             /** Format: uuid */
@@ -5924,20 +5930,40 @@ export interface components {
             /** Format: uuid */
             id: string;
             name: string;
+            installType: string;
+            allowedScopes: string[];
+            /** Format: int32 */
+            heartbeatIntervalSeconds: number | string;
             status: string;
             /** Format: date-time */
             lastSeenAtUtc: null | string;
             lastPublicIp: null | string;
+            lastPrivateIp: null | string;
+            lastPrivateIpv4Candidates: string[];
+            lastPrivateIpv6Candidates: string[];
+            lastSelectedIp: null | string;
+            lastSelectedInterface: null | string;
             lastHostname: null | string;
             lastAgentVersion: null | string;
             /** Format: date-time */
             dnsPendingAtUtc: null | string;
+        };
+        PulseDockerMetadataRequest: {
+            containerId: null | string;
+            image: null | string;
+            networkMode: null | string;
         };
         PulseHeartbeatAuthRequest: {
             token: string;
             version: string;
             hostname: string;
             privateIpv4Candidates: string[];
+            privateIpv6Candidates: string[];
+            selectedInterface: null | string;
+            selectedIp: null | string;
+            /** Format: date-time */
+            timestamp: string;
+            docker: null | components["schemas"]["PulseDockerMetadataRequest"];
         };
         PulseInstallResponse: {
             linuxInstallScript: string;

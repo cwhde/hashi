@@ -48,7 +48,10 @@
 		message = null;
 		createdToken = null;
 		try {
-			createdToken = await api.createPulseAgent({ name: newAgentName.trim() });
+			createdToken = await api.createPulseAgent({
+				name: newAgentName.trim(),
+				installType: 'linux_service'
+			});
 			newAgentName = '';
 			message = 'Agent created. Copy the token now — it is shown only once.';
 			installSnippet = await api.getPulseInstall(createdToken.id, createdToken.token);

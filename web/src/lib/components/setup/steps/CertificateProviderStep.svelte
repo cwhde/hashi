@@ -118,7 +118,7 @@
 				bind:value={dnsProviderConnectionId}
 			>
 				<option value="">Select provider</option>
-				{#each dnsConnections as connection}
+				{#each dnsConnections as connection (connection.id)}
 					<option value={connection.id}>{connection.name}</option>
 				{/each}
 			</select>

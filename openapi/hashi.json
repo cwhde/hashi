@@ -143,6 +143,13 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "rememberMe",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -4937,6 +4944,28 @@
         "properties": {
           "name": {
             "type": "string"
+          },
+          "installType": {
+            "type": "string",
+            "default": "linux_service"
+          },
+          "allowedScopes": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "heartbeatIntervalSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         }
       },
@@ -5547,11 +5576,31 @@
       },
       "EdgeSsoSettingsRequest": {
         "required": [
-          "edgeSsoSessionHours"
+          "edgeSsoSessionHours",
+          "edgeSsoIdleTimeoutMinutes",
+          "edgeSsoRememberDeviceDays"
         ],
         "type": "object",
         "properties": {
           "edgeSsoSessionHours": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "edgeSsoIdleTimeoutMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "edgeSsoRememberDeviceDays": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
@@ -5565,11 +5614,29 @@
       "EdgeSsoSettingsResponse": {
         "required": [
           "edgeSsoSessionHours",
+          "edgeSsoIdleTimeoutMinutes",
+          "edgeSsoRememberDeviceDays",
           "updatedAtUtc"
         ],
         "type": "object",
         "properties": {
           "edgeSsoSessionHours": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "edgeSsoIdleTimeoutMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "edgeSsoRememberDeviceDays": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",
@@ -6680,9 +6747,17 @@
         "required": [
           "id",
           "name",
+          "installType",
+          "allowedScopes",
+          "heartbeatIntervalSeconds",
           "status",
           "lastSeenAtUtc",
           "lastPublicIp",
+          "lastPrivateIp",
+          "lastPrivateIpv4Candidates",
+          "lastPrivateIpv6Candidates",
+          "lastSelectedIp",
+          "lastSelectedInterface",
           "lastHostname",
           "lastAgentVersion",
           "dnsPendingAtUtc"
@@ -6696,6 +6771,23 @@
           "name": {
             "type": "string"
           },
+          "installType": {
+            "type": "string"
+          },
+          "allowedScopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "heartbeatIntervalSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
           "status": {
             "type": "string"
           },
@@ -6707,6 +6799,36 @@
             "format": "date-time"
           },
           "lastPublicIp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastPrivateIp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastPrivateIpv4Candidates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "lastPrivateIpv6Candidates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "lastSelectedIp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastSelectedInterface": {
             "type": [
               "null",
               "string"
@@ -6733,12 +6855,45 @@
           }
         }
       },
+      "PulseDockerMetadataRequest": {
+        "required": [
+          "containerId",
+          "image",
+          "networkMode"
+        ],
+        "type": "object",
+        "properties": {
+          "containerId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "image": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "networkMode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "PulseHeartbeatAuthRequest": {
         "required": [
           "token",
           "version",
           "hostname",
-          "privateIpv4Candidates"
+          "privateIpv4Candidates",
+          "privateIpv6Candidates",
+          "selectedInterface",
+          "selectedIp",
+          "timestamp",
+          "docker"
         ],
         "type": "object",
         "properties": {
@@ -6756,6 +6911,38 @@
             "items": {
               "type": "string"
             }
+          },
+          "privateIpv6Candidates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "selectedInterface": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "selectedIp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "docker": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PulseDockerMetadataRequest"
+              }
+            ]
           }
         }
       },

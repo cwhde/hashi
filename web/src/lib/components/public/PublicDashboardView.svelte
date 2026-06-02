@@ -83,6 +83,7 @@
 			{#each filtered as app (app.id)}
 				<a
 					href={app.publicUrl}
+					rel="external noreferrer"
 					class="rounded-lg border border-border bg-card/50 p-4 transition-colors hover:border-hashi-hover/50"
 				>
 					<p class="font-medium text-white">{app.displayName}</p>
