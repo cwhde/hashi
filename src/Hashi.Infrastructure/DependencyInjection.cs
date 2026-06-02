@@ -46,6 +46,10 @@ public static class DependencyInjection
         services.AddHttpClient("oidc-edge");
         services.AddHttpClient("monitor-checks");
         services.AddHttpClient("adguard");
+        services.AddHttpClient("maxmind-geoip", client =>
+        {
+            client.BaseAddress = new Uri("https://download.maxmind.com/");
+        });
 
         services.AddScoped<SetupStateService>();
         services.AddScoped<AuditService>();
@@ -79,6 +83,9 @@ public static class DependencyInjection
         services.AddScoped<NotificationRoutingService>();
         services.AddScoped<SecurityIngestionService>();
         services.AddScoped<BackgroundJobService>();
+        services.AddScoped<GeoIpSettingsService>();
+        services.AddScoped<GeoIpUpdateService>();
+        services.AddScoped<IGeoIpDatabaseDownloader, MaxMindGeoIpDatabaseDownloader>();
         services.AddScoped<AdGuardSyncService>();
         services.AddScoped<ScriptExecutionService>();
         services.AddScoped<PulseAgentService>();
@@ -99,6 +106,7 @@ public static class DependencyInjection
             services.AddHostedService<SyncOrchestratorHostedService>();
             services.AddHostedService<ScriptCronHostedService>();
             services.AddHostedService<AccessLogIngestWorker>();
+            services.AddHostedService<GeoIpUpdateWorker>();
         }
 
         var fidoDomain = configuration["Hashi:WebAuthn:ServerDomain"] ?? "localhost";

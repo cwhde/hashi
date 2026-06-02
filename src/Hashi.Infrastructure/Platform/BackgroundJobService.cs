@@ -11,6 +11,7 @@ public static class BackgroundJobKeys
     public const string MonitorRollup = "monitor-rollup";
     public const string ScriptCron = "script-cron";
     public const string AccessLogIngest = "access-log-ingest";
+    public const string GeoIpUpdate = "geoip-update";
 }
 
 public sealed class BackgroundJobService(HashiDbContext db)
@@ -22,6 +23,7 @@ public sealed class BackgroundJobService(HashiDbContext db)
         await EnsureJobAsync(BackgroundJobKeys.MonitorRollup, "Monitor rollups", 60, cancellationToken);
         await EnsureJobAsync(BackgroundJobKeys.ScriptCron, "Script cron sync", 60, cancellationToken);
         await EnsureJobAsync(BackgroundJobKeys.AccessLogIngest, "Traefik access-log ingest", 60, cancellationToken);
+        await EnsureJobAsync(BackgroundJobKeys.GeoIpUpdate, "GeoIP database update", 259200, cancellationToken);
     }
 
     public async Task<IReadOnlyList<BackgroundJobEntity>> ListAsync(CancellationToken cancellationToken = default)

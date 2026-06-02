@@ -116,6 +116,8 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
 
     public DbSet<BackgroundJobEntity> BackgroundJobs => Set<BackgroundJobEntity>();
 
+    public DbSet<GeoIpDatabaseEntity> GeoIpDatabases => Set<GeoIpDatabaseEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AppSettingsEntity>(entity =>
@@ -124,6 +126,10 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Theme).HasMaxLength(32);
             entity.Property(x => x.AcmeEmail).HasMaxLength(256);
+            entity.Property(x => x.GeoIpEnabled).HasDefaultValue(false);
+            entity.Property(x => x.GeoIpAccountId).HasMaxLength(128);
+            entity.Property(x => x.GeoIpUpdateIntervalHours).HasDefaultValue(72);
+            entity.Property(x => x.GeoIpLastUpdateStatus).HasMaxLength(32).HasDefaultValue(GeoIpUpdateStatusNames.NeverRun);
             entity.HasIndex(x => x.AcmeDnsProviderConnectionId);
         });
 
@@ -697,6 +703,18 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.Property(x => x.JobKey).HasMaxLength(64);
             entity.Property(x => x.DisplayName).HasMaxLength(128);
             entity.Property(x => x.Status).HasMaxLength(32);
+        });
+
+        modelBuilder.Entity<GeoIpDatabaseEntity>(entity =>
+        {
+            entity.ToTable("geoip_databases");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.EditionId).HasMaxLength(64);
+            entity.Property(x => x.FileName).HasMaxLength(128);
+            entity.Property(x => x.Path).HasMaxLength(512);
+            entity.Property(x => x.Status).HasMaxLength(32).HasDefaultValue(GeoIpUpdateStatusNames.NeverRun);
+            entity.Property(x => x.ContentHash).HasMaxLength(128);
+            entity.HasIndex(x => x.EditionId).IsUnique();
         });
     }
 }
