@@ -46,6 +46,8 @@ public sealed class EdgeAuthOidcTests : IAsyncLifetime
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<HashiDbContext>();
         var vault = scope.ServiceProvider.GetRequiredService<VaultSessionState>();
+        var serviceSync = scope.ServiceProvider.GetRequiredService<ServiceSyncVaultState>();
+        serviceSync.Initialize(new byte[32]);
         var sessionId = Guid.NewGuid().ToString("N");
         vault.UnlockForSession(sessionId, new byte[32]);
         var accessor = scope.ServiceProvider.GetRequiredService<IHttpContextAccessor>();
@@ -56,7 +58,8 @@ public sealed class EdgeAuthOidcTests : IAsyncLifetime
             stored = await scope.ServiceProvider.GetRequiredService<SecretRecordService>().StoreAsync(
                 SecretPurpose.OidcClientSecret,
                 "Edge SSO",
-                "fake-secret"u8.ToArray());
+                "fake-secret"u8.ToArray(),
+                serviceSyncEligible: true);
         }
         finally
         {
