@@ -23,6 +23,22 @@
 	let widgetSaving = $state(false);
 	let widgetMessage = $state<string | null>(null);
 	let widgetPrefs = $state<WidgetPrefs>(loadWidgetPrefs());
+	let geoipSaving = $state(false);
+	let geoipUpdating = $state(false);
+	let geoipMessage = $state<string | null>(null);
+	let geoipForm = $state({
+		enabled: false,
+		accountId: '',
+		licenseKey: '',
+		updateIntervalHours: 72,
+		hasLicenseKey: false,
+		lastUpdateStatus: 'never_run',
+		lastUpdateMessage: null as string | null,
+		lastUpdateAtUtc: null as string | null,
+		nextUpdateAtUtc: null as string | null,
+		databaseAvailable: false,
+		databases: [] as import('$lib/api/types').GeoIpDatabase[]
+	});
 	let form = $state({
 		rootDomain: '',
 		adminDomain: '',
@@ -53,6 +69,12 @@
 			const dashboard = await api.getDashboardSettings();
 			widgetPrefs = parseWidgetPrefsJson(dashboard.overviewWidgetsJson);
 			saveWidgetPrefs(widgetPrefs);
+		} catch {
+			// offline dev
+		}
+
+		try {
+			await loadGeoIpSettings();
 		} catch {
 			// offline dev
 		}
@@ -95,6 +117,75 @@
 		} finally {
 			widgetSaving = false;
 		}
+	}
+
+	async function loadGeoIpSettings() {
+		const settings = await api.getGeoIpSettings();
+		geoipForm = {
+			enabled: settings.enabled,
+			accountId: settings.accountId ?? '',
+			licenseKey: '',
+			updateIntervalHours: Number(settings.updateIntervalHours),
+			hasLicenseKey: settings.hasLicenseKey,
+			lastUpdateStatus: settings.lastUpdateStatus,
+			lastUpdateMessage: settings.lastUpdateMessage,
+			lastUpdateAtUtc: settings.lastUpdateAtUtc,
+			nextUpdateAtUtc: settings.nextUpdateAtUtc,
+			databaseAvailable: settings.databaseAvailable,
+			databases: settings.databases ?? []
+		};
+	}
+
+	async function saveGeoIpSettings() {
+		geoipSaving = true;
+		geoipMessage = null;
+		try {
+			const settings = await api.updateGeoIpSettings({
+				enabled: geoipForm.enabled,
+				accountId: geoipForm.accountId || null,
+				licenseKey: geoipForm.licenseKey || null,
+				updateIntervalHours: geoipForm.updateIntervalHours
+			});
+			geoipForm.licenseKey = '';
+			geoipForm.hasLicenseKey = settings.hasLicenseKey;
+			geoipForm.lastUpdateStatus = settings.lastUpdateStatus;
+			geoipForm.lastUpdateMessage = settings.lastUpdateMessage;
+			geoipForm.nextUpdateAtUtc = settings.nextUpdateAtUtc;
+			geoipForm.databaseAvailable = settings.databaseAvailable;
+			geoipForm.databases = settings.databases ?? [];
+			geoipMessage = 'GeoIP settings saved.';
+		} catch (e) {
+			geoipMessage = e instanceof Error ? e.message : 'Failed to save GeoIP settings';
+		} finally {
+			geoipSaving = false;
+		}
+	}
+
+	async function runGeoIpUpdate() {
+		geoipUpdating = true;
+		geoipMessage = null;
+		try {
+			const result = await api.runGeoIpUpdate();
+			geoipForm.lastUpdateStatus = result.status;
+			geoipForm.lastUpdateMessage = result.message;
+			geoipForm.databases = result.databases ?? [];
+			geoipMessage = result.message ?? 'GeoIP update completed.';
+			await loadGeoIpSettings();
+		} catch (e) {
+			geoipMessage = e instanceof Error ? e.message : 'GeoIP update failed';
+		} finally {
+			geoipUpdating = false;
+		}
+	}
+
+	function formatDate(value: string | null) {
+		if (!value) return 'Never';
+		return new Date(value).toLocaleString();
+	}
+
+	function formatSize(value: string | number | null) {
+		if (!value) return 'No file';
+		return `${Math.round(Number(value) / 1024)} KB`;
 	}
 </script>
 
@@ -145,6 +236,83 @@
 				<Button onclick={() => save()} disabled={saving}>
 					{saving ? 'Saving…' : 'Save settings'}
 				</Button>
+			</div>
+		</PanelSection>
+
+		<PanelSection title="GeoIP" description="MaxMind GeoLite2 update settings and database status.">
+			<div class="grid gap-4">
+				<div class="flex items-center justify-between rounded-md border border-border px-3 py-2">
+					<div>
+						<p class="text-sm text-white">Automatic updates</p>
+						<p class="text-xs text-muted-foreground">
+							{geoipForm.databaseAvailable ? 'Databases available' : 'Databases unavailable'}
+						</p>
+					</div>
+					<Switch bind:checked={geoipForm.enabled} />
+				</div>
+				<div class="grid grid-cols-2 gap-3">
+					<div class="grid gap-1.5">
+						<Label for="settings-geoip-account">Account ID</Label>
+						<Input id="settings-geoip-account" bind:value={geoipForm.accountId} />
+					</div>
+					<div class="grid gap-1.5">
+						<Label for="settings-geoip-license">
+							License key{geoipForm.hasLicenseKey ? ' stored' : ''}
+						</Label>
+						<Input
+							id="settings-geoip-license"
+							type="password"
+							bind:value={geoipForm.licenseKey}
+							placeholder={geoipForm.hasLicenseKey ? 'Leave blank to keep current key' : ''}
+						/>
+					</div>
+				</div>
+				<div class="grid gap-1.5">
+					<Label for="settings-geoip-interval">Update interval (hours)</Label>
+					<Input
+						id="settings-geoip-interval"
+						type="number"
+						min="12"
+						max="168"
+						bind:value={geoipForm.updateIntervalHours}
+					/>
+				</div>
+				<div class="grid gap-2 text-xs text-muted-foreground">
+					<p>Status: {geoipForm.lastUpdateStatus}</p>
+					<p>Last update: {formatDate(geoipForm.lastUpdateAtUtc)}</p>
+					<p>Next update: {formatDate(geoipForm.nextUpdateAtUtc)}</p>
+					{#if geoipForm.lastUpdateMessage}
+						<p>{geoipForm.lastUpdateMessage}</p>
+					{/if}
+				</div>
+				<div class="grid gap-2">
+					{#each geoipForm.databases as db (db.editionId)}
+						<div class="grid grid-cols-[1fr_auto] gap-3 rounded-md border border-border px-3 py-2">
+							<div class="min-w-0">
+								<p class="truncate text-sm text-white">{db.editionId}</p>
+								<p class="truncate text-xs text-muted-foreground">
+									{db.status} - {formatSize(db.sizeBytes)}
+								</p>
+							</div>
+							<p class="text-right text-xs text-muted-foreground">{formatDate(db.lastDownloadedAtUtc)}</p>
+						</div>
+					{/each}
+				</div>
+				{#if geoipMessage}
+					<p class="text-xs text-muted-foreground">{geoipMessage}</p>
+				{/if}
+				<div class="flex gap-2">
+					<Button onclick={() => saveGeoIpSettings()} disabled={geoipSaving || geoipUpdating}>
+						{geoipSaving ? 'Saving...' : 'Save GeoIP settings'}
+					</Button>
+					<Button
+						variant="outline"
+						onclick={() => runGeoIpUpdate()}
+						disabled={geoipSaving || geoipUpdating || !geoipForm.enabled}
+					>
+						{geoipUpdating ? 'Updating...' : 'Update now'}
+					</Button>
+				</div>
 			</div>
 		</PanelSection>
 

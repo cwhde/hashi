@@ -65,8 +65,13 @@ public sealed class FirewallApplyService(
         CancellationToken cancellationToken = default)
     {
         var subnets = JsonSerializer.Deserialize<List<string>>(host.ManagedSubnetsJson) ?? [];
+        var now = DateTimeOffset.UtcNow;
         var blocked = await db.BlocklistEntries.AsNoTracking()
-            .Select(x => x.ClientIp)
+            .Where(x => x.ExpiresAtUtc == null || x.ExpiresAtUtc > now)
+            .Where(x => x.Type == BlocklistTypeNames.Ip || x.Type == string.Empty)
+            .Select(x => x.Value == "" ? x.ClientIp : x.Value)
+            .Where(x => x != "")
+            .Distinct()
             .ToListAsync(cancellationToken);
         var allHosts = await db.FirewallHosts.AsNoTracking().ToListAsync(cancellationToken);
         var trustedHosts = await trustedIpResolver.ResolveTrustedPublicIpsAsync(allHosts, cancellationToken);

@@ -7,7 +7,9 @@ public sealed record ResourceResponse(
     string Kind,
     bool Enabled,
     bool IsSystem,
+    string DomainMode,
     string? Domain,
+    string? ResolvedDomain,
     string TargetScheme,
     string TargetHost,
     int TargetPort,
@@ -17,6 +19,7 @@ public sealed record ResourceResponse(
     Guid? FirewallHostId,
     Guid? PulseAgentId,
     string? PathPrefix,
+    string? PathRewriteMode,
     string? PathRewrite,
     string ForwardAuthPolicy,
     string WafMode,
@@ -84,7 +87,9 @@ public sealed record CreateResourceRequest(
     IReadOnlyList<string>? ExtraMiddlewares = null,
     IReadOnlyList<ResourceRouteRequest>? Routes = null,
     IReadOnlyList<ResourceRuleRequest>? Rules = null,
-    IReadOnlyList<string>? WafExclusions = null);
+    IReadOnlyList<string>? WafExclusions = null,
+    string? DomainMode = null,
+    string? PathRewriteMode = null);
 
 public sealed record UpdateResourceRequest(
     string? Name,
@@ -96,6 +101,8 @@ public sealed record UpdateResourceRequest(
     bool? DashboardEnabled,
     bool? StatusEnabled,
     int? PublicPort = null,
+    string? DomainMode = null,
+    bool ClearDomain = false,
     bool ClearPublicPort = false,
     Guid? FirewallHostId = null,
     bool ClearFirewallHostId = false,
@@ -103,6 +110,8 @@ public sealed record UpdateResourceRequest(
     bool ClearPulseAgentId = false,
     string? PathPrefix = null,
     bool ClearPathPrefix = false,
+    string? PathRewriteMode = null,
+    bool ClearPathRewriteMode = false,
     string? PathRewrite = null,
     bool ClearPathRewrite = false,
     string? ForwardAuthPolicy = null,
@@ -464,7 +473,7 @@ public sealed record UpdateMonitorEndpointRequest(
     bool? Enabled = null,
     bool? PublicStatusEnabled = null);
 
-public sealed record PulseInstallResponse(string LinuxInstallScript, string DockerRunCommand);
+public sealed record PulseInstallResponse(string LinuxInstallScript, string DockerComposeSnippet);
 
 public sealed record PulseAgentResponse(
     Guid Id,
@@ -538,6 +547,17 @@ public sealed record SecurityFirewallHostOption
     public required string LinkedTraefikHost { get; init; }
 }
 
+public sealed record SecurityTopBlockedIpItem
+{
+    public required string Ip { get; init; }
+    public required long Count { get; init; }
+    public required DateTimeOffset LastSeenAtUtc { get; init; }
+    public string? CountryCode { get; init; }
+    public string? Asn { get; init; }
+    public string? Reason { get; init; }
+    public DateTimeOffset? ExpiresAtUtc { get; init; }
+}
+
 public sealed record SecurityDashboardResponse(
     long Allowed,
     long Blocked,
@@ -548,7 +568,7 @@ public sealed record SecurityDashboardResponse(
     string? ResourceFilter,
     string? TraefikHostFilter,
     Guid? FirewallHostIdFilter,
-    IReadOnlyList<string> TopBlockedIps,
+    IReadOnlyList<SecurityTopBlockedIpItem> TopBlockedIps,
     IReadOnlyList<SecurityRankItem> TopCountries,
     IReadOnlyList<SecurityRankItem> TopAsns,
     IReadOnlyList<SecurityResourceEnforcementItem> TopResourcesBlockedChallenged,
@@ -572,7 +592,10 @@ public sealed record ForwardAuthDecisionIngestRequest(
     string Path,
     string Decision,
     string? CountryCode,
-    string? Asn);
+    string? Asn,
+    string? RegionCode = null,
+    string? Method = null,
+    string? PathPrefix = null);
 
 public sealed record WafEventIngestRequest(
     string ClientIp,

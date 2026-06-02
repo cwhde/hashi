@@ -5,7 +5,7 @@
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import OverviewWidget from '$lib/components/overview/OverviewWidget.svelte';
 	import StatusRow from '$lib/components/layout/StatusRow.svelte';
-	import { DEFAULT_WIDGETS, loadWidgetPrefs } from '$lib/overview/widgets';
+	import { DEFAULT_WIDGETS, loadDashboardWidgetPrefs, loadWidgetPrefs } from '$lib/overview/widgets';
 	import { LayoutDashboard } from 'lucide-svelte';
 
 	let prefs = $state(loadWidgetPrefs());
@@ -23,8 +23,9 @@
 
 	onMount(async () => {
 		try {
-			const [events, health, vault, resources, monitors, security, dns, pulse, runs] =
+			const [dashboard, events, health, vault, resources, monitors, security, dns, pulse, runs] =
 				await Promise.all([
+					api.getDashboardSettings().catch(() => null),
 					api.getAuditEvents().catch(() => []),
 					api.getHealth().catch(() => null),
 					api.getVaultStatus().catch(() => null),
@@ -35,6 +36,7 @@
 					api.listPulseAgents().catch(() => []),
 					api.listSyncRuns().catch(() => [])
 				]);
+			prefs = loadDashboardWidgetPrefs(dashboard);
 			audit = events.slice(0, 5);
 			healthVersion = health?.version ?? '—';
 			vaultStatus = vault;
@@ -136,6 +138,6 @@
 	</div>
 
 	<p class="text-[11px] text-muted-foreground">
-		Hashi {healthVersion} · widget layout stored locally until settings API ships.
+		Hashi {healthVersion}
 	</p>
 </section>

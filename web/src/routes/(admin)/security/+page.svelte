@@ -4,7 +4,8 @@
 		SecurityDashboard,
 		SecurityRankItem,
 		SecurityRecentEventItem,
-		SecurityResourceEnforcementItem
+		SecurityResourceEnforcementItem,
+		SecurityTopBlockedIpItem
 	} from '$lib/api/types';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import OverviewWidget from '$lib/components/overview/OverviewWidget.svelte';
@@ -20,12 +21,14 @@
 	let firewallHostIdFilter = $state('');
 	const topCountries = $derived((dashboard?.topCountries ?? []) as SecurityRankItem[]);
 	const topAsns = $derived((dashboard?.topAsns ?? []) as SecurityRankItem[]);
+	const topBlockedIps = $derived((dashboard?.topBlockedIps ?? []) as SecurityTopBlockedIpItem[]);
 	const topResources = $derived(
 		(dashboard?.topResourcesBlockedChallenged ?? []) as SecurityResourceEnforcementItem[]
 	);
 	const recentEvents = $derived((dashboard?.recentEvents ?? []) as SecurityRecentEventItem[]);
 
 	const formatEventTimestamp = (value: string) => new Date(value).toLocaleString();
+	const formatExpiry = (value: string | null) => (value ? new Date(value).toLocaleString() : 'No expiry');
 
 	async function loadDashboard() {
 		loading = true;
@@ -136,11 +139,25 @@
 				<StatusRow label="Blocked IPs" value={String(dashboard.firewallActiveIpBlocks)} status="error" />
 			</OverviewWidget>
 			<OverviewWidget title="Top blocked IPs" description="Most active blocklist entries.">
-				{#if dashboard.topBlockedIps.length === 0}
+				{#if topBlockedIps.length === 0}
 					<p class="text-xs text-muted-foreground">None</p>
 				{:else}
-					{#each dashboard.topBlockedIps as ip (ip)}
-						<StatusRow label={ip} value="blocked" status="error" />
+					{#each topBlockedIps as item (item.ip)}
+						<div class="space-y-1 border-b border-border/60 pb-2 last:border-0 last:pb-0">
+							<StatusRow label={item.ip} value={String(item.count)} status="error" />
+							<p class="text-xs text-muted-foreground">
+								{formatEventTimestamp(item.lastSeenAtUtc)}
+								{#if item.countryCode}
+									Â· {item.countryCode}
+								{/if}
+								{#if item.asn}
+									Â· {item.asn}
+								{/if}
+							</p>
+							<p class="text-xs text-muted-foreground">
+								{item.reason ?? 'No reason'} Â· {formatExpiry(item.expiresAtUtc)}
+							</p>
+						</div>
 					{/each}
 				{/if}
 			</OverviewWidget>

@@ -9,5 +9,5 @@ public static class RuntimeSecretEligibility
         => connectionType is ConnectionTypeNames.TraefikHost or ConnectionTypeNames.FirewallHost;
 
     public static bool IsRuntimePurpose(SecretPurpose purpose)
-        => purpose is SecretPurpose.NotificationToken or SecretPurpose.OidcClientSecret;
+        => purpose is SecretPurpose.NotificationToken or SecretPurpose.OidcClientSecret or SecretPurpose.MaxMindLicenseKey;
 }

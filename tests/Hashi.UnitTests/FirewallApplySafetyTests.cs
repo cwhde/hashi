@@ -121,6 +121,44 @@ public sealed class FirewallApplySafetyTests
     }
 
     [Fact]
+    public async Task BuildHostDefinition_includes_only_active_ip_blocklist_entries()
+    {
+        await using var db = CreateDb();
+        var host = SeedFirewallHost(db);
+        db.BlocklistEntries.AddRange(
+            new BlocklistEntryEntity
+            {
+                Type = BlocklistTypeNames.Ip,
+                Value = "198.51.100.50",
+                ClientIp = "198.51.100.50",
+                Reason = "active",
+            },
+            new BlocklistEntryEntity
+            {
+                Type = BlocklistTypeNames.Ip,
+                Value = "198.51.100.51",
+                ClientIp = "198.51.100.51",
+                Reason = "expired",
+                ExpiresAtUtc = DateTimeOffset.UtcNow.AddMinutes(-1),
+            },
+            new BlocklistEntryEntity
+            {
+                Type = BlocklistTypeNames.Asn,
+                Value = "AS13335",
+                Reason = "asn",
+            });
+        await db.SaveChangesAsync();
+
+        var service = TestPlatformHelpers.CreateFirewallApply(db);
+
+        var definition = await service.BuildHostDefinitionAsync(host);
+
+        Assert.Contains("198.51.100.50", definition.BlockedIps!);
+        Assert.DoesNotContain("198.51.100.51", definition.BlockedIps!);
+        Assert.DoesNotContain("AS13335", definition.BlockedIps!);
+    }
+
+    [Fact]
     public async Task BuildHostDefinition_adds_web_forwards_for_system_resource()
     {
         await using var db = CreateDb();

@@ -21,15 +21,28 @@ public sealed class EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp,
         CancellationToken cancellationToken = default)
     {
         var clientIpText = clientIp.ToString();
-        if (await db.BlocklistEntries.AsNoTracking().AnyAsync(x => x.ClientIp == clientIpText, cancellationToken))
+        var blocklistMatch = await FindMatchingBlocklistEntryAsync(
+            clientIpText,
+            countryCode,
+            regionCode,
+            asn,
+            cancellationToken);
+        if (blocklistMatch is not null)
         {
+            blocklistMatch.LastHitAtUtc = DateTimeOffset.UtcNow;
+            await db.SaveChangesAsync(cancellationToken);
             return new EdgeAuthForwardResponse("deny", null);
         }
 
-        var normalizedHost = host.ToLowerInvariant();
-        var resource = await db.Resources.AsNoTracking()
-            .Where(x => x.Enabled && x.Domain != null && x.Domain.ToLower() == normalizedHost)
-            .FirstOrDefaultAsync(cancellationToken);
+        var normalizedHost = NormalizeForwardedHost(host);
+        var rootDomain = (await db.AppSettings.AsNoTracking().SingleOrDefaultAsync(cancellationToken))?.RootDomain;
+        var resources = await db.Resources.AsNoTracking()
+            .Where(x => x.Enabled)
+            .ToListAsync(cancellationToken);
+        var resource = resources.FirstOrDefault(x => string.Equals(
+            ResourceDomainResolver.Resolve(x.DomainMode, x.Domain, x.Slug, rootDomain),
+            normalizedHost,
+            StringComparison.OrdinalIgnoreCase));
         var hasOidcProvider = await db.OidcProviders.AsNoTracking().AnyAsync(x => x.Enabled, cancellationToken);
         var hasValidSession = await oidc.ValidateSessionAsync(edgeSessionKey, cancellationToken);
 
@@ -37,6 +50,7 @@ public sealed class EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp,
         {
             var resourceRuleResult = await EvaluateResourceRulesAsync(
                 resource,
+                normalizedHost,
                 path,
                 clientIp,
                 countryCode,
@@ -132,6 +146,7 @@ public sealed class EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp,
 
     private async Task<EdgeAuthForwardResponse?> EvaluateResourceRulesAsync(
         Persistence.Entities.ResourceEntity resource,
+        string host,
         string path,
         IPAddress clientIp,
         string? countryCode,
@@ -157,8 +172,8 @@ public sealed class EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp,
             {
                 "bypass_auth" => new EdgeAuthForwardResponse("allow", null),
                 "block_access" => new EdgeAuthForwardResponse("deny", null),
-                "require_adaptive_challenge" => AuthRuleDecision(resource, path, hasValidSession, hasOidcProvider),
-                "pass_to_auth" => AuthRuleDecision(resource, path, hasValidSession, hasOidcProvider),
+                "require_adaptive_challenge" => AuthRuleDecision(host, path, hasValidSession, hasOidcProvider),
+                "pass_to_auth" => AuthRuleDecision(host, path, hasValidSession, hasOidcProvider),
                 _ => null,
             };
         }
@@ -167,7 +182,7 @@ public sealed class EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp,
     }
 
     private static EdgeAuthForwardResponse AuthRuleDecision(
-        Persistence.Entities.ResourceEntity resource,
+        string host,
         string path,
         bool hasValidSession,
         bool hasOidcProvider)
@@ -178,11 +193,9 @@ public sealed class EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp,
         }
 
         return hasOidcProvider
-            ? new EdgeAuthForwardResponse("challenge", BuildLoginUrl(resource.Domain ?? hostFallback(resource), path))
+            ? new EdgeAuthForwardResponse("challenge", BuildLoginUrl(host, path))
             : new EdgeAuthForwardResponse("deny", null);
     }
-
-    private static string hostFallback(Persistence.Entities.ResourceEntity resource) => resource.Domain ?? "localhost";
 
     public IReadOnlyList<string> ValidateRuleMatchJson(string matchJson)
         => geoIp.ValidateGeoMatchRules(matchJson);
@@ -191,6 +204,62 @@ public sealed class EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp,
     {
         var returnUrl = Uri.EscapeDataString($"https://{host}{path}");
         return $"/api/edge-auth/login?returnUrl={returnUrl}";
+    }
+
+    private static string NormalizeForwardedHost(string host)
+    {
+        var normalized = host.Trim().ToLowerInvariant();
+        var colonIndex = normalized.IndexOf(':', StringComparison.Ordinal);
+        return colonIndex > 0
+            ? normalized[..colonIndex]
+            : normalized;
+    }
+
+    private async Task<Persistence.Entities.BlocklistEntryEntity?> FindMatchingBlocklistEntryAsync(
+        string clientIp,
+        string? countryCode,
+        string? regionCode,
+        string? asn,
+        CancellationToken cancellationToken)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var entries = await db.BlocklistEntries
+            .Where(x => x.ExpiresAtUtc == null || x.ExpiresAtUtc > now)
+            .ToListAsync(cancellationToken);
+
+        foreach (var entry in entries)
+        {
+            var type = NormalizeBlockType(entry);
+            var value = NormalizeBlockValue(entry);
+            if (type switch
+            {
+                Persistence.Entities.BlocklistTypeNames.Ip => string.Equals(clientIp, value, StringComparison.OrdinalIgnoreCase),
+                Persistence.Entities.BlocklistTypeNames.Asn => string.Equals(asn, value, StringComparison.OrdinalIgnoreCase),
+                Persistence.Entities.BlocklistTypeNames.Country => string.Equals(countryCode, value, StringComparison.OrdinalIgnoreCase),
+                Persistence.Entities.BlocklistTypeNames.Region => string.Equals(regionCode, value, StringComparison.OrdinalIgnoreCase),
+                _ => false,
+            })
+            {
+                return entry;
+            }
+        }
+
+        return null;
+    }
+
+    private static string NormalizeBlockType(Persistence.Entities.BlocklistEntryEntity entry)
+        => string.IsNullOrWhiteSpace(entry.Type)
+            ? Persistence.Entities.BlocklistTypeNames.Ip
+            : entry.Type.Trim().ToLowerInvariant();
+
+    private static string NormalizeBlockValue(Persistence.Entities.BlocklistEntryEntity entry)
+    {
+        if (!string.IsNullOrWhiteSpace(entry.Value))
+        {
+            return entry.Value.Trim();
+        }
+
+        return entry.ClientIp.Trim();
     }
 
     private static bool MatchesResourceRule(

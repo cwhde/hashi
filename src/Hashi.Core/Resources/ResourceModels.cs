@@ -9,6 +9,42 @@ public enum ResourceKind
     Udp,
 }
 
+public static class ResourceDomainModeNames
+{
+    public const string Root = "root";
+    public const string Subdomain = "subdomain";
+    public const string Custom = "custom";
+
+    public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        Root,
+        Subdomain,
+        Custom,
+    };
+
+    public static bool IsValid(string? mode)
+        => !string.IsNullOrWhiteSpace(mode) && All.Contains(mode.Trim());
+}
+
+public static class ResourceRewriteModeNames
+{
+    public const string ReplacePath = "replace_path";
+    public const string ReplacePrefix = "replace_prefix";
+    public const string StripPrefix = "strip_prefix";
+    public const string Regex = "regex";
+
+    public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ReplacePath,
+        ReplacePrefix,
+        StripPrefix,
+        Regex,
+    };
+
+    public static bool IsValid(string? mode)
+        => !string.IsNullOrWhiteSpace(mode) && All.Contains(mode.Trim());
+}
+
 public sealed record ResourceRouteDefinition(
     int Priority,
     string PathMatchType,
@@ -47,9 +83,54 @@ public sealed record ResourceDefinition(
     IReadOnlyList<string>? ExtraMiddlewares = null,
     IReadOnlyList<ResourceRouteDefinition>? Routes = null,
     IReadOnlyList<ResourceRuleDefinition>? Rules = null,
-    IReadOnlyList<string>? WafExclusions = null)
+    IReadOnlyList<string>? WafExclusions = null,
+    string DomainMode = ResourceDomainModeNames.Custom,
+    string? PathRewriteMode = null)
 {
     public int EffectivePublicPort => PublicPort ?? TargetPort;
+}
+
+public static class ResourceDomainResolver
+{
+    public static string? Resolve(string? domainMode, string? domain, string slug, string? rootDomain)
+    {
+        var mode = NormalizeMode(domainMode);
+        var normalizedDomain = NormalizeDomain(domain);
+        var normalizedRoot = NormalizeDomain(rootDomain);
+        return mode switch
+        {
+            ResourceDomainModeNames.Root => normalizedRoot,
+            ResourceDomainModeNames.Subdomain => ResolveSubdomain(normalizedDomain, slug, normalizedRoot),
+            ResourceDomainModeNames.Custom => normalizedDomain == "@" ? normalizedRoot : normalizedDomain,
+            _ => null,
+        };
+    }
+
+    public static string NormalizeMode(string? domainMode)
+        => string.IsNullOrWhiteSpace(domainMode)
+            ? ResourceDomainModeNames.Custom
+            : domainMode.Trim().ToLowerInvariant();
+
+    public static string? NormalizeDomain(string? domain)
+    {
+        var normalized = domain?.Trim().TrimEnd('.');
+        return string.IsNullOrWhiteSpace(normalized) ? null : normalized.ToLowerInvariant();
+    }
+
+    private static string? ResolveSubdomain(string? domain, string slug, string? rootDomain)
+    {
+        if (string.IsNullOrWhiteSpace(rootDomain))
+        {
+            return null;
+        }
+
+        var label = string.IsNullOrWhiteSpace(domain)
+            ? slug
+            : domain;
+        return string.IsNullOrWhiteSpace(label)
+            ? null
+            : $"{label.Trim().TrimEnd('.')}.{rootDomain}".ToLowerInvariant();
+    }
 }
 
 public static class ResourceSlug

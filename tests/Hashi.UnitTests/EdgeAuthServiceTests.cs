@@ -51,7 +51,13 @@ public sealed class EdgeAuthServiceTests
     public async Task Blocklist_entry_denies_before_policy()
     {
         await using var db = CreateDb();
-        db.BlocklistEntries.Add(new BlocklistEntryEntity { ClientIp = "203.0.113.10", Reason = "abuse" });
+        db.BlocklistEntries.Add(new BlocklistEntryEntity
+        {
+            ClientIp = "203.0.113.10",
+            Type = BlocklistTypeNames.Ip,
+            Value = "203.0.113.10",
+            Reason = "abuse",
+        });
         db.Resources.Add(Resource("app.example.com", "sso_required"));
         await SeedProviderAsync(db);
         await db.SaveChangesAsync();
@@ -59,6 +65,59 @@ public sealed class EdgeAuthServiceTests
         var result = await Evaluate(db, "app.example.com", "/", clientIp: IPAddress.Parse("203.0.113.10"));
 
         Assert.Equal("deny", result.Decision);
+    }
+
+    [Theory]
+    [InlineData(BlocklistTypeNames.Asn, "AS13335", "203.0.113.10", "US", "CA", "AS13335")]
+    [InlineData(BlocklistTypeNames.Country, "DE", "203.0.113.10", "DE", "BE", "AS24940")]
+    [InlineData(BlocklistTypeNames.Region, "ZH", "203.0.113.10", "CH", "ZH", "AS3303")]
+    public async Task Blocklist_context_entries_deny_and_update_last_hit(
+        string type,
+        string value,
+        string clientIp,
+        string countryCode,
+        string regionCode,
+        string asn)
+    {
+        await using var db = CreateDb();
+        var entry = new BlocklistEntryEntity
+        {
+            Type = type,
+            Value = value,
+            Reason = "manual",
+        };
+        db.BlocklistEntries.Add(entry);
+        await db.SaveChangesAsync();
+
+        var result = await Evaluate(
+            db,
+            "app.example.com",
+            "/",
+            clientIp: IPAddress.Parse(clientIp),
+            countryCode: countryCode,
+            regionCode: regionCode,
+            asn: asn);
+
+        Assert.Equal("deny", result.Decision);
+        Assert.NotNull((await db.BlocklistEntries.SingleAsync(x => x.Id == entry.Id)).LastHitAtUtc);
+    }
+
+    [Fact]
+    public async Task Expired_blocklist_entry_is_not_enforced()
+    {
+        await using var db = CreateDb();
+        db.BlocklistEntries.Add(new BlocklistEntryEntity
+        {
+            Type = BlocklistTypeNames.Ip,
+            Value = "203.0.113.10",
+            Reason = "expired",
+            ExpiresAtUtc = DateTimeOffset.UtcNow.AddMinutes(-1),
+        });
+        await db.SaveChangesAsync();
+
+        var result = await Evaluate(db, "app.example.com", "/", clientIp: IPAddress.Parse("203.0.113.10"));
+
+        Assert.Equal("allow", result.Decision);
     }
 
     [Fact]
@@ -75,6 +134,30 @@ public sealed class EdgeAuthServiceTests
         Assert.Contains("returnUrl=", result.RedirectUrl, StringComparison.Ordinal);
         Assert.Contains("app.example.com%2Fdashboard", result.RedirectUrl, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public async Task Sso_required_challenges_subdomain_mode_resource_by_resolved_host()
+    {
+        await using var db = CreateDb();
+        db.AppSettings.Add(new AppSettingsEntity { RootDomain = "example.com" });
+        db.Resources.Add(new ResourceEntity
+        {
+            Name = "App",
+            Slug = "app",
+            DomainMode = "subdomain",
+            Domain = null,
+            ForwardAuthPolicy = "sso_required",
+            Enabled = true,
+        });
+        await SeedProviderAsync(db);
+        await db.SaveChangesAsync();
+
+        var result = await Evaluate(db, "app.example.com", "/dashboard");
+
+        Assert.Equal("challenge", result.Decision);
+        Assert.Contains("app.example.com%2Fdashboard", result.RedirectUrl, StringComparison.Ordinal);
+    }
+
 
     [Fact]
     public async Task Sso_required_denies_when_no_oidc_provider_is_enabled()

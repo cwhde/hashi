@@ -61,4 +61,17 @@ describe('resource_advanced_routes', () => {
 		expect(normalized[0]?.rewriteValue).toBeNull();
 		expect(normalized[0]?.extraMiddlewares).toEqual([]);
 	});
+
+	it('preserves replace-prefix rewrite mode and target', () => {
+		const normalized = normalizeRoutes([
+			{
+				...createEmptyRoute({ targetScheme: 'https', targetHost: 'app.internal', targetPort: 443 }),
+				rewriteMode: ' replace_prefix ',
+				rewriteValue: ' /v1 '
+			}
+		]);
+
+		expect(normalized[0]?.rewriteMode).toBe('replace_prefix');
+		expect(normalized[0]?.rewriteValue).toBe('/v1');
+	});
 });

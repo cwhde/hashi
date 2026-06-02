@@ -219,6 +219,39 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.Property<int>("EdgeSsoRememberDeviceDays")
                         .HasColumnType("integer");
 
+                    b.Property<string>("GeoIpAccountId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<bool>("GeoIpEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTimeOffset?>("GeoIpLastUpdateAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("GeoIpLastUpdateMessage")
+                        .HasColumnType("text");
+
+                    b.Property<string>("GeoIpLastUpdateStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("never_run");
+
+                    b.Property<Guid?>("GeoIpLicenseKeySecretId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("GeoIpNextUpdateAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("GeoIpUpdateIntervalHours")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(72);
+
                     b.Property<string>("InternalUrl")
                         .HasColumnType("text");
 
@@ -365,16 +398,85 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset?>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("LastHitAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Reason")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("Scope")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<bool>("SyncedToFirewall")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
                     b.HasKey("Id");
 
+                    b.HasIndex("ExpiresAtUtc");
+
+                    b.HasIndex("Scope", "Type", "Value");
+
                     b.ToTable("blocklist_entries", (string)null);
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.BlocklistAppliedHostEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("AppliedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("BlocklistEntryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("FirewallHostId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("LastError")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FirewallHostId");
+
+                    b.HasIndex("BlocklistEntryId", "FirewallHostId")
+                        .IsUnique();
+
+                    b.ToTable("blocklist_applied_hosts", (string)null);
                 });
 
             modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.ConnectionEntity", b =>
@@ -1056,6 +1158,61 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.ToTable("firewall_subnets", (string)null);
                 });
 
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.GeoIpDatabaseEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContentHash")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("EditionId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Error")
+                        .HasColumnType("text");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTimeOffset?>("LastDownloadedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("LastModifiedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Path")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<long?>("SizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("never_run");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EditionId")
+                        .IsUnique();
+
+                    b.ToTable("geoip_databases", (string)null);
+                });
+
             modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.MonitorEndpointEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1556,6 +1713,13 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.Property<string>("Domain")
                         .HasColumnType("text");
 
+                    b.Property<string>("DomainMode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("custom");
+
                     b.Property<bool>("Enabled")
                         .HasColumnType("boolean");
 
@@ -1606,6 +1770,10 @@ namespace Hashi.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("PathRewrite")
                         .HasColumnType("text");
+
+                    b.Property<string>("PathRewriteMode")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
 
                     b.Property<int?>("PublicPort")
                         .HasColumnType("integer");
@@ -2562,6 +2730,25 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .HasForeignKey("FirewallHostId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("FirewallHost");
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.BlocklistAppliedHostEntity", b =>
+                {
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.BlocklistEntryEntity", "BlocklistEntry")
+                        .WithMany()
+                        .HasForeignKey("BlocklistEntryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.FirewallHostEntity", "FirewallHost")
+                        .WithMany()
+                        .HasForeignKey("FirewallHostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BlocklistEntry");
 
                     b.Navigation("FirewallHost");
                 });

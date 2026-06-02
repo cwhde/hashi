@@ -52,6 +52,7 @@ builder.Services.AddOpenApi(options =>
 });
 builder.Services.AddSingleton(portOptions);
 builder.Services.AddHashiInfrastructure(builder.Configuration);
+builder.Services.AddSingleton<ForwardedClientContextResolver>();
 builder.Services.AddScoped<BootstrapInitializer>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)

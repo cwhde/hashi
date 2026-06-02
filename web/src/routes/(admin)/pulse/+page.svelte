@@ -130,8 +130,8 @@
 						<pre class="overflow-auto whitespace-pre-wrap font-mono text-muted-foreground">{installSnippet.linuxInstallScript}</pre>
 					</div>
 					<div>
-						<p class="mb-1 font-medium text-white">Docker run</p>
-						<pre class="overflow-auto whitespace-pre-wrap font-mono text-muted-foreground">{installSnippet.dockerRunCommand}</pre>
+						<p class="mb-1 font-medium text-white">Docker Compose</p>
+						<pre class="overflow-auto whitespace-pre-wrap font-mono text-muted-foreground">{installSnippet.dockerComposeSnippet}</pre>
 					</div>
 				</div>
 			{/if}

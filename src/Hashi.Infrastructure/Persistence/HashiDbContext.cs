@@ -94,6 +94,8 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
 
     public DbSet<BlocklistEntryEntity> BlocklistEntries => Set<BlocklistEntryEntity>();
 
+    public DbSet<BlocklistAppliedHostEntity> BlocklistAppliedHosts => Set<BlocklistAppliedHostEntity>();
+
     public DbSet<AdGuardConnectionEntity> AdGuardConnections => Set<AdGuardConnectionEntity>();
 
     public DbSet<AdGuardRewriteEntity> AdGuardRewrites => Set<AdGuardRewriteEntity>();
@@ -116,6 +118,8 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
 
     public DbSet<BackgroundJobEntity> BackgroundJobs => Set<BackgroundJobEntity>();
 
+    public DbSet<GeoIpDatabaseEntity> GeoIpDatabases => Set<GeoIpDatabaseEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AppSettingsEntity>(entity =>
@@ -124,6 +128,10 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Theme).HasMaxLength(32);
             entity.Property(x => x.AcmeEmail).HasMaxLength(256);
+            entity.Property(x => x.GeoIpEnabled).HasDefaultValue(false);
+            entity.Property(x => x.GeoIpAccountId).HasMaxLength(128);
+            entity.Property(x => x.GeoIpUpdateIntervalHours).HasDefaultValue(72);
+            entity.Property(x => x.GeoIpLastUpdateStatus).HasMaxLength(32).HasDefaultValue(GeoIpUpdateStatusNames.NeverRun);
             entity.HasIndex(x => x.AcmeDnsProviderConnectionId);
         });
 
@@ -283,8 +291,10 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.Property(x => x.OwningWorkflow).HasMaxLength(64);
             entity.Property(x => x.DeletionPolicy).HasMaxLength(32).HasDefaultValue(ResourceDeletionPolicyNames.Optional);
             entity.Property(x => x.SyncState).HasMaxLength(32).HasDefaultValue(ResourceSyncStateNames.Desired);
+            entity.Property(x => x.DomainMode).HasMaxLength(32).HasDefaultValue("custom");
             entity.Property(x => x.ForwardAuthPolicy).HasMaxLength(32);
             entity.Property(x => x.WafMode).HasMaxLength(32);
+            entity.Property(x => x.PathRewriteMode).HasMaxLength(32);
             entity.Property(x => x.WafExclusionsJson);
             entity.HasIndex(x => x.Slug).IsUnique();
         });
@@ -590,6 +600,25 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.ToTable("blocklist_entries");
             entity.HasKey(x => x.Id);
             entity.Property(x => x.ClientIp).HasMaxLength(64);
+            entity.Property(x => x.Scope).HasMaxLength(32);
+            entity.Property(x => x.Type).HasMaxLength(32);
+            entity.Property(x => x.Value).HasMaxLength(128);
+            entity.Property(x => x.Reason).HasMaxLength(256);
+            entity.Property(x => x.Source).HasMaxLength(64);
+            entity.Property(x => x.CreatedBy).HasMaxLength(128);
+            entity.HasIndex(x => new { x.Scope, x.Type, x.Value });
+            entity.HasIndex(x => x.ExpiresAtUtc);
+        });
+
+        modelBuilder.Entity<BlocklistAppliedHostEntity>(entity =>
+        {
+            entity.ToTable("blocklist_applied_hosts");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Status).HasMaxLength(32);
+            entity.HasOne(x => x.BlocklistEntry).WithMany().HasForeignKey(x => x.BlocklistEntryId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.FirewallHost).WithMany().HasForeignKey(x => x.FirewallHostId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => new { x.BlocklistEntryId, x.FirewallHostId }).IsUnique();
+            entity.HasIndex(x => x.FirewallHostId);
         });
 
         modelBuilder.Entity<AdGuardConnectionEntity>(entity =>
@@ -697,6 +726,18 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.Property(x => x.JobKey).HasMaxLength(64);
             entity.Property(x => x.DisplayName).HasMaxLength(128);
             entity.Property(x => x.Status).HasMaxLength(32);
+        });
+
+        modelBuilder.Entity<GeoIpDatabaseEntity>(entity =>
+        {
+            entity.ToTable("geoip_databases");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.EditionId).HasMaxLength(64);
+            entity.Property(x => x.FileName).HasMaxLength(128);
+            entity.Property(x => x.Path).HasMaxLength(512);
+            entity.Property(x => x.Status).HasMaxLength(32).HasDefaultValue(GeoIpUpdateStatusNames.NeverRun);
+            entity.Property(x => x.ContentHash).HasMaxLength(128);
+            entity.HasIndex(x => x.EditionId).IsUnique();
         });
     }
 }

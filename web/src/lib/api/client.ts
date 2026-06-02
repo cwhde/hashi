@@ -498,6 +498,18 @@ export const api = {
 		} as never);
 		return (await expectData(r.response, r.error, r.data)) as unknown as import('./types.js').CategorySettings;
 	},
+	getGeoIpSettings: async () => {
+		const r = await client.GET('/api/settings/geoip' as never);
+		return (await expectData(r.response, r.error, r.data)) as unknown as import('./types.js').GeoIpSettings;
+	},
+	updateGeoIpSettings: async (body: import('./types.js').GeoIpSettingsRequest) => {
+		const r = await client.PUT('/api/settings/geoip' as never, { body } as never);
+		return (await expectData(r.response, r.error, r.data)) as unknown as import('./types.js').GeoIpSettings;
+	},
+	runGeoIpUpdate: async () => {
+		const r = await client.POST('/api/settings/geoip/update' as never);
+		return (await expectData(r.response, r.error, r.data)) as unknown as import('./types.js').GeoIpUpdateResult;
+	},
 	createEdgeSsoProvider: async (body: import('./types.js').CreateOidcProviderRequest) => {
 		const result = await postUndocumented('/api/settings/edge-sso/providers', { body });
 		return {
@@ -539,7 +551,7 @@ export const api = {
 		return {
 			...install,
 			linuxInstallScript: install.linuxInstallScript.replaceAll('<PULSE_TOKEN>', token),
-			dockerRunCommand: install.dockerRunCommand.replaceAll('<PULSE_TOKEN>', token)
+			dockerComposeSnippet: install.dockerComposeSnippet.replaceAll('<PULSE_TOKEN>', token)
 		};
 	},
 	revokePulseAgent: async (agentId: string) => {

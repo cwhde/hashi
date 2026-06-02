@@ -966,6 +966,117 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings/geoip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GeoIpSettingsResponse"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["GeoIpSettingsRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GeoIpSettingsResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiErrorResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/geoip/update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GeoIpUpdateResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["GeoIpUpdateResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/settings/categories/{category}": {
         parameters: {
             query?: never;
@@ -5530,6 +5641,8 @@ export interface components {
             routes?: null | components["schemas"]["ResourceRouteRequest"][];
             rules?: null | components["schemas"]["ResourceRuleRequest"][];
             wafExclusions?: null | string[];
+            domainMode?: null | string;
+            pathRewriteMode?: null | string;
         };
         CreateScriptRequest: {
             /** Format: uuid */
@@ -5763,6 +5876,51 @@ export interface components {
             /** Format: date-time */
             updatedAtUtc: string;
         };
+        GeoIpDatabaseResponse: {
+            editionId: string;
+            fileName: string;
+            status: string;
+            /** Format: date-time */
+            lastDownloadedAtUtc: null | string;
+            /** Format: date-time */
+            lastModifiedUtc: null | string;
+            /** Format: int64 */
+            sizeBytes: null | number | string;
+            contentHash: null | string;
+            error: null | string;
+        };
+        GeoIpSettingsRequest: {
+            enabled: null | boolean;
+            accountId: null | string;
+            licenseKey: null | string;
+            /** Format: int32 */
+            updateIntervalHours: null | number | string;
+        };
+        GeoIpSettingsResponse: {
+            enabled: boolean;
+            accountId: null | string;
+            hasLicenseKey: boolean;
+            /** Format: uuid */
+            licenseKeySecretId: null | string;
+            /** Format: int32 */
+            updateIntervalHours: number | string;
+            lastUpdateStatus: string;
+            lastUpdateMessage: null | string;
+            /** Format: date-time */
+            lastUpdateAtUtc: null | string;
+            /** Format: date-time */
+            nextUpdateAtUtc: null | string;
+            databaseAvailable: boolean;
+            databases: components["schemas"]["GeoIpDatabaseResponse"][];
+            /** Format: date-time */
+            updatedAtUtc: null | string;
+        };
+        GeoIpUpdateResponse: {
+            succeeded: boolean;
+            status: string;
+            message: null | string;
+            databases: components["schemas"]["GeoIpDatabaseResponse"][];
+        };
         HealthResponse: {
             status: string;
             version: string;
@@ -5967,7 +6125,7 @@ export interface components {
         };
         PulseInstallResponse: {
             linuxInstallScript: string;
-            dockerRunCommand: string;
+            dockerComposeSnippet: string;
         };
         RemoteWriteRequest: {
             remotePath: string;
@@ -5989,7 +6147,9 @@ export interface components {
             kind: string;
             enabled: boolean;
             isSystem: boolean;
+            domainMode: string;
             domain: null | string;
+            resolvedDomain: null | string;
             targetScheme: string;
             targetHost: string;
             /** Format: int32 */
@@ -6003,6 +6163,7 @@ export interface components {
             /** Format: uuid */
             pulseAgentId: null | string;
             pathPrefix: null | string;
+            pathRewriteMode: null | string;
             pathRewrite: null | string;
             forwardAuthPolicy: string;
             wafMode: string;
@@ -6180,7 +6341,7 @@ export interface components {
             traefikHostFilter: null | string;
             /** Format: uuid */
             firewallHostIdFilter: null | string;
-            topBlockedIps: string[];
+            topBlockedIps: components["schemas"]["SecurityTopBlockedIpItem"][];
             topCountries: components["schemas"]["SecurityRankItem"][];
             topAsns: components["schemas"]["SecurityRankItem"][];
             topResourcesBlockedChallenged: components["schemas"]["SecurityResourceEnforcementItem"][];
@@ -6210,6 +6371,18 @@ export interface components {
             label: string;
             /** Format: int64 */
             count: number | string;
+        };
+        SecurityTopBlockedIpItem: {
+            ip: string;
+            /** Format: int64 */
+            count: number | string;
+            /** Format: date-time */
+            lastSeenAtUtc: string;
+            countryCode?: null | string;
+            asn?: null | string;
+            reason?: null | string;
+            /** Format: date-time */
+            expiresAtUtc?: null | string;
         };
         SecurityRecentEventItem: {
             /** Format: date-time */
@@ -6469,6 +6642,9 @@ export interface components {
             statusEnabled: null | boolean;
             /** Format: int32 */
             publicPort?: null | number | string;
+            domainMode?: null | string;
+            /** @default false */
+            clearDomain: boolean;
             /** @default false */
             clearPublicPort: boolean;
             /** Format: uuid */
@@ -6482,6 +6658,9 @@ export interface components {
             pathPrefix?: null | string;
             /** @default false */
             clearPathPrefix: boolean;
+            pathRewriteMode?: null | string;
+            /** @default false */
+            clearPathRewriteMode: boolean;
             pathRewrite?: null | string;
             /** @default false */
             clearPathRewrite: boolean;
