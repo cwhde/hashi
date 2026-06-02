@@ -45,6 +45,49 @@ public static class ResourceRewriteModeNames
         => !string.IsNullOrWhiteSpace(mode) && All.Contains(mode.Trim());
 }
 
+public static class ResourceMonitoringProtocolHintNames
+{
+    public const string Http = "http";
+    public const string Https = "https";
+    public const string H2c = "h2c";
+    public const string Tcp = "tcp";
+    public const string Udp = "udp";
+    public const string Dns = "dns";
+    public const string Icmp = "icmp";
+    public const string Tls = "tls";
+    public const string Pulse = "pulse";
+
+    public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        Http,
+        Https,
+        H2c,
+        Tcp,
+        Udp,
+        Dns,
+        Icmp,
+        Tls,
+        Pulse,
+    };
+
+    public static bool IsValid(string? hint)
+    {
+        var normalized = Normalize(hint);
+        return normalized is not null && All.Contains(normalized);
+    }
+
+    public static string? Normalize(string? hint)
+    {
+        if (string.IsNullOrWhiteSpace(hint))
+        {
+            return null;
+        }
+
+        var normalized = hint.Trim().ToLowerInvariant();
+        return normalized == "push" ? Pulse : normalized;
+    }
+}
+
 public sealed record ResourceRouteDefinition(
     int Priority,
     string PathMatchType,
@@ -85,7 +128,9 @@ public sealed record ResourceDefinition(
     IReadOnlyList<ResourceRuleDefinition>? Rules = null,
     IReadOnlyList<string>? WafExclusions = null,
     string DomainMode = ResourceDomainModeNames.Custom,
-    string? PathRewriteMode = null)
+    string? PathRewriteMode = null,
+    bool? TcpProxyProtocolEnabled = null,
+    string? MonitoringProtocolHint = null)
 {
     public int EffectivePublicPort => PublicPort ?? TargetPort;
 }
