@@ -8431,6 +8431,12 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "subjectState": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
