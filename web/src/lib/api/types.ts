@@ -108,6 +108,7 @@ export type SecurityTopBlockedIpItem = {
 	asn: string | null;
 	reason: string | null;
 	expiresAtUtc: string | null;
+	subjectState: string | null;
 };
 export type SecurityDashboard = {
 	allowed: number;

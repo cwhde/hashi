@@ -5629,6 +5629,8 @@ export interface components {
             statusEnabled: boolean;
             /** Format: int32 */
             publicPort?: null | number | string;
+            tcpProxyProtocolEnabled?: null | boolean;
+            monitoringProtocolHint?: null | string;
             /** Format: uuid */
             firewallHostId?: null | string;
             /** Format: uuid */
@@ -6156,6 +6158,8 @@ export interface components {
             targetPort: number | string;
             /** Format: int32 */
             publicPort: null | number | string;
+            tcpProxyProtocolEnabled: null | boolean;
+            monitoringProtocolHint: null | string;
             dashboardEnabled: boolean;
             statusEnabled: boolean;
             /** Format: uuid */
@@ -6372,18 +6376,6 @@ export interface components {
             /** Format: int64 */
             count: number | string;
         };
-        SecurityTopBlockedIpItem: {
-            ip: string;
-            /** Format: int64 */
-            count: number | string;
-            /** Format: date-time */
-            lastSeenAtUtc: string;
-            countryCode?: null | string;
-            asn?: null | string;
-            reason?: null | string;
-            /** Format: date-time */
-            expiresAtUtc?: null | string;
-        };
         SecurityRecentEventItem: {
             /** Format: date-time */
             occurredAtUtc: string;
@@ -6399,6 +6391,19 @@ export interface components {
             blocked: number | string;
             /** Format: int64 */
             challenged: number | string;
+        };
+        SecurityTopBlockedIpItem: {
+            ip: string;
+            /** Format: int64 */
+            count: number | string;
+            /** Format: date-time */
+            lastSeenAtUtc: string;
+            countryCode?: null | string;
+            asn?: null | string;
+            reason?: null | string;
+            /** Format: date-time */
+            expiresAtUtc?: null | string;
+            subjectState?: null | string;
         };
         SendNotificationRequest: {
             subject: string;
@@ -6642,6 +6647,10 @@ export interface components {
             statusEnabled: null | boolean;
             /** Format: int32 */
             publicPort?: null | number | string;
+            tcpProxyProtocolEnabled?: null | boolean;
+            monitoringProtocolHint?: null | string;
+            /** @default false */
+            clearMonitoringProtocolHint: boolean;
             domainMode?: null | string;
             /** @default false */
             clearDomain: boolean;

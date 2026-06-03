@@ -5128,6 +5128,18 @@
             ],
             "format": "int32"
           },
+          "tcpProxyProtocolEnabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "monitoringProtocolHint": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "firewallHostId": {
             "type": [
               "null",
@@ -7257,14 +7269,14 @@
       "PulseInstallResponse": {
         "required": [
           "linuxInstallScript",
-          "dockerRunCommand"
+          "dockerComposeSnippet"
         ],
         "type": "object",
         "properties": {
           "linuxInstallScript": {
             "type": "string"
           },
-          "dockerRunCommand": {
+          "dockerComposeSnippet": {
             "type": "string"
           }
         }
@@ -7341,6 +7353,8 @@
           "targetHost",
           "targetPort",
           "publicPort",
+          "tcpProxyProtocolEnabled",
+          "monitoringProtocolHint",
           "dashboardEnabled",
           "statusEnabled",
           "firewallHostId",
@@ -7413,6 +7427,18 @@
               "string"
             ],
             "format": "int32"
+          },
+          "tcpProxyProtocolEnabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "monitoringProtocolHint": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "dashboardEnabled": {
             "type": "boolean"
@@ -8291,56 +8317,6 @@
           }
         }
       },
-      "SecurityTopBlockedIpItem": {
-        "required": [
-          "ip",
-          "count",
-          "lastSeenAtUtc"
-        ],
-        "type": "object",
-        "properties": {
-          "ip": {
-            "type": "string"
-          },
-          "count": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int64"
-          },
-          "lastSeenAtUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "countryCode": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "asn": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "reason": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "expiresAtUtc": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "format": "date-time"
-          }
-        }
-      },
       "SecurityRecentEventItem": {
         "required": [
           "occurredAtUtc",
@@ -8405,6 +8381,62 @@
               "string"
             ],
             "format": "int64"
+          }
+        }
+      },
+      "SecurityTopBlockedIpItem": {
+        "required": [
+          "ip",
+          "count",
+          "lastSeenAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "ip": {
+            "type": "string"
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "lastSeenAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "countryCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "asn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expiresAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "subjectState": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -9524,6 +9556,22 @@
               "string"
             ],
             "format": "int32"
+          },
+          "tcpProxyProtocolEnabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "monitoringProtocolHint": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clearMonitoringProtocolHint": {
+            "type": "boolean",
+            "default": false
           },
           "domainMode": {
             "type": [

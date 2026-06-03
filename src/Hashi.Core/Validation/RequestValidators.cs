@@ -22,6 +22,9 @@ public sealed class CreateResourceRequestValidator : AbstractValidator<CreateRes
         RuleFor(x => x.PathRewriteMode)
             .Must(mode => string.IsNullOrWhiteSpace(mode) || ResourceRewriteModeNames.IsValid(mode))
             .WithMessage($"Path rewrite mode must be one of: {string.Join(", ", ResourceRewriteModeNames.All)}.");
+        RuleFor(x => x.MonitoringProtocolHint)
+            .Must(hint => string.IsNullOrWhiteSpace(hint) || ResourceMonitoringProtocolHintNames.IsValid(hint))
+            .WithMessage($"Monitoring protocol hint must be one of: {string.Join(", ", ResourceMonitoringProtocolHintNames.All)}.");
         RuleFor(x => x.PathRewrite)
             .NotEmpty()
             .When(x => !string.IsNullOrWhiteSpace(x.PathRewriteMode));
@@ -34,6 +37,17 @@ public sealed class CreateResourceRequestValidator : AbstractValidator<CreateRes
                 route.RuleFor(x => x.RewriteValue)
                     .NotEmpty()
                     .When(x => !string.IsNullOrWhiteSpace(x.RewriteMode));
+            });
+        RuleForEach(x => x.Rules)
+            .ChildRules(rule =>
+            {
+                rule.RuleFor(x => x.Action)
+                    .Must(ResourceRuleActionNames.IsValid)
+                    .WithMessage($"Resource rule action must be one of: {string.Join(", ", ResourceRuleActionNames.All)}.");
+                rule.RuleFor(x => x.MatchType)
+                    .Must(ResourceRuleMatchTypeNames.IsValid)
+                    .WithMessage($"Resource rule match type must be one of: {string.Join(", ", ResourceRuleMatchTypeNames.All)}.");
+                rule.RuleFor(x => x.MatchValue).NotEmpty();
             });
     }
 }

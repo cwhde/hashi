@@ -46,6 +46,93 @@ public sealed class DnsRecordGeneratorTests
     }
 
     [Fact]
+    public void GenerateResourceRecords_uses_cname_when_manual_private_ip_matches_managed_subnet()
+    {
+        var hosts = new[]
+        {
+            new FirewallHostDnsTarget(Guid.NewGuid(), "machine1", "203.0.113.10", ManagedSubnets: ["10.0.0.0/24"]),
+        };
+
+        var records = DnsRecordGenerator.GenerateResourceRecords(
+            new ResourceDnsTarget("App", "app", "example.com", null, null, "10.0.0.25", null),
+            hosts);
+
+        Assert.Single(records);
+        Assert.Equal(DnsRecordType.Cname, records[0].Type);
+        Assert.Equal("on.machine1.example.com", records[0].Value);
+    }
+
+    [Theory]
+    [InlineData("10.44.7.10")]
+    [InlineData(null)]
+    public void GenerateResourceRecords_uses_cname_when_target_matches_netbird_routed_cidr(string? manualIp)
+    {
+        var hosts = new[]
+        {
+            new FirewallHostDnsTarget(Guid.NewGuid(), "machine1", "203.0.113.10", NetBirdRoutedCidrs: ["10.44.0.0/16"]),
+        };
+        var pulse = manualIp is null
+            ? new PulseDnsTarget(Guid.NewGuid(), "198.51.100.25", "10.44.9.20")
+            : null;
+
+        var records = DnsRecordGenerator.GenerateResourceRecords(
+            new ResourceDnsTarget("App", "app", "example.com", null, null, manualIp, pulse),
+            hosts);
+
+        Assert.Single(records);
+        Assert.Equal(DnsRecordType.Cname, records[0].Type);
+        Assert.Equal("on.machine1.example.com", records[0].Value);
+    }
+
+    [Theory]
+    [InlineData("edge.example.com", null)]
+    [InlineData(null, "edge.example.com")]
+    public void GenerateResourceRecords_uses_cname_when_target_matches_configured_host_fqdn(string? manualHost, string? pulseHostname)
+    {
+        var hosts = new[]
+        {
+            new FirewallHostDnsTarget(
+                Guid.NewGuid(),
+                "machine1",
+                "203.0.113.10",
+                ConfiguredFqdns: ["edge.example.com"]),
+        };
+        var pulse = pulseHostname is null
+            ? null
+            : new PulseDnsTarget(Guid.NewGuid(), "198.51.100.25", "10.10.10.10", pulseHostname);
+
+        var records = DnsRecordGenerator.GenerateResourceRecords(
+            new ResourceDnsTarget("App", "app", "example.com", null, null, null, pulse, manualHost),
+            hosts);
+
+        Assert.Single(records);
+        Assert.Equal(DnsRecordType.Cname, records[0].Type);
+        Assert.Equal("on.machine1.example.com", records[0].Value);
+    }
+
+    [Fact]
+    public void GenerateResourceRecords_uses_a_record_for_unmatched_public_manual_ip()
+    {
+        var records = DnsRecordGenerator.GenerateResourceRecords(
+            new ResourceDnsTarget("App", "app", "example.com", null, null, "198.51.100.55", null),
+            []);
+
+        Assert.Single(records);
+        Assert.Equal(DnsRecordType.A, records[0].Type);
+        Assert.Equal("198.51.100.55", records[0].Value);
+    }
+
+    [Fact]
+    public void GenerateResourceRecords_does_not_publish_unmatched_private_manual_ip()
+    {
+        var records = DnsRecordGenerator.GenerateResourceRecords(
+            new ResourceDnsTarget("App", "app", "example.com", null, null, "10.0.0.55", null),
+            []);
+
+        Assert.Empty(records);
+    }
+
+    [Fact]
     public void GenerateResourceRecords_uses_configured_custom_domain()
     {
         var records = DnsRecordGenerator.GenerateResourceRecords(

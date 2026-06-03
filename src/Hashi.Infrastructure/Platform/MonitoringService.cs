@@ -1,4 +1,5 @@
 using Hashi.Contracts.Api;
+using Hashi.Core.Resources;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
 using Hashi.Infrastructure.Services;
@@ -9,19 +10,6 @@ namespace Hashi.Infrastructure.Platform;
 
 public sealed class MonitoringService(HashiDbContext db, AppSettingsService settings, HashiInternalUrlResolver internalUrls)
 {
-    private static readonly HashSet<string> AllowedCheckTypes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "http",
-        "https",
-        "h2c",
-        "tcp",
-        "udp",
-        "dns",
-        "icmp",
-        "tls",
-        "pulse",
-    };
-
     public async Task SyncEndpointsFromResourcesAsync(CancellationToken cancellationToken = default)
     {
         var resources = await db.Resources.AsNoTracking()
@@ -425,6 +413,11 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
 
     private static string ResolveResourceCheckType(ResourceEntity resource)
     {
+        if (!string.IsNullOrWhiteSpace(resource.MonitoringProtocolHint))
+        {
+            return NormalizeManualCheckType(resource.MonitoringProtocolHint);
+        }
+
         var kind = (resource.Kind ?? string.Empty).Trim().ToLowerInvariant();
         return kind switch
         {
@@ -450,6 +443,9 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
             "h2c" => $"http://{domainOrHost}/",
             "tcp" => $"tcp://{resource.TargetHost}:{resource.PublicPort ?? resource.TargetPort}",
             "udp" => $"udp://{resource.TargetHost}:{resource.PublicPort ?? resource.TargetPort}",
+            "dns" => $"dns://{domainOrHost}",
+            "icmp" => $"icmp://{domainOrHost}",
+            "tls" => $"tls://{domainOrHost}:{resource.PublicPort ?? resource.TargetPort}",
             "pulse" => $"pulse://{resource.Id}",
             _ => $"{resource.TargetScheme}://{domainOrHost}/",
         };
@@ -457,13 +453,9 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
 
     private static string NormalizeManualCheckType(string checkType)
     {
-        var normalized = (checkType ?? string.Empty).Trim().ToLowerInvariant();
-        if (normalized == "push")
-        {
-            normalized = "pulse";
-        }
+        var normalized = ResourceMonitoringProtocolHintNames.Normalize(checkType) ?? string.Empty;
 
-        if (!AllowedCheckTypes.Contains(normalized))
+        if (!ResourceMonitoringProtocolHintNames.IsValid(normalized))
         {
             throw new InvalidOperationException($"Unsupported monitor check type '{checkType}'.");
         }

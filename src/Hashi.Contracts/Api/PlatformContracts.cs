@@ -14,6 +14,8 @@ public sealed record ResourceResponse(
     string TargetHost,
     int TargetPort,
     int? PublicPort,
+    bool? TcpProxyProtocolEnabled,
+    string? MonitoringProtocolHint,
     bool DashboardEnabled,
     bool StatusEnabled,
     Guid? FirewallHostId,
@@ -78,6 +80,8 @@ public sealed record CreateResourceRequest(
     bool DashboardEnabled,
     bool StatusEnabled,
     int? PublicPort = null,
+    bool? TcpProxyProtocolEnabled = null,
+    string? MonitoringProtocolHint = null,
     Guid? FirewallHostId = null,
     Guid? PulseAgentId = null,
     string? PathPrefix = null,
@@ -101,6 +105,9 @@ public sealed record UpdateResourceRequest(
     bool? DashboardEnabled,
     bool? StatusEnabled,
     int? PublicPort = null,
+    bool? TcpProxyProtocolEnabled = null,
+    string? MonitoringProtocolHint = null,
+    bool ClearMonitoringProtocolHint = false,
     string? DomainMode = null,
     bool ClearDomain = false,
     bool ClearPublicPort = false,
@@ -556,6 +563,7 @@ public sealed record SecurityTopBlockedIpItem
     public string? Asn { get; init; }
     public string? Reason { get; init; }
     public DateTimeOffset? ExpiresAtUtc { get; init; }
+    public string? SubjectState { get; init; }
 }
 
 public sealed record SecurityDashboardResponse(

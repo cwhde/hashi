@@ -19,9 +19,9 @@ public sealed class ResourceService(
 {
     private static readonly HashSet<string> GeoIpRuleTypes = new(StringComparer.OrdinalIgnoreCase)
     {
-        "country",
-        "region",
-        "asn",
+        ResourceRuleMatchTypeNames.Country,
+        ResourceRuleMatchTypeNames.Region,
+        ResourceRuleMatchTypeNames.Asn,
     };
 
     public async Task<IReadOnlyList<ResourceEntity>> ListAsync(CancellationToken cancellationToken = default)
@@ -29,11 +29,12 @@ public sealed class ResourceService(
 
     public async Task<ResourceEntity> CreateAsync(CreateResourceRequest request, CancellationToken cancellationToken = default)
     {
-        ValidateGeoIpRules(request.Rules);
+        ValidateResourceRules(request.Rules);
         var domainMode = NormalizeCreateDomainMode(request.DomainMode, request.Domain);
         var rootDomain = await GetRootDomainAsync(cancellationToken);
         ValidateDomain(domainMode, request.Domain, request.Name, rootDomain);
         ValidateRewrite(request.PathRewriteMode, request.PathRewrite, request.PathPrefix, request.Routes);
+        var monitoringHint = NormalizeMonitoringProtocolHint(request.MonitoringProtocolHint);
 
         if (request.Kind is "tcp" or "udp")
         {
@@ -51,6 +52,8 @@ public sealed class ResourceService(
             TargetHost = request.TargetHost,
             TargetPort = request.TargetPort,
             PublicPort = request.PublicPort,
+            TcpProxyProtocolEnabled = NormalizeTcpProxyProtocolEnabled(request.Kind, request.TcpProxyProtocolEnabled),
+            MonitoringProtocolHint = monitoringHint,
             DashboardEnabled = request.DashboardEnabled,
             StatusEnabled = request.StatusEnabled,
             FirewallHostId = request.FirewallHostId,
@@ -86,7 +89,7 @@ public sealed class ResourceService(
             throw new InvalidOperationException("System resources cannot be updated through the resource API.");
         }
 
-        ValidateGeoIpRules(request.Rules);
+        ValidateResourceRules(request.Rules);
         var rootDomain = await GetRootDomainAsync(cancellationToken);
 
         if (request.Name is not null)
@@ -134,6 +137,20 @@ public sealed class ResourceService(
         else if (request.PublicPort is int publicPort)
         {
             entity.PublicPort = publicPort;
+        }
+
+        if (request.TcpProxyProtocolEnabled is bool tcpProxyProtocol)
+        {
+            entity.TcpProxyProtocolEnabled = NormalizeTcpProxyProtocolEnabled(entity.Kind, tcpProxyProtocol);
+        }
+
+        if (request.ClearMonitoringProtocolHint)
+        {
+            entity.MonitoringProtocolHint = null;
+        }
+        else if (request.MonitoringProtocolHint is not null)
+        {
+            entity.MonitoringProtocolHint = NormalizeMonitoringProtocolHint(request.MonitoringProtocolHint);
         }
 
         if (request.ForwardAuthPolicy is not null)
@@ -299,6 +316,8 @@ public sealed class ResourceService(
             entity.TargetHost,
             entity.TargetPort,
             entity.PublicPort,
+            entity.TcpProxyProtocolEnabled,
+            entity.MonitoringProtocolHint,
             entity.DashboardEnabled,
             entity.StatusEnabled,
             entity.FirewallHostId,
@@ -399,13 +418,37 @@ public sealed class ResourceService(
                 ResourceId = resourceId,
                 Enabled = rule.Enabled,
                 Priority = rule.Priority,
-                Action = rule.Action,
-                MatchType = rule.MatchType,
-                MatchValue = rule.MatchValue,
+                Action = ResourceRuleActionNames.Normalize(rule.Action),
+                MatchType = NormalizeRuleMatchType(rule.MatchType),
+                MatchValue = rule.MatchValue.Trim(),
             });
         }
 
         await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private void ValidateResourceRules(IReadOnlyList<ResourceRuleRequest>? rules)
+    {
+        ValidateRuleVocabulary(rules);
+        ValidateGeoIpRules(rules);
+    }
+
+    private static void ValidateRuleVocabulary(IReadOnlyList<ResourceRuleRequest>? rules)
+    {
+        if (rules is null)
+        {
+            return;
+        }
+
+        foreach (var rule in rules)
+        {
+            _ = ResourceRuleActionNames.Normalize(rule.Action);
+            _ = NormalizeRuleMatchType(rule.MatchType);
+            if (string.IsNullOrWhiteSpace(rule.MatchValue))
+            {
+                throw new InvalidOperationException("Resource rule match value is required.");
+            }
+        }
     }
 
     private void ValidateGeoIpRules(IReadOnlyList<ResourceRuleRequest>? rules)
@@ -415,11 +458,27 @@ public sealed class ResourceService(
             return;
         }
 
-        var requiresGeoIp = rules.Any(rule => rule.Enabled && GeoIpRuleTypes.Contains(rule.MatchType));
+        var requiresGeoIp = rules.Any(rule => rule.Enabled && GeoIpRuleTypes.Contains(NormalizeRuleMatchType(rule.MatchType)));
         if (requiresGeoIp)
         {
             throw new InvalidOperationException("Enabled country, region, and ASN resource rules require a GeoIP database under /data/geoip.");
         }
+    }
+
+    private static string NormalizeRuleMatchType(string? matchType)
+    {
+        if (string.IsNullOrWhiteSpace(matchType))
+        {
+            throw new InvalidOperationException($"Resource rule match type must be one of: {string.Join(", ", ResourceRuleMatchTypeNames.All)}.");
+        }
+
+        var normalized = matchType.Trim().ToLowerInvariant();
+        if (!ResourceRuleMatchTypeNames.IsValid(normalized))
+        {
+            throw new InvalidOperationException($"Resource rule match type must be one of: {string.Join(", ", ResourceRuleMatchTypeNames.All)}.");
+        }
+
+        return normalized;
     }
 
     private async Task<string?> GetRootDomainAsync(CancellationToken cancellationToken)
@@ -642,8 +701,46 @@ public sealed class ResourceService(
                 resourceRules.Count > 0 ? resourceRules : null,
                 ParseWafExclusions(entity.WafExclusionsJson),
                 entity.DomainMode,
-                entity.PathRewriteMode);
+                entity.PathRewriteMode,
+                entity.TcpProxyProtocolEnabled,
+                entity.MonitoringProtocolHint);
         }).ToList();
+    }
+
+    private static bool? NormalizeTcpProxyProtocolEnabled(string kind, bool? enabled)
+    {
+        if (enabled is null)
+        {
+            return null;
+        }
+
+        if (string.Equals(kind, "tcp", StringComparison.OrdinalIgnoreCase))
+        {
+            return enabled;
+        }
+
+        if (enabled.Value)
+        {
+            throw new InvalidOperationException("TCP proxy protocol can only be enabled for TCP resources.");
+        }
+
+        return null;
+    }
+
+    private static string? NormalizeMonitoringProtocolHint(string? hint)
+    {
+        var normalized = ResourceMonitoringProtocolHintNames.Normalize(hint);
+        if (normalized is null)
+        {
+            return null;
+        }
+
+        if (!ResourceMonitoringProtocolHintNames.IsValid(normalized))
+        {
+            throw new InvalidOperationException($"Monitoring protocol hint must be one of: {string.Join(", ", ResourceMonitoringProtocolHintNames.All)}.");
+        }
+
+        return normalized;
     }
 
     private static WafMode ParseWafMode(string value) => value.ToLowerInvariant() switch

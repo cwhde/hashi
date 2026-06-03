@@ -408,7 +408,7 @@ public sealed class AbuseBucketEntity
 
     public int Score { get; set; }
 
-    public string State { get; set; } = "watch";
+    public string State { get; set; } = SecuritySubjectStateNames.Observed;
 
     public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }
@@ -761,6 +761,32 @@ public static class BlocklistSourceNames
 {
     public const string Automatic = "automatic";
     public const string Manual = "manual";
+}
+
+public static class SecuritySubjectStateNames
+{
+    public const string Observed = "observed";
+    public const string Warm = "warm";
+    public const string Suspect = "suspect";
+    public const string Challenged = "challenged";
+    public const string SoftBlocked = "soft_blocked";
+    public const string FirewallBlocked = "firewall_blocked";
+    public const string ManuallyAllowed = "manually_allowed";
+    public const string ManuallyBlocked = "manually_blocked";
+
+    public static string Normalize(string? state)
+        => (state ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "" => Observed,
+            "watch" => Observed,
+            "challenge" => Challenged,
+            "block" => FirewallBlocked,
+            "soft-blocked" => SoftBlocked,
+            "firewall-blocked" => FirewallBlocked,
+            "manually-allowed" => ManuallyAllowed,
+            "manually-blocked" => ManuallyBlocked,
+            var normalized => normalized,
+        };
 }
 
 public static class BlocklistApplyStatusNames

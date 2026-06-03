@@ -1,5 +1,6 @@
 using System.Net;
 using Hashi.Contracts.Api;
+using Hashi.Core.Resources;
 using Hashi.Infrastructure.Auth;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
@@ -233,9 +234,9 @@ public sealed class EdgeAuthServiceTests
         db.ResourceRules.Add(new ResourceRuleEntity
         {
             ResourceId = resource.Id,
-            MatchType = "path",
+            MatchType = ResourceRuleMatchTypeNames.Path,
             MatchValue = "/",
-            Action = "pass_to_auth",
+            Action = ResourceRuleActionNames.PassToAuth,
         });
         const string sessionKey = "test-session";
         db.EdgeSessions.Add(new EdgeSessionEntity
@@ -261,15 +262,50 @@ public sealed class EdgeAuthServiceTests
         db.ResourceRules.Add(new ResourceRuleEntity
         {
             ResourceId = resource.Id,
-            MatchType = "path",
+            MatchType = ResourceRuleMatchTypeNames.Path,
             MatchValue = "/admin",
-            Action = "pass_to_auth",
+            Action = ResourceRuleActionNames.PassToAuth,
         });
         await db.SaveChangesAsync();
 
         var result = await Evaluate(db, "app.example.com", "/admin");
 
         Assert.Equal("deny", result.Decision);
+    }
+
+    [Theory]
+    [InlineData(ResourceRuleActionNames.BypassAuth, "allow")]
+    [InlineData(ResourceRuleActionNames.BlockAccess, "deny")]
+    [InlineData(ResourceRuleActionNames.PassToAuth, "challenge")]
+    [InlineData(ResourceRuleActionNames.RequireAdaptiveChallenge, "challenge")]
+    public async Task Matching_resource_auth_rule_enforces_canonical_action(string action, string expectedDecision)
+    {
+        await using var db = CreateDb();
+        var resource = Resource("app.example.com", "off");
+        db.Resources.Add(resource);
+        db.ResourceRules.Add(ResourceRule(resource.Id, action));
+        await SeedProviderAsync(db);
+        await db.SaveChangesAsync();
+
+        var result = await Evaluate(db, "app.example.com", "/admin");
+
+        Assert.Equal(expectedDecision, result.Decision);
+    }
+
+    [Theory]
+    [InlineData("allow", "allow")]
+    [InlineData("block", "deny")]
+    public async Task Matching_resource_auth_rule_enforces_accepted_action_aliases(string action, string expectedDecision)
+    {
+        await using var db = CreateDb();
+        var resource = Resource("app.example.com", "off");
+        db.Resources.Add(resource);
+        db.ResourceRules.Add(ResourceRule(resource.Id, action));
+        await db.SaveChangesAsync();
+
+        var result = await Evaluate(db, "app.example.com", "/admin");
+
+        Assert.Equal(expectedDecision, result.Decision);
     }
 
     [Fact]
@@ -280,7 +316,7 @@ public sealed class EdgeAuthServiceTests
         db.AbuseBuckets.Add(new AbuseBucketEntity
         {
             ClientIp = "198.51.100.20",
-            State = "challenge",
+            State = SecuritySubjectStateNames.Challenged,
         });
         await SeedProviderAsync(db);
         await db.SaveChangesAsync();
@@ -291,19 +327,117 @@ public sealed class EdgeAuthServiceTests
     }
 
     [Fact]
-    public async Task Adaptive_blocks_when_abuse_bucket_is_block()
+    public async Task Adaptive_challenges_when_abuse_bucket_is_suspect()
+    {
+        await using var db = CreateDb();
+        db.Resources.Add(Resource("app.example.com", "adaptive"));
+        db.AbuseBuckets.Add(new AbuseBucketEntity
+        {
+            ClientIp = "198.51.100.22",
+            State = SecuritySubjectStateNames.Suspect,
+        });
+        await SeedProviderAsync(db);
+        await db.SaveChangesAsync();
+
+        var result = await Evaluate(db, "app.example.com", "/", clientIp: IPAddress.Parse("198.51.100.22"));
+
+        Assert.Equal("challenge", result.Decision);
+    }
+
+    [Theory]
+    [InlineData(SecuritySubjectStateNames.SoftBlocked)]
+    [InlineData(SecuritySubjectStateNames.FirewallBlocked)]
+    [InlineData(SecuritySubjectStateNames.ManuallyBlocked)]
+    [InlineData("block")]
+    public async Task Adaptive_blocks_when_abuse_bucket_is_block(string state)
     {
         await using var db = CreateDb();
         db.Resources.Add(Resource("app.example.com", "adaptive"));
         db.AbuseBuckets.Add(new AbuseBucketEntity
         {
             ClientIp = "198.51.100.21",
-            State = "block",
+            State = state,
         });
         await SeedProviderAsync(db);
         await db.SaveChangesAsync();
 
         var result = await Evaluate(db, "app.example.com", "/", clientIp: IPAddress.Parse("198.51.100.21"));
+
+        Assert.Equal("deny", result.Decision);
+    }
+
+    [Fact]
+    public async Task Manual_allow_subject_bypasses_automatic_abuse_block_for_adaptive_policy()
+    {
+        await using var db = CreateDb();
+        db.Resources.Add(Resource("app.example.com", "adaptive"));
+        db.BlocklistEntries.Add(new BlocklistEntryEntity
+        {
+            ClientIp = "198.51.100.23",
+            Type = BlocklistTypeNames.Ip,
+            Value = "198.51.100.23",
+            Reason = "abuse",
+            Source = BlocklistSourceNames.Automatic,
+        });
+        db.FirewallAllowedSubjects.Add(new FirewallAllowedSubjectEntity
+        {
+            FirewallHostId = Guid.NewGuid(),
+            SubjectKind = FirewallSubjectKindNames.Ip,
+            SubjectValue = "198.51.100.23",
+            Ownership = FirewallRuleOwnershipNames.UserCreated,
+        });
+        await SeedProviderAsync(db);
+        await db.SaveChangesAsync();
+
+        var result = await Evaluate(db, "app.example.com", "/", clientIp: IPAddress.Parse("198.51.100.23"));
+
+        Assert.Equal("allow", result.Decision);
+    }
+
+    [Fact]
+    public async Task Manual_allow_subject_does_not_bypass_sso_required_policy()
+    {
+        await using var db = CreateDb();
+        db.Resources.Add(Resource("app.example.com", "sso_required"));
+        db.FirewallAllowedSubjects.Add(new FirewallAllowedSubjectEntity
+        {
+            FirewallHostId = Guid.NewGuid(),
+            SubjectKind = FirewallSubjectKindNames.Ip,
+            SubjectValue = "198.51.100.24",
+            Ownership = FirewallRuleOwnershipNames.UserCreated,
+        });
+        await SeedProviderAsync(db);
+        await db.SaveChangesAsync();
+
+        var result = await Evaluate(db, "app.example.com", "/", clientIp: IPAddress.Parse("198.51.100.24"));
+
+        Assert.Equal("challenge", result.Decision);
+    }
+
+    [Fact]
+    public async Task Manual_blocklist_entry_overrides_manual_allow_subject()
+    {
+        await using var db = CreateDb();
+        db.Resources.Add(Resource("app.example.com", "adaptive"));
+        db.BlocklistEntries.Add(new BlocklistEntryEntity
+        {
+            ClientIp = "198.51.100.25",
+            Type = BlocklistTypeNames.Ip,
+            Value = "198.51.100.25",
+            Reason = "operator",
+            Source = BlocklistSourceNames.Manual,
+        });
+        db.FirewallAllowedSubjects.Add(new FirewallAllowedSubjectEntity
+        {
+            FirewallHostId = Guid.NewGuid(),
+            SubjectKind = FirewallSubjectKindNames.Ip,
+            SubjectValue = "198.51.100.25",
+            Ownership = FirewallRuleOwnershipNames.UserCreated,
+        });
+        await SeedProviderAsync(db);
+        await db.SaveChangesAsync();
+
+        var result = await Evaluate(db, "app.example.com", "/", clientIp: IPAddress.Parse("198.51.100.25"));
 
         Assert.Equal("deny", result.Decision);
     }
@@ -382,6 +516,15 @@ public sealed class EdgeAuthServiceTests
             Slug = domain.Replace('.', '-'),
             Domain = domain,
             ForwardAuthPolicy = forwardAuthPolicy,
+        };
+
+    private static ResourceRuleEntity ResourceRule(Guid resourceId, string action)
+        => new()
+        {
+            ResourceId = resourceId,
+            MatchType = ResourceRuleMatchTypeNames.Path,
+            MatchValue = "/admin",
+            Action = action,
         };
 
     private static async Task<Guid> SeedProviderAsync(HashiDbContext db)

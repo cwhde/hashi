@@ -6,6 +6,8 @@
 		normalizeRoutes,
 		type ResourceRouteRequest
 	} from '$lib/components/resources/resource-routes';
+	import ResourceRulesEditor from '$lib/components/resources/ResourceRulesEditor.svelte';
+	import { normalizeRules, type ResourceRuleRequest } from '$lib/components/resources/resource-rules';
 	import AdminSectionPage from '$lib/components/layout/AdminSectionPage.svelte';
 	import PanelSection from '$lib/components/layout/PanelSection.svelte';
 	import { Button } from '$lib/components/ui/button';
@@ -27,8 +29,10 @@
 	let pulseAgents = $state<PulseAgent[]>([]);
 	let availableMiddlewares = $state<string[]>([]);
 	let routeDrafts = $state<Record<string, ResourceRouteRequest[]>>({});
+	let ruleDrafts = $state<Record<string, ResourceRuleRequest[]>>({});
 	let wafExclusionDrafts = $state<Record<string, string>>({});
 	let routeSaving = $state<Record<string, boolean>>({});
+	let ruleSaving = $state<Record<string, boolean>>({});
 	let wafExclusionSaving = $state<Record<string, boolean>>({});
 	let loading = $state(true);
 	let error = $state<string | null>(null);
@@ -42,6 +46,8 @@
 		targetHost: '',
 		targetPort: 443,
 		publicPort: 443,
+		tcpProxyProtocolEnabled: false,
+		monitoringProtocolHint: '',
 		pathPrefix: '',
 		pathRewriteMode: '',
 		pathRewrite: '',
@@ -51,7 +57,8 @@
 		firewallHostId: '',
 		dashboardEnabled: false,
 		statusEnabled: true,
-		routes: [] as ResourceRouteRequest[]
+		routes: [] as ResourceRouteRequest[],
+		rules: [] as ResourceRuleRequest[]
 	});
 
 	$effect(() => {
@@ -71,6 +78,9 @@
 			resources = resourceList;
 			routeDrafts = Object.fromEntries(
 				resourceList.map((resource) => [resource.id, cloneResourceRoutes(resource)])
+			);
+			ruleDrafts = Object.fromEntries(
+				resourceList.map((resource) => [resource.id, cloneResourceRules(resource)])
 			);
 			wafExclusionDrafts = Object.fromEntries(
 				resourceList.map((resource) => [resource.id, (resource.wafExclusions ?? []).join('\n')])
@@ -103,6 +113,8 @@
 				targetHost: form.targetHost,
 				targetPort: Number(form.targetPort),
 				publicPort: form.kind === 'tcp' || form.kind === 'udp' ? Number(form.publicPort) : null,
+				tcpProxyProtocolEnabled: form.kind === 'tcp' ? form.tcpProxyProtocolEnabled : null,
+				monitoringProtocolHint: form.monitoringProtocolHint || null,
 				forwardAuthPolicy: form.forwardAuthPolicy,
 				wafMode: form.wafMode,
 				wafExclusions: parseLineList(form.wafExclusions),
@@ -112,18 +124,22 @@
 				pathPrefix: form.pathPrefix || null,
 				pathRewriteMode: form.pathRewriteMode || null,
 				pathRewrite: form.pathRewriteMode ? form.pathRewrite || null : null,
-				routes: form.routes.length > 0 ? normalizeRoutes(form.routes) : null
+				routes: form.routes.length > 0 ? normalizeRoutes(form.routes) : null,
+				rules: form.rules.length > 0 ? normalizeRules(form.rules) : null
 			});
 			form.name = '';
 			form.domainMode = 'subdomain';
 			form.domain = '';
 			form.targetHost = '';
+			form.tcpProxyProtocolEnabled = false;
+			form.monitoringProtocolHint = '';
 			form.pathPrefix = '';
 			form.pathRewriteMode = '';
 			form.pathRewrite = '';
 			form.wafExclusions = '';
 			form.firewallHostId = '';
 			form.routes = [];
+			form.rules = [];
 			await load();
 		} catch (e) {
 			error = e instanceof ApiRequestError ? e.message : 'Failed to create resource';
@@ -141,7 +157,8 @@
 		clearPathRewriteMode: false,
 		clearPathRewrite: false,
 		clearExtraMiddlewares: false,
-		clearWafExclusions: false
+		clearWafExclusions: false,
+		clearMonitoringProtocolHint: false
 	} as const;
 
 	async function toggleEnabled(resource: Resource) {
@@ -229,6 +246,47 @@
 		}
 	}
 
+	async function updateTcpProxyProtocol(resource: Resource, enabled: boolean) {
+		try {
+			await api.updateResource(resource.id, {
+				name: null,
+				enabled: null,
+				domain: null,
+				targetScheme: null,
+				targetHost: null,
+				targetPort: null,
+				dashboardEnabled: null,
+				statusEnabled: null,
+				tcpProxyProtocolEnabled: enabled,
+				...resourcePatchFlags
+			});
+			await load();
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Failed to update proxy protocol';
+		}
+	}
+
+	async function updateMonitoringProtocolHint(resource: Resource, monitoringProtocolHint: string) {
+		try {
+			await api.updateResource(resource.id, {
+				name: null,
+				enabled: null,
+				domain: null,
+				targetScheme: null,
+				targetHost: null,
+				targetPort: null,
+				dashboardEnabled: null,
+				statusEnabled: null,
+				monitoringProtocolHint: monitoringProtocolHint || null,
+				...resourcePatchFlags,
+				clearMonitoringProtocolHint: !monitoringProtocolHint
+			});
+			await load();
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Failed to update monitoring hint';
+		}
+	}
+
 	function parseLineList(value: string): string[] {
 		return value
 			.split('\n')
@@ -274,6 +332,16 @@
 		}));
 	}
 
+	function cloneResourceRules(resource: Resource): ResourceRuleRequest[] {
+		return (resource.rules ?? []).map((rule) => ({
+			enabled: rule.enabled,
+			priority: Number(rule.priority),
+			action: rule.action,
+			matchType: rule.matchType,
+			matchValue: rule.matchValue
+		}));
+	}
+
 	async function saveResourceRoutes(resource: Resource) {
 		const draft = normalizeRoutes(routeDrafts[resource.id] ?? []);
 		routeSaving = { ...routeSaving, [resource.id]: true };
@@ -295,6 +363,30 @@
 			error = e instanceof ApiRequestError ? e.message : 'Failed to update resource routes';
 		} finally {
 			routeSaving = { ...routeSaving, [resource.id]: false };
+		}
+	}
+
+	async function saveResourceRules(resource: Resource) {
+		const draft = normalizeRules(ruleDrafts[resource.id] ?? []);
+		ruleSaving = { ...ruleSaving, [resource.id]: true };
+		try {
+			await api.updateResource(resource.id, {
+				name: null,
+				enabled: null,
+				domain: null,
+				targetScheme: null,
+				targetHost: null,
+				targetPort: null,
+				dashboardEnabled: null,
+				statusEnabled: null,
+				...resourcePatchFlags,
+				rules: draft
+			});
+			await load();
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Failed to update resource rules';
+		} finally {
+			ruleSaving = { ...ruleSaving, [resource.id]: false };
 		}
 	}
 
@@ -426,6 +518,33 @@
 			</div>
 			<div class="grid grid-cols-2 gap-3">
 				<div class="grid gap-1.5">
+					<Label for="res-monitoring-hint">Monitoring hint</Label>
+					<select
+						id="res-monitoring-hint"
+						class="h-9 rounded-md border border-border bg-background px-3 text-sm text-white"
+						bind:value={form.monitoringProtocolHint}
+					>
+						<option value="">Infer from resource</option>
+						<option value="http">HTTP</option>
+						<option value="https">HTTPS</option>
+						<option value="h2c">H2C</option>
+						<option value="tcp">TCP</option>
+						<option value="udp">UDP</option>
+						<option value="dns">DNS</option>
+						<option value="tls">TLS</option>
+						<option value="icmp">ICMP</option>
+						<option value="pulse">Pulse</option>
+					</select>
+				</div>
+				{#if form.kind === 'tcp'}
+					<div class="flex items-end gap-2 pb-2">
+						<Switch bind:checked={form.tcpProxyProtocolEnabled} id="res-proxy-protocol" />
+						<Label for="res-proxy-protocol">Proxy protocol</Label>
+					</div>
+				{/if}
+			</div>
+			<div class="grid grid-cols-2 gap-3">
+				<div class="grid gap-1.5">
 					<Label for="res-forward-auth">Forward auth</Label>
 					<select
 						id="res-forward-auth"
@@ -471,6 +590,11 @@
 				}}
 				disabled={saving}
 			/>
+			<ResourceRulesEditor
+				title="Resource rules (optional)"
+				bind:rules={form.rules}
+				disabled={saving}
+			/>
 			<div class="flex flex-wrap gap-4">
 				<div class="flex items-center gap-2">
 					<Switch bind:checked={form.dashboardEnabled} id="res-dash" />
@@ -504,9 +628,12 @@
 							<TableHead>Firewall host</TableHead>
 							<TableHead>Pulse agent</TableHead>
 							<TableHead>Target</TableHead>
+							<TableHead>TCP proxy</TableHead>
+							<TableHead>Monitor hint</TableHead>
 							<TableHead>Extra middlewares</TableHead>
 							<TableHead>WAF exclusions</TableHead>
 							<TableHead>Advanced routes</TableHead>
+							<TableHead>Resource rules</TableHead>
 							<TableHead>Enabled</TableHead>
 							<TableHead class="w-12"></TableHead>
 						</TableRow>
@@ -557,6 +684,39 @@
 								</TableCell>
 								<TableCell class="font-mono text-xs">
 									{resource.targetScheme}://{resource.targetHost}:{resource.targetPort}
+								</TableCell>
+								<TableCell>
+									{#if resource.kind.toLowerCase() === 'tcp'}
+										<Switch
+											checked={resource.tcpProxyProtocolEnabled === true}
+											onCheckedChange={(enabled) =>
+												updateTcpProxyProtocol(resource, enabled === true)}
+										/>
+									{:else}
+										<span class="text-xs text-muted-foreground">n/a</span>
+									{/if}
+								</TableCell>
+								<TableCell>
+									<select
+										class="h-8 max-w-[8rem] rounded-md border border-border bg-background px-2 text-xs text-white"
+										value={resource.monitoringProtocolHint ?? ''}
+										onchange={(e) =>
+											updateMonitoringProtocolHint(
+												resource,
+												(e.currentTarget as HTMLSelectElement).value
+											)}
+									>
+										<option value="">Infer</option>
+										<option value="http">HTTP</option>
+										<option value="https">HTTPS</option>
+										<option value="h2c">H2C</option>
+										<option value="tcp">TCP</option>
+										<option value="udp">UDP</option>
+										<option value="dns">DNS</option>
+										<option value="tls">TLS</option>
+										<option value="icmp">ICMP</option>
+										<option value="pulse">Pulse</option>
+									</select>
 								</TableCell>
 								<TableCell>
 									{#if availableMiddlewares.length === 0}
@@ -623,6 +783,23 @@
 											disabled={routeSaving[resource.id] === true}
 										>
 											{routeSaving[resource.id] ? 'Saving…' : 'Save routes'}
+										</Button>
+									</div>
+								</TableCell>
+								<TableCell class="min-w-[24rem]">
+									<div class="grid gap-2">
+										<ResourceRulesEditor
+											title="Rules"
+											bind:rules={ruleDrafts[resource.id]}
+											disabled={ruleSaving[resource.id] === true}
+										/>
+										<Button
+											size="sm"
+											variant="outline"
+											onclick={() => saveResourceRules(resource)}
+											disabled={ruleSaving[resource.id] === true}
+										>
+											{ruleSaving[resource.id] ? 'Saving...' : 'Save rules'}
 										</Button>
 									</div>
 								</TableCell>

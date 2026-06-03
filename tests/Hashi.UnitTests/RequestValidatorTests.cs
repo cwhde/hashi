@@ -1,4 +1,5 @@
 using Hashi.Contracts.Api;
+using Hashi.Core.Resources;
 using Hashi.Core.Validation;
 using Xunit;
 
@@ -80,6 +81,83 @@ public sealed class RequestValidatorTests
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, x => x.PropertyName.Contains(nameof(ResourceRouteRequest.RewriteMode), StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void CreateResourceValidator_rejects_invalid_resource_rule_action_and_match_type()
+    {
+        var validator = new CreateResourceRequestValidator();
+        var request = new CreateResourceRequest(
+            "App",
+            "http",
+            "app.example.com",
+            "http",
+            "localhost",
+            8080,
+            DashboardEnabled: true,
+            StatusEnabled: true,
+            Rules:
+            [
+                new ResourceRuleRequest(
+                    true,
+                    100,
+                    "permit",
+                    "header",
+                    "x-test")
+            ]);
+
+        var result = validator.Validate(request);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, x => x.PropertyName.Contains(nameof(ResourceRuleRequest.Action), StringComparison.Ordinal));
+        Assert.Contains(result.Errors, x => x.PropertyName.Contains(nameof(ResourceRuleRequest.MatchType), StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void CreateResourceValidator_accepts_canonical_resource_rule_actions()
+    {
+        var validator = new CreateResourceRequestValidator();
+        var request = new CreateResourceRequest(
+            "App",
+            "http",
+            "app.example.com",
+            "http",
+            "localhost",
+            8080,
+            DashboardEnabled: true,
+            StatusEnabled: true,
+            Rules:
+            [
+                new ResourceRuleRequest(true, 100, ResourceRuleActionNames.BypassAuth, ResourceRuleMatchTypeNames.Path, "/public"),
+                new ResourceRuleRequest(true, 90, ResourceRuleActionNames.BlockAccess, ResourceRuleMatchTypeNames.Ip, "203.0.113.10"),
+                new ResourceRuleRequest(true, 80, ResourceRuleActionNames.PassToAuth, ResourceRuleMatchTypeNames.Cidr, "203.0.113.0/24"),
+                new ResourceRuleRequest(true, 70, ResourceRuleActionNames.RequireAdaptiveChallenge, ResourceRuleMatchTypeNames.Asn, "AS13335"),
+            ]);
+
+        var result = validator.Validate(request);
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void CreateResourceValidator_rejects_invalid_monitoring_protocol_hint()
+    {
+        var validator = new CreateResourceRequestValidator();
+        var request = new CreateResourceRequest(
+            "App",
+            "http",
+            "app.example.com",
+            "http",
+            "localhost",
+            8080,
+            DashboardEnabled: true,
+            StatusEnabled: true,
+            MonitoringProtocolHint: "smtp");
+
+        var result = validator.Validate(request);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, x => x.PropertyName == nameof(CreateResourceRequest.MonitoringProtocolHint));
     }
 
     [Fact]

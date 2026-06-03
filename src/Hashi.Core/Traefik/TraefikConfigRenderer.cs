@@ -422,13 +422,7 @@ public static class TraefikConfigRenderer
                     rule: HostSNI(`*`)
                     service: {{r.Slug}}
                 """));
-        var tcpServices = string.Join('\n', tcpResources.Select(r =>
-            $$"""
-                  {{r.Slug}}:
-                    loadBalancer:
-                      servers:
-                        - address: "{{r.TargetHost}}:{{r.TargetPort}}"
-                """));
+        var tcpServices = string.Join('\n', tcpResources.Select(RenderTcpService));
         var udpRouters = string.Join('\n', udpResources.Select(r =>
             $$"""
                   {{r.Slug}}:
@@ -457,6 +451,25 @@ public static class TraefikConfigRenderer
         => string.IsNullOrWhiteSpace(content)
             ? $"  {name}: {{}}"
             : $"  {name}:\n{IndentBlock(content, 2)}";
+
+    private static string RenderTcpService(ResourceDefinition resource)
+    {
+        var lines = new List<string>
+        {
+            $"    {resource.Slug}:",
+            "      loadBalancer:",
+            "        servers:",
+            $"          - address: \"{resource.TargetHost}:{resource.TargetPort}\"",
+        };
+
+        if (resource.TcpProxyProtocolEnabled == true)
+        {
+            lines.Add("        proxyProtocol:");
+            lines.Add("          version: 2");
+        }
+
+        return string.Join('\n', lines);
+    }
 
     private static string IndentBlock(string block, int spaces)
     {

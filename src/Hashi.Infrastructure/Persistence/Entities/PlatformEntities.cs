@@ -38,6 +38,10 @@ public sealed class ResourceEntity
 
     public int? PublicPort { get; set; }
 
+    public bool? TcpProxyProtocolEnabled { get; set; }
+
+    public string? MonitoringProtocolHint { get; set; }
+
     public bool DashboardEnabled { get; set; }
 
     public bool StatusEnabled { get; set; }

@@ -139,7 +139,119 @@ public sealed class DnsRecordServiceTests
     }
 
     [Fact]
-    public async Task Desired_state_skips_public_record_for_private_manual_target_without_firewall_or_pulse()
+    public async Task Desired_state_generates_cname_for_private_manual_target_in_managed_subnet()
+    {
+        await using var db = CreateDb();
+        var zone = await SeedZoneAsync(db);
+        db.AppSettings.Add(new AppSettingsEntity { RootDomain = "example.com" });
+        db.FirewallHosts.Add(new FirewallHostEntity
+        {
+            ConnectionId = Guid.NewGuid(),
+            Name = "edge",
+            Domain = "edge.example.com",
+            PublicIp = "203.0.113.10",
+            ManagedSubnetsJson = """["10.0.0.0/24"]""",
+        });
+        db.Resources.Add(new ResourceEntity
+        {
+            Name = "App",
+            Slug = "app",
+            Kind = "https",
+            Enabled = true,
+            DomainMode = "subdomain",
+            TargetHost = "10.0.0.25",
+            TargetPort = 443,
+        });
+        await db.SaveChangesAsync();
+
+        var desired = await DnsDesiredStateBuilder.BuildAsync(db, zone.Id, zone.DefaultTtl);
+
+        Assert.Contains(desired, x =>
+            x.Name == "app.example.com"
+            && x.Type == DnsRecordType.Cname
+            && x.Value == "on.edge.example.com");
+    }
+
+    [Fact]
+    public async Task Desired_state_generates_cname_for_pulse_target_in_netbird_routed_cidr()
+    {
+        await using var db = CreateDb();
+        var zone = await SeedZoneAsync(db);
+        var agentId = Guid.NewGuid();
+        db.AppSettings.Add(new AppSettingsEntity { RootDomain = "example.com" });
+        db.FirewallHosts.Add(new FirewallHostEntity
+        {
+            ConnectionId = Guid.NewGuid(),
+            Name = "edge",
+            Domain = "edge.example.com",
+            PublicIp = "203.0.113.10",
+            ManagedSubnetsJson = "[]",
+            NetBirdRoutedCidrsJson = """["10.44.0.0/16"]""",
+        });
+        db.PulseAgents.Add(new PulseAgentEntity
+        {
+            Id = agentId,
+            Name = "pulse",
+            TokenHash = "hash",
+            LastSelectedIp = "10.44.10.5",
+            LastPublicIp = "198.51.100.20",
+        });
+        db.Resources.Add(new ResourceEntity
+        {
+            Name = "App",
+            Slug = "app",
+            Kind = "https",
+            Enabled = true,
+            DomainMode = "subdomain",
+            PulseAgentId = agentId,
+            TargetPort = 443,
+        });
+        await db.SaveChangesAsync();
+
+        var desired = await DnsDesiredStateBuilder.BuildAsync(db, zone.Id, zone.DefaultTtl);
+
+        Assert.Contains(desired, x =>
+            x.Name == "app.example.com"
+            && x.Type == DnsRecordType.Cname
+            && x.Value == "on.edge.example.com");
+    }
+
+    [Fact]
+    public async Task Desired_state_generates_cname_for_manual_target_matching_configured_host_fqdn()
+    {
+        await using var db = CreateDb();
+        var zone = await SeedZoneAsync(db);
+        db.AppSettings.Add(new AppSettingsEntity { RootDomain = "example.com" });
+        db.FirewallHosts.Add(new FirewallHostEntity
+        {
+            ConnectionId = Guid.NewGuid(),
+            Name = "edge",
+            Domain = "edge-configured.example.com",
+            PublicIp = "203.0.113.10",
+            ManagedSubnetsJson = "[]",
+        });
+        db.Resources.Add(new ResourceEntity
+        {
+            Name = "App",
+            Slug = "app",
+            Kind = "https",
+            Enabled = true,
+            DomainMode = "subdomain",
+            TargetHost = "edge-configured.example.com",
+            TargetPort = 443,
+        });
+        await db.SaveChangesAsync();
+
+        var desired = await DnsDesiredStateBuilder.BuildAsync(db, zone.Id, zone.DefaultTtl);
+
+        Assert.Contains(desired, x =>
+            x.Name == "app.example.com"
+            && x.Type == DnsRecordType.Cname
+            && x.Value == "on.edge.example.com");
+    }
+
+    [Fact]
+    public async Task Desired_state_rejects_unmatched_private_manual_target()
     {
         await using var db = CreateDb();
         var zone = await SeedZoneAsync(db);
@@ -156,9 +268,10 @@ public sealed class DnsRecordServiceTests
         });
         await db.SaveChangesAsync();
 
-        var desired = await DnsDesiredStateBuilder.BuildAsync(db, zone.Id, zone.DefaultTtl);
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            DnsDesiredStateBuilder.BuildAsync(db, zone.Id, zone.DefaultTtl));
 
-        Assert.DoesNotContain(desired, x => x.Name == "app.example.com");
+        Assert.Contains("does not match any managed firewall host subnet", ex.Message);
     }
 
     [Fact]
