@@ -1,5 +1,6 @@
 using System.Net;
 using Hashi.Contracts.Api;
+using Hashi.Core.Resources;
 using Hashi.Infrastructure.Auth;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
@@ -233,9 +234,9 @@ public sealed class EdgeAuthServiceTests
         db.ResourceRules.Add(new ResourceRuleEntity
         {
             ResourceId = resource.Id,
-            MatchType = "path",
+            MatchType = ResourceRuleMatchTypeNames.Path,
             MatchValue = "/",
-            Action = "pass_to_auth",
+            Action = ResourceRuleActionNames.PassToAuth,
         });
         const string sessionKey = "test-session";
         db.EdgeSessions.Add(new EdgeSessionEntity
@@ -261,15 +262,50 @@ public sealed class EdgeAuthServiceTests
         db.ResourceRules.Add(new ResourceRuleEntity
         {
             ResourceId = resource.Id,
-            MatchType = "path",
+            MatchType = ResourceRuleMatchTypeNames.Path,
             MatchValue = "/admin",
-            Action = "pass_to_auth",
+            Action = ResourceRuleActionNames.PassToAuth,
         });
         await db.SaveChangesAsync();
 
         var result = await Evaluate(db, "app.example.com", "/admin");
 
         Assert.Equal("deny", result.Decision);
+    }
+
+    [Theory]
+    [InlineData(ResourceRuleActionNames.BypassAuth, "allow")]
+    [InlineData(ResourceRuleActionNames.BlockAccess, "deny")]
+    [InlineData(ResourceRuleActionNames.PassToAuth, "challenge")]
+    [InlineData(ResourceRuleActionNames.RequireAdaptiveChallenge, "challenge")]
+    public async Task Matching_resource_auth_rule_enforces_canonical_action(string action, string expectedDecision)
+    {
+        await using var db = CreateDb();
+        var resource = Resource("app.example.com", "off");
+        db.Resources.Add(resource);
+        db.ResourceRules.Add(ResourceRule(resource.Id, action));
+        await SeedProviderAsync(db);
+        await db.SaveChangesAsync();
+
+        var result = await Evaluate(db, "app.example.com", "/admin");
+
+        Assert.Equal(expectedDecision, result.Decision);
+    }
+
+    [Theory]
+    [InlineData("allow", "allow")]
+    [InlineData("block", "deny")]
+    public async Task Matching_resource_auth_rule_enforces_accepted_action_aliases(string action, string expectedDecision)
+    {
+        await using var db = CreateDb();
+        var resource = Resource("app.example.com", "off");
+        db.Resources.Add(resource);
+        db.ResourceRules.Add(ResourceRule(resource.Id, action));
+        await db.SaveChangesAsync();
+
+        var result = await Evaluate(db, "app.example.com", "/admin");
+
+        Assert.Equal(expectedDecision, result.Decision);
     }
 
     [Fact]
@@ -382,6 +418,15 @@ public sealed class EdgeAuthServiceTests
             Slug = domain.Replace('.', '-'),
             Domain = domain,
             ForwardAuthPolicy = forwardAuthPolicy,
+        };
+
+    private static ResourceRuleEntity ResourceRule(Guid resourceId, string action)
+        => new()
+        {
+            ResourceId = resourceId,
+            MatchType = ResourceRuleMatchTypeNames.Path,
+            MatchValue = "/admin",
+            Action = action,
         };
 
     private static async Task<Guid> SeedProviderAsync(HashiDbContext db)

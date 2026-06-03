@@ -1,4 +1,5 @@
 using Hashi.Contracts.Api;
+using Hashi.Core.Resources;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
 using Hashi.UnitTests.Fakes;
@@ -16,7 +17,7 @@ public sealed class ResourceServiceRuleValidationTests
         var service = TestPlatformHelpers.CreateResourceService(db);
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAsync(CreateRequest(
-            [new ResourceRuleRequest(true, 100, "block", "country", "US")])));
+            [new ResourceRuleRequest(true, 100, ResourceRuleActionNames.BlockAccess, ResourceRuleMatchTypeNames.Country, "US")])));
 
         Assert.Contains("GeoIP database", ex.Message);
         Assert.Empty(await db.Resources.AsNoTracking().ToListAsync());
@@ -37,8 +38,36 @@ public sealed class ResourceServiceRuleValidationTests
 
         var storedRules = await db.ResourceRules.AsNoTracking().Where(x => x.ResourceId == created.Id).ToListAsync();
         Assert.Equal(2, storedRules.Count);
-        Assert.Contains(storedRules, x => x.Enabled && x.MatchType == "path");
-        Assert.Contains(storedRules, x => !x.Enabled && x.MatchType == "asn");
+        Assert.Contains(storedRules, x => x.Enabled && x.Action == ResourceRuleActionNames.BypassAuth && x.MatchType == ResourceRuleMatchTypeNames.Path);
+        Assert.Contains(storedRules, x => !x.Enabled && x.Action == ResourceRuleActionNames.BlockAccess && x.MatchType == ResourceRuleMatchTypeNames.Asn);
+    }
+
+    [Fact]
+    public async Task CreateAsync_rejects_unknown_rule_action_before_storage()
+    {
+        await using var db = CreateDb();
+        var service = TestPlatformHelpers.CreateResourceService(db);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAsync(CreateRequest(
+            [new ResourceRuleRequest(true, 100, "permit", ResourceRuleMatchTypeNames.Path, "/admin")])));
+
+        Assert.Contains("Resource rule action", ex.Message);
+        Assert.Empty(await db.Resources.AsNoTracking().ToListAsync());
+        Assert.Empty(await db.ResourceRules.AsNoTracking().ToListAsync());
+    }
+
+    [Fact]
+    public async Task CreateAsync_rejects_unknown_rule_match_type_before_storage()
+    {
+        await using var db = CreateDb();
+        var service = TestPlatformHelpers.CreateResourceService(db);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAsync(CreateRequest(
+            [new ResourceRuleRequest(true, 100, ResourceRuleActionNames.BlockAccess, "header", "x-test")])));
+
+        Assert.Contains("Resource rule match type", ex.Message);
+        Assert.Empty(await db.Resources.AsNoTracking().ToListAsync());
+        Assert.Empty(await db.ResourceRules.AsNoTracking().ToListAsync());
     }
 
     [Fact]
@@ -71,7 +100,7 @@ public sealed class ResourceServiceRuleValidationTests
                 null,
                 null,
                 null,
-                Rules: [new ResourceRuleRequest(true, 100, "block", "region", "ZH")])));
+                Rules: [new ResourceRuleRequest(true, 100, ResourceRuleActionNames.BlockAccess, ResourceRuleMatchTypeNames.Region, "ZH")])));
 
         Assert.Contains("GeoIP database", ex.Message);
         var stored = await db.Resources.AsNoTracking().SingleAsync(x => x.Id == resource.Id);
