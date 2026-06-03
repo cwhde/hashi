@@ -34,6 +34,7 @@ public sealed class ResourceService(
         var rootDomain = await GetRootDomainAsync(cancellationToken);
         ValidateDomain(domainMode, request.Domain, request.Name, rootDomain);
         ValidateRewrite(request.PathRewriteMode, request.PathRewrite, request.PathPrefix, request.Routes);
+        var monitoringHint = NormalizeMonitoringProtocolHint(request.MonitoringProtocolHint);
 
         if (request.Kind is "tcp" or "udp")
         {
@@ -51,6 +52,8 @@ public sealed class ResourceService(
             TargetHost = request.TargetHost,
             TargetPort = request.TargetPort,
             PublicPort = request.PublicPort,
+            TcpProxyProtocolEnabled = NormalizeTcpProxyProtocolEnabled(request.Kind, request.TcpProxyProtocolEnabled),
+            MonitoringProtocolHint = monitoringHint,
             DashboardEnabled = request.DashboardEnabled,
             StatusEnabled = request.StatusEnabled,
             FirewallHostId = request.FirewallHostId,
@@ -134,6 +137,20 @@ public sealed class ResourceService(
         else if (request.PublicPort is int publicPort)
         {
             entity.PublicPort = publicPort;
+        }
+
+        if (request.TcpProxyProtocolEnabled is bool tcpProxyProtocol)
+        {
+            entity.TcpProxyProtocolEnabled = NormalizeTcpProxyProtocolEnabled(entity.Kind, tcpProxyProtocol);
+        }
+
+        if (request.ClearMonitoringProtocolHint)
+        {
+            entity.MonitoringProtocolHint = null;
+        }
+        else if (request.MonitoringProtocolHint is not null)
+        {
+            entity.MonitoringProtocolHint = NormalizeMonitoringProtocolHint(request.MonitoringProtocolHint);
         }
 
         if (request.ForwardAuthPolicy is not null)
@@ -299,6 +316,8 @@ public sealed class ResourceService(
             entity.TargetHost,
             entity.TargetPort,
             entity.PublicPort,
+            entity.TcpProxyProtocolEnabled,
+            entity.MonitoringProtocolHint,
             entity.DashboardEnabled,
             entity.StatusEnabled,
             entity.FirewallHostId,
@@ -682,8 +701,46 @@ public sealed class ResourceService(
                 resourceRules.Count > 0 ? resourceRules : null,
                 ParseWafExclusions(entity.WafExclusionsJson),
                 entity.DomainMode,
-                entity.PathRewriteMode);
+                entity.PathRewriteMode,
+                entity.TcpProxyProtocolEnabled,
+                entity.MonitoringProtocolHint);
         }).ToList();
+    }
+
+    private static bool? NormalizeTcpProxyProtocolEnabled(string kind, bool? enabled)
+    {
+        if (enabled is null)
+        {
+            return null;
+        }
+
+        if (string.Equals(kind, "tcp", StringComparison.OrdinalIgnoreCase))
+        {
+            return enabled;
+        }
+
+        if (enabled.Value)
+        {
+            throw new InvalidOperationException("TCP proxy protocol can only be enabled for TCP resources.");
+        }
+
+        return null;
+    }
+
+    private static string? NormalizeMonitoringProtocolHint(string? hint)
+    {
+        var normalized = ResourceMonitoringProtocolHintNames.Normalize(hint);
+        if (normalized is null)
+        {
+            return null;
+        }
+
+        if (!ResourceMonitoringProtocolHintNames.IsValid(normalized))
+        {
+            throw new InvalidOperationException($"Monitoring protocol hint must be one of: {string.Join(", ", ResourceMonitoringProtocolHintNames.All)}.");
+        }
+
+        return normalized;
     }
 
     private static WafMode ParseWafMode(string value) => value.ToLowerInvariant() switch

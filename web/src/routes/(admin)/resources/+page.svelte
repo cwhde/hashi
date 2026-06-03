@@ -46,6 +46,8 @@
 		targetHost: '',
 		targetPort: 443,
 		publicPort: 443,
+		tcpProxyProtocolEnabled: false,
+		monitoringProtocolHint: '',
 		pathPrefix: '',
 		pathRewriteMode: '',
 		pathRewrite: '',
@@ -111,6 +113,8 @@
 				targetHost: form.targetHost,
 				targetPort: Number(form.targetPort),
 				publicPort: form.kind === 'tcp' || form.kind === 'udp' ? Number(form.publicPort) : null,
+				tcpProxyProtocolEnabled: form.kind === 'tcp' ? form.tcpProxyProtocolEnabled : null,
+				monitoringProtocolHint: form.monitoringProtocolHint || null,
 				forwardAuthPolicy: form.forwardAuthPolicy,
 				wafMode: form.wafMode,
 				wafExclusions: parseLineList(form.wafExclusions),
@@ -127,6 +131,8 @@
 			form.domainMode = 'subdomain';
 			form.domain = '';
 			form.targetHost = '';
+			form.tcpProxyProtocolEnabled = false;
+			form.monitoringProtocolHint = '';
 			form.pathPrefix = '';
 			form.pathRewriteMode = '';
 			form.pathRewrite = '';
@@ -151,7 +157,8 @@
 		clearPathRewriteMode: false,
 		clearPathRewrite: false,
 		clearExtraMiddlewares: false,
-		clearWafExclusions: false
+		clearWafExclusions: false,
+		clearMonitoringProtocolHint: false
 	} as const;
 
 	async function toggleEnabled(resource: Resource) {
@@ -236,6 +243,47 @@
 			await load();
 		} catch (e) {
 			error = e instanceof ApiRequestError ? e.message : 'Failed to update middlewares';
+		}
+	}
+
+	async function updateTcpProxyProtocol(resource: Resource, enabled: boolean) {
+		try {
+			await api.updateResource(resource.id, {
+				name: null,
+				enabled: null,
+				domain: null,
+				targetScheme: null,
+				targetHost: null,
+				targetPort: null,
+				dashboardEnabled: null,
+				statusEnabled: null,
+				tcpProxyProtocolEnabled: enabled,
+				...resourcePatchFlags
+			});
+			await load();
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Failed to update proxy protocol';
+		}
+	}
+
+	async function updateMonitoringProtocolHint(resource: Resource, monitoringProtocolHint: string) {
+		try {
+			await api.updateResource(resource.id, {
+				name: null,
+				enabled: null,
+				domain: null,
+				targetScheme: null,
+				targetHost: null,
+				targetPort: null,
+				dashboardEnabled: null,
+				statusEnabled: null,
+				monitoringProtocolHint: monitoringProtocolHint || null,
+				...resourcePatchFlags,
+				clearMonitoringProtocolHint: !monitoringProtocolHint
+			});
+			await load();
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Failed to update monitoring hint';
 		}
 	}
 
@@ -470,6 +518,33 @@
 			</div>
 			<div class="grid grid-cols-2 gap-3">
 				<div class="grid gap-1.5">
+					<Label for="res-monitoring-hint">Monitoring hint</Label>
+					<select
+						id="res-monitoring-hint"
+						class="h-9 rounded-md border border-border bg-background px-3 text-sm text-white"
+						bind:value={form.monitoringProtocolHint}
+					>
+						<option value="">Infer from resource</option>
+						<option value="http">HTTP</option>
+						<option value="https">HTTPS</option>
+						<option value="h2c">H2C</option>
+						<option value="tcp">TCP</option>
+						<option value="udp">UDP</option>
+						<option value="dns">DNS</option>
+						<option value="tls">TLS</option>
+						<option value="icmp">ICMP</option>
+						<option value="pulse">Pulse</option>
+					</select>
+				</div>
+				{#if form.kind === 'tcp'}
+					<div class="flex items-end gap-2 pb-2">
+						<Switch bind:checked={form.tcpProxyProtocolEnabled} id="res-proxy-protocol" />
+						<Label for="res-proxy-protocol">Proxy protocol</Label>
+					</div>
+				{/if}
+			</div>
+			<div class="grid grid-cols-2 gap-3">
+				<div class="grid gap-1.5">
 					<Label for="res-forward-auth">Forward auth</Label>
 					<select
 						id="res-forward-auth"
@@ -553,6 +628,8 @@
 							<TableHead>Firewall host</TableHead>
 							<TableHead>Pulse agent</TableHead>
 							<TableHead>Target</TableHead>
+							<TableHead>TCP proxy</TableHead>
+							<TableHead>Monitor hint</TableHead>
 							<TableHead>Extra middlewares</TableHead>
 							<TableHead>WAF exclusions</TableHead>
 							<TableHead>Advanced routes</TableHead>
@@ -607,6 +684,39 @@
 								</TableCell>
 								<TableCell class="font-mono text-xs">
 									{resource.targetScheme}://{resource.targetHost}:{resource.targetPort}
+								</TableCell>
+								<TableCell>
+									{#if resource.kind.toLowerCase() === 'tcp'}
+										<Switch
+											checked={resource.tcpProxyProtocolEnabled === true}
+											onCheckedChange={(enabled) =>
+												updateTcpProxyProtocol(resource, enabled === true)}
+										/>
+									{:else}
+										<span class="text-xs text-muted-foreground">n/a</span>
+									{/if}
+								</TableCell>
+								<TableCell>
+									<select
+										class="h-8 max-w-[8rem] rounded-md border border-border bg-background px-2 text-xs text-white"
+										value={resource.monitoringProtocolHint ?? ''}
+										onchange={(e) =>
+											updateMonitoringProtocolHint(
+												resource,
+												(e.currentTarget as HTMLSelectElement).value
+											)}
+									>
+										<option value="">Infer</option>
+										<option value="http">HTTP</option>
+										<option value="https">HTTPS</option>
+										<option value="h2c">H2C</option>
+										<option value="tcp">TCP</option>
+										<option value="udp">UDP</option>
+										<option value="dns">DNS</option>
+										<option value="tls">TLS</option>
+										<option value="icmp">ICMP</option>
+										<option value="pulse">Pulse</option>
+									</select>
 								</TableCell>
 								<TableCell>
 									{#if availableMiddlewares.length === 0}

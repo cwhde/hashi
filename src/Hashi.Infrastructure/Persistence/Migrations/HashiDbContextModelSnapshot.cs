@@ -1754,6 +1754,10 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
 
+                    b.Property<string>("MonitoringProtocolHint")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
                     b.Property<string>("Ownership")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -1806,6 +1810,9 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.Property<string>("TargetScheme")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<bool?>("TcpProxyProtocolEnabled")
+                        .HasColumnType("boolean");
 
                     b.Property<DateTimeOffset>("UpdatedAtUtc")
                         .HasColumnType("timestamp with time zone");

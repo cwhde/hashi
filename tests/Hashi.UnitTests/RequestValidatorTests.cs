@@ -140,6 +140,27 @@ public sealed class RequestValidatorTests
     }
 
     [Fact]
+    public void CreateResourceValidator_rejects_invalid_monitoring_protocol_hint()
+    {
+        var validator = new CreateResourceRequestValidator();
+        var request = new CreateResourceRequest(
+            "App",
+            "http",
+            "app.example.com",
+            "http",
+            "localhost",
+            8080,
+            DashboardEnabled: true,
+            StatusEnabled: true,
+            MonitoringProtocolHint: "smtp");
+
+        var result = validator.Validate(request);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, x => x.PropertyName == nameof(CreateResourceRequest.MonitoringProtocolHint));
+    }
+
+    [Fact]
     public void SshConnectionValidator_rejects_invalid_port()
     {
         var validator = new CreateSshConnectionRequestValidator();

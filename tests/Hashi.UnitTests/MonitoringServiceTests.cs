@@ -69,6 +69,29 @@ public sealed class MonitoringServiceTests
     }
 
     [Fact]
+    public async Task SyncEndpointsFromResourcesAsync_uses_resource_monitoring_protocol_hint_when_set()
+    {
+        await using var db = CreateDb();
+        var tlsResource = Resource("tls-public", "tcp", "db.example.com", "10.0.0.13", 5432);
+        tlsResource.PublicPort = 15432;
+        tlsResource.MonitoringProtocolHint = "tls";
+        var dnsResource = Resource("dns-public", "udp", "dns.example.com", "10.0.0.53", 53);
+        dnsResource.MonitoringProtocolHint = "dns";
+        db.Resources.AddRange(tlsResource, dnsResource);
+        await db.SaveChangesAsync();
+
+        await CreateService(db).SyncEndpointsFromResourcesAsync();
+
+        var endpoints = await db.MonitorEndpoints
+            .Where(x => x.ResourceId != null)
+            .ToDictionaryAsync(x => x.Name, x => x);
+        Assert.Equal("tls", endpoints["tls-public"].CheckType);
+        Assert.Equal("tls://db.example.com:15432", endpoints["tls-public"].Url);
+        Assert.Equal("dns", endpoints["dns-public"].CheckType);
+        Assert.Equal("dns://dns.example.com", endpoints["dns-public"].Url);
+    }
+
+    [Fact]
     public async Task SyncEndpointsFromResourcesAsync_provisions_required_infrastructure_sources()
     {
         await using var db = CreateDb();

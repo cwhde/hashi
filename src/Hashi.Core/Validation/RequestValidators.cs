@@ -22,6 +22,9 @@ public sealed class CreateResourceRequestValidator : AbstractValidator<CreateRes
         RuleFor(x => x.PathRewriteMode)
             .Must(mode => string.IsNullOrWhiteSpace(mode) || ResourceRewriteModeNames.IsValid(mode))
             .WithMessage($"Path rewrite mode must be one of: {string.Join(", ", ResourceRewriteModeNames.All)}.");
+        RuleFor(x => x.MonitoringProtocolHint)
+            .Must(hint => string.IsNullOrWhiteSpace(hint) || ResourceMonitoringProtocolHintNames.IsValid(hint))
+            .WithMessage($"Monitoring protocol hint must be one of: {string.Join(", ", ResourceMonitoringProtocolHintNames.All)}.");
         RuleFor(x => x.PathRewrite)
             .NotEmpty()
             .When(x => !string.IsNullOrWhiteSpace(x.PathRewriteMode));

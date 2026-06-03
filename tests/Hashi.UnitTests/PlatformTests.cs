@@ -354,6 +354,35 @@ public sealed class FirewallHostResponseTests
 public sealed class TraefikStreamRendererTests
 {
     [Fact]
+    public void Render_tcp_resource_includes_proxy_protocol_when_enabled()
+    {
+        var resources = new List<ResourceDefinition>
+        {
+            new(
+                Guid.NewGuid(),
+                "Postgres",
+                "postgres",
+                ResourceKind.Tcp,
+                true,
+                false,
+                null,
+                "tcp",
+                "10.0.0.5",
+                5432,
+                PublicPort: 15432,
+                TcpProxyProtocolEnabled: true),
+        };
+        var options = new TraefikRenderOptions(ConfirmedStreamPorts: new HashSet<(int, string)> { (15432, "tcp") });
+
+        var result = TraefikConfigRenderer.Render(resources, options);
+
+        Assert.Contains("postgres-tcp:", result.StaticConfigYaml);
+        Assert.Contains("proxyProtocol:", result.DynamicFiles.StreamResourcesYaml);
+        Assert.Contains("version: 2", result.DynamicFiles.StreamResourcesYaml);
+        Assert.True(TraefikConfigValidator.ValidateRender(result).IsValid);
+    }
+
+    [Fact]
     public void Render_includes_udp_entrypoint_when_port_confirmed()
     {
         var resources = new List<ResourceDefinition>
