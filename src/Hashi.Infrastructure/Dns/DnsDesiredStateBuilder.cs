@@ -4,6 +4,7 @@ using Hashi.Core.Dns;
 using Hashi.Core.Resources;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
+using Hashi.Infrastructure.Platform;
 using Microsoft.EntityFrameworkCore;
 
 namespace Hashi.Infrastructure.Dns;
@@ -43,8 +44,10 @@ public static class DnsDesiredStateBuilder
                 h.Id,
                 h.Name,
                 h.PublicIp,
-                null,
-                JsonSerializer.Deserialize<List<string>>(h.ManagedSubnetsJson) ?? []))
+                ResolveOnRouteTarget(h),
+                DeserializeStringList(h.ManagedSubnetsJson),
+                DeserializeStringList(h.NetBirdRoutedCidrsJson),
+                BuildConfiguredFqdns(h, rootDomain)))
             .ToList();
 
         foreach (var host in hostTargets)
@@ -62,7 +65,11 @@ public static class DnsDesiredStateBuilder
             PulseDnsTarget? pulseTarget = null;
             if (resource.PulseAgentId is Guid pulseId && pulseAgents.TryGetValue(pulseId, out var agent))
             {
-                pulseTarget = new PulseDnsTarget(agent.Id, agent.LastPublicIp, agent.LastSelectedIp ?? agent.LastPrivateIp);
+                pulseTarget = new PulseDnsTarget(
+                    agent.Id,
+                    agent.LastPublicIp,
+                    agent.LastSelectedIp ?? agent.LastPrivateIp,
+                    agent.LastHostname);
             }
 
             var resolvedDomain = ResourceDomainResolver.Resolve(
@@ -82,10 +89,17 @@ public static class DnsDesiredStateBuilder
                     rootDomain,
                     resolvedDomain,
                     resource.FirewallHostId,
-                    ResolveManualPublicIp(resource.TargetHost),
-                    pulseTarget),
+                    ResolveManualIp(resource.TargetHost),
+                    pulseTarget,
+                    ResolveManualHost(resource.TargetHost)),
                 hostTargets,
                 defaultTtl);
+            if (records.Count == 0 && IsPrivateManualIp(resource.TargetHost))
+            {
+                throw new InvalidOperationException(
+                    $"Resource '{resource.Name}' targets private address '{resource.TargetHost}', but it does not match any managed firewall host subnet, NetBird routed CIDR, or configured host FQDN. Select a firewall host or add the target range to managed topology before DNS sync.");
+            }
+
             generated.AddRange(records);
         }
 
@@ -162,17 +176,9 @@ public static class DnsDesiredStateBuilder
     private static bool IsMultiValue(DnsRecordType type)
         => type is DnsRecordType.Mx or DnsRecordType.Txt;
 
-    private static string? ResolveManualPublicIp(string? targetHost)
+    private static string? ResolveManualIp(string? targetHost)
     {
         if (!IPAddress.TryParse(targetHost, out var ip))
-        {
-            return null;
-        }
-
-        if (IPAddress.IsLoopback(ip)
-            || ip.IsIPv6LinkLocal
-            || ip.IsIPv6SiteLocal
-            || IsPrivateIpv4(ip))
         {
             return null;
         }
@@ -180,12 +186,38 @@ public static class DnsDesiredStateBuilder
         return ip.ToString();
     }
 
-    private static bool IsPrivateIpv4(IPAddress ip)
+    private static string? ResolveManualHost(string? targetHost)
+        => !string.IsNullOrWhiteSpace(targetHost) && !IPAddress.TryParse(targetHost, out _)
+            ? targetHost.Trim()
+            : null;
+
+    private static bool IsPrivateManualIp(string? targetHost)
+        => ResolveManualIp(targetHost) is string ip && !DnsRecordGenerator.IsPublicIp(ip);
+
+    private static string? ResolveOnRouteTarget(FirewallHostEntity host)
+        => !string.IsNullOrWhiteSpace(host.LinkedTraefikHost)
+            ? host.LinkedTraefikHost
+            : host.InternalTraefikIp;
+
+    private static IReadOnlyList<string> BuildConfiguredFqdns(FirewallHostEntity host, string rootDomain)
     {
-        var bytes = ip.GetAddressBytes();
-        return bytes.Length == 4
-            && (bytes[0] == 10
-                || (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31)
-                || (bytes[0] == 192 && bytes[1] == 168));
+        var fqdns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        Add(host.Domain);
+        Add(FirewallTrustedIpResolver.BuildFqdn(host));
+        Add($"{host.Name}.{rootDomain}");
+        Add($"via.{host.Name}.{rootDomain}");
+        Add($"on.{host.Name}.{rootDomain}");
+        return fqdns.ToList();
+
+        void Add(string? value)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                fqdns.Add(value.Trim().TrimEnd('.'));
+            }
+        }
     }
+
+    private static IReadOnlyList<string> DeserializeStringList(string json)
+        => JsonSerializer.Deserialize<List<string>>(json) ?? [];
 }

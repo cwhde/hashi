@@ -8,12 +8,15 @@ public sealed record FirewallHostDnsTarget(
     string Name,
     string? PublicIp,
     string? OnRouteTarget = null,
-    IReadOnlyList<string>? ManagedSubnets = null);
+    IReadOnlyList<string>? ManagedSubnets = null,
+    IReadOnlyList<string>? NetBirdRoutedCidrs = null,
+    IReadOnlyList<string>? ConfiguredFqdns = null);
 
 public sealed record PulseDnsTarget(
     Guid AgentId,
     string? PublicIp,
-    string? InternalIp);
+    string? InternalIp,
+    string? Hostname = null);
 
 public sealed record ResourceDnsTarget(
     string ResourceName,
@@ -22,7 +25,8 @@ public sealed record ResourceDnsTarget(
     string? Domain,
     Guid? FirewallHostId,
     string? ManualIp,
-    PulseDnsTarget? PulseTarget);
+    PulseDnsTarget? PulseTarget,
+    string? ManualHost = null);
 
 public static class DnsRecordGenerator
 {
@@ -67,7 +71,7 @@ public static class DnsRecordGenerator
             ];
         }
 
-        var ip = target.ManualIp ?? target.PulseTarget?.PublicIp;
+        var ip = FirstPublicIp(target.ManualIp, target.PulseTarget?.PublicIp);
         if (string.IsNullOrWhiteSpace(ip))
         {
             return [];
@@ -95,23 +99,23 @@ public static class DnsRecordGenerator
             candidates.Add(target.ManualIp);
         }
 
+        if (!string.IsNullOrWhiteSpace(target.ManualHost))
+        {
+            candidates.Add(target.ManualHost);
+        }
+
         if (target.PulseTarget is not null)
         {
             candidates.Add(target.PulseTarget.PublicIp);
             candidates.Add(target.PulseTarget.InternalIp);
+            candidates.Add(target.PulseTarget.Hostname);
         }
 
         foreach (var host in hosts)
         {
             foreach (var candidate in candidates.Where(c => !string.IsNullOrWhiteSpace(c)))
             {
-                if (string.Equals(candidate, host.PublicIp, StringComparison.OrdinalIgnoreCase))
-                {
-                    return host;
-                }
-
-                if (host.ManagedSubnets is not null
-                    && host.ManagedSubnets.Any(subnet => IpMatchesSubnet(candidate!, subnet)))
+                if (CandidateMatchesHost(candidate!, host))
                 {
                     return host;
                 }
@@ -120,6 +124,9 @@ public static class DnsRecordGenerator
 
         return null;
     }
+
+    public static bool IsPublicIp(string? ipText)
+        => IPAddress.TryParse(ipText, out var ip) && !IsPrivateOrSpecial(ip);
 
     public static string ResolveResourceFqdn(ResourceDnsTarget target)
     {
@@ -171,5 +178,63 @@ public static class DnsRecordGenerator
 
         var mask = (byte)(0xFF << (8 - remainingBits));
         return (ipBytes[fullBytes] & mask) == (networkBytes[fullBytes] & mask);
+    }
+
+    private static bool CandidateMatchesHost(string candidate, FirewallHostDnsTarget host)
+    {
+        if (IPAddress.TryParse(candidate, out var candidateIp))
+        {
+            return IpTextEquals(candidateIp, host.PublicIp)
+                || IpTextEquals(candidateIp, host.OnRouteTarget)
+                || MatchesAnySubnet(candidate, host.ManagedSubnets)
+                || MatchesAnySubnet(candidate, host.NetBirdRoutedCidrs);
+        }
+
+        var normalizedCandidate = NormalizeHost(candidate);
+        if (string.IsNullOrWhiteSpace(normalizedCandidate))
+        {
+            return false;
+        }
+
+        return string.Equals(normalizedCandidate, NormalizeHost(host.OnRouteTarget), StringComparison.OrdinalIgnoreCase)
+            || (host.ConfiguredFqdns is not null
+                && host.ConfiguredFqdns.Any(fqdn =>
+                    string.Equals(normalizedCandidate, NormalizeHost(fqdn), StringComparison.OrdinalIgnoreCase)));
+    }
+
+    private static bool IpTextEquals(IPAddress candidateIp, string? other)
+        => IPAddress.TryParse(other, out var otherIp) && candidateIp.Equals(otherIp);
+
+    private static bool MatchesAnySubnet(string candidate, IReadOnlyList<string>? cidrs)
+        => cidrs is not null && cidrs.Any(subnet => IpMatchesSubnet(candidate, subnet));
+
+    private static string? FirstPublicIp(params string?[] candidates)
+        => candidates.FirstOrDefault(IsPublicIp);
+
+    private static string NormalizeHost(string? host)
+        => host?.Trim().TrimEnd('.').ToLowerInvariant() ?? string.Empty;
+
+    private static bool IsPrivateOrSpecial(IPAddress ip)
+        => IPAddress.IsLoopback(ip)
+            || ip.Equals(IPAddress.Any)
+            || ip.Equals(IPAddress.IPv6Any)
+            || ip.IsIPv6LinkLocal
+            || IsUniqueLocalIpv6(ip)
+            || IsPrivateIpv4(ip);
+
+    private static bool IsPrivateIpv4(IPAddress ip)
+    {
+        var bytes = ip.GetAddressBytes();
+        return bytes.Length == 4
+            && (bytes[0] == 10
+                || (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31)
+                || (bytes[0] == 192 && bytes[1] == 168)
+                || (bytes[0] == 169 && bytes[1] == 254));
+    }
+
+    private static bool IsUniqueLocalIpv6(IPAddress ip)
+    {
+        var bytes = ip.GetAddressBytes();
+        return bytes.Length == 16 && (bytes[0] & 0xFE) == 0xFC;
     }
 }
