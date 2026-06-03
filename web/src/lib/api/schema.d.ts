@@ -6383,6 +6383,7 @@ export interface components {
             reason?: null | string;
             /** Format: date-time */
             expiresAtUtc?: null | string;
+            subjectState?: null | string;
         };
         SecurityRecentEventItem: {
             /** Format: date-time */
