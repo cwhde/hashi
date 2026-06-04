@@ -29,6 +29,7 @@ jobs:
       backend: ${{ steps.filter.outputs.backend }}
       web: ${{ steps.filter.outputs.web }}
       agents: ${{ steps.filter.outputs.agents }}
+      ci_optimization: ${{ steps.filter.outputs.ci_optimization }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -41,15 +42,18 @@ jobs:
           backend=false
           web=false
           agents=false
+          ci_optimization=false
 
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             backend=true
             web=true
             agents=true
+            ci_optimization=true
           elif [ "${{ github.event_name }}" = "pull_request" ]; then
             backend=true
             web=true
             agents=true
+            ci_optimization=true
           else
             base="${{ github.event.before }}"
             if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
@@ -68,11 +72,15 @@ jobs:
             if echo "$files" | grep -qE '^(agents/|\.gitea/workflows/ci\.yml)'; then
               agents=true
             fi
+            if echo "$files" | grep -qE '^(\.gitea/workflows/|deploy/docker/Dockerfile|agents/pulse/Dockerfile|hashi\.old/docker/Dockerfile|scripts/validate-ci-optimization\.sh)'; then
+              ci_optimization=true
+            fi
           fi
 
           echo "backend=$backend" >> "$GITHUB_OUTPUT"
           echo "web=$web" >> "$GITHUB_OUTPUT"
           echo "agents=$agents" >> "$GITHUB_OUTPUT"
+          echo "ci_optimization=$ci_optimization" >> "$GITHUB_OUTPUT"
 
   backend:
     needs: changes
@@ -86,6 +94,15 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Cache NuGet packages
+        uses: actions/cache@v3
+        continue-on-error: true
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Build.props', 'src/**/*.csproj', 'tests/**/*.csproj') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
       - name: Restore, format, test, build
         env:
           HASHI_SKIP_STARTUP_HOOKS: '1'
@@ -96,9 +113,30 @@ jobs:
           dotnet test tests/Hashi.IntegrationTests/Hashi.IntegrationTests.csproj --no-restore --verbosity normal /p:SkipFrontendBuild=true
           dotnet build src/Hashi.Api/Hashi.Api.csproj -c Release --no-restore /p:SkipFrontendBuild=true
 
+      - name: Cache ShellCheck binary
+        uses: actions/cache@v3
+        continue-on-error: true
+        with:
+          path: ~/.cache/hashi-tools/shellcheck
+          key: shellcheck-${{ runner.os }}-v0.10.0
+
+      - name: Install ShellCheck from tool cache
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="v0.10.0"
+          install_dir="${HOME}/.cache/hashi-tools/shellcheck/${version}"
+          if [ ! -x "${install_dir}/shellcheck" ]; then
+            tmp_dir="$(mktemp -d)"
+            curl -fsSL "https://github.com/koalaman/shellcheck/releases/download/${version}/shellcheck-${version}.linux.x86_64.tar.xz" \
+              | tar -xJ -C "${tmp_dir}"
+            mkdir -p "${install_dir}"
+            cp "${tmp_dir}/shellcheck-${version}/shellcheck" "${install_dir}/shellcheck"
+          fi
+          echo "${install_dir}" >> "${GITHUB_PATH}"
+
       - name: Shellcheck generated firewall script (spec §Phase 7)
         run: |
-          sudo apt-get update && sudo apt-get install -y shellcheck
           dotnet test tests/Hashi.UnitTests/Hashi.UnitTests.csproj --filter "FullyQualifiedName~FirewallScriptRendererTests.Render_passes_shellcheck_when_available" --no-restore /p:SkipFrontendBuild=true
 
   web:
@@ -120,6 +158,38 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+
+      - name: Resolve pnpm store path
+        id: pnpm-store
+        working-directory: web
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache pnpm store
+        uses: actions/cache@v3
+        continue-on-error: true
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-${{ runner.os }}-
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v3
+        continue-on-error: true
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Build.props', 'src/**/*.csproj', 'tests/**/*.csproj') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v3
+        continue-on-error: true
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
 
       - name: Install frontend dependencies
         working-directory: web
@@ -146,6 +216,17 @@ jobs:
           pnpm exec playwright install --with-deps chromium
           pnpm run test:e2e
 
+  ci-optimization-validation:
+    needs: changes
+    if: needs.changes.outputs.ci_optimization == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate CI optimization invariants
+        run: bash scripts/validate-ci-optimization.sh
+
   pulse-agent:
     needs: changes
     if: needs.changes.outputs.agents == 'true'
@@ -160,6 +241,18 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.22.x'
+          cache: false
+
+      - name: Cache Go modules and build data
+        uses: actions/cache@v3
+        continue-on-error: true
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-pulse-${{ runner.os }}-${{ hashFiles('agents/pulse/go.mod', 'agents/pulse/go.sum') }}
+          restore-keys: |
+            go-pulse-${{ runner.os }}-
 
       - name: Build, test, and verify Docker image
         run: |

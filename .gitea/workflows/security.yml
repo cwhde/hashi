@@ -21,26 +21,88 @@ concurrency:
 
 env:
   CI: true
+  REGISTRY: git.juzo.io
+  IMAGE_NAME: juzo/hashi
+  GITLEAKS_VERSION: 8.22.1
+  SEMGREP_VERSION_RANGE: 'semgrep>=1.76,<2'
+  TRIVY_VERSION: 0.58.1
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      heavy: ${{ steps.filter.outputs.heavy }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: filter
+        shell: bash
+        run: |
+          set -euo pipefail
+          heavy=false
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ github.event_name }}" = "schedule" ] || [ "${{ github.event_name }}" = "pull_request" ]; then
+            heavy=true
+          else
+            base="${{ github.event.before }}"
+            if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+              base=HEAD~1
+            fi
+            files="$(git diff --name-only "$base" HEAD 2>/dev/null || git show --pretty='' --name-only HEAD)"
+            echo "Changed files:"
+            echo "$files"
+
+            if echo "$files" | grep -qE '^(src/|tests/|web/|agents/pulse/|deploy/|openapi/|scripts/|Hashi\.slnx|Directory\.Build\.props|\.gitea/workflows/)'; then
+              heavy=true
+            fi
+          fi
+
+          echo "heavy=$heavy" >> "$GITHUB_OUTPUT"
+
   scan:
+    needs: changes
+    if: needs.changes.outputs.heavy == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
+      - name: Cache Gitleaks binary
+        uses: actions/cache@v3
+        continue-on-error: true
+        with:
+          path: ~/.cache/hashi-tools/gitleaks
+          key: gitleaks-${{ runner.os }}-${{ env.GITLEAKS_VERSION }}
+
       - name: Gitleaks secret scan
+        shell: bash
         run: |
-          GITLEAKS_VERSION=8.22.1
-          curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
-            | tar -xz -C /tmp
-          chmod +x /tmp/gitleaks
+          set -euo pipefail
+          install_dir="${HOME}/.cache/hashi-tools/gitleaks/${GITLEAKS_VERSION}"
+          if [ ! -x "${install_dir}/gitleaks" ]; then
+            tmp_dir="$(mktemp -d)"
+            curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+              | tar -xz -C "${tmp_dir}"
+            mkdir -p "${install_dir}"
+            cp "${tmp_dir}/gitleaks" "${install_dir}/gitleaks"
+          fi
           printf '%s\n' 'hashi.old/' > .gitleaksignore
-          /tmp/gitleaks detect --source . --verbose --redact
+          "${install_dir}/gitleaks" detect --source . --verbose --redact
 
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v3
+        continue-on-error: true
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('Directory.Build.props', 'src/**/*.csproj', 'tests/**/*.csproj') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
 
       - name: Vulnerable packages (.NET)
         run: |
@@ -60,25 +122,71 @@ jobs:
         with:
           node-version: 24
 
+      - name: Resolve pnpm store path
+        id: pnpm-store
+        working-directory: web
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache pnpm store
+        uses: actions/cache@v3
+        continue-on-error: true
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-${{ runner.os }}-
+
       - name: Audit frontend
         working-directory: web
         run: |
           pnpm install --frozen-lockfile
           pnpm audit --audit-level=high
 
+      - name: Cache pip downloads
+        uses: actions/cache@v3
+        continue-on-error: true
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-semgrep-1x
+          restore-keys: |
+            pip-${{ runner.os }}-
+
+      - name: Cache Semgrep virtualenv
+        uses: actions/cache@v3
+        continue-on-error: true
+        with:
+          path: ~/.cache/hashi-tools/semgrep-venv
+          key: semgrep-${{ runner.os }}-1x
+
       - name: Semgrep static analysis
+        shell: bash
         run: |
-          python3 -m venv /tmp/semgrep-venv
-          /tmp/semgrep-venv/bin/pip install 'semgrep>=1.76,<2'
-          /tmp/semgrep-venv/bin/semgrep --config p/default --error --severity ERROR \
+          set -euo pipefail
+          venv="${HOME}/.cache/hashi-tools/semgrep-venv"
+          if [ ! -x "${venv}/bin/semgrep" ]; then
+            python3 -m venv "${venv}"
+            "${venv}/bin/pip" install --upgrade pip
+            "${venv}/bin/pip" install "${SEMGREP_VERSION_RANGE}"
+          fi
+          "${venv}/bin/semgrep" --config p/default --error --severity ERROR \
             --exclude hashi.old \
             src/ web/src/ agents/pulse/
+
+      - name: Cache Trivy data
+        uses: actions/cache@v3
+        continue-on-error: true
+        with:
+          path: ~/.cache/trivy
+          key: trivy-${{ runner.os }}-${{ env.TRIVY_VERSION }}
+          restore-keys: |
+            trivy-${{ runner.os }}-
 
       - name: Trivy filesystem scan
         run: |
           docker run --rm \
             -v "$PWD:/repo" \
-            aquasec/trivy:0.58.1 fs \
+            -v "$HOME/.cache/trivy:/root/.cache/trivy" \
+            aquasec/trivy:${TRIVY_VERSION} fs \
             --severity CRITICAL,HIGH \
             --exit-code 1 \
             --skip-dirs hashi.old \
@@ -86,7 +194,33 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
+      - name: Login to registry for published image scan
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
+        uses: docker/login-action@v3
+        continue-on-error: true
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Resolve published image digest
+        id: published-image
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
+        shell: bash
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          image="${REGISTRY}/${IMAGE_NAME}:${GITHUB_SHA::7}"
+          digest="$(docker buildx imagetools inspect "${image}" --format '{{.Digest}}' 2>/dev/null || true)"
+          if [ -n "${digest}" ]; then
+            echo "ref=${REGISTRY}/${IMAGE_NAME}@${digest}" >> "$GITHUB_OUTPUT"
+            echo "Using published image digest ${digest}"
+          else
+            echo "Published image ${image} is not available yet; security scan will build a local image."
+          fi
+
       - name: Build image for vulnerability scan
+        if: steps.published-image.outputs.ref == ''
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -94,12 +228,21 @@ jobs:
           load: true
           push: false
           tags: hashi:security-scan
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
 
       - name: Trivy container image scan
+        shell: bash
         run: |
+          set -euo pipefail
+          image_ref="${{ steps.published-image.outputs.ref }}"
+          if [ -z "${image_ref}" ]; then
+            image_ref="hashi:security-scan"
+          fi
           docker run --rm \
             -v /var/run/docker.sock:/var/run/docker.sock \
-            aquasec/trivy:0.58.1 image \
+            -v "$HOME/.docker:/root/.docker:ro" \
+            -v "$HOME/.cache/trivy:/root/.cache/trivy" \
+            aquasec/trivy:${TRIVY_VERSION} image \
             --severity CRITICAL,HIGH \
             --exit-code 1 \
-            hashi:security-scan
+            "${image_ref}"
