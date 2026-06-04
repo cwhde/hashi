@@ -4,7 +4,7 @@ Baseline reviewed on 2026-06-04 after `git pull --ff-only`.
 
 - Current commit: `a89445c96441c7a4209ef18b24dcc65d5319101c` (`merge audit series F fixes`).
 - Original spec read first: `docs/implementation-spec/hashi-v2-implementation-spec.md`.
-- Addendum read second: `C:\Users\hideyoshi\Downloads\Hashi V2 Addendum.md`.
+- Addendum read second: `docs/implementation-spec/hashi-v2-implementation-spec-addendum.md` (copied from `C:\Users\hideyoshi\Downloads\Hashi V2 Addendum.md`).
 - Audit context reviewed: `docs/audits/` and `docs/audits/issues/`.
 
 This folder is outside `docs/audits/` on purpose. It is implementation prep for the addendum, not another compliance audit.
