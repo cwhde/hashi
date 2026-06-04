@@ -144,6 +144,9 @@ export type RunScriptResponse = Schemas['RunScriptResponse'];
 export type NotificationProvider = Schemas['NotificationProviderResponse'];
 export type CreateNotificationProviderRequest = Schemas['CreateNotificationProviderRequest'];
 export type NotificationTestRequest = Schemas['NotificationTestRequest'];
+export type NotificationRoute = Schemas['NotificationRouteResponse'];
+export type CreateNotificationRouteRequest = Schemas['CreateNotificationRouteRequest'];
+export type UpdateNotificationRouteRequest = Schemas['UpdateNotificationRouteRequest'];
 export type TelegramChatDiscoveryResponse = {
 	found: boolean;
 	chatId: string | null;

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { api, ApiRequestError } from '$lib/api/client';
 	import { performPasskeyReauthentication } from '$lib/auth/reauth';
-	import type { NotificationProvider } from '$lib/api/types';
+	import type { NotificationProvider, NotificationRoute } from '$lib/api/types';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -16,6 +16,7 @@
 	} from '$lib/components/ui/table';
 
 	let providers = $state<NotificationProvider[]>([]);
+	let routes = $state<NotificationRoute[]>([]);
 	let loading = $state(true);
 	let saving = $state(false);
 	let discoveringChat = $state(false);
@@ -36,6 +37,17 @@
 		smtpTo: '',
 		smtpUseTls: true
 	});
+	let routeForm = $state({
+		name: '',
+		providerId: '',
+		eventKind: 'all',
+		severity: 'info',
+		matchJson: '{}',
+		enabled: true,
+		cooldownMinutes: 0,
+		sendRecovery: true
+	});
+	const routeMatchPlaceholder = '{"name":"my-endpoint"}';
 
 	$effect(() => {
 		void load();
@@ -46,8 +58,9 @@
 		error = null;
 		try {
 			providers = await api.listNotificationProviders();
+			routes = await api.listNotificationRoutes();
 		} catch (e) {
-			error = e instanceof ApiRequestError ? e.message : 'Failed to load notification providers';
+			error = e instanceof ApiRequestError ? e.message : 'Failed to load notification settings';
 		} finally {
 			loading = false;
 		}
@@ -80,6 +93,11 @@
 		form.smtpFrom = '';
 		form.smtpTo = '';
 		form.smtpUseTls = true;
+	}
+
+	function formatCooldown(value: NotificationRoute['cooldownMinutes']) {
+		const cooldown = Number(value);
+		return cooldown > 0 ? `${cooldown}m` : 'off';
 	}
 
 	function buildSettingsJson(): string | null {
@@ -244,9 +262,49 @@
 			error = e instanceof ApiRequestError ? e.message : 'Failed to delete provider';
 		}
 	}
+
+	async function createRoute() {
+		if (!routeForm.name.trim() || !routeForm.providerId) return;
+		saving = true;
+		error = null;
+		message = null;
+		try {
+			await withReauth(() =>
+				api.createNotificationRoute({
+					providerId: routeForm.providerId,
+					name: routeForm.name.trim(),
+					eventKind: routeForm.eventKind,
+					severity: routeForm.severity,
+					matchJson: routeForm.matchJson,
+					enabled: routeForm.enabled,
+					cooldownMinutes: Number(routeForm.cooldownMinutes),
+					sendRecovery: routeForm.sendRecovery
+				})
+			);
+			message = 'Route created.';
+			routeForm.name = '';
+			await load();
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Failed to create route';
+		} finally {
+			saving = false;
+		}
+	}
+
+	async function deleteRoute(routeId: string) {
+		if (!confirm('Delete this notification route?')) return;
+		try {
+			await withReauth(() => api.deleteNotificationRoute(routeId));
+			message = 'Route deleted.';
+			await load();
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Failed to delete route';
+		}
+	}
 </script>
 
-<div class="grid gap-4">
+<div class="grid gap-6">
+	<h3 class="text-sm font-semibold text-white">Notification Providers</h3>
 	<div class="grid gap-3 rounded-md border border-border p-3">
 		<div class="grid grid-cols-2 gap-3">
 			<div class="grid gap-1.5">
@@ -352,12 +410,10 @@
 	</div>
 
 	{#if loading}
-		<p class="text-sm text-muted-foreground">Loading providers…</p>
+		<p class="text-sm text-muted-foreground">Loading…</p>
 	{:else if error}
 		<p class="text-sm text-destructive">{error}</p>
-	{:else if providers.length === 0}
-		<p class="text-sm text-muted-foreground">No notification providers configured.</p>
-	{:else}
+	{:else if providers.length > 0}
 		<div class="overflow-hidden rounded-md border border-border">
 			<Table>
 				<TableHeader>
@@ -379,6 +435,113 @@
 									Test
 								</Button>
 								<Button variant="ghost" size="sm" onclick={() => deleteProvider(provider.id)}>
+									Delete
+								</Button>
+							</TableCell>
+						</TableRow>
+					{/each}
+				</TableBody>
+			</Table>
+		</div>
+	{:else}
+		<p class="text-sm text-muted-foreground">No notification providers configured.</p>
+	{/if}
+
+	<h3 class="text-sm font-semibold text-white">Notification Routes</h3>
+	<div class="grid gap-3 rounded-md border border-border p-3">
+		<div class="grid grid-cols-2 gap-3">
+			<div class="grid gap-1.5">
+				<Label for="route-name">Name</Label>
+				<Input id="route-name" bind:value={routeForm.name} placeholder="critical-monitor-alerts" />
+			</div>
+			<div class="grid gap-1.5">
+				<Label for="route-provider">Provider</Label>
+				<select
+					id="route-provider"
+					class="h-9 rounded-md border border-border bg-background px-3 text-sm text-white"
+					bind:value={routeForm.providerId}
+				>
+					<option value="">Select provider...</option>
+					{#each providers as provider (provider.id)}
+						<option value={provider.id}>{provider.name}</option>
+					{/each}
+				</select>
+			</div>
+		</div>
+		<div class="grid grid-cols-2 gap-3">
+			<div class="grid gap-1.5">
+				<Label for="route-event-kind">Event kind</Label>
+				<select
+					id="route-event-kind"
+					class="h-9 rounded-md border border-border bg-background px-3 text-sm text-white"
+					bind:value={routeForm.eventKind}
+				>
+					<option value="all">All</option>
+					<option value="monitor">Monitor</option>
+					<option value="security">Security</option>
+				</select>
+			</div>
+			<div class="grid gap-1.5">
+				<Label for="route-severity">Severity threshold</Label>
+				<select
+					id="route-severity"
+					class="h-9 rounded-md border border-border bg-background px-3 text-sm text-white"
+					bind:value={routeForm.severity}
+				>
+					<option value="info">Info</option>
+					<option value="warning">Warning</option>
+					<option value="critical">Critical</option>
+				</select>
+			</div>
+		</div>
+		<div class="grid gap-1.5">
+			<Label for="route-match-json">Match JSON (empty = all endpoints)</Label>
+			<Input id="route-match-json" bind:value={routeForm.matchJson} placeholder={routeMatchPlaceholder} />
+		</div>
+		<div class="grid grid-cols-3 gap-3">
+			<div class="grid gap-1.5">
+				<Label for="route-cooldown">Cooldown (minutes, 0 = off)</Label>
+				<Input id="route-cooldown" type="number" bind:value={routeForm.cooldownMinutes} />
+			</div>
+			<div class="flex items-center justify-between rounded-md border border-border px-3 py-2">
+				<span class="text-sm text-white">Send recovery</span>
+				<Switch bind:checked={routeForm.sendRecovery} />
+			</div>
+			<div class="flex items-center justify-between rounded-md border border-border px-3 py-2">
+				<span class="text-sm text-white">Enabled</span>
+				<Switch bind:checked={routeForm.enabled} />
+			</div>
+		</div>
+		<Button onclick={() => createRoute()} disabled={saving || !routeForm.name.trim() || !routeForm.providerId}>
+			{saving ? 'Creating...' : 'Add route'}
+		</Button>
+	</div>
+
+	{#if routes.length > 0}
+		<div class="overflow-hidden rounded-md border border-border">
+			<Table>
+				<TableHeader>
+					<TableRow>
+						<TableHead>Name</TableHead>
+						<TableHead>Event kind</TableHead>
+						<TableHead>Severity</TableHead>
+						<TableHead>Cooldown</TableHead>
+						<TableHead>Recovery</TableHead>
+						<TableHead>Enabled</TableHead>
+						<TableHead class="w-20"></TableHead>
+					</TableRow>
+				</TableHeader>
+				<TableBody>
+					{#each routes as route (route.id)}
+						<TableRow>
+							<TableCell>{route.name}</TableCell>
+							<TableCell>{route.eventKind}</TableCell>
+							<TableCell>{route.severity}</TableCell>
+							<TableCell>{formatCooldown(route.cooldownMinutes)}</TableCell>
+							<TableCell>{route.sendRecovery ? 'yes' : 'no'}</TableCell>
+							<TableCell>{route.enabled ? 'yes' : 'no'}</TableCell>
+							<TableCell>
+								<Button variant="ghost" size="sm" onclick={() => deleteRoute(route.id)}>
 									Delete
 								</Button>
 							</TableCell>

@@ -775,6 +775,48 @@ public static class NotificationEndpoints
             CancellationToken ct) =>
             TypedResults.Ok(await notifications.DiscoverTelegramChatAsync(request.BotToken, ct)))
             .Produces<TelegramChatDiscoveryResponse>(StatusCodes.Status200OK);
+        group.MapGet("/routes", async (NotificationDispatcher notifications, CancellationToken ct) =>
+            TypedResults.Ok(await notifications.ListRoutesAsync(ct)));
+        group.MapPost("/routes", async Task<IResult> (CreateNotificationRouteRequest request, NotificationDispatcher notifications, CancellationToken ct) =>
+        {
+            try
+            {
+                var created = await notifications.CreateRouteAsync(request, ct);
+                return TypedResults.Ok(created);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        })
+            .Produces<NotificationRouteResponse>(StatusCodes.Status200OK)
+            .Produces<ApiErrorResponse>(StatusCodes.Status400BadRequest);
+        group.MapPut("/routes/{routeId:guid}", async Task<IResult> (
+            Guid routeId,
+            UpdateNotificationRouteRequest request,
+            NotificationDispatcher notifications,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                var updated = await notifications.UpdateRouteAsync(routeId, request, ct);
+                return updated is null ? TypedResults.NotFound() : TypedResults.Ok(updated);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        })
+            .Produces<NotificationRouteResponse>(StatusCodes.Status200OK)
+            .Produces<ApiErrorResponse>(StatusCodes.Status400BadRequest);
+        group.MapDelete("/routes/{routeId:guid}", async Task<IResult> (
+            Guid routeId,
+            NotificationDispatcher notifications,
+            CancellationToken ct) =>
+        {
+            var deleted = await notifications.DeleteRouteAsync(routeId, ct);
+            return deleted ? TypedResults.NoContent() : TypedResults.NotFound();
+        });
         group.MapPost("/send", async Task<IResult> (SendNotificationRequest request, NotificationDispatcher notifications, CancellationToken ct) =>
         {
             await notifications.SendAsync(request, ct);

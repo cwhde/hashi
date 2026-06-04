@@ -681,6 +681,38 @@ public sealed record TelegramChatDiscoveryResponse(
 
 public sealed record SendNotificationRequest(string Subject, string Body, IReadOnlyList<string> ProviderTypes);
 
+public sealed record NotificationRouteResponse(
+    Guid Id,
+    Guid ProviderId,
+    string Name,
+    string EventKind,
+    string Severity,
+    string MatchJson,
+    bool Enabled,
+    int CooldownMinutes,
+    bool SendRecovery,
+    DateTimeOffset CreatedAtUtc);
+
+public sealed record CreateNotificationRouteRequest(
+    Guid ProviderId,
+    string Name,
+    string EventKind,
+    string Severity,
+    string MatchJson,
+    bool Enabled,
+    int CooldownMinutes,
+    bool SendRecovery);
+
+public sealed record UpdateNotificationRouteRequest(
+    Guid? ProviderId,
+    string? Name,
+    string? EventKind,
+    string? Severity,
+    string? MatchJson,
+    bool? Enabled,
+    int? CooldownMinutes,
+    bool? SendRecovery);
+
 public sealed record AccessLogIngestRequest(
     string ClientIp,
     string Host,
