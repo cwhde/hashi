@@ -14,12 +14,24 @@ public sealed class SecurityIngestionService(
     AuditService audit,
     NotificationRoutingService notificationRouting,
     ILogger<SecurityIngestionService> logger,
-    TimeProvider? timeProvider = null)
+    TimeProvider? timeProvider = null,
+    SecuritySubjectService? subjectService = null)
 {
     public async Task IngestAccessLogAsync(AccessLogIngestRequest request, CancellationToken cancellationToken = default)
     {
         var now = timeProvider?.GetUtcNow() ?? DateTimeOffset.UtcNow;
         var bucketStartUtc = TruncateToMinuteUtc(now);
+        var normalizedSubject = SecuritySubjectNormalizer.TryNormalize(SecuritySubjectTypeNames.Ip, request.ClientIp, out var parsedSubject)
+            ? parsedSubject
+            : new NormalizedSecuritySubject(SecuritySubjectTypeNames.Ip, request.ClientIp, request.ClientIp);
+        SecuritySubjectEntity? securitySubject = null;
+        SecuritySubjectStateEntity? securitySubjectState = null;
+        if (IPAddress.TryParse(request.ClientIp, out var parsedIp))
+        {
+            (securitySubject, securitySubjectState) = await (subjectService ?? new SecuritySubjectService(db, timeProvider))
+                .ResolveOrCreateIpAsync(parsedIp, request.CountryCode, request.RegionCode, request.Asn, cancellationToken);
+        }
+
         var bucket = await db.AbuseBuckets.SingleOrDefaultAsync(x => x.ClientIp == request.ClientIp, cancellationToken);
         if (bucket is null)
         {
@@ -55,6 +67,15 @@ public sealed class SecurityIngestionService(
         }
 
         bucket.UpdatedAtUtc = now;
+        if (securitySubject is not null && securitySubjectState is not null)
+        {
+            securitySubject.CurrentState = SecuritySubjectStateNames.Normalize(bucket.State);
+            securitySubjectState.ManualAllowActive = manualAllow;
+            securitySubjectState.ManualBlockActive = manualBlock is not null;
+            securitySubjectState.ChallengeRequired = securitySubject.CurrentState == SecuritySubjectStateNames.Challenged;
+            securitySubjectState.ChallengeReason = securitySubjectState.ChallengeRequired ? "abuse_score_threshold" : securitySubjectState.ChallengeReason;
+            securitySubjectState.UpdatedAtUtc = now;
+        }
 
         var normalizedState = SecuritySubjectStateNames.Normalize(bucket.State);
         var decision = DecisionForState(normalizedState);
@@ -85,6 +106,8 @@ public sealed class SecurityIngestionService(
                 Resource = resource,
                 TraefikInstance = traefikInstance,
                 CountryCode = request.CountryCode,
+                SubjectType = normalizedSubject.SubjectType,
+                NormalizedSubjectValue = normalizedSubject.NormalizedValue,
                 RegionCode = request.RegionCode,
                 Asn = request.Asn,
                 StatusClass = statusClass,
@@ -95,6 +118,7 @@ public sealed class SecurityIngestionService(
         }
 
         requestBucket.TotalCount++;
+        requestBucket.RequestCount++;
         requestBucket.UpdatedAtUtc = now;
         switch (decision)
         {
@@ -127,6 +151,15 @@ public sealed class SecurityIngestionService(
             ClientIp = request.ClientIp,
             Host = request.Host,
             Path = request.Path,
+            SubjectType = normalizedSubject.SubjectType,
+            SubjectValue = normalizedSubject.SubjectValue,
+            NormalizedSubjectValue = normalizedSubject.NormalizedValue,
+            EventType = "access_log",
+            Decision = decision,
+            Source = "traefik_access_log",
+            RequestMethod = method,
+            RequestPath = request.Path,
+            StatusCode = request.StatusCode,
         });
 
         var shouldSyncFirewallBlock = false;
@@ -196,6 +229,17 @@ public sealed class SecurityIngestionService(
     {
         var now = timeProvider?.GetUtcNow() ?? DateTimeOffset.UtcNow;
         var bucketStartUtc = TruncateToMinuteUtc(now);
+        var normalizedSubject = SecuritySubjectNormalizer.TryNormalize(SecuritySubjectTypeNames.Ip, request.ClientIp, out var parsedSubject)
+            ? parsedSubject
+            : new NormalizedSecuritySubject(SecuritySubjectTypeNames.Ip, request.ClientIp, request.ClientIp);
+        SecuritySubjectStateEntity? subjectState = null;
+        if (IPAddress.TryParse(request.ClientIp, out var parsedIp))
+        {
+            var resolved = await (subjectService ?? new SecuritySubjectService(db, timeProvider))
+                .ResolveOrCreateIpAsync(parsedIp, request.CountryCode, request.RegionCode, request.Asn, cancellationToken);
+            subjectState = resolved.State;
+        }
+
         var decision = request.Decision.ToLowerInvariant() switch
         {
             "deny" => "blocked",
@@ -233,6 +277,8 @@ public sealed class SecurityIngestionService(
                 Resource = resource,
                 TraefikInstance = "forward-auth",
                 CountryCode = request.CountryCode,
+                SubjectType = normalizedSubject.SubjectType,
+                NormalizedSubjectValue = normalizedSubject.NormalizedValue,
                 RegionCode = request.RegionCode,
                 Asn = request.Asn,
                 StatusClass = statusClass,
@@ -243,6 +289,7 @@ public sealed class SecurityIngestionService(
         }
 
         requestBucket.TotalCount++;
+        requestBucket.RequestCount++;
         requestBucket.UpdatedAtUtc = now;
         switch (decision)
         {
@@ -251,6 +298,10 @@ public sealed class SecurityIngestionService(
                 break;
             case "challenged":
                 requestBucket.ChallengedCount++;
+                if (subjectState?.ChallengeRequired == true)
+                {
+                    requestBucket.ChallengeIgnoredCount++;
+                }
                 break;
             default:
                 requestBucket.AllowedCount++;
@@ -275,6 +326,15 @@ public sealed class SecurityIngestionService(
             ClientIp = request.ClientIp,
             Host = request.Host,
             Path = request.Path,
+            SubjectType = normalizedSubject.SubjectType,
+            SubjectValue = normalizedSubject.SubjectValue,
+            NormalizedSubjectValue = normalizedSubject.NormalizedValue,
+            EventType = "forward_auth_decision",
+            Decision = request.Decision,
+            Source = "hashi_forward_auth",
+            RequestMethod = method,
+            RequestPath = request.Path,
+            StatusCode = statusCode,
         });
         await db.SaveChangesAsync(cancellationToken);
     }

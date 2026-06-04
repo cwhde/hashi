@@ -47,6 +47,13 @@ public static class ResourceRewriteModeNames
 
 public static class ResourceRuleActionNames
 {
+    public const string Allow = "allow";
+    public const string Deny = "deny";
+    public const string RequireSso = "require_sso";
+    public const string RequireChallenge = "require_challenge";
+    public const string SoftBlock = "soft_block";
+    public const string FirewallBlock = "firewall_block";
+    public const string BypassBlocking = "bypass_blocking";
     public const string BypassAuth = "bypass_auth";
     public const string BlockAccess = "block_access";
     public const string PassToAuth = "pass_to_auth";
@@ -54,26 +61,36 @@ public static class ResourceRuleActionNames
 
     public static readonly IReadOnlySet<string> All = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     {
-        BypassAuth,
-        BlockAccess,
-        PassToAuth,
-        RequireAdaptiveChallenge,
+        Allow,
+        Deny,
+        RequireSso,
+        RequireChallenge,
+        SoftBlock,
+        FirewallBlock,
+        BypassBlocking,
     };
 
     private static readonly IReadOnlyDictionary<string, string> Aliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
-        [BypassAuth] = BypassAuth,
-        ["allow"] = BypassAuth,
-        ["bypass"] = BypassAuth,
-        [BlockAccess] = BlockAccess,
-        ["block"] = BlockAccess,
-        ["deny"] = BlockAccess,
-        [PassToAuth] = PassToAuth,
-        ["auth"] = PassToAuth,
-        ["require_auth"] = PassToAuth,
-        [RequireAdaptiveChallenge] = RequireAdaptiveChallenge,
-        ["challenge"] = RequireAdaptiveChallenge,
-        ["adaptive_challenge"] = RequireAdaptiveChallenge,
+        [Allow] = Allow,
+        [BypassAuth] = Allow,
+        ["bypass"] = Allow,
+        [Deny] = Deny,
+        [BlockAccess] = Deny,
+        ["block"] = Deny,
+        [RequireSso] = RequireSso,
+        [PassToAuth] = RequireSso,
+        ["auth"] = RequireSso,
+        ["require_auth"] = RequireSso,
+        [RequireChallenge] = RequireChallenge,
+        [RequireAdaptiveChallenge] = RequireChallenge,
+        ["challenge"] = RequireChallenge,
+        ["adaptive_challenge"] = RequireChallenge,
+        [SoftBlock] = SoftBlock,
+        ["soft-block"] = SoftBlock,
+        [FirewallBlock] = FirewallBlock,
+        ["firewall-block"] = FirewallBlock,
+        [BypassBlocking] = BypassBlocking,
     };
 
     public static bool TryNormalize(string? action, out string normalized)

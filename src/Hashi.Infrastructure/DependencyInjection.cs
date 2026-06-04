@@ -77,6 +77,9 @@ public static class DependencyInjection
         services.AddScoped<MonitoringService>();
         services.AddScoped<PublicDashboardService>();
         services.AddScoped<EdgeAuthService>();
+        services.AddScoped<SecuritySubjectService>();
+        services.AddScoped<SecurityDecisionService>();
+        services.AddScoped<BanDurationPolicyEvaluator>();
         services.AddSingleton<GeoIpLookupService>();
         services.AddScoped<OidcEdgeAuthService>();
         services.AddScoped<OidcProviderAdminService>();

@@ -385,12 +385,16 @@ public static class EdgeAuthEndpoints
             ForwardedClientContextResolver forwardedContext,
             CancellationToken ct) =>
         {
-            var host = ctx.Request.Headers["X-Forwarded-Host"].FirstOrDefault() ?? ctx.Request.Host.Value ?? string.Empty;
-            var path = ctx.Request.Headers["X-Forwarded-Uri"].FirstOrDefault()
-                ?? ctx.Request.Headers["X-Original-URL"].FirstOrDefault()
-                ?? ctx.Request.Path.Value
-                ?? "/";
             var requestContext = forwardedContext.Resolve(ctx);
+            var host = requestContext.TrustedProxy
+                ? ctx.Request.Headers["X-Forwarded-Host"].FirstOrDefault() ?? ctx.Request.Host.Value ?? string.Empty
+                : ctx.Request.Host.Value ?? string.Empty;
+            var path = requestContext.TrustedProxy
+                ? ctx.Request.Headers["X-Forwarded-Uri"].FirstOrDefault()
+                    ?? ctx.Request.Headers["X-Original-URL"].FirstOrDefault()
+                    ?? ctx.Request.Path.Value
+                    ?? "/"
+                : ctx.Request.Path.Value ?? "/";
             var clientIp = requestContext.ClientIp;
             var country = requestContext.TrustedProxy ? ctx.Request.Headers["X-Geo-Country"].FirstOrDefault() : null;
             var region = requestContext.TrustedProxy ? ctx.Request.Headers["X-Geo-Region"].FirstOrDefault() : null;
@@ -407,8 +411,20 @@ public static class EdgeAuthEndpoints
             }
 
             var mode = ctx.Request.Query["mode"].FirstOrDefault();
-            var result = await edgeAuth.EvaluateForwardAsync(
-                host, path, clientIp, country, region, asn, ctx.Request.Cookies["hashi.edge.session"], mode, ct);
+            var result = await edgeAuth.EvaluateForwardDecisionAsync(
+                new SecurityDecisionRequest(
+                    host,
+                    path,
+                    clientIp,
+                    country,
+                    region,
+                    asn,
+                    ctx.Request.Cookies["hashi.edge.session"],
+                    mode,
+                    requestContext.TrustedProxy,
+                    requestContext.Method,
+                    ctx.Request.Headers.Accept.FirstOrDefault()),
+                ct);
 
             await security.IngestForwardAuthDecisionAsync(new ForwardAuthDecisionIngestRequest(
                 clientIp.ToString(),
@@ -421,13 +437,14 @@ public static class EdgeAuthEndpoints
                 requestContext.Method,
                 path), ct);
 
-            return result.Decision switch
+            return result.ResponseMode switch
             {
-                "allow" => TypedResults.StatusCode(StatusCodes.Status204NoContent),
-                "deny" => TypedResults.StatusCode(StatusCodes.Status403Forbidden),
-                "rate_limited" => TypedResults.StatusCode(StatusCodes.Status429TooManyRequests),
-                "redirect" or "challenge" => TypedResults.Redirect(result.RedirectUrl ?? "/api/edge-auth/login"),
-                _ => TypedResults.StatusCode(StatusCodes.Status401Unauthorized),
+                SecurityDecisionResponseModeNames.Allow => TypedResults.StatusCode(StatusCodes.Status204NoContent),
+                SecurityDecisionResponseModeNames.Redirect => TypedResults.Redirect(result.RedirectUrl ?? "/api/edge-auth/login"),
+                SecurityDecisionResponseModeNames.ApiChallenge => TypedResults.Json(
+                    new { challenge_required = true, reason = result.Reason },
+                    statusCode: result.StatusCode),
+                _ => TypedResults.StatusCode(result.StatusCode),
             };
         }).WithTags("EdgeAuth").AllowAnonymous();
 
