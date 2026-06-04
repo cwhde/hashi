@@ -451,7 +451,12 @@ public sealed record UpdateEdgeAuthRuleRequest(
     string? Action,
     bool? Enabled);
 
-public sealed record AdGuardConnectionTestResponse(bool Connected, string? Error);
+public sealed record AdGuardConnectionTestResponse(
+    bool Connected,
+    string? Error,
+    ConnectionTargetResponse? Target = null,
+    string? ResolvedBaseUrl = null,
+    bool TargetStale = false);
 
 public sealed record RotatePulseAgentTokenResponse(Guid Id, string Name, string Token);
 
@@ -869,7 +874,9 @@ public sealed record PulseResolvedTargetResponse(
     IReadOnlyList<string> PrivateIpv4Candidates,
     IReadOnlyList<string> PrivateIpv6Candidates,
     DateTimeOffset? LastSeenAtUtc,
-    string Status);
+    string Status,
+    string? ResolvedIp = null,
+    string? Error = null);
 
 public sealed record InternalAgentDnsSettingsResponse(
     bool Enabled,
@@ -1067,9 +1074,21 @@ public sealed record AdGuardRewriteApplyResponse(Guid RunId, bool Succeeded, str
 
 public sealed record UpsertAdGuardRewriteRequest(string Domain, string Answer);
 
-public sealed record AdGuardConnectionResponse(Guid Id, string Name, string BaseUrl, bool Enabled);
+public sealed record AdGuardConnectionResponse(
+    Guid Id,
+    string Name,
+    string BaseUrl,
+    bool Enabled,
+    ConnectionTargetResponse? Target = null,
+    string? ResolvedBaseUrl = null,
+    string TargetStatus = "unresolved",
+    string? TargetError = null);
 
-public sealed record CreateAdGuardConnectionRequest(string Name, string BaseUrl, string Password);
+public sealed record CreateAdGuardConnectionRequest(
+    string Name,
+    string? BaseUrl,
+    string Password,
+    ConnectionTargetRequest? Target = null);
 
 public sealed record CreateScriptRequest(
     Guid ConnectionId,

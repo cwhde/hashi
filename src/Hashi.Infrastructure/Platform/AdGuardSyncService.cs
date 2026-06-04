@@ -20,14 +20,21 @@ public sealed class AdGuardSyncService(
     IHttpClientFactory httpClientFactory,
     SecretRecordService secrets,
     AuditService audit,
-    SyncRunService syncRuns)
+    SyncRunService syncRuns,
+    ConnectionTargetResolver targetResolver)
 {
     public async Task<IReadOnlyList<AdGuardConnectionResponse>> ListConnectionsAsync(CancellationToken cancellationToken = default)
     {
-        var items = await db.AdGuardConnections.AsNoTracking()
+        var items = await db.AdGuardConnections
             .OrderBy(x => x.Name)
             .ToListAsync(cancellationToken);
-        return items.Select(x => new AdGuardConnectionResponse(x.Id, x.Name, x.BaseUrl, x.Enabled)).ToList();
+        var responses = new List<AdGuardConnectionResponse>();
+        foreach (var item in items)
+        {
+            responses.Add(await ToConnectionResponseAsync(item, cancellationToken));
+        }
+
+        return responses;
     }
 
     public async Task<AdGuardConnectionResponse> CreateConnectionAsync(
@@ -40,29 +47,68 @@ public sealed class AdGuardSyncService(
             JsonSerializer.SerializeToUtf8Bytes(new { password = request.Password }),
             cancellationToken,
             serviceSyncEligible: true);
+        var target = CreateTargetFromRequest(request);
+        var compatibilityBaseUrl = string.IsNullOrWhiteSpace(request.BaseUrl)
+            ? ConnectionTargetResolver.ToBaseUrl(target, target.StaticHost ?? target.StaticIp ?? "127.0.0.1")
+            : request.BaseUrl.TrimEnd('/');
         var connection = new AdGuardConnectionEntity
         {
             Name = request.Name,
-            BaseUrl = request.BaseUrl.TrimEnd('/'),
+            BaseUrl = compatibilityBaseUrl,
             PasswordSecretId = secret.Id,
         };
+        target.OwnerId = connection.Id;
         db.AdGuardConnections.Add(connection);
+        db.ConnectionTargets.Add(target);
         await db.SaveChangesAsync(cancellationToken);
-        return new AdGuardConnectionResponse(connection.Id, connection.Name, connection.BaseUrl, connection.Enabled);
+        await audit.WriteAsync(
+            "adguard",
+            "connection_target_saved",
+            subjectType: ConnectionTargetOwnerTypeNames.AdGuardConnection,
+            subjectId: connection.Id.ToString(),
+            metadata: new { targetMode = target.TargetMode, target.PulseAgentId },
+            cancellationToken: cancellationToken);
+        return await ToConnectionResponseAsync(connection, cancellationToken);
     }
 
     public async Task<AdGuardConnectionTestResponse> TestConnectionAsync(Guid connectionId, CancellationToken cancellationToken = default)
     {
+        ResolvedConnectionTarget? resolved = null;
+        ConnectionTargetEntity? target = null;
         try
         {
-            var client = await CreateAuthorizedClientAsync(connectionId, cancellationToken);
+            var connection = await db.AdGuardConnections.SingleOrDefaultAsync(x => x.Id == connectionId, cancellationToken)
+                ?? throw new InvalidOperationException("AdGuard connection not found.");
+            target = await targetResolver.GetOrCreateAdGuardTargetAsync(connection, cancellationToken);
+            resolved = await targetResolver.ResolveAsync(target, cancellationToken: cancellationToken);
+            if (resolved.Status == ConnectionTargetStatusNames.Failed)
+            {
+                return new AdGuardConnectionTestResponse(
+                    false,
+                    resolved.Error,
+                    ToTargetResponse(target),
+                    resolved.BaseUri.ToString().TrimEnd('/'),
+                    resolved.IsStale);
+            }
+
+            var client = await CreateAuthorizedClientAsync(connection, resolved, cancellationToken);
             using var response = await client.GetAsync("control/status", cancellationToken);
             response.EnsureSuccessStatusCode();
-            return new AdGuardConnectionTestResponse(true, null);
+            return new AdGuardConnectionTestResponse(
+                true,
+                null,
+                ToTargetResponse(target),
+                resolved.BaseUri.ToString().TrimEnd('/'),
+                resolved.IsStale);
         }
         catch (Exception ex)
         {
-            return new AdGuardConnectionTestResponse(false, ex.Message);
+            return new AdGuardConnectionTestResponse(
+                false,
+                ex.Message,
+                target is null ? null : ToTargetResponse(target),
+                resolved?.BaseUri.ToString().TrimEnd('/'),
+                resolved?.IsStale ?? false);
         }
     }
 
@@ -407,9 +453,23 @@ public sealed class AdGuardSyncService(
     {
         var connection = await db.AdGuardConnections.SingleOrDefaultAsync(x => x.Id == connectionId, cancellationToken)
             ?? throw new InvalidOperationException("AdGuard connection not found.");
+        var resolved = await targetResolver.ResolveAdGuardAsync(connection, cancellationToken: cancellationToken);
+        if (resolved.Status == ConnectionTargetStatusNames.Failed)
+        {
+            throw new InvalidOperationException(resolved.Error ?? "AdGuard target could not be resolved.");
+        }
+
+        return await CreateAuthorizedClientAsync(connection, resolved, cancellationToken);
+    }
+
+    private async Task<HttpClient> CreateAuthorizedClientAsync(
+        AdGuardConnectionEntity connection,
+        ResolvedConnectionTarget resolved,
+        CancellationToken cancellationToken)
+    {
         var password = await ResolvePasswordAsync(connection.PasswordSecretId, cancellationToken);
         var client = httpClientFactory.CreateClient("adguard");
-        client.BaseAddress = new Uri(connection.BaseUrl.TrimEnd('/') + "/");
+        client.BaseAddress = resolved.BaseUri;
         if (!string.IsNullOrEmpty(password))
         {
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
@@ -419,6 +479,97 @@ public sealed class AdGuardSyncService(
 
         return client;
     }
+
+    private async Task<AdGuardConnectionResponse> ToConnectionResponseAsync(
+        AdGuardConnectionEntity connection,
+        CancellationToken cancellationToken)
+    {
+        var target = await targetResolver.GetOrCreateAdGuardTargetAsync(connection, cancellationToken);
+        var resolved = await targetResolver.ResolveAsync(target, cancellationToken: cancellationToken);
+        return new AdGuardConnectionResponse(
+            connection.Id,
+            connection.Name,
+            connection.BaseUrl,
+            connection.Enabled,
+            ToTargetResponse(target),
+            resolved.BaseUri.ToString().TrimEnd('/'),
+            resolved.Status,
+            resolved.Error);
+    }
+
+    private static ConnectionTargetEntity CreateTargetFromRequest(CreateAdGuardConnectionRequest request)
+    {
+        if (request.Target is null)
+        {
+            if (string.IsNullOrWhiteSpace(request.BaseUrl))
+            {
+                throw new InvalidOperationException("Base URL or connection target is required.");
+            }
+
+            return ConnectionTargetResolver.FromAdGuardBaseUrl(new AdGuardConnectionEntity
+            {
+                Id = Guid.Empty,
+                BaseUrl = request.BaseUrl,
+            });
+        }
+
+        var target = request.Target;
+        return new ConnectionTargetEntity
+        {
+            OwnerType = ConnectionTargetOwnerTypeNames.AdGuardConnection,
+            TargetMode = NormalizeTargetMode(target.TargetMode),
+            StaticHost = string.IsNullOrWhiteSpace(target.StaticHost) ? null : target.StaticHost.Trim(),
+            StaticIp = string.IsNullOrWhiteSpace(target.StaticIp) ? null : target.StaticIp.Trim(),
+            PulseAgentId = target.PulseAgentId,
+            PulseIpMode = NormalizePulseIpMode(target.PulseIpMode),
+            PrivateCandidateSelector = string.IsNullOrWhiteSpace(target.PrivateCandidateSelector)
+                ? PulsePrivateCandidateSelectorNames.Selected
+                : target.PrivateCandidateSelector.Trim(),
+            Port = target.Port,
+            Scheme = string.Equals(target.Scheme, "https", StringComparison.OrdinalIgnoreCase) ? "https" : "http",
+            PathPrefix = string.IsNullOrWhiteSpace(target.PathPrefix) ? null : "/" + target.PathPrefix.Trim().Trim('/'),
+            TlsValidationMode = string.IsNullOrWhiteSpace(target.TlsValidationMode) ? TlsValidationModeNames.System : target.TlsValidationMode.Trim(),
+            ExpectedTlsHostname = string.IsNullOrWhiteSpace(target.ExpectedTlsHostname) ? null : target.ExpectedTlsHostname.Trim(),
+        };
+    }
+
+    private static ConnectionTargetResponse ToTargetResponse(ConnectionTargetEntity target) => new(
+        target.Id,
+        target.OwnerType,
+        target.OwnerId,
+        target.TargetMode,
+        target.StaticHost,
+        target.StaticIp,
+        target.PulseAgentId,
+        target.PulseIpMode,
+        target.PrivateCandidateSelector,
+        target.Port,
+        target.Scheme,
+        target.PathPrefix,
+        target.TlsValidationMode,
+        target.ExpectedTlsHostname,
+        target.ResolvedIpSnapshot,
+        target.LastResolvedAtUtc,
+        target.Status,
+        target.LastError);
+
+    private static string NormalizeTargetMode(string? mode)
+        => (mode ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            ConnectionTargetModeNames.StaticIp => ConnectionTargetModeNames.StaticIp,
+            ConnectionTargetModeNames.PulseAgent => ConnectionTargetModeNames.PulseAgent,
+            _ => ConnectionTargetModeNames.StaticHost,
+        };
+
+    private static string NormalizePulseIpMode(string? mode)
+        => (mode ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            PulseTargetIpModeNames.Public => PulseTargetIpModeNames.Public,
+            PulseTargetIpModeNames.Private => PulseTargetIpModeNames.PrivateSelected,
+            PulseTargetIpModeNames.PrivateSelected => PulseTargetIpModeNames.PrivateSelected,
+            PulseTargetIpModeNames.PrivateCandidate => PulseTargetIpModeNames.PrivateCandidate,
+            _ => PulseTargetIpModeNames.Selected,
+        };
 
     private sealed record RemoteAdGuardRewrite(string Domain, string Answer, string? Id);
 

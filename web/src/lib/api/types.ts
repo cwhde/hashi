@@ -136,9 +136,12 @@ export type SecurityDashboard = {
 	securityEventCount: number;
 };
 export type PulseAgent = Schemas['PulseAgentResponse'];
+export type PulseResolvedTarget = Schemas['PulseResolvedTargetResponse'];
 export type PulseInstall = Schemas['PulseInstallResponse'];
 export type CreatePulseAgentRequest = Schemas['CreatePulseAgentRequest'];
 export type CreatePulseAgentResult = Schemas['CreatePulseAgentResponse'];
+export type ConnectionTarget = Schemas['ConnectionTargetResponse'];
+export type ConnectionTargetRequest = Schemas['ConnectionTargetRequest'];
 export type Script = Schemas['ScriptResponse'];
 export type CreateScriptRequest = Schemas['CreateScriptRequest'];
 export type UpdateScriptRequest = Schemas['UpdateScriptRequest'];

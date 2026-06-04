@@ -24,6 +24,7 @@ public sealed class PulseAgentService(
     HashiDbContext db,
     DnsConnectionService dns,
     AuditService audit,
+    ConnectionTargetResolver targetResolver,
     ILogger<PulseAgentService> logger)
 {
     private static readonly TimeSpan HeartbeatTimestampSkew = TimeSpan.FromMinutes(5);
@@ -98,7 +99,8 @@ public sealed class PulseAgentService(
         var internalIp = selectedIp ?? ipv4Candidates.FirstOrDefault() ?? ipv6Candidates.FirstOrDefault();
         var dockerMetadataJson = request.Docker is null ? null : JsonSerializer.Serialize(request.Docker);
         var ipChanged = !string.Equals(agent.LastPublicIp, publicIp, StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(agent.LastPrivateIp, internalIp, StringComparison.OrdinalIgnoreCase);
+            || !string.Equals(agent.LastPrivateIp, internalIp, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(agent.LastSelectedIp, selectedIp, StringComparison.OrdinalIgnoreCase);
 
         agent.LastSeenAtUtc = now;
         agent.LastPublicIp = publicIp;
@@ -141,6 +143,7 @@ public sealed class PulseAgentService(
 
         if (ipChanged)
         {
+            await targetResolver.RefreshTargetsForPulseAgentAsync(agent.Id, cancellationToken);
             await ApplyDnsForPulseChangeAsync(agent, cancellationToken);
         }
 

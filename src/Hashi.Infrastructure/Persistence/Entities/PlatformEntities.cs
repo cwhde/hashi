@@ -349,6 +349,8 @@ public static class PulseTargetIpModeNames
     public const string Selected = "selected";
     public const string Public = "public";
     public const string Private = "private";
+    public const string PrivateSelected = "private_selected";
+    public const string PrivateCandidate = "private_candidate";
 }
 
 public static class PulsePrivateCandidateSelectorNames

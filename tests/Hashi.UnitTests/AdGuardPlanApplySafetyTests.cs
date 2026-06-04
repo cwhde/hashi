@@ -168,6 +168,46 @@ public sealed class AdGuardPlanApplySafetyTests
         Assert.False(await db.AdGuardRewrites.AnyAsync(x => x.Domain == "stale.example.com"));
     }
 
+    [Fact]
+    public async Task TestConnectionAsync_uses_pulse_agent_target_base_uri()
+    {
+        await using var db = CreateDb();
+        var connectionId = await AddConnectionAsync(db);
+        var agentId = Guid.NewGuid();
+        db.PulseAgents.Add(new PulseAgentEntity
+        {
+            Id = agentId,
+            Name = "edge",
+            TokenHash = "hash",
+            Status = "online",
+            LastSeenAtUtc = DateTimeOffset.UtcNow,
+            LastSelectedIp = "10.0.0.53",
+            LastPrivateIp = "10.0.0.53",
+            LastPrivateIpv4CandidatesJson = """["10.0.0.53"]""",
+        });
+        db.ConnectionTargets.Add(new ConnectionTargetEntity
+        {
+            OwnerType = ConnectionTargetOwnerTypeNames.AdGuardConnection,
+            OwnerId = connectionId,
+            TargetMode = ConnectionTargetModeNames.PulseAgent,
+            PulseAgentId = agentId,
+            PulseIpMode = PulseTargetIpModeNames.Selected,
+            Scheme = "http",
+            Port = 3000,
+        });
+        await db.SaveChangesAsync();
+        var handler = new FakeAdGuardHandler("""{"rewrites":[]}""");
+        var service = CreateService(db, handler);
+
+        var result = await service.TestConnectionAsync(connectionId);
+
+        Assert.True(result.Connected);
+        Assert.Equal("http://10.0.0.53:3000", result.ResolvedBaseUrl);
+        Assert.Equal(ConnectionTargetStatusNames.Resolved, result.Target?.Status);
+        Assert.NotNull(handler.LastRequestUri);
+        Assert.Equal("10.0.0.53", handler.LastRequestUri!.Host);
+    }
+
     private static HashiDbContext CreateDb()
     {
         var options = new DbContextOptionsBuilder<HashiDbContext>()
@@ -214,7 +254,8 @@ public sealed class AdGuardPlanApplySafetyTests
             new FakeHttpClientFactory(handler),
             secrets,
             new AuditService(db),
-            syncRuns);
+            syncRuns,
+            new ConnectionTargetResolver(db, new AuditService(db)));
     }
 
     private sealed class FakeHttpClientFactory(HttpMessageHandler handler) : IHttpClientFactory
@@ -230,8 +271,11 @@ public sealed class AdGuardPlanApplySafetyTests
 
         public HttpStatusCode DeleteStatusCode { get; init; } = HttpStatusCode.OK;
 
+        public Uri? LastRequestUri { get; private set; }
+
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
+            LastRequestUri = request.RequestUri;
             if (request.RequestUri?.AbsolutePath.EndsWith("/control/rewrite/list", StringComparison.Ordinal) == true)
             {
                 return Task.FromResult(JsonResponse(rewriteListJson));
