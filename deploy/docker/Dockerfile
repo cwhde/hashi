@@ -1,21 +1,52 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1.7
 
-FROM node:24-bookworm AS web-build
+FROM --platform=$BUILDPLATFORM node:24-bookworm AS web-build
 WORKDIR /src/web
 RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
-RUN pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile
+RUN --mount=type=cache,id=hashi-pnpm-store,target=/pnpm/store \
+  pnpm config set store-dir /pnpm/store \
+  && (pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile)
 COPY web/ ./
 RUN pnpm run build
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS dotnet-build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0 AS dotnet-build
 WORKDIR /src
+ARG TARGETARCH
 COPY Directory.Build.props Hashi.slnx ./
+COPY src/Hashi.Api/Hashi.Api.csproj ./src/Hashi.Api/
+COPY src/Hashi.Core/Hashi.Core.csproj ./src/Hashi.Core/
+COPY src/Hashi.Contracts/Hashi.Contracts.csproj ./src/Hashi.Contracts/
+COPY src/Hashi.Infrastructure/Hashi.Infrastructure.csproj ./src/Hashi.Infrastructure/
+RUN --mount=type=cache,id=hashi-nuget,target=/root/.nuget/packages,sharing=locked \
+  target_rid="" \
+  && case "${TARGETARCH:-}" in \
+    amd64) target_rid="linux-x64" ;; \
+    arm64) target_rid="linux-arm64" ;; \
+    "") target_rid="" ;; \
+    *) target_rid="linux-${TARGETARCH}" ;; \
+  esac \
+  && if [ -n "$target_rid" ]; then \
+    dotnet restore src/Hashi.Api/Hashi.Api.csproj -r "$target_rid"; \
+  else \
+    dotnet restore src/Hashi.Api/Hashi.Api.csproj; \
+  fi
 COPY src/ ./src/
 COPY agents/ ./agents/
-RUN dotnet restore src/Hashi.Api/Hashi.Api.csproj
 COPY --from=web-build /src/web/build ./web/build
-RUN dotnet publish src/Hashi.Api/Hashi.Api.csproj -c Release -o /app/publish /p:SkipFrontendBuild=true
+RUN --mount=type=cache,id=hashi-nuget,target=/root/.nuget/packages,sharing=locked \
+  target_rid="" \
+  && case "${TARGETARCH:-}" in \
+    amd64) target_rid="linux-x64" ;; \
+    arm64) target_rid="linux-arm64" ;; \
+    "") target_rid="" ;; \
+    *) target_rid="linux-${TARGETARCH}" ;; \
+  esac \
+  && if [ -n "$target_rid" ]; then \
+    dotnet publish src/Hashi.Api/Hashi.Api.csproj -c Release -r "$target_rid" --self-contained false --no-restore -o /app/publish /p:SkipFrontendBuild=true; \
+  else \
+    dotnet publish src/Hashi.Api/Hashi.Api.csproj -c Release --no-restore -o /app/publish /p:SkipFrontendBuild=true; \
+  fi
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app

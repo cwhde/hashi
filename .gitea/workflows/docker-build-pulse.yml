@@ -26,6 +26,18 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: agents/pulse/go.mod
+          cache: false
+
+      - name: Cache Go modules and build data
+        uses: actions/cache@v3
+        continue-on-error: true
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-pulse-${{ runner.os }}-${{ hashFiles('agents/pulse/go.mod', 'agents/pulse/go.sum') }}
+          restore-keys: |
+            go-pulse-${{ runner.os }}-
 
       - name: Build Linux binaries
         working-directory: agents/pulse

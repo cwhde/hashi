@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1.7
 
 # =============================================================================
 # Hashi (橋) - Minimal Docker build
@@ -15,7 +15,8 @@ WORKDIR /app
 RUN apk add --no-cache python3 make g++
 
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+RUN --mount=type=cache,target=/root/.npm \
+  npm ci --omit=dev
 
 # -----------------------------------------------------------------------------
 # Stage 2: Minimal production image
