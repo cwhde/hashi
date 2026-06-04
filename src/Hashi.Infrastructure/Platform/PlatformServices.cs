@@ -89,6 +89,8 @@ public sealed class ResourceService(
             throw new InvalidOperationException("System resources cannot be updated through the resource API.");
         }
 
+        var previousStreamKey = GetEnabledStreamPortKey(entity);
+
         ValidateResourceRules(request.Rules);
         var rootDomain = await GetRootDomainAsync(cancellationToken);
 
@@ -248,13 +250,19 @@ public sealed class ResourceService(
             entity.WafExclusionsJson = SerializeWafExclusions(request.WafExclusions);
         }
 
-        if (entity.Kind is "tcp" or "udp")
+        if (GetEnabledStreamPortKey(entity) is { } streamKey)
         {
-            await EnsureStreamPortConfirmedOrPendingAsync(entity.PublicPort ?? entity.TargetPort, entity.Kind, cancellationToken);
+            await EnsureStreamPortConfirmedOrPendingAsync(streamKey.Port, streamKey.Protocol, cancellationToken);
         }
 
         entity.UpdatedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
+
+        var currentStreamKey = GetEnabledStreamPortKey(entity);
+        if (previousStreamKey is { } oldKey && oldKey != currentStreamKey)
+        {
+            await entryPoints.RemoveIfUnusedAsync(oldKey.Port, oldKey.Protocol, entity.Id, cancellationToken);
+        }
 
         if (request.Routes is not null)
         {
@@ -266,7 +274,11 @@ public sealed class ResourceService(
             await UpsertRulesAsync(entity.Id, request.Rules, cancellationToken);
         }
 
-        await entryPoints.SyncForResourceAsync(entity, cancellationToken);
+        if (currentStreamKey is not null)
+        {
+            await entryPoints.SyncForResourceAsync(entity, cancellationToken);
+        }
+
         await db.SaveChangesAsync(cancellationToken);
         return entity;
     }
@@ -284,7 +296,12 @@ public sealed class ResourceService(
             throw new InvalidOperationException("System resources cannot be deleted.");
         }
 
-        await entryPoints.RemoveForResourceAsync(id, cancellationToken);
+        var streamKey = GetEnabledStreamPortKey(entity);
+        if (streamKey is not null)
+        {
+            await entryPoints.RemoveIfUnusedAsync(streamKey.Value.Port, streamKey.Value.Protocol, entity.Id, cancellationToken);
+        }
+
         db.ResourceRoutes.RemoveRange(await db.ResourceRoutes.Where(x => x.ResourceId == id).ToListAsync(cancellationToken));
         db.ResourceRules.RemoveRange(await db.ResourceRules.Where(x => x.ResourceId == id).ToListAsync(cancellationToken));
         db.Resources.Remove(entity);
@@ -371,6 +388,11 @@ public sealed class ResourceService(
             Confirmed = false,
         });
     }
+
+    private static (int Port, string Protocol)? GetEnabledStreamPortKey(ResourceEntity entity)
+        => entity.Enabled && entity.Kind is "tcp" or "udp"
+            ? (entity.PublicPort ?? entity.TargetPort, entity.Kind)
+            : null;
 
     private async Task UpsertRoutesAsync(Guid resourceId, IReadOnlyList<ResourceRouteRequest>? routes, CancellationToken cancellationToken)
     {
