@@ -4804,6 +4804,124 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings/notifications/routes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["NotificationRouteResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateNotificationRouteRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["NotificationRouteResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/notifications/routes/{routeId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    routeId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateNotificationRouteRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["NotificationRouteResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    routeId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/settings/notifications/send": {
         parameters: {
             query?: never;
@@ -5595,6 +5713,18 @@ export interface components {
             settingsJson: string;
             enabled: boolean;
         };
+        CreateNotificationRouteRequest: {
+            /** Format: uuid */
+            providerId: string;
+            name: string;
+            eventKind: string;
+            severity: string;
+            matchJson: string;
+            enabled: boolean;
+            /** Format: int32 */
+            cooldownMinutes: number | string;
+            sendRecovery: boolean;
+        };
         CreateOidcProviderRequest: {
             name: string;
             issuer: string;
@@ -6011,6 +6141,22 @@ export interface components {
             name: string;
             type: string;
             enabled: boolean;
+        };
+        NotificationRouteResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            providerId: string;
+            name: string;
+            eventKind: string;
+            severity: string;
+            matchJson: string;
+            enabled: boolean;
+            /** Format: int32 */
+            cooldownMinutes: number | string;
+            sendRecovery: boolean;
+            /** Format: date-time */
+            createdAtUtc: string;
         };
         NotificationTestRequest: {
             subject: string;
@@ -6636,6 +6782,18 @@ export interface components {
             type: null | string;
             settingsJson: null | string;
             enabled: null | boolean;
+        };
+        UpdateNotificationRouteRequest: {
+            /** Format: uuid */
+            providerId: null | string;
+            name: null | string;
+            eventKind: null | string;
+            severity: null | string;
+            matchJson: null | string;
+            enabled: null | boolean;
+            /** Format: int32 */
+            cooldownMinutes: null | number | string;
+            sendRecovery: null | boolean;
         };
         UpdateOidcProviderRequest: {
             name: null | string;

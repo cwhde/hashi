@@ -193,6 +193,143 @@ public sealed class NotificationDispatcher(
         }
     }
 
+    public async Task<IReadOnlyList<NotificationRouteResponse>> ListRoutesAsync(CancellationToken cancellationToken = default)
+    {
+        var routes = await db.NotificationRoutes.AsNoTracking()
+            .OrderBy(x => x.Name)
+            .ToListAsync(cancellationToken);
+        return routes.Select(ToRouteResponse).ToList();
+    }
+
+    public async Task<NotificationRouteResponse> CreateRouteAsync(
+        CreateNotificationRouteRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (!await db.NotificationProviders.AnyAsync(x => x.Id == request.ProviderId, cancellationToken))
+        {
+            throw new InvalidOperationException("Notification provider not found.");
+        }
+
+        var entity = new NotificationRouteEntity
+        {
+            ProviderId = request.ProviderId,
+            Name = NormalizeRouteName(request.Name),
+            EventKind = NormalizeEventKind(request.EventKind),
+            Severity = NormalizeSeverity(request.Severity),
+            MatchJson = NormalizeMatchJson(request.MatchJson),
+            Enabled = request.Enabled,
+            CooldownMinutes = NormalizeCooldown(request.CooldownMinutes),
+            SendRecovery = request.SendRecovery,
+        };
+        db.NotificationRoutes.Add(entity);
+        await db.SaveChangesAsync(cancellationToken);
+        return ToRouteResponse(entity);
+    }
+
+    public async Task<NotificationRouteResponse?> UpdateRouteAsync(
+        Guid routeId,
+        UpdateNotificationRouteRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await db.NotificationRoutes.SingleOrDefaultAsync(x => x.Id == routeId, cancellationToken);
+        if (entity is null)
+        {
+            return null;
+        }
+
+        if (request.ProviderId is Guid providerId)
+        {
+            if (!await db.NotificationProviders.AnyAsync(x => x.Id == providerId, cancellationToken))
+            {
+                throw new InvalidOperationException("Notification provider not found.");
+            }
+
+            entity.ProviderId = providerId;
+        }
+
+        if (request.Name is not null)
+            entity.Name = NormalizeRouteName(request.Name);
+        if (request.EventKind is not null)
+            entity.EventKind = NormalizeEventKind(request.EventKind);
+        if (request.Severity is not null)
+            entity.Severity = NormalizeSeverity(request.Severity);
+        if (request.MatchJson is not null)
+            entity.MatchJson = NormalizeMatchJson(request.MatchJson);
+        if (request.Enabled is bool enabled)
+            entity.Enabled = enabled;
+        if (request.CooldownMinutes is int cooldown)
+            entity.CooldownMinutes = NormalizeCooldown(cooldown);
+        if (request.SendRecovery is bool sendRecovery)
+            entity.SendRecovery = sendRecovery;
+
+        await db.SaveChangesAsync(cancellationToken);
+        return ToRouteResponse(entity);
+    }
+
+    public async Task<bool> DeleteRouteAsync(Guid routeId, CancellationToken cancellationToken = default)
+    {
+        var entity = await db.NotificationRoutes.SingleOrDefaultAsync(x => x.Id == routeId, cancellationToken);
+        if (entity is null)
+        {
+            return false;
+        }
+
+        db.NotificationRoutes.Remove(entity);
+        await db.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    public async Task SendByProviderAsync(
+        NotificationProviderEntity provider,
+        Guid? routeId,
+        string eventKind,
+        string subject,
+        string body,
+        CancellationToken cancellationToken = default)
+    {
+        var delivery = new NotificationDeliveryEntity
+        {
+            RouteId = routeId,
+            ProviderId = provider.Id,
+            EventKind = eventKind,
+            Subject = subject,
+            Status = NotificationDeliveryStatusNames.Pending,
+            AttemptCount = 1,
+        };
+        db.NotificationDeliveries.Add(delivery);
+
+        try
+        {
+            switch (provider.Type)
+            {
+                case "smtp":
+                    await SendSmtpAsync(provider, subject, body, cancellationToken);
+                    break;
+                case "telegram":
+                    await SendTelegramAsync(provider, subject, body, cancellationToken);
+                    break;
+                case "discord":
+                    await SendDiscordAsync(provider, subject, body, cancellationToken);
+                    break;
+                default:
+                    delivery.Status = NotificationDeliveryStatusNames.Failed;
+                    delivery.ErrorDetails = $"Unsupported provider type: {provider.Type}";
+                    await db.SaveChangesAsync(cancellationToken);
+                    return;
+            }
+
+            delivery.Status = NotificationDeliveryStatusNames.Sent;
+            delivery.SentAtUtc = DateTimeOffset.UtcNow;
+        }
+        catch (Exception ex)
+        {
+            delivery.Status = NotificationDeliveryStatusNames.Failed;
+            delivery.ErrorDetails = ex.Message;
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task SendAsync(SendNotificationRequest request, CancellationToken cancellationToken = default)
     {
         var providers = await db.NotificationProviders
@@ -391,6 +528,83 @@ public sealed class NotificationDispatcher(
 
     private static string? ReadString(JsonObject settings, string property)
         => settings.TryGetPropertyValue(property, out var node) ? node?.GetValue<string>() : null;
+
+    private static string NormalizeRouteName(string name)
+    {
+        var normalized = name.Trim();
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            throw new InvalidOperationException("Notification route name is required.");
+        }
+
+        return normalized;
+    }
+
+    private static string NormalizeEventKind(string eventKind)
+    {
+        var normalized = eventKind.Trim().ToLowerInvariant();
+        return normalized switch
+        {
+            "all" or "monitor" or "security" => normalized,
+            _ => throw new InvalidOperationException("Notification route event kind must be all, monitor, or security."),
+        };
+    }
+
+    private static string NormalizeSeverity(string severity)
+    {
+        var normalized = severity.Trim().ToLowerInvariant();
+        return normalized switch
+        {
+            "info" or "warning" or "critical" => normalized,
+            _ => throw new InvalidOperationException("Notification route severity must be info, warning, or critical."),
+        };
+    }
+
+    private static string NormalizeMatchJson(string matchJson)
+    {
+        if (string.IsNullOrWhiteSpace(matchJson))
+        {
+            return "{}";
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(matchJson);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                throw new InvalidOperationException("Notification route match JSON must be a JSON object.");
+            }
+
+            return doc.RootElement.GetRawText();
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidOperationException("Notification route match JSON is invalid.", ex);
+        }
+    }
+
+    private static int NormalizeCooldown(int cooldownMinutes)
+    {
+        if (cooldownMinutes < 0)
+        {
+            throw new InvalidOperationException("Notification route cooldown must be zero or greater.");
+        }
+
+        return cooldownMinutes;
+    }
+
+    private static NotificationRouteResponse ToRouteResponse(NotificationRouteEntity entity)
+        => new(
+            entity.Id,
+            entity.ProviderId,
+            entity.Name,
+            entity.EventKind,
+            entity.Severity,
+            entity.MatchJson,
+            entity.Enabled,
+            entity.CooldownMinutes,
+            entity.SendRecovery,
+            entity.CreatedAtUtc);
 
     private static bool TryExtractChat(JsonElement update, out string chatId, out string chatTitle)
     {

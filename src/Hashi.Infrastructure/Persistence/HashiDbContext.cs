@@ -654,6 +654,8 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.Property(x => x.Name).HasMaxLength(128);
             entity.Property(x => x.EventKind).HasMaxLength(64);
             entity.Property(x => x.Severity).HasMaxLength(32);
+            entity.Property(x => x.CooldownMinutes).HasDefaultValue(0);
+            entity.Property(x => x.SendRecovery).HasDefaultValue(true);
             entity.HasOne(x => x.Provider).WithMany().HasForeignKey(x => x.ProviderId).OnDelete(DeleteBehavior.Cascade);
             entity.HasIndex(x => new { x.ProviderId, x.EventKind });
         });
