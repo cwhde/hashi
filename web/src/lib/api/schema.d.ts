@@ -5723,6 +5723,8 @@ export interface components {
             enabled: boolean;
             dashboardEnabled: boolean;
             dashboardDisplayName: null | string;
+            monitoringEnabled: boolean;
+            monitoringDisplayName: null | string;
         };
         DnsSyncApplyRequest: {
             /** Format: uuid */
@@ -6714,6 +6716,9 @@ export interface components {
             /** @default false */
             dashboardEnabled: boolean;
             dashboardDisplayName?: null | string;
+            /** @default false */
+            monitoringEnabled?: boolean;
+            monitoringDisplayName?: null | string;
         };
         VaultGenerateRecoveryKeyResponse: {
             recoveryKey: string;

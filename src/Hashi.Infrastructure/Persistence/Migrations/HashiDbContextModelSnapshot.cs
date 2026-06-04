@@ -632,6 +632,13 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.Property<bool>("Enabled")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("MonitoringDisplayName")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<bool>("MonitoringEnabled")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(256)
@@ -1224,6 +1231,9 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
 
+                    b.Property<Guid?>("DnsRecordId")
+                        .HasColumnType("uuid");
+
                     b.Property<bool>("Enabled")
                         .HasColumnType("boolean");
 
@@ -1256,6 +1266,8 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DnsRecordId");
 
                     b.ToTable("monitor_endpoints", (string)null);
                 });

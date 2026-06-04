@@ -38,9 +38,12 @@ public sealed class DnsRecordService(HashiDbContext db, AuditService audit)
         bool enabled,
         bool dashboardEnabled = false,
         string? dashboardDisplayName = null,
+        bool monitoringEnabled = false,
+        string? monitoringDisplayName = null,
         CancellationToken cancellationToken = default)
     {
         var displayName = NormalizeDashboardDisplayName(dashboardEnabled, dashboardDisplayName);
+        var monitorName = NormalizeMonitoringDisplayName(monitoringEnabled, monitoringDisplayName);
         var normalized = await ValidateAsync(zoneId, name, type, value, ttl, null, cancellationToken);
         var record = new DnsRecordEntity
         {
@@ -53,6 +56,8 @@ public sealed class DnsRecordService(HashiDbContext db, AuditService audit)
             Ownership = DnsOwnershipNames.User,
             DashboardEnabled = dashboardEnabled,
             DashboardDisplayName = displayName,
+            MonitoringEnabled = monitoringEnabled,
+            MonitoringDisplayName = monitorName,
         };
         db.DnsRecords.Add(record);
         db.DnsRecordOwnership.Add(new DnsRecordOwnershipEntity
@@ -81,6 +86,8 @@ public sealed class DnsRecordService(HashiDbContext db, AuditService audit)
         bool enabled,
         bool dashboardEnabled = false,
         string? dashboardDisplayName = null,
+        bool monitoringEnabled = false,
+        string? monitoringDisplayName = null,
         CancellationToken cancellationToken = default)
     {
         var record = await GetMutableUserRecordAsync(recordId, cancellationToken);
@@ -90,6 +97,7 @@ public sealed class DnsRecordService(HashiDbContext db, AuditService audit)
         }
 
         var displayName = NormalizeDashboardDisplayName(dashboardEnabled, dashboardDisplayName);
+        var monitorName = NormalizeMonitoringDisplayName(monitoringEnabled, monitoringDisplayName);
         var normalized = await ValidateAsync(zoneId, name, type, value, ttl, recordId, cancellationToken);
         record.ZoneId = zoneId;
         record.Name = normalized.Name;
@@ -99,6 +107,8 @@ public sealed class DnsRecordService(HashiDbContext db, AuditService audit)
         record.Enabled = enabled;
         record.DashboardEnabled = dashboardEnabled;
         record.DashboardDisplayName = displayName;
+        record.MonitoringEnabled = monitoringEnabled;
+        record.MonitoringDisplayName = monitorName;
         record.UpdatedAtUtc = DateTimeOffset.UtcNow;
 
         var ownership = await db.DnsRecordOwnership
@@ -223,6 +233,17 @@ public sealed class DnsRecordService(HashiDbContext db, AuditService audit)
         if (dashboardEnabled && string.IsNullOrWhiteSpace(normalized))
         {
             throw new InvalidOperationException("Dashboard display name is required before a manual DNS record can be shown on the public dashboard.");
+        }
+
+        return string.IsNullOrWhiteSpace(normalized) ? null : normalized;
+    }
+
+    private static string? NormalizeMonitoringDisplayName(bool monitoringEnabled, string? displayName)
+    {
+        var normalized = displayName?.Trim();
+        if (monitoringEnabled && string.IsNullOrWhiteSpace(normalized))
+        {
+            throw new InvalidOperationException("Monitoring display name is required before a manual DNS record can be monitored.");
         }
 
         return string.IsNullOrWhiteSpace(normalized) ? null : normalized;

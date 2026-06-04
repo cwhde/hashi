@@ -40,7 +40,9 @@
 		ttl: 300,
 		enabled: true,
 		dashboardEnabled: false,
-		dashboardDisplayName: ''
+		dashboardDisplayName: '',
+		monitoringEnabled: false,
+		monitoringDisplayName: ''
 	});
 	let form = $state({
 		name: 'hetzner-primary',
@@ -216,7 +218,9 @@
 			ttl: record.ttl ?? 300,
 			enabled: record.enabled,
 			dashboardEnabled: record.dashboardEnabled,
-			dashboardDisplayName: record.dashboardDisplayName ?? ''
+			dashboardDisplayName: record.dashboardDisplayName ?? '',
+			monitoringEnabled: record.monitoringEnabled,
+			monitoringDisplayName: record.monitoringDisplayName ?? ''
 		};
 	}
 
@@ -230,7 +234,9 @@
 			ttl: 300,
 			enabled: true,
 			dashboardEnabled: false,
-			dashboardDisplayName: ''
+			dashboardDisplayName: '',
+			monitoringEnabled: false,
+			monitoringDisplayName: ''
 		};
 	}
 
@@ -243,7 +249,8 @@
 			const payload = {
 				...recordForm,
 				ttl: Number.isFinite(ttl) && ttl > 0 ? ttl : null,
-				dashboardDisplayName: recordForm.dashboardDisplayName.trim() || null
+				dashboardDisplayName: recordForm.dashboardDisplayName.trim() || null,
+				monitoringDisplayName: recordForm.monitoringDisplayName.trim() || null
 			};
 			if (editingRecordId) {
 				await api.updateDnsRecord(editingRecordId, payload);
@@ -271,7 +278,9 @@
 				ttl: record.ttl ?? null,
 				enabled: !record.enabled,
 				dashboardEnabled: record.dashboardEnabled,
-				dashboardDisplayName: record.dashboardDisplayName ?? null
+				dashboardDisplayName: record.dashboardDisplayName ?? null,
+				monitoringEnabled: record.monitoringEnabled,
+				monitoringDisplayName: record.monitoringDisplayName ?? null
 			});
 			await load();
 		} catch (e) {
@@ -405,6 +414,24 @@
 				Show on dashboard
 			</label>
 		</div>
+		<div class="mt-3 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+			<div class="grid gap-1.5">
+				<Label for="manual-monitor-name">Monitoring display name</Label>
+				<Input
+					id="manual-monitor-name"
+					bind:value={recordForm.monitoringDisplayName}
+					placeholder="Portal status"
+				/>
+			</div>
+			<label class="flex h-10 items-center gap-2 text-sm">
+				<input
+					type="checkbox"
+					bind:checked={recordForm.monitoringEnabled}
+					disabled={!recordForm.monitoringDisplayName.trim()}
+				/>
+				Monitor this record
+			</label>
+		</div>
 	</PanelSection>
 
 	<PanelSection title="Connections" description="Provider connection health and sync actions.">
@@ -512,30 +539,36 @@
 		{:else}
 			<div class="overflow-hidden rounded-md border border-border">
 				<Table>
-					<TableHeader>
+				<TableHeader>
+					<TableRow>
+						<TableHead>Name</TableHead>
+						<TableHead>Type</TableHead>
+						<TableHead>Value</TableHead>
+						<TableHead>TTL</TableHead>
+						<TableHead>Ownership</TableHead>
+						<TableHead>Dashboard</TableHead>
+						<TableHead>Monitoring</TableHead>
+						<TableHead>State</TableHead>
+						<TableHead>Actions</TableHead>
+					</TableRow>
+				</TableHeader>
+				<TableBody>
+					{#each records as record (record.id ?? record.name)}
 						<TableRow>
-							<TableHead>Name</TableHead>
-							<TableHead>Type</TableHead>
-							<TableHead>Value</TableHead>
-							<TableHead>TTL</TableHead>
-							<TableHead>Ownership</TableHead>
-							<TableHead>Dashboard</TableHead>
-							<TableHead>State</TableHead>
-							<TableHead>Actions</TableHead>
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{#each records as record (record.id ?? record.name)}
-							<TableRow>
-								<TableCell class="font-mono text-xs">{record.name}</TableCell>
-								<TableCell>{record.type}</TableCell>
-								<TableCell class="max-w-[14rem] truncate font-mono text-xs">{record.value}</TableCell>
-								<TableCell>{record.ttl ?? '—'}</TableCell>
-								<TableCell>{record.ownership}</TableCell>
-								<TableCell>
-									{record.dashboardEnabled ? (record.dashboardDisplayName ?? 'selected') : 'not shown'}
-								</TableCell>
-								<TableCell>{record.enabled ? 'enabled' : 'disabled'}</TableCell>
+							<TableCell class="font-mono text-xs">{record.name}</TableCell>
+							<TableCell>{record.type}</TableCell>
+							<TableCell class="max-w-[14rem] truncate font-mono text-xs">{record.value}</TableCell>
+							<TableCell>{record.ttl ?? '—'}</TableCell>
+							<TableCell>{record.ownership}</TableCell>
+							<TableCell>
+								{record.dashboardEnabled ? (record.dashboardDisplayName ?? 'selected') : 'not shown'}
+							</TableCell>
+							<TableCell>
+								{record.monitoringEnabled
+									? (record.monitoringDisplayName ?? 'selected')
+									: 'not monitored'}
+							</TableCell>
+							<TableCell>{record.enabled ? 'enabled' : 'disabled'}</TableCell>
 								<TableCell class="space-x-2">
 									{#if record.ownership === 'user'}
 										<Button variant="outline" size="sm" onclick={() => editRecord(record)}>Edit</Button>
