@@ -94,6 +94,51 @@ public sealed class ResourceTargetEntity
     public bool Enabled { get; set; } = true;
 }
 
+public sealed class ConnectionTargetEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public string OwnerType { get; set; } = ConnectionTargetOwnerTypeNames.Connection;
+
+    public Guid OwnerId { get; set; }
+
+    public string TargetMode { get; set; } = ConnectionTargetModeNames.StaticHost;
+
+    public string? StaticHost { get; set; }
+
+    public string? StaticIp { get; set; }
+
+    public Guid? PulseAgentId { get; set; }
+
+    public PulseAgentEntity? PulseAgent { get; set; }
+
+    public string PulseIpMode { get; set; } = PulseTargetIpModeNames.Selected;
+
+    public string PrivateCandidateSelector { get; set; } = PulsePrivateCandidateSelectorNames.Selected;
+
+    public int Port { get; set; } = 80;
+
+    public string Scheme { get; set; } = "http";
+
+    public string? PathPrefix { get; set; }
+
+    public string TlsValidationMode { get; set; } = TlsValidationModeNames.System;
+
+    public string? ExpectedTlsHostname { get; set; }
+
+    public string? ResolvedIpSnapshot { get; set; }
+
+    public DateTimeOffset? LastResolvedAtUtc { get; set; }
+
+    public string Status { get; set; } = ConnectionTargetStatusNames.Unresolved;
+
+    public string? LastError { get; set; }
+
+    public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+
+    public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+}
+
 public sealed class ResourcePortEntity
 {
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -225,6 +270,44 @@ public sealed class PulseHeartbeatEntity
     public string? DockerMetadataJson { get; set; }
 }
 
+public sealed class InternalAgentDnsSettingsEntity
+{
+    public int Id { get; set; } = 1;
+
+    public bool Enabled { get; set; }
+
+    public string Domain { get; set; } = "hashi.home.arpa";
+
+    public bool KeepLastRewriteWhenAgentStale { get; set; } = true;
+
+    public Guid? AdGuardConnectionId { get; set; }
+
+    public string LastSyncStatus { get; set; } = "never_run";
+
+    public string? LastAppliedHash { get; set; }
+
+    public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public sealed class InternalAgentDnsAgentSettingsEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid PulseAgentId { get; set; }
+
+    public PulseAgentEntity PulseAgent { get; set; } = null!;
+
+    public bool Enabled { get; set; } = true;
+
+    public string? NameOverride { get; set; }
+
+    public string IpMode { get; set; } = PulseTargetIpModeNames.Selected;
+
+    public bool KeepLastRewriteWhenStale { get; set; } = true;
+
+    public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+}
+
 public static class ResourceOwnershipNames
 {
     public const string System = "system";
@@ -245,4 +328,47 @@ public static class ResourceSyncStateNames
     public const string Desired = "desired";
     public const string Applied = "applied";
     public const string Drifted = "drifted";
+}
+
+public static class ConnectionTargetOwnerTypeNames
+{
+    public const string Connection = "connection";
+    public const string AdGuardConnection = "adguard_connection";
+    public const string Resource = "resource";
+}
+
+public static class ConnectionTargetModeNames
+{
+    public const string StaticHost = "static_host";
+    public const string StaticIp = "static_ip";
+    public const string PulseAgent = "pulse_agent";
+}
+
+public static class PulseTargetIpModeNames
+{
+    public const string Selected = "selected";
+    public const string Public = "public";
+    public const string Private = "private";
+}
+
+public static class PulsePrivateCandidateSelectorNames
+{
+    public const string Selected = "selected";
+    public const string FirstIpv4 = "first_ipv4";
+    public const string FirstIpv6 = "first_ipv6";
+}
+
+public static class TlsValidationModeNames
+{
+    public const string System = "system";
+    public const string ExpectedHostname = "expected_hostname";
+    public const string Skip = "skip";
+}
+
+public static class ConnectionTargetStatusNames
+{
+    public const string Unresolved = "unresolved";
+    public const string Resolved = "resolved";
+    public const string Stale = "stale";
+    public const string Failed = "failed";
 }

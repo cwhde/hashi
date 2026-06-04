@@ -294,6 +294,147 @@ public sealed class SecurityEventEntity
     public string? DetailsJson { get; set; }
 
     public DateTimeOffset OccurredAtUtc { get; set; } = DateTimeOffset.UtcNow;
+
+    public string? SubjectType { get; set; }
+
+    public string? SubjectValue { get; set; }
+
+    public string? NormalizedSubjectValue { get; set; }
+
+    public Guid? ResourceId { get; set; }
+
+    public Guid? ConnectionId { get; set; }
+
+    public string? EventType { get; set; }
+
+    public string? Severity { get; set; }
+
+    public string? Decision { get; set; }
+
+    public string? Source { get; set; }
+
+    public string? Reason { get; set; }
+
+    public string? RequestMethod { get; set; }
+
+    public string? RequestPath { get; set; }
+
+    public int? StatusCode { get; set; }
+
+    public string? UserAgentHash { get; set; }
+
+    public string? RequestId { get; set; }
+
+    public string? MetadataJson { get; set; }
+}
+
+public sealed class SecuritySubjectEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public string SubjectType { get; set; } = SecuritySubjectTypeNames.Ip;
+
+    public string SubjectValue { get; set; } = string.Empty;
+
+    public string NormalizedValue { get; set; } = string.Empty;
+
+    public DateTimeOffset FirstSeenAtUtc { get; set; } = DateTimeOffset.UtcNow;
+
+    public DateTimeOffset LastSeenAtUtc { get; set; } = DateTimeOffset.UtcNow;
+
+    public string? LastCountry { get; set; }
+
+    public string? LastRegion { get; set; }
+
+    public string? LastAsn { get; set; }
+
+    public string? LastAsOrg { get; set; }
+
+    public string CurrentState { get; set; } = SecuritySubjectStateNames.Observed;
+
+    public string MetadataJson { get; set; } = "{}";
+}
+
+public sealed class SecuritySubjectStateEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid SecuritySubjectId { get; set; }
+
+    public SecuritySubjectEntity SecuritySubject { get; set; } = null!;
+
+    public bool ChallengeRequired { get; set; }
+
+    public DateTimeOffset? ChallengeRequiredSinceUtc { get; set; }
+
+    public string? ChallengeReason { get; set; }
+
+    public Guid? ChallengeResourceId { get; set; }
+
+    public int ChallengeAttempts { get; set; }
+
+    public int RequestsWhileChallenged { get; set; }
+
+    public int FailedChallengeCount { get; set; }
+
+    public int SuccessfulChallengeCount { get; set; }
+
+    public DateTimeOffset? LastChallengeSolvedAtUtc { get; set; }
+
+    public DateTimeOffset? SoftBlockedUntilUtc { get; set; }
+
+    public DateTimeOffset? FirewallBlockedUntilUtc { get; set; }
+
+    public bool ManualAllowActive { get; set; }
+
+    public bool ManualBlockActive { get; set; }
+
+    public string? LastEscalationReason { get; set; }
+
+    public DateTimeOffset? LastEscalationAtUtc { get; set; }
+
+    public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public sealed class ManualSecurityEntryEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public string SubjectType { get; set; } = SecuritySubjectTypeNames.Ip;
+
+    public string SubjectValue { get; set; } = string.Empty;
+
+    public string NormalizedValue { get; set; } = string.Empty;
+
+    public string EntryType { get; set; } = ManualSecurityEntryTypeNames.Allow;
+
+    public string ScopeType { get; set; } = ManualSecurityScopeTypeNames.Global;
+
+    public string? ScopeId { get; set; }
+
+    public string? Reason { get; set; }
+
+    public Guid? CreatedByAdminId { get; set; }
+
+    public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+
+    public DateTimeOffset? ExpiresAtUtc { get; set; }
+
+    public bool IsPermanent { get; set; } = true;
+
+    public bool BypassBlocking { get; set; } = true;
+
+    public bool BypassAdaptiveEscalation { get; set; } = true;
+
+    public bool BypassRateLimit { get; set; }
+
+    public bool BypassChallenge { get; set; }
+
+    public bool BypassSso { get; set; }
+
+    public bool Enabled { get; set; } = true;
+
+    public DateTimeOffset? LastHitAtUtc { get; set; }
 }
 
 public sealed class EdgeSessionEntity
@@ -419,15 +560,29 @@ public sealed class SecurityRequestBucketEntity
 
     public DateTimeOffset BucketStartUtc { get; set; }
 
+    public int BucketSizeSeconds { get; set; } = 60;
+
     public string ClientIp { get; set; } = string.Empty;
 
+    public string SubjectType { get; set; } = SecuritySubjectTypeNames.Ip;
+
+    public string NormalizedSubjectValue { get; set; } = string.Empty;
+
+    public Guid? ResourceId { get; set; }
+
     public string Resource { get; set; } = string.Empty;
+
+    public string? RootDomain { get; set; }
 
     public string TraefikInstance { get; set; } = "default";
 
     public string? CountryCode { get; set; }
 
+    public string? Country { get; set; }
+
     public string? RegionCode { get; set; }
+
+    public string? Region { get; set; }
 
     public string? Asn { get; set; }
 
@@ -439,11 +594,17 @@ public sealed class SecurityRequestBucketEntity
 
     public long TotalCount { get; set; }
 
+    public long RequestCount { get; set; }
+
     public long AllowedCount { get; set; }
 
     public long BlockedCount { get; set; }
 
     public long ChallengedCount { get; set; }
+
+    public long ChallengeIgnoredCount { get; set; }
+
+    public long FailedChallengeCount { get; set; }
 
     public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }
@@ -475,6 +636,20 @@ public sealed class BlocklistEntryEntity
 
     public string Source { get; set; } = BlocklistSourceNames.Automatic;
 
+    public Guid? SourceId { get; set; }
+
+    public BlocklistSourceEntity? SourceEntity { get; set; }
+
+    public string NormalizedValue { get; set; } = string.Empty;
+
+    public string SubjectType { get; set; } = SecuritySubjectTypeNames.Ip;
+
+    public bool Enabled { get; set; } = true;
+
+    public string EnforcementMode { get; set; } = BlocklistEnforcementModeNames.Middleware;
+
+    public string MetadataJson { get; set; } = "{}";
+
     public string CreatedBy { get; set; } = "hashi";
 
     public bool SyncedToFirewall { get; set; }
@@ -484,6 +659,88 @@ public sealed class BlocklistEntryEntity
     public DateTimeOffset? ExpiresAtUtc { get; set; }
 
     public DateTimeOffset? LastHitAtUtc { get; set; }
+}
+
+public sealed class BlocklistSourceEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public string Name { get; set; } = string.Empty;
+
+    public string SourceUrl { get; set; } = string.Empty;
+
+    public string Description { get; set; } = string.Empty;
+
+    public string Format { get; set; } = BlocklistSourceFormatNames.Text;
+
+    public string EnforcementMode { get; set; } = BlocklistEnforcementModeNames.Middleware;
+
+    public bool CanFirewallEnforce { get; set; }
+
+    public bool Enabled { get; set; }
+
+    public bool AllowHttp { get; set; }
+
+    public int RefreshIntervalHours { get; set; } = 24;
+
+    public int MaxRedirects { get; set; } = 3;
+
+    public int MaxResponseBytes { get; set; } = 5242880;
+
+    public int TimeoutSeconds { get; set; } = 15;
+
+    public string? ETag { get; set; }
+
+    public string? LastModified { get; set; }
+
+    public string? LastContentHash { get; set; }
+
+    public DateTimeOffset? LastFetchedAtUtc { get; set; }
+
+    public string LastFetchStatus { get; set; } = BlocklistFetchStatusNames.NeverRun;
+
+    public string? LastFetchError { get; set; }
+
+    public string MetadataJson { get; set; } = "{}";
+
+    public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+
+    public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public sealed class BlocklistFetchRunEntity
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    public Guid BlocklistSourceId { get; set; }
+
+    public BlocklistSourceEntity BlocklistSource { get; set; } = null!;
+
+    public DateTimeOffset StartedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+
+    public DateTimeOffset? CompletedAtUtc { get; set; }
+
+    public string Status { get; set; } = BlocklistFetchStatusNames.Running;
+
+    public int? HttpStatusCode { get; set; }
+
+    public int EntryCount { get; set; }
+
+    public int AddedCount { get; set; }
+
+    public int RemovedCount { get; set; }
+
+    public int UnchangedCount { get; set; }
+
+    public string? ContentHash { get; set; }
+
+    public string? ETag { get; set; }
+
+    public string? LastModified { get; set; }
+
+    public string? Error { get; set; }
+
+    public string MetadataJson { get; set; } = "{}";
 }
 
 public sealed class BlocklistAppliedHostEntity
@@ -765,6 +1022,55 @@ public static class BlocklistSourceNames
 {
     public const string Automatic = "automatic";
     public const string Manual = "manual";
+}
+
+public static class SecuritySubjectTypeNames
+{
+    public const string Ip = "ip";
+    public const string Cidr = "cidr";
+    public const string Asn = "asn";
+    public const string Country = "country";
+    public const string Region = "region";
+    public const string Session = "session";
+    public const string Composite = "composite";
+}
+
+public static class ManualSecurityEntryTypeNames
+{
+    public const string Allow = "allow";
+    public const string Block = "block";
+}
+
+public static class ManualSecurityScopeTypeNames
+{
+    public const string Global = "global";
+    public const string Resource = "resource";
+    public const string RootDomain = "root_domain";
+    public const string TraefikConnection = "traefik_connection";
+    public const string FirewallHost = "firewall_host";
+}
+
+public static class BlocklistEnforcementModeNames
+{
+    public const string Observe = "observe";
+    public const string Middleware = "middleware";
+    public const string Firewall = "firewall";
+}
+
+public static class BlocklistSourceFormatNames
+{
+    public const string Text = "text";
+    public const string Json = "json";
+    public const string Netset = "netset";
+}
+
+public static class BlocklistFetchStatusNames
+{
+    public const string NeverRun = "never_run";
+    public const string Running = "running";
+    public const string Succeeded = "succeeded";
+    public const string Failed = "failed";
+    public const string SkippedNotModified = "skipped_not_modified";
 }
 
 public static class SecuritySubjectStateNames

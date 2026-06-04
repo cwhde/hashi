@@ -20,5 +20,6 @@ public sealed class PersistenceMigrationDiscoveryTests
 
         Assert.Contains("20260528120000_DropPendingAcmeEabJson", migrations);
         Assert.Contains("20260531120000_AddSettingsCategoryStorage", migrations);
+        Assert.Contains("20260604121917_AddHashiAddendumDataFoundation", migrations);
     }
 }

@@ -65,6 +65,64 @@ public sealed class AppSettingsEntity
     public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }
 
+public sealed class CaptchaSettingsEntity
+{
+    public int Id { get; set; } = 1;
+
+    public bool Enabled { get; set; }
+
+    public string? PublicChallengeBaseUrl { get; set; }
+
+    public string? SiteKey { get; set; }
+
+    public Guid? SecretKeySecretId { get; set; }
+
+    public int VerificationTimeoutSeconds { get; set; } = 5;
+
+    public Guid? CapAdminResourceId { get; set; }
+
+    public string? CapAdminDomain { get; set; }
+
+    public Guid? PublicChallengeResourceId { get; set; }
+
+    public string? PublicChallengeDomain { get; set; }
+
+    public string ChallengeResetMode { get; set; } = CaptchaChallengeResetModeNames.Decay;
+
+    public int ChallengeDecayPercent { get; set; } = 50;
+
+    public int MinimumRepeatChallengeSeconds { get; set; } = 300;
+
+    public int MaximumFailuresBeforeEscalation { get; set; } = 5;
+
+    public int MaximumRequestsWhileChallenged { get; set; } = 30;
+
+    public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public sealed class SecurityPolicySettingsEntity
+{
+    public int Id { get; set; } = 1;
+
+    public string DefaultSoftBlockPolicyJson { get; set; } = BanDurationPolicyDefaults.SoftBlockJson;
+
+    public string DefaultFirewallBlockPolicyJson { get; set; } = BanDurationPolicyDefaults.FirewallBlockJson;
+
+    public string RepeatOffenderPolicyJson { get; set; } = BanDurationPolicyDefaults.RepeatOffenderJson;
+
+    public int ChallengeIgnoredThreshold { get; set; } = 30;
+
+    public int ChallengeIgnoredWindowSeconds { get; set; } = 300;
+
+    public int FirewallBlockThresholdWhileChallenged { get; set; } = 100;
+
+    public bool CaptchaSuccessDecaysTriggeringBuckets { get; set; } = true;
+
+    public int CaptchaSuccessBucketDecayPercent { get; set; } = 50;
+
+    public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+}
+
 public sealed class SetupStateEntity
 {
     public int Id { get; set; } = 1;
@@ -233,4 +291,35 @@ public static class GeoIpUpdateStatusNames
     public const string Succeeded = "succeeded";
     public const string Failed = "failed";
     public const string Disabled = "disabled";
+}
+
+public static class CaptchaChallengeResetModeNames
+{
+    public const string Reset = "reset";
+    public const string Decay = "decay";
+    public const string None = "none";
+}
+
+public static class BanDurationPolicyTypeNames
+{
+    public const string Constant = "constant";
+    public const string Linear = "linear";
+    public const string Exponential = "exponential";
+    public const string CappedExponential = "capped_exponential";
+    public const string PermanentAfterCount = "permanent_after_count";
+}
+
+public static class BanDurationPolicyDefaults
+{
+    public const string SoftBlockJson = """
+        {"policyType":"constant","baseDurationSeconds":600,"linearMultiplier":1,"exponentialMultiplier":2,"maxDurationSeconds":3600,"permanentAfterCount":0,"countWindowSeconds":86400,"resetCountAfterSeconds":604800}
+        """;
+
+    public const string FirewallBlockJson = """
+        {"policyType":"capped_exponential","baseDurationSeconds":3600,"linearMultiplier":1,"exponentialMultiplier":2,"maxDurationSeconds":86400,"permanentAfterCount":0,"countWindowSeconds":604800,"resetCountAfterSeconds":2592000}
+        """;
+
+    public const string RepeatOffenderJson = """
+        {"policyType":"permanent_after_count","baseDurationSeconds":3600,"linearMultiplier":1,"exponentialMultiplier":2,"maxDurationSeconds":86400,"permanentAfterCount":5,"countWindowSeconds":2592000,"resetCountAfterSeconds":7776000}
+        """;
 }

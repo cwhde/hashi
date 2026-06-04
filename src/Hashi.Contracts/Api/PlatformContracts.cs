@@ -594,6 +594,316 @@ public sealed record SecurityDashboardResponse(
     long BlocklistCount,
     long SecurityEventCount);
 
+public sealed record SecuritySubjectSummaryResponse(
+    Guid Id,
+    string SubjectType,
+    string SubjectValue,
+    string NormalizedValue,
+    string CurrentState,
+    DateTimeOffset FirstSeenAtUtc,
+    DateTimeOffset LastSeenAtUtc,
+    string? LastCountry,
+    string? LastRegion,
+    string? LastAsn,
+    string? LastAsOrg);
+
+public sealed record SecuritySubjectStateResponse(
+    Guid SecuritySubjectId,
+    bool ChallengeRequired,
+    DateTimeOffset? ChallengeRequiredSinceUtc,
+    string? ChallengeReason,
+    Guid? ChallengeResourceId,
+    int ChallengeAttempts,
+    int RequestsWhileChallenged,
+    int FailedChallengeCount,
+    int SuccessfulChallengeCount,
+    DateTimeOffset? LastChallengeSolvedAtUtc,
+    DateTimeOffset? SoftBlockedUntilUtc,
+    DateTimeOffset? FirewallBlockedUntilUtc,
+    bool ManualAllowActive,
+    bool ManualBlockActive,
+    string? LastEscalationReason,
+    DateTimeOffset? LastEscalationAtUtc,
+    DateTimeOffset UpdatedAtUtc);
+
+public sealed record SecuritySubjectDetailResponse(
+    SecuritySubjectSummaryResponse Subject,
+    SecuritySubjectStateResponse? State,
+    IReadOnlyList<ManualSecurityEntryResponse> ManualEntries,
+    IReadOnlyList<BlocklistEntryResponse> BlocklistEntries);
+
+public sealed record SecuritySubjectSearchResponse(
+    string Query,
+    IReadOnlyList<SecuritySubjectSummaryResponse> Results);
+
+public sealed record SecurityEventResponse(
+    Guid Id,
+    DateTimeOffset OccurredAtUtc,
+    string? SubjectType,
+    string? SubjectValue,
+    string? NormalizedSubjectValue,
+    Guid? ResourceId,
+    Guid? ConnectionId,
+    string? EventType,
+    string? Severity,
+    string? Decision,
+    string? Source,
+    string? Reason,
+    string? RequestMethod,
+    string? RequestPath,
+    int? StatusCode,
+    string? RequestId,
+    string? MetadataJson);
+
+public sealed record SecurityRequestBucketResponse(
+    Guid Id,
+    DateTimeOffset BucketStartUtc,
+    int BucketSizeSeconds,
+    string SubjectType,
+    string NormalizedSubjectValue,
+    Guid? ResourceId,
+    string? RootDomain,
+    string? Country,
+    string? Region,
+    string? Asn,
+    string Method,
+    string PathPrefix,
+    int StatusClass,
+    long RequestCount,
+    long BlockedCount,
+    long ChallengedCount,
+    long ChallengeIgnoredCount,
+    long FailedChallengeCount);
+
+public sealed record ManualSecurityEntryResponse(
+    Guid Id,
+    string SubjectType,
+    string SubjectValue,
+    string NormalizedValue,
+    string EntryType,
+    string ScopeType,
+    string? ScopeId,
+    string? Reason,
+    Guid? CreatedByAdminId,
+    DateTimeOffset CreatedAtUtc,
+    DateTimeOffset? ExpiresAtUtc,
+    bool IsPermanent,
+    bool BypassBlocking,
+    bool BypassAdaptiveEscalation,
+    bool BypassRateLimit,
+    bool BypassChallenge,
+    bool BypassSso,
+    bool Enabled,
+    DateTimeOffset? LastHitAtUtc);
+
+public sealed record UpsertManualSecurityEntryRequest(
+    string SubjectType,
+    string SubjectValue,
+    string EntryType,
+    string ScopeType,
+    string? ScopeId,
+    string? Reason,
+    DateTimeOffset? ExpiresAtUtc,
+    bool? IsPermanent,
+    bool? BypassBlocking,
+    bool? BypassAdaptiveEscalation,
+    bool? BypassRateLimit,
+    bool? BypassChallenge,
+    bool? BypassSso,
+    bool? Enabled);
+
+public sealed record BanDurationPolicyContract(
+    string PolicyType,
+    int BaseDurationSeconds,
+    decimal LinearMultiplier,
+    decimal ExponentialMultiplier,
+    int? MaxDurationSeconds,
+    int? PermanentAfterCount,
+    int CountWindowSeconds,
+    int ResetCountAfterSeconds);
+
+public sealed record SecurityPolicySettingsResponse(
+    BanDurationPolicyContract DefaultSoftBlockPolicy,
+    BanDurationPolicyContract DefaultFirewallBlockPolicy,
+    BanDurationPolicyContract RepeatOffenderPolicy,
+    int ChallengeIgnoredThreshold,
+    int ChallengeIgnoredWindowSeconds,
+    int FirewallBlockThresholdWhileChallenged,
+    bool CaptchaSuccessDecaysTriggeringBuckets,
+    int CaptchaSuccessBucketDecayPercent,
+    DateTimeOffset UpdatedAtUtc);
+
+public sealed record BlocklistSourceResponse(
+    Guid Id,
+    string Name,
+    string SourceUrl,
+    string Description,
+    string Format,
+    string EnforcementMode,
+    bool CanFirewallEnforce,
+    bool Enabled,
+    bool AllowHttp,
+    int RefreshIntervalHours,
+    string LastFetchStatus,
+    string? LastFetchError,
+    DateTimeOffset? LastFetchedAtUtc,
+    DateTimeOffset CreatedAtUtc,
+    DateTimeOffset UpdatedAtUtc);
+
+public sealed record UpsertBlocklistSourceRequest(
+    string Name,
+    string SourceUrl,
+    string? Description,
+    string Format,
+    string EnforcementMode,
+    bool CanFirewallEnforce,
+    bool Enabled,
+    bool AllowHttp,
+    int? RefreshIntervalHours);
+
+public sealed record BlocklistEntryResponse(
+    Guid Id,
+    Guid? SourceId,
+    string SubjectType,
+    string Value,
+    string NormalizedValue,
+    string Scope,
+    string Type,
+    string Reason,
+    string Source,
+    bool Enabled,
+    string EnforcementMode,
+    bool SyncedToFirewall,
+    DateTimeOffset CreatedAtUtc,
+    DateTimeOffset? ExpiresAtUtc,
+    DateTimeOffset? LastHitAtUtc,
+    string? MetadataJson);
+
+public sealed record BlocklistFetchRunResponse(
+    Guid Id,
+    Guid BlocklistSourceId,
+    DateTimeOffset StartedAtUtc,
+    DateTimeOffset? CompletedAtUtc,
+    string Status,
+    int? HttpStatusCode,
+    int EntryCount,
+    int AddedCount,
+    int RemovedCount,
+    int UnchangedCount,
+    string? ContentHash,
+    string? Error);
+
+public sealed record CaptchaSettingsResponse(
+    bool Enabled,
+    string? PublicChallengeBaseUrl,
+    string? SiteKey,
+    bool HasSecretKey,
+    int VerificationTimeoutSeconds,
+    Guid? CapAdminResourceId,
+    string? CapAdminDomain,
+    Guid? PublicChallengeResourceId,
+    string? PublicChallengeDomain,
+    string ChallengeResetMode,
+    int ChallengeDecayPercent,
+    int MinimumRepeatChallengeSeconds,
+    int MaximumFailuresBeforeEscalation,
+    int MaximumRequestsWhileChallenged,
+    DateTimeOffset UpdatedAtUtc);
+
+public sealed record CaptchaSettingsRequest(
+    bool Enabled,
+    string? PublicChallengeBaseUrl,
+    string? SiteKey,
+    string? SecretKey,
+    Guid? SecretKeySecretId,
+    int? VerificationTimeoutSeconds,
+    Guid? CapAdminResourceId,
+    string? CapAdminDomain,
+    Guid? PublicChallengeResourceId,
+    string? PublicChallengeDomain,
+    string? ChallengeResetMode,
+    int? ChallengeDecayPercent,
+    int? MinimumRepeatChallengeSeconds,
+    int? MaximumFailuresBeforeEscalation,
+    int? MaximumRequestsWhileChallenged);
+
+public sealed record ConnectionTargetResponse(
+    Guid Id,
+    string OwnerType,
+    Guid OwnerId,
+    string TargetMode,
+    string? StaticHost,
+    string? StaticIp,
+    Guid? PulseAgentId,
+    string PulseIpMode,
+    string PrivateCandidateSelector,
+    int Port,
+    string Scheme,
+    string? PathPrefix,
+    string TlsValidationMode,
+    string? ExpectedTlsHostname,
+    string? ResolvedIpSnapshot,
+    DateTimeOffset? LastResolvedAtUtc,
+    string Status,
+    string? LastError);
+
+public sealed record ConnectionTargetRequest(
+    string TargetMode,
+    string? StaticHost,
+    string? StaticIp,
+    Guid? PulseAgentId,
+    string? PulseIpMode,
+    string? PrivateCandidateSelector,
+    int Port,
+    string Scheme,
+    string? PathPrefix,
+    string? TlsValidationMode,
+    string? ExpectedTlsHostname);
+
+public sealed record PulseResolvedTargetResponse(
+    Guid PulseAgentId,
+    string AgentName,
+    string IpMode,
+    string? SelectedIp,
+    string? PublicIp,
+    IReadOnlyList<string> PrivateIpv4Candidates,
+    IReadOnlyList<string> PrivateIpv6Candidates,
+    DateTimeOffset? LastSeenAtUtc,
+    string Status);
+
+public sealed record InternalAgentDnsSettingsResponse(
+    bool Enabled,
+    string Domain,
+    bool KeepLastRewriteWhenAgentStale,
+    Guid? AdGuardConnectionId,
+    string LastSyncStatus,
+    string? LastAppliedHash,
+    DateTimeOffset UpdatedAtUtc,
+    IReadOnlyList<InternalAgentDnsAgentSettingsResponse> Agents);
+
+public sealed record InternalAgentDnsAgentSettingsResponse(
+    Guid Id,
+    Guid PulseAgentId,
+    bool Enabled,
+    string? NameOverride,
+    string IpMode,
+    bool KeepLastRewriteWhenStale,
+    DateTimeOffset UpdatedAtUtc);
+
+public sealed record InternalAgentDnsSettingsRequest(
+    bool Enabled,
+    string? Domain,
+    bool? KeepLastRewriteWhenAgentStale,
+    Guid? AdGuardConnectionId,
+    IReadOnlyList<InternalAgentDnsAgentSettingsRequest>? Agents);
+
+public sealed record InternalAgentDnsAgentSettingsRequest(
+    Guid PulseAgentId,
+    bool Enabled,
+    string? NameOverride,
+    string? IpMode,
+    bool? KeepLastRewriteWhenStale);
+
 public sealed record BlocklistSyncResponse(
     bool Synced,
     int PendingEntries,

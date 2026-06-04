@@ -7,6 +7,10 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
 {
     public DbSet<AppSettingsEntity> AppSettings => Set<AppSettingsEntity>();
 
+    public DbSet<CaptchaSettingsEntity> CaptchaSettings => Set<CaptchaSettingsEntity>();
+
+    public DbSet<SecurityPolicySettingsEntity> SecurityPolicySettings => Set<SecurityPolicySettingsEntity>();
+
     public DbSet<SetupStateEntity> SetupStates => Set<SetupStateEntity>();
 
     public DbSet<AuditEventEntity> AuditEvents => Set<AuditEventEntity>();
@@ -41,6 +45,8 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
 
     public DbSet<ResourceTargetEntity> ResourceTargets => Set<ResourceTargetEntity>();
 
+    public DbSet<ConnectionTargetEntity> ConnectionTargets => Set<ConnectionTargetEntity>();
+
     public DbSet<ResourceRuleEntity> ResourceRules => Set<ResourceRuleEntity>();
 
     public DbSet<ResourcePortEntity> ResourcePorts => Set<ResourcePortEntity>();
@@ -53,6 +59,12 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
 
     public DbSet<SecurityEventEntity> SecurityEvents => Set<SecurityEventEntity>();
 
+    public DbSet<SecuritySubjectEntity> SecuritySubjects => Set<SecuritySubjectEntity>();
+
+    public DbSet<SecuritySubjectStateEntity> SecuritySubjectStates => Set<SecuritySubjectStateEntity>();
+
+    public DbSet<ManualSecurityEntryEntity> ManualSecurityEntries => Set<ManualSecurityEntryEntity>();
+
     public DbSet<EdgeSessionEntity> EdgeSessions => Set<EdgeSessionEntity>();
 
     public DbSet<MonitorEndpointEntity> MonitorEndpoints => Set<MonitorEndpointEntity>();
@@ -60,6 +72,10 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
     public DbSet<PulseAgentEntity> PulseAgents => Set<PulseAgentEntity>();
 
     public DbSet<PulseHeartbeatEntity> PulseHeartbeats => Set<PulseHeartbeatEntity>();
+
+    public DbSet<InternalAgentDnsSettingsEntity> InternalAgentDnsSettings => Set<InternalAgentDnsSettingsEntity>();
+
+    public DbSet<InternalAgentDnsAgentSettingsEntity> InternalAgentDnsAgentSettings => Set<InternalAgentDnsAgentSettingsEntity>();
 
     public DbSet<TraefikHostStateEntity> TraefikHostStates => Set<TraefikHostStateEntity>();
 
@@ -93,6 +109,10 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
     public DbSet<SecurityRequestBucketEntity> SecurityRequestBuckets => Set<SecurityRequestBucketEntity>();
 
     public DbSet<BlocklistEntryEntity> BlocklistEntries => Set<BlocklistEntryEntity>();
+
+    public DbSet<BlocklistSourceEntity> BlocklistSources => Set<BlocklistSourceEntity>();
+
+    public DbSet<BlocklistFetchRunEntity> BlocklistFetchRuns => Set<BlocklistFetchRunEntity>();
 
     public DbSet<BlocklistAppliedHostEntity> BlocklistAppliedHosts => Set<BlocklistAppliedHostEntity>();
 
@@ -133,6 +153,40 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.Property(x => x.GeoIpUpdateIntervalHours).HasDefaultValue(72);
             entity.Property(x => x.GeoIpLastUpdateStatus).HasMaxLength(32).HasDefaultValue(GeoIpUpdateStatusNames.NeverRun);
             entity.HasIndex(x => x.AcmeDnsProviderConnectionId);
+        });
+
+        modelBuilder.Entity<CaptchaSettingsEntity>(entity =>
+        {
+            entity.ToTable("captcha_settings");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Enabled).HasDefaultValue(false);
+            entity.Property(x => x.PublicChallengeBaseUrl).HasMaxLength(512);
+            entity.Property(x => x.SiteKey).HasMaxLength(256);
+            entity.Property(x => x.VerificationTimeoutSeconds).HasDefaultValue(5);
+            entity.Property(x => x.CapAdminDomain).HasMaxLength(256);
+            entity.Property(x => x.PublicChallengeDomain).HasMaxLength(256);
+            entity.Property(x => x.ChallengeResetMode).HasMaxLength(32).HasDefaultValue(CaptchaChallengeResetModeNames.Decay);
+            entity.Property(x => x.ChallengeDecayPercent).HasDefaultValue(50);
+            entity.Property(x => x.MinimumRepeatChallengeSeconds).HasDefaultValue(300);
+            entity.Property(x => x.MaximumFailuresBeforeEscalation).HasDefaultValue(5);
+            entity.Property(x => x.MaximumRequestsWhileChallenged).HasDefaultValue(30);
+            entity.HasIndex(x => x.SecretKeySecretId);
+            entity.HasIndex(x => x.PublicChallengeResourceId);
+            entity.HasIndex(x => x.CapAdminResourceId);
+        });
+
+        modelBuilder.Entity<SecurityPolicySettingsEntity>(entity =>
+        {
+            entity.ToTable("security_policy_settings");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.DefaultSoftBlockPolicyJson).HasColumnType("jsonb").HasDefaultValue(BanDurationPolicyDefaults.SoftBlockJson);
+            entity.Property(x => x.DefaultFirewallBlockPolicyJson).HasColumnType("jsonb").HasDefaultValue(BanDurationPolicyDefaults.FirewallBlockJson);
+            entity.Property(x => x.RepeatOffenderPolicyJson).HasColumnType("jsonb").HasDefaultValue(BanDurationPolicyDefaults.RepeatOffenderJson);
+            entity.Property(x => x.ChallengeIgnoredThreshold).HasDefaultValue(30);
+            entity.Property(x => x.ChallengeIgnoredWindowSeconds).HasDefaultValue(300);
+            entity.Property(x => x.FirewallBlockThresholdWhileChallenged).HasDefaultValue(100);
+            entity.Property(x => x.CaptchaSuccessDecaysTriggeringBuckets).HasDefaultValue(true);
+            entity.Property(x => x.CaptchaSuccessBucketDecayPercent).HasDefaultValue(50);
         });
 
         modelBuilder.Entity<SetupStateEntity>(entity =>
@@ -247,6 +301,7 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.Property(x => x.Type).HasMaxLength(16);
             entity.Property(x => x.Ownership).HasMaxLength(32);
             entity.Property(x => x.DashboardDisplayName).HasMaxLength(128);
+            entity.Property(x => x.MonitoringDisplayName).HasMaxLength(128);
             entity.HasOne(x => x.Zone).WithMany().HasForeignKey(x => x.ZoneId);
             entity.HasIndex(x => x.ZoneId);
         });
@@ -319,6 +374,28 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.HasIndex(x => new { x.ResourceId, x.Priority });
         });
 
+        modelBuilder.Entity<ConnectionTargetEntity>(entity =>
+        {
+            entity.ToTable("connection_targets");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.OwnerType).HasMaxLength(64);
+            entity.Property(x => x.TargetMode).HasMaxLength(32).HasDefaultValue(ConnectionTargetModeNames.StaticHost);
+            entity.Property(x => x.StaticHost).HasMaxLength(256);
+            entity.Property(x => x.StaticIp).HasMaxLength(64);
+            entity.Property(x => x.PulseIpMode).HasMaxLength(32).HasDefaultValue(PulseTargetIpModeNames.Selected);
+            entity.Property(x => x.PrivateCandidateSelector).HasMaxLength(32).HasDefaultValue(PulsePrivateCandidateSelectorNames.Selected);
+            entity.Property(x => x.Scheme).HasMaxLength(16).HasDefaultValue("http");
+            entity.Property(x => x.PathPrefix).HasMaxLength(256);
+            entity.Property(x => x.TlsValidationMode).HasMaxLength(32).HasDefaultValue(TlsValidationModeNames.System);
+            entity.Property(x => x.ExpectedTlsHostname).HasMaxLength(256);
+            entity.Property(x => x.ResolvedIpSnapshot).HasMaxLength(64);
+            entity.Property(x => x.Status).HasMaxLength(32).HasDefaultValue(ConnectionTargetStatusNames.Unresolved);
+            entity.HasOne(x => x.PulseAgent).WithMany().HasForeignKey(x => x.PulseAgentId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(x => new { x.OwnerType, x.OwnerId }).IsUnique();
+            entity.HasIndex(x => x.PulseAgentId);
+            entity.HasIndex(x => x.Status);
+        });
+
         modelBuilder.Entity<ResourceRuleEntity>(entity =>
         {
             entity.ToTable("resource_rules");
@@ -374,7 +451,84 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Category).HasMaxLength(32);
             entity.Property(x => x.Action).HasMaxLength(64);
+            entity.Property(x => x.SubjectType).HasMaxLength(32);
+            entity.Property(x => x.SubjectValue).HasMaxLength(256);
+            entity.Property(x => x.NormalizedSubjectValue).HasMaxLength(256);
+            entity.Property(x => x.EventType).HasMaxLength(64);
+            entity.Property(x => x.Severity).HasMaxLength(32);
+            entity.Property(x => x.Decision).HasMaxLength(64);
+            entity.Property(x => x.Source).HasMaxLength(64);
+            entity.Property(x => x.RequestMethod).HasMaxLength(16);
+            entity.Property(x => x.UserAgentHash).HasMaxLength(128);
+            entity.Property(x => x.RequestId).HasMaxLength(128);
+            entity.Property(x => x.MetadataJson).HasColumnType("jsonb");
             entity.HasIndex(x => x.OccurredAtUtc);
+            entity.HasIndex(x => new { x.NormalizedSubjectValue, x.OccurredAtUtc });
+            entity.HasIndex(x => new { x.ResourceId, x.OccurredAtUtc });
+            entity.HasIndex(x => new { x.EventType, x.OccurredAtUtc });
+            entity.HasIndex(x => new { x.Severity, x.OccurredAtUtc });
+        });
+
+        modelBuilder.Entity<SecuritySubjectEntity>(entity =>
+        {
+            entity.ToTable("security_subjects");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.SubjectType).HasMaxLength(32);
+            entity.Property(x => x.SubjectValue).HasMaxLength(256);
+            entity.Property(x => x.NormalizedValue).HasMaxLength(256);
+            entity.Property(x => x.LastCountry).HasMaxLength(32);
+            entity.Property(x => x.LastRegion).HasMaxLength(64);
+            entity.Property(x => x.LastAsn).HasMaxLength(64);
+            entity.Property(x => x.LastAsOrg).HasMaxLength(256);
+            entity.Property(x => x.CurrentState).HasMaxLength(32).HasDefaultValue(SecuritySubjectStateNames.Observed);
+            entity.Property(x => x.MetadataJson).HasColumnType("jsonb").HasDefaultValueSql("'{}'::jsonb");
+            entity.HasIndex(x => new { x.SubjectType, x.NormalizedValue }).IsUnique();
+            entity.HasIndex(x => x.LastSeenAtUtc);
+            entity.HasIndex(x => x.CurrentState);
+        });
+
+        modelBuilder.Entity<SecuritySubjectStateEntity>(entity =>
+        {
+            entity.ToTable("security_subject_states");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ChallengeRequired).HasDefaultValue(false);
+            entity.Property(x => x.ChallengeReason).HasMaxLength(256);
+            entity.Property(x => x.ManualAllowActive).HasDefaultValue(false);
+            entity.Property(x => x.ManualBlockActive).HasDefaultValue(false);
+            entity.Property(x => x.LastEscalationReason).HasMaxLength(256);
+            entity.HasOne(x => x.SecuritySubject).WithMany().HasForeignKey(x => x.SecuritySubjectId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => x.SecuritySubjectId).IsUnique();
+            entity.HasIndex(x => x.ChallengeRequired);
+            entity.HasIndex(x => x.SoftBlockedUntilUtc);
+            entity.HasIndex(x => x.FirewallBlockedUntilUtc);
+        });
+
+        modelBuilder.Entity<ManualSecurityEntryEntity>(entity =>
+        {
+            entity.ToTable("manual_security_entries", table =>
+            {
+                table.HasCheckConstraint(
+                    "CK_manual_security_entries_block_bypass_flags_false",
+                    "\"EntryType\" <> 'block' OR (NOT \"BypassBlocking\" AND NOT \"BypassAdaptiveEscalation\" AND NOT \"BypassRateLimit\" AND NOT \"BypassChallenge\" AND NOT \"BypassSso\")");
+            });
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.SubjectType).HasMaxLength(32);
+            entity.Property(x => x.SubjectValue).HasMaxLength(256);
+            entity.Property(x => x.NormalizedValue).HasMaxLength(256);
+            entity.Property(x => x.EntryType).HasMaxLength(16);
+            entity.Property(x => x.ScopeType).HasMaxLength(64);
+            entity.Property(x => x.ScopeId).HasMaxLength(128);
+            entity.Property(x => x.Reason).HasMaxLength(512);
+            entity.Property(x => x.IsPermanent).HasDefaultValue(true);
+            entity.Property(x => x.BypassBlocking).HasDefaultValue(true);
+            entity.Property(x => x.BypassAdaptiveEscalation).HasDefaultValue(true);
+            entity.Property(x => x.BypassRateLimit).HasDefaultValue(false);
+            entity.Property(x => x.BypassChallenge).HasDefaultValue(false);
+            entity.Property(x => x.BypassSso).HasDefaultValue(false);
+            entity.Property(x => x.Enabled).HasDefaultValue(true);
+            entity.HasIndex(x => new { x.EntryType, x.SubjectType, x.NormalizedValue });
+            entity.HasIndex(x => new { x.ScopeType, x.ScopeId });
+            entity.HasIndex(x => x.ExpiresAtUtc);
         });
 
         modelBuilder.Entity<EdgeSessionEntity>(entity =>
@@ -430,6 +584,30 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
                 .HasForeignKey(x => x.PulseAgentId)
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasIndex(x => new { x.PulseAgentId, x.ReceivedAtUtc });
+        });
+
+        modelBuilder.Entity<InternalAgentDnsSettingsEntity>(entity =>
+        {
+            entity.ToTable("internal_agent_dns_settings");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Enabled).HasDefaultValue(false);
+            entity.Property(x => x.Domain).HasMaxLength(256).HasDefaultValue("hashi.home.arpa");
+            entity.Property(x => x.KeepLastRewriteWhenAgentStale).HasDefaultValue(true);
+            entity.Property(x => x.LastSyncStatus).HasMaxLength(32).HasDefaultValue("never_run");
+            entity.Property(x => x.LastAppliedHash).HasMaxLength(128);
+            entity.HasIndex(x => x.AdGuardConnectionId);
+        });
+
+        modelBuilder.Entity<InternalAgentDnsAgentSettingsEntity>(entity =>
+        {
+            entity.ToTable("internal_agent_dns_agent_settings");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Enabled).HasDefaultValue(true);
+            entity.Property(x => x.NameOverride).HasMaxLength(128);
+            entity.Property(x => x.IpMode).HasMaxLength(32).HasDefaultValue(PulseTargetIpModeNames.Selected);
+            entity.Property(x => x.KeepLastRewriteWhenStale).HasDefaultValue(true);
+            entity.HasOne(x => x.PulseAgent).WithMany().HasForeignKey(x => x.PulseAgentId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => x.PulseAgentId).IsUnique();
         });
 
         modelBuilder.Entity<TraefikHostStateEntity>(entity =>
@@ -572,16 +750,24 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
         {
             entity.ToTable("security_request_buckets");
             entity.HasKey(x => x.Id);
+            entity.Property(x => x.BucketSizeSeconds).HasDefaultValue(60);
             entity.Property(x => x.ClientIp).HasMaxLength(64);
+            entity.Property(x => x.SubjectType).HasMaxLength(32).HasDefaultValue(SecuritySubjectTypeNames.Ip);
+            entity.Property(x => x.NormalizedSubjectValue).HasMaxLength(256);
             entity.Property(x => x.Resource).HasMaxLength(256);
+            entity.Property(x => x.RootDomain).HasMaxLength(256);
             entity.Property(x => x.TraefikInstance).HasMaxLength(128);
             entity.Property(x => x.CountryCode).HasMaxLength(32);
+            entity.Property(x => x.Country).HasMaxLength(32);
             entity.Property(x => x.RegionCode).HasMaxLength(64);
+            entity.Property(x => x.Region).HasMaxLength(64);
             entity.Property(x => x.Asn).HasMaxLength(64);
             entity.Property(x => x.Method).HasMaxLength(16);
             entity.Property(x => x.PathPrefix).HasMaxLength(256);
             entity.HasIndex(x => x.BucketStartUtc);
             entity.HasIndex(x => x.ClientIp);
+            entity.HasIndex(x => new { x.NormalizedSubjectValue, x.BucketStartUtc });
+            entity.HasIndex(x => new { x.ResourceId, x.BucketStartUtc });
             entity.HasIndex(x => new
             {
                 x.BucketStartUtc,
@@ -607,9 +793,56 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.Property(x => x.Value).HasMaxLength(128);
             entity.Property(x => x.Reason).HasMaxLength(256);
             entity.Property(x => x.Source).HasMaxLength(64);
+            entity.Property(x => x.NormalizedValue).HasMaxLength(256);
+            entity.Property(x => x.SubjectType).HasMaxLength(32).HasDefaultValue(SecuritySubjectTypeNames.Ip);
+            entity.Property(x => x.Enabled).HasDefaultValue(true);
+            entity.Property(x => x.EnforcementMode).HasMaxLength(32).HasDefaultValue(BlocklistEnforcementModeNames.Middleware);
+            entity.Property(x => x.MetadataJson).HasColumnType("jsonb").HasDefaultValueSql("'{}'::jsonb");
             entity.Property(x => x.CreatedBy).HasMaxLength(128);
+            entity.HasOne(x => x.SourceEntity).WithMany().HasForeignKey(x => x.SourceId).OnDelete(DeleteBehavior.SetNull);
             entity.HasIndex(x => new { x.Scope, x.Type, x.Value });
+            entity.HasIndex(x => new { x.SubjectType, x.NormalizedValue });
+            entity.HasIndex(x => x.SourceId);
+            entity.HasIndex(x => x.Enabled);
             entity.HasIndex(x => x.ExpiresAtUtc);
+        });
+
+        modelBuilder.Entity<BlocklistSourceEntity>(entity =>
+        {
+            entity.ToTable("blocklist_sources");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).HasMaxLength(128);
+            entity.Property(x => x.SourceUrl).HasMaxLength(1024);
+            entity.Property(x => x.Description).HasMaxLength(1024);
+            entity.Property(x => x.Format).HasMaxLength(32).HasDefaultValue(BlocklistSourceFormatNames.Text);
+            entity.Property(x => x.EnforcementMode).HasMaxLength(32).HasDefaultValue(BlocklistEnforcementModeNames.Middleware);
+            entity.Property(x => x.Enabled).HasDefaultValue(false);
+            entity.Property(x => x.AllowHttp).HasDefaultValue(false);
+            entity.Property(x => x.RefreshIntervalHours).HasDefaultValue(24);
+            entity.Property(x => x.MaxRedirects).HasDefaultValue(3);
+            entity.Property(x => x.MaxResponseBytes).HasDefaultValue(5242880);
+            entity.Property(x => x.TimeoutSeconds).HasDefaultValue(15);
+            entity.Property(x => x.ETag).HasMaxLength(512);
+            entity.Property(x => x.LastModified).HasMaxLength(512);
+            entity.Property(x => x.LastContentHash).HasMaxLength(128);
+            entity.Property(x => x.LastFetchStatus).HasMaxLength(32).HasDefaultValue(BlocklistFetchStatusNames.NeverRun);
+            entity.Property(x => x.MetadataJson).HasColumnType("jsonb").HasDefaultValueSql("'{}'::jsonb");
+            entity.HasIndex(x => x.Enabled);
+            entity.HasIndex(x => x.SourceUrl);
+        });
+
+        modelBuilder.Entity<BlocklistFetchRunEntity>(entity =>
+        {
+            entity.ToTable("blocklist_fetch_runs");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Status).HasMaxLength(32);
+            entity.Property(x => x.ContentHash).HasMaxLength(128);
+            entity.Property(x => x.ETag).HasMaxLength(512);
+            entity.Property(x => x.LastModified).HasMaxLength(512);
+            entity.Property(x => x.MetadataJson).HasColumnType("jsonb").HasDefaultValueSql("'{}'::jsonb");
+            entity.HasOne(x => x.BlocklistSource).WithMany().HasForeignKey(x => x.BlocklistSourceId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => new { x.BlocklistSourceId, x.StartedAtUtc });
+            entity.HasIndex(x => x.Status);
         });
 
         modelBuilder.Entity<BlocklistAppliedHostEntity>(entity =>
