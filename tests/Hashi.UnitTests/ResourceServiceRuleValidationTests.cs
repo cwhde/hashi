@@ -38,8 +38,8 @@ public sealed class ResourceServiceRuleValidationTests
 
         var storedRules = await db.ResourceRules.AsNoTracking().Where(x => x.ResourceId == created.Id).ToListAsync();
         Assert.Equal(2, storedRules.Count);
-        Assert.Contains(storedRules, x => x.Enabled && x.Action == ResourceRuleActionNames.BypassAuth && x.MatchType == ResourceRuleMatchTypeNames.Path);
-        Assert.Contains(storedRules, x => !x.Enabled && x.Action == ResourceRuleActionNames.BlockAccess && x.MatchType == ResourceRuleMatchTypeNames.Asn);
+        Assert.Contains(storedRules, x => x.Enabled && x.Action == ResourceRuleActionNames.Allow && x.MatchType == ResourceRuleMatchTypeNames.Path);
+        Assert.Contains(storedRules, x => !x.Enabled && x.Action == ResourceRuleActionNames.Deny && x.MatchType == ResourceRuleMatchTypeNames.Asn);
     }
 
     [Fact]
