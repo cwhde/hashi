@@ -632,6 +632,13 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.Property<bool>("Enabled")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("MonitoringDisplayName")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<bool>("MonitoringEnabled")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(256)
@@ -1224,6 +1231,9 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
 
+                    b.Property<Guid?>("DnsRecordId")
+                        .HasColumnType("uuid");
+
                     b.Property<bool>("Enabled")
                         .HasColumnType("boolean");
 
@@ -1256,6 +1266,8 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DnsRecordId");
 
                     b.ToTable("monitor_endpoints", (string)null);
                 });
@@ -1444,6 +1456,11 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<int>("CooldownMinutes")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -1466,6 +1483,11 @@ namespace Hashi.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("ProviderId")
                         .HasColumnType("uuid");
+
+                    b.Property<bool>("SendRecovery")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
 
                     b.Property<string>("Severity")
                         .IsRequired()

@@ -464,7 +464,13 @@ public sealed record MonitorEndpointResponse(
     bool PublicStatusEnabled,
     string Status,
     DateTimeOffset? LastCheckedAtUtc,
-    int? LastLatencyMs);
+    int? LastLatencyMs,
+    Guid? ResourceId = null,
+    string? ResourceType = null,
+    string? Host = null,
+    Guid? FirewallHostId = null,
+    string? FirewallHostName = null,
+    bool Provisioned = false);
 
 public sealed record CreateMonitorEndpointRequest(
     string Name,
@@ -680,6 +686,38 @@ public sealed record TelegramChatDiscoveryResponse(
     string? Error);
 
 public sealed record SendNotificationRequest(string Subject, string Body, IReadOnlyList<string> ProviderTypes);
+
+public sealed record NotificationRouteResponse(
+    Guid Id,
+    Guid ProviderId,
+    string Name,
+    string EventKind,
+    string Severity,
+    string MatchJson,
+    bool Enabled,
+    int CooldownMinutes,
+    bool SendRecovery,
+    DateTimeOffset CreatedAtUtc);
+
+public sealed record CreateNotificationRouteRequest(
+    Guid ProviderId,
+    string Name,
+    string EventKind,
+    string Severity,
+    string MatchJson,
+    bool Enabled,
+    int CooldownMinutes,
+    bool SendRecovery);
+
+public sealed record UpdateNotificationRouteRequest(
+    Guid? ProviderId,
+    string? Name,
+    string? EventKind,
+    string? Severity,
+    string? MatchJson,
+    bool? Enabled,
+    int? CooldownMinutes,
+    bool? SendRecovery);
 
 public sealed record AccessLogIngestRequest(
     string ClientIp,

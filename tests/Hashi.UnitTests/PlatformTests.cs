@@ -1,3 +1,4 @@
+using Hashi.Contracts.Api;
 using Hashi.Core.Resources;
 using Hashi.Core.Security;
 using Hashi.Core.Traefik;
@@ -201,6 +202,66 @@ public sealed class TraefikConfigRendererTests
     }
 
     [Fact]
+    public async Task Shared_stream_port_delete_keeps_confirmed_entrypoint_and_remaining_render()
+    {
+        await using var db = CreateDb();
+        var resources = TestPlatformHelpers.CreateResourceService(db);
+        var entryPoints = new TraefikEntryPointService(db);
+
+        var first = await resources.CreateAsync(CreateTcpResource("Postgres A", 15432));
+        var second = await resources.CreateAsync(CreateTcpResource("Postgres B", 15432));
+        var entry = await db.TraefikEntryPoints.SingleAsync(x => x.Port == 15432 && x.Protocol == "tcp");
+        Assert.Null(entry.ResourceId);
+        await entryPoints.ConfirmAsync(entry.Id);
+
+        Assert.True(await resources.DeleteAsync(second.Id));
+
+        var remainingEntry = await db.TraefikEntryPoints.SingleAsync(x => x.Port == 15432 && x.Protocol == "tcp");
+        Assert.True(remainingEntry.Confirmed);
+        Assert.Null(remainingEntry.ResourceId);
+
+        var render = await TestPlatformHelpers.CreateTraefikPlatform(db).RenderAsync();
+        Assert.Contains("postgres-a-tcp:", render.StaticConfigYaml);
+        Assert.Contains("postgres-a:", render.DynamicFiles.StreamResourcesYaml);
+        Assert.Contains("- postgres-a-tcp", render.DynamicFiles.StreamResourcesYaml);
+        Assert.DoesNotContain("postgres-b-tcp:", render.StaticConfigYaml);
+
+        Assert.True(await resources.DeleteAsync(first.Id));
+        Assert.False(await db.TraefikEntryPoints.AnyAsync(x => x.Port == 15432 && x.Protocol == "tcp"));
+    }
+
+    [Fact]
+    public async Task Shared_stream_port_update_and_disable_only_remove_entrypoint_after_final_enabled_user()
+    {
+        await using var db = CreateDb();
+        var resources = TestPlatformHelpers.CreateResourceService(db);
+        var entryPoints = new TraefikEntryPointService(db);
+
+        var first = await resources.CreateAsync(CreateTcpResource("Postgres A", 15432));
+        var second = await resources.CreateAsync(CreateTcpResource("Postgres B", 15432));
+        var sharedEntry = await db.TraefikEntryPoints.SingleAsync(x => x.Port == 15432 && x.Protocol == "tcp");
+        await entryPoints.ConfirmAsync(sharedEntry.Id);
+
+        await resources.UpdateAsync(
+            second.Id,
+            new UpdateResourceRequest(null, null, null, null, null, null, null, null, PublicPort: 25432));
+
+        var oldEntry = await db.TraefikEntryPoints.SingleAsync(x => x.Port == 15432 && x.Protocol == "tcp");
+        var newEntry = await db.TraefikEntryPoints.SingleAsync(x => x.Port == 25432 && x.Protocol == "tcp");
+        Assert.True(oldEntry.Confirmed);
+        Assert.False(newEntry.Confirmed);
+        Assert.Null(oldEntry.ResourceId);
+        Assert.Null(newEntry.ResourceId);
+
+        await resources.UpdateAsync(
+            first.Id,
+            new UpdateResourceRequest(null, false, null, null, null, null, null, null));
+
+        Assert.False(await db.TraefikEntryPoints.AnyAsync(x => x.Port == 15432 && x.Protocol == "tcp"));
+        Assert.True(await db.TraefikEntryPoints.AnyAsync(x => x.Port == 25432 && x.Protocol == "tcp"));
+    }
+
+    [Fact]
     public void Render_regex_rewrite_includes_replacement()
     {
         var resources = new List<ResourceDefinition>
@@ -292,6 +353,19 @@ public sealed class TraefikConfigRendererTests
             .Options;
         return new HashiDbContext(options);
     }
+
+    private static CreateResourceRequest CreateTcpResource(string name, int publicPort)
+        => new(
+            name,
+            "tcp",
+            $"{ResourceSlug.Normalize(name)}.example.com",
+            "tcp",
+            "10.0.0.5",
+            5432,
+            DashboardEnabled: false,
+            StatusEnabled: true,
+            PublicPort: publicPort,
+            DomainMode: "custom");
 }
 
 public sealed class MonitorRollupServiceTests

@@ -11,7 +11,7 @@ public sealed class TraefikEntryPointService(HashiDbContext db)
 
     public async Task SyncForResourceAsync(ResourceEntity resource, CancellationToken cancellationToken = default)
     {
-        if (resource.Kind is not ("tcp" or "udp"))
+        if (resource.Kind is not ("tcp" or "udp") || !resource.Enabled)
         {
             return;
         }
@@ -25,21 +25,40 @@ public sealed class TraefikEntryPointService(HashiDbContext db)
             {
                 Port = port,
                 Protocol = resource.Kind,
-                ResourceId = resource.Id,
-                Label = $"{resource.Name} ({resource.Kind}/{port})",
+                ResourceId = null,
+                Label = $"{resource.Kind}/{port}",
                 Confirmed = false,
             });
             return;
         }
 
-        existing.ResourceId = resource.Id;
-        existing.Label = $"{resource.Name} ({resource.Kind}/{port})";
+        existing.ResourceId = null;
+        existing.Label = $"{resource.Kind}/{port}";
     }
 
-    public async Task RemoveForResourceAsync(Guid resourceId, CancellationToken cancellationToken = default)
+    public async Task RemoveIfUnusedAsync(
+        int port,
+        string protocol,
+        Guid? excludingResourceId = null,
+        CancellationToken cancellationToken = default)
     {
-        var entries = await db.TraefikEntryPoints.Where(x => x.ResourceId == resourceId).ToListAsync(cancellationToken);
-        db.TraefikEntryPoints.RemoveRange(entries);
+        var hasRemainingUser = await db.Resources.AsNoTracking()
+            .AnyAsync(x =>
+                x.Enabled
+                && x.Kind == protocol
+                && (x.PublicPort ?? x.TargetPort) == port
+                && (excludingResourceId == null || x.Id != excludingResourceId), cancellationToken);
+        if (hasRemainingUser)
+        {
+            return;
+        }
+
+        var entry = await db.TraefikEntryPoints
+            .SingleOrDefaultAsync(x => x.Port == port && x.Protocol == protocol, cancellationToken);
+        if (entry is not null)
+        {
+            db.TraefikEntryPoints.Remove(entry);
+        }
     }
 
     public async Task<IReadOnlyList<TraefikEntryPointResponse>> ListPendingAsync(CancellationToken cancellationToken = default)

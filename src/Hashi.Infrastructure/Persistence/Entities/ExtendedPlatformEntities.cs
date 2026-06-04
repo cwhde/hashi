@@ -573,6 +573,10 @@ public sealed class NotificationRouteEntity
 
     public bool Enabled { get; set; } = true;
 
+    public int CooldownMinutes { get; set; }
+
+    public bool SendRecovery { get; set; } = true;
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }
 

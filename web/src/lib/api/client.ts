@@ -637,6 +637,27 @@ export const api = {
 		});
 		await expectOk(r.response, r.error);
 	},
+	listNotificationRoutes: async () => {
+		const r = await client.GET('/api/settings/notifications/routes');
+		return expectData(r.response, r.error, r.data ?? []);
+	},
+	createNotificationRoute: async (body: import('./types.js').CreateNotificationRouteRequest) => {
+		const r = await client.POST('/api/settings/notifications/routes', { body });
+		return expectData(r.response, r.error, r.data);
+	},
+	updateNotificationRoute: async (routeId: string, body: import('./types.js').UpdateNotificationRouteRequest) => {
+		const r = await client.PUT('/api/settings/notifications/routes/{routeId}', {
+			params: { path: { routeId } },
+			body
+		});
+		return expectData(r.response, r.error, r.data);
+	},
+	deleteNotificationRoute: async (routeId: string) => {
+		const r = await client.DELETE('/api/settings/notifications/routes/{routeId}', {
+			params: { path: { routeId } }
+		});
+		await expectOk(r.response, r.error);
+	},
 	getPublicApps: async () => {
 		const r = await client.GET('/api/public/apps');
 		return expectData(r.response, r.error, r.data) as Promise<import('./types.js').PublicDashboard>;

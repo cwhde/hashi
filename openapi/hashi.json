@@ -3582,6 +3582,136 @@
         }
       }
     },
+    "/api/settings/notifications/routes": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NotificationRouteResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Settings"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateNotificationRouteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationRouteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/notifications/routes/{routeId}": {
+      "put": {
+        "tags": [
+          "Settings"
+        ],
+        "parameters": [
+          {
+            "name": "routeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateNotificationRouteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationRouteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Settings"
+        ],
+        "parameters": [
+          {
+            "name": "routeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/settings/notifications/send": {
       "post": {
         "tags": [
@@ -4987,6 +5117,51 @@
           }
         }
       },
+      "CreateNotificationRouteRequest": {
+        "required": [
+          "providerId",
+          "name",
+          "eventKind",
+          "severity",
+          "matchJson",
+          "enabled",
+          "cooldownMinutes",
+          "sendRecovery"
+        ],
+        "type": "object",
+        "properties": {
+          "providerId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "eventKind": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "matchJson": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "cooldownMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sendRecovery": {
+            "type": "boolean"
+          }
+        }
+      },
       "CreateOidcProviderRequest": {
         "required": [
           "name",
@@ -5501,7 +5676,9 @@
           "ownership",
           "enabled",
           "dashboardEnabled",
-          "dashboardDisplayName"
+          "dashboardDisplayName",
+          "monitoringEnabled",
+          "monitoringDisplayName"
         ],
         "type": "object",
         "properties": {
@@ -5541,6 +5718,15 @@
             "type": "boolean"
           },
           "dashboardDisplayName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "monitoringEnabled": {
+            "type": "boolean"
+          },
+          "monitoringDisplayName": {
             "type": [
               "null",
               "string"
@@ -6501,6 +6687,42 @@
               "string"
             ],
             "format": "int32"
+          },
+          "resourceId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "resourceType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "host": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "firewallHostId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "firewallHostName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "provisioned": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -6725,6 +6947,61 @@
           },
           "enabled": {
             "type": "boolean"
+          }
+        }
+      },
+      "NotificationRouteResponse": {
+        "required": [
+          "id",
+          "providerId",
+          "name",
+          "eventKind",
+          "severity",
+          "matchJson",
+          "enabled",
+          "cooldownMinutes",
+          "sendRecovery",
+          "createdAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "providerId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "eventKind": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "matchJson": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "cooldownMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sendRecovery": {
+            "type": "boolean"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -9435,6 +9712,73 @@
           }
         }
       },
+      "UpdateNotificationRouteRequest": {
+        "required": [
+          "providerId",
+          "name",
+          "eventKind",
+          "severity",
+          "matchJson",
+          "enabled",
+          "cooldownMinutes",
+          "sendRecovery"
+        ],
+        "type": "object",
+        "properties": {
+          "providerId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "eventKind": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "severity": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "matchJson": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "enabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "cooldownMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sendRecovery": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        }
+      },
       "UpdateOidcProviderRequest": {
         "required": [
           "name",
@@ -9834,6 +10178,16 @@
             "default": false
           },
           "dashboardDisplayName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "monitoringEnabled": {
+            "type": "boolean",
+            "default": false
+          },
+          "monitoringDisplayName": {
             "type": [
               "null",
               "string"

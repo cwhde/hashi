@@ -38,6 +38,8 @@ export type ManualDnsRecordRequest = {
 	enabled: boolean;
 	dashboardEnabled: boolean;
 	dashboardDisplayName: string | null;
+	monitoringEnabled: boolean;
+	monitoringDisplayName: string | null;
 };
 export type DnsImportApplyRequest = Schemas['DnsImportApplyRequest'];
 export type DnsImportDecision = Schemas['DnsImportDecisionResponse'];
@@ -72,6 +74,7 @@ export type FirewallHost = Schemas['FirewallHostResponse'];
 export type MonitorEndpoint = Schemas['MonitorEndpointResponse'];
 export type UpdateMonitorEndpointRequest = Schemas['UpdateMonitorEndpointRequest'];
 export type MonitorRollup = Schemas['MonitorRollupResponse'];
+export type MonitorEvent = Schemas['MonitorEventResponse'];
 export type PublicStatusItem = Schemas['PublicStatusItemResponse'];
 export type PublicDashboard = Schemas['PublicDashboardResponse'];
 export type PublicDashboardItem = Schemas['PublicDashboardItemResponse'];
@@ -144,6 +147,9 @@ export type RunScriptResponse = Schemas['RunScriptResponse'];
 export type NotificationProvider = Schemas['NotificationProviderResponse'];
 export type CreateNotificationProviderRequest = Schemas['CreateNotificationProviderRequest'];
 export type NotificationTestRequest = Schemas['NotificationTestRequest'];
+export type NotificationRoute = Schemas['NotificationRouteResponse'];
+export type CreateNotificationRouteRequest = Schemas['CreateNotificationRouteRequest'];
+export type UpdateNotificationRouteRequest = Schemas['UpdateNotificationRouteRequest'];
 export type TelegramChatDiscoveryResponse = {
 	found: boolean;
 	chatId: string | null;

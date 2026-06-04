@@ -130,6 +130,8 @@ public sealed class MonitoringServiceTests
             Value = "192.0.2.10",
             Ownership = DnsOwnershipNames.User,
             Enabled = true,
+            MonitoringEnabled = true,
+            MonitoringDisplayName = "DNS: manual.example.com",
         });
         db.PulseAgents.Add(new PulseAgentEntity
         {
@@ -148,6 +150,218 @@ public sealed class MonitoringServiceTests
         Assert.Equal("http", endpoints["AdGuard: dns-filter"].CheckType);
         Assert.Equal("dns", endpoints["DNS: manual.example.com"].CheckType);
         Assert.Equal("icmp", endpoints["Pulse network: laptop"].CheckType);
+    }
+
+    [Fact]
+    public async Task SyncEndpointsFromResourcesAsync_skips_manual_dns_records_without_monitoring_opt_in()
+    {
+        await using var db = CreateDb();
+        var zoneId = Guid.NewGuid();
+        db.DnsZones.Add(new DnsZoneEntity
+        {
+            Id = zoneId,
+            ConnectionId = Guid.NewGuid(),
+            ProviderZoneId = "zone",
+            Name = "example.com",
+        });
+        db.DnsRecords.Add(new DnsRecordEntity
+        {
+            ZoneId = zoneId,
+            Name = "nomon.example.com",
+            Type = "A",
+            Value = "192.0.2.10",
+            Ownership = DnsOwnershipNames.User,
+            Enabled = true,
+        });
+        db.DnsRecords.Add(new DnsRecordEntity
+        {
+            ZoneId = zoneId,
+            Name = "disabled.example.com",
+            Type = "A",
+            Value = "192.0.2.11",
+            Ownership = DnsOwnershipNames.User,
+            Enabled = true,
+            MonitoringEnabled = true,
+            MonitoringDisplayName = null,
+        });
+        await db.SaveChangesAsync();
+
+        await CreateService(db).SyncEndpointsFromResourcesAsync();
+
+        var endpoints = await db.MonitorEndpoints
+            .Where(x => x.CheckType == "dns" && x.ResourceId == null)
+            .ToListAsync();
+        Assert.Empty(endpoints);
+    }
+
+    [Fact]
+    public async Task SyncEndpointsFromResourcesAsync_provisions_only_opted_in_manual_dns_with_configured_monitor_name()
+    {
+        await using var db = CreateDb();
+        var zoneId = Guid.NewGuid();
+        db.DnsZones.Add(new DnsZoneEntity
+        {
+            Id = zoneId,
+            ConnectionId = Guid.NewGuid(),
+            ProviderZoneId = "zone",
+            Name = "example.com",
+        });
+        db.DnsRecords.AddRange(
+            new DnsRecordEntity
+            {
+                ZoneId = zoneId,
+                Name = "watched.example.com",
+                Type = "A",
+                Value = "192.0.2.10",
+                Ownership = DnsOwnershipNames.User,
+                Enabled = true,
+                MonitoringEnabled = true,
+                MonitoringDisplayName = " Watched status ",
+            },
+            new DnsRecordEntity
+            {
+                ZoneId = zoneId,
+                Name = "untouched.example.com",
+                Type = "A",
+                Value = "192.0.2.11",
+                Ownership = DnsOwnershipNames.User,
+                Enabled = true,
+            },
+            new DnsRecordEntity
+            {
+                ZoneId = zoneId,
+                Name = "system.example.com",
+                Type = "A",
+                Value = "192.0.2.12",
+                Ownership = DnsOwnershipNames.System,
+                Enabled = true,
+                MonitoringEnabled = true,
+                MonitoringDisplayName = "System DNS",
+            },
+            new DnsRecordEntity
+            {
+                ZoneId = zoneId,
+                Name = "paused.example.com",
+                Type = "A",
+                Value = "192.0.2.13",
+                Ownership = DnsOwnershipNames.User,
+                Enabled = false,
+                MonitoringEnabled = true,
+                MonitoringDisplayName = "Paused DNS",
+            });
+        await db.SaveChangesAsync();
+
+        await CreateService(db).SyncEndpointsFromResourcesAsync();
+
+        var dnsEndpoints = await db.MonitorEndpoints
+            .Where(x => x.CheckType == "dns" && x.ResourceId == null)
+            .ToDictionaryAsync(x => x.Name, x => x);
+
+        var watched = dnsEndpoints["Watched status"];
+        Assert.True(watched.Enabled);
+        Assert.Equal("dns://watched.example.com", watched.Url);
+        Assert.NotNull(watched.DnsRecordId);
+
+        Assert.DoesNotContain(dnsEndpoints, x => x.Key.StartsWith("DNS: ", StringComparison.Ordinal));
+        Assert.DoesNotContain(dnsEndpoints, x => x.Key == "Paused DNS");
+        Assert.DoesNotContain(dnsEndpoints, x => x.Key == "System DNS");
+    }
+
+    [Fact]
+    public async Task SyncEndpointsFromResourcesAsync_disables_orphaned_dns_monitor_endpoints_when_opt_in_removed()
+    {
+        await using var db = CreateDb();
+        var zoneId = Guid.NewGuid();
+        var recordId = Guid.NewGuid();
+        db.DnsZones.Add(new DnsZoneEntity
+        {
+            Id = zoneId,
+            ConnectionId = Guid.NewGuid(),
+            ProviderZoneId = "zone",
+            Name = "example.com",
+        });
+        db.DnsRecords.Add(new DnsRecordEntity
+        {
+            Id = recordId,
+            ZoneId = zoneId,
+            Name = "watched.example.com",
+            Type = "A",
+            Value = "192.0.2.10",
+            Ownership = DnsOwnershipNames.User,
+            Enabled = true,
+        });
+        db.MonitorEndpoints.Add(new MonitorEndpointEntity
+        {
+            Name = "Old watched",
+            Url = "dns://watched.example.com",
+            CheckType = "dns",
+            ResourceId = null,
+            DnsRecordId = recordId,
+            Enabled = true,
+        });
+        db.MonitorEndpoints.Add(new MonitorEndpointEntity
+        {
+            Name = "User DNS check",
+            Url = "dns://other.example.com",
+            CheckType = "dns",
+            ResourceId = null,
+            DnsRecordId = null,
+            Enabled = true,
+        });
+        await db.SaveChangesAsync();
+
+        await CreateService(db).SyncEndpointsFromResourcesAsync();
+
+        var orphaned = await db.MonitorEndpoints
+            .SingleAsync(x => x.Name == "Old watched");
+        Assert.False(orphaned.Enabled);
+        Assert.True(await db.MonitorEndpoints
+            .Where(x => x.Name == "User DNS check")
+            .Select(x => x.Enabled)
+            .SingleAsync());
+    }
+
+    [Fact]
+    public async Task ListResponsesAsync_marks_dns_owned_endpoints_as_provisioned()
+    {
+        await using var db = CreateDb();
+        var zoneId = Guid.NewGuid();
+        var recordId = Guid.NewGuid();
+        db.DnsZones.Add(new DnsZoneEntity
+        {
+            Id = zoneId,
+            ConnectionId = Guid.NewGuid(),
+            ProviderZoneId = "zone",
+            Name = "example.com",
+        });
+        db.DnsRecords.Add(new DnsRecordEntity
+        {
+            Id = recordId,
+            ZoneId = zoneId,
+            Name = "watched.example.com",
+            Type = "A",
+            Value = "192.0.2.10",
+            Ownership = DnsOwnershipNames.User,
+            Enabled = true,
+            MonitoringEnabled = true,
+            MonitoringDisplayName = "Watched DNS",
+        });
+        db.MonitorEndpoints.Add(new MonitorEndpointEntity
+        {
+            Name = "Watched DNS",
+            Url = "dns://watched.example.com",
+            CheckType = "dns",
+            DnsRecordId = recordId,
+            Enabled = true,
+        });
+        await db.SaveChangesAsync();
+
+        var responses = await CreateService(db).ListResponsesAsync();
+
+        var response = Assert.Single(responses);
+        Assert.True(response.Provisioned);
+        Assert.Equal("DNS", response.ResourceType);
+        Assert.Equal("watched.example.com", response.Host);
     }
 
     [Fact]

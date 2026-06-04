@@ -93,6 +93,10 @@ public sealed class DnsRecordEntity
 
     public string? DashboardDisplayName { get; set; }
 
+    public bool MonitoringEnabled { get; set; }
+
+    public string? MonitoringDisplayName { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 
     public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;

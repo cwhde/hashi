@@ -22,7 +22,8 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
             var checkType = ResolveResourceCheckType(resource);
             UpsertProvisionedEndpoint(
                 existing,
-                resource.Id,
+                resourceId: resource.Id,
+                dnsRecordId: null,
                 resource.Name,
                 BuildResourceMonitorUrl(resource, checkType),
                 checkType,
@@ -66,6 +67,40 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
     public async Task<IReadOnlyList<MonitorEndpointEntity>> ListAsync(CancellationToken cancellationToken = default)
         => await db.MonitorEndpoints.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<MonitorEndpointResponse>> ListResponsesAsync(CancellationToken cancellationToken = default)
+    {
+        var endpoints = await db.MonitorEndpoints.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
+        var resourceIds = endpoints
+            .Where(x => x.ResourceId is not null)
+            .Select(x => x.ResourceId!.Value)
+            .Distinct()
+            .ToList();
+        var resources = await db.Resources.AsNoTracking()
+            .Where(x => resourceIds.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id, cancellationToken);
+        var dnsRecordIds = endpoints
+            .Where(x => x.DnsRecordId is not null)
+            .Select(x => x.DnsRecordId!.Value)
+            .Distinct()
+            .ToList();
+        var dnsRecords = await db.DnsRecords.AsNoTracking()
+            .Where(x => dnsRecordIds.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id, cancellationToken);
+        var firewallIds = resources.Values
+            .Where(x => x.FirewallHostId is not null)
+            .Select(x => x.FirewallHostId!.Value)
+            .Distinct()
+            .ToList();
+        var firewallHosts = await db.FirewallHosts.AsNoTracking()
+            .Where(x => firewallIds.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id, cancellationToken);
+        var allFirewallHosts = await db.FirewallHosts.AsNoTracking().ToListAsync(cancellationToken);
+
+        return endpoints
+            .Select(endpoint => ToResponse(endpoint, BuildMetadata(endpoint, resources, dnsRecords, firewallHosts, allFirewallHosts)))
+            .ToList();
+    }
+
     public async Task<MonitorEndpointEntity> CreateManualAsync(
         CreateMonitorEndpointRequest request,
         CancellationToken cancellationToken = default)
@@ -98,9 +133,9 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
             || request.Url is not null
             || request.CheckType is not null
             || request.Enabled is not null;
-        if (endpoint.ResourceId is not null && updatesManagedFields)
+        if ((endpoint.ResourceId is not null || endpoint.DnsRecordId is not null) && updatesManagedFields)
         {
-            throw new InvalidOperationException("Provisioned resource monitor endpoints are managed by the resource.");
+            throw new InvalidOperationException("Provisioned monitor endpoints are managed by their source.");
         }
 
         if (request.Name is not null)
@@ -140,9 +175,9 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
             return false;
         }
 
-        if (endpoint.ResourceId is not null)
+        if (endpoint.ResourceId is not null || endpoint.DnsRecordId is not null)
         {
-            throw new InvalidOperationException("Provisioned resource monitor endpoints are managed by the resource.");
+            throw new InvalidOperationException("Provisioned monitor endpoints are managed by their source.");
         }
 
         db.MonitorEndpoints.Remove(endpoint);
@@ -245,7 +280,11 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
             hosts.Count(h => h.LastAppliedAtUtc is not null));
     }
 
-    public static MonitorEndpointResponse ToResponse(MonitorEndpointEntity entity) => new(
+    public static MonitorEndpointResponse ToResponse(MonitorEndpointEntity entity) => ToResponse(entity, null);
+
+    private static MonitorEndpointResponse ToResponse(
+        MonitorEndpointEntity entity,
+        MonitorEndpointMetadata? metadata) => new(
         entity.Id,
         entity.Name,
         entity.Url,
@@ -254,7 +293,13 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
         entity.PublicStatusEnabled,
         NormalizeStatus(entity.Status),
         entity.LastCheckedAtUtc,
-        entity.LastLatencyMs);
+        entity.LastLatencyMs,
+        entity.ResourceId,
+        metadata?.ResourceType,
+        metadata?.Host,
+        metadata?.FirewallHostId,
+        metadata?.FirewallHostName,
+        entity.ResourceId is not null || entity.DnsRecordId is not null);
 
     public async Task<bool> IsPublicStatusEnabledAsync(CancellationToken cancellationToken = default)
     {
@@ -288,6 +333,62 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
         _ => "Unknown",
     };
 
+    private static MonitorEndpointMetadata BuildMetadata(
+        MonitorEndpointEntity endpoint,
+        IReadOnlyDictionary<Guid, ResourceEntity> resources,
+        IReadOnlyDictionary<Guid, DnsRecordEntity> dnsRecords,
+        IReadOnlyDictionary<Guid, FirewallHostEntity> firewallHosts,
+        IReadOnlyList<FirewallHostEntity> allFirewallHosts)
+    {
+        if (endpoint.ResourceId is Guid resourceId && resources.TryGetValue(resourceId, out var resource))
+        {
+            FirewallHostEntity? firewallHost = null;
+            if (resource.FirewallHostId is Guid firewallHostId)
+            {
+                firewallHosts.TryGetValue(firewallHostId, out firewallHost);
+            }
+
+            return new MonitorEndpointMetadata(
+                resource.Kind,
+                FirstNonEmpty(resource.Domain, resource.TargetHost, TryReadHost(endpoint.Url)),
+                resource.FirewallHostId,
+                firewallHost?.Name);
+        }
+
+        if (endpoint.DnsRecordId is Guid dnsRecordId && dnsRecords.TryGetValue(dnsRecordId, out var dnsRecord))
+        {
+            return new MonitorEndpointMetadata(
+                "DNS",
+                FirstNonEmpty(dnsRecord.Name, TryReadHost(endpoint.Url)),
+                null,
+                null);
+        }
+
+        var matchedFirewallHost = allFirewallHosts.FirstOrDefault(host =>
+            endpoint.Name.Equals($"Firewall: {host.Name}", StringComparison.OrdinalIgnoreCase));
+        return new MonitorEndpointMetadata(
+            "Infrastructure",
+            TryReadHost(endpoint.Url),
+            matchedFirewallHost?.Id,
+            matchedFirewallHost?.Name);
+    }
+
+    private static string? TryReadHost(string url)
+    {
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri) && !string.IsNullOrWhiteSpace(uri.Host))
+        {
+            return uri.Host;
+        }
+
+        return null;
+    }
+
+    private sealed record MonitorEndpointMetadata(
+        string? ResourceType,
+        string? Host,
+        Guid? FirewallHostId,
+        string? FirewallHostName);
+
     private async Task SyncInfrastructureEndpointsAsync(
         List<MonitorEndpointEntity> existing,
         CancellationToken cancellationToken)
@@ -296,6 +397,7 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
         UpsertProvisionedEndpoint(
             existing,
             resourceId: null,
+            dnsRecordId: null,
             "Hashi API",
             internalUrls.ResolveUrl(appSettings, "/api/health"),
             "http",
@@ -313,6 +415,7 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
             UpsertProvisionedEndpoint(
                 existing,
                 resourceId: null,
+                dnsRecordId: null,
                 $"Firewall: {host.Name}",
                 $"icmp://{target}",
                 "icmp",
@@ -332,6 +435,7 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
             UpsertProvisionedEndpoint(
                 existing,
                 resourceId: null,
+                dnsRecordId: null,
                 $"Traefik SSH: {connection.Name}",
                 $"tcp://{host}:{port}",
                 "tcp",
@@ -346,6 +450,7 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
             UpsertProvisionedEndpoint(
                 existing,
                 resourceId: null,
+                dnsRecordId: null,
                 $"AdGuard: {connection.Name}",
                 connection.BaseUrl,
                 "http",
@@ -353,18 +458,30 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
         }
 
         var manualDnsRecords = await db.DnsRecords.AsNoTracking()
-            .Where(x => x.Enabled && x.Ownership == DnsOwnershipNames.User)
+            .Where(x => x.Enabled
+                && x.Ownership == DnsOwnershipNames.User
+                && x.MonitoringEnabled
+                && x.MonitoringDisplayName != null)
             .ToListAsync(cancellationToken);
         foreach (var record in manualDnsRecords)
         {
+            var monitorName = record.MonitoringDisplayName!.Trim();
+            if (monitorName.Length == 0)
+            {
+                continue;
+            }
+
             UpsertProvisionedEndpoint(
                 existing,
                 resourceId: null,
-                $"DNS: {record.Name}",
+                dnsRecordId: record.Id,
+                monitorName,
                 $"dns://{record.Name}",
                 "dns",
-                enabled: true);
+                enabled: record.Enabled);
         }
+
+        DisableOrphanedDnsMonitorEndpoints(existing, manualDnsRecords);
 
         var pulseAgents = await db.PulseAgents.AsNoTracking().ToListAsync(cancellationToken);
         foreach (var agent in pulseAgents)
@@ -378,6 +495,7 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
             UpsertProvisionedEndpoint(
                 existing,
                 resourceId: null,
+                dnsRecordId: null,
                 $"Pulse network: {agent.Name}",
                 $"icmp://{target}",
                 "icmp",
@@ -388,27 +506,44 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
     private MonitorEndpointEntity UpsertProvisionedEndpoint(
         List<MonitorEndpointEntity> existing,
         Guid? resourceId,
+        Guid? dnsRecordId,
         string name,
         string url,
         string checkType,
         bool enabled)
     {
-        var monitor = resourceId is Guid id
-            ? existing.SingleOrDefault(x => x.ResourceId == id)
-            : existing.SingleOrDefault(x => x.ResourceId == null && x.Name == name);
+        var monitor = resourceId is Guid resourceIdValue
+            ? existing.SingleOrDefault(x => x.ResourceId == resourceIdValue)
+            : dnsRecordId is Guid dnsRecordIdValue
+                ? existing.SingleOrDefault(x => x.DnsRecordId == dnsRecordIdValue)
+                : existing.SingleOrDefault(x => x.ResourceId == null && x.DnsRecordId == null && x.Name == name);
         if (monitor is null)
         {
-            monitor = new MonitorEndpointEntity { ResourceId = resourceId };
+            monitor = new MonitorEndpointEntity { ResourceId = resourceId, DnsRecordId = dnsRecordId };
             db.MonitorEndpoints.Add(monitor);
             existing.Add(monitor);
         }
 
         monitor.ResourceId = resourceId;
+        monitor.DnsRecordId = dnsRecordId;
         monitor.Name = name;
         monitor.Url = url;
         monitor.CheckType = NormalizeManualCheckType(checkType);
         monitor.Enabled = enabled;
         return monitor;
+    }
+
+    private static void DisableOrphanedDnsMonitorEndpoints(
+        List<MonitorEndpointEntity> existing,
+        IReadOnlyCollection<DnsRecordEntity> monitoredRecords)
+    {
+        var monitoredRecordIds = monitoredRecords.Select(x => x.Id).ToHashSet();
+        foreach (var monitor in existing.Where(m =>
+                     m.DnsRecordId is Guid id
+                     && !monitoredRecordIds.Contains(id)))
+        {
+            monitor.Enabled = false;
+        }
     }
 
     private static string ResolveResourceCheckType(ResourceEntity resource)
