@@ -464,7 +464,13 @@ public sealed record MonitorEndpointResponse(
     bool PublicStatusEnabled,
     string Status,
     DateTimeOffset? LastCheckedAtUtc,
-    int? LastLatencyMs);
+    int? LastLatencyMs,
+    Guid? ResourceId = null,
+    string? ResourceType = null,
+    string? Host = null,
+    Guid? FirewallHostId = null,
+    string? FirewallHostName = null,
+    bool Provisioned = false);
 
 public sealed record CreateMonitorEndpointRequest(
     string Name,

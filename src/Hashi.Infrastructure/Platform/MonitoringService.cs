@@ -67,6 +67,32 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
     public async Task<IReadOnlyList<MonitorEndpointEntity>> ListAsync(CancellationToken cancellationToken = default)
         => await db.MonitorEndpoints.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<MonitorEndpointResponse>> ListResponsesAsync(CancellationToken cancellationToken = default)
+    {
+        var endpoints = await db.MonitorEndpoints.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
+        var resourceIds = endpoints
+            .Where(x => x.ResourceId is not null)
+            .Select(x => x.ResourceId!.Value)
+            .Distinct()
+            .ToList();
+        var resources = await db.Resources.AsNoTracking()
+            .Where(x => resourceIds.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id, cancellationToken);
+        var firewallIds = resources.Values
+            .Where(x => x.FirewallHostId is not null)
+            .Select(x => x.FirewallHostId!.Value)
+            .Distinct()
+            .ToList();
+        var firewallHosts = await db.FirewallHosts.AsNoTracking()
+            .Where(x => firewallIds.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id, cancellationToken);
+        var allFirewallHosts = await db.FirewallHosts.AsNoTracking().ToListAsync(cancellationToken);
+
+        return endpoints
+            .Select(endpoint => ToResponse(endpoint, BuildMetadata(endpoint, resources, firewallHosts, allFirewallHosts)))
+            .ToList();
+    }
+
     public async Task<MonitorEndpointEntity> CreateManualAsync(
         CreateMonitorEndpointRequest request,
         CancellationToken cancellationToken = default)
@@ -246,7 +272,11 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
             hosts.Count(h => h.LastAppliedAtUtc is not null));
     }
 
-    public static MonitorEndpointResponse ToResponse(MonitorEndpointEntity entity) => new(
+    public static MonitorEndpointResponse ToResponse(MonitorEndpointEntity entity) => ToResponse(entity, null);
+
+    private static MonitorEndpointResponse ToResponse(
+        MonitorEndpointEntity entity,
+        MonitorEndpointMetadata? metadata) => new(
         entity.Id,
         entity.Name,
         entity.Url,
@@ -255,7 +285,13 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
         entity.PublicStatusEnabled,
         NormalizeStatus(entity.Status),
         entity.LastCheckedAtUtc,
-        entity.LastLatencyMs);
+        entity.LastLatencyMs,
+        entity.ResourceId,
+        metadata?.ResourceType,
+        metadata?.Host,
+        metadata?.FirewallHostId,
+        metadata?.FirewallHostName,
+        entity.ResourceId is not null);
 
     public async Task<bool> IsPublicStatusEnabledAsync(CancellationToken cancellationToken = default)
     {
@@ -288,6 +324,52 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
         "paused" => "Paused",
         _ => "Unknown",
     };
+
+    private static MonitorEndpointMetadata BuildMetadata(
+        MonitorEndpointEntity endpoint,
+        IReadOnlyDictionary<Guid, ResourceEntity> resources,
+        IReadOnlyDictionary<Guid, FirewallHostEntity> firewallHosts,
+        IReadOnlyList<FirewallHostEntity> allFirewallHosts)
+    {
+        if (endpoint.ResourceId is Guid resourceId && resources.TryGetValue(resourceId, out var resource))
+        {
+            FirewallHostEntity? firewallHost = null;
+            if (resource.FirewallHostId is Guid firewallHostId)
+            {
+                firewallHosts.TryGetValue(firewallHostId, out firewallHost);
+            }
+
+            return new MonitorEndpointMetadata(
+                resource.Kind,
+                FirstNonEmpty(resource.Domain, resource.TargetHost, TryReadHost(endpoint.Url)),
+                resource.FirewallHostId,
+                firewallHost?.Name);
+        }
+
+        var matchedFirewallHost = allFirewallHosts.FirstOrDefault(host =>
+            endpoint.Name.Equals($"Firewall: {host.Name}", StringComparison.OrdinalIgnoreCase));
+        return new MonitorEndpointMetadata(
+            "Infrastructure",
+            TryReadHost(endpoint.Url),
+            matchedFirewallHost?.Id,
+            matchedFirewallHost?.Name);
+    }
+
+    private static string? TryReadHost(string url)
+    {
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri) && !string.IsNullOrWhiteSpace(uri.Host))
+        {
+            return uri.Host;
+        }
+
+        return null;
+    }
+
+    private sealed record MonitorEndpointMetadata(
+        string? ResourceType,
+        string? Host,
+        Guid? FirewallHostId,
+        string? FirewallHostName);
 
     private async Task SyncInfrastructureEndpointsAsync(
         List<MonitorEndpointEntity> existing,

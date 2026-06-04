@@ -251,8 +251,8 @@ public static class StatusEndpoints
         var group = app.MapGroup("/api/status").WithTags("Status");
         group.MapGet("/endpoints", async (MonitoringService monitoring, CancellationToken ct) =>
         {
-            var items = await monitoring.ListAsync(ct);
-            return TypedResults.Ok(items.Select(MonitoringService.ToResponse));
+            var items = await monitoring.ListResponsesAsync(ct);
+            return TypedResults.Ok(items);
         });
         group.MapPost("/endpoints", async Task<IResult> (
             CreateMonitorEndpointRequest request,
