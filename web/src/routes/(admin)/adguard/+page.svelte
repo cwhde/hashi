@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { api, ApiRequestError } from '$lib/api/client';
-	import type { AdGuardConnection, AdGuardRewrite } from '$lib/api/types';
+	import type { AdGuardConnection, AdGuardRewrite, PulseAgent } from '$lib/api/types';
 	import { performPasskeyReauthentication } from '$lib/auth/reauth';
 	import AdminSectionPage from '$lib/components/layout/AdminSectionPage.svelte';
 	import PanelSection from '$lib/components/layout/PanelSection.svelte';
@@ -19,6 +19,7 @@
 	import { Radio } from 'lucide-svelte';
 
 	let connections = $state<AdGuardConnection[]>([]);
+	let pulseAgents = $state<PulseAgent[]>([]);
 	let rewrites = $state<AdGuardRewrite[]>([]);
 	let selectedConnectionId = $state<string | null>(null);
 	let loading = $state(true);
@@ -31,7 +32,18 @@
 	let connectionForm = $state({
 		name: 'home-adguard',
 		baseUrl: 'http://127.0.0.1:3000',
-		password: ''
+		password: '',
+		targetMode: 'static_host',
+		staticHost: '127.0.0.1',
+		staticIp: '',
+		pulseAgentId: '',
+		pulseIpMode: 'selected',
+		privateCandidateSelector: 'selected',
+		scheme: 'http',
+		port: 3000,
+		pathPrefix: '',
+		tlsValidationMode: 'system',
+		expectedTlsHostname: ''
 	});
 	let rewriteForm = $state({
 		domain: '',
@@ -61,7 +73,12 @@
 		loading = true;
 		error = null;
 		try {
-			connections = await api.listAdGuardConnections();
+			const [connectionItems, agentItems] = await Promise.all([
+				api.listAdGuardConnections(),
+				api.listPulseAgents().catch(() => [])
+			]);
+			connections = connectionItems;
+			pulseAgents = agentItems;
 			if (!selectedConnectionId && connections.length > 0) {
 				selectedConnectionId = connections[0]?.id ?? null;
 			}
@@ -97,8 +114,34 @@
 	}
 
 	async function createConnection() {
-		if (!connectionForm.name || !connectionForm.baseUrl || !connectionForm.password) {
-			error = 'Name, base URL, and password are required.';
+		if (!connectionForm.name || !connectionForm.password) {
+			error = 'Name and password are required.';
+			return;
+		}
+		if (connectionForm.targetMode === 'static_host' && !connectionForm.staticHost) {
+			error = 'Static host is required.';
+			return;
+		}
+		if (connectionForm.targetMode === 'static_ip' && !connectionForm.staticIp) {
+			error = 'Static IP is required.';
+			return;
+		}
+		if (connectionForm.targetMode === 'pulse_agent' && !connectionForm.pulseAgentId) {
+			error = 'Select a Pulse agent.';
+			return;
+		}
+		if (connectionForm.targetMode === 'pulse_agent') {
+			const agent = pulseAgents.find((item) => item.id === connectionForm.pulseAgentId);
+			if (
+				agent &&
+				(agent.status !== 'online' || !agent.lastSeenAtUtc) &&
+				!confirm('This Pulse agent is not currently online. Save the AdGuard target anyway?')
+			) {
+				return;
+			}
+		}
+		if (!connectionForm.baseUrl && connectionForm.targetMode !== 'pulse_agent') {
+			error = 'Compatibility base URL is required for static targets.';
 			return;
 		}
 		saving = true;
@@ -108,8 +151,22 @@
 			const created = await withReauth(() =>
 				api.createAdGuardConnection({
 					name: connectionForm.name,
-					baseUrl: connectionForm.baseUrl,
-					password: connectionForm.password
+					baseUrl: connectionForm.baseUrl || null,
+					password: connectionForm.password,
+					target: {
+						targetMode: connectionForm.targetMode,
+						staticHost: connectionForm.targetMode === 'static_host' ? connectionForm.staticHost : null,
+						staticIp: connectionForm.targetMode === 'static_ip' ? connectionForm.staticIp : null,
+						pulseAgentId:
+							connectionForm.targetMode === 'pulse_agent' ? connectionForm.pulseAgentId : null,
+						pulseIpMode: connectionForm.pulseIpMode,
+						privateCandidateSelector: connectionForm.privateCandidateSelector,
+						port: connectionForm.port,
+						scheme: connectionForm.scheme,
+						pathPrefix: connectionForm.pathPrefix || null,
+						tlsValidationMode: connectionForm.tlsValidationMode,
+						expectedTlsHostname: connectionForm.expectedTlsHostname || null
+					}
 				})
 			);
 			if (created) {
@@ -177,7 +234,9 @@
 		message = null;
 		try {
 			const result = await withReauth(() => api.testAdGuardConnection(selectedConnectionId!));
-			message = result?.connected ? 'Connection test succeeded.' : `Connection failed: ${result?.error ?? 'unknown error'}`;
+			message = result?.connected
+				? `Connection test succeeded at ${result.resolvedBaseUrl ?? 'resolved target'}.`
+				: `Connection failed: ${result?.error ?? result?.target?.lastError ?? 'unknown error'}`;
 		} catch (e) {
 			error = e instanceof ApiRequestError ? e.message : 'Connection test failed';
 		} finally {
@@ -201,6 +260,14 @@
 			deletingId = null;
 		}
 	}
+
+	function selectedConnection() {
+		return connections.find((connection) => connection.id === selectedConnectionId) ?? null;
+	}
+
+	function selectedPulseAgent() {
+		return pulseAgents.find((agent) => agent.id === connectionForm.pulseAgentId) ?? null;
+	}
 </script>
 
 <AdminSectionPage
@@ -209,7 +276,7 @@
 	icon={Radio}
 >
 	<PanelSection title="Connection" description="Register an AdGuard Home control API endpoint.">
-		<div class="grid max-w-xl gap-3">
+		<div class="grid max-w-3xl gap-3">
 			<div class="grid grid-cols-2 gap-3">
 				<div class="grid gap-1.5">
 					<Label for="ag-name">Name</Label>
@@ -218,6 +285,114 @@
 				<div class="grid gap-1.5">
 					<Label for="ag-url">Base URL</Label>
 					<Input id="ag-url" bind:value={connectionForm.baseUrl} placeholder="http://adguard:3000" />
+				</div>
+			</div>
+			<div class="grid grid-cols-3 gap-3">
+				<div class="grid gap-1.5">
+					<Label for="ag-mode">Target</Label>
+					<select
+						id="ag-mode"
+						class="h-9 rounded-md border border-border bg-background px-3 text-sm text-white"
+						bind:value={connectionForm.targetMode}
+					>
+						<option value="static_host">Static host</option>
+						<option value="static_ip">Static IP</option>
+						<option value="pulse_agent">Pulse agent</option>
+					</select>
+				</div>
+				<div class="grid gap-1.5">
+					<Label for="ag-scheme">Scheme</Label>
+					<select
+						id="ag-scheme"
+						class="h-9 rounded-md border border-border bg-background px-3 text-sm text-white"
+						bind:value={connectionForm.scheme}
+					>
+						<option value="http">HTTP</option>
+						<option value="https">HTTPS</option>
+					</select>
+				</div>
+				<div class="grid gap-1.5">
+					<Label for="ag-port">Port</Label>
+					<Input id="ag-port" type="number" min="1" max="65535" bind:value={connectionForm.port} />
+				</div>
+			</div>
+			{#if connectionForm.targetMode === 'static_host'}
+				<div class="grid gap-1.5">
+					<Label for="ag-static-host">Static host</Label>
+					<Input id="ag-static-host" bind:value={connectionForm.staticHost} placeholder="adguard.internal" />
+				</div>
+			{:else if connectionForm.targetMode === 'static_ip'}
+				<div class="grid gap-1.5">
+					<Label for="ag-static-ip">Static IP</Label>
+					<Input id="ag-static-ip" bind:value={connectionForm.staticIp} placeholder="10.0.0.53" />
+				</div>
+			{:else}
+				<div class="grid grid-cols-3 gap-3">
+					<div class="grid gap-1.5">
+						<Label for="ag-pulse-agent">Pulse agent</Label>
+						<select
+							id="ag-pulse-agent"
+							class="h-9 rounded-md border border-border bg-background px-3 text-sm text-white"
+							bind:value={connectionForm.pulseAgentId}
+						>
+							<option value="">Select agent</option>
+							{#each pulseAgents as agent (agent.id)}
+								<option value={agent.id}>
+									{agent.name} - {agent.lastSelectedIp ?? agent.lastPrivateIp ?? agent.lastPublicIp ?? agent.status}
+								</option>
+							{/each}
+						</select>
+					</div>
+					<div class="grid gap-1.5">
+						<Label for="ag-pulse-mode">Pulse IP</Label>
+						<select
+							id="ag-pulse-mode"
+							class="h-9 rounded-md border border-border bg-background px-3 text-sm text-white"
+							bind:value={connectionForm.pulseIpMode}
+						>
+							<option value="selected">Selected</option>
+							<option value="public">Public</option>
+							<option value="private_selected">Private selected</option>
+							<option value="private_candidate">Private candidate</option>
+						</select>
+					</div>
+					<div class="grid gap-1.5">
+						<Label for="ag-private-selector">Candidate</Label>
+						<Input
+							id="ag-private-selector"
+							bind:value={connectionForm.privateCandidateSelector}
+							placeholder="selected, first_ipv4, address=10.0.0.53"
+						/>
+					</div>
+				</div>
+				{#if selectedPulseAgent()}
+					<p class="text-xs text-muted-foreground">
+						Last seen {selectedPulseAgent()?.lastSeenAtUtc ?? 'never'} - public
+						{selectedPulseAgent()?.lastPublicIp ?? 'none'} - private
+						{selectedPulseAgent()?.lastPrivateIpv4Candidates.join(', ') || 'none'}
+					</p>
+				{/if}
+			{/if}
+			<div class="grid grid-cols-3 gap-3">
+				<div class="grid gap-1.5">
+					<Label for="ag-path">Path prefix</Label>
+					<Input id="ag-path" bind:value={connectionForm.pathPrefix} placeholder="/control-plane" />
+				</div>
+				<div class="grid gap-1.5">
+					<Label for="ag-tls-mode">TLS validation</Label>
+					<select
+						id="ag-tls-mode"
+						class="h-9 rounded-md border border-border bg-background px-3 text-sm text-white"
+						bind:value={connectionForm.tlsValidationMode}
+					>
+						<option value="system">System</option>
+						<option value="expected_hostname">Expected hostname</option>
+						<option value="skip">Skip</option>
+					</select>
+				</div>
+				<div class="grid gap-1.5">
+					<Label for="ag-expected-host">Expected hostname</Label>
+					<Input id="ag-expected-host" bind:value={connectionForm.expectedTlsHostname} />
 				</div>
 			</div>
 			<div class="grid gap-1.5">
@@ -252,6 +427,17 @@
 				{syncing ? 'Syncing…' : 'Push sync'}
 			</Button>
 		</div>
+		{#if selectedConnection()}
+			<div class="mb-4 grid gap-1 text-xs text-muted-foreground">
+				<p>
+					Resolved target: {selectedConnection()?.resolvedBaseUrl ?? selectedConnection()?.baseUrl} -
+					{selectedConnection()?.targetStatus}
+				</p>
+				{#if selectedConnection()?.targetError}
+					<p class="text-amber-300">{selectedConnection()?.targetError}</p>
+				{/if}
+			</div>
+		{/if}
 
 		<div class="mb-4 grid max-w-xl gap-3 rounded-md border border-border p-3">
 			<div class="grid grid-cols-2 gap-3">

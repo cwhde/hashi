@@ -4280,6 +4280,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/pulse/agents/{agentId}/resolved-targets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    agentId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PulseResolvedTargetResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/pulse/agents/{agentId}/rotate-token": {
         parameters: {
             query?: never;
@@ -5530,10 +5567,17 @@ export interface components {
             name: string;
             baseUrl: string;
             enabled: boolean;
+            target: null | components["schemas"]["ConnectionTargetResponse"];
+            resolvedBaseUrl: null | string;
+            targetStatus: string;
+            targetError: null | string;
         };
         AdGuardConnectionTestResponse: {
             connected: boolean;
             error: null | string;
+            target: null | components["schemas"]["ConnectionTargetResponse"];
+            resolvedBaseUrl: null | string;
+            targetStale: boolean;
         };
         AdGuardRewriteApplyRequest: {
             /** Format: uuid */
@@ -5677,10 +5721,51 @@ export interface components {
             /** Format: date-time */
             lastValidatedAtUtc: null | string;
         };
+        ConnectionTargetRequest: {
+            targetMode: string;
+            staticHost: null | string;
+            staticIp: null | string;
+            /** Format: uuid */
+            pulseAgentId: null | string;
+            pulseIpMode: null | string;
+            privateCandidateSelector: null | string;
+            /** Format: int32 */
+            port: number | string;
+            scheme: string;
+            pathPrefix: null | string;
+            tlsValidationMode: null | string;
+            expectedTlsHostname: null | string;
+        };
+        ConnectionTargetResponse: {
+            /** Format: uuid */
+            id: string;
+            ownerType: string;
+            /** Format: uuid */
+            ownerId: string;
+            targetMode: string;
+            staticHost: null | string;
+            staticIp: null | string;
+            /** Format: uuid */
+            pulseAgentId: null | string;
+            pulseIpMode: string;
+            privateCandidateSelector: string;
+            /** Format: int32 */
+            port: number;
+            scheme: string;
+            pathPrefix: null | string;
+            tlsValidationMode: string;
+            expectedTlsHostname: null | string;
+            resolvedIpSnapshot: null | string;
+            /** Format: date-time */
+            lastResolvedAtUtc: null | string;
+            status: string;
+            lastError: null | string;
+        };
         CreateAdGuardConnectionRequest: {
             name: string;
-            baseUrl: string;
+            baseUrl?: null | string;
             password: string;
+            target?: null | components["schemas"]["ConnectionTargetRequest"];
         };
         CreateEdgeAuthRuleRequest: {
             name: string;
@@ -6282,6 +6367,21 @@ export interface components {
             lastAgentVersion: null | string;
             /** Format: date-time */
             dnsPendingAtUtc: null | string;
+        };
+        PulseResolvedTargetResponse: {
+            /** Format: uuid */
+            pulseAgentId: string;
+            agentName: string;
+            ipMode: string;
+            selectedIp: null | string;
+            publicIp: null | string;
+            privateIpv4Candidates: string[];
+            privateIpv6Candidates: string[];
+            /** Format: date-time */
+            lastSeenAtUtc: null | string;
+            status: string;
+            resolvedIp: null | string;
+            error: null | string;
         };
         PulseDockerMetadataRequest: {
             containerId: null | string;

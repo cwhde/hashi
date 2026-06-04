@@ -1,4 +1,5 @@
 using FluentValidation;
+using System.Text.Json;
 using Hashi.Api.Hosting;
 using Hashi.Contracts.Api;
 using Hashi.Core.Traefik;
@@ -741,6 +742,44 @@ public static class PulseEndpoints
             var agents = await db.PulseAgents.AsNoTracking().ToListAsync(ct);
             return TypedResults.Ok(agents.Select(PulseAgentService.ToResponse));
         });
+        group.MapGet("/agents/{agentId:guid}/resolved-targets", async Task<IResult> (
+            Guid agentId,
+            HashiDbContext db,
+            ConnectionTargetResolver targets,
+            CancellationToken ct) =>
+        {
+            var agent = await db.PulseAgents.AsNoTracking().SingleOrDefaultAsync(x => x.Id == agentId, ct);
+            if (agent is null)
+            {
+                return TypedResults.NotFound();
+            }
+
+            var target = new ConnectionTargetEntity
+            {
+                OwnerType = "pulse_agent_preview",
+                OwnerId = agentId,
+                TargetMode = ConnectionTargetModeNames.PulseAgent,
+                PulseAgentId = agentId,
+                PulseIpMode = PulseTargetIpModeNames.Selected,
+                PrivateCandidateSelector = PulsePrivateCandidateSelectorNames.Selected,
+                Scheme = "http",
+                Port = 80,
+            };
+            var resolved = await targets.ResolveAsync(target, persistSnapshot: false, cancellationToken: ct);
+            return TypedResults.Ok(new PulseResolvedTargetResponse(
+                agent.Id,
+                agent.Name,
+                PulseTargetIpModeNames.Selected,
+                agent.LastSelectedIp,
+                agent.LastPublicIp,
+                DeserializeStringList(agent.LastPrivateIpv4CandidatesJson),
+                DeserializeStringList(agent.LastPrivateIpv6CandidatesJson),
+                agent.LastSeenAtUtc,
+                resolved.Status,
+                resolved.ResolvedIp,
+                resolved.Error));
+        })
+            .Produces<PulseResolvedTargetResponse>(StatusCodes.Status200OK);
         group.MapPost("/agents", async Task<Ok<CreatePulseAgentResponse>> (CreatePulseAgentRequest request, PulseAgentService pulse, CancellationToken ct) =>
         {
             var created = await pulse.CreateAgentAsync(request, ct);
@@ -804,6 +843,23 @@ public static class PulseEndpoints
             };
         }).AllowAnonymous();
         return app;
+    }
+
+    private static IReadOnlyList<string> DeserializeStringList(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return [];
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<IReadOnlyList<string>>(json) ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
     }
 }
 
@@ -962,7 +1018,16 @@ public static class AdGuardEndpoints
             CreateAdGuardConnectionRequest request,
             AdGuardSyncService adguard,
             CancellationToken ct) =>
-            TypedResults.Ok(await adguard.CreateConnectionAsync(request, ct)))
+        {
+            try
+            {
+                return TypedResults.Ok(await adguard.CreateConnectionAsync(request, ct));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        })
             .Produces<AdGuardConnectionResponse>(StatusCodes.Status200OK);
         group.MapPost("/connections/{connectionId:guid}/test", async Task<IResult> (
             Guid connectionId,

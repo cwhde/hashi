@@ -266,7 +266,7 @@ public sealed class PulseAgentServiceTests
             dnsProviderFactory,
             secrets,
             audit);
-        return new PulseAgentService(db, dns, audit, NullLogger<PulseAgentService>.Instance);
+        return new PulseAgentService(db, dns, audit, new ConnectionTargetResolver(db, audit), NullLogger<PulseAgentService>.Instance);
     }
 
     private static HashiDbContext CreateDb()

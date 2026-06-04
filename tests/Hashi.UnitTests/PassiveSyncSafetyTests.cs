@@ -85,7 +85,8 @@ public sealed class PassiveSyncSafetyTests
                 new ServiceCollection().AddHttpClient().BuildServiceProvider().GetRequiredService<IHttpClientFactory>(),
                 secrets,
                 new AuditService(db),
-                syncRuns),
+                syncRuns,
+                new ConnectionTargetResolver(db, new AuditService(db))),
             syncRuns,
             settings,
             new AuditService(db));
@@ -137,7 +138,8 @@ public sealed class PassiveSyncSafetyTests
                 new FakeHttpClientFactory(handler),
                 secrets,
                 new AuditService(db),
-                syncRuns),
+                syncRuns,
+                new ConnectionTargetResolver(db, new AuditService(db))),
             syncRuns,
             new AppSettingsService(db),
             new AuditService(db));

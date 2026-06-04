@@ -570,6 +570,12 @@ export const api = {
 		const r = await client.GET('/api/pulse/agents');
 		return expectData(r.response, r.error, r.data ?? []);
 	},
+	getPulseResolvedTargets: async (agentId: string) => {
+		const r = await client.GET('/api/pulse/agents/{agentId}/resolved-targets', {
+			params: { path: { agentId } }
+		});
+		return expectData(r.response, r.error, r.data);
+	},
 	createPulseAgent: async (body: import('./types.js').CreatePulseAgentRequest) => {
 		const r = await client.POST('/api/pulse/agents', { body });
 		return expectData(r.response, r.error, r.data);
