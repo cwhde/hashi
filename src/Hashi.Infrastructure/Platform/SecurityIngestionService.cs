@@ -469,8 +469,9 @@ public sealed class SecurityIngestionService(
             .GroupBy(x => x.ClientIp)
             .ToDictionary(x => x.Key, x => x.First());
         var activeIpBlocks = await db.BlocklistEntries.AsNoTracking()
+            .Where(x => x.Enabled)
             .Where(x => x.ExpiresAtUtc == null || x.ExpiresAtUtc > dashboardNow)
-            .Where(x => x.Type == BlocklistTypeNames.Ip || x.Type == string.Empty)
+            .Where(x => x.Type == BlocklistTypeNames.Ip || x.Type == BlocklistTypeNames.Cidr || x.Type == string.Empty)
             .Where(x => topIpValues.Contains(x.Value) || topIpValues.Contains(x.ClientIp))
             .ToListAsync(cancellationToken);
         var activeIpBlockByValue = activeIpBlocks
@@ -567,10 +568,12 @@ public sealed class SecurityIngestionService(
             .LongCountAsync(cancellationToken);
 
         var firewallActiveIpBlocks = await db.BlocklistEntries.AsNoTracking()
+            .Where(x => x.Enabled)
             .Where(x => x.ExpiresAtUtc == null || x.ExpiresAtUtc > dashboardNow)
-            .Where(x => x.Type == BlocklistTypeNames.Ip || x.Type == string.Empty)
+            .Where(x => x.Type == BlocklistTypeNames.Ip || x.Type == BlocklistTypeNames.Cidr || x.Type == string.Empty)
             .LongCountAsync(cancellationToken);
         var blocklistCount = await db.BlocklistEntries.AsNoTracking()
+            .Where(x => x.Enabled)
             .Where(x => x.ExpiresAtUtc == null || x.ExpiresAtUtc > dashboardNow)
             .LongCountAsync(cancellationToken);
         var securityEventCount = await securityEventsQuery.LongCountAsync(cancellationToken);
@@ -603,8 +606,9 @@ public sealed class SecurityIngestionService(
         var now = timeProvider?.GetUtcNow() ?? DateTimeOffset.UtcNow;
         var hosts = await db.FirewallHosts.ToListAsync(cancellationToken);
         var activeIpEntries = await db.BlocklistEntries
+            .Where(x => x.Enabled)
             .Where(x => x.ExpiresAtUtc == null || x.ExpiresAtUtc > now)
-            .Where(x => x.Type == BlocklistTypeNames.Ip || x.Type == string.Empty)
+            .Where(x => x.Type == BlocklistTypeNames.Ip || x.Type == BlocklistTypeNames.Cidr || x.Type == string.Empty)
             .ToListAsync(cancellationToken);
         if (hosts.Count == 0 && activeIpEntries.Count > 0)
         {
@@ -840,6 +844,7 @@ public sealed class SecurityIngestionService(
     {
         var now = timeProvider?.GetUtcNow() ?? DateTimeOffset.UtcNow;
         return await db.BlocklistEntries
+            .Where(x => x.Enabled)
             .Where(x => x.ExpiresAtUtc == null || x.ExpiresAtUtc > now)
             .Where(x => x.Scope == BlocklistScopeNames.Global)
             .Where(x => x.Source == source)

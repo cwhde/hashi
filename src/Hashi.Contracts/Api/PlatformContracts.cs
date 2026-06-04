@@ -747,6 +747,9 @@ public sealed record BlocklistSourceResponse(
     string LastFetchStatus,
     string? LastFetchError,
     DateTimeOffset? LastFetchedAtUtc,
+    long EntryCount,
+    bool IsStale,
+    string? MetadataJson,
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset UpdatedAtUtc);
 
@@ -759,7 +762,36 @@ public sealed record UpsertBlocklistSourceRequest(
     bool CanFirewallEnforce,
     bool Enabled,
     bool AllowHttp,
-    int? RefreshIntervalHours);
+    int? RefreshIntervalHours,
+    int? CsvColumnIndex = null,
+    string? JsonArrayField = null,
+    string? JsonValueField = null);
+
+public sealed record BlocklistFetchPreviewResponse(
+    Guid SourceId,
+    string SourceName,
+    int ParsedCount,
+    int IgnoredCount,
+    int ErrorCount,
+    string? ContentHash,
+    bool NotModified,
+    IReadOnlyList<BlocklistPreviewEntryResponse> Entries,
+    IReadOnlyList<string> Errors,
+    IReadOnlyList<string> Warnings);
+
+public sealed record BlocklistPreviewEntryResponse(
+    string SubjectType,
+    string Value,
+    string NormalizedValue,
+    int? LineNumber);
+
+public sealed record BlocklistSourceMutationResponse(
+    BlocklistSourceResponse Source,
+    BlocklistFetchRunResponse? Run,
+    BlocklistFetchPreviewResponse? Preview,
+    bool FirewallSyncRecommended,
+    int PendingFirewallEntryCount,
+    IReadOnlyList<string> Warnings);
 
 public sealed record BlocklistEntryResponse(
     Guid Id,

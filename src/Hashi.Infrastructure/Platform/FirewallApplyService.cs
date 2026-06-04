@@ -67,8 +67,9 @@ public sealed class FirewallApplyService(
         var subnets = JsonSerializer.Deserialize<List<string>>(host.ManagedSubnetsJson) ?? [];
         var now = DateTimeOffset.UtcNow;
         var blocked = await db.BlocklistEntries.AsNoTracking()
+            .Where(x => x.Enabled)
             .Where(x => x.ExpiresAtUtc == null || x.ExpiresAtUtc > now)
-            .Where(x => x.Type == BlocklistTypeNames.Ip || x.Type == string.Empty)
+            .Where(x => x.Type == BlocklistTypeNames.Ip || x.Type == BlocklistTypeNames.Cidr || x.Type == string.Empty)
             .Select(x => x.Value == "" ? x.ClientIp : x.Value)
             .Where(x => x != "")
             .Distinct()

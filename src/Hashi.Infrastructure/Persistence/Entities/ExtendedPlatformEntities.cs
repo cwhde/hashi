@@ -1013,6 +1013,7 @@ public static class BlocklistScopeNames
 public static class BlocklistTypeNames
 {
     public const string Ip = "ip";
+    public const string Cidr = "cidr";
     public const string Asn = "asn";
     public const string Country = "country";
     public const string Region = "region";
@@ -1060,7 +1061,10 @@ public static class BlocklistEnforcementModeNames
 public static class BlocklistSourceFormatNames
 {
     public const string Text = "text";
+    public const string Csv = "csv";
+    public const string Tsv = "tsv";
     public const string Json = "json";
+    public const string JsonLines = "json_lines";
     public const string Netset = "netset";
 }
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { api, ApiRequestError } from '$lib/api/client';
+	import { api, ApiRequestError, ensureCsrfToken } from '$lib/api/client';
 	import type {
 		SecurityDashboard,
 		SecurityRankItem,
@@ -10,7 +10,50 @@
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import OverviewWidget from '$lib/components/overview/OverviewWidget.svelte';
 	import StatusRow from '$lib/components/layout/StatusRow.svelte';
-	import { Lock } from 'lucide-svelte';
+	import { Eye, Lock, Plus, Power, PowerOff, RefreshCw, Trash2 } from 'lucide-svelte';
+
+	type BlocklistSource = {
+		id: string;
+		name: string;
+		sourceUrl: string;
+		description: string;
+		format: string;
+		enforcementMode: string;
+		canFirewallEnforce: boolean;
+		enabled: boolean;
+		allowHttp: boolean;
+		refreshIntervalHours: number;
+		lastFetchStatus: string;
+		lastFetchError: string | null;
+		lastFetchedAtUtc: string | null;
+		entryCount: number;
+		isStale: boolean;
+		metadataJson: string | null;
+	};
+
+	type BlocklistPreview = {
+		sourceId: string;
+		sourceName: string;
+		parsedCount: number;
+		ignoredCount: number;
+		errorCount: number;
+		notModified: boolean;
+		entries: { subjectType: string; value: string; normalizedValue: string; lineNumber: number | null }[];
+		errors: string[];
+		warnings: string[];
+	};
+
+	type BlocklistRun = {
+		id: string;
+		startedAtUtc: string;
+		completedAtUtc: string | null;
+		status: string;
+		entryCount: number;
+		addedCount: number;
+		removedCount: number;
+		unchangedCount: number;
+		error: string | null;
+	};
 
 	let dashboard = $state<SecurityDashboard | null>(null);
 	let loading = $state(true);
@@ -19,6 +62,21 @@
 	let resourceFilter = $state('');
 	let traefikHostFilter = $state('');
 	let firewallHostIdFilter = $state('');
+	let blocklists = $state<BlocklistSource[]>([]);
+	let blocklistsLoading = $state(true);
+	let blocklistError = $state<string | null>(null);
+	let preview = $state<BlocklistPreview | null>(null);
+	let previewLoadingId = $state<string | null>(null);
+	let runs = $state<BlocklistRun[]>([]);
+	let selectedSourceId = $state<string | null>(null);
+	let customName = $state('');
+	let customUrl = $state('');
+	let customFormat = $state('text');
+	let customEnforcement = $state('middleware');
+	let customAllowHttp = $state(false);
+	let customCanFirewall = $state(true);
+	let customColumn = $state('');
+	let customJsonField = $state('');
 	const topCountries = $derived((dashboard?.topCountries ?? []) as SecurityRankItem[]);
 	const topAsns = $derived((dashboard?.topAsns ?? []) as SecurityRankItem[]);
 	const topBlockedIps = $derived((dashboard?.topBlockedIps ?? []) as SecurityTopBlockedIpItem[]);
@@ -26,9 +84,45 @@
 		(dashboard?.topResourcesBlockedChallenged ?? []) as SecurityResourceEnforcementItem[]
 	);
 	const recentEvents = $derived((dashboard?.recentEvents ?? []) as SecurityRecentEventItem[]);
+	const selectedSource = $derived(blocklists.find((source) => source.id === selectedSourceId) ?? null);
 
 	const formatEventTimestamp = (value: string) => new Date(value).toLocaleString();
 	const formatExpiry = (value: string | null) => (value ? new Date(value).toLocaleString() : 'No expiry');
+	const formatMaybeDate = (value: string | null) => (value ? new Date(value).toLocaleString() : 'Never');
+	const metadataWarning = (source: BlocklistSource) => {
+		try {
+			const metadata = JSON.parse(source.metadataJson ?? '{}') as { falsePositiveWarning?: string };
+			return metadata.falsePositiveWarning ?? 'Third-party blocklists can create false positives.';
+		} catch {
+			return 'Third-party blocklists can create false positives.';
+		}
+	};
+
+	async function securityJson<T>(path: string, init: RequestInit = {}): Promise<T> {
+		const method = (init.method ?? 'GET').toUpperCase();
+		const headers = new Headers(init.headers);
+		if (method !== 'GET' && method !== 'HEAD') {
+			headers.set('Content-Type', 'application/json');
+			const token = await ensureCsrfToken();
+			if (token) headers.set('X-CSRF-TOKEN', token);
+		}
+
+		const response = await fetch(path, { ...init, headers, credentials: 'include' });
+		if (!response.ok) {
+			let message = 'Request failed';
+			try {
+				const body = (await response.json()) as { error?: string; message?: string; code?: string };
+				message = body.error ?? body.message ?? message;
+				if (body.code === 'reauth_required') message = 'Recent reauthentication required for this operation.';
+			} catch {
+				// Keep generic message for non-JSON responses.
+			}
+			throw new Error(message);
+		}
+
+		if (response.status === 204) return undefined as T;
+		return (await response.json()) as T;
+	}
 
 	async function loadDashboard() {
 		loading = true;
@@ -47,8 +141,102 @@
 		}
 	}
 
+	async function loadBlocklists() {
+		blocklistsLoading = true;
+		blocklistError = null;
+		try {
+			blocklists = await securityJson<BlocklistSource[]>('/api/security/blocklists');
+			if (!selectedSourceId && blocklists.length > 0) selectedSourceId = blocklists[0].id;
+		} catch (e) {
+			blocklistError = e instanceof Error ? e.message : 'Failed to load blocklists';
+		} finally {
+			blocklistsLoading = false;
+		}
+	}
+
+	async function createCustomSource() {
+		blocklistError = null;
+		try {
+			await securityJson<BlocklistSource>('/api/security/blocklists', {
+				method: 'POST',
+				body: JSON.stringify({
+					name: customName || 'Custom blocklist',
+					sourceUrl: customUrl,
+					description: 'Custom URL blocklist',
+					format: customFormat,
+					enforcementMode: customEnforcement,
+					canFirewallEnforce: customCanFirewall,
+					enabled: false,
+					allowHttp: customAllowHttp,
+					refreshIntervalHours: 24,
+					csvColumnIndex: customColumn ? Number(customColumn) : null,
+					jsonValueField: customJsonField || null
+				})
+			});
+			customName = '';
+			customUrl = '';
+			customColumn = '';
+			customJsonField = '';
+			await loadBlocklists();
+		} catch (e) {
+			blocklistError = e instanceof Error ? e.message : 'Failed to add source';
+		}
+	}
+
+	async function previewSource(source: BlocklistSource) {
+		previewLoadingId = source.id;
+		blocklistError = null;
+		try {
+			preview = await securityJson<BlocklistPreview>(
+				`/api/security/blocklists/${source.id}/fetch-preview`,
+				{ method: 'POST' }
+			);
+			selectedSourceId = source.id;
+			await loadRuns(source.id);
+		} catch (e) {
+			blocklistError = e instanceof Error ? e.message : 'Preview failed';
+		} finally {
+			previewLoadingId = null;
+		}
+	}
+
+	async function mutateSource(source: BlocklistSource, action: 'enable' | 'disable' | 'refresh') {
+		blocklistError = null;
+		try {
+			await securityJson(`/api/security/blocklists/${source.id}/${action}`, { method: 'POST' });
+			selectedSourceId = source.id;
+			await loadBlocklists();
+			await loadRuns(source.id);
+		} catch (e) {
+			blocklistError = e instanceof Error ? e.message : `${action} failed`;
+		}
+	}
+
+	async function deleteSource(source: BlocklistSource) {
+		blocklistError = null;
+		try {
+			await securityJson(`/api/security/blocklists/${source.id}`, { method: 'DELETE' });
+			if (selectedSourceId === source.id) {
+				selectedSourceId = null;
+				preview = null;
+				runs = [];
+			}
+			await loadBlocklists();
+		} catch (e) {
+			blocklistError = e instanceof Error ? e.message : 'Delete failed';
+		}
+	}
+
+	async function loadRuns(sourceId: string) {
+		runs = await securityJson<BlocklistRun[]>(`/api/security/blocklists/${sourceId}/runs`);
+	}
+
 	$effect(() => {
 		void loadDashboard();
+	});
+
+	$effect(() => {
+		void loadBlocklists();
 	});
 </script>
 

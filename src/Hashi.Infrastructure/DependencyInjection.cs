@@ -85,6 +85,11 @@ public static class DependencyInjection
         services.AddScoped<OidcProviderAdminService>();
         services.AddScoped<NotificationRoutingService>();
         services.AddScoped<SecurityIngestionService>();
+        services.AddScoped<BlocklistSourceManagementService>();
+        services.AddScoped<BlocklistParser>();
+        services.AddScoped<BlocklistSafeHttpFetcher>();
+        services.AddSingleton<IBlocklistDnsResolver, DefaultBlocklistDnsResolver>();
+        services.AddScoped<IBlocklistHttpTransport, SocketsBlocklistHttpTransport>();
         services.AddScoped<BackgroundJobService>();
         services.AddScoped<GeoIpSettingsService>();
         services.AddScoped<GeoIpUpdateService>();
