@@ -322,6 +322,49 @@ public sealed class MonitoringServiceTests
     }
 
     [Fact]
+    public async Task ListResponsesAsync_marks_dns_owned_endpoints_as_provisioned()
+    {
+        await using var db = CreateDb();
+        var zoneId = Guid.NewGuid();
+        var recordId = Guid.NewGuid();
+        db.DnsZones.Add(new DnsZoneEntity
+        {
+            Id = zoneId,
+            ConnectionId = Guid.NewGuid(),
+            ProviderZoneId = "zone",
+            Name = "example.com",
+        });
+        db.DnsRecords.Add(new DnsRecordEntity
+        {
+            Id = recordId,
+            ZoneId = zoneId,
+            Name = "watched.example.com",
+            Type = "A",
+            Value = "192.0.2.10",
+            Ownership = DnsOwnershipNames.User,
+            Enabled = true,
+            MonitoringEnabled = true,
+            MonitoringDisplayName = "Watched DNS",
+        });
+        db.MonitorEndpoints.Add(new MonitorEndpointEntity
+        {
+            Name = "Watched DNS",
+            Url = "dns://watched.example.com",
+            CheckType = "dns",
+            DnsRecordId = recordId,
+            Enabled = true,
+        });
+        await db.SaveChangesAsync();
+
+        var responses = await CreateService(db).ListResponsesAsync();
+
+        var response = Assert.Single(responses);
+        Assert.True(response.Provisioned);
+        Assert.Equal("DNS", response.ResourceType);
+        Assert.Equal("watched.example.com", response.Host);
+    }
+
+    [Fact]
     public async Task SyncEndpointsFromResourcesAsync_uses_configured_admin_port_for_hashi_api_monitor()
     {
         await using var db = CreateDb();

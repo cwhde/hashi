@@ -125,8 +125,9 @@ describe('status page operations view', () => {
 		await fireEvent.change(screen.getByLabelText('Group'), { target: { value: 'firewallHost' } });
 		expect(await screen.findByText('No Linux firewall host')).toBeTruthy();
 
-		await fireEvent.change(screen.getByLabelText('Sort'), { target: { value: 'lastEvent' } });
-		expect(screen.getByText('Last event')).toBeTruthy();
+		const sortSelect = screen.getByLabelText('Sort') as HTMLSelectElement;
+		await fireEvent.change(sortSelect, { target: { value: 'lastEvent' } });
+		expect(sortSelect.value).toBe('lastEvent');
 
 		const publicToggles = screen.getAllByRole('switch');
 		await fireEvent.click(publicToggles[publicToggles.length - 1]);

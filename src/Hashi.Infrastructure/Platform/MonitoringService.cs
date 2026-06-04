@@ -78,6 +78,14 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
         var resources = await db.Resources.AsNoTracking()
             .Where(x => resourceIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, cancellationToken);
+        var dnsRecordIds = endpoints
+            .Where(x => x.DnsRecordId is not null)
+            .Select(x => x.DnsRecordId!.Value)
+            .Distinct()
+            .ToList();
+        var dnsRecords = await db.DnsRecords.AsNoTracking()
+            .Where(x => dnsRecordIds.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id, cancellationToken);
         var firewallIds = resources.Values
             .Where(x => x.FirewallHostId is not null)
             .Select(x => x.FirewallHostId!.Value)
@@ -89,7 +97,7 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
         var allFirewallHosts = await db.FirewallHosts.AsNoTracking().ToListAsync(cancellationToken);
 
         return endpoints
-            .Select(endpoint => ToResponse(endpoint, BuildMetadata(endpoint, resources, firewallHosts, allFirewallHosts)))
+            .Select(endpoint => ToResponse(endpoint, BuildMetadata(endpoint, resources, dnsRecords, firewallHosts, allFirewallHosts)))
             .ToList();
     }
 
@@ -291,7 +299,7 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
         metadata?.Host,
         metadata?.FirewallHostId,
         metadata?.FirewallHostName,
-        entity.ResourceId is not null);
+        entity.ResourceId is not null || entity.DnsRecordId is not null);
 
     public async Task<bool> IsPublicStatusEnabledAsync(CancellationToken cancellationToken = default)
     {
@@ -328,6 +336,7 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
     private static MonitorEndpointMetadata BuildMetadata(
         MonitorEndpointEntity endpoint,
         IReadOnlyDictionary<Guid, ResourceEntity> resources,
+        IReadOnlyDictionary<Guid, DnsRecordEntity> dnsRecords,
         IReadOnlyDictionary<Guid, FirewallHostEntity> firewallHosts,
         IReadOnlyList<FirewallHostEntity> allFirewallHosts)
     {
@@ -344,6 +353,15 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
                 FirstNonEmpty(resource.Domain, resource.TargetHost, TryReadHost(endpoint.Url)),
                 resource.FirewallHostId,
                 firewallHost?.Name);
+        }
+
+        if (endpoint.DnsRecordId is Guid dnsRecordId && dnsRecords.TryGetValue(dnsRecordId, out var dnsRecord))
+        {
+            return new MonitorEndpointMetadata(
+                "DNS",
+                FirstNonEmpty(dnsRecord.Name, TryReadHost(endpoint.Url)),
+                null,
+                null);
         }
 
         var matchedFirewallHost = allFirewallHosts.FirstOrDefault(host =>

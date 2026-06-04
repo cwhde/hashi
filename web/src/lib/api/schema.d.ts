@@ -4854,6 +4854,15 @@ export interface paths {
                         "application/json": components["schemas"]["NotificationRouteResponse"];
                     };
                 };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiErrorResponse"];
+                    };
+                };
             };
         };
         delete?: never;
@@ -4892,6 +4901,15 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["NotificationRouteResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiErrorResponse"];
                     };
                 };
             };
@@ -6077,12 +6095,13 @@ export interface components {
             /** Format: int32 */
             lastLatencyMs: null | number | string;
             /** Format: uuid */
-            resourceId: null | string;
-            resourceType: null | string;
-            host: null | string;
+            resourceId?: null | string;
+            resourceType?: null | string;
+            host?: null | string;
             /** Format: uuid */
-            firewallHostId: null | string;
-            firewallHostName: null | string;
+            firewallHostId?: null | string;
+            firewallHostName?: null | string;
+            /** @default false */
             provisioned: boolean;
         };
         MonitorEventResponse: {
@@ -6883,7 +6902,7 @@ export interface components {
             dashboardEnabled: boolean;
             dashboardDisplayName?: null | string;
             /** @default false */
-            monitoringEnabled?: boolean;
+            monitoringEnabled: boolean;
             monitoringDisplayName?: null | string;
         };
         VaultGenerateRecoveryKeyResponse: {

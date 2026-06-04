@@ -1,4 +1,4 @@
-﻿{
+{
   "openapi": "3.1.1",
   "info": {
     "title": "Hashi API",
@@ -3627,6 +3627,16 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -3664,6 +3674,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/NotificationRouteResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
                 }
               }
             }
@@ -6667,6 +6687,42 @@
               "string"
             ],
             "format": "int32"
+          },
+          "resourceId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "resourceType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "host": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "firewallHostId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "firewallHostName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "provisioned": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
