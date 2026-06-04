@@ -5944,6 +5944,14 @@ export interface components {
             lastCheckedAtUtc: null | string;
             /** Format: int32 */
             lastLatencyMs: null | number | string;
+            /** Format: uuid */
+            resourceId: null | string;
+            resourceType: null | string;
+            host: null | string;
+            /** Format: uuid */
+            firewallHostId: null | string;
+            firewallHostName: null | string;
+            provisioned: boolean;
         };
         MonitorEventResponse: {
             /** Format: uuid */
