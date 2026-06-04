@@ -150,6 +150,8 @@ public sealed class MonitorEndpointEntity
 
     public Guid? ResourceId { get; set; }
 
+    public Guid? DnsRecordId { get; set; }
+
     public DateTimeOffset? LastCheckedAtUtc { get; set; }
 
     public int? LastLatencyMs { get; set; }

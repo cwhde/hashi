@@ -5501,7 +5501,9 @@
           "ownership",
           "enabled",
           "dashboardEnabled",
-          "dashboardDisplayName"
+          "dashboardDisplayName",
+          "monitoringEnabled",
+          "monitoringDisplayName"
         ],
         "type": "object",
         "properties": {
@@ -5541,6 +5543,15 @@
             "type": "boolean"
           },
           "dashboardDisplayName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "monitoringEnabled": {
+            "type": "boolean"
+          },
+          "monitoringDisplayName": {
             "type": [
               "null",
               "string"
@@ -9834,6 +9845,16 @@
             "default": false
           },
           "dashboardDisplayName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "monitoringEnabled": {
+            "type": "boolean",
+            "default": false
+          },
+          "monitoringDisplayName": {
             "type": [
               "null",
               "string"

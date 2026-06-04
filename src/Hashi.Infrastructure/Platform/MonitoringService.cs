@@ -22,7 +22,8 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
             var checkType = ResolveResourceCheckType(resource);
             UpsertProvisionedEndpoint(
                 existing,
-                resource.Id,
+                resourceId: resource.Id,
+                dnsRecordId: null,
                 resource.Name,
                 BuildResourceMonitorUrl(resource, checkType),
                 checkType,
@@ -98,9 +99,9 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
             || request.Url is not null
             || request.CheckType is not null
             || request.Enabled is not null;
-        if (endpoint.ResourceId is not null && updatesManagedFields)
+        if ((endpoint.ResourceId is not null || endpoint.DnsRecordId is not null) && updatesManagedFields)
         {
-            throw new InvalidOperationException("Provisioned resource monitor endpoints are managed by the resource.");
+            throw new InvalidOperationException("Provisioned monitor endpoints are managed by their source.");
         }
 
         if (request.Name is not null)
@@ -140,9 +141,9 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
             return false;
         }
 
-        if (endpoint.ResourceId is not null)
+        if (endpoint.ResourceId is not null || endpoint.DnsRecordId is not null)
         {
-            throw new InvalidOperationException("Provisioned resource monitor endpoints are managed by the resource.");
+            throw new InvalidOperationException("Provisioned monitor endpoints are managed by their source.");
         }
 
         db.MonitorEndpoints.Remove(endpoint);
@@ -296,6 +297,7 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
         UpsertProvisionedEndpoint(
             existing,
             resourceId: null,
+            dnsRecordId: null,
             "Hashi API",
             internalUrls.ResolveUrl(appSettings, "/api/health"),
             "http",
@@ -313,6 +315,7 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
             UpsertProvisionedEndpoint(
                 existing,
                 resourceId: null,
+                dnsRecordId: null,
                 $"Firewall: {host.Name}",
                 $"icmp://{target}",
                 "icmp",
@@ -332,6 +335,7 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
             UpsertProvisionedEndpoint(
                 existing,
                 resourceId: null,
+                dnsRecordId: null,
                 $"Traefik SSH: {connection.Name}",
                 $"tcp://{host}:{port}",
                 "tcp",
@@ -346,6 +350,7 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
             UpsertProvisionedEndpoint(
                 existing,
                 resourceId: null,
+                dnsRecordId: null,
                 $"AdGuard: {connection.Name}",
                 connection.BaseUrl,
                 "http",
@@ -353,18 +358,30 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
         }
 
         var manualDnsRecords = await db.DnsRecords.AsNoTracking()
-            .Where(x => x.Enabled && x.Ownership == DnsOwnershipNames.User)
+            .Where(x => x.Enabled
+                && x.Ownership == DnsOwnershipNames.User
+                && x.MonitoringEnabled
+                && x.MonitoringDisplayName != null)
             .ToListAsync(cancellationToken);
         foreach (var record in manualDnsRecords)
         {
+            var monitorName = record.MonitoringDisplayName!.Trim();
+            if (monitorName.Length == 0)
+            {
+                continue;
+            }
+
             UpsertProvisionedEndpoint(
                 existing,
                 resourceId: null,
-                $"DNS: {record.Name}",
+                dnsRecordId: record.Id,
+                monitorName,
                 $"dns://{record.Name}",
                 "dns",
-                enabled: true);
+                enabled: record.Enabled);
         }
+
+        DisableOrphanedDnsMonitorEndpoints(existing, manualDnsRecords);
 
         var pulseAgents = await db.PulseAgents.AsNoTracking().ToListAsync(cancellationToken);
         foreach (var agent in pulseAgents)
@@ -378,6 +395,7 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
             UpsertProvisionedEndpoint(
                 existing,
                 resourceId: null,
+                dnsRecordId: null,
                 $"Pulse network: {agent.Name}",
                 $"icmp://{target}",
                 "icmp",
@@ -388,27 +406,44 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
     private MonitorEndpointEntity UpsertProvisionedEndpoint(
         List<MonitorEndpointEntity> existing,
         Guid? resourceId,
+        Guid? dnsRecordId,
         string name,
         string url,
         string checkType,
         bool enabled)
     {
-        var monitor = resourceId is Guid id
-            ? existing.SingleOrDefault(x => x.ResourceId == id)
-            : existing.SingleOrDefault(x => x.ResourceId == null && x.Name == name);
+        var monitor = resourceId is Guid resourceIdValue
+            ? existing.SingleOrDefault(x => x.ResourceId == resourceIdValue)
+            : dnsRecordId is Guid dnsRecordIdValue
+                ? existing.SingleOrDefault(x => x.DnsRecordId == dnsRecordIdValue)
+                : existing.SingleOrDefault(x => x.ResourceId == null && x.DnsRecordId == null && x.Name == name);
         if (monitor is null)
         {
-            monitor = new MonitorEndpointEntity { ResourceId = resourceId };
+            monitor = new MonitorEndpointEntity { ResourceId = resourceId, DnsRecordId = dnsRecordId };
             db.MonitorEndpoints.Add(monitor);
             existing.Add(monitor);
         }
 
         monitor.ResourceId = resourceId;
+        monitor.DnsRecordId = dnsRecordId;
         monitor.Name = name;
         monitor.Url = url;
         monitor.CheckType = NormalizeManualCheckType(checkType);
         monitor.Enabled = enabled;
         return monitor;
+    }
+
+    private static void DisableOrphanedDnsMonitorEndpoints(
+        List<MonitorEndpointEntity> existing,
+        IReadOnlyCollection<DnsRecordEntity> monitoredRecords)
+    {
+        var monitoredRecordIds = monitoredRecords.Select(x => x.Id).ToHashSet();
+        foreach (var monitor in existing.Where(m =>
+                     m.DnsRecordId is Guid id
+                     && !monitoredRecordIds.Contains(id)))
+        {
+            monitor.Enabled = false;
+        }
     }
 
     private static string ResolveResourceCheckType(ResourceEntity resource)

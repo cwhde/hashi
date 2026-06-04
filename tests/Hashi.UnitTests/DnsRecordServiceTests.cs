@@ -322,6 +322,105 @@ public sealed class DnsRecordServiceTests
         Assert.Equal("Portal", created.DashboardDisplayName);
     }
 
+    [Fact]
+    public async Task Monitoring_selection_requires_display_name_for_manual_dns_record()
+    {
+        await using var db = CreateDb();
+        var zone = await SeedZoneAsync(db);
+        var service = CreateService(db);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.CreateManualAsync(
+                zone.Id,
+                "status.example.com",
+                "A",
+                "203.0.113.10",
+                300,
+                true,
+                monitoringEnabled: true,
+                monitoringDisplayName: " "));
+
+        Assert.Contains("Monitoring display name is required", ex.Message);
+
+        var created = await service.CreateManualAsync(
+            zone.Id,
+            "status.example.com",
+            "A",
+            "203.0.113.10",
+            300,
+            true,
+            monitoringEnabled: true,
+            monitoringDisplayName: " Status ");
+
+        Assert.True(created.MonitoringEnabled);
+        Assert.Equal("Status", created.MonitoringDisplayName);
+        Assert.False(created.DashboardEnabled);
+        Assert.Null(created.DashboardDisplayName);
+    }
+
+    [Fact]
+    public async Task Update_manual_record_clears_monitoring_display_name_when_monitoring_disabled()
+    {
+        await using var db = CreateDb();
+        var zone = await SeedZoneAsync(db);
+        var service = CreateService(db);
+
+        var created = await service.CreateManualAsync(
+            zone.Id,
+            "status.example.com",
+            "A",
+            "203.0.113.10",
+            300,
+            true,
+            monitoringEnabled: true,
+            monitoringDisplayName: "Status");
+
+        var updated = await service.UpdateManualAsync(
+            created.Id,
+            zone.Id,
+            "status.example.com",
+            "A",
+            "203.0.113.10",
+            300,
+            true,
+            monitoringEnabled: false,
+            monitoringDisplayName: null);
+
+        Assert.NotNull(updated);
+        Assert.False(updated!.MonitoringEnabled);
+        Assert.Null(updated.MonitoringDisplayName);
+    }
+
+    [Fact]
+    public async Task Update_manual_record_rejects_monitoring_opt_in_without_display_name()
+    {
+        await using var db = CreateDb();
+        var zone = await SeedZoneAsync(db);
+        var service = CreateService(db);
+
+        var created = await service.CreateManualAsync(
+            zone.Id,
+            "status.example.com",
+            "A",
+            "203.0.113.10",
+            300,
+            true);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.UpdateManualAsync(
+                created.Id,
+                zone.Id,
+                "status.example.com",
+                "A",
+                "203.0.113.10",
+                300,
+                true,
+                monitoringEnabled: true,
+                monitoringDisplayName: ""));
+
+        Assert.Contains("Monitoring display name is required", ex.Message);
+    }
+
     [Theory]
     [InlineData("MX", "10 mail1.example.com", "20 mail2.example.com")]
     [InlineData("TXT", "v=spf1 include:one.example.com", "v=spf1 include:two.example.com")]

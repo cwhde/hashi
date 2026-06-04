@@ -38,6 +38,8 @@ export type ManualDnsRecordRequest = {
 	enabled: boolean;
 	dashboardEnabled: boolean;
 	dashboardDisplayName: string | null;
+	monitoringEnabled: boolean;
+	monitoringDisplayName: string | null;
 };
 export type DnsImportApplyRequest = Schemas['DnsImportApplyRequest'];
 export type DnsImportDecision = Schemas['DnsImportDecisionResponse'];
