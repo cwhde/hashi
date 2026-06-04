@@ -128,7 +128,8 @@ public sealed class AdminApiAuthMiddleware(RequestDelegate next)
             return true;
         }
 
-        if (value.StartsWith("/api/security/blocklist", StringComparison.OrdinalIgnoreCase))
+        if (value.StartsWith("/api/security/blocklist", StringComparison.OrdinalIgnoreCase)
+            || value.StartsWith("/api/security/blocklists", StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }

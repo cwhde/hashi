@@ -603,6 +603,113 @@ public static class SecurityEndpoints
             var result = await security.SyncBlocklistToAllFirewallsAsync(ct);
             return TypedResults.Ok(result);
         }).Produces<BlocklistSyncResponse>(StatusCodes.Status200OK);
+        group.MapGet("/blocklists", async (BlocklistSourceManagementService blocklists, CancellationToken ct) =>
+            TypedResults.Ok(await blocklists.ListAsync(ct)))
+            .Produces<IEnumerable<BlocklistSourceResponse>>(StatusCodes.Status200OK);
+        group.MapPost("/blocklists", async Task<IResult> (
+            UpsertBlocklistSourceRequest request,
+            BlocklistSourceManagementService blocklists,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                return TypedResults.Ok(await blocklists.CreateAsync(request, ct));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        })
+            .Produces<BlocklistSourceResponse>(StatusCodes.Status200OK)
+            .Produces<ApiErrorResponse>(StatusCodes.Status400BadRequest);
+        group.MapGet("/blocklists/{id:guid}", async Task<IResult> (
+            Guid id,
+            BlocklistSourceManagementService blocklists,
+            CancellationToken ct) =>
+        {
+            var source = await blocklists.GetAsync(id, ct);
+            return source is null ? TypedResults.NotFound() : TypedResults.Ok(source);
+        })
+            .Produces<BlocklistSourceResponse>(StatusCodes.Status200OK);
+        group.MapPatch("/blocklists/{id:guid}", async Task<IResult> (
+            Guid id,
+            UpsertBlocklistSourceRequest request,
+            BlocklistSourceManagementService blocklists,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                var source = await blocklists.UpdateAsync(id, request, ct);
+                return source is null ? TypedResults.NotFound() : TypedResults.Ok(source);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        })
+            .Produces<BlocklistSourceResponse>(StatusCodes.Status200OK)
+            .Produces<ApiErrorResponse>(StatusCodes.Status400BadRequest);
+        group.MapDelete("/blocklists/{id:guid}", async Task<IResult> (
+            Guid id,
+            BlocklistSourceManagementService blocklists,
+            CancellationToken ct) =>
+            await blocklists.DeleteAsync(id, ct) ? TypedResults.NoContent() : TypedResults.NotFound());
+        group.MapPost("/blocklists/{id:guid}/fetch-preview", async Task<IResult> (
+            Guid id,
+            BlocklistSourceManagementService blocklists,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                var preview = await blocklists.PreviewAsync(id, ct);
+                return preview is null ? TypedResults.NotFound() : TypedResults.Ok(preview);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        })
+            .Produces<BlocklistFetchPreviewResponse>(StatusCodes.Status200OK)
+            .Produces<ApiErrorResponse>(StatusCodes.Status400BadRequest);
+        group.MapPost("/blocklists/{id:guid}/enable", async Task<IResult> (
+            Guid id,
+            BlocklistSourceManagementService blocklists,
+            CancellationToken ct) =>
+        {
+            var result = await blocklists.EnableAsync(id, ct);
+            return result is null ? TypedResults.NotFound() : TypedResults.Ok(result);
+        })
+            .Produces<BlocklistSourceMutationResponse>(StatusCodes.Status200OK);
+        group.MapPost("/blocklists/{id:guid}/disable", async Task<IResult> (
+            Guid id,
+            BlocklistSourceManagementService blocklists,
+            CancellationToken ct) =>
+        {
+            var result = await blocklists.DisableAsync(id, ct);
+            return result is null ? TypedResults.NotFound() : TypedResults.Ok(result);
+        })
+            .Produces<BlocklistSourceMutationResponse>(StatusCodes.Status200OK);
+        group.MapPost("/blocklists/{id:guid}/refresh", async Task<IResult> (
+            Guid id,
+            BlocklistSourceManagementService blocklists,
+            CancellationToken ct) =>
+        {
+            var result = await blocklists.RefreshAsync(id, ct);
+            return result is null ? TypedResults.NotFound() : TypedResults.Ok(result);
+        })
+            .Produces<BlocklistSourceMutationResponse>(StatusCodes.Status200OK);
+        group.MapGet("/blocklists/{id:guid}/runs", async (
+            Guid id,
+            BlocklistSourceManagementService blocklists,
+            CancellationToken ct) =>
+            TypedResults.Ok(await blocklists.ListRunsAsync(id, ct)))
+            .Produces<IEnumerable<BlocklistFetchRunResponse>>(StatusCodes.Status200OK);
+        group.MapGet("/blocklists/{id:guid}/entries", async (
+            Guid id,
+            BlocklistSourceManagementService blocklists,
+            CancellationToken ct) =>
+            TypedResults.Ok(await blocklists.ListEntriesAsync(id, ct)))
+            .Produces<IEnumerable<BlocklistEntryResponse>>(StatusCodes.Status200OK);
         return app;
     }
 }
