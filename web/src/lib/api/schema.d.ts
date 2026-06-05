@@ -338,6 +338,135 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/edge-challenge/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    returnUrl?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/edge-challenge/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    returnUrl?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CaptchaChallengeStatusResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/edge-challenge/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CaptchaChallengeVerifyRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CaptchaChallengeVerifyResponse"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CaptchaChallengeVerifyResponse"];
+                    };
+                };
+                /** @description Service Unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CaptchaChallengeVerifyResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/waf/{slug}/middleware": {
         parameters: {
             query?: never;
@@ -3615,201 +3744,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/status/endpoints": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["MonitorEndpointResponse"][];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["CreateMonitorEndpointRequest"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["MonitorEndpointResponse"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/status/endpoints/{endpointId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    endpointId: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["UpdateMonitorEndpointRequest"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["MonitorEndpointResponse"];
-                    };
-                };
-            };
-        };
-        post?: never;
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    endpointId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/status/rollups": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: {
-                    endpointId?: string;
-                    intervalMinutes?: number | string;
-                    hours?: number | string;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["MonitorRollupResponse"][];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/status/events": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: {
-                    endpointId?: string;
-                    hours?: number | string;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["MonitorEventResponse"][];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/settings/edge-sso/providers": {
         parameters: {
             query?: never;
@@ -4078,6 +4012,130 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/security/captcha/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CaptchaSettingsResponse"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CaptchaSettingsRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CaptchaSettingsResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiErrorResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/captcha/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CaptchaTestRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CaptchaTestResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CaptchaTestResponse"];
+                    };
+                };
+                /** @description Service Unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CaptchaTestResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/security/access-log": {
         parameters: {
             query?: never;
@@ -4187,6 +4245,1039 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/security/subjects/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    q?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SecuritySubjectSearchResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/subjects/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SecuritySubjectDetailResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/subjects/{id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    eventType?: string;
+                    resourceId?: string;
+                    limit?: number | string;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SecurityEventResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/subjects/{id}/buckets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    hours?: number | string;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SecurityRequestBucketResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/subjects/{id}/effective-decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SecurityEffectiveDecisionResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/manual-entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpsertManualSecurityEntryRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ManualSecurityEntryResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/manual-entries/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateManualSecurityEntryRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ManualSecurityEntryResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiErrorResponse"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/security/manual-entries/{id}/expire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ManualSecurityEntryResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/blocks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateSecurityBlockRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SecurityBlockMutationResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/blocks/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateSecurityBlockRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SecurityBlockMutationResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiErrorResponse"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/security/blocks/{id}/extend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SecurityBlockDurationRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SecurityBlockMutationResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/blocks/{id}/shorten": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SecurityBlockDurationRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SecurityBlockMutationResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/blocks/{id}/make-permanent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SecurityBlockMutationResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/blocks/{id}/expire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SecurityBlockMutationResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/blocks/{id}/preview-firewall-sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FirewallPlanPreviewResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/blocklists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BlocklistSourceResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpsertBlocklistSourceRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BlocklistSourceResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/blocklists/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BlocklistSourceResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpsertBlocklistSourceRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BlocklistSourceResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiErrorResponse"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/security/blocklists/{id}/fetch-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BlocklistFetchPreviewResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/blocklists/{id}/enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BlocklistSourceMutationResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/blocklists/{id}/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BlocklistSourceMutationResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/blocklists/{id}/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BlocklistSourceMutationResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/blocklists/{id}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BlocklistFetchRunResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/blocklists/{id}/entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BlocklistEntryResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/pulse/agents": {
         parameters: {
             query?: never;
@@ -4245,41 +5336,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/pulse/agents/{agentId}/revoke": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    agentId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/pulse/agents/{agentId}/resolved-targets": {
         parameters: {
             query?: never;
@@ -4311,6 +5367,41 @@ export interface paths {
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pulse/agents/{agentId}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    agentId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -4454,6 +5545,138 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content?: never;
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/internal-agent-dns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InternalAgentDnsSettingsResponse"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["InternalAgentDnsSettingsRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InternalAgentDnsSettingsResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/internal-agent-dns/preview-sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdGuardRewritePlanResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/internal-agent-dns/apply-sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AdGuardRewriteApplyRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdGuardRewriteApplyResponse"];
+                    };
                 };
             };
         };
@@ -5567,16 +6790,18 @@ export interface components {
             name: string;
             baseUrl: string;
             enabled: boolean;
-            target: null | components["schemas"]["ConnectionTargetResponse"];
-            resolvedBaseUrl: null | string;
+            target?: null | components["schemas"]["ConnectionTargetResponse"];
+            resolvedBaseUrl?: null | string;
+            /** @default unresolved */
             targetStatus: string;
-            targetError: null | string;
+            targetError?: null | string;
         };
         AdGuardConnectionTestResponse: {
             connected: boolean;
             error: null | string;
-            target: null | components["schemas"]["ConnectionTargetResponse"];
-            resolvedBaseUrl: null | string;
+            target?: null | components["schemas"]["ConnectionTargetResponse"];
+            resolvedBaseUrl?: null | string;
+            /** @default false */
             targetStale: boolean;
         };
         AdGuardRewriteApplyRequest: {
@@ -5657,6 +6882,110 @@ export interface components {
             /** Format: int32 */
             intervalSeconds: number | string;
         };
+        BlocklistEntryResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            sourceId: null | string;
+            subjectType: string;
+            value: string;
+            normalizedValue: string;
+            scope: string;
+            type: string;
+            reason: string;
+            source: string;
+            enabled: boolean;
+            enforcementMode: string;
+            syncedToFirewall: boolean;
+            /** Format: date-time */
+            createdAtUtc: string;
+            /** Format: date-time */
+            expiresAtUtc: null | string;
+            /** Format: date-time */
+            lastHitAtUtc: null | string;
+            metadataJson: null | string;
+        };
+        BlocklistFetchPreviewResponse: {
+            /** Format: uuid */
+            sourceId: string;
+            sourceName: string;
+            /** Format: int32 */
+            parsedCount: number | string;
+            /** Format: int32 */
+            ignoredCount: number | string;
+            /** Format: int32 */
+            errorCount: number | string;
+            contentHash: null | string;
+            notModified: boolean;
+            entries: components["schemas"]["BlocklistPreviewEntryResponse"][];
+            errors: string[];
+            warnings: string[];
+        };
+        BlocklistFetchRunResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            blocklistSourceId: string;
+            /** Format: date-time */
+            startedAtUtc: string;
+            /** Format: date-time */
+            completedAtUtc: null | string;
+            status: string;
+            /** Format: int32 */
+            httpStatusCode: null | number | string;
+            /** Format: int32 */
+            entryCount: number | string;
+            /** Format: int32 */
+            addedCount: number | string;
+            /** Format: int32 */
+            removedCount: number | string;
+            /** Format: int32 */
+            unchangedCount: number | string;
+            contentHash: null | string;
+            error: null | string;
+        };
+        BlocklistPreviewEntryResponse: {
+            subjectType: string;
+            value: string;
+            normalizedValue: string;
+            /** Format: int32 */
+            lineNumber: null | number | string;
+        };
+        BlocklistSourceMutationResponse: {
+            source: components["schemas"]["BlocklistSourceResponse"];
+            run: null | components["schemas"]["BlocklistFetchRunResponse"];
+            preview: null | components["schemas"]["BlocklistFetchPreviewResponse"];
+            firewallSyncRecommended: boolean;
+            /** Format: int32 */
+            pendingFirewallEntryCount: number | string;
+            warnings: string[];
+        };
+        BlocklistSourceResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            sourceUrl: string;
+            description: string;
+            format: string;
+            enforcementMode: string;
+            canFirewallEnforce: boolean;
+            enabled: boolean;
+            allowHttp: boolean;
+            /** Format: int32 */
+            refreshIntervalHours: number | string;
+            lastFetchStatus: string;
+            lastFetchError: null | string;
+            /** Format: date-time */
+            lastFetchedAtUtc: null | string;
+            /** Format: int64 */
+            entryCount: number | string;
+            isStale: boolean;
+            metadataJson: null | string;
+            /** Format: date-time */
+            createdAtUtc: string;
+            /** Format: date-time */
+            updatedAtUtc: string;
+        };
         BlocklistSyncResponse: {
             synced: boolean;
             /** Format: int32 */
@@ -5672,6 +7001,88 @@ export interface components {
         BootstrapLoginRequest: {
             username: string;
             password: string;
+        };
+        CaptchaChallengeStatusResponse: {
+            enabled: boolean;
+            challengeRequired: boolean;
+            reason: null | string;
+            siteKey: null | string;
+            capApiEndpoint: null | string;
+            returnUrl: null | string;
+            safeReturnUrl: string;
+        };
+        CaptchaChallengeVerifyRequest: {
+            token: string;
+            returnUrl: null | string;
+        };
+        CaptchaChallengeVerifyResponse: {
+            verified: boolean;
+            challengeCleared: boolean;
+            status: string;
+            redirectUrl: null | string;
+            error: null | string;
+        };
+        CaptchaSettingsRequest: {
+            enabled: boolean;
+            publicChallengeBaseUrl: null | string;
+            siteKey: null | string;
+            secretKey: null | string;
+            /** Format: uuid */
+            secretKeySecretId: null | string;
+            /** Format: int32 */
+            verificationTimeoutSeconds: null | number | string;
+            instrumentationExpected: null | boolean;
+            headlessDetectionExpected: null | boolean;
+            /** Format: uuid */
+            capAdminResourceId: null | string;
+            capAdminDomain: null | string;
+            /** Format: uuid */
+            publicChallengeResourceId: null | string;
+            publicChallengeDomain: null | string;
+            challengeResetMode: null | string;
+            /** Format: int32 */
+            challengeDecayPercent: null | number | string;
+            /** Format: int32 */
+            minimumRepeatChallengeSeconds: null | number | string;
+            /** Format: int32 */
+            maximumFailuresBeforeEscalation: null | number | string;
+            /** Format: int32 */
+            maximumRequestsWhileChallenged: null | number | string;
+        };
+        CaptchaSettingsResponse: {
+            enabled: boolean;
+            publicChallengeBaseUrl: null | string;
+            siteKey: null | string;
+            hasSecretKey: boolean;
+            /** Format: int32 */
+            verificationTimeoutSeconds: number | string;
+            instrumentationExpected: boolean;
+            headlessDetectionExpected: boolean;
+            /** Format: uuid */
+            capAdminResourceId: null | string;
+            capAdminDomain: null | string;
+            /** Format: uuid */
+            publicChallengeResourceId: null | string;
+            publicChallengeDomain: null | string;
+            challengeResetMode: string;
+            /** Format: int32 */
+            challengeDecayPercent: number | string;
+            /** Format: int32 */
+            minimumRepeatChallengeSeconds: number | string;
+            /** Format: int32 */
+            maximumFailuresBeforeEscalation: number | string;
+            /** Format: int32 */
+            maximumRequestsWhileChallenged: number | string;
+            /** Format: date-time */
+            updatedAtUtc: string;
+        };
+        CaptchaTestRequest: {
+            token: string;
+        };
+        CaptchaTestResponse: {
+            succeeded: boolean;
+            status: string;
+            error: null | string;
         };
         CategorySettingsRequest: {
             settingsJson: null | string;
@@ -5750,7 +7161,7 @@ export interface components {
             pulseIpMode: string;
             privateCandidateSelector: string;
             /** Format: int32 */
-            port: number;
+            port: number | string;
             scheme: string;
             pathPrefix: null | string;
             tlsValidationMode: string;
@@ -5763,7 +7174,7 @@ export interface components {
         };
         CreateAdGuardConnectionRequest: {
             name: string;
-            baseUrl?: null | string;
+            baseUrl: null | string;
             password: string;
             target?: null | components["schemas"]["ConnectionTargetRequest"];
         };
@@ -5800,15 +7211,6 @@ export interface components {
             zoneName: string;
             /** Format: int32 */
             defaultTtl: number | string;
-        };
-        CreateMonitorEndpointRequest: {
-            name: string;
-            url: string;
-            checkType: string;
-            /** @default true */
-            enabled: boolean;
-            /** @default false */
-            publicStatusEnabled: boolean;
         };
         CreateNotificationProviderRequest: {
             name: string;
@@ -5893,6 +7295,17 @@ export interface components {
              */
             runTimeoutSeconds: number | string;
             environmentVariables?: null | components["schemas"]["ScriptEnvironmentVariableRequest"][];
+        };
+        CreateSecurityBlockRequest: {
+            subjectType: string;
+            subjectValue: string;
+            blockType: string;
+            reason: null | string;
+            /** Format: date-time */
+            expiresAtUtc: null | string;
+            isPermanent: null | boolean;
+            /** @default false */
+            firewallEnforced: boolean;
         };
         CreateSshConnectionRequest: {
             name: string;
@@ -6166,40 +7579,71 @@ export interface components {
             serviceSyncVaultReady: boolean;
             providerSyncPaused: boolean;
         };
-        MonitorEndpointResponse: {
+        InternalAgentDnsAgentSettingsRequest: {
             /** Format: uuid */
-            id: string;
-            name: string;
-            url: string;
-            checkType: string;
+            pulseAgentId: string;
             enabled: boolean;
-            publicStatusEnabled: boolean;
-            status: string;
-            /** Format: date-time */
-            lastCheckedAtUtc: null | string;
-            /** Format: int32 */
-            lastLatencyMs: null | number | string;
-            /** Format: uuid */
-            resourceId?: null | string;
-            resourceType?: null | string;
-            host?: null | string;
-            /** Format: uuid */
-            firewallHostId?: null | string;
-            firewallHostName?: null | string;
-            /** @default false */
-            provisioned: boolean;
+            nameOverride: null | string;
+            ipMode: null | string;
+            keepLastRewriteWhenStale: null | boolean;
         };
-        MonitorEventResponse: {
+        InternalAgentDnsAgentSettingsResponse: {
             /** Format: uuid */
             id: string;
             /** Format: uuid */
-            monitorEndpointId: string;
-            previousStatus: string;
-            newStatus: string;
-            /** Format: int32 */
-            latencyMs: null | number | string;
+            pulseAgentId: string;
+            enabled: boolean;
+            nameOverride: null | string;
+            ipMode: string;
+            keepLastRewriteWhenStale: boolean;
             /** Format: date-time */
-            occurredAtUtc: string;
+            updatedAtUtc: string;
+        };
+        InternalAgentDnsSettingsRequest: {
+            enabled: boolean;
+            domain: null | string;
+            keepLastRewriteWhenAgentStale: null | boolean;
+            /** Format: uuid */
+            adGuardConnectionId: null | string;
+            agents: null | components["schemas"]["InternalAgentDnsAgentSettingsRequest"][];
+        };
+        InternalAgentDnsSettingsResponse: {
+            enabled: boolean;
+            domain: string;
+            keepLastRewriteWhenAgentStale: boolean;
+            /** Format: uuid */
+            adGuardConnectionId: null | string;
+            lastSyncStatus: string;
+            lastAppliedHash: null | string;
+            /** Format: date-time */
+            updatedAtUtc: string;
+            agents: components["schemas"]["InternalAgentDnsAgentSettingsResponse"][];
+        };
+        ManualSecurityEntryResponse: {
+            /** Format: uuid */
+            id: string;
+            subjectType: string;
+            subjectValue: string;
+            normalizedValue: string;
+            entryType: string;
+            scopeType: string;
+            scopeId: null | string;
+            reason: null | string;
+            /** Format: uuid */
+            createdByAdminId: null | string;
+            /** Format: date-time */
+            createdAtUtc: string;
+            /** Format: date-time */
+            expiresAtUtc: null | string;
+            isPermanent: boolean;
+            bypassBlocking: boolean;
+            bypassAdaptiveEscalation: boolean;
+            bypassRateLimit: boolean;
+            bypassChallenge: boolean;
+            bypassSso: boolean;
+            enabled: boolean;
+            /** Format: date-time */
+            lastHitAtUtc: null | string;
         };
         MonitoringSettingsRequest: {
             /** Format: int32 */
@@ -6222,22 +7666,6 @@ export interface components {
             monitorDegradedLatencyMs: number | string;
             /** Format: date-time */
             updatedAtUtc: null | string;
-        };
-        MonitorRollupResponse: {
-            /** Format: uuid */
-            monitorEndpointId: string;
-            /** Format: date-time */
-            bucketStartUtc: string;
-            /** Format: int32 */
-            intervalMinutes: number | string;
-            /** Format: int32 */
-            sampleCount: number | string;
-            /** Format: int32 */
-            upCount: number | string;
-            /** Format: int32 */
-            downCount: number | string;
-            /** Format: double */
-            averageLatencyMs: number | string;
         };
         NotificationProviderResponse: {
             /** Format: uuid */
@@ -6368,21 +7796,6 @@ export interface components {
             /** Format: date-time */
             dnsPendingAtUtc: null | string;
         };
-        PulseResolvedTargetResponse: {
-            /** Format: uuid */
-            pulseAgentId: string;
-            agentName: string;
-            ipMode: string;
-            selectedIp: null | string;
-            publicIp: null | string;
-            privateIpv4Candidates: string[];
-            privateIpv6Candidates: string[];
-            /** Format: date-time */
-            lastSeenAtUtc: null | string;
-            status: string;
-            resolvedIp: null | string;
-            error: null | string;
-        };
         PulseDockerMetadataRequest: {
             containerId: null | string;
             image: null | string;
@@ -6403,6 +7816,21 @@ export interface components {
         PulseInstallResponse: {
             linuxInstallScript: string;
             dockerComposeSnippet: string;
+        };
+        PulseResolvedTargetResponse: {
+            /** Format: uuid */
+            pulseAgentId: string;
+            agentName: string;
+            ipMode: string;
+            selectedIp: null | string;
+            publicIp: null | string;
+            privateIpv4Candidates: string[];
+            privateIpv6Candidates: string[];
+            /** Format: date-time */
+            lastSeenAtUtc: null | string;
+            status: string;
+            resolvedIp?: null | string;
+            error?: null | string;
         };
         RemoteWriteRequest: {
             remotePath: string;
@@ -6603,6 +8031,16 @@ export interface components {
             purpose: string;
             plaintextBase64: string;
         };
+        SecurityBlockDurationRequest: {
+            /** Format: int32 */
+            durationSeconds: number | string;
+        };
+        SecurityBlockMutationResponse: {
+            manualEntry: components["schemas"]["ManualSecurityEntryResponse"];
+            state: null | components["schemas"]["SecuritySubjectStateResponse"];
+            firewallSyncRecommended: boolean;
+            firewallPreview: null | components["schemas"]["FirewallPlanPreviewResponse"];
+        };
         SecurityDashboardResponse: {
             /** Format: int64 */
             allowed: number | string;
@@ -6635,9 +8073,55 @@ export interface components {
             /** Format: int64 */
             securityEventCount: number | string;
         };
+        SecurityEffectiveDecisionResponse: {
+            /** Format: uuid */
+            subjectId: string;
+            decision: string;
+            action: string;
+            reason: string;
+            explanation: string[];
+            matchedManualEntryIds: string[];
+            matchedBlocklistEntryIds: string[];
+            matchedResourceRuleIds: string[];
+            state: null | components["schemas"]["SecuritySubjectStateResponse"];
+        };
+        SecurityEventResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            occurredAtUtc: string;
+            subjectType: null | string;
+            subjectValue: null | string;
+            normalizedSubjectValue: null | string;
+            /** Format: uuid */
+            resourceId: null | string;
+            /** Format: uuid */
+            connectionId: null | string;
+            eventType: null | string;
+            severity: null | string;
+            decision: null | string;
+            source: null | string;
+            reason: null | string;
+            requestMethod: null | string;
+            requestPath: null | string;
+            /** Format: int32 */
+            statusCode: null | number | string;
+            requestId: null | string;
+            metadataJson: null | string;
+        };
         SecurityFilterOption: {
             value: string;
             label: string;
+        };
+        SecurityFirewallApplicationResponse: {
+            /** Format: uuid */
+            firewallHostId: null | string;
+            firewallHostName: null | string;
+            enforcement: string;
+            status: string;
+            /** Format: date-time */
+            appliedAtUtc: null | string;
+            lastError: null | string;
         };
         SecurityFirewallHostOption: {
             /** Format: uuid */
@@ -6660,12 +8144,101 @@ export interface components {
             host?: null | string;
             path?: null | string;
         };
+        SecurityRequestBucketResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: date-time */
+            bucketStartUtc: string;
+            /** Format: int32 */
+            bucketSizeSeconds: number | string;
+            subjectType: string;
+            normalizedSubjectValue: string;
+            /** Format: uuid */
+            resourceId: null | string;
+            rootDomain: null | string;
+            country: null | string;
+            region: null | string;
+            asn: null | string;
+            method: string;
+            pathPrefix: string;
+            /** Format: int32 */
+            statusClass: number | string;
+            /** Format: int64 */
+            requestCount: number | string;
+            /** Format: int64 */
+            blockedCount: number | string;
+            /** Format: int64 */
+            challengedCount: number | string;
+            /** Format: int64 */
+            challengeIgnoredCount: number | string;
+            /** Format: int64 */
+            failedChallengeCount: number | string;
+        };
         SecurityResourceEnforcementItem: {
             resource: string;
             /** Format: int64 */
             blocked: number | string;
             /** Format: int64 */
             challenged: number | string;
+        };
+        SecuritySubjectDetailResponse: {
+            subject: components["schemas"]["SecuritySubjectSummaryResponse"];
+            state: null | components["schemas"]["SecuritySubjectStateResponse"];
+            manualEntries: components["schemas"]["ManualSecurityEntryResponse"][];
+            blocklistEntries: components["schemas"]["BlocklistEntryResponse"][];
+            resourceRules: components["schemas"]["ResourceRuleResponse"][];
+            firewallApplications: components["schemas"]["SecurityFirewallApplicationResponse"][];
+        };
+        SecuritySubjectSearchResponse: {
+            query: string;
+            results: components["schemas"]["SecuritySubjectSummaryResponse"][];
+        };
+        SecuritySubjectStateResponse: {
+            /** Format: uuid */
+            securitySubjectId: string;
+            challengeRequired: boolean;
+            /** Format: date-time */
+            challengeRequiredSinceUtc: null | string;
+            challengeReason: null | string;
+            /** Format: uuid */
+            challengeResourceId: null | string;
+            /** Format: int32 */
+            challengeAttempts: number | string;
+            /** Format: int32 */
+            requestsWhileChallenged: number | string;
+            /** Format: int32 */
+            failedChallengeCount: number | string;
+            /** Format: int32 */
+            successfulChallengeCount: number | string;
+            /** Format: date-time */
+            lastChallengeSolvedAtUtc: null | string;
+            /** Format: date-time */
+            softBlockedUntilUtc: null | string;
+            /** Format: date-time */
+            firewallBlockedUntilUtc: null | string;
+            manualAllowActive: boolean;
+            manualBlockActive: boolean;
+            lastEscalationReason: null | string;
+            /** Format: date-time */
+            lastEscalationAtUtc: null | string;
+            /** Format: date-time */
+            updatedAtUtc: string;
+        };
+        SecuritySubjectSummaryResponse: {
+            /** Format: uuid */
+            id: string;
+            subjectType: string;
+            subjectValue: string;
+            normalizedValue: string;
+            currentState: string;
+            /** Format: date-time */
+            firstSeenAtUtc: string;
+            /** Format: date-time */
+            lastSeenAtUtc: string;
+            lastCountry: null | string;
+            lastRegion: null | string;
+            lastAsn: null | string;
+            lastAsOrg: null | string;
         };
         SecurityTopBlockedIpItem: {
             ip: string;
@@ -6889,12 +8462,17 @@ export interface components {
             /** Format: int32 */
             rollbackTimerSeconds?: null | number | string;
         };
-        UpdateMonitorEndpointRequest: {
-            name?: null | string;
-            url?: null | string;
-            checkType?: null | string;
-            enabled?: null | boolean;
-            publicStatusEnabled?: null | boolean;
+        UpdateManualSecurityEntryRequest: {
+            reason: null | string;
+            /** Format: date-time */
+            expiresAtUtc: null | string;
+            isPermanent: null | boolean;
+            bypassBlocking: null | boolean;
+            bypassAdaptiveEscalation: null | boolean;
+            bypassRateLimit: null | boolean;
+            bypassChallenge: null | boolean;
+            bypassSso: null | boolean;
+            enabled: null | boolean;
         };
         UpdateNotificationProviderRequest: {
             name: null | string;
@@ -6982,12 +8560,36 @@ export interface components {
             runTimeoutSeconds?: null | number | string;
             environmentVariables?: null | components["schemas"]["ScriptEnvironmentVariableRequest"][];
         };
+        UpdateSecurityBlockRequest: {
+            reason: null | string;
+            /** Format: date-time */
+            expiresAtUtc: null | string;
+            isPermanent: null | boolean;
+            enabled: null | boolean;
+            firewallEnforced: null | boolean;
+        };
         UpdateTraefikUserMiddlewareRequest: {
             yaml: string;
         };
         UpsertAdGuardRewriteRequest: {
             domain: string;
             answer: string;
+        };
+        UpsertBlocklistSourceRequest: {
+            name: string;
+            sourceUrl: string;
+            description: null | string;
+            format: string;
+            enforcementMode: string;
+            canFirewallEnforce: boolean;
+            enabled: boolean;
+            allowHttp: boolean;
+            /** Format: int32 */
+            refreshIntervalHours: null | number | string;
+            /** Format: int32 */
+            csvColumnIndex?: null | number | string;
+            jsonArrayField?: null | string;
+            jsonValueField?: null | string;
         };
         UpsertDnsRecordRequest: {
             /** Format: uuid */
@@ -7004,6 +8606,23 @@ export interface components {
             /** @default false */
             monitoringEnabled: boolean;
             monitoringDisplayName?: null | string;
+        };
+        UpsertManualSecurityEntryRequest: {
+            subjectType: string;
+            subjectValue: string;
+            entryType: string;
+            scopeType: string;
+            scopeId: null | string;
+            reason: null | string;
+            /** Format: date-time */
+            expiresAtUtc: null | string;
+            isPermanent: null | boolean;
+            bypassBlocking: null | boolean;
+            bypassAdaptiveEscalation: null | boolean;
+            bypassRateLimit: null | boolean;
+            bypassChallenge: null | boolean;
+            bypassSso: null | boolean;
+            enabled: null | boolean;
         };
         VaultGenerateRecoveryKeyResponse: {
             recoveryKey: string;

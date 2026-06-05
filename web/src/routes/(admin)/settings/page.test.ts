@@ -7,7 +7,11 @@ const apiMock = vi.hoisted(() => ({
 	getGeneralSettings: vi.fn(),
 	getDashboardSettings: vi.fn(),
 	updateDashboardSettings: vi.fn(),
-	listNotificationProviders: vi.fn()
+	listNotificationProviders: vi.fn(),
+	getCaptchaSettings: vi.fn(),
+	getInternalAgentDnsSettings: vi.fn(),
+	listAdGuardConnections: vi.fn(),
+	getGeoIpSettings: vi.fn()
 }));
 
 vi.mock('$lib/api/client', () => ({
@@ -39,6 +43,47 @@ function mockSettingsApi() {
 	});
 	apiMock.updateDashboardSettings.mockResolvedValue({});
 	apiMock.listNotificationProviders.mockResolvedValue([]);
+	apiMock.getCaptchaSettings.mockResolvedValue({
+		enabled: false,
+		publicChallengeBaseUrl: null,
+		siteKey: null,
+		hasSecretKey: false,
+		verificationTimeoutSeconds: 3,
+		instrumentationExpected: false,
+		headlessDetectionExpected: false,
+		capAdminResourceId: null,
+		capAdminDomain: null,
+		publicChallengeResourceId: null,
+		publicChallengeDomain: null,
+		challengeResetMode: 'decay',
+		challengeDecayPercent: 50,
+		minimumRepeatChallengeSeconds: 300,
+		maximumFailuresBeforeEscalation: 3,
+		maximumRequestsWhileChallenged: 20,
+		updatedAtUtc: new Date(0).toISOString()
+	});
+	apiMock.getInternalAgentDnsSettings.mockResolvedValue({
+		enabled: false,
+		domain: 'hashi.home.arpa',
+		keepLastRewriteWhenAgentStale: true,
+		adGuardConnectionId: null,
+		lastSyncStatus: 'never_run',
+		lastAppliedHash: null,
+		agents: []
+	});
+	apiMock.listAdGuardConnections.mockResolvedValue([]);
+	apiMock.getGeoIpSettings.mockResolvedValue({
+		enabled: false,
+		accountId: null,
+		hasLicenseKey: false,
+		updateIntervalHours: 72,
+		lastUpdateStatus: 'never_run',
+		lastUpdateMessage: null,
+		lastUpdateAtUtc: null,
+		nextUpdateAtUtc: null,
+		databaseAvailable: false,
+		databases: []
+	});
 }
 
 describe('settings widget preferences', () => {

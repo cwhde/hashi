@@ -415,25 +415,25 @@ export const api = {
 		postUndocumented('/api/traefik/rollback', { body }),
 
 	listStatusEndpoints: async () => {
-		const r = await client.GET('/api/status/endpoints');
-		return expectData(r.response, r.error, r.data ?? []);
+		const r = await client.GET('/api/status/endpoints' as never, {} as never);
+		return (await expectData(r.response, r.error, r.data ?? [])) as import('./types.js').MonitorEndpoint[];
 	},
 	updateStatusEndpoint: async (
 		endpointId: string,
 		body: import('./types.js').UpdateMonitorEndpointRequest
 	) => {
-		const r = await client.PUT('/api/status/endpoints/{endpointId}', {
+		const r = await client.PUT('/api/status/endpoints/{endpointId}' as never, {
 			params: { path: { endpointId } },
 			body
-		});
-		return expectData(r.response, r.error, r.data);
+		} as never);
+		return (await expectData(r.response, r.error, r.data)) as unknown as import('./types.js').MonitorEndpoint;
 	},
 	listStatusRollups: async (params?: {
 		endpointId?: string;
 		intervalMinutes?: number;
 		hours?: number;
 	}) => {
-		const r = await client.GET('/api/status/rollups', {
+		const r = await client.GET('/api/status/rollups' as never, {
 			params: {
 				query: {
 					endpointId: params?.endpointId,
@@ -441,19 +441,19 @@ export const api = {
 					hours: params?.hours
 				}
 			}
-		});
-		return expectData(r.response, r.error, r.data ?? []);
+		} as never);
+		return (await expectData(r.response, r.error, r.data ?? [])) as import('./types.js').MonitorRollup[];
 	},
 	listStatusEvents: async (params?: { endpointId?: string; hours?: number }) => {
-		const r = await client.GET('/api/status/events', {
+		const r = await client.GET('/api/status/events' as never, {
 			params: {
 				query: {
 					endpointId: params?.endpointId,
 					hours: params?.hours
 				}
 			}
-		});
-		return expectData(r.response, r.error, r.data ?? []);
+		} as never);
+		return (await expectData(r.response, r.error, r.data ?? [])) as import('./types.js').MonitorEvent[];
 	},
 	getPublicStatusSummary: async () => {
 		const r = await client.GET('/api/public/status/summary');

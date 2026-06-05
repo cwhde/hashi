@@ -71,10 +71,47 @@ export type CreateFirewallHostRequest = Schemas['CreateFirewallHostRequest'];
 export type FirewallRenderResponse = Schemas['FirewallRenderResponse'];
 export type FirewallHost = Schemas['FirewallHostResponse'];
 
-export type MonitorEndpoint = Schemas['MonitorEndpointResponse'];
-export type UpdateMonitorEndpointRequest = Schemas['UpdateMonitorEndpointRequest'];
-export type MonitorRollup = Schemas['MonitorRollupResponse'];
-export type MonitorEvent = Schemas['MonitorEventResponse'];
+export type MonitorEndpoint = {
+	id: string;
+	name: string;
+	url: string;
+	checkType: string;
+	enabled: boolean;
+	publicStatusEnabled: boolean;
+	status: string;
+	lastCheckedAtUtc: string | null;
+	lastLatencyMs: number | null;
+	resourceId: string | null;
+	resourceType: string | null;
+	host: string | null;
+	firewallHostId: string | null;
+	firewallHostName: string | null;
+	provisioned: boolean;
+};
+export type UpdateMonitorEndpointRequest = {
+	name?: string | null;
+	url?: string | null;
+	checkType?: string | null;
+	enabled?: boolean | null;
+	publicStatusEnabled?: boolean | null;
+};
+export type MonitorRollup = {
+	monitorEndpointId: string;
+	bucketStartUtc: string;
+	intervalMinutes: number;
+	sampleCount: number;
+	upCount: number;
+	downCount: number;
+	averageLatencyMs: number;
+};
+export type MonitorEvent = {
+	id: string;
+	monitorEndpointId: string;
+	previousStatus: string;
+	newStatus: string;
+	latencyMs: number | null;
+	occurredAtUtc: string;
+};
 export type PublicStatusItem = Schemas['PublicStatusItemResponse'];
 export type PublicDashboard = Schemas['PublicDashboardResponse'];
 export type PublicDashboardItem = Schemas['PublicDashboardItemResponse'];
@@ -167,9 +204,38 @@ export type AdGuardRewriteApply = Schemas['AdGuardRewriteApplyResponse'];
 export type AdGuardRewriteApplyRequest = Schemas['AdGuardRewriteApplyRequest'];
 export type AdGuardRewritePlan = Schemas['AdGuardRewritePlanResponse'];
 export type UpsertAdGuardRewriteRequest = Schemas['UpsertAdGuardRewriteRequest'];
-export type InternalAgentDnsSettings = Schemas['InternalAgentDnsSettingsResponse'];
-export type InternalAgentDnsSettingsRequest = Schemas['InternalAgentDnsSettingsRequest'];
-export type InternalAgentDnsAgentSettings = Schemas['InternalAgentDnsAgentSettingsResponse'];
+export type InternalAgentDnsAgentSettings = {
+	id: string;
+	pulseAgentId: string;
+	enabled: boolean;
+	nameOverride: string | null;
+	ipMode: string;
+	keepLastRewriteWhenStale: boolean;
+	updatedAtUtc: string;
+};
+export type InternalAgentDnsSettings = {
+	enabled: boolean;
+	domain: string;
+	keepLastRewriteWhenAgentStale: boolean;
+	adGuardConnectionId: string | null;
+	lastSyncStatus: string;
+	lastAppliedHash: string | null;
+	agents: InternalAgentDnsAgentSettings[];
+};
+export type InternalAgentDnsAgentSettingsRequest = {
+	pulseAgentId: string;
+	enabled: boolean;
+	nameOverride: string | null;
+	ipMode: string | null;
+	keepLastRewriteWhenStale: boolean | null;
+};
+export type InternalAgentDnsSettingsRequest = {
+	enabled: boolean;
+	domain: string | null;
+	keepLastRewriteWhenAgentStale: boolean | null;
+	adGuardConnectionId: string | null;
+	agents: InternalAgentDnsAgentSettingsRequest[] | null;
+};
 
 export type MonitoringSettingsRequest = Schemas['MonitoringSettingsRequest'];
 export type EdgeSsoSettingsRequest = Schemas['EdgeSsoSettingsRequest'];

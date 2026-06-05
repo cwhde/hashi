@@ -208,6 +208,104 @@
         }
       }
     },
+    "/api/edge-challenge/start": {
+      "get": {
+        "tags": [
+          "EdgeChallenge"
+        ],
+        "parameters": [
+          {
+            "name": "returnUrl",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/edge-challenge/status": {
+      "get": {
+        "tags": [
+          "EdgeChallenge"
+        ],
+        "parameters": [
+          {
+            "name": "returnUrl",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptchaChallengeStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/edge-challenge/verify": {
+      "post": {
+        "tags": [
+          "EdgeChallenge"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CaptchaChallengeVerifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptchaChallengeVerifyResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptchaChallengeVerifyResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptchaChallengeVerifyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/waf/{slug}/middleware": {
       "get": {
         "tags": [
@@ -2528,216 +2626,6 @@
         }
       }
     },
-    "/api/status/endpoints": {
-      "get": {
-        "tags": [
-          "Status"
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/MonitorEndpointResponse"
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "Status"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CreateMonitorEndpointRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MonitorEndpointResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/status/endpoints/{endpointId}": {
-      "put": {
-        "tags": [
-          "Status"
-        ],
-        "parameters": [
-          {
-            "name": "endpointId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateMonitorEndpointRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MonitorEndpointResponse"
-                }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": [
-          "Status"
-        ],
-        "parameters": [
-          {
-            "name": "endpointId",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/api/status/rollups": {
-      "get": {
-        "tags": [
-          "Status"
-        ],
-        "parameters": [
-          {
-            "name": "endpointId",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "intervalMinutes",
-            "in": "query",
-            "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": [
-                "integer",
-                "string"
-              ],
-              "format": "int32"
-            }
-          },
-          {
-            "name": "hours",
-            "in": "query",
-            "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": [
-                "integer",
-                "string"
-              ],
-              "format": "int32"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/MonitorRollupResponse"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/status/events": {
-      "get": {
-        "tags": [
-          "Status"
-        ],
-        "parameters": [
-          {
-            "name": "endpointId",
-            "in": "query",
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            }
-          },
-          {
-            "name": "hours",
-            "in": "query",
-            "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": [
-                "integer",
-                "string"
-              ],
-              "format": "int32"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/MonitorEventResponse"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/settings/edge-sso/providers": {
       "get": {
         "tags": [
@@ -2985,6 +2873,111 @@
         }
       }
     },
+    "/api/security/captcha/settings": {
+      "get": {
+        "tags": [
+          "Security"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptchaSettingsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Security"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CaptchaSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptchaSettingsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/security/captcha/test": {
+      "post": {
+        "tags": [
+          "Security"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CaptchaTestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptchaTestResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptchaTestResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptchaTestResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/security/access-log": {
       "post": {
         "tags": [
@@ -3048,6 +3041,962 @@
         }
       }
     },
+    "/api/security/subjects/search": {
+      "get": {
+        "tags": [
+          "Security"
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecuritySubjectSearchResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/security/subjects/{id}": {
+      "get": {
+        "tags": [
+          "Security"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecuritySubjectDetailResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/security/subjects/{id}/events": {
+      "get": {
+        "tags": [
+          "Security"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "eventType",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "resourceId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SecurityEventResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/security/subjects/{id}/buckets": {
+      "get": {
+        "tags": [
+          "Security"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "hours",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SecurityRequestBucketResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/security/subjects/{id}/effective-decision": {
+      "get": {
+        "tags": [
+          "Security"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecurityEffectiveDecisionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/security/manual-entries": {
+      "post": {
+        "tags": [
+          "Security"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertManualSecurityEntryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManualSecurityEntryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/security/manual-entries/{id}": {
+      "patch": {
+        "tags": [
+          "Security"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateManualSecurityEntryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManualSecurityEntryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Security"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/security/manual-entries/{id}/expire": {
+      "post": {
+        "tags": [
+          "Security"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManualSecurityEntryResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/security/blocks": {
+      "post": {
+        "tags": [
+          "Security"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSecurityBlockRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecurityBlockMutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/security/blocks/{id}": {
+      "patch": {
+        "tags": [
+          "Security"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSecurityBlockRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecurityBlockMutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/security/blocks/{id}/extend": {
+      "post": {
+        "tags": [
+          "Security"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SecurityBlockDurationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecurityBlockMutationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/security/blocks/{id}/shorten": {
+      "post": {
+        "tags": [
+          "Security"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SecurityBlockDurationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecurityBlockMutationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/security/blocks/{id}/make-permanent": {
+      "post": {
+        "tags": [
+          "Security"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecurityBlockMutationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/security/blocks/{id}/expire": {
+      "post": {
+        "tags": [
+          "Security"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecurityBlockMutationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/security/blocks/{id}/preview-firewall-sync": {
+      "post": {
+        "tags": [
+          "Security"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FirewallPlanPreviewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/security/blocklists": {
+      "get": {
+        "tags": [
+          "Security"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BlocklistSourceResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Security"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertBlocklistSourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlocklistSourceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/security/blocklists/{id}": {
+      "get": {
+        "tags": [
+          "Security"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlocklistSourceResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Security"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertBlocklistSourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlocklistSourceResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Security"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/security/blocklists/{id}/fetch-preview": {
+      "post": {
+        "tags": [
+          "Security"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlocklistFetchPreviewResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/security/blocklists/{id}/enable": {
+      "post": {
+        "tags": [
+          "Security"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlocklistSourceMutationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/security/blocklists/{id}/disable": {
+      "post": {
+        "tags": [
+          "Security"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlocklistSourceMutationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/security/blocklists/{id}/refresh": {
+      "post": {
+        "tags": [
+          "Security"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlocklistSourceMutationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/security/blocklists/{id}/runs": {
+      "get": {
+        "tags": [
+          "Security"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BlocklistFetchRunResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/security/blocklists/{id}/entries": {
+      "get": {
+        "tags": [
+          "Security"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BlocklistEntryResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/pulse/agents": {
       "get": {
         "tags": [
@@ -3090,6 +4039,36 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CreatePulseAgentResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pulse/agents/{agentId}/resolved-targets": {
+      "get": {
+        "tags": [
+          "Pulse"
+        ],
+        "parameters": [
+          {
+            "name": "agentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PulseResolvedTargetResponse"
                 }
               }
             }
@@ -3221,6 +4200,100 @@
         "responses": {
           "200": {
             "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/settings/internal-agent-dns": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalAgentDnsSettingsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Settings"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InternalAgentDnsSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalAgentDnsSettingsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/internal-agent-dns/preview-sync": {
+      "post": {
+        "tags": [
+          "Settings"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdGuardRewritePlanResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/internal-agent-dns/apply-sync": {
+      "post": {
+        "tags": [
+          "Settings"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdGuardRewriteApplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdGuardRewriteApplyResponse"
+                }
+              }
+            }
           }
         }
       }
@@ -4273,6 +5346,32 @@
           },
           "enabled": {
             "type": "boolean"
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ConnectionTargetResponse"
+              }
+            ]
+          },
+          "resolvedBaseUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "targetStatus": {
+            "type": "string",
+            "default": "unresolved"
+          },
+          "targetError": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -4291,6 +5390,26 @@
               "null",
               "string"
             ]
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ConnectionTargetResponse"
+              }
+            ]
+          },
+          "resolvedBaseUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "targetStale": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -4613,6 +5732,447 @@
           }
         }
       },
+      "BlocklistEntryResponse": {
+        "required": [
+          "id",
+          "sourceId",
+          "subjectType",
+          "value",
+          "normalizedValue",
+          "scope",
+          "type",
+          "reason",
+          "source",
+          "enabled",
+          "enforcementMode",
+          "syncedToFirewall",
+          "createdAtUtc",
+          "expiresAtUtc",
+          "lastHitAtUtc",
+          "metadataJson"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "subjectType": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "normalizedValue": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "enforcementMode": {
+            "type": "string"
+          },
+          "syncedToFirewall": {
+            "type": "boolean"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lastHitAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "metadataJson": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "BlocklistFetchPreviewResponse": {
+        "required": [
+          "sourceId",
+          "sourceName",
+          "parsedCount",
+          "ignoredCount",
+          "errorCount",
+          "contentHash",
+          "notModified",
+          "entries",
+          "errors",
+          "warnings"
+        ],
+        "type": "object",
+        "properties": {
+          "sourceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourceName": {
+            "type": "string"
+          },
+          "parsedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "ignoredCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "errorCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "contentHash": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "notModified": {
+            "type": "boolean"
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BlocklistPreviewEntryResponse"
+            }
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "BlocklistFetchRunResponse": {
+        "required": [
+          "id",
+          "blocklistSourceId",
+          "startedAtUtc",
+          "completedAtUtc",
+          "status",
+          "httpStatusCode",
+          "entryCount",
+          "addedCount",
+          "removedCount",
+          "unchangedCount",
+          "contentHash",
+          "error"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "blocklistSourceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "startedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string"
+          },
+          "httpStatusCode": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "entryCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "addedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "removedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "unchangedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "contentHash": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "error": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "BlocklistPreviewEntryResponse": {
+        "required": [
+          "subjectType",
+          "value",
+          "normalizedValue",
+          "lineNumber"
+        ],
+        "type": "object",
+        "properties": {
+          "subjectType": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "normalizedValue": {
+            "type": "string"
+          },
+          "lineNumber": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "BlocklistSourceMutationResponse": {
+        "required": [
+          "source",
+          "run",
+          "preview",
+          "firewallSyncRecommended",
+          "pendingFirewallEntryCount",
+          "warnings"
+        ],
+        "type": "object",
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/BlocklistSourceResponse"
+          },
+          "run": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BlocklistFetchRunResponse"
+              }
+            ]
+          },
+          "preview": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BlocklistFetchPreviewResponse"
+              }
+            ]
+          },
+          "firewallSyncRecommended": {
+            "type": "boolean"
+          },
+          "pendingFirewallEntryCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "BlocklistSourceResponse": {
+        "required": [
+          "id",
+          "name",
+          "sourceUrl",
+          "description",
+          "format",
+          "enforcementMode",
+          "canFirewallEnforce",
+          "enabled",
+          "allowHttp",
+          "refreshIntervalHours",
+          "lastFetchStatus",
+          "lastFetchError",
+          "lastFetchedAtUtc",
+          "entryCount",
+          "isStale",
+          "metadataJson",
+          "createdAtUtc",
+          "updatedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sourceUrl": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string"
+          },
+          "enforcementMode": {
+            "type": "string"
+          },
+          "canFirewallEnforce": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "allowHttp": {
+            "type": "boolean"
+          },
+          "refreshIntervalHours": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "lastFetchStatus": {
+            "type": "string"
+          },
+          "lastFetchError": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastFetchedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "entryCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "isStale": {
+            "type": "boolean"
+          },
+          "metadataJson": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "BlocklistSyncResponse": {
         "required": [
           "synced",
@@ -4679,6 +6239,399 @@
           },
           "password": {
             "type": "string"
+          }
+        }
+      },
+      "CaptchaChallengeStatusResponse": {
+        "required": [
+          "enabled",
+          "challengeRequired",
+          "reason",
+          "siteKey",
+          "capApiEndpoint",
+          "returnUrl",
+          "safeReturnUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "challengeRequired": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "siteKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "capApiEndpoint": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "returnUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "safeReturnUrl": {
+            "type": "string"
+          }
+        }
+      },
+      "CaptchaChallengeVerifyRequest": {
+        "required": [
+          "token",
+          "returnUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "returnUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "CaptchaChallengeVerifyResponse": {
+        "required": [
+          "verified",
+          "challengeCleared",
+          "status",
+          "redirectUrl",
+          "error"
+        ],
+        "type": "object",
+        "properties": {
+          "verified": {
+            "type": "boolean"
+          },
+          "challengeCleared": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string"
+          },
+          "redirectUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "error": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "CaptchaSettingsRequest": {
+        "required": [
+          "enabled",
+          "publicChallengeBaseUrl",
+          "siteKey",
+          "secretKey",
+          "secretKeySecretId",
+          "verificationTimeoutSeconds",
+          "instrumentationExpected",
+          "headlessDetectionExpected",
+          "capAdminResourceId",
+          "capAdminDomain",
+          "publicChallengeResourceId",
+          "publicChallengeDomain",
+          "challengeResetMode",
+          "challengeDecayPercent",
+          "minimumRepeatChallengeSeconds",
+          "maximumFailuresBeforeEscalation",
+          "maximumRequestsWhileChallenged"
+        ],
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "publicChallengeBaseUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "siteKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "secretKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "secretKeySecretId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "verificationTimeoutSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "instrumentationExpected": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "headlessDetectionExpected": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "capAdminResourceId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "capAdminDomain": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "publicChallengeResourceId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "publicChallengeDomain": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "challengeResetMode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "challengeDecayPercent": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "minimumRepeatChallengeSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "maximumFailuresBeforeEscalation": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "maximumRequestsWhileChallenged": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "CaptchaSettingsResponse": {
+        "required": [
+          "enabled",
+          "publicChallengeBaseUrl",
+          "siteKey",
+          "hasSecretKey",
+          "verificationTimeoutSeconds",
+          "instrumentationExpected",
+          "headlessDetectionExpected",
+          "capAdminResourceId",
+          "capAdminDomain",
+          "publicChallengeResourceId",
+          "publicChallengeDomain",
+          "challengeResetMode",
+          "challengeDecayPercent",
+          "minimumRepeatChallengeSeconds",
+          "maximumFailuresBeforeEscalation",
+          "maximumRequestsWhileChallenged",
+          "updatedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "publicChallengeBaseUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "siteKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hasSecretKey": {
+            "type": "boolean"
+          },
+          "verificationTimeoutSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "instrumentationExpected": {
+            "type": "boolean"
+          },
+          "headlessDetectionExpected": {
+            "type": "boolean"
+          },
+          "capAdminResourceId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "capAdminDomain": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "publicChallengeResourceId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "publicChallengeDomain": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "challengeResetMode": {
+            "type": "string"
+          },
+          "challengeDecayPercent": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "minimumRepeatChallengeSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "maximumFailuresBeforeEscalation": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "maximumRequestsWhileChallenged": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "updatedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CaptchaTestRequest": {
+        "required": [
+          "token"
+        ],
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          }
+        }
+      },
+      "CaptchaTestResponse": {
+        "required": [
+          "succeeded",
+          "status",
+          "error"
+        ],
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string"
+          },
+          "error": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -4890,6 +6843,199 @@
           }
         }
       },
+      "ConnectionTargetRequest": {
+        "required": [
+          "targetMode",
+          "staticHost",
+          "staticIp",
+          "pulseAgentId",
+          "pulseIpMode",
+          "privateCandidateSelector",
+          "port",
+          "scheme",
+          "pathPrefix",
+          "tlsValidationMode",
+          "expectedTlsHostname"
+        ],
+        "type": "object",
+        "properties": {
+          "targetMode": {
+            "type": "string"
+          },
+          "staticHost": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "staticIp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pulseAgentId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "pulseIpMode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "privateCandidateSelector": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "port": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "scheme": {
+            "type": "string"
+          },
+          "pathPrefix": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tlsValidationMode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expectedTlsHostname": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "ConnectionTargetResponse": {
+        "required": [
+          "id",
+          "ownerType",
+          "ownerId",
+          "targetMode",
+          "staticHost",
+          "staticIp",
+          "pulseAgentId",
+          "pulseIpMode",
+          "privateCandidateSelector",
+          "port",
+          "scheme",
+          "pathPrefix",
+          "tlsValidationMode",
+          "expectedTlsHostname",
+          "resolvedIpSnapshot",
+          "lastResolvedAtUtc",
+          "status",
+          "lastError"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "ownerType": {
+            "type": "string"
+          },
+          "ownerId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "targetMode": {
+            "type": "string"
+          },
+          "staticHost": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "staticIp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "pulseAgentId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "pulseIpMode": {
+            "type": "string"
+          },
+          "privateCandidateSelector": {
+            "type": "string"
+          },
+          "port": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "scheme": {
+            "type": "string"
+          },
+          "pathPrefix": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tlsValidationMode": {
+            "type": "string"
+          },
+          "expectedTlsHostname": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "resolvedIpSnapshot": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastResolvedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string"
+          },
+          "lastError": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "CreateAdGuardConnectionRequest": {
         "required": [
           "name",
@@ -4902,10 +7048,23 @@
             "type": "string"
           },
           "baseUrl": {
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "password": {
             "type": "string"
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ConnectionTargetRequest"
+              }
+            ]
           }
         }
       },
@@ -5064,33 +7223,6 @@
               "string"
             ],
             "format": "int32"
-          }
-        }
-      },
-      "CreateMonitorEndpointRequest": {
-        "required": [
-          "name",
-          "url",
-          "checkType"
-        ],
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "url": {
-            "type": "string"
-          },
-          "checkType": {
-            "type": "string"
-          },
-          "enabled": {
-            "type": "boolean",
-            "default": true
-          },
-          "publicStatusEnabled": {
-            "type": "boolean",
-            "default": false
           }
         }
       },
@@ -5456,6 +7588,51 @@
             "items": {
               "$ref": "#/components/schemas/ScriptEnvironmentVariableRequest"
             }
+          }
+        }
+      },
+      "CreateSecurityBlockRequest": {
+        "required": [
+          "subjectType",
+          "subjectValue",
+          "blockType",
+          "reason",
+          "expiresAtUtc",
+          "isPermanent"
+        ],
+        "type": "object",
+        "properties": {
+          "subjectType": {
+            "type": "string"
+          },
+          "subjectValue": {
+            "type": "string"
+          },
+          "blockType": {
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expiresAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "isPermanent": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "firewallEnforced": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -6636,17 +8813,52 @@
           }
         }
       },
-      "MonitorEndpointResponse": {
+      "InternalAgentDnsAgentSettingsRequest": {
+        "required": [
+          "pulseAgentId",
+          "enabled",
+          "nameOverride",
+          "ipMode",
+          "keepLastRewriteWhenStale"
+        ],
+        "type": "object",
+        "properties": {
+          "pulseAgentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "nameOverride": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ipMode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "keepLastRewriteWhenStale": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        }
+      },
+      "InternalAgentDnsAgentSettingsResponse": {
         "required": [
           "id",
-          "name",
-          "url",
-          "checkType",
+          "pulseAgentId",
           "enabled",
-          "publicStatusEnabled",
-          "status",
-          "lastCheckedAtUtc",
-          "lastLatencyMs"
+          "nameOverride",
+          "ipMode",
+          "keepLastRewriteWhenStale",
+          "updatedAtUtc"
         ],
         "type": "object",
         "properties": {
@@ -6654,114 +8866,223 @@
             "type": "string",
             "format": "uuid"
           },
-          "name": {
-            "type": "string"
-          },
-          "url": {
-            "type": "string"
-          },
-          "checkType": {
-            "type": "string"
+          "pulseAgentId": {
+            "type": "string",
+            "format": "uuid"
           },
           "enabled": {
             "type": "boolean"
           },
-          "publicStatusEnabled": {
-            "type": "boolean"
+          "nameOverride": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
-          "status": {
+          "ipMode": {
             "type": "string"
           },
-          "lastCheckedAtUtc": {
+          "keepLastRewriteWhenStale": {
+            "type": "boolean"
+          },
+          "updatedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "InternalAgentDnsSettingsRequest": {
+        "required": [
+          "enabled",
+          "domain",
+          "keepLastRewriteWhenAgentStale",
+          "adGuardConnectionId",
+          "agents"
+        ],
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "domain": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "keepLastRewriteWhenAgentStale": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "adGuardConnectionId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "agents": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/InternalAgentDnsAgentSettingsRequest"
+            }
+          }
+        }
+      },
+      "InternalAgentDnsSettingsResponse": {
+        "required": [
+          "enabled",
+          "domain",
+          "keepLastRewriteWhenAgentStale",
+          "adGuardConnectionId",
+          "lastSyncStatus",
+          "lastAppliedHash",
+          "updatedAtUtc",
+          "agents"
+        ],
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "domain": {
+            "type": "string"
+          },
+          "keepLastRewriteWhenAgentStale": {
+            "type": "boolean"
+          },
+          "adGuardConnectionId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "lastSyncStatus": {
+            "type": "string"
+          },
+          "lastAppliedHash": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "updatedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "agents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InternalAgentDnsAgentSettingsResponse"
+            }
+          }
+        }
+      },
+      "ManualSecurityEntryResponse": {
+        "required": [
+          "id",
+          "subjectType",
+          "subjectValue",
+          "normalizedValue",
+          "entryType",
+          "scopeType",
+          "scopeId",
+          "reason",
+          "createdByAdminId",
+          "createdAtUtc",
+          "expiresAtUtc",
+          "isPermanent",
+          "bypassBlocking",
+          "bypassAdaptiveEscalation",
+          "bypassRateLimit",
+          "bypassChallenge",
+          "bypassSso",
+          "enabled",
+          "lastHitAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "subjectType": {
+            "type": "string"
+          },
+          "subjectValue": {
+            "type": "string"
+          },
+          "normalizedValue": {
+            "type": "string"
+          },
+          "entryType": {
+            "type": "string"
+          },
+          "scopeType": {
+            "type": "string"
+          },
+          "scopeId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "createdByAdminId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAtUtc": {
             "type": [
               "null",
               "string"
             ],
             "format": "date-time"
           },
-          "lastLatencyMs": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
+          "isPermanent": {
+            "type": "boolean"
           },
-          "resourceId": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "uuid"
+          "bypassBlocking": {
+            "type": "boolean"
           },
-          "resourceType": {
-            "type": [
-              "null",
-              "string"
-            ]
+          "bypassAdaptiveEscalation": {
+            "type": "boolean"
           },
-          "host": {
-            "type": [
-              "null",
-              "string"
-            ]
+          "bypassRateLimit": {
+            "type": "boolean"
           },
-          "firewallHostId": {
+          "bypassChallenge": {
+            "type": "boolean"
+          },
+          "bypassSso": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "lastHitAtUtc": {
             "type": [
               "null",
               "string"
             ],
-            "format": "uuid"
-          },
-          "firewallHostName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "provisioned": {
-            "type": "boolean",
-            "default": false
-          }
-        }
-      },
-      "MonitorEventResponse": {
-        "required": [
-          "id",
-          "monitorEndpointId",
-          "previousStatus",
-          "newStatus",
-          "latencyMs",
-          "occurredAtUtc"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "monitorEndpointId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "previousStatus": {
-            "type": "string"
-          },
-          "newStatus": {
-            "type": "string"
-          },
-          "latencyMs": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "occurredAtUtc": {
-            "type": "string",
             "format": "date-time"
           }
         }
@@ -6861,68 +9182,6 @@
               "string"
             ],
             "format": "date-time"
-          }
-        }
-      },
-      "MonitorRollupResponse": {
-        "required": [
-          "monitorEndpointId",
-          "bucketStartUtc",
-          "intervalMinutes",
-          "sampleCount",
-          "upCount",
-          "downCount",
-          "averageLatencyMs"
-        ],
-        "type": "object",
-        "properties": {
-          "monitorEndpointId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "bucketStartUtc": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "intervalMinutes": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "sampleCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "upCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "downCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "averageLatencyMs": {
-            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
-            "type": [
-              "number",
-              "string"
-            ],
-            "format": "double"
           }
         }
       },
@@ -7555,6 +9814,78 @@
           },
           "dockerComposeSnippet": {
             "type": "string"
+          }
+        }
+      },
+      "PulseResolvedTargetResponse": {
+        "required": [
+          "pulseAgentId",
+          "agentName",
+          "ipMode",
+          "selectedIp",
+          "publicIp",
+          "privateIpv4Candidates",
+          "privateIpv6Candidates",
+          "lastSeenAtUtc",
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "pulseAgentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "agentName": {
+            "type": "string"
+          },
+          "ipMode": {
+            "type": "string"
+          },
+          "selectedIp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "publicIp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "privateIpv4Candidates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "privateIpv6Candidates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "lastSeenAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string"
+          },
+          "resolvedIp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "error": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -8369,6 +10700,59 @@
           }
         }
       },
+      "SecurityBlockDurationRequest": {
+        "required": [
+          "durationSeconds"
+        ],
+        "type": "object",
+        "properties": {
+          "durationSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "SecurityBlockMutationResponse": {
+        "required": [
+          "manualEntry",
+          "state",
+          "firewallSyncRecommended",
+          "firewallPreview"
+        ],
+        "type": "object",
+        "properties": {
+          "manualEntry": {
+            "$ref": "#/components/schemas/ManualSecurityEntryResponse"
+          },
+          "state": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SecuritySubjectStateResponse"
+              }
+            ]
+          },
+          "firewallSyncRecommended": {
+            "type": "boolean"
+          },
+          "firewallPreview": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FirewallPlanPreviewResponse"
+              }
+            ]
+          }
+        }
+      },
       "SecurityDashboardResponse": {
         "required": [
           "allowed",
@@ -8535,6 +10919,199 @@
           }
         }
       },
+      "SecurityEffectiveDecisionResponse": {
+        "required": [
+          "subjectId",
+          "decision",
+          "action",
+          "reason",
+          "explanation",
+          "matchedManualEntryIds",
+          "matchedBlocklistEntryIds",
+          "matchedResourceRuleIds",
+          "state"
+        ],
+        "type": "object",
+        "properties": {
+          "subjectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "decision": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "explanation": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "matchedManualEntryIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "matchedBlocklistEntryIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "matchedResourceRuleIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "state": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SecuritySubjectStateResponse"
+              }
+            ]
+          }
+        }
+      },
+      "SecurityEventResponse": {
+        "required": [
+          "id",
+          "occurredAtUtc",
+          "subjectType",
+          "subjectValue",
+          "normalizedSubjectValue",
+          "resourceId",
+          "connectionId",
+          "eventType",
+          "severity",
+          "decision",
+          "source",
+          "reason",
+          "requestMethod",
+          "requestPath",
+          "statusCode",
+          "requestId",
+          "metadataJson"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "occurredAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "subjectType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "subjectValue": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "normalizedSubjectValue": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "resourceId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "connectionId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "eventType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "severity": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "decision": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "source": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "requestMethod": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "requestPath": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "statusCode": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "requestId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "metadataJson": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "SecurityFilterOption": {
         "required": [
           "value",
@@ -8547,6 +11124,51 @@
           },
           "label": {
             "type": "string"
+          }
+        }
+      },
+      "SecurityFirewallApplicationResponse": {
+        "required": [
+          "firewallHostId",
+          "firewallHostName",
+          "enforcement",
+          "status",
+          "appliedAtUtc",
+          "lastError"
+        ],
+        "type": "object",
+        "properties": {
+          "firewallHostId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "firewallHostName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "enforcement": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "appliedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lastError": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -8632,6 +11254,138 @@
           }
         }
       },
+      "SecurityRequestBucketResponse": {
+        "required": [
+          "id",
+          "bucketStartUtc",
+          "bucketSizeSeconds",
+          "subjectType",
+          "normalizedSubjectValue",
+          "resourceId",
+          "rootDomain",
+          "country",
+          "region",
+          "asn",
+          "method",
+          "pathPrefix",
+          "statusClass",
+          "requestCount",
+          "blockedCount",
+          "challengedCount",
+          "challengeIgnoredCount",
+          "failedChallengeCount"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "bucketStartUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "bucketSizeSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "subjectType": {
+            "type": "string"
+          },
+          "normalizedSubjectValue": {
+            "type": "string"
+          },
+          "resourceId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "rootDomain": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "country": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "region": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "asn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "method": {
+            "type": "string"
+          },
+          "pathPrefix": {
+            "type": "string"
+          },
+          "statusClass": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "requestCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "blockedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "challengedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "challengeIgnoredCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "failedChallengeCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        }
+      },
       "SecurityResourceEnforcementItem": {
         "required": [
           "resource",
@@ -8658,6 +11412,267 @@
               "string"
             ],
             "format": "int64"
+          }
+        }
+      },
+      "SecuritySubjectDetailResponse": {
+        "required": [
+          "subject",
+          "state",
+          "manualEntries",
+          "blocklistEntries",
+          "resourceRules",
+          "firewallApplications"
+        ],
+        "type": "object",
+        "properties": {
+          "subject": {
+            "$ref": "#/components/schemas/SecuritySubjectSummaryResponse"
+          },
+          "state": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SecuritySubjectStateResponse"
+              }
+            ]
+          },
+          "manualEntries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ManualSecurityEntryResponse"
+            }
+          },
+          "blocklistEntries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BlocklistEntryResponse"
+            }
+          },
+          "resourceRules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResourceRuleResponse"
+            }
+          },
+          "firewallApplications": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SecurityFirewallApplicationResponse"
+            }
+          }
+        }
+      },
+      "SecuritySubjectSearchResponse": {
+        "required": [
+          "query",
+          "results"
+        ],
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SecuritySubjectSummaryResponse"
+            }
+          }
+        }
+      },
+      "SecuritySubjectStateResponse": {
+        "required": [
+          "securitySubjectId",
+          "challengeRequired",
+          "challengeRequiredSinceUtc",
+          "challengeReason",
+          "challengeResourceId",
+          "challengeAttempts",
+          "requestsWhileChallenged",
+          "failedChallengeCount",
+          "successfulChallengeCount",
+          "lastChallengeSolvedAtUtc",
+          "softBlockedUntilUtc",
+          "firewallBlockedUntilUtc",
+          "manualAllowActive",
+          "manualBlockActive",
+          "lastEscalationReason",
+          "lastEscalationAtUtc",
+          "updatedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "securitySubjectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "challengeRequired": {
+            "type": "boolean"
+          },
+          "challengeRequiredSinceUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "challengeReason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "challengeResourceId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "challengeAttempts": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "requestsWhileChallenged": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "failedChallengeCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "successfulChallengeCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "lastChallengeSolvedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "softBlockedUntilUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "firewallBlockedUntilUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "manualAllowActive": {
+            "type": "boolean"
+          },
+          "manualBlockActive": {
+            "type": "boolean"
+          },
+          "lastEscalationReason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastEscalationAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "updatedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "SecuritySubjectSummaryResponse": {
+        "required": [
+          "id",
+          "subjectType",
+          "subjectValue",
+          "normalizedValue",
+          "currentState",
+          "firstSeenAtUtc",
+          "lastSeenAtUtc",
+          "lastCountry",
+          "lastRegion",
+          "lastAsn",
+          "lastAsOrg"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "subjectType": {
+            "type": "string"
+          },
+          "subjectValue": {
+            "type": "string"
+          },
+          "normalizedValue": {
+            "type": "string"
+          },
+          "currentState": {
+            "type": "string"
+          },
+          "firstSeenAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastSeenAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastCountry": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastRegion": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastAsn": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastAsOrg": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -9642,34 +12657,70 @@
           }
         }
       },
-      "UpdateMonitorEndpointRequest": {
+      "UpdateManualSecurityEntryRequest": {
+        "required": [
+          "reason",
+          "expiresAtUtc",
+          "isPermanent",
+          "bypassBlocking",
+          "bypassAdaptiveEscalation",
+          "bypassRateLimit",
+          "bypassChallenge",
+          "bypassSso",
+          "enabled"
+        ],
         "type": "object",
         "properties": {
-          "name": {
+          "reason": {
             "type": [
               "null",
               "string"
             ]
           },
-          "url": {
+          "expiresAtUtc": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "format": "date-time"
           },
-          "checkType": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "enabled": {
+          "isPermanent": {
             "type": [
               "null",
               "boolean"
             ]
           },
-          "publicStatusEnabled": {
+          "bypassBlocking": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "bypassAdaptiveEscalation": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "bypassRateLimit": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "bypassChallenge": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "bypassSso": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "enabled": {
             "type": [
               "null",
               "boolean"
@@ -10111,6 +13162,49 @@
           }
         }
       },
+      "UpdateSecurityBlockRequest": {
+        "required": [
+          "reason",
+          "expiresAtUtc",
+          "isPermanent",
+          "enabled",
+          "firewallEnforced"
+        ],
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expiresAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "isPermanent": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "enabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "firewallEnforced": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          }
+        }
+      },
       "UpdateTraefikUserMiddlewareRequest": {
         "required": [
           "yaml"
@@ -10134,6 +13228,79 @@
           },
           "answer": {
             "type": "string"
+          }
+        }
+      },
+      "UpsertBlocklistSourceRequest": {
+        "required": [
+          "name",
+          "sourceUrl",
+          "description",
+          "format",
+          "enforcementMode",
+          "canFirewallEnforce",
+          "enabled",
+          "allowHttp",
+          "refreshIntervalHours"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "sourceUrl": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "format": {
+            "type": "string"
+          },
+          "enforcementMode": {
+            "type": "string"
+          },
+          "canFirewallEnforce": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "allowHttp": {
+            "type": "boolean"
+          },
+          "refreshIntervalHours": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "csvColumnIndex": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "jsonArrayField": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "jsonValueField": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -10191,6 +13358,100 @@
             "type": [
               "null",
               "string"
+            ]
+          }
+        }
+      },
+      "UpsertManualSecurityEntryRequest": {
+        "required": [
+          "subjectType",
+          "subjectValue",
+          "entryType",
+          "scopeType",
+          "scopeId",
+          "reason",
+          "expiresAtUtc",
+          "isPermanent",
+          "bypassBlocking",
+          "bypassAdaptiveEscalation",
+          "bypassRateLimit",
+          "bypassChallenge",
+          "bypassSso",
+          "enabled"
+        ],
+        "type": "object",
+        "properties": {
+          "subjectType": {
+            "type": "string"
+          },
+          "subjectValue": {
+            "type": "string"
+          },
+          "entryType": {
+            "type": "string"
+          },
+          "scopeType": {
+            "type": "string"
+          },
+          "scopeId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expiresAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "isPermanent": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "bypassBlocking": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "bypassAdaptiveEscalation": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "bypassRateLimit": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "bypassChallenge": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "bypassSso": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "enabled": {
+            "type": [
+              "null",
+              "boolean"
             ]
           }
         }
@@ -10328,6 +13589,9 @@
       "name": "EdgeAuth"
     },
     {
+      "name": "EdgeChallenge"
+    },
+    {
       "name": "Security"
     },
     {
@@ -10359,9 +13623,6 @@
     },
     {
       "name": "Firewall"
-    },
-    {
-      "name": "Status"
     },
     {
       "name": "Pulse"
