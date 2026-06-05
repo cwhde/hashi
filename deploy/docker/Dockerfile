@@ -43,9 +43,9 @@ RUN --mount=type=cache,id=hashi-nuget,target=/root/.nuget/packages,sharing=locke
     *) target_rid="linux-${TARGETARCH}" ;; \
   esac \
   && if [ -n "$target_rid" ]; then \
-    dotnet publish src/Hashi.Api/Hashi.Api.csproj -c Release -r "$target_rid" --self-contained false --no-restore -o /app/publish /p:SkipFrontendBuild=true; \
+    dotnet publish src/Hashi.Api/Hashi.Api.csproj -c Release -r "$target_rid" --self-contained false -o /app/publish /p:SkipFrontendBuild=true; \
   else \
-    dotnet publish src/Hashi.Api/Hashi.Api.csproj -c Release --no-restore -o /app/publish /p:SkipFrontendBuild=true; \
+    dotnet publish src/Hashi.Api/Hashi.Api.csproj -c Release -o /app/publish /p:SkipFrontendBuild=true; \
   fi
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
