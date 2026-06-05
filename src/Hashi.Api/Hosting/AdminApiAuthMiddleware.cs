@@ -134,6 +134,12 @@ public sealed class AdminApiAuthMiddleware(RequestDelegate next)
             return true;
         }
 
+        if (value.StartsWith("/api/security/manual-entries", StringComparison.OrdinalIgnoreCase)
+            || value.StartsWith("/api/security/blocks", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
         if (value.Contains("/import/apply", StringComparison.OrdinalIgnoreCase)
             || value.Contains("/sync/apply", StringComparison.OrdinalIgnoreCase)
             || value.Contains("/prune", StringComparison.OrdinalIgnoreCase))
