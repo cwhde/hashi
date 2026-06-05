@@ -25,7 +25,7 @@ public static class Program
         }
 
         var cts = new CancellationTokenSource();
-        
+
         Console.CancelKeyPress += OnCancelKeyPress;
         AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
 
@@ -136,7 +136,7 @@ public static class Program
                     config.Once = true;
                     continue;
                 }
-                
+
                 if (i + 1 < args.Length)
                 {
                     value = args[i + 1];
@@ -200,7 +200,7 @@ public static class Program
     {
         if (string.IsNullOrWhiteSpace(value)) return fallback;
         value = value.Trim().ToLower();
-        
+
         try
         {
             if (value.EndsWith("ms"))
@@ -240,11 +240,11 @@ public static class Program
     {
         var bytes = ip.GetAddressBytes();
         if (bytes.Length != 4) return false;
-        
+
         if (bytes[0] == 10) return true;
         if (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) return true;
         if (bytes[0] == 192 && bytes[1] == 168) return true;
-        
+
         return false;
     }
 
@@ -266,7 +266,7 @@ public static class Program
             var interfaces = NetworkInterface.GetAllNetworkInterfaces();
             foreach (var iface in interfaces)
             {
-                if (iface.OperationalStatus != OperationalStatus.Up || 
+                if (iface.OperationalStatus != OperationalStatus.Up ||
                     iface.NetworkInterfaceType == NetworkInterfaceType.Loopback)
                 {
                     continue;
@@ -350,8 +350,8 @@ public static class Program
             NetworkMode = Environment.GetEnvironmentVariable("HASHI_PULSE_DOCKER_NETWORK_MODE")
         };
 
-        if (string.IsNullOrEmpty(metadata.ContainerId) && 
-            string.IsNullOrEmpty(metadata.Image) && 
+        if (string.IsNullOrEmpty(metadata.ContainerId) &&
+            string.IsNullOrEmpty(metadata.Image) &&
             string.IsNullOrEmpty(metadata.NetworkMode))
         {
             return null;
@@ -448,7 +448,7 @@ public static class Program
         var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
         var url = $"{config.ApiUrl}/api/pulse/{config.AgentId}/heartbeat";
-        
+
         using var request = new HttpRequestMessage(HttpMethod.Post, url);
         request.Content = content;
         request.Headers.UserAgent.ParseAdd($"hashi-pulse/{Version}");

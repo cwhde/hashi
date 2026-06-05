@@ -75,9 +75,9 @@ public class PulseAgentTests
         };
 
         var json = JsonSerializer.Serialize(payload, Hashi.Pulse.PulseJsonContext.Default.PulseHeartbeatAuthRequest);
-        
+
         var deserialized = JsonSerializer.Deserialize(json, Hashi.Pulse.PulseJsonContext.Default.PulseHeartbeatAuthRequest);
-        
+
         Assert.NotNull(deserialized);
         Assert.Equal("test-token", deserialized.Token);
         Assert.Equal("0.1.0", deserialized.Version);
@@ -89,7 +89,7 @@ public class PulseAgentTests
         Assert.Equal("eth0", deserialized.SelectedInterface);
         Assert.Equal("10.0.0.5", deserialized.SelectedIp);
         Assert.Equal(DateTimeOffset.Parse("2026-06-01T12:00:00Z"), deserialized.Timestamp);
-        
+
         Assert.NotNull(deserialized.Docker);
         Assert.Equal("abc123def456", deserialized.Docker.ContainerId);
         Assert.Equal("hashi-pulse:latest", deserialized.Docker.Image);
@@ -111,7 +111,7 @@ public class PulseAgentTests
         };
 
         var (config, err) = PulseAgent.LoadConfig(args);
-        
+
         Assert.Null(err);
         Assert.Equal("https://hashi.example.com", config.ApiUrl);
         Assert.Equal("test-agent-id", config.AgentId);
