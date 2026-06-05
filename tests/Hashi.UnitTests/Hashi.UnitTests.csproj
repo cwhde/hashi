@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <IsPackable>false</IsPackable>
@@ -20,7 +20,6 @@
     <ProjectReference Include="..\..\src\Hashi.Core\Hashi.Core.csproj" />
     <ProjectReference Include="..\..\src\Hashi.Infrastructure\Hashi.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Hashi.Contracts\Hashi.Contracts.csproj" />
-    <ProjectReference Include="..\..\agents\pulse\Hashi.Pulse.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,22 +1,20 @@
 .PHONY: build test vet clean docker-image
 
 BINARY := hashi-pulse
+CMD := ./cmd/hashi-pulse
 IMAGE ?= hashi-pulse:local
 
 build:
-	dotnet publish -c Release -o dist /p:PublishAot=true
-	@if [ -f dist/Hashi.Pulse ]; then cp dist/Hashi.Pulse $(BINARY); fi
-	@if [ -f dist/Hashi.Pulse.exe ]; then cp dist/Hashi.Pulse.exe $(BINARY).exe; fi
+	go build -trimpath -ldflags="-s -w" -o $(BINARY) $(CMD)
 
 test:
-	dotnet test
+	go test ./...
 
 vet:
-	dotnet build
+	go vet ./...
 
 docker-image:
 	docker build -t $(IMAGE) .
 
 clean:
-	dotnet clean
-	rm -rf dist $(BINARY) $(BINARY).exe
+	rm -f $(BINARY)
