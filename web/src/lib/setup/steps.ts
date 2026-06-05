@@ -71,7 +71,7 @@ export const SETUP_STEPS: SetupStepDef[] = [
 	{
 		slug: 'optional',
 		title: 'Optional Setup',
-		description: 'OIDC, AdGuard, notifications, GeoIP, and dashboard widgets.',
+		description: 'OIDC, AdGuard, blocklists, notifications, GeoIP, and dashboard widgets.',
 		icon: Sparkles,
 		optional: true
 	},

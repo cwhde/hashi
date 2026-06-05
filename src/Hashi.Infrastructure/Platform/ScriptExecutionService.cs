@@ -18,7 +18,8 @@ public sealed partial class ScriptExecutionService(
     HashiDbContext db,
     ISshRemoteExecutor ssh,
     SecretRecordService secrets,
-    AuditService audit)
+    AuditService audit,
+    ConnectionTargetResolver targetResolver)
 {
     private const string ScriptDirectory = "/opt/hashi/scripts";
     private const string ManifestPath = $"{ScriptDirectory}/manifest.json";
@@ -251,7 +252,7 @@ public sealed partial class ScriptExecutionService(
         var redactValues = new List<string>();
         try
         {
-            var credentials = await ConnectionSshCredentialResolver.ResolveAsync(connection, secrets, cancellationToken);
+            var credentials = await ConnectionSshCredentialResolver.ResolveAsync(connection, secrets, targetResolver, cancellationToken);
             if (credentials is null)
             {
                 return await CompleteRunAsync(script, run, false, string.Empty, "SSH credentials unavailable; unlock vault or configure service-sync vault.", redactValues, cancellationToken);
@@ -274,7 +275,7 @@ public sealed partial class ScriptExecutionService(
 
     private async Task DeployScriptAsync(ScriptEntity script, ConnectionEntity connection, CancellationToken cancellationToken)
     {
-        var credentials = await ConnectionSshCredentialResolver.ResolveAsync(connection, secrets, cancellationToken)
+        var credentials = await ConnectionSshCredentialResolver.ResolveAsync(connection, secrets, targetResolver, cancellationToken)
             ?? throw new InvalidOperationException("SSH credentials unavailable; unlock vault or configure service-sync vault.");
         var remotePath = RemotePath(script);
 
@@ -329,7 +330,7 @@ public sealed partial class ScriptExecutionService(
         IReadOnlyList<ScriptEntity> scripts,
         CancellationToken cancellationToken)
     {
-        var credentials = await ConnectionSshCredentialResolver.ResolveAsync(connection, secrets, cancellationToken)
+        var credentials = await ConnectionSshCredentialResolver.ResolveAsync(connection, secrets, targetResolver, cancellationToken)
             ?? throw new InvalidOperationException("SSH credentials unavailable; unlock vault or configure service-sync vault.");
 
         await RunRequiredCommandAsync(

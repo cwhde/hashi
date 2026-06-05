@@ -1,4 +1,6 @@
 using System.Net;
+using System.Security.Cryptography;
+using System.Text;
 using Hashi.Contracts.Api;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
@@ -79,6 +81,8 @@ public sealed class SecurityIngestionService(
 
         var normalizedState = SecuritySubjectStateNames.Normalize(bucket.State);
         var decision = DecisionForState(normalizedState);
+        var requestId = NormalizeCorrelationId(request.RequestId);
+        var userAgentHash = ResolveUserAgentHash(request.UserAgent, request.UserAgentHash);
 
         var statusClass = request.StatusCode is >= 100 and < 600 ? request.StatusCode / 100 : 0;
         var resource = NormalizeResource(request.Resource, request.Host);
@@ -160,6 +164,8 @@ public sealed class SecurityIngestionService(
             RequestMethod = method,
             RequestPath = request.Path,
             StatusCode = request.StatusCode,
+            RequestId = requestId,
+            UserAgentHash = userAgentHash,
         });
 
         var shouldSyncFirewallBlock = false;
@@ -256,6 +262,8 @@ public sealed class SecurityIngestionService(
         var method = NormalizeMethod(request.Method);
         var pathPrefix = NormalizePathPrefix(request.PathPrefix, request.Path);
         var resource = NormalizeResource(null, request.Host);
+        var requestId = NormalizeCorrelationId(request.RequestId);
+        var userAgentHash = ResolveUserAgentHash(request.UserAgent, request.UserAgentHash);
         var requestBucket = await db.SecurityRequestBuckets.SingleOrDefaultAsync(
             x => x.BucketStartUtc == bucketStartUtc
                 && x.ClientIp == request.ClientIp
@@ -335,6 +343,8 @@ public sealed class SecurityIngestionService(
             RequestMethod = method,
             RequestPath = request.Path,
             StatusCode = statusCode,
+            RequestId = requestId,
+            UserAgentHash = userAgentHash,
         });
         await db.SaveChangesAsync(cancellationToken);
     }
@@ -344,6 +354,9 @@ public sealed class SecurityIngestionService(
         string host,
         string path,
         string action,
+        string? requestId = null,
+        string? userAgent = null,
+        string? userAgentHash = null,
         CancellationToken cancellationToken = default)
     {
         db.SecurityEvents.Add(new SecurityEventEntity
@@ -353,6 +366,12 @@ public sealed class SecurityIngestionService(
             ClientIp = clientIp,
             Host = host,
             Path = path,
+            EventType = "waf_event",
+            Decision = action,
+            Source = "waf",
+            RequestPath = path,
+            RequestId = NormalizeCorrelationId(requestId),
+            UserAgentHash = ResolveUserAgentHash(userAgent, userAgentHash),
         });
         await db.SaveChangesAsync(cancellationToken);
     }
@@ -365,6 +384,9 @@ public sealed class SecurityIngestionService(
             request.Host,
             string.IsNullOrWhiteSpace(request.Path) ? "/" : request.Path,
             NormalizeWafAction(request.Action),
+            request.RequestId,
+            request.UserAgent,
+            request.UserAgentHash,
             cancellationToken);
 
     public async Task<SecurityDashboardResponse> GetDashboardAsync(
@@ -504,6 +526,48 @@ public sealed class SecurityIngestionService(
             })
             .ToList();
 
+        var topChallengedIpStats = await accessEventsQuery
+            .Where(x => x.Decision == "challenged")
+            .GroupBy(x => x.ClientIp)
+            .Select(x => new { Ip = x.Key, Count = x.LongCount(), LastSeenAtUtc = x.Max(y => y.ReceivedAtUtc) })
+            .OrderByDescending(x => x.Count)
+            .ThenBy(x => x.Ip)
+            .Take(10)
+            .ToListAsync(cancellationToken);
+        var topChallengedIpValues = topChallengedIpStats.Select(x => x.Ip).ToList();
+        var latestTopChallengedIpEvents = await accessEventsQuery
+            .Where(x => x.Decision == "challenged")
+            .Where(x => topChallengedIpValues.Contains(x.ClientIp))
+            .OrderByDescending(x => x.ReceivedAtUtc)
+            .Select(x => new { x.ClientIp, x.CountryCode, x.Asn, x.ReceivedAtUtc })
+            .ToListAsync(cancellationToken);
+        var latestTopChallengedIpContext = latestTopChallengedIpEvents
+            .GroupBy(x => x.ClientIp)
+            .ToDictionary(x => x.Key, x => x.First());
+        var challengedBucketStates = await db.AbuseBuckets.AsNoTracking()
+            .Where(x => topChallengedIpValues.Contains(x.ClientIp))
+            .ToDictionaryAsync(
+                x => x.ClientIp,
+                x => SecuritySubjectStateNames.Normalize(x.State),
+                StringComparer.OrdinalIgnoreCase,
+                cancellationToken);
+        var topChallengedIps = topChallengedIpStats
+            .Select(x =>
+            {
+                latestTopChallengedIpContext.TryGetValue(x.Ip, out var latest);
+                challengedBucketStates.TryGetValue(x.Ip, out var subjectState);
+                return new SecurityTopBlockedIpItem
+                {
+                    Ip = x.Ip,
+                    Count = x.Count,
+                    LastSeenAtUtc = x.LastSeenAtUtc,
+                    CountryCode = latest?.CountryCode,
+                    Asn = latest?.Asn,
+                    SubjectState = subjectState,
+                };
+            })
+            .ToList();
+
         var topCountries = await accessEventsQuery
             .Where(x => !string.IsNullOrWhiteSpace(x.CountryCode))
             .GroupBy(x => x.CountryCode!)
@@ -559,6 +623,52 @@ public sealed class SecurityIngestionService(
             })
             .ToListAsync(cancellationToken);
 
+        var recentManualActions = await securityEventsQuery
+            .Where(x => x.Category == "manual_action" || (x.EventType != null && x.EventType.StartsWith("manual_")))
+            .OrderByDescending(x => x.OccurredAtUtc)
+            .Take(10)
+            .Select(x => new SecurityRecentEventItem
+            {
+                OccurredAtUtc = x.OccurredAtUtc,
+                Category = x.Category,
+                Action = x.Action,
+                ClientIp = x.ClientIp ?? x.NormalizedSubjectValue,
+                Host = x.Host,
+                Path = x.Path ?? x.RequestPath,
+            })
+            .ToListAsync(cancellationToken);
+
+        var blocklistMatchTimes = await db.BlocklistEntries.AsNoTracking()
+            .Where(x => x.LastHitAtUtc != null && x.LastHitAtUtc >= since)
+            .Select(x => x.LastHitAtUtc!.Value)
+            .ToListAsync(cancellationToken);
+        var blocklistMatchesOverTime = blocklistMatchTimes
+            .Select(TruncateToHourUtc)
+            .GroupBy(x => x)
+            .OrderBy(x => x.Key)
+            .Select(x => new SecurityBlocklistMatchBucket
+            {
+                BucketStartUtc = x.Key,
+                Count = x.LongCount(),
+            })
+            .ToList();
+
+        var captchaSolved = await securityEventsQuery
+            .Where(x => x.Category == "captcha" && x.Action == "challenge_solved")
+            .LongCountAsync(cancellationToken);
+        var captchaFailed = await securityEventsQuery
+            .Where(x => x.Category == "captcha" && (x.Action == "challenge_failed" || x.Action == "challenge_unavailable"))
+            .LongCountAsync(cancellationToken);
+        var captchaIgnored = await securityEventsQuery
+            .Where(x => x.Category == "captcha" && x.Action == "challenge_ignored")
+            .LongCountAsync(cancellationToken);
+        var captchaOutcomes = new SecurityCaptchaOutcomeSummary
+        {
+            Solved = captchaSolved,
+            Failed = captchaFailed,
+            Ignored = captchaIgnored,
+        };
+
         var wafDetections = await securityEventsQuery
             .Where(x => x.Category == "waf")
             .LongCountAsync(cancellationToken);
@@ -567,10 +677,76 @@ public sealed class SecurityIngestionService(
             .Where(x => x.Action == "blocked" || x.Action == "block" || x.Action == "deny")
             .LongCountAsync(cancellationToken);
 
+        var activeSoftBlocks = await db.SecuritySubjectStates.AsNoTracking()
+            .Join(
+                db.SecuritySubjects.AsNoTracking(),
+                state => state.SecuritySubjectId,
+                subject => subject.Id,
+                (state, subject) => new { state, subject })
+            .Where(x => x.subject.CurrentState == SecuritySubjectStateNames.SoftBlocked || x.state.SoftBlockedUntilUtc > dashboardNow)
+            .Where(x => x.state.SoftBlockedUntilUtc == null || x.state.SoftBlockedUntilUtc > dashboardNow)
+            .OrderByDescending(x => x.subject.LastSeenAtUtc)
+            .Take(10)
+            .Select(x => new SecurityActiveBlockItem
+            {
+                SubjectType = x.subject.SubjectType,
+                SubjectValue = x.subject.NormalizedValue,
+                BlockType = "soft",
+                Reason = x.state.LastEscalationReason,
+                ExpiresAtUtc = x.state.SoftBlockedUntilUtc,
+                LastSeenAtUtc = x.subject.LastSeenAtUtc,
+                FirewallSynced = false,
+            })
+            .ToListAsync(cancellationToken);
+
+        var activeFirewallBlocks = await db.BlocklistEntries.AsNoTracking()
+            .Where(x => x.Enabled)
+            .Where(x => x.ExpiresAtUtc == null || x.ExpiresAtUtc > dashboardNow)
+            .Where(x => x.Type == BlocklistTypeNames.Ip || x.Type == BlocklistTypeNames.Cidr || x.Type == string.Empty)
+            .Where(x => x.SyncedToFirewall || x.EnforcementMode == BlocklistEnforcementModeNames.Firewall)
+            .OrderByDescending(x => x.LastHitAtUtc ?? x.CreatedAtUtc)
+            .Take(10)
+            .Select(x => new SecurityActiveBlockItem
+            {
+                SubjectType = string.IsNullOrWhiteSpace(x.SubjectType) ? x.Type : x.SubjectType,
+                SubjectValue = string.IsNullOrWhiteSpace(x.NormalizedValue)
+                    ? string.IsNullOrWhiteSpace(x.Value) ? x.ClientIp : x.Value
+                    : x.NormalizedValue,
+                BlockType = "firewall",
+                Reason = x.Reason,
+                ExpiresAtUtc = x.ExpiresAtUtc,
+                LastSeenAtUtc = x.LastHitAtUtc ?? x.CreatedAtUtc,
+                FirewallSynced = x.SyncedToFirewall,
+            })
+            .ToListAsync(cancellationToken);
+
+        var enabledBlocklistSources = await db.BlocklistSources.AsNoTracking()
+            .Where(x => x.Enabled)
+            .ToListAsync(cancellationToken);
+        var staleBlocklistSources = enabledBlocklistSources
+            .Where(x => x.LastFetchedAtUtc == null
+                || x.LastFetchStatus != BlocklistFetchStatusNames.Succeeded
+                || x.LastFetchedAtUtc <= dashboardNow.AddHours(-Math.Clamp(x.RefreshIntervalHours, 1, 8760)))
+            .OrderBy(x => x.LastFetchedAtUtc ?? DateTimeOffset.MinValue)
+            .Take(10)
+            .Select(x => new SecurityStaleBlocklistSourceItem
+            {
+                Id = x.Id,
+                Name = x.Name,
+                LastFetchStatus = x.LastFetchStatus,
+                LastFetchError = x.LastFetchError,
+                LastFetchedAtUtc = x.LastFetchedAtUtc,
+                StaleSinceUtc = x.LastFetchedAtUtc ?? x.CreatedAtUtc,
+            })
+            .ToList();
+
+        var geoIpStatus = await BuildGeoIpStatusAsync(dashboardNow, cancellationToken);
+
         var firewallActiveIpBlocks = await db.BlocklistEntries.AsNoTracking()
             .Where(x => x.Enabled)
             .Where(x => x.ExpiresAtUtc == null || x.ExpiresAtUtc > dashboardNow)
             .Where(x => x.Type == BlocklistTypeNames.Ip || x.Type == BlocklistTypeNames.Cidr || x.Type == string.Empty)
+            .Where(x => x.SyncedToFirewall || x.EnforcementMode == BlocklistEnforcementModeNames.Firewall)
             .LongCountAsync(cancellationToken);
         var blocklistCount = await db.BlocklistEntries.AsNoTracking()
             .Where(x => x.Enabled)
@@ -589,10 +765,18 @@ public sealed class SecurityIngestionService(
             normalizedTraefikHostFilter,
             selectedFirewallHost?.Id,
             topIps,
+            topChallengedIps,
             topCountries,
             topAsns,
             topResources,
             recentEvents,
+            recentManualActions,
+            blocklistMatchesOverTime,
+            captchaOutcomes,
+            activeSoftBlocks,
+            activeFirewallBlocks,
+            staleBlocklistSources,
+            geoIpStatus,
             resourceFilters,
             traefikHostFilters,
             firewallHostFilters,
@@ -764,6 +948,87 @@ public sealed class SecurityIngestionService(
         var utc = value.ToUniversalTime();
         return new DateTimeOffset(utc.Year, utc.Month, utc.Day, utc.Hour, utc.Minute, 0, TimeSpan.Zero);
     }
+
+    private static DateTimeOffset TruncateToHourUtc(DateTimeOffset value)
+    {
+        var utc = value.ToUniversalTime();
+        return new DateTimeOffset(utc.Year, utc.Month, utc.Day, utc.Hour, 0, 0, TimeSpan.Zero);
+    }
+
+    private async Task<SecurityGeoIpStatusSummary> BuildGeoIpStatusAsync(DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var settings = await db.AppSettings.AsNoTracking().SingleOrDefaultAsync(cancellationToken);
+        var expected = new[] { "GeoLite2-City", "GeoLite2-Country", "GeoLite2-ASN" };
+        var databaseRows = await db.GeoIpDatabases.AsNoTracking().ToListAsync(cancellationToken);
+        var databases = databaseRows.ToDictionary(x => x.EditionId, StringComparer.OrdinalIgnoreCase);
+        var missing = expected
+            .Where(x => !databases.TryGetValue(x, out var database)
+                || database.Status != GeoIpUpdateStatusNames.Succeeded
+                || database.LastDownloadedAtUtc is null)
+            .ToList();
+        var intervalHours = Math.Clamp(settings?.GeoIpUpdateIntervalHours ?? 72, 12, 168);
+        var staleCutoff = now.AddHours(-intervalHours * 2);
+        var stale = databases.Values
+            .Where(x => x.Status == GeoIpUpdateStatusNames.Failed
+                || x.Status == GeoIpUpdateStatusNames.NeverRun
+                || x.LastDownloadedAtUtc <= staleCutoff)
+            .Select(x => x.EditionId)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x)
+            .ToList();
+
+        var enabled = settings?.GeoIpEnabled ?? false;
+        var lastUpdateStatus = settings?.GeoIpLastUpdateStatus ?? GeoIpUpdateStatusNames.NeverRun;
+        var nextUpdateAtUtc = settings?.GeoIpNextUpdateAtUtc;
+        var isStale = enabled
+            && (lastUpdateStatus != GeoIpUpdateStatusNames.Succeeded
+                || (nextUpdateAtUtc is not null && nextUpdateAtUtc <= now)
+                || missing.Count > 0
+                || stale.Count > 0);
+
+        return new SecurityGeoIpStatusSummary
+        {
+            Enabled = enabled,
+            DatabaseAvailable = enabled && missing.Count == 0,
+            IsStale = isStale,
+            LastUpdateStatus = lastUpdateStatus,
+            LastUpdateMessage = settings?.GeoIpLastUpdateMessage,
+            LastUpdateAtUtc = settings?.GeoIpLastUpdateAtUtc,
+            NextUpdateAtUtc = nextUpdateAtUtc,
+            MissingDatabases = missing,
+            StaleDatabases = stale,
+        };
+    }
+
+    private static string? NormalizeCorrelationId(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var trimmed = value.Trim();
+        return trimmed.Length <= 128 ? trimmed : trimmed[..128];
+    }
+
+    private static string? ResolveUserAgentHash(string? userAgent, string? userAgentHash)
+    {
+        if (!string.IsNullOrWhiteSpace(userAgent))
+        {
+            return HashUserAgent(userAgent);
+        }
+
+        if (string.IsNullOrWhiteSpace(userAgentHash))
+        {
+            return null;
+        }
+
+        var normalized = userAgentHash.Trim();
+        return normalized.Length <= 128 ? normalized : normalized[..128];
+    }
+
+    private static string HashUserAgent(string userAgent)
+        => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(userAgent.Trim()))).ToLowerInvariant();
 
     private static string NormalizeResource(string? resource, string host)
         => string.IsNullOrWhiteSpace(resource) ? host : resource.Trim();

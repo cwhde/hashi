@@ -33,6 +33,7 @@ public sealed class AccessLogIngestWorkerTests
         services.AddSingleton(new ServiceSyncVaultState());
         services.AddSingleton<ISshRemoteExecutor>(fakeSsh);
         services.AddScoped<AuditService>();
+        services.AddScoped<ConnectionTargetResolver>();
         services.AddScoped<SecretRecordService>();
         services.AddHttpClient();
         services.AddScoped<NotificationDispatcher>();
@@ -72,7 +73,7 @@ public sealed class AccessLogIngestWorkerTests
         }
 
         fakeSsh.ReadFiles["/var/log/hashi/traefik/access.log"] = Encoding.UTF8.GetBytes(
-            "{\"ClientAddr\":\"198.51.100.10:43210\",\"RequestHost\":\"app.example.com\",\"RequestPath\":\"/login\",\"DownstreamStatus\":404}\n" +
+            "{\"ClientAddr\":\"198.51.100.10:43210\",\"RequestHost\":\"app.example.com\",\"RequestPath\":\"/login\",\"RequestMethod\":\"POST\",\"DownstreamStatus\":404,\"RequestHeaders\":{\"X-Request-Id\":\"req-1\",\"User-Agent\":\"Mozilla/5.0\"}}\n" +
             "{\"ClientAddr\":\"198.51.100.10:43211\",\"RequestHost\":\"app.example.com\",\"RequestPath\":\"/admin\",\"DownstreamStatus\":429}\n");
 
         var worker = new AccessLogIngestWorker(
@@ -91,11 +92,19 @@ public sealed class AccessLogIngestWorkerTests
         var verifyDb = verifyScope.ServiceProvider.GetRequiredService<HashiDbContext>();
         var bucket = await verifyDb.AbuseBuckets.SingleAsync();
         var events = await verifyDb.AccessLogEvents.ToListAsync();
+        var securityEvents = await verifyDb.SecurityEvents.ToListAsync();
         var cursor = await verifyDb.AccessLogCursors.SingleAsync();
 
         Assert.Equal("198.51.100.10", bucket.ClientIp);
         Assert.Equal(4, bucket.Score);
         Assert.Equal(2, events.Count);
+        Assert.Contains(securityEvents, x =>
+            x.RequestId == "req-1"
+            && x.RequestMethod == "POST"
+            && x.UserAgentHash == Sha256Hex("Mozilla/5.0"));
         Assert.True(cursor.ByteOffset > 0);
     }
+
+    private static string Sha256Hex(string value)
+        => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
 }

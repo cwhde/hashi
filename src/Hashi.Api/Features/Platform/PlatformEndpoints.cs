@@ -401,6 +401,11 @@ public static class EdgeAuthEndpoints
             var country = requestContext.TrustedProxy ? ctx.Request.Headers["X-Geo-Country"].FirstOrDefault() : null;
             var region = requestContext.TrustedProxy ? ctx.Request.Headers["X-Geo-Region"].FirstOrDefault() : null;
             var asn = requestContext.TrustedProxy ? ctx.Request.Headers["X-Geo-Asn"].FirstOrDefault() : null;
+            var requestId = ctx.Request.Headers["X-Request-Id"].FirstOrDefault()
+                ?? ctx.Request.Headers["X-Correlation-Id"].FirstOrDefault()
+                ?? ctx.Request.Headers["Request-Id"].FirstOrDefault()
+                ?? ctx.TraceIdentifier;
+            var userAgent = ctx.Request.Headers["User-Agent"].FirstOrDefault();
             if (country is null && region is null && asn is null)
             {
                 var lookup = geoIp.Lookup(clientIp);
@@ -437,7 +442,9 @@ public static class EdgeAuthEndpoints
                 asn,
                 region,
                 requestContext.Method,
-                path), ct);
+                path,
+                requestId,
+                userAgent), ct);
 
             return result.ResponseMode switch
             {

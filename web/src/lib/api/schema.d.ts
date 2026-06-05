@@ -6783,6 +6783,9 @@ export interface components {
             pathPrefix?: null | string;
             traefikInstance?: null | string;
             resource?: null | string;
+            requestId?: null | string;
+            userAgent?: null | string;
+            userAgentHash?: null | string;
         };
         AdGuardConnectionResponse: {
             /** Format: uuid */
@@ -6900,6 +6903,10 @@ export interface components {
             /** Format: date-time */
             createdAtUtc: string;
             /** Format: date-time */
+            firstSeenAtUtc: string;
+            /** Format: date-time */
+            lastSeenAtUtc: string;
+            /** Format: date-time */
             expiresAtUtc: null | string;
             /** Format: date-time */
             lastHitAtUtc: null | string;
@@ -6941,6 +6948,8 @@ export interface components {
             removedCount: number | string;
             /** Format: int32 */
             unchangedCount: number | string;
+            /** Format: int32 */
+            rejectedCount: number | string;
             contentHash: null | string;
             error: null | string;
         };
@@ -6977,8 +6986,14 @@ export interface components {
             lastFetchError: null | string;
             /** Format: date-time */
             lastFetchedAtUtc: null | string;
+            /** Format: date-time */
+            lastSuccessAtUtc: null | string;
+            /** Format: int32 */
+            lastHttpStatusCode: null | number | string;
             /** Format: int64 */
             entryCount: number | string;
+            /** Format: int32 */
+            rejectedCount: number | string;
             isStale: boolean;
             metadataJson: null | string;
             /** Format: date-time */
@@ -7318,6 +7333,7 @@ export interface components {
             password: null | string;
             privateKeyPem: null | string;
             privateKeyPassphrase: null | string;
+            target?: null | components["schemas"]["ConnectionTargetRequest"];
         };
         DashboardSettingsRequest: {
             overviewWidgetsJson: null | string;
@@ -8031,15 +8047,40 @@ export interface components {
             purpose: string;
             plaintextBase64: string;
         };
+        SecurityActiveBlockItem: {
+            subjectType: string;
+            subjectValue: string;
+            blockType: string;
+            reason?: null | string;
+            /** Format: date-time */
+            expiresAtUtc?: null | string;
+            /** Format: date-time */
+            lastSeenAtUtc?: string;
+            firewallSynced?: boolean;
+        };
         SecurityBlockDurationRequest: {
             /** Format: int32 */
             durationSeconds: number | string;
+        };
+        SecurityBlocklistMatchBucket: {
+            /** Format: date-time */
+            bucketStartUtc: string;
+            /** Format: int64 */
+            count: number | string;
         };
         SecurityBlockMutationResponse: {
             manualEntry: components["schemas"]["ManualSecurityEntryResponse"];
             state: null | components["schemas"]["SecuritySubjectStateResponse"];
             firewallSyncRecommended: boolean;
             firewallPreview: null | components["schemas"]["FirewallPlanPreviewResponse"];
+        };
+        SecurityCaptchaOutcomeSummary: {
+            /** Format: int64 */
+            solved: number | string;
+            /** Format: int64 */
+            failed: number | string;
+            /** Format: int64 */
+            ignored: number | string;
         };
         SecurityDashboardResponse: {
             /** Format: int64 */
@@ -8059,10 +8100,18 @@ export interface components {
             /** Format: uuid */
             firewallHostIdFilter: null | string;
             topBlockedIps: components["schemas"]["SecurityTopBlockedIpItem"][];
+            topChallengedIps: components["schemas"]["SecurityTopBlockedIpItem"][];
             topCountries: components["schemas"]["SecurityRankItem"][];
             topAsns: components["schemas"]["SecurityRankItem"][];
             topResourcesBlockedChallenged: components["schemas"]["SecurityResourceEnforcementItem"][];
             recentEvents: components["schemas"]["SecurityRecentEventItem"][];
+            recentManualActions: components["schemas"]["SecurityRecentEventItem"][];
+            blocklistMatchesOverTime: components["schemas"]["SecurityBlocklistMatchBucket"][];
+            captchaOutcomes: components["schemas"]["SecurityCaptchaOutcomeSummary"];
+            activeSoftBlocks: components["schemas"]["SecurityActiveBlockItem"][];
+            activeFirewallBlocks: components["schemas"]["SecurityActiveBlockItem"][];
+            staleBlocklistSources: components["schemas"]["SecurityStaleBlocklistSourceItem"][];
+            geoIpStatus: components["schemas"]["SecurityGeoIpStatusSummary"];
             resourceFilters: components["schemas"]["SecurityFilterOption"][];
             traefikHostFilters: components["schemas"]["SecurityFilterOption"][];
             firewallHostFilters: components["schemas"]["SecurityFirewallHostOption"][];
@@ -8107,6 +8156,7 @@ export interface components {
             /** Format: int32 */
             statusCode: null | number | string;
             requestId: null | string;
+            userAgentHash: null | string;
             metadataJson: null | string;
         };
         SecurityFilterOption: {
@@ -8129,6 +8179,19 @@ export interface components {
             name: string;
             domain: string;
             linkedTraefikHost: string;
+        };
+        SecurityGeoIpStatusSummary: {
+            enabled: boolean;
+            databaseAvailable: boolean;
+            isStale: boolean;
+            lastUpdateStatus: string;
+            lastUpdateMessage?: null | string;
+            /** Format: date-time */
+            lastUpdateAtUtc?: null | string;
+            /** Format: date-time */
+            nextUpdateAtUtc?: null | string;
+            missingDatabases?: string[];
+            staleDatabases?: string[];
         };
         SecurityRankItem: {
             label: string;
@@ -8180,6 +8243,17 @@ export interface components {
             blocked: number | string;
             /** Format: int64 */
             challenged: number | string;
+        };
+        SecurityStaleBlocklistSourceItem: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            lastFetchStatus: string;
+            lastFetchError?: null | string;
+            /** Format: date-time */
+            lastFetchedAtUtc?: null | string;
+            /** Format: date-time */
+            staleSinceUtc?: string;
         };
         SecuritySubjectDetailResponse: {
             subject: components["schemas"]["SecuritySubjectSummaryResponse"];
@@ -8653,6 +8727,9 @@ export interface components {
             host: string;
             path: string;
             action: string;
+            requestId?: null | string;
+            userAgent?: null | string;
+            userAgentHash?: null | string;
         };
     };
     responses: never;

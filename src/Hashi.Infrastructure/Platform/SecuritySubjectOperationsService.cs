@@ -952,6 +952,7 @@ public sealed class SecuritySubjectOperationsService(
         entity.RequestPath ?? entity.Path,
         entity.StatusCode,
         entity.RequestId,
+        entity.UserAgentHash,
         entity.MetadataJson ?? entity.DetailsJson);
 
     private static SecurityRequestBucketResponse ToBucketResponse(SecurityRequestBucketEntity entity) => new(

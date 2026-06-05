@@ -150,6 +150,43 @@ export type SecurityTopBlockedIpItem = {
 	expiresAtUtc: string | null;
 	subjectState: string | null;
 };
+export type SecurityBlocklistMatchBucket = {
+	bucketStartUtc: string;
+	count: number;
+};
+export type SecurityCaptchaOutcomeSummary = {
+	solved: number;
+	failed: number;
+	ignored: number;
+};
+export type SecurityActiveBlockItem = {
+	subjectType: string;
+	subjectValue: string;
+	blockType: string;
+	reason: string | null;
+	expiresAtUtc: string | null;
+	lastSeenAtUtc: string;
+	firewallSynced: boolean;
+};
+export type SecurityStaleBlocklistSourceItem = {
+	id: string;
+	name: string;
+	lastFetchStatus: string;
+	lastFetchError: string | null;
+	lastFetchedAtUtc: string | null;
+	staleSinceUtc: string;
+};
+export type SecurityGeoIpStatusSummary = {
+	enabled: boolean;
+	databaseAvailable: boolean;
+	isStale: boolean;
+	lastUpdateStatus: string;
+	lastUpdateMessage: string | null;
+	lastUpdateAtUtc: string | null;
+	nextUpdateAtUtc: string | null;
+	missingDatabases: string[];
+	staleDatabases: string[];
+};
 export type SecurityDashboard = {
 	allowed: number;
 	blocked: number;
@@ -161,10 +198,18 @@ export type SecurityDashboard = {
 	traefikHostFilter: string | null;
 	firewallHostIdFilter: string | null;
 	topBlockedIps: SecurityTopBlockedIpItem[];
+	topChallengedIps: SecurityTopBlockedIpItem[];
 	topCountries: SecurityRankItem[];
 	topAsns: SecurityRankItem[];
 	topResourcesBlockedChallenged: SecurityResourceEnforcementItem[];
 	recentEvents: SecurityRecentEventItem[];
+	recentManualActions: SecurityRecentEventItem[];
+	blocklistMatchesOverTime: SecurityBlocklistMatchBucket[];
+	captchaOutcomes: SecurityCaptchaOutcomeSummary;
+	activeSoftBlocks: SecurityActiveBlockItem[];
+	activeFirewallBlocks: SecurityActiveBlockItem[];
+	staleBlocklistSources: SecurityStaleBlocklistSourceItem[];
+	geoIpStatus: SecurityGeoIpStatusSummary;
 	resourceFilters: SecurityFilterOption[];
 	traefikHostFilters: SecurityFilterOption[];
 	firewallHostFilters: SecurityFirewallHostOption[];

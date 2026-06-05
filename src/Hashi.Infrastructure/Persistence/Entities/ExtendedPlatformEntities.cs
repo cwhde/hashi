@@ -656,6 +656,10 @@ public sealed class BlocklistEntryEntity
 
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 
+    public DateTimeOffset FirstSeenAtUtc { get; set; } = DateTimeOffset.UtcNow;
+
+    public DateTimeOffset LastSeenAtUtc { get; set; } = DateTimeOffset.UtcNow;
+
     public DateTimeOffset? ExpiresAtUtc { get; set; }
 
     public DateTimeOffset? LastHitAtUtc { get; set; }
@@ -697,9 +701,17 @@ public sealed class BlocklistSourceEntity
 
     public DateTimeOffset? LastFetchedAtUtc { get; set; }
 
+    public DateTimeOffset? LastSuccessAtUtc { get; set; }
+
     public string LastFetchStatus { get; set; } = BlocklistFetchStatusNames.NeverRun;
 
     public string? LastFetchError { get; set; }
+
+    public int? LastHttpStatusCode { get; set; }
+
+    public int EntryCount { get; set; }
+
+    public int RejectedCount { get; set; }
 
     public string MetadataJson { get; set; } = "{}";
 
@@ -731,6 +743,8 @@ public sealed class BlocklistFetchRunEntity
     public int RemovedCount { get; set; }
 
     public int UnchangedCount { get; set; }
+
+    public int RejectedCount { get; set; }
 
     public string? ContentHash { get; set; }
 

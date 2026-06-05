@@ -223,7 +223,10 @@ public sealed class ScriptExecutionServiceTests
     }
 
     private static ScriptExecutionService CreateService(HashiDbContext db, FakeSshRemoteExecutor ssh, SecretRecordService secrets)
-        => new(db, ssh, secrets, new AuditService(db));
+    {
+        var audit = new AuditService(db);
+        return new(db, ssh, secrets, audit, new ConnectionTargetResolver(db, audit));
+    }
 
     private static async Task<Guid> AddConnectionAsync(
         HashiDbContext db,

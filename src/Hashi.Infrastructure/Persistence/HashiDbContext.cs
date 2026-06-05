@@ -807,6 +807,7 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.HasIndex(x => x.SourceId);
             entity.HasIndex(x => x.Enabled);
             entity.HasIndex(x => x.ExpiresAtUtc);
+            entity.HasIndex(x => x.LastSeenAtUtc);
         });
 
         modelBuilder.Entity<BlocklistSourceEntity>(entity =>
@@ -829,6 +830,7 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.Property(x => x.LastContentHash).HasMaxLength(128);
             entity.Property(x => x.LastFetchStatus).HasMaxLength(32).HasDefaultValue(BlocklistFetchStatusNames.NeverRun);
             entity.Property(x => x.MetadataJson).HasColumnType("jsonb").HasDefaultValueSql("'{}'::jsonb");
+            entity.HasIndex(x => x.LastSuccessAtUtc);
             entity.HasIndex(x => x.Enabled);
             entity.HasIndex(x => x.SourceUrl);
         });

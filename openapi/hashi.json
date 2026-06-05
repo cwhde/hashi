@@ -5322,6 +5322,24 @@
               "null",
               "string"
             ]
+          },
+          "requestId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "userAgent": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "userAgentHash": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -5747,6 +5765,8 @@
           "enforcementMode",
           "syncedToFirewall",
           "createdAtUtc",
+          "firstSeenAtUtc",
+          "lastSeenAtUtc",
           "expiresAtUtc",
           "lastHitAtUtc",
           "metadataJson"
@@ -5795,6 +5815,14 @@
             "type": "boolean"
           },
           "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "firstSeenAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastSeenAtUtc": {
             "type": "string",
             "format": "date-time"
           },
@@ -5907,6 +5935,7 @@
           "addedCount",
           "removedCount",
           "unchangedCount",
+          "rejectedCount",
           "contentHash",
           "error"
         ],
@@ -5968,6 +5997,14 @@
             "format": "int32"
           },
           "unchangedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "rejectedCount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",
@@ -6086,7 +6123,10 @@
           "lastFetchStatus",
           "lastFetchError",
           "lastFetchedAtUtc",
+          "lastSuccessAtUtc",
+          "lastHttpStatusCode",
           "entryCount",
+          "rejectedCount",
           "isStale",
           "metadataJson",
           "createdAtUtc",
@@ -6146,6 +6186,22 @@
             ],
             "format": "date-time"
           },
+          "lastSuccessAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lastHttpStatusCode": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
           "entryCount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
@@ -6153,6 +6209,14 @@
               "string"
             ],
             "format": "int64"
+          },
+          "rejectedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           },
           "isStale": {
             "type": "boolean"
@@ -7689,6 +7753,16 @@
             "type": [
               "null",
               "string"
+            ]
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ConnectionTargetRequest"
+              }
             ]
           }
         }
@@ -10700,6 +10774,45 @@
           }
         }
       },
+      "SecurityActiveBlockItem": {
+        "required": [
+          "subjectType",
+          "subjectValue",
+          "blockType"
+        ],
+        "type": "object",
+        "properties": {
+          "subjectType": {
+            "type": "string"
+          },
+          "subjectValue": {
+            "type": "string"
+          },
+          "blockType": {
+            "type": "string"
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expiresAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lastSeenAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "firewallSynced": {
+            "type": "boolean"
+          }
+        }
+      },
       "SecurityBlockDurationRequest": {
         "required": [
           "durationSeconds"
@@ -10713,6 +10826,27 @@
               "string"
             ],
             "format": "int32"
+          }
+        }
+      },
+      "SecurityBlocklistMatchBucket": {
+        "required": [
+          "bucketStartUtc",
+          "count"
+        ],
+        "type": "object",
+        "properties": {
+          "bucketStartUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
           }
         }
       },
@@ -10753,6 +10887,40 @@
           }
         }
       },
+      "SecurityCaptchaOutcomeSummary": {
+        "required": [
+          "solved",
+          "failed",
+          "ignored"
+        ],
+        "type": "object",
+        "properties": {
+          "solved": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "failed": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "ignored": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        }
+      },
       "SecurityDashboardResponse": {
         "required": [
           "allowed",
@@ -10765,10 +10933,18 @@
           "traefikHostFilter",
           "firewallHostIdFilter",
           "topBlockedIps",
+          "topChallengedIps",
           "topCountries",
           "topAsns",
           "topResourcesBlockedChallenged",
           "recentEvents",
+          "recentManualActions",
+          "blocklistMatchesOverTime",
+          "captchaOutcomes",
+          "activeSoftBlocks",
+          "activeFirewallBlocks",
+          "staleBlocklistSources",
+          "geoIpStatus",
           "resourceFilters",
           "traefikHostFilters",
           "firewallHostFilters",
@@ -10851,6 +11027,12 @@
               "$ref": "#/components/schemas/SecurityTopBlockedIpItem"
             }
           },
+          "topChallengedIps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SecurityTopBlockedIpItem"
+            }
+          },
           "topCountries": {
             "type": "array",
             "items": {
@@ -10874,6 +11056,42 @@
             "items": {
               "$ref": "#/components/schemas/SecurityRecentEventItem"
             }
+          },
+          "recentManualActions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SecurityRecentEventItem"
+            }
+          },
+          "blocklistMatchesOverTime": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SecurityBlocklistMatchBucket"
+            }
+          },
+          "captchaOutcomes": {
+            "$ref": "#/components/schemas/SecurityCaptchaOutcomeSummary"
+          },
+          "activeSoftBlocks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SecurityActiveBlockItem"
+            }
+          },
+          "activeFirewallBlocks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SecurityActiveBlockItem"
+            }
+          },
+          "staleBlocklistSources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SecurityStaleBlocklistSourceItem"
+            }
+          },
+          "geoIpStatus": {
+            "$ref": "#/components/schemas/SecurityGeoIpStatusSummary"
           },
           "resourceFilters": {
             "type": "array",
@@ -11003,6 +11221,7 @@
           "requestPath",
           "statusCode",
           "requestId",
+          "userAgentHash",
           "metadataJson"
         ],
         "type": "object",
@@ -11104,6 +11323,12 @@
               "string"
             ]
           },
+          "userAgentHash": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "metadataJson": {
             "type": [
               "null",
@@ -11193,6 +11418,61 @@
           },
           "linkedTraefikHost": {
             "type": "string"
+          }
+        }
+      },
+      "SecurityGeoIpStatusSummary": {
+        "required": [
+          "enabled",
+          "databaseAvailable",
+          "isStale",
+          "lastUpdateStatus"
+        ],
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "databaseAvailable": {
+            "type": "boolean"
+          },
+          "isStale": {
+            "type": "boolean"
+          },
+          "lastUpdateStatus": {
+            "type": "string"
+          },
+          "lastUpdateMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastUpdateAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "nextUpdateAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "missingDatabases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "staleDatabases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -11412,6 +11692,43 @@
               "string"
             ],
             "format": "int64"
+          }
+        }
+      },
+      "SecurityStaleBlocklistSourceItem": {
+        "required": [
+          "id",
+          "name",
+          "lastFetchStatus"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "lastFetchStatus": {
+            "type": "string"
+          },
+          "lastFetchError": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lastFetchedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "staleSinceUtc": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -13570,6 +13887,24 @@
           },
           "action": {
             "type": "string"
+          },
+          "requestId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "userAgent": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "userAgentHash": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       }

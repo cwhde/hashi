@@ -7,20 +7,27 @@ public sealed class FakeSshRemoteExecutor : ISshRemoteExecutor
     public int WriteCount { get; private set; }
     public Dictionary<string, byte[]> ReadFiles { get; } = new(StringComparer.Ordinal);
     public Dictionary<string, byte[]> WrittenFiles { get; } = new(StringComparer.Ordinal);
+    public List<SshConnectionSettings> ValidationSettings { get; } = [];
     public List<string> Commands { get; } = [];
     public List<SshConnectionSettings> CommandSettings { get; } = [];
     public RemoteCommandResult CommandResult { get; set; } = new(true, string.Empty, null);
     public Queue<RemoteCommandResult> CommandResults { get; } = [];
 
     public Task<SshValidationResult> ValidateAsync(SshConnectionSettings settings, string password, CancellationToken cancellationToken = default)
-        => Task.FromResult(new SshValidationResult(true, OsFamily.Debian, "linux", null));
+    {
+        ValidationSettings.Add(settings);
+        return Task.FromResult(new SshValidationResult(true, OsFamily.Debian, "linux", null));
+    }
 
     public Task<SshValidationResult> ValidateWithPrivateKeyAsync(
         SshConnectionSettings settings,
         string privateKeyPem,
         string? passphrase,
         CancellationToken cancellationToken = default)
-        => Task.FromResult(new SshValidationResult(true, OsFamily.Debian, "linux", null));
+    {
+        ValidationSettings.Add(settings);
+        return Task.FromResult(new SshValidationResult(true, OsFamily.Debian, "linux", null));
+    }
 
     public Task<RemoteWriteResult> WriteAtomicAsync(
         SshConnectionSettings settings,

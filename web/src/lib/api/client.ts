@@ -1,5 +1,5 @@
 import createClient, { type Middleware } from 'openapi-fetch';
-import type { paths } from './schema.js';
+import type { components, paths } from './schema.js';
 import type { ApiError, UndocumentedJson } from './types.js';
 import { resolveApiBaseUrl } from './base-url.js';
 
@@ -64,6 +64,11 @@ export class ApiRequestError extends Error {
 		this.name = 'ApiRequestError';
 	}
 }
+
+type BlocklistSourceRequest = components['schemas']['UpsertBlocklistSourceRequest'];
+type BlocklistSourceResponse = components['schemas']['BlocklistSourceResponse'];
+type BlocklistFetchPreviewResponse = components['schemas']['BlocklistFetchPreviewResponse'];
+type BlocklistSourceMutationResponse = components['schemas']['BlocklistSourceMutationResponse'];
 
 function errorFromResult(status: number, error: unknown): ApiRequestError {
 	const body = error as (ApiError & { code?: string }) | undefined;
@@ -586,6 +591,33 @@ export const api = {
 			}
 		} as never);
 		return (await expectData(r.response, r.error, r.data)) as unknown as import('./types.js').SecurityDashboard;
+	},
+	listBlocklistSources: async () => {
+		const r = await client.GET('/api/security/blocklists');
+		return expectData(r.response, r.error, r.data ?? []) as Promise<BlocklistSourceResponse[]>;
+	},
+	createBlocklistSource: async (body: BlocklistSourceRequest) => {
+		const r = await client.POST('/api/security/blocklists', { body });
+		return expectData(r.response, r.error, r.data) as Promise<BlocklistSourceResponse>;
+	},
+	updateBlocklistSource: async (id: string, body: BlocklistSourceRequest) => {
+		const r = await client.PATCH('/api/security/blocklists/{id}', {
+			params: { path: { id } },
+			body
+		});
+		return expectData(r.response, r.error, r.data) as Promise<BlocklistSourceResponse>;
+	},
+	previewBlocklistSource: async (id: string) => {
+		const r = await client.POST('/api/security/blocklists/{id}/fetch-preview', {
+			params: { path: { id } }
+		});
+		return expectData(r.response, r.error, r.data) as Promise<BlocklistFetchPreviewResponse>;
+	},
+	enableBlocklistSource: async (id: string) => {
+		const r = await client.POST('/api/security/blocklists/{id}/enable', {
+			params: { path: { id } }
+		});
+		return expectData(r.response, r.error, r.data) as Promise<BlocklistSourceMutationResponse>;
 	},
 	getPulseInstall: async (agentId: string, token?: string) => {
 		const r = await client.GET('/api/pulse/agents/{agentId}/install', {

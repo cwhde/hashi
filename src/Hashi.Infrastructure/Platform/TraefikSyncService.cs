@@ -17,7 +17,8 @@ public sealed class TraefikSyncService(
     TraefikPlatformService traefik,
     CertificateSetupService certificateSetup,
     SecretRecordService secrets,
-    AuditService audit)
+    AuditService audit,
+    ConnectionTargetResolver targetResolver)
 {
     private const string DynamicDirectory = "/etc/hashi/traefik/dynamic";
     private const string AcmeEnvironmentPath = "/etc/hashi/traefik/acme.env";
@@ -224,7 +225,7 @@ public sealed class TraefikSyncService(
     {
         var connection = await db.Connections.SingleOrDefaultAsync(x => x.Id == connectionId, cancellationToken)
             ?? throw new InvalidOperationException("Connection not found.");
-        var credentials = await ConnectionSshCredentialResolver.ResolveAsync(connection, secrets, cancellationToken)
+        var credentials = await ConnectionSshCredentialResolver.ResolveAsync(connection, secrets, targetResolver, cancellationToken)
             ?? throw new InvalidOperationException("SSH credentials unavailable for connection.");
 
         return await RollbackAsync(new TraefikApplyRequest(
@@ -244,7 +245,7 @@ public sealed class TraefikSyncService(
     {
         var connection = await db.Connections.SingleOrDefaultAsync(x => x.Id == connectionId, cancellationToken)
             ?? throw new InvalidOperationException("Connection not found.");
-        var credentials = await ConnectionSshCredentialResolver.ResolveAsync(connection, secrets, cancellationToken)
+        var credentials = await ConnectionSshCredentialResolver.ResolveAsync(connection, secrets, targetResolver, cancellationToken)
             ?? throw new InvalidOperationException("SSH credentials unavailable for connection.");
         var state = await db.TraefikHostStates.SingleOrDefaultAsync(x => x.ConnectionId == connectionId, cancellationToken);
         var remotePath = state?.StaticConfigPath ?? "/etc/hashi/traefik/traefik.yml";
@@ -278,7 +279,7 @@ public sealed class TraefikSyncService(
     {
         var connection = await db.Connections.SingleOrDefaultAsync(x => x.Id == connectionId, cancellationToken)
             ?? throw new InvalidOperationException("Connection not found.");
-        var credentials = await ConnectionSshCredentialResolver.ResolveAsync(connection, secrets, cancellationToken)
+        var credentials = await ConnectionSshCredentialResolver.ResolveAsync(connection, secrets, targetResolver, cancellationToken)
             ?? throw new InvalidOperationException("SSH credentials unavailable for connection.");
 
         return await ApplyAsync(new TraefikApplyRequest(

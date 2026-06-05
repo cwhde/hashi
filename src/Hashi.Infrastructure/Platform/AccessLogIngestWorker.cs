@@ -25,6 +25,7 @@ public sealed class AccessLogIngestWorker(
         using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<HashiDbContext>();
         var secrets = scope.ServiceProvider.GetRequiredService<SecretRecordService>();
+        var targets = scope.ServiceProvider.GetRequiredService<ConnectionTargetResolver>();
         var ssh = scope.ServiceProvider.GetRequiredService<ISshRemoteExecutor>();
         var security = scope.ServiceProvider.GetRequiredService<SecurityIngestionService>();
         var connections = await db.Connections
@@ -48,7 +49,11 @@ public sealed class AccessLogIngestWorker(
 
         foreach (var connection in connections)
         {
-            var credentials = await ConnectionSshCredentialResolver.ResolveAsync(connection, secrets, cancellationToken);
+            var credentials = await ConnectionSshCredentialResolver.ResolveAsync(
+                connection,
+                secrets,
+                targets,
+                cancellationToken: cancellationToken);
             if (credentials is null)
             {
                 hostErrors++;
@@ -248,8 +253,27 @@ public sealed class AccessLogIngestWorker(
 
             var country = GetString(root, "CountryCode");
             var asn = GetString(root, "Asn");
+            var requestId = GetString(root, "RequestID")
+                ?? GetString(root, "RequestId")
+                ?? GetString(root, "X-Request-Id")
+                ?? GetRequestHeader(root, "X-Request-Id", "X-Request-ID", "X-Correlation-Id", "Request-Id");
+            var userAgent = GetString(root, "UserAgent")
+                ?? GetString(root, "User-Agent")
+                ?? GetString(root, "RequestUserAgent")
+                ?? GetRequestHeader(root, "User-Agent");
+            var method = GetString(root, "RequestMethod")
+                ?? GetString(root, "Method");
 
-            request = new AccessLogIngestRequest(client, host, path, statusCode, country, asn);
+            request = new AccessLogIngestRequest(
+                client,
+                host,
+                path,
+                statusCode,
+                country,
+                asn,
+                Method: method,
+                RequestId: requestId,
+                UserAgent: userAgent);
             return true;
         }
         catch
@@ -285,6 +309,28 @@ public sealed class AccessLogIngestWorker(
         => root.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String
             ? property.GetString()
             : null;
+
+    private static string? GetRequestHeader(JsonElement root, params string[] headerNames)
+    {
+        foreach (var containerName in new[] { "RequestHeaders", "RequestHeader", "Headers" })
+        {
+            if (!root.TryGetProperty(containerName, out var container) || container.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            foreach (var property in container.EnumerateObject())
+            {
+                if (headerNames.Any(name => string.Equals(name, property.Name, StringComparison.OrdinalIgnoreCase))
+                    && property.Value.ValueKind == JsonValueKind.String)
+                {
+                    return property.Value.GetString();
+                }
+            }
+        }
+
+        return null;
+    }
 
     private static int? GetInt(JsonElement root, string propertyName)
     {

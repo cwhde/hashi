@@ -48,7 +48,8 @@ public static class TestPlatformHelpers
         var secrets = new SecretRecordService(db, vault, serviceSync);
         var certificate = new CertificateSetupService(db, settings, secrets, vault, new AuditService(db));
         var traefik = CreateTraefikPlatform(db, vault, serviceSync);
-        return new TraefikSyncService(db, ssh, traefik, certificate, secrets, new AuditService(db));
+        var audit = new AuditService(db);
+        return new TraefikSyncService(db, ssh, traefik, certificate, secrets, audit, new ConnectionTargetResolver(db, audit));
     }
 
     public static FirewallApplyService CreateFirewallApply(HashiDbContext db, FakeSshRemoteExecutor? ssh = null, VaultSessionState? vault = null)
@@ -56,13 +57,15 @@ public static class TestPlatformHelpers
         ssh ??= new FakeSshRemoteExecutor();
         vault ??= new VaultSessionState();
         var secrets = new SecretRecordService(db, vault, new ServiceSyncVaultState());
+        var audit = new AuditService(db);
         return new FirewallApplyService(
             db,
             ssh,
             secrets,
-            new AuditService(db),
+            audit,
             new FirewallTrustedIpResolver(NullLogger<FirewallTrustedIpResolver>.Instance),
-            new SyncRunService(db));
+            new SyncRunService(db),
+            new ConnectionTargetResolver(db, audit));
     }
 
     public static ResourceService CreateResourceService(HashiDbContext db, GeoIpLookupService? geoIp = null)

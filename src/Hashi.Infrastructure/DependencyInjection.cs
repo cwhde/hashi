@@ -92,6 +92,7 @@ public static class DependencyInjection
         services.AddScoped<BlocklistSourceManagementService>();
         services.AddScoped<BlocklistParser>();
         services.AddScoped<BlocklistSafeHttpFetcher>();
+        services.AddScoped<SecurityMaintenanceService>();
         services.AddSingleton<IBlocklistDnsResolver, DefaultBlocklistDnsResolver>();
         services.AddScoped<IBlocklistHttpTransport, SocketsBlocklistHttpTransport>();
         services.AddScoped<BackgroundJobService>();
@@ -121,6 +122,7 @@ public static class DependencyInjection
             services.AddHostedService<ScriptCronHostedService>();
             services.AddHostedService<AccessLogIngestWorker>();
             services.AddHostedService<GeoIpUpdateWorker>();
+            services.AddHostedService<SecurityAddendumJobWorker>();
         }
 
         var fidoDomain = configuration["Hashi:WebAuthn:ServerDomain"] ?? "localhost";

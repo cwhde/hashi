@@ -21,7 +21,8 @@ public sealed class FirewallApplyService(
     SecretRecordService secrets,
     AuditService audit,
     FirewallTrustedIpResolver trustedIpResolver,
-    SyncRunService syncRuns)
+    SyncRunService syncRuns,
+    ConnectionTargetResolver targetResolver)
 {
     public async Task<IReadOnlyList<FirewallHostResponse>> ListHostsAsync(CancellationToken cancellationToken = default)
     {
@@ -44,7 +45,7 @@ public sealed class FirewallApplyService(
             ?? throw new InvalidOperationException("Firewall host not found.");
         var connection = await db.Connections.SingleOrDefaultAsync(x => x.Id == host.ConnectionId, cancellationToken)
             ?? throw new InvalidOperationException("Firewall connection not found.");
-        var credentials = await ConnectionSshCredentialResolver.ResolveAsync(connection, secrets, cancellationToken)
+        var credentials = await ConnectionSshCredentialResolver.ResolveAsync(connection, secrets, targetResolver, cancellationToken)
             ?? throw new InvalidOperationException("SSH credentials unavailable for firewall host.");
 
         var definition = await BuildHostDefinitionAsync(host, cancellationToken);

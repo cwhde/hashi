@@ -577,6 +577,53 @@ public sealed record SecurityTopBlockedIpItem
     public string? SubjectState { get; init; }
 }
 
+public sealed record SecurityBlocklistMatchBucket
+{
+    public required DateTimeOffset BucketStartUtc { get; init; }
+    public required long Count { get; init; }
+}
+
+public sealed record SecurityCaptchaOutcomeSummary
+{
+    public required long Solved { get; init; }
+    public required long Failed { get; init; }
+    public required long Ignored { get; init; }
+}
+
+public sealed record SecurityActiveBlockItem
+{
+    public required string SubjectType { get; init; }
+    public required string SubjectValue { get; init; }
+    public required string BlockType { get; init; }
+    public string? Reason { get; init; }
+    public DateTimeOffset? ExpiresAtUtc { get; init; }
+    public DateTimeOffset LastSeenAtUtc { get; init; }
+    public bool FirewallSynced { get; init; }
+}
+
+public sealed record SecurityStaleBlocklistSourceItem
+{
+    public required Guid Id { get; init; }
+    public required string Name { get; init; }
+    public required string LastFetchStatus { get; init; }
+    public string? LastFetchError { get; init; }
+    public DateTimeOffset? LastFetchedAtUtc { get; init; }
+    public DateTimeOffset StaleSinceUtc { get; init; }
+}
+
+public sealed record SecurityGeoIpStatusSummary
+{
+    public required bool Enabled { get; init; }
+    public required bool DatabaseAvailable { get; init; }
+    public required bool IsStale { get; init; }
+    public required string LastUpdateStatus { get; init; }
+    public string? LastUpdateMessage { get; init; }
+    public DateTimeOffset? LastUpdateAtUtc { get; init; }
+    public DateTimeOffset? NextUpdateAtUtc { get; init; }
+    public IReadOnlyList<string> MissingDatabases { get; init; } = [];
+    public IReadOnlyList<string> StaleDatabases { get; init; } = [];
+}
+
 public sealed record SecurityDashboardResponse(
     long Allowed,
     long Blocked,
@@ -588,10 +635,18 @@ public sealed record SecurityDashboardResponse(
     string? TraefikHostFilter,
     Guid? FirewallHostIdFilter,
     IReadOnlyList<SecurityTopBlockedIpItem> TopBlockedIps,
+    IReadOnlyList<SecurityTopBlockedIpItem> TopChallengedIps,
     IReadOnlyList<SecurityRankItem> TopCountries,
     IReadOnlyList<SecurityRankItem> TopAsns,
     IReadOnlyList<SecurityResourceEnforcementItem> TopResourcesBlockedChallenged,
     IReadOnlyList<SecurityRecentEventItem> RecentEvents,
+    IReadOnlyList<SecurityRecentEventItem> RecentManualActions,
+    IReadOnlyList<SecurityBlocklistMatchBucket> BlocklistMatchesOverTime,
+    SecurityCaptchaOutcomeSummary CaptchaOutcomes,
+    IReadOnlyList<SecurityActiveBlockItem> ActiveSoftBlocks,
+    IReadOnlyList<SecurityActiveBlockItem> ActiveFirewallBlocks,
+    IReadOnlyList<SecurityStaleBlocklistSourceItem> StaleBlocklistSources,
+    SecurityGeoIpStatusSummary GeoIpStatus,
     IReadOnlyList<SecurityFilterOption> ResourceFilters,
     IReadOnlyList<SecurityFilterOption> TraefikHostFilters,
     IReadOnlyList<SecurityFirewallHostOption> FirewallHostFilters,
@@ -679,6 +734,7 @@ public sealed record SecurityEventResponse(
     string? RequestPath,
     int? StatusCode,
     string? RequestId,
+    string? UserAgentHash,
     string? MetadataJson);
 
 public sealed record SecurityRequestBucketResponse(
@@ -808,7 +864,10 @@ public sealed record BlocklistSourceResponse(
     string LastFetchStatus,
     string? LastFetchError,
     DateTimeOffset? LastFetchedAtUtc,
+    DateTimeOffset? LastSuccessAtUtc,
+    int? LastHttpStatusCode,
     long EntryCount,
+    int RejectedCount,
     bool IsStale,
     string? MetadataJson,
     DateTimeOffset CreatedAtUtc,
@@ -868,6 +927,8 @@ public sealed record BlocklistEntryResponse(
     string EnforcementMode,
     bool SyncedToFirewall,
     DateTimeOffset CreatedAtUtc,
+    DateTimeOffset FirstSeenAtUtc,
+    DateTimeOffset LastSeenAtUtc,
     DateTimeOffset? ExpiresAtUtc,
     DateTimeOffset? LastHitAtUtc,
     string? MetadataJson);
@@ -883,6 +944,7 @@ public sealed record BlocklistFetchRunResponse(
     int AddedCount,
     int RemovedCount,
     int UnchangedCount,
+    int RejectedCount,
     string? ContentHash,
     string? Error);
 
@@ -1045,13 +1107,19 @@ public sealed record ForwardAuthDecisionIngestRequest(
     string? Asn,
     string? RegionCode = null,
     string? Method = null,
-    string? PathPrefix = null);
+    string? PathPrefix = null,
+    string? RequestId = null,
+    string? UserAgent = null,
+    string? UserAgentHash = null);
 
 public sealed record WafEventIngestRequest(
     string ClientIp,
     string Host,
     string Path,
-    string Action);
+    string Action,
+    string? RequestId = null,
+    string? UserAgent = null,
+    string? UserAgentHash = null);
 
 public sealed record ScriptResponse(
     Guid Id,
@@ -1166,7 +1234,10 @@ public sealed record AccessLogIngestRequest(
     string? Method = null,
     string? PathPrefix = null,
     string? TraefikInstance = null,
-    string? Resource = null);
+    string? Resource = null,
+    string? RequestId = null,
+    string? UserAgent = null,
+    string? UserAgentHash = null);
 
 public sealed record AdGuardRewriteResponse(Guid Id, string Domain, string Answer, bool ManagedByHashi, string Source);
 

@@ -3,6 +3,7 @@ using Hashi.Core.Auth;
 using Hashi.Core.Connections;
 using Hashi.Infrastructure.Auth;
 using Hashi.Infrastructure.Persistence.Entities;
+using Hashi.Infrastructure.Platform;
 
 namespace Hashi.Infrastructure.Connections;
 
@@ -18,6 +19,7 @@ public static class ConnectionSshCredentialResolver
     public static async Task<ResolvedSshCredentials?> ResolveAsync(
         ConnectionEntity connection,
         SecretRecordService secrets,
+        ConnectionTargetResolver? targetResolver = null,
         CancellationToken cancellationToken = default)
     {
         if (connection.SecretId is null)
@@ -33,7 +35,9 @@ public static class ConnectionSshCredentialResolver
 
         using var doc = JsonDocument.Parse(payload);
         var root = doc.RootElement;
-        var settings = ParseSettings(connection);
+        var settings = targetResolver is null
+            ? ParseSettings(connection)
+            : await ResolveSettingsAsync(connection, targetResolver, cancellationToken);
         var authMode = root.GetProperty("authMode").GetString() ?? "password";
         return authMode switch
         {
@@ -49,6 +53,30 @@ public static class ConnectionSshCredentialResolver
                 root.GetProperty("password").GetString(),
                 null,
                 null),
+        };
+    }
+
+    public static async Task<SshConnectionSettings> ResolveSettingsAsync(
+        ConnectionEntity connection,
+        ConnectionTargetResolver targetResolver,
+        CancellationToken cancellationToken = default)
+    {
+        var settings = ParseSettings(connection);
+        var resolved = await targetResolver.ResolveConnectionAsync(connection, persistSnapshot: true, cancellationToken);
+        if (resolved is null)
+        {
+            return settings;
+        }
+
+        if (resolved.Status == ConnectionTargetStatusNames.Failed)
+        {
+            throw new InvalidOperationException(resolved.Error ?? "Connection target could not be resolved.");
+        }
+
+        return settings with
+        {
+            Host = resolved.ResolvedHost,
+            Port = resolved.BaseUri.Port,
         };
     }
 

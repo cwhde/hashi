@@ -201,6 +201,40 @@ public sealed class BlocklistSourceManagementService(
             .Select(x => ToEntryResponse(x))
             .ToListAsync(cancellationToken);
 
+    public async Task<BlocklistRefreshDueResult> RefreshDueSourcesAsync(CancellationToken cancellationToken = default)
+    {
+        await EnsureRecommendedSourcesAsync(cancellationToken);
+        var now = DateTimeOffset.UtcNow;
+        var sources = await db.BlocklistSources
+            .Where(x => x.Enabled)
+            .ToListAsync(cancellationToken);
+        var dueSources = sources
+            .Where(x => x.LastFetchedAtUtc is null || x.LastFetchedAtUtc <= now.AddHours(-Math.Max(1, x.RefreshIntervalHours)))
+            .ToList();
+
+        var succeeded = 0;
+        var failed = 0;
+        var skipped = 0;
+        foreach (var source in dueSources)
+        {
+            var run = await RefreshCoreAsync(source, requireEnabled: true, cancellationToken);
+            if (run.Status == BlocklistFetchStatusNames.Failed)
+            {
+                failed++;
+            }
+            else if (run.Status == BlocklistFetchStatusNames.SkippedNotModified)
+            {
+                skipped++;
+            }
+            else
+            {
+                succeeded++;
+            }
+        }
+
+        return new BlocklistRefreshDueResult(dueSources.Count, succeeded, failed, skipped);
+    }
+
     private async Task<BlocklistFetchRunResponse> RefreshCoreAsync(
         BlocklistSourceEntity source,
         bool requireEnabled,
@@ -234,6 +268,8 @@ public sealed class BlocklistSourceManagementService(
                 source.LastFetchStatus = BlocklistFetchStatusNames.SkippedNotModified;
                 source.LastFetchError = null;
                 source.LastFetchedAtUtc = run.CompletedAtUtc;
+                source.LastSuccessAtUtc = run.CompletedAtUtc;
+                source.LastHttpStatusCode = fetched.HttpStatusCode;
                 await db.SaveChangesAsync(cancellationToken);
                 return ToRunResponse(run);
             }
@@ -245,24 +281,26 @@ public sealed class BlocklistSourceManagementService(
             }
 
             var oldEntries = await db.BlocklistEntries.Where(x => x.SourceId == source.Id).ToListAsync(cancellationToken);
-            var oldValues = oldEntries.Select(x => x.NormalizedValue).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var newValues = parse.Entries.Select(x => x.NormalizedValue).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            db.BlocklistEntries.RemoveRange(oldEntries);
-            db.BlocklistEntries.AddRange(parse.Entries.Select(entry => ToEntity(source, entry)));
+            var merge = ApplyParsedEntries(source, oldEntries, parse.Entries, run.CompletedAtUtc ?? DateTimeOffset.UtcNow);
 
             run.Status = BlocklistFetchStatusNames.Succeeded;
             run.CompletedAtUtc = DateTimeOffset.UtcNow;
             run.EntryCount = parse.Entries.Count;
-            run.AddedCount = newValues.Count(x => !oldValues.Contains(x));
-            run.RemovedCount = oldValues.Count(x => !newValues.Contains(x));
-            run.UnchangedCount = newValues.Count(x => oldValues.Contains(x));
+            run.AddedCount = merge.AddedCount;
+            run.RemovedCount = merge.RemovedCount;
+            run.UnchangedCount = merge.UnchangedCount;
+            run.RejectedCount = parse.Errors.Count;
             run.MetadataJson = JsonSerializer.Serialize(new { parse.IgnoredCount, errors = parse.Errors.Take(25).ToArray() });
             source.ETag = fetched.ETag;
             source.LastModified = fetched.LastModified;
             source.LastContentHash = fetched.ContentHash;
             source.LastFetchedAtUtc = run.CompletedAtUtc;
+            source.LastSuccessAtUtc = run.CompletedAtUtc;
             source.LastFetchStatus = BlocklistFetchStatusNames.Succeeded;
             source.LastFetchError = null;
+            source.LastHttpStatusCode = fetched.HttpStatusCode;
+            source.EntryCount = parse.Entries.Count;
+            source.RejectedCount = parse.Errors.Count;
             source.UpdatedAtUtc = DateTimeOffset.UtcNow;
             await db.SaveChangesAsync(cancellationToken);
             await audit.WriteAsync(
@@ -281,6 +319,7 @@ public sealed class BlocklistSourceManagementService(
             run.Error = ex.Message;
             source.LastFetchStatus = BlocklistFetchStatusNames.Failed;
             source.LastFetchError = ex.Message;
+            source.LastHttpStatusCode = run.HttpStatusCode;
             source.UpdatedAtUtc = DateTimeOffset.UtcNow;
             await db.SaveChangesAsync(cancellationToken);
         }
@@ -305,7 +344,84 @@ public sealed class BlocklistSourceManagementService(
             MetadataJson = entry.MetadataJson ?? "{}",
             CreatedBy = "hashi:blocklist-source",
             SyncedToFirewall = !FirewallSyncRecommended(source),
+            FirstSeenAtUtc = DateTimeOffset.UtcNow,
+            LastSeenAtUtc = DateTimeOffset.UtcNow,
         };
+
+    private BlocklistMergeResult ApplyParsedEntries(
+        BlocklistSourceEntity source,
+        IReadOnlyList<BlocklistEntryEntity> oldEntries,
+        IReadOnlyList<BlocklistParsedEntry> parsedEntries,
+        DateTimeOffset seenAtUtc)
+    {
+        var oldByKey = oldEntries.ToDictionary(EntryKey, StringComparer.OrdinalIgnoreCase);
+        var newKeys = parsedEntries.Select(EntryKey).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var added = 0;
+        var unchanged = 0;
+        foreach (var parsedEntry in parsedEntries)
+        {
+            var key = EntryKey(parsedEntry);
+            if (oldByKey.TryGetValue(key, out var existing))
+            {
+                unchanged++;
+                var wasEnabled = existing.Enabled;
+                var wasSynced = existing.SyncedToFirewall;
+                var sameEnforcement = string.Equals(existing.EnforcementMode, source.EnforcementMode, StringComparison.OrdinalIgnoreCase);
+                ApplyParsedEntry(source, parsedEntry, existing, seenAtUtc);
+                existing.SyncedToFirewall = FirewallSyncRecommended(source)
+                    ? wasEnabled && wasSynced && sameEnforcement
+                    : true;
+                continue;
+            }
+
+            var entity = ToEntity(source, parsedEntry);
+            entity.FirstSeenAtUtc = seenAtUtc;
+            entity.LastSeenAtUtc = seenAtUtc;
+            db.BlocklistEntries.Add(entity);
+            added++;
+        }
+
+        var removed = 0;
+        foreach (var oldEntry in oldEntries.Where(x => !newKeys.Contains(EntryKey(x))))
+        {
+            if (oldEntry.Enabled)
+            {
+                removed++;
+            }
+
+            oldEntry.Enabled = false;
+            oldEntry.LastSeenAtUtc = seenAtUtc;
+        }
+
+        return new BlocklistMergeResult(added, removed, unchanged);
+    }
+
+    private static void ApplyParsedEntry(
+        BlocklistSourceEntity source,
+        BlocklistParsedEntry parsedEntry,
+        BlocklistEntryEntity existing,
+        DateTimeOffset seenAtUtc)
+    {
+        existing.ClientIp = parsedEntry.SubjectType == SecuritySubjectTypeNames.Ip ? parsedEntry.NormalizedValue : string.Empty;
+        existing.Scope = BlocklistScopeNames.Global;
+        existing.Type = parsedEntry.SubjectType == SecuritySubjectTypeNames.Cidr ? BlocklistTypeNames.Cidr : BlocklistTypeNames.Ip;
+        existing.Value = parsedEntry.NormalizedValue;
+        existing.NormalizedValue = parsedEntry.NormalizedValue;
+        existing.SubjectType = parsedEntry.SubjectType;
+        existing.Source = BlocklistSourceNames.Automatic;
+        existing.Reason = source.Name;
+        existing.Enabled = source.Enabled;
+        existing.EnforcementMode = source.EnforcementMode;
+        existing.MetadataJson = parsedEntry.MetadataJson ?? "{}";
+        existing.CreatedBy = "hashi:blocklist-source";
+        existing.LastSeenAtUtc = seenAtUtc;
+    }
+
+    private static string EntryKey(BlocklistEntryEntity entry)
+        => $"{entry.SubjectType}\u001f{entry.NormalizedValue}";
+
+    private static string EntryKey(BlocklistParsedEntry entry)
+        => $"{entry.SubjectType}\u001f{entry.NormalizedValue}";
 
     private async Task EnsureRecommendedSourcesAsync(CancellationToken cancellationToken)
     {
@@ -432,7 +548,10 @@ public sealed class BlocklistSourceManagementService(
             source.LastFetchStatus,
             source.LastFetchError,
             source.LastFetchedAtUtc,
+            source.LastSuccessAtUtc,
+            source.LastHttpStatusCode,
             entryCount,
+            source.RejectedCount,
             source.Enabled && staleAfter is not null && staleAfter < DateTimeOffset.UtcNow,
             source.MetadataJson,
             source.CreatedAtUtc,
@@ -490,6 +609,7 @@ public sealed class BlocklistSourceManagementService(
             run.AddedCount,
             run.RemovedCount,
             run.UnchangedCount,
+            run.RejectedCount,
             run.ContentHash,
             run.Error);
 
@@ -508,10 +628,23 @@ public sealed class BlocklistSourceManagementService(
             entry.EnforcementMode,
             entry.SyncedToFirewall,
             entry.CreatedAtUtc,
+            entry.FirstSeenAtUtc,
+            entry.LastSeenAtUtc,
             entry.ExpiresAtUtc,
             entry.LastHitAtUtc,
             entry.MetadataJson);
 }
+
+public sealed record BlocklistRefreshDueResult(
+    int DueSources,
+    int Succeeded,
+    int Failed,
+    int SkippedNotModified);
+
+internal sealed record BlocklistMergeResult(
+    int AddedCount,
+    int RemovedCount,
+    int UnchangedCount);
 
 public sealed class BlocklistParser
 {

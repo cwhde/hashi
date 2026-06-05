@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Hashi.Core.Sync;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
@@ -86,6 +87,19 @@ public sealed class ConnectionTargetResolver(HashiDbContext db, AuditService aud
     {
         var target = await GetOrCreateAdGuardTargetAsync(connection, cancellationToken);
         return await ResolveAsync(target, persistSnapshot, cancellationToken);
+    }
+
+    public async Task<ResolvedConnectionTarget?> ResolveConnectionAsync(
+        ConnectionEntity connection,
+        bool persistSnapshot = true,
+        CancellationToken cancellationToken = default)
+    {
+        var target = await db.ConnectionTargets.SingleOrDefaultAsync(
+            x => x.OwnerType == ConnectionTargetOwnerTypeNames.Connection && x.OwnerId == connection.Id,
+            cancellationToken);
+        return target is null
+            ? null
+            : await ResolveAsync(target, persistSnapshot, cancellationToken);
     }
 
     public static Uri BuildUri(ConnectionTargetEntity target, string host)
@@ -325,6 +339,20 @@ public sealed class ConnectionTargetResolver(HashiDbContext db, AuditService aud
         tracked.Status = resolved.Status;
         tracked.LastError = resolved.Error;
         tracked.UpdatedAtUtc = DateTimeOffset.UtcNow;
+        if (tracked.OwnerType == ConnectionTargetOwnerTypeNames.Connection &&
+            resolved.Status != ConnectionTargetStatusNames.Failed)
+        {
+            var connection = await db.Connections.SingleOrDefaultAsync(x => x.Id == tracked.OwnerId, cancellationToken);
+            if (connection is not null)
+            {
+                connection.SettingsJson = ApplyResolvedSshTarget(
+                    connection.SettingsJson,
+                    resolved.ResolvedHost,
+                    tracked.Port);
+                connection.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            }
+        }
+
         await db.SaveChangesAsync(cancellationToken);
     }
 
@@ -457,5 +485,22 @@ public sealed class ConnectionTargetResolver(HashiDbContext db, AuditService aud
         {
             return [];
         }
+    }
+
+    private static string ApplyResolvedSshTarget(string settingsJson, string host, int port)
+    {
+        JsonObject settings;
+        try
+        {
+            settings = JsonNode.Parse(settingsJson) as JsonObject ?? new JsonObject();
+        }
+        catch (JsonException)
+        {
+            settings = new JsonObject();
+        }
+
+        settings["Host"] = host;
+        settings["Port"] = port;
+        return settings.ToJsonString();
     }
 }

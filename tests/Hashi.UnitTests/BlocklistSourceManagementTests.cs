@@ -151,6 +151,79 @@ public sealed class BlocklistSourceManagementTests
     }
 
     [Fact]
+    public async Task Refresh_merges_entries_and_preserves_unchanged_applied_state()
+    {
+        await using var db = CreateDb();
+        var transport = new FakeTransport();
+        var service = CreateService(db, PublicResolver(), transport);
+        var source = new BlocklistSourceEntity
+        {
+            Name = "firewall feed",
+            SourceUrl = "https://feed.example/list.txt",
+            Format = BlocklistSourceFormatNames.Text,
+            Enabled = true,
+            CanFirewallEnforce = true,
+            EnforcementMode = BlocklistEnforcementModeNames.Firewall,
+        };
+        db.BlocklistSources.Add(source);
+        await db.SaveChangesAsync();
+
+        transport.Enqueue(new BlocklistHttpTransportResponse(
+            200,
+            new Dictionary<string, string>(),
+            "203.0.113.44\n203.0.113.45\n"));
+        var first = await service.RefreshAsync(source.Id);
+        Assert.Equal(BlocklistFetchStatusNames.Succeeded, first!.Run!.Status);
+
+        var unchanged = await db.BlocklistEntries.SingleAsync(x => x.SourceId == source.Id && x.NormalizedValue == "203.0.113.44");
+        var unchangedId = unchanged.Id;
+        unchanged.SyncedToFirewall = true;
+        var firewallHost = new FirewallHostEntity
+        {
+            ConnectionId = Guid.NewGuid(),
+            Name = "edge",
+            Domain = "edge.example",
+        };
+        db.FirewallHosts.Add(firewallHost);
+        db.BlocklistAppliedHosts.Add(new BlocklistAppliedHostEntity
+        {
+            BlocklistEntryId = unchanged.Id,
+            FirewallHost = firewallHost,
+            Status = BlocklistApplyStatusNames.Applied,
+            AppliedAtUtc = DateTimeOffset.UtcNow,
+        });
+        await db.SaveChangesAsync();
+
+        transport.Enqueue(new BlocklistHttpTransportResponse(
+            200,
+            new Dictionary<string, string>(),
+            "203.0.113.44\n203.0.113.46\n999.999.999.999\n"));
+        var second = await service.RefreshAsync(source.Id);
+
+        Assert.Equal(1, second!.Run!.AddedCount);
+        Assert.Equal(1, second.Run.RemovedCount);
+        Assert.Equal(1, second.Run.UnchangedCount);
+        Assert.Equal(1, second.Run.RejectedCount);
+
+        var refreshed = await db.BlocklistEntries.SingleAsync(x => x.SourceId == source.Id && x.NormalizedValue == "203.0.113.44");
+        Assert.Equal(unchangedId, refreshed.Id);
+        Assert.True(refreshed.Enabled);
+        Assert.True(refreshed.SyncedToFirewall);
+        Assert.True(refreshed.LastSeenAtUtc >= refreshed.FirstSeenAtUtc);
+        Assert.Single(await db.BlocklistAppliedHosts.Where(x => x.BlocklistEntryId == unchangedId).ToListAsync());
+
+        var removed = await db.BlocklistEntries.SingleAsync(x => x.SourceId == source.Id && x.NormalizedValue == "203.0.113.45");
+        Assert.False(removed.Enabled);
+        Assert.True(await db.BlocklistEntries.AnyAsync(x => x.SourceId == source.Id && x.NormalizedValue == "203.0.113.46" && x.Enabled));
+
+        var sourceState = await db.BlocklistSources.SingleAsync(x => x.Id == source.Id);
+        Assert.NotNull(sourceState.LastSuccessAtUtc);
+        Assert.Equal(200, sourceState.LastHttpStatusCode);
+        Assert.Equal(2, sourceState.EntryCount);
+        Assert.Equal(1, sourceState.RejectedCount);
+    }
+
+    [Fact]
     public async Task Recommended_sources_are_seeded_disabled_with_warnings()
     {
         await using var db = CreateDb();

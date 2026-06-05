@@ -451,7 +451,13 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("ExpiresAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTimeOffset>("FirstSeenAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTimeOffset?>("LastHitAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("LastSeenAtUtc")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("MetadataJson")
@@ -509,6 +515,8 @@ namespace Hashi.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ExpiresAtUtc");
 
+                    b.HasIndex("LastSeenAtUtc");
+
                     b.HasIndex("SourceId");
 
                     b.HasIndex("SubjectType", "NormalizedValue");
@@ -563,6 +571,9 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.Property<int>("RemovedCount")
                         .HasColumnType("integer");
 
+                    b.Property<int>("RejectedCount")
+                        .HasColumnType("integer");
+
                     b.Property<DateTimeOffset>("StartedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -614,6 +625,9 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(false);
 
+                    b.Property<int>("EntryCount")
+                        .HasColumnType("integer");
+
                     b.Property<string>("EnforcementMode")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -645,9 +659,15 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("LastFetchedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int?>("LastHttpStatusCode")
+                        .HasColumnType("integer");
+
                     b.Property<string>("LastModified")
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");
+
+                    b.Property<DateTimeOffset?>("LastSuccessAtUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("MaxRedirects")
                         .ValueGeneratedOnAdd()
@@ -675,6 +695,9 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasDefaultValue(24);
 
+                    b.Property<int>("RejectedCount")
+                        .HasColumnType("integer");
+
                     b.Property<string>("SourceUrl")
                         .IsRequired()
                         .HasMaxLength(1024)
@@ -691,6 +714,8 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("Enabled");
+
+                    b.HasIndex("LastSuccessAtUtc");
 
                     b.HasIndex("SourceUrl");
 

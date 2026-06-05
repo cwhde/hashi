@@ -40,15 +40,25 @@ public static class ConnectionEndpoints
                 OsFamily.Unknown,
                 null,
                 null);
-            var connection = await connections.CreateAsync(
-                request.Name,
-                request.ConnectionType,
-                settings,
-                request.AuthMode,
-                request.Password,
-                request.PrivateKeyPem,
-                request.PrivateKeyPassphrase,
-                ct);
+            ConnectionEntity connection;
+            try
+            {
+                connection = await connections.CreateAsync(
+                    request.Name,
+                    request.ConnectionType,
+                    settings,
+                    request.AuthMode,
+                    request.Password,
+                    request.PrivateKeyPem,
+                    request.PrivateKeyPassphrase,
+                    request.Target,
+                    ct);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.BadRequest(new { error = ex.Message });
+            }
+
             return TypedResults.Ok(new ConnectionSummaryResponse(
                 connection.Id, connection.Name, connection.Type, connection.Enabled,
                 connection.HealthState, connection.LastValidationMessage, connection.LastValidatedAtUtc));

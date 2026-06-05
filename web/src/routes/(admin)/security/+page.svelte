@@ -1,9 +1,12 @@
 <script lang="ts">
 	import { api, ApiRequestError, ensureCsrfToken } from '$lib/api/client';
 	import type {
+		SecurityActiveBlockItem,
+		SecurityBlocklistMatchBucket,
 		SecurityDashboard,
-		SecurityRankItem,
 		SecurityRecentEventItem,
+		SecurityStaleBlocklistSourceItem,
+		SecurityRankItem,
 		SecurityResourceEnforcementItem,
 		SecurityTopBlockedIpItem
 	} from '$lib/api/types';
@@ -231,10 +234,27 @@
 	const topCountries = $derived((dashboard?.topCountries ?? []) as SecurityRankItem[]);
 	const topAsns = $derived((dashboard?.topAsns ?? []) as SecurityRankItem[]);
 	const topBlockedIps = $derived((dashboard?.topBlockedIps ?? []) as SecurityTopBlockedIpItem[]);
+	const topChallengedIps = $derived((dashboard?.topChallengedIps ?? []) as SecurityTopBlockedIpItem[]);
 	const topResources = $derived(
 		(dashboard?.topResourcesBlockedChallenged ?? []) as SecurityResourceEnforcementItem[]
 	);
 	const recentEvents = $derived((dashboard?.recentEvents ?? []) as SecurityRecentEventItem[]);
+	const recentManualActions = $derived(
+		(dashboard?.recentManualActions ?? []) as SecurityRecentEventItem[]
+	);
+	const blocklistMatchesOverTime = $derived(
+		(dashboard?.blocklistMatchesOverTime ?? []) as SecurityBlocklistMatchBucket[]
+	);
+	const activeSoftBlocks = $derived((dashboard?.activeSoftBlocks ?? []) as SecurityActiveBlockItem[]);
+	const activeFirewallBlocks = $derived(
+		(dashboard?.activeFirewallBlocks ?? []) as SecurityActiveBlockItem[]
+	);
+	const staleBlocklistSources = $derived(
+		(dashboard?.staleBlocklistSources ?? []) as SecurityStaleBlocklistSourceItem[]
+	);
+	const blocklistMatchTotal = $derived(
+		blocklistMatchesOverTime.reduce((total, bucket) => total + bucket.count, 0)
+	);
 	const selectedSource = $derived(blocklists.find((source) => source.id === selectedSourceId) ?? null);
 	const filteredTimeline = $derived(
 		filterTimelineEvents(timeline, timelineTypeFilter, timelineResourceFilter)
@@ -596,6 +616,7 @@
 				<StatusRow label="Blocked" value={String(dashboard.wafBlocks)} status="error" />
 			</OverviewWidget>
 			<OverviewWidget title="Active blocks" description="Soft and firewall state.">
+				<StatusRow label="Soft blocks" value={String(activeSoftBlocks.length)} status="warn" />
 				<StatusRow label="Firewall IP blocks" value={String(dashboard.firewallActiveIpBlocks)} status="error" />
 				<StatusRow label="Blocklist entries" value={String(dashboard.blocklistCount ?? 0)} status="warn" />
 			</OverviewWidget>
@@ -605,6 +626,15 @@
 				{:else}
 					{#each topBlockedIps.slice(0, 4) as item (item.ip)}
 						<StatusRow label={item.ip} value={String(item.count)} status="error" />
+					{/each}
+				{/if}
+			</OverviewWidget>
+			<OverviewWidget title="Top challenged IPs" description="Most active challenged subjects.">
+				{#if topChallengedIps.length === 0}
+					<p class="text-xs text-muted-foreground">None</p>
+				{:else}
+					{#each topChallengedIps.slice(0, 4) as item (item.ip)}
+						<StatusRow label={item.ip} value={String(item.count)} status="warn" />
 					{/each}
 				{/if}
 			</OverviewWidget>
@@ -620,6 +650,53 @@
 			<OverviewWidget title="Signals" description="Top origin summaries.">
 				<StatusRow label="Countries" value={topCountries.slice(0, 2).map((x) => x.label).join(', ') || 'None'} />
 				<StatusRow label="ASNs" value={topAsns.slice(0, 2).map((x) => x.label).join(', ') || 'None'} />
+			</OverviewWidget>
+			<OverviewWidget title="Manual actions" description="Recent operator changes.">
+				{#if recentManualActions.length === 0}
+					<p class="text-xs text-muted-foreground">None</p>
+				{:else}
+					{#each recentManualActions.slice(0, 3) as item (item.occurredAtUtc + item.action)}
+						<StatusRow label={compact(item.action)} value={item.clientIp ?? 'subject'} />
+					{/each}
+				{/if}
+			</OverviewWidget>
+			<OverviewWidget title="Blocklist matches" description="Matched entries in range.">
+				<StatusRow label="Matches" value={String(blocklistMatchTotal)} status={blocklistMatchTotal > 0 ? 'error' : undefined} />
+				<StatusRow label="Buckets" value={String(blocklistMatchesOverTime.length)} />
+			</OverviewWidget>
+			<OverviewWidget title="CAPTCHA" description="Challenge outcomes.">
+				<StatusRow label="Solved" value={String(dashboard.captchaOutcomes.solved)} />
+				<StatusRow label="Failed" value={String(dashboard.captchaOutcomes.failed)} status={dashboard.captchaOutcomes.failed > 0 ? 'error' : undefined} />
+				<StatusRow label="Ignored" value={String(dashboard.captchaOutcomes.ignored)} status={dashboard.captchaOutcomes.ignored > 0 ? 'warn' : undefined} />
+			</OverviewWidget>
+			<OverviewWidget title="Soft blocks" description="Current soft block subjects.">
+				{#if activeSoftBlocks.length === 0}
+					<p class="text-xs text-muted-foreground">None</p>
+				{:else}
+					{#each activeSoftBlocks.slice(0, 3) as item (item.subjectType + item.subjectValue)}
+						<StatusRow label={item.subjectValue} value={formatExpiry(item.expiresAtUtc)} status="warn" />
+					{/each}
+				{/if}
+			</OverviewWidget>
+			<OverviewWidget title="Firewall blocks" description="Current firewall-enforced subjects.">
+				{#if activeFirewallBlocks.length === 0}
+					<p class="text-xs text-muted-foreground">None</p>
+				{:else}
+					{#each activeFirewallBlocks.slice(0, 3) as item (item.subjectType + item.subjectValue)}
+						<StatusRow label={item.subjectValue} value={item.firewallSynced ? 'Synced' : 'Pending'} status="error" />
+					{/each}
+				{/if}
+			</OverviewWidget>
+			<OverviewWidget title="Stale blocklists" description="Sources needing refresh.">
+				<StatusRow label="Sources" value={String(staleBlocklistSources.length)} status={staleBlocklistSources.length > 0 ? 'warn' : undefined} />
+				{#each staleBlocklistSources.slice(0, 2) as source (source.id)}
+					<StatusRow label={source.name} value={compact(source.lastFetchStatus)} status="warn" />
+				{/each}
+			</OverviewWidget>
+			<OverviewWidget title="GeoIP/ASN" description="Database freshness.">
+				<StatusRow label="Status" value={compact(dashboard.geoIpStatus.lastUpdateStatus)} status={dashboard.geoIpStatus.isStale ? 'warn' : undefined} />
+				<StatusRow label="Available" value={dashboard.geoIpStatus.databaseAvailable ? 'Yes' : 'No'} status={dashboard.geoIpStatus.databaseAvailable ? undefined : 'error'} />
+				<StatusRow label="Missing" value={String(dashboard.geoIpStatus.missingDatabases.length)} status={dashboard.geoIpStatus.missingDatabases.length > 0 ? 'warn' : undefined} />
 			</OverviewWidget>
 		</div>
 	{/if}

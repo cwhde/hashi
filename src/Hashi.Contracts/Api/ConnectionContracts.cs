@@ -25,7 +25,8 @@ public sealed record CreateSshConnectionRequest(
     string AuthMode,
     string? Password,
     string? PrivateKeyPem,
-    string? PrivateKeyPassphrase);
+    string? PrivateKeyPassphrase,
+    ConnectionTargetRequest? Target = null);
 
 public sealed record SshValidationResponse(
     bool Succeeded,

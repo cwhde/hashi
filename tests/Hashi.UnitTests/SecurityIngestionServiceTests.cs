@@ -1,6 +1,8 @@
 using Hashi.Contracts.Api;
 using Hashi.Core.Auth;
 using Hashi.Core.Connections;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Hashi.Infrastructure.Auth;
 using Hashi.Infrastructure.Connections;
@@ -50,6 +52,103 @@ public sealed class SecurityIngestionServiceTests
         Assert.Equal(3, dashboard.TopCountries[0].Count);
         Assert.Equal("AS13335", dashboard.TopAsns[0].Label);
         Assert.Equal(3, dashboard.TopAsns[0].Count);
+    }
+
+    [Fact]
+    public async Task GetDashboardAsync_returns_addendum_security_widgets()
+    {
+        await using var db = CreateDb();
+        var now = DateTimeOffset.UtcNow;
+        db.AccessLogEvents.AddRange(
+            Event("1.1.1.1", "challenged", "US", "AS13335"),
+            Event("1.1.1.1", "challenged", "US", "AS13335"));
+        db.SecurityEvents.AddRange(
+            new SecurityEventEntity
+            {
+                Category = "manual_action",
+                Action = "manual_block_created",
+                NormalizedSubjectValue = "1.1.1.1",
+                OccurredAtUtc = now,
+            },
+            new SecurityEventEntity
+            {
+                Category = "captcha",
+                Action = "challenge_solved",
+                OccurredAtUtc = now,
+            },
+            new SecurityEventEntity
+            {
+                Category = "captcha",
+                Action = "challenge_failed",
+                OccurredAtUtc = now,
+            },
+            new SecurityEventEntity
+            {
+                Category = "captcha",
+                Action = "challenge_ignored",
+                OccurredAtUtc = now,
+            });
+        var softSubject = new SecuritySubjectEntity
+        {
+            SubjectType = SecuritySubjectTypeNames.Ip,
+            SubjectValue = "198.51.100.20",
+            NormalizedValue = "198.51.100.20",
+            CurrentState = SecuritySubjectStateNames.SoftBlocked,
+            LastSeenAtUtc = now,
+        };
+        db.SecuritySubjects.Add(softSubject);
+        db.SecuritySubjectStates.Add(new SecuritySubjectStateEntity
+        {
+            SecuritySubjectId = softSubject.Id,
+            SoftBlockedUntilUtc = now.AddHours(1),
+            LastEscalationReason = "captcha_failed_threshold",
+        });
+        db.BlocklistEntries.Add(new BlocklistEntryEntity
+        {
+            Type = BlocklistTypeNames.Ip,
+            SubjectType = SecuritySubjectTypeNames.Ip,
+            Value = "203.0.113.20",
+            NormalizedValue = "203.0.113.20",
+            Reason = "feed",
+            EnforcementMode = BlocklistEnforcementModeNames.Firewall,
+            SyncedToFirewall = true,
+            LastHitAtUtc = now.AddMinutes(-5),
+        });
+        db.BlocklistSources.Add(new BlocklistSourceEntity
+        {
+            Name = "stale feed",
+            SourceUrl = "https://example.test/feed.txt",
+            Enabled = true,
+            LastFetchStatus = BlocklistFetchStatusNames.Failed,
+            LastFetchError = "timeout",
+            LastFetchedAtUtc = now.AddDays(-2),
+            RefreshIntervalHours = 24,
+        });
+        db.AppSettings.Add(new AppSettingsEntity
+        {
+            GeoIpEnabled = true,
+            GeoIpLastUpdateStatus = GeoIpUpdateStatusNames.Failed,
+            GeoIpLastUpdateAtUtc = now.AddDays(-2),
+            GeoIpNextUpdateAtUtc = now.AddHours(-1),
+        });
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+        var dashboard = await service.GetDashboardAsync(24);
+
+        var challenged = Assert.Single(dashboard.TopChallengedIps);
+        Assert.Equal("1.1.1.1", challenged.Ip);
+        Assert.Equal(2, challenged.Count);
+        Assert.Single(dashboard.RecentManualActions);
+        Assert.Equal(1, dashboard.CaptchaOutcomes.Solved);
+        Assert.Equal(1, dashboard.CaptchaOutcomes.Failed);
+        Assert.Equal(1, dashboard.CaptchaOutcomes.Ignored);
+        Assert.Single(dashboard.BlocklistMatchesOverTime);
+        Assert.Single(dashboard.ActiveSoftBlocks);
+        Assert.Single(dashboard.ActiveFirewallBlocks);
+        Assert.Single(dashboard.StaleBlocklistSources);
+        Assert.True(dashboard.GeoIpStatus.IsStale);
+        Assert.Contains("GeoLite2-ASN", dashboard.GeoIpStatus.MissingDatabases);
     }
 
     [Fact]
@@ -142,6 +241,51 @@ public sealed class SecurityIngestionServiceTests
         Assert.Equal("/v1", bucket.PathPrefix);
         Assert.Equal("CA", bucket.RegionCode);
         Assert.Equal(1, bucket.ChallengedCount);
+    }
+
+    [Fact]
+    public async Task IngestSecurityEvents_records_request_correlation_without_raw_user_agent()
+    {
+        await using var db = CreateDb();
+        var service = CreateService(db);
+
+        await service.IngestAccessLogAsync(new AccessLogIngestRequest(
+            "203.0.113.10",
+            "app.example.com",
+            "/",
+            200,
+            "US",
+            "AS13335",
+            RequestId: "req-access",
+            UserAgent: "Mozilla/5.0"));
+        await service.IngestForwardAuthDecisionAsync(new ForwardAuthDecisionIngestRequest(
+            "203.0.113.11",
+            "app.example.com",
+            "/private",
+            "allow",
+            "US",
+            "AS13335",
+            RequestId: "req-forward",
+            UserAgentHash: "provided-hash"));
+        await service.IngestWafEventAsync(new WafEventIngestRequest(
+            "203.0.113.12",
+            "app.example.com",
+            "/admin",
+            "deny",
+            RequestId: "req-waf",
+            UserAgent: "curl/8.0"));
+
+        var events = await db.SecurityEvents.OrderBy(x => x.OccurredAtUtc).ToListAsync();
+        var access = Assert.Single(events, x => x.EventType == "access_log");
+        Assert.Equal("req-access", access.RequestId);
+        Assert.Equal(Sha256Hex("Mozilla/5.0"), access.UserAgentHash);
+        Assert.NotEqual("Mozilla/5.0", access.UserAgentHash);
+        var forward = Assert.Single(events, x => x.EventType == "forward_auth_decision");
+        Assert.Equal("req-forward", forward.RequestId);
+        Assert.Equal("provided-hash", forward.UserAgentHash);
+        var waf = Assert.Single(events, x => x.EventType == "waf_event");
+        Assert.Equal("req-waf", waf.RequestId);
+        Assert.Equal(Sha256Hex("curl/8.0"), waf.UserAgentHash);
     }
 
     [Fact]
@@ -425,6 +569,9 @@ public sealed class SecurityIngestionServiceTests
             Decision = decision,
             ReceivedAtUtc = DateTimeOffset.UtcNow,
         };
+
+    private static string Sha256Hex(string value)
+        => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
 
     private static HashiDbContext CreateDb()
     {
