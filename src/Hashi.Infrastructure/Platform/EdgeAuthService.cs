@@ -1,6 +1,7 @@
 using System.Net;
 using Hashi.Contracts.Api;
 using Hashi.Infrastructure.Persistence;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Hashi.Infrastructure.Platform;
 
@@ -9,6 +10,7 @@ public sealed class EdgeAuthService
     private readonly SecurityDecisionService decisions;
     private readonly GeoIpLookupService geoIp;
 
+    [ActivatorUtilitiesConstructor]
     public EdgeAuthService(SecurityDecisionService decisions, GeoIpLookupService geoIp)
     {
         this.decisions = decisions;
