@@ -797,6 +797,8 @@ public static class AdGuardRewriteSourceNames
     public const string Manual = "manual";
 
     public const string Topology = "topology";
+
+    public const string InternalAgentDns = "internal_agent_dns";
 }
 
 public sealed class NotificationProviderEntity

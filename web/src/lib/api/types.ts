@@ -164,7 +164,12 @@ export type CreateAdGuardConnectionRequest = Schemas['CreateAdGuardConnectionReq
 export type AdGuardRewrite = NonNullable<Schemas['AdGuardRewriteResponse']>;
 export type AdGuardRewriteMutation = Schemas['AdGuardRewriteMutationResponse'];
 export type AdGuardRewriteApply = Schemas['AdGuardRewriteApplyResponse'];
+export type AdGuardRewriteApplyRequest = Schemas['AdGuardRewriteApplyRequest'];
+export type AdGuardRewritePlan = Schemas['AdGuardRewritePlanResponse'];
 export type UpsertAdGuardRewriteRequest = Schemas['UpsertAdGuardRewriteRequest'];
+export type InternalAgentDnsSettings = Schemas['InternalAgentDnsSettingsResponse'];
+export type InternalAgentDnsSettingsRequest = Schemas['InternalAgentDnsSettingsRequest'];
+export type InternalAgentDnsAgentSettings = Schemas['InternalAgentDnsAgentSettingsResponse'];
 
 export type MonitoringSettingsRequest = Schemas['MonitoringSettingsRequest'];
 export type EdgeSsoSettingsRequest = Schemas['EdgeSsoSettingsRequest'];

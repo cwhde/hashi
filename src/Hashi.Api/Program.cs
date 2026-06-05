@@ -138,6 +138,7 @@ app.MapEdgeAuthEndpoints();
 app.MapEdgeSsoAdminEndpoints();
 app.MapSecurityEndpoints();
 app.MapPulseEndpoints();
+app.MapInternalAgentDnsEndpoints();
 app.MapScriptEndpoints();
 app.MapNotificationEndpoints();
 app.MapAdGuardEndpoints();

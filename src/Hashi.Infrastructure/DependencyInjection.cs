@@ -95,6 +95,7 @@ public static class DependencyInjection
         services.AddScoped<GeoIpUpdateService>();
         services.AddScoped<IGeoIpDatabaseDownloader, MaxMindGeoIpDatabaseDownloader>();
         services.AddScoped<AdGuardSyncService>();
+        services.AddScoped<InternalAgentDnsSettingsService>();
         services.AddScoped<ConnectionTargetResolver>();
         services.AddScoped<ScriptExecutionService>();
         services.AddScoped<PulseAgentService>();

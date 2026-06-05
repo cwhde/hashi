@@ -208,6 +208,163 @@ public sealed class AdGuardPlanApplySafetyTests
         Assert.Equal("10.0.0.53", handler.LastRequestUri!.Host);
     }
 
+    [Fact]
+    public async Task Internal_agent_dns_plan_generates_desired_rewrite_and_preserves_manual_rewrites()
+    {
+        await using var db = CreateDb();
+        var connectionId = await AddConnectionAsync(db);
+        var agentId = Guid.NewGuid();
+        db.InternalAgentDnsSettings.Add(new InternalAgentDnsSettingsEntity
+        {
+            Enabled = true,
+            Domain = "hashi.home.arpa",
+            AdGuardConnectionId = connectionId,
+        });
+        db.PulseAgents.Add(new PulseAgentEntity
+        {
+            Id = agentId,
+            Name = "Kanae Node",
+            TokenHash = "hash",
+            Status = "online",
+            LastSeenAtUtc = DateTimeOffset.UtcNow,
+            LastSelectedIp = "10.0.0.42",
+        });
+        db.AdGuardRewrites.Add(new AdGuardRewriteEntity
+        {
+            ConnectionId = connectionId,
+            Domain = "manual.example.com",
+            Answer = "10.0.0.10",
+            ManagedByHashi = false,
+            Source = AdGuardRewriteSourceNames.Manual,
+        });
+        await db.SaveChangesAsync();
+
+        var handler = new FakeAdGuardHandler("""{"rewrites":[]}""");
+        var service = CreateService(db, handler);
+
+        var plan = await service.PlanSyncAsync(connectionId, updateInternalAgentDnsDesiredState: true);
+
+        Assert.Contains(plan.Changes, x =>
+            x.Kind == "create" &&
+            x.Domain == "kanae-node.hashi.home.arpa" &&
+            x.DesiredAnswer == "10.0.0.42");
+        Assert.DoesNotContain(plan.Changes, x => x.Domain == "manual.example.com");
+        Assert.True(await db.AdGuardRewrites.AnyAsync(x =>
+            x.Domain == "kanae-node.hashi.home.arpa" &&
+            x.Source == AdGuardRewriteSourceNames.InternalAgentDns));
+        Assert.Equal(0, handler.AddCalls);
+    }
+
+    [Fact]
+    public async Task Internal_agent_dns_stale_agent_keeps_last_rewrite_by_default()
+    {
+        await using var db = CreateDb();
+        var connectionId = await AddConnectionAsync(db);
+        var agentId = Guid.NewGuid();
+        db.InternalAgentDnsSettings.Add(new InternalAgentDnsSettingsEntity
+        {
+            Enabled = true,
+            Domain = "hashi.home.arpa",
+            AdGuardConnectionId = connectionId,
+            KeepLastRewriteWhenAgentStale = true,
+        });
+        db.PulseAgents.Add(new PulseAgentEntity
+        {
+            Id = agentId,
+            Name = "stale-edge",
+            TokenHash = "hash",
+            Status = "online",
+            LastSeenAtUtc = DateTimeOffset.UtcNow.AddHours(-2),
+        });
+        db.InternalAgentDnsAgentSettings.Add(new InternalAgentDnsAgentSettingsEntity
+        {
+            PulseAgentId = agentId,
+            Enabled = true,
+            KeepLastRewriteWhenStale = true,
+        });
+        db.AdGuardRewrites.Add(new AdGuardRewriteEntity
+        {
+            ConnectionId = connectionId,
+            Domain = "stale-edge.hashi.home.arpa",
+            Answer = "10.0.0.99",
+            ManagedByHashi = true,
+            Source = AdGuardRewriteSourceNames.InternalAgentDns,
+        });
+        await db.SaveChangesAsync();
+
+        var handler = new FakeAdGuardHandler("""{"rewrites":[{"domain":"stale-edge.hashi.home.arpa","answer":"10.0.0.99","id":"remote-1"}]}""");
+        var service = CreateService(db, handler);
+
+        var plan = await service.PlanSyncAsync(connectionId, updateInternalAgentDnsDesiredState: true);
+
+        Assert.DoesNotContain(plan.Changes, x =>
+            x.Kind == "delete" &&
+            x.Domain == "stale-edge.hashi.home.arpa");
+        Assert.True(await db.AdGuardRewrites.AnyAsync(x => x.Domain == "stale-edge.hashi.home.arpa"));
+    }
+
+    [Fact]
+    public async Task Internal_agent_dns_apply_records_result_hash_and_audit()
+    {
+        await using var db = CreateDb();
+        var connectionId = await AddConnectionAsync(db);
+        db.InternalAgentDnsSettings.Add(new InternalAgentDnsSettingsEntity
+        {
+            Enabled = true,
+            Domain = "hashi.home.arpa",
+            AdGuardConnectionId = connectionId,
+        });
+        db.PulseAgents.Add(new PulseAgentEntity
+        {
+            Id = Guid.NewGuid(),
+            Name = "edge",
+            TokenHash = "hash",
+            Status = "online",
+            LastSeenAtUtc = DateTimeOffset.UtcNow,
+            LastSelectedIp = "10.0.0.42",
+        });
+        await db.SaveChangesAsync();
+        var handler = new FakeAdGuardHandler("""{"rewrites":[]}""");
+        var service = CreateService(db, handler);
+
+        var plan = await service.PlanSyncAsync(connectionId, updateInternalAgentDnsDesiredState: true);
+        var result = await service.ApplyPlanAsync(
+            connectionId,
+            new AdGuardRewriteApplyRequest(plan.PlanId),
+            updateInternalAgentDnsDesiredState: true);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(1, handler.AddCalls);
+        var settings = await db.InternalAgentDnsSettings.SingleAsync();
+        Assert.Equal(SyncRunStatusNames.Succeeded, settings.LastSyncStatus);
+        Assert.False(string.IsNullOrWhiteSpace(settings.LastAppliedHash));
+        Assert.Contains(await db.AuditEvents.ToListAsync(), x => x.Category == "adguard" && x.Action == "apply_succeeded");
+    }
+
+    [Fact]
+    public async Task Internal_agent_dns_settings_detect_name_collisions_before_save()
+    {
+        await using var db = CreateDb();
+        var connectionId = await AddConnectionAsync(db);
+        db.PulseAgents.AddRange(
+            new PulseAgentEntity { Id = Guid.NewGuid(), Name = "Edge!", TokenHash = "hash", Status = "online" },
+            new PulseAgentEntity { Id = Guid.NewGuid(), Name = "edge", TokenHash = "hash", Status = "online" });
+        await db.SaveChangesAsync();
+        var handler = new FakeAdGuardHandler("""{"rewrites":[]}""");
+        var adguard = CreateService(db, handler);
+        var settings = new InternalAgentDnsSettingsService(db, new AuditService(db), adguard);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            settings.UpdateAsync(new InternalAgentDnsSettingsRequest(
+                true,
+                "hashi.home.arpa",
+                true,
+                connectionId,
+                null)));
+
+        Assert.Contains("collision", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static HashiDbContext CreateDb()
     {
         var options = new DbContextOptionsBuilder<HashiDbContext>()

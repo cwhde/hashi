@@ -17,6 +17,7 @@
 	import { Switch } from '$lib/components/ui/switch';
 	import { Settings as SettingsIcon } from 'lucide-svelte';
 	import NotificationsSettings from '$lib/components/settings/NotificationsSettings.svelte';
+	import type { AdGuardConnection, AdGuardRewritePlan } from '$lib/api/types';
 
 	let saving = $state(false);
 	let message = $state<string | null>(null);
@@ -26,6 +27,19 @@
 	let geoipSaving = $state(false);
 	let geoipUpdating = $state(false);
 	let geoipMessage = $state<string | null>(null);
+	let internalDnsSaving = $state(false);
+	let internalDnsSyncing = $state(false);
+	let internalDnsMessage = $state<string | null>(null);
+	let internalDnsPlan = $state<AdGuardRewritePlan | null>(null);
+	let adguardConnections = $state<AdGuardConnection[]>([]);
+	let internalDnsForm = $state({
+		enabled: false,
+		domain: 'hashi.home.arpa',
+		keepLastRewriteWhenAgentStale: true,
+		adGuardConnectionId: '',
+		lastSyncStatus: 'never_run',
+		lastAppliedHash: null as string | null
+	});
 	let geoipForm = $state({
 		enabled: false,
 		accountId: '',
@@ -75,6 +89,24 @@
 
 		try {
 			await loadGeoIpSettings();
+		} catch {
+			// offline dev
+		}
+
+		try {
+			const [dnsSettings, connections] = await Promise.all([
+				api.getInternalAgentDnsSettings(),
+				api.listAdGuardConnections().catch(() => [])
+			]);
+			adguardConnections = connections;
+			internalDnsForm = {
+				enabled: dnsSettings.enabled,
+				domain: dnsSettings.domain,
+				keepLastRewriteWhenAgentStale: dnsSettings.keepLastRewriteWhenAgentStale,
+				adGuardConnectionId: dnsSettings.adGuardConnectionId ?? '',
+				lastSyncStatus: dnsSettings.lastSyncStatus,
+				lastAppliedHash: dnsSettings.lastAppliedHash
+			};
 		} catch {
 			// offline dev
 		}
@@ -175,6 +207,59 @@
 			geoipMessage = e instanceof Error ? e.message : 'GeoIP update failed';
 		} finally {
 			geoipUpdating = false;
+		}
+	}
+
+	async function saveInternalDnsSettings() {
+		internalDnsSaving = true;
+		internalDnsMessage = null;
+		try {
+			const settings = await api.updateInternalAgentDnsSettings({
+				enabled: internalDnsForm.enabled,
+				domain: internalDnsForm.domain,
+				keepLastRewriteWhenAgentStale: internalDnsForm.keepLastRewriteWhenAgentStale,
+				adGuardConnectionId: internalDnsForm.adGuardConnectionId || null,
+				agents: null
+			});
+			internalDnsForm.lastSyncStatus = settings.lastSyncStatus;
+			internalDnsForm.lastAppliedHash = settings.lastAppliedHash;
+			internalDnsMessage = 'Internal DNS settings saved.';
+		} catch (e) {
+			internalDnsMessage = e instanceof Error ? e.message : 'Failed to save internal DNS settings';
+		} finally {
+			internalDnsSaving = false;
+		}
+	}
+
+	async function previewInternalDnsSync() {
+		internalDnsSyncing = true;
+		internalDnsMessage = null;
+		try {
+			internalDnsPlan = await api.previewInternalAgentDnsSync();
+			internalDnsMessage = `${internalDnsPlan.changes.length} pending rewrite change${internalDnsPlan.changes.length === 1 ? '' : 's'}.`;
+		} catch (e) {
+			internalDnsMessage = e instanceof Error ? e.message : 'Failed to preview internal DNS sync';
+		} finally {
+			internalDnsSyncing = false;
+		}
+	}
+
+	async function applyInternalDnsSync() {
+		if (!internalDnsPlan) return;
+		internalDnsSyncing = true;
+		internalDnsMessage = null;
+		try {
+			const result = await api.applyInternalAgentDnsSync({
+				planId: internalDnsPlan.planId,
+				confirmDestructive: internalDnsPlan.requiresConfirmation
+			});
+			internalDnsForm.lastSyncStatus = result.status;
+			internalDnsMessage = result.succeeded ? 'Internal DNS sync applied.' : (result.message ?? result.status);
+			internalDnsPlan = null;
+		} catch (e) {
+			internalDnsMessage = e instanceof Error ? e.message : 'Failed to apply internal DNS sync';
+		} finally {
+			internalDnsSyncing = false;
 		}
 	}
 
@@ -311,6 +396,78 @@
 						disabled={geoipSaving || geoipUpdating || !geoipForm.enabled}
 					>
 						{geoipUpdating ? 'Updating...' : 'Update now'}
+					</Button>
+				</div>
+			</div>
+		</PanelSection>
+
+		<PanelSection title="Internal agent DNS" description="Pulse agent rewrites for AdGuard Home.">
+			<div class="grid gap-4">
+				<div class="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+					DNS-only: this does not create Traefik routers or reverse-proxy resources.
+				</div>
+				<div class="flex items-center justify-between rounded-md border border-border px-3 py-2">
+					<div>
+						<p class="text-sm text-white">Enable internal agent DNS</p>
+						<p class="text-xs text-muted-foreground">Status: {internalDnsForm.lastSyncStatus}</p>
+					</div>
+					<Switch bind:checked={internalDnsForm.enabled} />
+				</div>
+				<div class="grid gap-1.5">
+					<Label for="settings-internal-dns-domain">Domain</Label>
+					<Input id="settings-internal-dns-domain" bind:value={internalDnsForm.domain} />
+				</div>
+				<div class="grid gap-1.5">
+					<Label for="settings-internal-dns-adguard">AdGuard connection</Label>
+					<select
+						id="settings-internal-dns-adguard"
+						class="h-9 rounded-md border border-border bg-background px-3 text-sm text-white"
+						bind:value={internalDnsForm.adGuardConnectionId}
+					>
+						<option value="">Select connection</option>
+						{#each adguardConnections as connection (connection.id)}
+							<option value={connection.id}>{connection.name}</option>
+						{/each}
+					</select>
+				</div>
+				<div class="flex items-center justify-between rounded-md border border-border px-3 py-2">
+					<span class="text-sm text-white">Keep last rewrite when stale</span>
+					<Switch bind:checked={internalDnsForm.keepLastRewriteWhenAgentStale} />
+				</div>
+				{#if internalDnsForm.lastAppliedHash}
+					<p class="truncate font-mono text-xs text-muted-foreground">
+						Last hash: {internalDnsForm.lastAppliedHash}
+					</p>
+				{/if}
+				{#if internalDnsPlan}
+					<div class="grid gap-2 rounded-md border border-border p-3 text-xs">
+						{#each internalDnsPlan.changes as change}
+							<p class="font-mono text-muted-foreground">
+								{change.kind} {change.domain}: {change.currentAnswer ?? 'none'} -> {change.desiredAnswer ?? 'none'}
+							</p>
+						{/each}
+					</div>
+				{/if}
+				{#if internalDnsMessage}
+					<p class="text-xs text-muted-foreground">{internalDnsMessage}</p>
+				{/if}
+				<div class="flex flex-wrap gap-2">
+					<Button onclick={() => saveInternalDnsSettings()} disabled={internalDnsSaving}>
+						{internalDnsSaving ? 'Saving...' : 'Save internal DNS'}
+					</Button>
+					<Button
+						variant="outline"
+						onclick={() => previewInternalDnsSync()}
+						disabled={internalDnsSyncing || !internalDnsForm.enabled}
+					>
+						{internalDnsSyncing ? 'Previewing...' : 'Preview sync'}
+					</Button>
+					<Button
+						variant="outline"
+						onclick={() => applyInternalDnsSync()}
+						disabled={internalDnsSyncing || !internalDnsPlan}
+					>
+						Apply preview
 					</Button>
 				</div>
 			</div>

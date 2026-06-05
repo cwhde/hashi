@@ -194,7 +194,11 @@ public sealed class SyncOrchestratorService(
         {
             try
             {
-                var plan = await adguard.PlanSyncAsync(connection.Id, updateTopologyDesiredState: true, cancellationToken: cancellationToken);
+                var plan = await adguard.PlanSyncAsync(
+                    connection.Id,
+                    updateTopologyDesiredState: true,
+                    updateInternalAgentDnsDesiredState: true,
+                    cancellationToken: cancellationToken);
                 changes.AddRange(plan.Changes.Select(c => new ProviderChange(
                     "adguard-rewrite",
                     c.Domain,
@@ -321,7 +325,11 @@ public sealed class SyncOrchestratorService(
             var adguardConnections = await db.AdGuardConnections.ToListAsync(cancellationToken);
             foreach (var connection in adguardConnections)
             {
-                var plan = await adguard.PlanSyncAsync(connection.Id, updateTopologyDesiredState: true, cancellationToken: cancellationToken);
+                var plan = await adguard.PlanSyncAsync(
+                    connection.Id,
+                    updateTopologyDesiredState: true,
+                    updateInternalAgentDnsDesiredState: true,
+                    cancellationToken: cancellationToken);
                 if (plan.RequiresConfirmation && !confirmDestructive)
                 {
                     await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.AwaitingConfirmation, SyncRiskLevel.Destructive, "Destructive AdGuard changes require confirmation.", cancellationToken);
@@ -332,6 +340,7 @@ public sealed class SyncOrchestratorService(
                     connection.Id,
                     new AdGuardRewriteApplyRequest(plan.PlanId, confirmDestructive),
                     updateTopologyDesiredState: true,
+                    updateInternalAgentDnsDesiredState: true,
                     cancellationToken: cancellationToken);
                 if (!result.Succeeded)
                 {
@@ -433,7 +442,11 @@ public sealed class SyncOrchestratorService(
             var adguardConnections = await db.AdGuardConnections.ToListAsync(cancellationToken);
             foreach (var connection in adguardConnections)
             {
-                var plan = await adguard.PlanSyncAsync(connection.Id, updateTopologyDesiredState: true, cancellationToken: cancellationToken);
+                var plan = await adguard.PlanSyncAsync(
+                    connection.Id,
+                    updateTopologyDesiredState: true,
+                    updateInternalAgentDnsDesiredState: true,
+                    cancellationToken: cancellationToken);
                 var adguardChanges = plan.Changes
                     .Select(x => new ProviderChange("adguard-rewrite", x.Domain, MapAdGuardKind(x.Kind), x.Summary))
                     .ToList();
@@ -449,6 +462,7 @@ public sealed class SyncOrchestratorService(
                         connection.Id,
                         new AdGuardRewriteApplyRequest(plan.PlanId, ConfirmDestructive: false),
                         updateTopologyDesiredState: true,
+                        updateInternalAgentDnsDesiredState: true,
                         cancellationToken: cancellationToken);
                     await syncRuns.AddStepAsync(
                         run.Id,
@@ -463,6 +477,7 @@ public sealed class SyncOrchestratorService(
                         connection.Id,
                         new AdGuardRewriteApplyRequest(plan.PlanId, ConfirmDestructive: false),
                         updateTopologyDesiredState: true,
+                        updateInternalAgentDnsDesiredState: true,
                         cancellationToken: cancellationToken);
                     await syncRuns.AddStepAsync(run.Id, $"adguard-reconcile-{connection.Name}", SyncRunStatusNames.Succeeded, "Applied", cancellationToken);
                 }

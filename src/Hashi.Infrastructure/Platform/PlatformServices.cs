@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Hashi.Contracts.Api;
+using Hashi.Core.Dns;
 using Hashi.Core.Firewall;
 using Hashi.Core.Resources;
 using Hashi.Core.Security;
@@ -33,6 +34,7 @@ public sealed class ResourceService(
         var domainMode = NormalizeCreateDomainMode(request.DomainMode, request.Domain);
         var rootDomain = await GetRootDomainAsync(cancellationToken);
         ValidateDomain(domainMode, request.Domain, request.Name, rootDomain);
+        await ValidateNotInternalAgentDnsDomainAsync(domainMode, request.Domain, request.Name, rootDomain, cancellationToken);
         ValidateRewrite(request.PathRewriteMode, request.PathRewrite, request.PathPrefix, request.Routes);
         var monitoringHint = NormalizeMonitoringProtocolHint(request.MonitoringProtocolHint);
 
@@ -111,6 +113,7 @@ public sealed class ResourceService(
                 ? request.Domain
                 : entity.Domain;
         ValidateDomain(nextDomainMode, nextDomain, entity.Name, rootDomain);
+        await ValidateNotInternalAgentDnsDomainAsync(nextDomainMode, nextDomain, entity.Name, rootDomain, cancellationToken);
         entity.DomainMode = nextDomainMode;
         if (request.ClearDomain || request.Domain is not null || request.DomainMode is not null)
         {
@@ -586,6 +589,28 @@ public sealed class ResourceService(
         if (domainMode == ResourceDomainModeNames.Subdomain && string.IsNullOrWhiteSpace(ResourceSlug.Normalize(name)))
         {
             throw new InvalidOperationException("Subdomain mode requires a resource name that can produce a slug.");
+        }
+    }
+
+    private async Task ValidateNotInternalAgentDnsDomainAsync(
+        string domainMode,
+        string? domain,
+        string name,
+        string? rootDomain,
+        CancellationToken cancellationToken)
+    {
+        var configured = await db.InternalAgentDnsSettings.AsNoTracking().SingleOrDefaultAsync(cancellationToken);
+        var internalDomain = InternalAgentDnsName.NormalizeDomain(configured?.Domain);
+        var resolvedDomain = ResourceDomainResolver.Resolve(domainMode, domain, ResourceSlug.Normalize(name), rootDomain);
+        if (string.IsNullOrWhiteSpace(resolvedDomain))
+        {
+            return;
+        }
+
+        if (string.Equals(resolvedDomain, internalDomain, StringComparison.OrdinalIgnoreCase) ||
+            resolvedDomain.EndsWith($".{internalDomain}", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Internal agent DNS is DNS-only and cannot be used as a reverse-proxy resource domain.");
         }
     }
 
