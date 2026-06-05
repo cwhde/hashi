@@ -9,4 +9,7 @@
     <Project Path="tests/Hashi.UnitTests/Hashi.UnitTests.csproj" />
     <Project Path="tests/Hashi.IntegrationTests/Hashi.IntegrationTests.csproj" />
   </Folder>
+  <Folder Name="/agents/">
+    <Project Path="agents/pulse/Hashi.Pulse.csproj" />
+  </Folder>
 </Solution>
