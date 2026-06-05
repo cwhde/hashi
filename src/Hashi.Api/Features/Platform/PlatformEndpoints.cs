@@ -1,4 +1,5 @@
 using FluentValidation;
+using System.Net;
 using System.Text.Json;
 using Hashi.Api.Hosting;
 using Hashi.Contracts.Api;
@@ -514,6 +515,65 @@ public static class EdgeAuthEndpoints
     }
 }
 
+public static class EdgeChallengeEndpoints
+{
+    public static IEndpointRouteBuilder MapEdgeChallengeEndpoints(this IEndpointRouteBuilder app)
+    {
+        app.MapGet("/api/edge-challenge/start", async Task<IResult> (
+            HttpContext ctx,
+            string? returnUrl,
+            CaptchaChallengeService captcha,
+            ForwardedClientContextResolver forwardedContext,
+            CancellationToken ct) =>
+        {
+            var requestContext = forwardedContext.Resolve(ctx);
+            await captcha.RecordChallengePageRequestAsync(requestContext.ClientIp, returnUrl, ct);
+            var query = string.IsNullOrWhiteSpace(returnUrl)
+                ? string.Empty
+                : $"?returnUrl={Uri.EscapeDataString(returnUrl)}";
+            return TypedResults.Redirect($"/challenge{query}");
+        }).WithTags("EdgeChallenge").AllowAnonymous();
+
+        app.MapGet("/api/edge-challenge/status", async (
+            HttpContext ctx,
+            string? returnUrl,
+            CaptchaChallengeService captcha,
+            ForwardedClientContextResolver forwardedContext,
+            CancellationToken ct) =>
+        {
+            var requestContext = forwardedContext.Resolve(ctx);
+            return TypedResults.Ok(await captcha.GetChallengeStatusAsync(requestContext.ClientIp, returnUrl, ct));
+        })
+            .WithTags("EdgeChallenge")
+            .AllowAnonymous()
+            .Produces<CaptchaChallengeStatusResponse>(StatusCodes.Status200OK);
+
+        app.MapPost("/api/edge-challenge/verify", async Task<IResult> (
+            HttpContext ctx,
+            CaptchaChallengeVerifyRequest request,
+            CaptchaChallengeService captcha,
+            ForwardedClientContextResolver forwardedContext,
+            CancellationToken ct) =>
+        {
+            var requestContext = forwardedContext.Resolve(ctx);
+            var result = await captcha.VerifyChallengeAsync(requestContext.ClientIp, request, ct);
+            return result.Status switch
+            {
+                "unavailable" => TypedResults.Json(result, statusCode: StatusCodes.Status503ServiceUnavailable),
+                "failed" => TypedResults.Json(result, statusCode: StatusCodes.Status403Forbidden),
+                _ => TypedResults.Ok(result),
+            };
+        })
+            .WithTags("EdgeChallenge")
+            .AllowAnonymous()
+            .Produces<CaptchaChallengeVerifyResponse>(StatusCodes.Status200OK)
+            .Produces<CaptchaChallengeVerifyResponse>(StatusCodes.Status403Forbidden)
+            .Produces<CaptchaChallengeVerifyResponse>(StatusCodes.Status503ServiceUnavailable);
+
+        return app;
+    }
+}
+
 public static class EdgeSsoAdminEndpoints
 {
     public static IEndpointRouteBuilder MapEdgeSsoAdminEndpoints(this IEndpointRouteBuilder app)
@@ -606,6 +666,41 @@ public static class SecurityEndpoints
                 firewallHostId,
                 ct)))
             .Produces<SecurityDashboardResponse>(StatusCodes.Status200OK);
+        group.MapGet("/captcha/settings", async (CaptchaChallengeService captcha, CancellationToken ct) =>
+            TypedResults.Ok(await captcha.GetSettingsAsync(ct)))
+            .Produces<CaptchaSettingsResponse>(StatusCodes.Status200OK);
+        group.MapPut("/captcha/settings", async Task<IResult> (
+            CaptchaSettingsRequest request,
+            CaptchaChallengeService captcha,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                return TypedResults.Ok(await captcha.UpdateSettingsAsync(request, ct));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
+            }
+        })
+            .Produces<CaptchaSettingsResponse>(StatusCodes.Status200OK)
+            .Produces<ApiErrorResponse>(StatusCodes.Status400BadRequest);
+        group.MapPost("/captcha/test", async Task<IResult> (
+            CaptchaTestRequest request,
+            CaptchaChallengeService captcha,
+            CancellationToken ct) =>
+        {
+            var result = await captcha.TestAsync(request, ct);
+            return result.Status switch
+            {
+                "unavailable" => TypedResults.Json(result, statusCode: StatusCodes.Status503ServiceUnavailable),
+                "failed" => TypedResults.Json(result, statusCode: StatusCodes.Status400BadRequest),
+                _ => TypedResults.Ok(result),
+            };
+        })
+            .Produces<CaptchaTestResponse>(StatusCodes.Status200OK)
+            .Produces<CaptchaTestResponse>(StatusCodes.Status400BadRequest)
+            .Produces<CaptchaTestResponse>(StatusCodes.Status503ServiceUnavailable);
         group.MapPost("/access-log", async Task<IResult> (AccessLogIngestRequest request, SecurityIngestionService security, CancellationToken ct) =>
         {
             await security.IngestAccessLogAsync(request, ct);

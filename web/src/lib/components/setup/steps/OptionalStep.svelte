@@ -4,6 +4,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Switch } from '$lib/components/ui/switch';
+	import CaptchaSettings from '$lib/components/settings/CaptchaSettings.svelte';
 
 	let {
 		oncomplete,
@@ -17,6 +18,7 @@
 	let adguard = $state(false);
 	let notifications = $state(false);
 	let geoip = $state(false);
+	let captcha = $state(false);
 
 	let adguardSaving = $state(false);
 	let adguardMessage = $state<string | null>(null);
@@ -285,6 +287,18 @@
 			</div>
 			{#if notificationError}<p class="text-xs text-destructive">{notificationError}</p>{/if}
 			{#if notificationMessage}<p class="text-xs text-emerald-300">{notificationMessage}</p>{/if}
+		</div>
+	{/if}
+	<div class="flex items-center justify-between rounded-md border border-border px-3 py-2">
+		<div>
+			<p class="text-sm text-white">Cap CAPTCHA</p>
+			<p class="text-xs text-muted-foreground">Self-hosted challenge integration.</p>
+		</div>
+		<Switch bind:checked={captcha} />
+	</div>
+	{#if captcha}
+		<div class="grid gap-3 rounded-md border border-border bg-hashi-bg-dark p-3">
+			<CaptchaSettings />
 		</div>
 	{/if}
 	<div class="flex items-center justify-between rounded-md border border-border px-3 py-2">

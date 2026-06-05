@@ -836,6 +836,8 @@ public sealed record CaptchaSettingsResponse(
     string? SiteKey,
     bool HasSecretKey,
     int VerificationTimeoutSeconds,
+    bool InstrumentationExpected,
+    bool HeadlessDetectionExpected,
     Guid? CapAdminResourceId,
     string? CapAdminDomain,
     Guid? PublicChallengeResourceId,
@@ -854,6 +856,8 @@ public sealed record CaptchaSettingsRequest(
     string? SecretKey,
     Guid? SecretKeySecretId,
     int? VerificationTimeoutSeconds,
+    bool? InstrumentationExpected,
+    bool? HeadlessDetectionExpected,
     Guid? CapAdminResourceId,
     string? CapAdminDomain,
     Guid? PublicChallengeResourceId,
@@ -863,6 +867,33 @@ public sealed record CaptchaSettingsRequest(
     int? MinimumRepeatChallengeSeconds,
     int? MaximumFailuresBeforeEscalation,
     int? MaximumRequestsWhileChallenged);
+
+public sealed record CaptchaTestRequest(string Token);
+
+public sealed record CaptchaTestResponse(
+    bool Succeeded,
+    string Status,
+    string? Error);
+
+public sealed record CaptchaChallengeStatusResponse(
+    bool Enabled,
+    bool ChallengeRequired,
+    string? Reason,
+    string? SiteKey,
+    string? CapApiEndpoint,
+    string? ReturnUrl,
+    string SafeReturnUrl);
+
+public sealed record CaptchaChallengeVerifyRequest(
+    string Token,
+    string? ReturnUrl);
+
+public sealed record CaptchaChallengeVerifyResponse(
+    bool Verified,
+    bool ChallengeCleared,
+    string Status,
+    string? RedirectUrl,
+    string? Error);
 
 public sealed record ConnectionTargetResponse(
     Guid Id,

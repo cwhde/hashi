@@ -180,6 +180,53 @@ export type OidcProvider = Schemas['OidcProviderResponse'];
 export type CreateOidcProviderRequest = Schemas['CreateOidcProviderRequest'];
 export type RotatePulseAgentResult = Schemas['CreatePulseAgentResponse'];
 
+export type CaptchaSettings = {
+	enabled: boolean;
+	publicChallengeBaseUrl: string | null;
+	siteKey: string | null;
+	hasSecretKey: boolean;
+	verificationTimeoutSeconds: number;
+	instrumentationExpected: boolean;
+	headlessDetectionExpected: boolean;
+	capAdminResourceId: string | null;
+	capAdminDomain: string | null;
+	publicChallengeResourceId: string | null;
+	publicChallengeDomain: string | null;
+	challengeResetMode: string;
+	challengeDecayPercent: number;
+	minimumRepeatChallengeSeconds: number;
+	maximumFailuresBeforeEscalation: number;
+	maximumRequestsWhileChallenged: number;
+	updatedAtUtc: string;
+};
+export type CaptchaSettingsRequest = Omit<CaptchaSettings, 'hasSecretKey' | 'updatedAtUtc'> & {
+	secretKey: string | null;
+	secretKeySecretId: string | null;
+	verificationTimeoutSeconds: number | null;
+	instrumentationExpected: boolean | null;
+	headlessDetectionExpected: boolean | null;
+	challengeDecayPercent: number | null;
+	minimumRepeatChallengeSeconds: number | null;
+	maximumFailuresBeforeEscalation: number | null;
+	maximumRequestsWhileChallenged: number | null;
+};
+export type CaptchaChallengeStatus = {
+	enabled: boolean;
+	challengeRequired: boolean;
+	reason: string | null;
+	siteKey: string | null;
+	capApiEndpoint: string | null;
+	returnUrl: string | null;
+	safeReturnUrl: string;
+};
+export type CaptchaChallengeVerifyResult = {
+	verified: boolean;
+	challengeCleared: boolean;
+	status: string;
+	redirectUrl: string | null;
+	error: string | null;
+};
+
 export type SyncRun = Schemas['SyncRunResponse'];
 export type SyncPlanPreview = Schemas['SyncPlanPreviewResponse'];
 export type SyncReconcileResult = Schemas['SyncReconcileResponse'];

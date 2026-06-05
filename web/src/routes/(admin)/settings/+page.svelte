@@ -17,6 +17,7 @@
 	import { Switch } from '$lib/components/ui/switch';
 	import { Settings as SettingsIcon } from 'lucide-svelte';
 	import NotificationsSettings from '$lib/components/settings/NotificationsSettings.svelte';
+	import CaptchaSettings from '$lib/components/settings/CaptchaSettings.svelte';
 
 	let saving = $state(false);
 	let message = $state<string | null>(null);
@@ -314,6 +315,13 @@
 					</Button>
 				</div>
 			</div>
+		</PanelSection>
+
+		<PanelSection
+			title="CAPTCHA"
+			description="Cap challenge integration and public challenge resource settings."
+		>
+			<CaptchaSettings />
 		</PanelSection>
 
 		<PanelSection

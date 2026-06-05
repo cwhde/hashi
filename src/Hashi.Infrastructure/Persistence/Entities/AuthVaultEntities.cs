@@ -73,6 +73,7 @@ public static class SecretPurposeNames
     public const string NotificationToken = "notification_token";
     public const string OidcClientSecret = "oidc_client_secret";
     public const string MaxMindLicenseKey = "maxmind_license_key";
+    public const string CapSecretKey = "cap_secret_key";
     public const string ScriptEnvironment = "script_environment";
     public const string Generic = "generic";
 }

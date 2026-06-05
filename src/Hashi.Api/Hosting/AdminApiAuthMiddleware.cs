@@ -14,6 +14,7 @@ public sealed class AdminApiAuthMiddleware(RequestDelegate next)
     private static readonly PathString[] AlwaysPublicPathPrefixes =
     [
         new("/api/edge-auth"),
+        new("/api/edge-challenge"),
         new("/api/public"),
     ];
 
@@ -130,6 +131,11 @@ public sealed class AdminApiAuthMiddleware(RequestDelegate next)
 
         if (value.StartsWith("/api/security/blocklist", StringComparison.OrdinalIgnoreCase)
             || value.StartsWith("/api/security/blocklists", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (value.StartsWith("/api/security/captcha", StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }

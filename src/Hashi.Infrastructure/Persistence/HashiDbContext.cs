@@ -163,6 +163,8 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.Property(x => x.PublicChallengeBaseUrl).HasMaxLength(512);
             entity.Property(x => x.SiteKey).HasMaxLength(256);
             entity.Property(x => x.VerificationTimeoutSeconds).HasDefaultValue(5);
+            entity.Property(x => x.InstrumentationExpected).HasDefaultValue(true);
+            entity.Property(x => x.HeadlessDetectionExpected).HasDefaultValue(false);
             entity.Property(x => x.CapAdminDomain).HasMaxLength(256);
             entity.Property(x => x.PublicChallengeDomain).HasMaxLength(256);
             entity.Property(x => x.ChallengeResetMode).HasMaxLength(32).HasDefaultValue(CaptchaChallengeResetModeNames.Decay);
