@@ -16,6 +16,7 @@
 
 	let oidc = $state(false);
 	let adguard = $state(false);
+	let internalAgentDns = $state(false);
 	let notifications = $state(false);
 	let geoip = $state(false);
 	let captcha = $state(false);
@@ -27,6 +28,14 @@
 		name: 'home-adguard',
 		baseUrl: 'http://127.0.0.1:3000',
 		password: ''
+	});
+	let internalDnsSaving = $state(false);
+	let internalDnsMessage = $state<string | null>(null);
+	let internalDnsError = $state<string | null>(null);
+	let internalDnsForm = $state({
+		enabled: true,
+		domain: 'hashi.home.arpa',
+		adGuardConnectionId: ''
 	});
 
 	let notificationSaving = $state(false);
@@ -73,11 +82,36 @@
 		try {
 			const created = await api.createAdGuardConnection(adguardForm);
 			adguardMessage = `Saved AdGuard connection "${created.name}".`;
+			internalDnsForm.adGuardConnectionId = created.id;
 			adguardForm.password = '';
 		} catch (e) {
 			adguardError = e instanceof ApiRequestError ? e.message : 'Failed to save AdGuard connection';
 		} finally {
 			adguardSaving = false;
+		}
+	}
+
+	async function saveInternalAgentDns() {
+		if (!internalDnsForm.adGuardConnectionId) {
+			internalDnsError = 'Save or select an AdGuard connection first.';
+			return;
+		}
+		internalDnsSaving = true;
+		internalDnsError = null;
+		internalDnsMessage = null;
+		try {
+			await api.updateInternalAgentDnsSettings({
+				enabled: internalDnsForm.enabled,
+				domain: internalDnsForm.domain,
+				keepLastRewriteWhenAgentStale: true,
+				adGuardConnectionId: internalDnsForm.adGuardConnectionId,
+				agents: null
+			});
+			internalDnsMessage = 'Saved internal agent DNS settings.';
+		} catch (e) {
+			internalDnsError = e instanceof ApiRequestError ? e.message : 'Failed to save internal agent DNS';
+		} finally {
+			internalDnsSaving = false;
 		}
 	}
 
@@ -237,6 +271,37 @@
 			</div>
 			{#if adguardError}<p class="text-xs text-destructive">{adguardError}</p>{/if}
 			{#if adguardMessage}<p class="text-xs text-emerald-300">{adguardMessage}</p>{/if}
+		</div>
+	{/if}
+	<div class="flex items-center justify-between rounded-md border border-border px-3 py-2">
+		<div>
+			<p class="text-sm text-white">Internal agent DNS</p>
+			<p class="text-xs text-muted-foreground">AdGuard rewrites for Pulse agents.</p>
+		</div>
+		<Switch bind:checked={internalAgentDns} />
+	</div>
+	{#if internalAgentDns}
+		<div class="grid gap-3 rounded-md border border-border bg-hashi-bg-dark p-3">
+			<div class="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+				DNS-only: this does not create Traefik routers or reverse-proxy resources.
+			</div>
+			<div class="grid gap-1.5">
+				<Label for="setup-internal-dns-domain">Domain</Label>
+				<Input id="setup-internal-dns-domain" bind:value={internalDnsForm.domain} />
+			</div>
+			<div class="grid gap-1.5">
+				<Label for="setup-internal-dns-connection">AdGuard connection ID</Label>
+				<Input id="setup-internal-dns-connection" bind:value={internalDnsForm.adGuardConnectionId} />
+			</div>
+			<div class="flex items-center justify-between rounded-md border border-border px-3 py-2">
+				<span class="text-sm text-white">Enabled</span>
+				<Switch bind:checked={internalDnsForm.enabled} />
+			</div>
+			<Button onclick={() => saveInternalAgentDns()} disabled={internalDnsSaving || advancing}>
+				{internalDnsSaving ? 'Saving...' : 'Save internal DNS'}
+			</Button>
+			{#if internalDnsError}<p class="text-xs text-destructive">{internalDnsError}</p>{/if}
+			{#if internalDnsMessage}<p class="text-xs text-emerald-300">{internalDnsMessage}</p>{/if}
 		</div>
 	{/if}
 	<div class="flex items-center justify-between rounded-md border border-border px-3 py-2">

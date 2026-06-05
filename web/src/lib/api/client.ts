@@ -540,6 +540,24 @@ export const api = {
 		if (!r.response.ok) throw errorFromResult(r.response.status, r.error);
 		return (await readUndocumentedJson(r.response)) as import('./types.js').CaptchaChallengeVerifyResult;
 	},
+	getInternalAgentDnsSettings: async () => {
+		const r = await client.GET('/api/settings/internal-agent-dns/' as never);
+		return (await expectData(r.response, r.error, r.data)) as unknown as import('./types.js').InternalAgentDnsSettings;
+	},
+	updateInternalAgentDnsSettings: async (body: import('./types.js').InternalAgentDnsSettingsRequest) => {
+		const r = await client.PUT('/api/settings/internal-agent-dns/' as never, { body } as never);
+		return (await expectData(r.response, r.error, r.data)) as unknown as import('./types.js').InternalAgentDnsSettings;
+	},
+	previewInternalAgentDnsSync: async () => {
+		const r = await client.POST('/api/settings/internal-agent-dns/preview-sync' as never);
+		return (await expectData(r.response, r.error, r.data)) as unknown as import('./types.js').AdGuardRewritePlan;
+	},
+	applyInternalAgentDnsSync: async (body: import('./types.js').AdGuardRewriteApplyRequest) => {
+		const r = await client.POST('/api/settings/internal-agent-dns/apply-sync' as never, {
+			body
+		} as never);
+		return (await expectData(r.response, r.error, r.data)) as unknown as import('./types.js').AdGuardRewriteApply;
+	},
 	createEdgeSsoProvider: async (body: import('./types.js').CreateOidcProviderRequest) => {
 		const result = await postUndocumented('/api/settings/edge-sso/providers', { body });
 		return {

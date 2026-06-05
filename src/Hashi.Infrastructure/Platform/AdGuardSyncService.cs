@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using Hashi.Contracts.Api;
 using Hashi.Core.Auth;
+using Hashi.Core.Dns;
 using Hashi.Core.Sync;
 using Hashi.Infrastructure.Auth;
 using Hashi.Infrastructure.Persistence;
@@ -181,11 +182,16 @@ public sealed class AdGuardSyncService(
         bool confirmDestructive = false,
         CancellationToken cancellationToken = default)
     {
-        var plan = await PlanSyncAsync(connectionId, updateTopologyDesiredState: true, cancellationToken: cancellationToken);
+        var plan = await PlanSyncAsync(
+            connectionId,
+            updateTopologyDesiredState: true,
+            updateInternalAgentDnsDesiredState: true,
+            cancellationToken: cancellationToken);
         return await ApplyPlanAsync(
             connectionId,
             new AdGuardRewriteApplyRequest(plan.PlanId, confirmDestructive),
             updateTopologyDesiredState: true,
+            updateInternalAgentDnsDesiredState: true,
             cancellationToken: cancellationToken);
     }
 
@@ -193,12 +199,19 @@ public sealed class AdGuardSyncService(
         Guid connectionId,
         Guid? deleteRewriteId = null,
         bool updateTopologyDesiredState = false,
+        bool updateInternalAgentDnsDesiredState = false,
         CancellationToken cancellationToken = default)
     {
         HashSet<string>? topologyDesiredDomains = null;
         if (updateTopologyDesiredState)
         {
             topologyDesiredDomains = await SyncResourceTopologyRewritesAsync(connectionId, cancellationToken);
+        }
+
+        HashSet<string>? internalAgentDnsDesiredDomains = null;
+        if (updateInternalAgentDnsDesiredState)
+        {
+            internalAgentDnsDesiredDomains = await SyncInternalAgentDnsRewritesAsync(connectionId, cancellationToken);
         }
 
         var deleteRewrite = deleteRewriteId is null
@@ -225,8 +238,18 @@ public sealed class AdGuardSyncService(
         var staleTopologyDomains = staleTopology
             .Select(x => x.Domain)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        IReadOnlyList<AdGuardRewriteEntity> staleInternalAgentDns = internalAgentDnsDesiredDomains is null
+            ? Array.Empty<AdGuardRewriteEntity>()
+            : localManaged
+                .Where(x => x.Source == AdGuardRewriteSourceNames.InternalAgentDns && !internalAgentDnsDesiredDomains.Contains(x.Domain))
+                .ToList();
+        var staleInternalAgentDnsDomains = staleInternalAgentDns
+            .Select(x => x.Domain)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var rewrite in localManaged.Where(x => !staleTopologyDomains.Contains(x.Domain)))
+        foreach (var rewrite in localManaged.Where(x =>
+            !staleTopologyDomains.Contains(x.Domain) &&
+            !staleInternalAgentDnsDomains.Contains(x.Domain)))
         {
             var remote = remoteRewrites.FirstOrDefault(x =>
                 string.Equals(x.Domain, rewrite.Domain, StringComparison.OrdinalIgnoreCase));
@@ -254,6 +277,13 @@ public sealed class AdGuardSyncService(
             changes.Add(new AdGuardRewritePlanChange("delete", rewrite.Domain, remote?.Answer ?? rewrite.Answer, null, "Delete stale topology-generated rewrite."));
         }
 
+        foreach (var rewrite in staleInternalAgentDns)
+        {
+            var remote = remoteRewrites.FirstOrDefault(x =>
+                string.Equals(x.Domain, rewrite.Domain, StringComparison.OrdinalIgnoreCase));
+            changes.Add(new AdGuardRewritePlanChange("delete", rewrite.Domain, remote?.Answer ?? rewrite.Answer, null, "Delete stale internal-agent DNS rewrite."));
+        }
+
         var planId = ComputePlanId(connectionId, deleteRewriteId, remoteRewrites, localManaged, changes);
         return new AdGuardRewritePlanResponse(
             planId,
@@ -267,9 +297,10 @@ public sealed class AdGuardSyncService(
         AdGuardRewriteApplyRequest request,
         Guid? deleteRewriteId = null,
         bool updateTopologyDesiredState = false,
+        bool updateInternalAgentDnsDesiredState = false,
         CancellationToken cancellationToken = default)
     {
-        var plan = await PlanSyncAsync(connectionId, deleteRewriteId, updateTopologyDesiredState, cancellationToken);
+        var plan = await PlanSyncAsync(connectionId, deleteRewriteId, updateTopologyDesiredState, updateInternalAgentDnsDesiredState, cancellationToken);
         if (plan.PlanId != request.PlanId)
         {
             throw new InvalidOperationException("AdGuard plan is stale; preview the rewrite changes again.");
@@ -316,18 +347,31 @@ public sealed class AdGuardSyncService(
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             if (deletedDomains.Count > 0)
             {
-                var staleTopology = await db.AdGuardRewrites
+                var staleGenerated = await db.AdGuardRewrites
                     .Where(x =>
                         x.ConnectionId == connectionId &&
                         x.ManagedByHashi &&
-                        x.Source == AdGuardRewriteSourceNames.Topology)
+                        (x.Source == AdGuardRewriteSourceNames.Topology ||
+                            x.Source == AdGuardRewriteSourceNames.InternalAgentDns))
                     .ToListAsync(cancellationToken);
-                staleTopology = staleTopology
+                staleGenerated = staleGenerated
                     .Where(x => deletedDomains.Contains(x.Domain))
                     .ToList();
-                if (staleTopology.Count > 0)
+                if (staleGenerated.Count > 0)
                 {
-                    db.AdGuardRewrites.RemoveRange(staleTopology);
+                    db.AdGuardRewrites.RemoveRange(staleGenerated);
+                    await db.SaveChangesAsync(cancellationToken);
+                }
+            }
+
+            if (updateInternalAgentDnsDesiredState)
+            {
+                var settings = await db.InternalAgentDnsSettings.SingleOrDefaultAsync(cancellationToken);
+                if (settings is not null && settings.AdGuardConnectionId == connectionId)
+                {
+                    settings.LastSyncStatus = SyncRunStatusNames.Succeeded;
+                    settings.LastAppliedHash = await ComputeInternalAgentDnsAppliedHashAsync(connectionId, cancellationToken);
+                    settings.UpdatedAtUtc = DateTimeOffset.UtcNow;
                     await db.SaveChangesAsync(cancellationToken);
                 }
             }
@@ -341,9 +385,150 @@ public sealed class AdGuardSyncService(
         {
             await syncRuns.AddStepAsync(run.Id, "adguard-apply", SyncRunStatusNames.Failed, ex.Message, cancellationToken);
             await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Failed, SyncRiskLevel.High, ex.Message, cancellationToken);
+            if (updateInternalAgentDnsDesiredState)
+            {
+                var settings = await db.InternalAgentDnsSettings.SingleOrDefaultAsync(cancellationToken);
+                if (settings is not null && settings.AdGuardConnectionId == connectionId)
+                {
+                    settings.LastSyncStatus = SyncRunStatusNames.Failed;
+                    settings.UpdatedAtUtc = DateTimeOffset.UtcNow;
+                    await db.SaveChangesAsync(cancellationToken);
+                }
+            }
+
             await audit.WriteAsync("adguard", "apply_failed", "failure", subjectType: "sync_run", subjectId: run.Id.ToString(), metadata: new { connectionId, error = ex.Message }, cancellationToken: cancellationToken);
             return new AdGuardRewriteApplyResponse(run.Id, false, SyncRunStatusNames.Failed, ex.Message);
         }
+    }
+
+    private async Task<HashSet<string>> SyncInternalAgentDnsRewritesAsync(Guid connectionId, CancellationToken cancellationToken)
+    {
+        var settings = await db.InternalAgentDnsSettings.SingleOrDefaultAsync(cancellationToken);
+        var desiredDomains = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (settings is null || !settings.Enabled || settings.AdGuardConnectionId != connectionId)
+        {
+            return desiredDomains;
+        }
+
+        settings.Domain = InternalAgentDnsName.NormalizeDomain(settings.Domain);
+        await EnsureInternalAgentSettingsAsync(cancellationToken);
+
+        var agents = await db.PulseAgents.AsNoTracking().ToDictionaryAsync(x => x.Id, cancellationToken);
+        var agentSettings = await db.InternalAgentDnsAgentSettings.AsNoTracking()
+            .Where(x => x.Enabled)
+            .OrderBy(x => x.PulseAgent.Name)
+            .ToListAsync(cancellationToken);
+
+        foreach (var agentSetting in agentSettings)
+        {
+            if (!agents.TryGetValue(agentSetting.PulseAgentId, out var agent) ||
+                string.Equals(agent.Status, "revoked", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var label = InternalAgentDnsName.NormalizeLabel(agentSetting.NameOverride ?? agent.Name);
+            var domain = $"{label}.{settings.Domain}";
+            if (!desiredDomains.Add(domain))
+            {
+                throw new InvalidOperationException($"Internal agent DNS name collision for {domain}.");
+            }
+
+            var answer = SelectAgentDnsAnswer(agent, agentSetting.IpMode);
+            var rewrite = await db.AdGuardRewrites.SingleOrDefaultAsync(
+                x => x.ConnectionId == connectionId && x.Domain == domain,
+                cancellationToken);
+
+            if (string.IsNullOrWhiteSpace(answer))
+            {
+                if (rewrite is null ||
+                    !rewrite.ManagedByHashi ||
+                    rewrite.Source != AdGuardRewriteSourceNames.InternalAgentDns ||
+                    !(settings.KeepLastRewriteWhenAgentStale && agentSetting.KeepLastRewriteWhenStale))
+                {
+                    desiredDomains.Remove(domain);
+                }
+
+                continue;
+            }
+
+            if (rewrite is null)
+            {
+                rewrite = new AdGuardRewriteEntity
+                {
+                    ConnectionId = connectionId,
+                    Domain = domain,
+                    ManagedByHashi = true,
+                    Source = AdGuardRewriteSourceNames.InternalAgentDns,
+                };
+                db.AdGuardRewrites.Add(rewrite);
+            }
+            else if (!rewrite.ManagedByHashi || rewrite.Source != AdGuardRewriteSourceNames.InternalAgentDns)
+            {
+                continue;
+            }
+
+            rewrite.Answer = answer;
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        return desiredDomains;
+    }
+
+    private async Task EnsureInternalAgentSettingsAsync(CancellationToken cancellationToken)
+    {
+        var existing = await db.InternalAgentDnsAgentSettings
+            .Select(x => x.PulseAgentId)
+            .ToHashSetAsync(cancellationToken);
+        var missingAgents = await db.PulseAgents
+            .Where(x => !existing.Contains(x.Id))
+            .Select(x => x.Id)
+            .ToListAsync(cancellationToken);
+
+        foreach (var agentId in missingAgents)
+        {
+            db.InternalAgentDnsAgentSettings.Add(new InternalAgentDnsAgentSettingsEntity
+            {
+                PulseAgentId = agentId,
+            });
+        }
+
+        if (missingAgents.Count > 0)
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+    }
+
+    private async Task<string> ComputeInternalAgentDnsAppliedHashAsync(Guid connectionId, CancellationToken cancellationToken)
+    {
+        var rewrites = await db.AdGuardRewrites.AsNoTracking()
+            .Where(x =>
+                x.ConnectionId == connectionId &&
+                x.ManagedByHashi &&
+                x.Source == AdGuardRewriteSourceNames.InternalAgentDns)
+            .OrderBy(x => x.Domain)
+            .ToListAsync(cancellationToken);
+        var builder = new StringBuilder("internal-agent-dns-v1|");
+        foreach (var rewrite in rewrites)
+        {
+            builder.Append(rewrite.Domain).Append('=').Append(rewrite.Answer).Append('|');
+        }
+
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(builder.ToString()))).ToLowerInvariant();
+    }
+
+    private static string? SelectAgentDnsAnswer(PulseAgentEntity agent, string? ipMode)
+    {
+        return NormalizePulseIpMode(ipMode) switch
+        {
+            PulseTargetIpModeNames.Public => agent.LastPublicIp,
+            PulseTargetIpModeNames.PrivateSelected => FirstNonEmpty(agent.LastSelectedIp, agent.LastPrivateIp),
+            PulseTargetIpModeNames.PrivateCandidate => FirstNonEmpty(
+                DeserializeStringList(agent.LastPrivateIpv4CandidatesJson).FirstOrDefault(),
+                DeserializeStringList(agent.LastPrivateIpv6CandidatesJson).FirstOrDefault(),
+                agent.LastPrivateIp),
+            _ => FirstNonEmpty(agent.LastSelectedIp, agent.LastPrivateIp, agent.LastPublicIp),
+        };
     }
 
     private async Task<HashSet<string>> SyncResourceTopologyRewritesAsync(Guid connectionId, CancellationToken cancellationToken)
@@ -570,6 +755,26 @@ public sealed class AdGuardSyncService(
             PulseTargetIpModeNames.PrivateCandidate => PulseTargetIpModeNames.PrivateCandidate,
             _ => PulseTargetIpModeNames.Selected,
         };
+
+    private static string? FirstNonEmpty(params string?[] values)
+        => values.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
+
+    private static IReadOnlyList<string> DeserializeStringList(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return [];
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<IReadOnlyList<string>>(json) ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
 
     private sealed record RemoteAdGuardRewrite(string Domain, string Answer, string? Id);
 

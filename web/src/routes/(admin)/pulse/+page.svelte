@@ -6,6 +6,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
+	import { Switch } from '$lib/components/ui/switch';
 	import {
 		Table,
 		TableBody,
@@ -17,6 +18,7 @@
 	import { Zap } from 'lucide-svelte';
 
 	let agents = $state<PulseAgent[]>([]);
+	let dnsSettings = $state<import('$lib/api/types').InternalAgentDnsSettings | null>(null);
 	let installSnippet = $state<PulseInstall | null>(null);
 	let loading = $state(true);
 	let creating = $state(false);
@@ -24,12 +26,18 @@
 	let message = $state<string | null>(null);
 	let newAgentName = $state('');
 	let createdToken = $state<CreatePulseAgentResult | null>(null);
+	let savingDnsAgentId = $state<string | null>(null);
 
 	async function load() {
 		loading = true;
 		error = null;
 		try {
-			agents = await api.listPulseAgents();
+			const [agentItems, dns] = await Promise.all([
+				api.listPulseAgents(),
+				api.getInternalAgentDnsSettings().catch(() => null)
+			]);
+			agents = agentItems;
+			dnsSettings = dns;
 		} catch (e) {
 			error = e instanceof ApiRequestError ? e.message : 'Failed to load Pulse agents';
 		} finally {
@@ -98,6 +106,41 @@
 			installSnippet = await api.getPulseInstall(agentId);
 		} catch (e) {
 			error = e instanceof ApiRequestError ? e.message : 'Failed to load install snippet';
+		}
+	}
+
+	function dnsAgentSettings(agentId: string) {
+		return dnsSettings?.agents.find((item) => item.pulseAgentId === agentId) ?? null;
+	}
+
+	async function saveAgentDns(agent: PulseAgent) {
+		if (!dnsSettings) return;
+		const settings = dnsAgentSettings(agent.id);
+		if (!settings) return;
+		savingDnsAgentId = agent.id;
+		error = null;
+		message = null;
+		try {
+			dnsSettings = await api.updateInternalAgentDnsSettings({
+				enabled: dnsSettings.enabled,
+				domain: dnsSettings.domain,
+				keepLastRewriteWhenAgentStale: dnsSettings.keepLastRewriteWhenAgentStale,
+				adGuardConnectionId: dnsSettings.adGuardConnectionId,
+				agents: [
+					{
+						pulseAgentId: agent.id,
+						enabled: settings.enabled,
+						nameOverride: settings.nameOverride || null,
+						ipMode: settings.ipMode,
+						keepLastRewriteWhenStale: settings.keepLastRewriteWhenStale
+					}
+				]
+			});
+			message = `DNS settings saved for ${agent.name}.`;
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Failed to save agent DNS settings';
+		} finally {
+			savingDnsAgentId = null;
 		}
 	}
 </script>
@@ -177,7 +220,43 @@
 							</TableCell>
 							<TableCell class="font-mono text-xs">{agent.lastPublicIp ?? '—'}</TableCell>
 							<TableCell class="text-xs">
-								{agent.dnsPendingAtUtc ? 'Pending' : '—'}
+								{@const dns = dnsAgentSettings(agent.id)}
+								{#if dns}
+									<div class="grid min-w-64 gap-2">
+										<div class="flex items-center justify-between gap-3">
+											<span>{agent.dnsPendingAtUtc ? 'Pending' : dns.enabled ? 'Enabled' : 'Disabled'}</span>
+											<Switch bind:checked={dns.enabled} />
+										</div>
+										<div class="grid grid-cols-[1fr_auto] gap-2">
+											<Input
+												bind:value={dns.nameOverride}
+												placeholder={agent.name.toLowerCase().replaceAll(' ', '-')}
+											/>
+											<select
+												class="h-9 rounded-md border border-border bg-background px-2 text-xs text-white"
+												bind:value={dns.ipMode}
+											>
+												<option value="selected">Selected</option>
+												<option value="private_selected">Private</option>
+												<option value="public">Public</option>
+											</select>
+										</div>
+										<div class="flex items-center justify-between gap-3">
+											<span>Keep stale</span>
+											<Switch bind:checked={dns.keepLastRewriteWhenStale} />
+										</div>
+										<Button
+											variant="outline"
+											size="sm"
+											onclick={() => saveAgentDns(agent)}
+											disabled={savingDnsAgentId === agent.id}
+										>
+											{savingDnsAgentId === agent.id ? 'Saving...' : 'Save DNS'}
+										</Button>
+									</div>
+								{:else}
+									{agent.dnsPendingAtUtc ? 'Pending' : '—'}
+								{/if}
 							</TableCell>
 							<TableCell class="space-x-2">
 								<Button variant="ghost" size="sm" onclick={() => showInstall(agent.id)}>Install</Button>

@@ -467,6 +467,7 @@
 					<TableRow>
 						<TableHead>Domain</TableHead>
 						<TableHead>Answer</TableHead>
+						<TableHead>Source</TableHead>
 						<TableHead>Managed</TableHead>
 						<TableHead class="w-24"></TableHead>
 					</TableRow>
@@ -476,9 +477,18 @@
 						<TableRow>
 							<TableCell class="font-mono text-xs">{rewrite.domain}</TableCell>
 							<TableCell class="font-mono text-xs">{rewrite.answer}</TableCell>
+							<TableCell>
+								<span
+									class={rewrite.source === 'internal_agent_dns'
+										? 'rounded border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-200'
+										: 'text-xs text-muted-foreground'}
+								>
+									{rewrite.source === 'internal_agent_dns' ? 'internal agent DNS' : rewrite.source}
+								</span>
+							</TableCell>
 							<TableCell>{rewrite.managedByHashi ? 'yes' : 'no'}</TableCell>
 							<TableCell>
-								{#if rewrite.managedByHashi}
+								{#if rewrite.managedByHashi && rewrite.source !== 'internal_agent_dns'}
 									<Button
 										variant="ghost"
 										size="sm"
