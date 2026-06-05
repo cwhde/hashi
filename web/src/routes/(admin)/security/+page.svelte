@@ -259,7 +259,9 @@
 		}
 	};
 
-	async function securityJson<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
+	type FetchInit = NonNullable<Parameters<typeof fetch>[1]>;
+
+	async function securityJson<T>(path: string, init: FetchInit = {}, retry = true): Promise<T> {
 		const method = (init.method ?? 'GET').toUpperCase();
 		const headers = new Headers(init.headers);
 		if (method !== 'GET' && method !== 'HEAD') {
@@ -884,10 +886,10 @@
 					<div class="rounded-md border border-border p-3">
 						<h3 class="text-sm font-semibold">Preview</h3>
 						<p class="text-xs text-muted-foreground">Parsed {preview.parsedCount}, ignored {preview.ignoredCount}, errors {preview.errorCount}</p>
-						{#each preview.warnings.slice(0, 3) as warning}
+						{#each preview.warnings.slice(0, 3) as warning (warning)}
 							<p class="text-xs text-muted-foreground">{warning}</p>
 						{/each}
-						{#each preview.errors.slice(0, 3) as item}
+						{#each preview.errors.slice(0, 3) as item (item)}
 							<p class="text-xs text-destructive">{item}</p>
 						{/each}
 					</div>

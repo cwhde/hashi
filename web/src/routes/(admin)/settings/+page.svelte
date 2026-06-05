@@ -442,7 +442,7 @@
 				{/if}
 				{#if internalDnsPlan}
 					<div class="grid gap-2 rounded-md border border-border p-3 text-xs">
-						{#each internalDnsPlan.changes as change}
+						{#each internalDnsPlan.changes as change (`${change.kind}:${change.domain}:${change.desiredAnswer ?? ''}`)}
 							<p class="font-mono text-muted-foreground">
 								{change.kind} {change.domain}: {change.currentAnswer ?? 'none'} -> {change.desiredAnswer ?? 'none'}
 							</p>

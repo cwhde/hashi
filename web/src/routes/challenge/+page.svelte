@@ -9,7 +9,7 @@
 	let verifying = $state(false);
 	let message = $state<string | null>(null);
 	let widgetElement = $state<HTMLElement | null>(null);
-	const handleSolveEvent: EventListener = (event) => {
+	const handleSolveEvent = (event: globalThis.Event) => {
 		void handleSolve(event as CustomEvent<{ token?: string }>);
 	};
 
