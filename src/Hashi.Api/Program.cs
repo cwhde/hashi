@@ -135,6 +135,7 @@ app.MapFirewallEndpoints();
 app.MapStatusEndpoints();
 app.MapPublicEndpoints();
 app.MapEdgeAuthEndpoints();
+app.MapEdgeChallengeEndpoints();
 app.MapEdgeSsoAdminEndpoints();
 app.MapSecurityEndpoints();
 app.MapPulseEndpoints();

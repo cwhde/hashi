@@ -112,6 +112,7 @@ public static class SecretPurposeMapping
         SecretPurpose.NotificationToken => Persistence.Entities.SecretPurposeNames.NotificationToken,
         SecretPurpose.OidcClientSecret => Persistence.Entities.SecretPurposeNames.OidcClientSecret,
         SecretPurpose.MaxMindLicenseKey => Persistence.Entities.SecretPurposeNames.MaxMindLicenseKey,
+        SecretPurpose.CapSecretKey => Persistence.Entities.SecretPurposeNames.CapSecretKey,
         SecretPurpose.ScriptEnvironment => Persistence.Entities.SecretPurposeNames.ScriptEnvironment,
         _ => Persistence.Entities.SecretPurposeNames.Generic,
     };
@@ -125,6 +126,7 @@ public static class SecretPurposeMapping
         Persistence.Entities.SecretPurposeNames.NotificationToken => SecretPurpose.NotificationToken,
         Persistence.Entities.SecretPurposeNames.OidcClientSecret => SecretPurpose.OidcClientSecret,
         Persistence.Entities.SecretPurposeNames.MaxMindLicenseKey => SecretPurpose.MaxMindLicenseKey,
+        Persistence.Entities.SecretPurposeNames.CapSecretKey => SecretPurpose.CapSecretKey,
         Persistence.Entities.SecretPurposeNames.ScriptEnvironment => SecretPurpose.ScriptEnvironment,
         _ => SecretPurpose.Generic,
     };

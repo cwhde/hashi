@@ -48,7 +48,8 @@ function isCsrfExemptRequest(url: string, method: string): boolean {
 	return (
 		(method === 'POST' && path === '/api/auth/bootstrap/login') ||
 		(method === 'POST' && path === '/api/auth/passkeys/login/begin') ||
-		(method === 'POST' && path === '/api/auth/passkeys/login/complete')
+		(method === 'POST' && path === '/api/auth/passkeys/login/complete') ||
+		(method === 'POST' && path === '/api/edge-challenge/verify')
 	);
 }
 
@@ -509,6 +510,35 @@ export const api = {
 	runGeoIpUpdate: async () => {
 		const r = await client.POST('/api/settings/geoip/update' as never);
 		return (await expectData(r.response, r.error, r.data)) as unknown as import('./types.js').GeoIpUpdateResult;
+	},
+	getCaptchaSettings: async () => {
+		const r = await client.GET('/api/security/captcha/settings' as never);
+		return (await expectData(r.response, r.error, r.data)) as unknown as import('./types.js').CaptchaSettings;
+	},
+	updateCaptchaSettings: async (body: import('./types.js').CaptchaSettingsRequest) => {
+		const r = await client.PUT('/api/security/captcha/settings' as never, { body } as never);
+		return (await expectData(r.response, r.error, r.data)) as unknown as import('./types.js').CaptchaSettings;
+	},
+	testCaptchaToken: async (token: string) => {
+		const r = await client.POST('/api/security/captcha/test' as never, { body: { token } } as never);
+		return (await expectData(r.response, r.error, r.data)) as unknown as {
+			succeeded: boolean;
+			status: string;
+			error: string | null;
+		};
+	},
+	getCaptchaChallengeStatus: async (returnUrl?: string | null) => {
+		const r = await client.GET('/api/edge-challenge/status' as never, {
+			params: { query: { returnUrl: returnUrl ?? undefined } }
+		} as never);
+		return (await expectData(r.response, r.error, r.data)) as unknown as import('./types.js').CaptchaChallengeStatus;
+	},
+	verifyCaptchaChallenge: async (token: string, returnUrl?: string | null) => {
+		const r = await client.POST('/api/edge-challenge/verify' as never, {
+			body: { token, returnUrl: returnUrl ?? null }
+		} as never);
+		if (!r.response.ok) throw errorFromResult(r.response.status, r.error);
+		return (await readUndocumentedJson(r.response)) as import('./types.js').CaptchaChallengeVerifyResult;
 	},
 	createEdgeSsoProvider: async (body: import('./types.js').CreateOidcProviderRequest) => {
 		const result = await postUndocumented('/api/settings/edge-sso/providers', { body });

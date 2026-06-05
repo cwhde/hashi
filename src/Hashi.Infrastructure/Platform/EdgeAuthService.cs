@@ -15,6 +15,11 @@ public sealed class EdgeAuthService
         this.geoIp = geoIp;
     }
 
+    public EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp, OidcEdgeAuthService oidc, CaptchaChallengeService captcha)
+        : this(new SecurityDecisionService(db, oidc, captcha), geoIp)
+    {
+    }
+
     public EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp, OidcEdgeAuthService oidc)
         : this(new SecurityDecisionService(db, oidc), geoIp)
     {

@@ -11,6 +11,7 @@ namespace Hashi.Infrastructure.Platform;
 public sealed class SecurityDecisionService(
     HashiDbContext db,
     OidcEdgeAuthService oidc,
+    CaptchaChallengeService? captcha = null,
     TimeProvider? timeProvider = null)
 {
     public async Task<SecurityDecisionResult> DecideForwardAuthAsync(
@@ -151,6 +152,12 @@ public sealed class SecurityDecisionService(
                 matchedState: BuildMatchedState(subjectEntity, stateEntity));
         }
 
+        if (context.IsPublicChallengeResource)
+        {
+            explanation.Add(new SecurityDecisionExplanation("captcha_public_resource", "allow", "Public challenge resource bypasses SSO, CAPTCHA, adaptive challenge, and soft blocks."));
+            return Allow(context.Resource?.Id, subject, explanation, matchedManualEntryIds: matchedManualAllowIds);
+        }
+
         blocklistMatch = await LoadMatchingBlocklistEntryAsync(request, now, firewallOnly: false, cancellationToken);
         if (blocklistMatch is not null && !manualAllowBypassesBlocking)
         {
@@ -201,9 +208,22 @@ public sealed class SecurityDecisionService(
 
         if (IsChallengeRequired(stateEntity, subjectEntity, abuseState) && !manualAllowBypassesChallenge)
         {
-            stateEntity.RequestsWhileChallenged++;
-            stateEntity.UpdatedAtUtc = now;
-            await db.SaveChangesAsync(cancellationToken);
+            if (captcha is not null)
+            {
+                await captcha.CountProtectedHitWhileChallengedAsync(
+                    subjectEntity,
+                    stateEntity,
+                    context.Resource?.Id,
+                    stateEntity.ChallengeReason ?? abuseState,
+                    cancellationToken);
+            }
+            else
+            {
+                stateEntity.RequestsWhileChallenged++;
+                stateEntity.UpdatedAtUtc = now;
+                await db.SaveChangesAsync(cancellationToken);
+            }
+
             explanation.Add(new SecurityDecisionExplanation("challenge_state", "matched", stateEntity.ChallengeReason ?? abuseState));
             return Challenge(
                 request,
@@ -251,7 +271,11 @@ public sealed class SecurityDecisionService(
             StringComparison.OrdinalIgnoreCase));
         var hasOidcProvider = await db.OidcProviders.AsNoTracking().AnyAsync(x => x.Enabled, cancellationToken);
         var hasValidSession = await oidc.ValidateSessionAsync(request.EdgeSessionKey, cancellationToken);
-        return new SecurityDecisionContext(resource, normalizedHost, hasOidcProvider, hasValidSession, rootDomain);
+        var captchaSettings = await db.CaptchaSettings.AsNoTracking().SingleOrDefaultAsync(cancellationToken);
+        var isPublicChallengeResource = captchaSettings?.Enabled == true
+            && resource is not null
+            && captchaSettings.PublicChallengeResourceId == resource.Id;
+        return new SecurityDecisionContext(resource, normalizedHost, hasOidcProvider, hasValidSession, rootDomain, isPublicChallengeResource);
     }
 
     private async Task<SecurityDecisionResult?> EvaluateResourceRulesAsync(
@@ -287,6 +311,15 @@ public sealed class SecurityDecisionService(
             }
 
             explanation.Add(new SecurityDecisionExplanation("resource_rule", "matched", $"{rule.MatchType}:{rule.MatchValue}:{action}"));
+            if (action == SecurityResourceRuleActionNames.RequireChallenge && captcha is not null)
+            {
+                await captcha.MarkChallengeRequiredAsync(
+                    request.ClientIp,
+                    resource.Id,
+                    "resource_rule_challenge",
+                    cancellationToken);
+            }
+
             return action switch
             {
                 SecurityResourceRuleActionNames.Allow => Allow(resource.Id, subject, explanation, matchedResourceRuleIds: [rule.Id]),

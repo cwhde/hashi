@@ -51,7 +51,8 @@ public sealed class AdminCsrfMiddleware(RequestDelegate next)
         var value = path.Value ?? string.Empty;
         return IsEndpoint(value, method, "/api/auth/bootstrap/login", HttpMethods.Post)
                || IsEndpoint(value, method, "/api/auth/passkeys/login/begin", HttpMethods.Post)
-               || IsEndpoint(value, method, "/api/auth/passkeys/login/complete", HttpMethods.Post);
+               || IsEndpoint(value, method, "/api/auth/passkeys/login/complete", HttpMethods.Post)
+               || IsEndpoint(value, method, "/api/edge-challenge/verify", HttpMethods.Post);
     }
 
     private static bool IsEndpoint(string actualPath, string actualMethod, string expectedPath, string expectedMethod)

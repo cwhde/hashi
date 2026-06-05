@@ -79,6 +79,10 @@ public sealed class CaptchaSettingsEntity
 
     public int VerificationTimeoutSeconds { get; set; } = 5;
 
+    public bool InstrumentationExpected { get; set; } = true;
+
+    public bool HeadlessDetectionExpected { get; set; }
+
     public Guid? CapAdminResourceId { get; set; }
 
     public string? CapAdminDomain { get; set; }

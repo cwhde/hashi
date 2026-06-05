@@ -46,6 +46,7 @@ public static class DependencyInjection
         services.AddHttpClient("oidc-edge");
         services.AddHttpClient("monitor-checks");
         services.AddHttpClient("adguard");
+        services.AddHttpClient("cap");
         services.AddHttpClient("maxmind-geoip", client =>
         {
             client.BaseAddress = new Uri("https://download.maxmind.com/");
@@ -81,6 +82,8 @@ public static class DependencyInjection
         services.AddScoped<SecuritySubjectOperationsService>();
         services.AddScoped<SecurityDecisionService>();
         services.AddScoped<BanDurationPolicyEvaluator>();
+        services.AddScoped<ICapClient, CapClient>();
+        services.AddScoped<CaptchaChallengeService>();
         services.AddSingleton<GeoIpLookupService>();
         services.AddScoped<OidcEdgeAuthService>();
         services.AddScoped<OidcProviderAdminService>();

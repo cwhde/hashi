@@ -16,6 +16,7 @@ public enum SecretPurpose
     NotificationToken,
     OidcClientSecret,
     MaxMindLicenseKey,
+    CapSecretKey,
     ScriptEnvironment,
     Generic,
 }

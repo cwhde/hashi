@@ -98,4 +98,5 @@ internal sealed record SecurityDecisionContext(
     string NormalizedHost,
     bool HasOidcProvider,
     bool HasValidSession,
-    string? RootDomain);
+    string? RootDomain,
+    bool IsPublicChallengeResource);

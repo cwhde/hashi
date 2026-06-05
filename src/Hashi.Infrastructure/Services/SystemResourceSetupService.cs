@@ -11,6 +11,8 @@ public sealed class SystemResourceSetupService(
     AppSettingsService settings,
     SyncOrchestratorService sync)
 {
+    public const string HashiAdminSystemKey = "hashi_admin";
+
     public async Task<SystemResourceSyncResponse> PlanAsync(CancellationToken cancellationToken = default)
     {
         await EnsureSystemResourceAsync(cancellationToken);
@@ -45,16 +47,43 @@ public sealed class SystemResourceSetupService(
             throw new InvalidOperationException("Admin domain must be configured before system resource sync.");
         }
 
-        var existing = await db.Resources.SingleOrDefaultAsync(x => x.IsSystem, cancellationToken);
+        var system = await db.SystemResources
+            .Include(x => x.Resource)
+            .SingleOrDefaultAsync(x => x.SystemKey == HashiAdminSystemKey, cancellationToken);
+        var existing = system?.Resource;
+        if (existing is null)
+        {
+            existing = await db.Resources
+                .Where(x => x.IsSystem)
+                .Where(x => x.OwningWorkflow == null || x.OwningWorkflow == "setup")
+                .OrderBy(x => x.CreatedAtUtc)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
         if (existing is not null)
         {
             existing.Domain = appSettings.AdminDomain;
             existing.Enabled = true;
+            existing.IsSystem = true;
+            existing.Ownership = ResourceOwnershipNames.System;
+            existing.OwningWorkflow = "setup";
+            existing.DeletionPolicy = ResourceDeletionPolicyNames.RequiredForAccess;
+            if (system is null)
+            {
+                db.SystemResources.Add(new SystemResourceEntity
+                {
+                    ResourceId = existing.Id,
+                    SystemKey = HashiAdminSystemKey,
+                    OwningWorkflow = "setup",
+                    RequiredForAppAccess = true,
+                });
+            }
+
             await db.SaveChangesAsync(cancellationToken);
             return;
         }
 
-        db.Resources.Add(new ResourceEntity
+        var resource = new ResourceEntity
         {
             Name = "Hashi Admin",
             Slug = "hashi-admin",
@@ -65,8 +94,20 @@ public sealed class SystemResourceSetupService(
             TargetPort = 8080,
             Enabled = true,
             IsSystem = true,
+            Ownership = ResourceOwnershipNames.System,
+            OwningWorkflow = "setup",
+            DeletionPolicy = ResourceDeletionPolicyNames.RequiredForAccess,
             DashboardEnabled = false,
             StatusEnabled = true,
+        };
+        db.Resources.Add(resource);
+        await db.SaveChangesAsync(cancellationToken);
+        db.SystemResources.Add(new SystemResourceEntity
+        {
+            ResourceId = resource.Id,
+            SystemKey = HashiAdminSystemKey,
+            OwningWorkflow = "setup",
+            RequiredForAppAccess = true,
         });
         await db.SaveChangesAsync(cancellationToken);
     }
