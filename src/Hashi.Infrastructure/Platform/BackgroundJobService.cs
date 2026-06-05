@@ -12,6 +12,11 @@ public static class BackgroundJobKeys
     public const string ScriptCron = "script-cron";
     public const string AccessLogIngest = "access-log-ingest";
     public const string GeoIpUpdate = "geoip-update";
+    public const string BlocklistFetch = "blocklist-fetch";
+    public const string SecurityBucketAggregation = "security-bucket-aggregation";
+    public const string BlockExpiry = "block-expiry";
+    public const string InternalAgentDnsSync = "internal-agent-dns-sync";
+    public const string ChallengeCleanup = "challenge-cleanup";
 }
 
 public sealed class BackgroundJobService(HashiDbContext db)
@@ -24,6 +29,11 @@ public sealed class BackgroundJobService(HashiDbContext db)
         await EnsureJobAsync(BackgroundJobKeys.ScriptCron, "Script cron sync", 60, cancellationToken);
         await EnsureJobAsync(BackgroundJobKeys.AccessLogIngest, "Traefik access-log ingest", 60, cancellationToken);
         await EnsureJobAsync(BackgroundJobKeys.GeoIpUpdate, "GeoIP database update", 259200, cancellationToken);
+        await EnsureJobAsync(BackgroundJobKeys.BlocklistFetch, "Blocklist fetch", 3600, cancellationToken);
+        await EnsureJobAsync(BackgroundJobKeys.SecurityBucketAggregation, "Security bucket aggregation", 300, cancellationToken);
+        await EnsureJobAsync(BackgroundJobKeys.BlockExpiry, "Security block expiry", 300, cancellationToken);
+        await EnsureJobAsync(BackgroundJobKeys.InternalAgentDnsSync, "Internal agent DNS sync", 300, cancellationToken);
+        await EnsureJobAsync(BackgroundJobKeys.ChallengeCleanup, "CAPTCHA challenge cleanup", 300, cancellationToken);
     }
 
     public async Task<IReadOnlyList<BackgroundJobEntity>> ListAsync(CancellationToken cancellationToken = default)
