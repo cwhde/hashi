@@ -493,7 +493,7 @@ public sealed class BlocklistSourceManagementService(
             run.ContentHash,
             run.Error);
 
-    private static BlocklistEntryResponse ToEntryResponse(BlocklistEntryEntity entry)
+    public static BlocklistEntryResponse ToEntryResponse(BlocklistEntryEntity entry)
         => new(
             entry.Id,
             entry.SourceId,

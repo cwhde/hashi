@@ -635,11 +635,32 @@ public sealed record SecuritySubjectDetailResponse(
     SecuritySubjectSummaryResponse Subject,
     SecuritySubjectStateResponse? State,
     IReadOnlyList<ManualSecurityEntryResponse> ManualEntries,
-    IReadOnlyList<BlocklistEntryResponse> BlocklistEntries);
+    IReadOnlyList<BlocklistEntryResponse> BlocklistEntries,
+    IReadOnlyList<ResourceRuleResponse> ResourceRules,
+    IReadOnlyList<SecurityFirewallApplicationResponse> FirewallApplications);
 
 public sealed record SecuritySubjectSearchResponse(
     string Query,
     IReadOnlyList<SecuritySubjectSummaryResponse> Results);
+
+public sealed record SecurityEffectiveDecisionResponse(
+    Guid SubjectId,
+    string Decision,
+    string Action,
+    string Reason,
+    IReadOnlyList<string> Explanation,
+    IReadOnlyList<Guid> MatchedManualEntryIds,
+    IReadOnlyList<Guid> MatchedBlocklistEntryIds,
+    IReadOnlyList<Guid> MatchedResourceRuleIds,
+    SecuritySubjectStateResponse? State);
+
+public sealed record SecurityFirewallApplicationResponse(
+    Guid? FirewallHostId,
+    string? FirewallHostName,
+    string Enforcement,
+    string Status,
+    DateTimeOffset? AppliedAtUtc,
+    string? LastError);
 
 public sealed record SecurityEventResponse(
     Guid Id,
@@ -716,6 +737,41 @@ public sealed record UpsertManualSecurityEntryRequest(
     bool? BypassChallenge,
     bool? BypassSso,
     bool? Enabled);
+
+public sealed record UpdateManualSecurityEntryRequest(
+    string? Reason,
+    DateTimeOffset? ExpiresAtUtc,
+    bool? IsPermanent,
+    bool? BypassBlocking,
+    bool? BypassAdaptiveEscalation,
+    bool? BypassRateLimit,
+    bool? BypassChallenge,
+    bool? BypassSso,
+    bool? Enabled);
+
+public sealed record CreateSecurityBlockRequest(
+    string SubjectType,
+    string SubjectValue,
+    string BlockType,
+    string? Reason,
+    DateTimeOffset? ExpiresAtUtc,
+    bool? IsPermanent,
+    bool FirewallEnforced = false);
+
+public sealed record UpdateSecurityBlockRequest(
+    string? Reason,
+    DateTimeOffset? ExpiresAtUtc,
+    bool? IsPermanent,
+    bool? Enabled,
+    bool? FirewallEnforced);
+
+public sealed record SecurityBlockDurationRequest(int DurationSeconds);
+
+public sealed record SecurityBlockMutationResponse(
+    ManualSecurityEntryResponse ManualEntry,
+    SecuritySubjectStateResponse? State,
+    bool FirewallSyncRecommended,
+    FirewallPlanPreviewResponse? FirewallPreview);
 
 public sealed record BanDurationPolicyContract(
     string PolicyType,
