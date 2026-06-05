@@ -1,7 +1,5 @@
 using System.Net;
 using Hashi.Contracts.Api;
-using Hashi.Infrastructure.Persistence;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Hashi.Infrastructure.Platform;
 
@@ -10,21 +8,10 @@ public sealed class EdgeAuthService
     private readonly SecurityDecisionService decisions;
     private readonly GeoIpLookupService geoIp;
 
-    [ActivatorUtilitiesConstructor]
     public EdgeAuthService(SecurityDecisionService decisions, GeoIpLookupService geoIp)
     {
         this.decisions = decisions;
         this.geoIp = geoIp;
-    }
-
-    public EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp, OidcEdgeAuthService oidc, CaptchaChallengeService captcha)
-        : this(new SecurityDecisionService(db, oidc, captcha), geoIp)
-    {
-    }
-
-    public EdgeAuthService(HashiDbContext db, GeoIpLookupService geoIp, OidcEdgeAuthService oidc)
-        : this(new SecurityDecisionService(db, oidc), geoIp)
-    {
     }
 
     public async Task<EdgeAuthForwardResponse> EvaluateForwardAsync(

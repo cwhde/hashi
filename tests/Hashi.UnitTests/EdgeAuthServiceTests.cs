@@ -560,7 +560,8 @@ public sealed class EdgeAuthServiceTests
             new AppSettingsService(db),
             new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build(),
             new EphemeralDataProtectionProvider());
-        var service = new EdgeAuthService(db, geoIp, oidc);
+        var decisions = new SecurityDecisionService(db, oidc);
+        var service = new EdgeAuthService(decisions, geoIp);
         return service.EvaluateForwardAsync(
             host,
             path,
