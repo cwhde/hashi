@@ -15,6 +15,10 @@ LICENSE
 # Node
 node_modules
 
+# Build outputs
+**/bin/
+**/obj/
+
 # Logs and runtime data
 logs/
 *.log
