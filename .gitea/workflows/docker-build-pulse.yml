@@ -23,30 +23,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: agents/pulse/go.mod
-          cache: false
-
-      - name: Cache Go modules and build data
-        uses: actions/cache@v3
-        continue-on-error: true
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/.cache/go-build
-          key: go-pulse-${{ runner.os }}-${{ hashFiles('agents/pulse/go.mod', 'agents/pulse/go.sum') }}
-          restore-keys: |
-            go-pulse-${{ runner.os }}-
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Build Linux binaries
         working-directory: agents/pulse
         run: |
           set -euo pipefail
           mkdir -p dist
-          for arch in amd64 arm64; do
-            GOOS=linux GOARCH="${arch}" CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o "dist/hashi-pulse-linux-${arch}" ./cmd/hashi-pulse
-          done
+
+          # Build amd64 binary inside docker and copy it out
+          docker build --platform linux/amd64 --target build -t hashi-pulse-build:amd64 .
+          docker create --name temp-amd64 hashi-pulse-build:amd64
+          docker cp temp-amd64:/out/Hashi.Pulse dist/hashi-pulse-linux-amd64
+          docker rm temp-amd64
+
+          # Build arm64 binary inside docker and copy it out
+          docker build --platform linux/arm64 --target build -t hashi-pulse-build:arm64 .
+          docker create --name temp-arm64 hashi-pulse-build:arm64
+          docker cp temp-arm64:/out/Hashi.Pulse dist/hashi-pulse-linux-arm64
+          docker rm temp-arm64
+
           cd dist
           sha256sum hashi-pulse-linux-amd64 > hashi-pulse-linux-amd64.sha256
           sha256sum hashi-pulse-linux-arm64 > hashi-pulse-linux-arm64.sha256
