@@ -1,21 +1,22 @@
 # Hashi V2 Spec Compliance Audit - 2026-06-09 (H-Series)
 
 **Audit Date:** 2026-06-09
-**Auditor:** AI Agent (Pass 1 of 3)
+**Auditor:** AI Agent (Pass 1 of 3 + Pass 2 of 3)
 **Scope:** Full codebase comparison against `hashi-v2-implementation-spec.md` and `hashi-v2-implementation-spec-addendum.md` (excluding `hashi.old/`)
 **Methodology:** Read implementation specs, explore all source code, compare spec requirements against actual implementation, identify gaps, misimplementations, and quality issues.
 
-## Summary
+## Summary (Combined: Pass 1 [H-001–H-028] + Pass 2 [H-029–H-055])
 
 | Category | Critical | High | Medium | Low | Total |
 |----------|----------|------|--------|-----|-------|
-| Docker Builds | 2 | 4 | 2 | 0 | 8 |
-| CI/CD | 1 | 2 | 1 | 0 | 4 |
-| Spec Compliance | 1 | 3 | 2 | 0 | 6 |
+| Docker Builds | 2 | 4 | 3 | 1 | 10 |
+| CI/CD | 1 | 2 | 1 | 1 | 5 |
+| Spec Compliance | 1 | 3 | 4 | 1 | 9 |
 | Test Coverage | 0 | 2 | 3 | 0 | 5 |
-| Code Quality | 0 | 1 | 2 | 0 | 3 |
-| Security | 0 | 1 | 1 | 0 | 2 |
-| **Total** | **4** | **13** | **11** | **0** | **28** |
+| Code Quality | 0 | 1 | 3 | 4 | 8 |
+| Security | 2 | 4 | 3 | 0 | 9 |
+| Architecture | 1 | 0 | 3 | 1 | 5 |
+| **Total** | **7** | **16** | **20** | **8** | **55** |
 
 ## Findings Index
 
