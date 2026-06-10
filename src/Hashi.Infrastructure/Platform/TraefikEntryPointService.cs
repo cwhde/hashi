@@ -57,7 +57,15 @@ public sealed class TraefikEntryPointService(HashiDbContext db)
             .SingleOrDefaultAsync(x => x.Port == port && x.Protocol == protocol, cancellationToken);
         if (entry is not null)
         {
-            db.TraefikEntryPoints.Remove(entry);
+            if (entry.Confirmed)
+            {
+                entry.PendingRemoval = true;
+            }
+            else
+            {
+                db.TraefikEntryPoints.Remove(entry);
+            }
+            await db.SaveChangesAsync(cancellationToken);
         }
     }
 
@@ -112,5 +120,6 @@ public sealed class TraefikEntryPointService(HashiDbContext db)
         entity.ResourceId,
         entity.Label,
         entity.Confirmed,
-        entity.ConfirmedAtUtc);
+        entity.ConfirmedAtUtc,
+        entity.PendingRemoval);
 }

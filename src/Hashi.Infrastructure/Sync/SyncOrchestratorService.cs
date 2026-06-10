@@ -189,6 +189,19 @@ public sealed class SyncOrchestratorService(
         changes.Add(new ProviderChange("traefik", "dynamic-config", ProviderResultKind.Updated, $"Hash {render.ContentHash}"));
         await syncRuns.AddStepAsync(run.Id, "traefik-plan", SyncRunStatusNames.Succeeded, render.ContentHash, cancellationToken);
 
+        var pendingEntrypointRemovals = await db.TraefikEntryPoints.AsNoTracking()
+            .Where(x => x.PendingRemoval)
+            .ToListAsync(cancellationToken);
+        foreach (var entryPoint in pendingEntrypointRemovals)
+        {
+            changes.Add(new ProviderChange(
+                "entrypoint-removal",
+                $"{entryPoint.Protocol}/{entryPoint.Port}",
+                ProviderResultKind.Deleted,
+                "Requires confirmation to close port and remove firewall rule"));
+            risk = MaxRisk(risk, SyncRiskLevel.Destructive);
+        }
+
         await syncRuns.AddStepAsync(run.Id, "firewall-plan", SyncRunStatusNames.Planning, null, cancellationToken);
         var firewallHosts = await db.FirewallHosts.AsNoTracking().ToListAsync(cancellationToken);
         foreach (var host in firewallHosts)
@@ -353,6 +366,18 @@ public sealed class SyncOrchestratorService(
         var run = await syncRuns.BeginRunAsync("global-apply", cancellationToken);
         try
         {
+            if (confirmDestructive)
+            {
+                var pendingRemovals = await db.TraefikEntryPoints
+                    .Where(x => x.PendingRemoval)
+                    .ToListAsync(cancellationToken);
+                if (pendingRemovals.Count > 0)
+                {
+                    db.TraefikEntryPoints.RemoveRange(pendingRemovals);
+                    await db.SaveChangesAsync(cancellationToken);
+                }
+            }
+
             await syncRuns.AddStepAsync(run.Id, "pre-apply-validate", SyncRunStatusNames.Planning, null, cancellationToken);
             var preRender = await traefik.RenderAsync(cancellationToken);
             var preValidation = TraefikConfigValidator.ValidateRender(preRender);

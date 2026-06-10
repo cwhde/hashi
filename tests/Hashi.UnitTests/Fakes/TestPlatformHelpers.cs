@@ -7,6 +7,9 @@ using Hashi.Infrastructure.Sync;
 using Hashi.UnitTests.Fakes;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.DependencyInjection;
+using System.Net.Http;
+using Hashi.Infrastructure.Dns;
 
 namespace Hashi.UnitTests.Fakes;
 
@@ -74,4 +77,38 @@ public static class TestPlatformHelpers
             new AuditService(db),
             new TraefikEntryPointService(db),
             geoIp ?? new GeoIpLookupService(new ConfigurationBuilder().Build(), NullLogger<GeoIpLookupService>.Instance));
+
+    public static SyncOrchestratorService CreateSyncOrchestrator(
+        HashiDbContext db,
+        FakeSshRemoteExecutor? ssh = null,
+        VaultSessionState? vault = null)
+    {
+        ssh ??= new FakeSshRemoteExecutor();
+        vault ??= new VaultSessionState();
+        var audit = new AuditService(db);
+        var secrets = new SecretRecordService(db, vault, new ServiceSyncVaultState());
+        var dns = new DnsConnectionService(db, new TestDnsProviderFactory(), secrets, audit);
+        var traefik = CreateTraefikPlatform(db, vault);
+        var traefikSync = CreateTraefikSync(db, ssh, vault);
+        var firewall = CreateFirewallApply(db, ssh, vault);
+        var syncRuns = new SyncRunService(db);
+        var httpClientFactory = new ServiceCollection().AddHttpClient().BuildServiceProvider().GetRequiredService<IHttpClientFactory>();
+        var adguard = new AdGuardSyncService(
+            db,
+            httpClientFactory,
+            secrets,
+            audit,
+            syncRuns,
+            new ConnectionTargetResolver(db, audit));
+        return new SyncOrchestratorService(
+            db,
+            dns,
+            traefik,
+            traefikSync,
+            firewall,
+            adguard,
+            syncRuns,
+            new AppSettingsService(db),
+            audit);
+    }
 }

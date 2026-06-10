@@ -193,7 +193,8 @@ public sealed record TraefikEntryPointResponse(
     Guid? ResourceId,
     string? Label,
     bool Confirmed,
-    DateTimeOffset? ConfirmedAtUtc);
+    DateTimeOffset? ConfirmedAtUtc,
+    bool PendingRemoval);
 
 public sealed record CertificateSetupRequest(
     string AcmeEmail,

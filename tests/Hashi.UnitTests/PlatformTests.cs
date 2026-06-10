@@ -227,6 +227,18 @@ public sealed class TraefikConfigRendererTests
         Assert.DoesNotContain("postgres-b-tcp:", render.StaticConfigYaml);
 
         Assert.True(await resources.DeleteAsync(first.Id));
+        
+        var pendingEntry = await db.TraefikEntryPoints.SingleAsync(x => x.Port == 15432 && x.Protocol == "tcp");
+        Assert.True(pendingEntry.PendingRemoval);
+
+        var syncOrchestrator = TestPlatformHelpers.CreateSyncOrchestrator(db);
+        var plan = await syncOrchestrator.PlanGlobalAsync();
+        Assert.Contains(plan.Changes, x => x.ResourceType == "entrypoint-removal" && x.ResourceKey == "tcp/15432" && x.ChangeKind == "Deleted");
+        Assert.True(plan.RequiresConfirmation);
+
+        var applyResult = await syncOrchestrator.ApplyGlobalAsync(confirmDestructive: true);
+        Assert.True(applyResult.Succeeded);
+
         Assert.False(await db.TraefikEntryPoints.AnyAsync(x => x.Port == 15432 && x.Protocol == "tcp"));
     }
 
@@ -256,6 +268,16 @@ public sealed class TraefikConfigRendererTests
         await resources.UpdateAsync(
             first.Id,
             new UpdateResourceRequest(null, false, null, null, null, null, null, null));
+
+        var oldEntryPending = await db.TraefikEntryPoints.SingleAsync(x => x.Port == 15432 && x.Protocol == "tcp");
+        Assert.True(oldEntryPending.PendingRemoval);
+
+        var syncOrchestrator = TestPlatformHelpers.CreateSyncOrchestrator(db);
+        var plan = await syncOrchestrator.PlanGlobalAsync();
+        Assert.Contains(plan.Changes, x => x.ResourceType == "entrypoint-removal" && x.ResourceKey == "tcp/15432" && x.ChangeKind == "Deleted");
+
+        var applyResult = await syncOrchestrator.ApplyGlobalAsync(confirmDestructive: true);
+        Assert.True(applyResult.Succeeded);
 
         Assert.False(await db.TraefikEntryPoints.AnyAsync(x => x.Port == 15432 && x.Protocol == "tcp"));
         Assert.True(await db.TraefikEntryPoints.AnyAsync(x => x.Port == 25432 && x.Protocol == "tcp"));

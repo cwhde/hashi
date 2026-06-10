@@ -259,6 +259,8 @@ public sealed class TraefikEntryPointEntity
 
     public bool Confirmed { get; set; }
 
+    public bool PendingRemoval { get; set; }
+
     public DateTimeOffset? ConfirmedAtUtc { get; set; }
 
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
