@@ -77,6 +77,7 @@
 				theme: settings.theme ?? 'dark'
 			};
 			applyTheme(form.theme);
+			applyTheme(form.theme);
 		} catch {
 			// offline dev
 		}
