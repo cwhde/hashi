@@ -26,6 +26,37 @@ public sealed class ConnectionTargetResolver(HashiDbContext db, AuditService aud
 {
     public static readonly TimeSpan MinimumStaleAfter = TimeSpan.FromMinutes(2);
 
+    public static void ValidateTarget(ConnectionTargetEntity target)
+    {
+        var mode = (target.TargetMode ?? string.Empty).Trim().ToLowerInvariant();
+        switch (mode)
+        {
+            case ConnectionTargetModeNames.PulseAgent:
+                if (target.PulseAgentId is null || target.PulseAgentId == Guid.Empty)
+                {
+                    throw new InvalidOperationException("Pulse agent mode requires a valid PulseAgentId.");
+                }
+                break;
+            case ConnectionTargetModeNames.StaticIp:
+                if (string.IsNullOrWhiteSpace(target.StaticIp))
+                {
+                    throw new InvalidOperationException("Static IP mode requires a valid StaticIp.");
+                }
+                break;
+            case ConnectionTargetModeNames.StaticHost:
+                if (string.IsNullOrWhiteSpace(target.StaticHost))
+                {
+                    throw new InvalidOperationException("Static host mode requires a valid StaticHost.");
+                }
+                break;
+        }
+
+        if (target.Port <= 0 || target.Port > 65535)
+        {
+            throw new InvalidOperationException($"Port must be between 1 and 65535, got {target.Port}.");
+        }
+    }
+
     public async Task<ResolvedConnectionTarget> ResolveAsync(
         ConnectionTargetEntity target,
         bool persistSnapshot = true,

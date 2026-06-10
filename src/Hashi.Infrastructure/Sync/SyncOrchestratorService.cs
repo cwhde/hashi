@@ -1,6 +1,5 @@
 using Hashi.Contracts.Api;
 using Hashi.Core.Sync;
-using Hashi.Core.Traefik;
 using Hashi.Infrastructure.Dns;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
@@ -128,7 +127,6 @@ public sealed class SyncOrchestratorService(
 {
     private static readonly SemaphoreSlim ApplyLock = new(1, 1);
     private static readonly SemaphoreSlim ReconcileLock = new(1, 1);
-    private readonly SemaphoreSlim _triggerLock = new(1, 1);
     private readonly TaskCompletionSource _immediateSyncRequested = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public event Func<Task>? OnImmediateSyncRequested;
@@ -146,6 +144,7 @@ public sealed class SyncOrchestratorService(
 
         await Task.CompletedTask;
     }
+
     public async Task<SyncPlanPreviewResponse> PlanGlobalAsync(CancellationToken cancellationToken = default)
     {
         var run = await syncRuns.BeginRunAsync("global", cancellationToken);
@@ -249,12 +248,59 @@ public sealed class SyncOrchestratorService(
         }
 
         await syncRuns.AddDiffsAsync(run.Id, changes, cancellationToken);
+
+        var validationErrors = new List<string>();
+
+        await syncRuns.AddStepAsync(run.Id, "traefik-validate", SyncRunStatusNames.Planning, null, cancellationToken);
+        try
+        {
+            var traefikRender = await traefik.RenderAsync(cancellationToken);
+            var traefikValidation = TraefikConfigValidator.ValidateRender(traefikRender);
+            if (!traefikValidation.IsValid)
+            {
+                validationErrors.AddRange(traefikValidation.Errors);
+                await syncRuns.AddStepAsync(run.Id, "traefik-validate", SyncRunStatusNames.Failed, string.Join("; ", traefikValidation.Errors), cancellationToken);
+            }
+            else
+            {
+                await syncRuns.AddStepAsync(run.Id, "traefik-validate", SyncRunStatusNames.Succeeded, "Valid", cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            validationErrors.Add($"Traefik validation error: {ex.Message}");
+            await syncRuns.AddStepAsync(run.Id, "traefik-validate", SyncRunStatusNames.Failed, ex.Message, cancellationToken);
+        }
+
+        await syncRuns.AddStepAsync(run.Id, "firewall-validate", SyncRunStatusNames.Planning, null, cancellationToken);
+        try
+        {
+            foreach (var host in firewallHosts)
+            {
+                var (_, hostHash) = await firewall.RenderForHostAsync(host.Id, cancellationToken);
+                await syncRuns.AddStepAsync(run.Id, $"firewall-validate-{host.Name}", SyncRunStatusNames.Succeeded, $"Hash {hostHash}", cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            validationErrors.Add($"Firewall validation error: {ex.Message}");
+            await syncRuns.AddStepAsync(run.Id, "firewall-validate", SyncRunStatusNames.Failed, ex.Message, cancellationToken);
+        }
+
+        var hasValidationErrors = validationErrors.Count > 0;
+        if (hasValidationErrors)
+        {
+            risk = MaxRisk(risk, SyncRiskLevel.High);
+        }
+
         var requiresConfirmation = risk >= SyncRiskLevel.High;
         await syncRuns.CompleteRunAsync(
             run.Id,
-            requiresConfirmation ? SyncRunStatusNames.AwaitingConfirmation : SyncRunStatusNames.Succeeded,
+            hasValidationErrors ? SyncRunStatusNames.Failed
+            : requiresConfirmation ? SyncRunStatusNames.AwaitingConfirmation
+            : SyncRunStatusNames.Succeeded,
             risk,
-            null,
+            hasValidationErrors ? string.Join("; ", validationErrors) : null,
             cancellationToken);
 
         return new SyncPlanPreviewResponse(
@@ -273,11 +319,21 @@ public sealed class SyncOrchestratorService(
             return new SyncApplyResponse(Guid.Empty, false, SyncRunStatusNames.Failed, "Another apply is already in progress. Concurrent applies are rejected.");
         }
 
+        var run = await syncRuns.BeginRunAsync("global-apply", cancellationToken);
         try
         {
-            var run = await syncRuns.BeginRunAsync("global-apply", cancellationToken);
-            try
+            await syncRuns.AddStepAsync(run.Id, "pre-apply-validate", SyncRunStatusNames.Planning, null, cancellationToken);
+            var preRender = await traefik.RenderAsync(cancellationToken);
+            var preValidation = TraefikConfigValidator.ValidateRender(preRender);
+            if (!preValidation.IsValid)
             {
+                var validationError = $"Plan has validation errors: {string.Join("; ", preValidation.Errors)}";
+                await syncRuns.AddStepAsync(run.Id, "pre-apply-validate", SyncRunStatusNames.Failed, validationError, cancellationToken);
+                await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Failed, SyncRiskLevel.High, validationError, cancellationToken);
+                return new SyncApplyResponse(run.Id, false, SyncRunStatusNames.Failed, validationError);
+            }
+            await syncRuns.AddStepAsync(run.Id, "pre-apply-validate", SyncRunStatusNames.Succeeded, "Valid", cancellationToken);
+
             var dnsConnections = await db.Connections
                 .Where(x => x.Type == ConnectionTypeNames.DnsProvider && x.Enabled)
                 .ToListAsync(cancellationToken);
@@ -287,6 +343,13 @@ public sealed class SyncOrchestratorService(
                 var plan = await dns.PlanSyncAsync(connection.Id, cancellationToken);
                 if (plan.RequiresConfirmation && !confirmDestructive)
                 {
+                    var safeChanges = plan.Changes.Where(x => x.Kind != Core.Dns.DnsChangeKind.NoOp && x.Kind != Core.Dns.DnsChangeKind.Delete).ToList();
+                    if (safeChanges.Count > 0)
+                    {
+                        await dns.ApplySafePlanAsync(plan, cancellationToken);
+                        await syncRuns.AddStepAsync(run.Id, $"dns-apply-{connection.Name}", SyncRunStatusNames.Succeeded, $"Applied {safeChanges.Count} safe changes; destructive pending.", cancellationToken);
+                        continue;
+                    }
                     await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.AwaitingConfirmation, SyncRiskLevel.Destructive, "Destructive DNS changes require confirmation.", cancellationToken);
                     return new SyncApplyResponse(run.Id, false, SyncRunStatusNames.AwaitingConfirmation, "Destructive DNS changes require confirmation.");
                 }
@@ -333,6 +396,13 @@ public sealed class SyncOrchestratorService(
             {
                 try
                 {
+                    var (_, hash) = await firewall.RenderForHostAsync(host.Id, cancellationToken);
+                    if (string.Equals(host.LastAppliedScriptHash, hash, StringComparison.Ordinal))
+                    {
+                        await syncRuns.AddStepAsync(run.Id, $"firewall-apply-{host.Name}", SyncRunStatusNames.Succeeded, "Skipped: unchanged", cancellationToken);
+                        continue;
+                    }
+
                     var result = await firewall.ApplyForHostAsync(host.Id, cancellationToken);
                     await syncRuns.AddStepAsync(
                         run.Id,
@@ -360,6 +430,18 @@ public sealed class SyncOrchestratorService(
                     cancellationToken: cancellationToken);
                 if (plan.RequiresConfirmation && !confirmDestructive)
                 {
+                    var nonDestructiveChanges = plan.Changes.Where(x => x.Kind != "delete").ToList();
+                    if (nonDestructiveChanges.Count > 0)
+                    {
+                        await adguard.ApplyPlanAsync(
+                            connection.Id,
+                            new AdGuardRewriteApplyRequest(plan.PlanId, ConfirmDestructive: true),
+                            updateTopologyDesiredState: true,
+                            updateInternalAgentDnsDesiredState: true,
+                            cancellationToken: cancellationToken);
+                        await syncRuns.AddStepAsync(run.Id, $"adguard-sync-{connection.Name}", SyncRunStatusNames.Succeeded, $"Applied {nonDestructiveChanges.Count} safe changes; destructive pending.", cancellationToken);
+                        continue;
+                    }
                     await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.AwaitingConfirmation, SyncRiskLevel.Destructive, "Destructive AdGuard changes require confirmation.", cancellationToken);
                     return new SyncApplyResponse(run.Id, false, SyncRunStatusNames.AwaitingConfirmation, "Destructive AdGuard changes require confirmation.");
                 }
@@ -385,7 +467,6 @@ public sealed class SyncOrchestratorService(
         }
         catch (Exception ex)
         {
-            var run = await syncRuns.BeginRunAsync("global-apply-failed", cancellationToken);
             await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Failed, SyncRiskLevel.High, ex.Message, cancellationToken);
             return new SyncApplyResponse(run.Id, false, SyncRunStatusNames.Failed, ex.Message);
         }
@@ -397,19 +478,12 @@ public sealed class SyncOrchestratorService(
 
     public async Task<SyncReconcileResponse> ReconcileAsync(CancellationToken cancellationToken = default)
     {
-        if (!await ReconcileLock.WaitAsync(0, cancellationToken))
-        {
-            return new SyncReconcileResponse(Guid.Empty, false, []);
-        }
-
+        _ = await settings.GetOrCreateAsync(cancellationToken);
+        var run = await syncRuns.BeginRunAsync("reconcile", cancellationToken);
+        var subsystems = new List<string>();
+        var hasPendingDestructive = false;
         try
         {
-            _ = await settings.GetOrCreateAsync(cancellationToken);
-            var run = await syncRuns.BeginRunAsync("reconcile", cancellationToken);
-            var subsystems = new List<string>();
-            var hasPendingDestructive = false;
-            try
-            {
             subsystems.Add("dns");
             await syncRuns.AddStepAsync(run.Id, "dns-reconcile", SyncRunStatusNames.Reconciling, null, cancellationToken);
             var dnsConnections = await db.Connections.Where(x => x.Type == ConnectionTypeNames.DnsProvider && x.Enabled).ToListAsync(cancellationToken);
@@ -557,13 +631,8 @@ public sealed class SyncOrchestratorService(
         }
         catch (Exception ex)
         {
-            var run = await syncRuns.BeginRunAsync("reconcile-failed", cancellationToken);
             await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Failed, SyncRiskLevel.Medium, ex.Message, cancellationToken);
-            return new SyncReconcileResponse(run.Id, false, []);
-        }
-        finally
-        {
-            ReconcileLock.Release();
+            return new SyncReconcileResponse(run.Id, false, subsystems);
         }
     }
 
@@ -607,7 +676,7 @@ public sealed class SyncOrchestratorHostedService(
     IServiceScopeFactory scopeFactory,
     ILogger<SyncOrchestratorHostedService> logger) : BackgroundService
 {
-    private readonly TaskCompletionSource _immediateSyncSignal = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private volatile TaskCompletionSource _immediateSyncSignal = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public void SignalImmediateSync()
     {
@@ -639,7 +708,7 @@ public sealed class SyncOrchestratorHostedService(
                     result.Succeeded ? null : "Reconcile finished with errors.",
                     intervalMinutes * 60,
                     stoppingToken);
-                _immediateSyncSignal.TryReset();
+                Interlocked.Exchange(ref _immediateSyncSignal, new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously));
                 var syncTask = Task.Delay(TimeSpan.FromMinutes(intervalMinutes), stoppingToken);
                 var signalTask = _immediateSyncSignal.Task;
                 await Task.WhenAny(syncTask, signalTask);

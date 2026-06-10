@@ -229,6 +229,7 @@ public static class DnsRecordGenerator
             && (bytes[0] == 10
                 || (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31)
                 || (bytes[0] == 192 && bytes[1] == 168)
+                || (bytes[0] == 100 && bytes[1] >= 64 && bytes[1] <= 127)
                 || (bytes[0] == 169 && bytes[1] == 254));
     }
 
