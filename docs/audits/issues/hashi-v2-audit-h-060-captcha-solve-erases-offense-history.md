@@ -4,8 +4,8 @@
 **Conflict Type:** wrong_implementation
 **Spec Reference:** Addendum §6.2 (Do not reset offense history after a successful CAPTCHA solve); §7.4 (Hashi does not clear offense history; Hashi does not bypass SSO)
 
-**Status:** Not Started
-**Branch:** 
+**Status:** Fixed
+**Branch:** h/security-2
 
 ## Description
 

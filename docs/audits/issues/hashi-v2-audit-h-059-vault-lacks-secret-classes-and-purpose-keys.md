@@ -4,8 +4,8 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §8 (three classes of secrets: session-unlocked, service-sync, server-operational; purpose-specific vault keys)
 
-**Status:** Not Started
-**Branch:** 
+**Status:** Fixed
+**Branch:** h/security-2
 
 ## Description
 

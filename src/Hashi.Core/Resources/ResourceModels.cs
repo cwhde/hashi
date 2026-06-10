@@ -277,9 +277,24 @@ public static class ResourceDomainResolver
 
 public static class ResourceSlug
 {
+    private const int MaxLength = 63;
+
     public static string Normalize(string name)
-        => new string(name.Trim().ToLowerInvariant()
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        var result = new string(name.Trim().ToLowerInvariant()
             .Select(ch => char.IsLetterOrDigit(ch) ? ch : '-')
-            .ToArray())
-            .Trim('-');
+            .ToArray());
+
+        result = System.Text.RegularExpressions.Regex.Replace(result, @"-+", "-");
+        result = result.Trim('-');
+
+        if (result.Length > MaxLength)
+        {
+            result = result[..MaxLength].TrimEnd('-');
+        }
+
+        return result;
+    }
 }

@@ -38,12 +38,12 @@ public static class TraefikUserMiddlewareParser
             return new(false, [], "YAML must be a mapping with a top-level http: section.", yaml);
         }
 
-        if (!TryGetMapping(root, "http", out var http))
+        if (!YamlNavigationHelpers.TryGetMapping(root, "http", out var http))
         {
             return new(false, [], "YAML must contain a top-level http: section.", yaml);
         }
 
-        if (!TryGetNode(http, "middlewares", out var middlewaresNode))
+        if (!YamlNavigationHelpers.TryGetNode(http, "middlewares", out var middlewaresNode))
         {
             return new(false, [], "YAML must define http.middlewares.", yaml);
         }
@@ -74,32 +74,5 @@ public static class TraefikUserMiddlewareParser
         var stream = new YamlStream();
         stream.Load(new StringReader(yaml));
         return stream;
-    }
-
-    private static bool TryGetMapping(YamlMappingNode node, string key, out YamlMappingNode mapping)
-    {
-        if (TryGetNode(node, key, out var value) && value is YamlMappingNode child)
-        {
-            mapping = child;
-            return true;
-        }
-
-        mapping = null!;
-        return false;
-    }
-
-    private static bool TryGetNode(YamlMappingNode node, string key, out YamlNode value)
-    {
-        foreach (var (candidateKey, candidateValue) in node.Children)
-        {
-            if (candidateKey is YamlScalarNode scalar && string.Equals(scalar.Value, key, StringComparison.Ordinal))
-            {
-                value = candidateValue;
-                return true;
-            }
-        }
-
-        value = null!;
-        return false;
     }
 }

@@ -4,8 +4,8 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §11 (For resources without SSO required, fail open only when Hashi is unreachable and no active challenge/block policy exists); Addendum §14 (Configurable forward-auth failure policy)
 
-**Status:** Not Started
-**Branch:** 
+**Status:** Fixed
+**Branch:** h/security-2
 
 ## Description
 

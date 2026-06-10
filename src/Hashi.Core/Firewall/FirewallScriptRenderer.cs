@@ -161,7 +161,7 @@ public static class FirewallScriptRenderer
               fi
             }
 
-            for cmd in iptables ipset ip sysctl awk cut head; do
+            for cmd in iptables ip6tables ipset ip sysctl awk cut head; do
               require_command "$cmd"
             done
 
@@ -189,12 +189,18 @@ public static class FirewallScriptRenderer
             }
 
             sysctl -w net.ipv4.ip_forward=1
+            sysctl -w net.ipv6.conf.all.forwarding=1
 
             ipset create hashi_trusted hash:net family inet hashsize 1024 maxelem 65536 -exist
             ipset create hashi_blocked hash:ip family inet hashsize 1024 maxelem 65536 -exist
             ipset create hashi_netbird hash:net family inet hashsize 1024 maxelem 65536 -exist
+            ipset create hashi_trusted6 hash:net family inet6 hashsize 1024 maxelem 65536 -exist
+            ipset create hashi_blocked6 hash:ip family inet6 hashsize 1024 maxelem 65536 -exist
+            ipset create hashi_netbird6 hash:net family inet6 hashsize 1024 maxelem 65536 -exist
             ipset flush hashi_trusted
             ipset flush hashi_blocked
+            ipset flush hashi_trusted6
+            ipset flush hashi_blocked6
 
             {{managedSubnetsArray}}
             for subnet in "${HASHI_MANAGED_SUBNETS[@]}"; do
@@ -209,20 +215,39 @@ public static class FirewallScriptRenderer
             iptables -N HASHI_POSTROUTING 2>/dev/null || iptables -F HASHI_POSTROUTING
             iptables -N HASHI_NETBIRD 2>/dev/null || iptables -F HASHI_NETBIRD
 
+            ip6tables -N HASHI_INPUT 2>/dev/null || ip6tables -F HASHI_INPUT
+            ip6tables -N HASHI_DNAT 2>/dev/null || ip6tables -F HASHI_DNAT
+            ip6tables -N HASHI_FWD 2>/dev/null || ip6tables -F HASHI_FWD
+            ip6tables -N HASHI_POSTROUTING 2>/dev/null || ip6tables -F HASHI_POSTROUTING
+            ip6tables -N HASHI_NETBIRD 2>/dev/null || ip6tables -F HASHI_NETBIRD
+
             iptables -C INPUT -j HASHI_INPUT 2>/dev/null || iptables -I INPUT 1 -j HASHI_INPUT
             iptables -C FORWARD -j HASHI_FWD 2>/dev/null || iptables -I FORWARD 1 -j HASHI_FWD
             iptables -t nat -C PREROUTING -j HASHI_DNAT 2>/dev/null || iptables -t nat -I PREROUTING 1 -j HASHI_DNAT
             iptables -t nat -C POSTROUTING -j HASHI_POSTROUTING 2>/dev/null || iptables -t nat -I POSTROUTING 1 -j HASHI_POSTROUTING
             iptables -C HASHI_FWD -j HASHI_NETBIRD 2>/dev/null || iptables -I HASHI_FWD 1 -j HASHI_NETBIRD
 
+            ip6tables -C INPUT -j HASHI_INPUT 2>/dev/null || ip6tables -I INPUT 1 -j HASHI_INPUT
+            ip6tables -C FORWARD -j HASHI_FWD 2>/dev/null || ip6tables -I FORWARD 1 -j HASHI_FWD
+            ip6tables -t nat -C PREROUTING -j HASHI_DNAT 2>/dev/null || ip6tables -t nat -I PREROUTING 1 -j HASHI_DNAT
+            ip6tables -t nat -C POSTROUTING -j HASHI_POSTROUTING 2>/dev/null || ip6tables -t nat -I POSTROUTING 1 -j HASHI_POSTROUTING
+            ip6tables -C HASHI_FWD -j HASHI_NETBIRD 2>/dev/null || ip6tables -I HASHI_FWD 1 -j HASHI_NETBIRD
+
             iptables -A HASHI_INPUT -i lo -j ACCEPT
             iptables -A HASHI_INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
             iptables -A HASHI_INPUT -m set --match-set hashi_blocked src -j DROP
             iptables -A HASHI_INPUT -m set --match-set hashi_trusted src -j ACCEPT
 
+            ip6tables -A HASHI_INPUT -i lo -j ACCEPT
+            ip6tables -A HASHI_INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+            ip6tables -A HASHI_INPUT -m set --match-set hashi_blocked6 src -j DROP
+            ip6tables -A HASHI_INPUT -m set --match-set hashi_trusted6 src -j ACCEPT
+
             {{RenderNetBirdRules(host, overlayCidrsArray, routedCidrsArray)}}
 
             iptables -A HASHI_INPUT -j DROP
+
+            ip6tables -A HASHI_INPUT -j DROP
 
             {{dnatRules}}
             {{fwdRules}}
@@ -272,6 +297,10 @@ public static class FirewallScriptRenderer
             iptables -C FORWARD -j HASHI_FWD
             iptables -t nat -C PREROUTING -j HASHI_DNAT
             iptables -t nat -C POSTROUTING -j HASHI_POSTROUTING
+            ip6tables -C INPUT -j HASHI_INPUT
+            ip6tables -C FORWARD -j HASHI_FWD
+            ip6tables -t nat -C PREROUTING -j HASHI_DNAT
+            ip6tables -t nat -C POSTROUTING -j HASHI_POSTROUTING
             disarm_rollback
             echo "[hashi-firewall] Applied for {{ShellEscape(host.Name)}}."
             """;
@@ -284,8 +313,8 @@ public static class FirewallScriptRenderer
             HASHI_HOST={{ShellEscape(host.Name)}}
             HASHI_DOMAIN={{ShellEscape(host.Domain)}}
             HASHI_TRAEFIK_IP={{ShellEscape(host.InternalTraefikIp)}}
-            HASHI_WAN_IF={{host.WanInterface is not null ? ShellEscape(host.WanInterface) : ""}}
-            HASHI_PUBLIC_IP={{host.PublicIp is not null ? ShellEscape(host.PublicIp) : ""}}
+            HASHI_WAN_IF={{(host.WanInterface is not null ? ShellEscape(host.WanInterface) : "")}}
+            HASHI_PUBLIC_IP={{(host.PublicIp is not null ? ShellEscape(host.PublicIp) : "")}}
             HASHI_NETBIRD_IF={{ShellEscape(host.NetBirdInterface)}}
             """;
     }

@@ -29,6 +29,7 @@ public sealed record TraefikRenderOptions(
     string? AcmeEabKeyId = null,
     string? AcmeEabHmac = null,
     string? DnsProviderName = null,
+    string AcmeProvider = "gts",
     int DnsChallengeDelaySeconds = 30,
     IReadOnlyList<string>? AcmeResolvers = null,
     string AdminDomain = "hashi.local",
@@ -129,6 +130,20 @@ public static class TraefikConfigRenderer
                 statusCodes:
                   - "200-599"
               fields:
+                general:
+                  defaultMode: drop
+                  names:
+                    ClientAddr: keep
+                    ClientHost: keep
+                    DownstreamContentSize: keep
+                    Duration: keep
+                    OriginStatus: keep
+                    RequestAddr: keep
+                    RequestMethod: keep
+                    RequestPath: keep
+                    RequestProtocol: keep
+                    RouterName: keep
+                    ServiceName: keep
                 headers:
                   defaultMode: drop
                   names:
@@ -548,6 +563,14 @@ public static class TraefikConfigRenderer
             throw new InvalidOperationException("ACME DNS provider is required when ACME email is configured.");
         }
 
+        var provider = options.AcmeProvider?.Trim().ToLowerInvariant() ?? "gts";
+        var (resolverName, caServer) = provider switch
+        {
+            "letsencrypt" => ("letsencrypt", "https://acme-v02.api.letsencrypt.org/directory"),
+            "letsencrypt-staging" => ("letsencrypt-staging", "https://acme-staging-v02.api.letsencrypt.org/directory"),
+            _ => ("gts", "https://dv.acme-v02.api.pki.goog/directory"),
+        };
+
         var eabBlock = string.IsNullOrWhiteSpace(options.AcmeEabKeyId) || string.IsNullOrWhiteSpace(options.AcmeEabHmac)
             ? string.Empty
             : $$"""
@@ -563,11 +586,11 @@ public static class TraefikConfigRenderer
 
         return $$"""
             certificatesResolvers:
-              gts:
+              {{resolverName}}:
                 acme:
                   email: {{options.AcmeEmail}}
                   storage: /var/lib/hashi/traefik/acme.json
-                  caServer: https://dv.acme-v02.api.pki.goog/directory
+                  caServer: {{caServer}}
                   dnsChallenge:
                     provider: {{options.DnsProviderName}}
                     delayBeforeCheck: {{options.DnsChallengeDelaySeconds}}s
@@ -585,7 +608,7 @@ public static class TraefikConfigRenderer
                 - websecure
               service: hashi-health
               tls:
-                certResolver: gts
+                certResolver: {{options.AcmeProvider}}
           services:
             hashi-health:
               loadBalancer:

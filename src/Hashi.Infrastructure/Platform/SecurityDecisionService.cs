@@ -5,15 +5,12 @@ using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 
 namespace Hashi.Infrastructure.Platform;
 
 public sealed class SecurityDecisionService(
     HashiDbContext db,
     OidcEdgeAuthService oidc,
-    GeoIpLookupService? geoIp = null,
     CaptchaChallengeService? captcha = null,
     TimeProvider? timeProvider = null)
 {
@@ -248,22 +245,9 @@ public sealed class SecurityDecisionService(
                 matchedState: BuildMatchedState(subjectEntity, stateEntity));
         }
 
-        if (IsRateLimited(stateEntity, subjectEntity, now))
-        {
-            explanation.Add(new SecurityDecisionExplanation("rate_limit", "matched", "Subject has exceeded request rate limit."));
-            return RateLimit(
-                request,
-                context,
-                subject,
-                "rate_limited",
-                explanation,
-                matchedState: BuildMatchedState(subjectEntity, stateEntity));
-        }
-
         if (context.Resource is not null)
         {
-            var effectiveGeoIp = geoIp ?? new NullGeoIpLookupService();
-            var ruleResult = await EvaluateResourceRulesAsync(request, context, subject, explanation, effectiveGeoIp, cancellationToken);
+            var ruleResult = await EvaluateResourceRulesAsync(request, context, subject, explanation, cancellationToken);
             if (ruleResult is not null)
             {
                 return ruleResult;
@@ -310,7 +294,6 @@ public sealed class SecurityDecisionService(
         SecurityDecisionContext context,
         NormalizedSecuritySubject subject,
         List<SecurityDecisionExplanation> explanation,
-        GeoIpLookupService geoIp,
         CancellationToken cancellationToken)
     {
         var resource = context.Resource ?? throw new InvalidOperationException("Resource rule evaluation requires a resolved resource.");
@@ -321,19 +304,6 @@ public sealed class SecurityDecisionService(
 
         foreach (var rule in rules)
         {
-            var ruleRequiresGeo = rule.MatchType is "country" or "region" or "asn";
-            if (ruleRequiresGeo && !geoIp.IsAvailable)
-            {
-                explanation.Add(new SecurityDecisionExplanation("resource_rule_geoip_unavailable", "fail_closed", $"GeoIP rule '{rule.MatchType}:{rule.MatchValue}' cannot be evaluated — GeoIP database unavailable. Treating as deny (fail-closed)."));
-                return Deny(
-                    SecurityDecisionActionNames.DenyResourceRule,
-                    "geoip_unavailable_fail_closed",
-                    resource.Id,
-                    subject,
-                    explanation,
-                    matchedResourceRuleIds: [rule.Id]);
-            }
-
             if (!MatchesResourceRule(rule, request))
             {
                 continue;
@@ -386,7 +356,7 @@ public sealed class SecurityDecisionService(
     {
         var rules = await db.EdgeAuthRules.AsNoTracking()
             .Where(x => x.Enabled)
-            .OrderBy(x => x.Priority)
+            .OrderByDescending(x => x.Priority)
             .ToListAsync(cancellationToken);
 
         foreach (var rule in rules)
@@ -729,6 +699,14 @@ public sealed class SecurityDecisionService(
     private static bool IsRateLimited(SecuritySubjectStateEntity state, SecuritySubjectEntity subject, DateTimeOffset now)
         => state.RateLimitedUntilUtc is not null && state.RateLimitedUntilUtc > now;
 
+    private static bool IsRateLimited(SecuritySubjectStateEntity state, SecuritySubjectEntity subject, DateTimeOffset now)
+    {
+        if (state.RateLimitedUntilUtc is not null && state.RateLimitedUntilUtc > now)
+        {
+            return true;
+        }
+
+
     private SecurityDecisionResult RateLimited(
         string reason,
         Guid? resourceId,
@@ -750,40 +728,6 @@ public sealed class SecurityDecisionService(
             matchedState: matchedState);
     }
 
-    private static bool IsRateLimited(SecuritySubjectStateEntity state, SecuritySubjectEntity subject, DateTimeOffset now)
-    {
-        if (state.RateLimitedUntilUtc is not null && state.RateLimitedUntilUtc > now)
-        {
-            return true;
-        }
-
-        return false;
-    }
-
-    private static SecurityDecisionResult RateLimit(
-        SecurityDecisionRequest request,
-        SecurityDecisionContext context,
-        NormalizedSecuritySubject subject,
-        string reason,
-        List<SecurityDecisionExplanation> explanation,
-        IReadOnlyList<Guid>? matchedResourceRuleIds = null,
-        SecurityDecisionMatchedState? matchedState = null)
-    {
-        explanation.Add(new SecurityDecisionExplanation("rate_limit", "limited", "Request rate limit exceeded."));
-        return SecurityDecisionResult.Create(
-            SecurityDecisionActionNames.RateLimited,
-            SecurityDecisionResponseModeNames.RateLimit,
-            StatusCodes.Status429TooManyRequests,
-            null,
-            "deny",
-            reason,
-            context.Resource?.Id,
-            subject,
-            explanation,
-            matchedResourceRuleIds: matchedResourceRuleIds,
-            matchedState: matchedState);
-    }
-
     private static SecurityDecisionMatchedState BuildMatchedState(
         SecuritySubjectEntity subject,
         SecuritySubjectStateEntity state)
@@ -794,7 +738,9 @@ public sealed class SecurityDecisionService(
             state.ChallengeRequired,
             state.RequestsWhileChallenged,
             state.SoftBlockedUntilUtc,
-            state.FirewallBlockedUntilUtc);
+            state.FirewallBlockedUntilUtc,
+            state.RateLimitedUntilUtc,
+            state.RateLimitRequestCount);
 
     private static string NormalizeForwardedHost(string host)
     {
@@ -990,37 +936,4 @@ public static class SecurityResourceRuleActionNames
         => TryNormalize(action, out var normalized)
             ? normalized
             : throw new InvalidOperationException($"Resource rule action must be one of: {string.Join(", ", Aliases.Keys.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x))}.");
-}
-
-internal sealed class NullGeoIpLookupService : GeoIpLookupService
-{
-    public NullGeoIpLookupService() : base(new NullConfiguration(), new NullLogger<GeoIpLookupService>())
-    {
-    }
-
-    private sealed class NullConfiguration : IConfiguration
-    {
-        public string? this[string key] => null;
-        public IEnumerable<IConfigurationSection> GetChildren() => [];
-        public IConfigurationSection GetSection(string key) => new NullConfigurationSection();
-    }
-
-    private sealed class NullConfigurationSection : IConfigurationSection
-    {
-        public string Key => string.Empty;
-        public string Path => string.Empty;
-        public string? Value { get => null; set { } }
-        public string? Get(string key) => null;
-        public IEnumerable<IConfigurationSection> GetChildren() => [];
-        public IConfigurationSection GetSection(string key) => new NullConfigurationSection();
-    }
-}
-
-internal sealed class NullLogger<T> : ILogger<T> where T : class
-{
-    public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
-    public bool IsEnabled(LogLevel logLevel) => false;
-    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
-    {
-    }
 }
