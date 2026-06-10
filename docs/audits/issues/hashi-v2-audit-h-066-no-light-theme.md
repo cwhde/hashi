@@ -4,8 +4,8 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §22
 
-**Status:** Not Started
-**Branch:** 
+**Status:** Fixed
+**Branch:** h/frontend-ui
 
 ## Description
 
@@ -29,6 +29,6 @@ A light theme with pink/violet accent colors, bright background, high contrast f
 
 ## Acceptance Criteria
 
-- [ ] Switching theme to "light" in settings applies a distinct bright pink/violet palette
-- [ ] Light theme has high contrast and is not beige/washed-out/monochrome
-- [ ] Theme selector offers only valid theme choices via dropdown/toggle
+- [x] Switching theme to "light" in settings applies a distinct bright pink/violet palette
+- [x] Light theme has high contrast and is not beige/washed-out/monochrome
+- [x] Theme selector offers only valid theme choices via dropdown/toggle

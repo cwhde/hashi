@@ -4,8 +4,8 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Addendum §18.3
 
-**Status:** Not Started
-**Branch:** 
+**Status:** Fixed
+**Branch:** h/tests
 
 ## Description
 

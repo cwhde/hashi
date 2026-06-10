@@ -4,6 +4,45 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+	/* Hashi Light — bright pink/violet, high contrast */
+	--hashi-bg: #fdf4ff;
+	--hashi-bg-dark: #faf5ff;
+	--hashi-foreground: #581c87;
+	--hashi-hover: #a21caf;
+	--hashi-contrast: #be185d;
+	--hashi-highlight: #db2777;
+
+	--background: var(--hashi-bg);
+	--foreground: var(--hashi-foreground);
+	--muted: color-mix(in oklab, var(--hashi-bg-dark) 80%, var(--hashi-foreground));
+	--muted-foreground: color-mix(in oklab, var(--hashi-foreground) 65%, var(--hashi-bg-dark));
+	--popover: #ffffff;
+	--popover-foreground: var(--hashi-foreground);
+	--card: #ffffff;
+	--card-foreground: var(--hashi-foreground);
+	--border: color-mix(in oklab, var(--hashi-foreground) 20%, var(--hashi-bg));
+	--input: color-mix(in oklab, var(--hashi-foreground) 12%, var(--hashi-bg));
+	--primary: var(--hashi-hover);
+	--primary-foreground: #ffffff;
+	--secondary: color-mix(in oklab, var(--hashi-hover) 12%, var(--hashi-bg));
+	--secondary-foreground: var(--hashi-foreground);
+	--accent: var(--hashi-highlight);
+	--accent-foreground: #ffffff;
+	--destructive: #dc2626;
+	--destructive-foreground: #ffffff;
+	--ring: var(--hashi-hover);
+	--radius: 0.5rem;
+	--sidebar: #ffffff;
+	--sidebar-foreground: var(--hashi-foreground);
+	--sidebar-primary: var(--hashi-hover);
+	--sidebar-primary-foreground: #ffffff;
+	--sidebar-accent: color-mix(in oklab, var(--hashi-hover) 15%, var(--hashi-bg));
+	--sidebar-accent-foreground: var(--hashi-hover);
+	--sidebar-border: color-mix(in oklab, var(--hashi-foreground) 15%, var(--hashi-bg));
+	--sidebar-ring: var(--hashi-hover);
+}
+
+.dark {
 	/* Hashi Shades of Purple */
 	--hashi-bg: #2d2b55;
 	--hashi-bg-dark: #1e1e3f;
@@ -40,11 +79,6 @@
 	--sidebar-accent-foreground: var(--hashi-contrast);
 	--sidebar-border: color-mix(in oklab, var(--hashi-foreground) 12%, var(--hashi-bg-dark));
 	--sidebar-ring: var(--hashi-hover);
-}
-
-.dark {
-	--background: var(--hashi-bg);
-	--foreground: var(--hashi-foreground);
 }
 
 @theme inline {
