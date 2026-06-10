@@ -30,6 +30,8 @@ public sealed class PulseAgentService(
     ILogger<PulseAgentService> logger,
     Microsoft.Extensions.DependencyInjection.IServiceScopeFactory? scopeFactory = null)
 {
+    public static Func<string, int, int, Task<bool>> TcpConnectionTester { get; set; } = TestTcpConnectionAsync;
+
     private static readonly TimeSpan HeartbeatTimestampSkew = TimeSpan.FromMinutes(5);
 
     public async Task<CreatePulseAgentResponse> CreateAgentAsync(CreatePulseAgentRequest request, CancellationToken cancellationToken = default)
@@ -441,11 +443,11 @@ public sealed class PulseAgentService(
         bool reachable = false;
         if (!string.IsNullOrWhiteSpace(privateIp))
         {
-            reachable = await TestTcpConnectionAsync(privateIp, 22, 1000);
+            reachable = await TcpConnectionTester(privateIp, 22, 1000);
         }
         if (!reachable && !string.IsNullOrWhiteSpace(publicIp))
         {
-            reachable = await TestTcpConnectionAsync(publicIp, 22, 1000);
+            reachable = await TcpConnectionTester(publicIp, 22, 1000);
         }
 
         if (localDb is not null)

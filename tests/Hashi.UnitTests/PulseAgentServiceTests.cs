@@ -19,6 +19,11 @@ namespace Hashi.UnitTests;
 
 public sealed class PulseAgentServiceTests
 {
+    public PulseAgentServiceTests()
+    {
+        PulseAgentService.TcpConnectionTester = (ip, port, timeoutMs) => Task.FromResult(false);
+    }
+
     [Fact]
     public async Task RevokeAgent_rejects_subsequent_heartbeat()
     {
@@ -113,6 +118,7 @@ public sealed class PulseAgentServiceTests
     [Fact]
     public async Task Heartbeat_persists_timestamp_candidates_selected_interface_and_docker_metadata()
     {
+        PulseAgentService.TcpConnectionTester = (_, _, _) => Task.FromResult(true);
         await using var db = CreateDb();
         var service = CreateService(db);
         var created = await service.CreateAgentAsync(new Hashi.Contracts.Api.CreatePulseAgentRequest("edge-1"));
