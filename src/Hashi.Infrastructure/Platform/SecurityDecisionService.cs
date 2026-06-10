@@ -345,7 +345,7 @@ public sealed class SecurityDecisionService(
     {
         var rules = await db.EdgeAuthRules.AsNoTracking()
             .Where(x => x.Enabled)
-            .OrderBy(x => x.Priority)
+            .OrderByDescending(x => x.Priority)
             .ToListAsync(cancellationToken);
 
         foreach (var rule in rules)
