@@ -654,6 +654,13 @@ public sealed class SyncOrchestratorHostedService(
     IServiceScopeFactory scopeFactory,
     ILogger<SyncOrchestratorHostedService> logger) : BackgroundService
 {
+    private readonly TaskCompletionSource _immediateSyncSignal = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    public void SignalImmediateSync()
+    {
+        _immediateSyncSignal.TrySetResult();
+    }
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
@@ -679,7 +686,10 @@ public sealed class SyncOrchestratorHostedService(
                     result.Succeeded ? null : "Reconcile finished with errors.",
                     intervalMinutes * 60,
                     stoppingToken);
-                await Task.Delay(TimeSpan.FromMinutes(intervalMinutes), stoppingToken);
+                _immediateSyncSignal.TryReset();
+                var syncTask = Task.Delay(TimeSpan.FromMinutes(intervalMinutes), stoppingToken);
+                var signalTask = _immediateSyncSignal.Task;
+                await Task.WhenAny(syncTask, signalTask);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {

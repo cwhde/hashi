@@ -73,6 +73,7 @@ public sealed class PasskeyAuthService(
         var entity = new PasskeyCredentialEntity
         {
             CredentialId = success.Result!.CredentialId,
+            CredentialIdBase64 = Convert.ToBase64String(success.Result.CredentialId),
             PublicKey = success.Result.PublicKey,
             SignCount = success.Result.Counter,
             Nickname = string.IsNullOrWhiteSpace(nickname) ? "Primary passkey" : nickname.Trim(),
@@ -113,8 +114,9 @@ public sealed class PasskeyAuthService(
         CancellationToken cancellationToken = default)
     {
         var credentialId = assertion.RawId;
+        var credentialIdBase64 = Convert.ToBase64String(credentialId);
         var stored = await db.PasskeyCredentials.SingleOrDefaultAsync(
-            x => x.CredentialId.SequenceEqual(credentialId),
+            x => x.CredentialIdBase64 == credentialIdBase64,
             cancellationToken)
             ?? throw new InvalidOperationException("Unknown passkey credential.");
 
