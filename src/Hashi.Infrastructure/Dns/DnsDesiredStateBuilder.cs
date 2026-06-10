@@ -236,4 +236,26 @@ public static class DnsDesiredStateBuilder
 
     private static IReadOnlyList<string> DeserializeStringList(string json)
         => JsonSerializer.Deserialize<List<string>>(json) ?? [];
+
+    private static void AutoDetectFirewallHost(ResourceEntity resource, IReadOnlyList<FirewallHostDnsTarget> hosts)
+    {
+        var candidates = new List<string?>();
+        if (!string.IsNullOrWhiteSpace(resource.TargetHost))
+        {
+            candidates.Add(resource.TargetHost.Trim());
+        }
+
+        foreach (var host in hosts)
+        {
+            foreach (var candidate in candidates.Where(c => !string.IsNullOrWhiteSpace(c)))
+            {
+                if (DnsRecordGenerator.IpMatchesSubnet(candidate!, host.ManagedSubnets)
+                    || DnsRecordGenerator.IpMatchesSubnet(candidate!, host.NetBirdRoutedCidrs))
+                {
+                    resource.DetectedFirewallHostId = host.Id;
+                    return;
+                }
+            }
+        }
+    }
 }
