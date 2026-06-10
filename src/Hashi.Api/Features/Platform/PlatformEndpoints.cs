@@ -453,6 +453,9 @@ public static class EdgeAuthEndpoints
                 SecurityDecisionResponseModeNames.ApiChallenge => TypedResults.Json(
                     new { challenge_required = true, reason = result.Reason },
                     statusCode: result.StatusCode),
+                SecurityDecisionResponseModeNames.RateLimited => TypedResults.Json(
+                    new { rate_limited = true, reason = result.Reason },
+                    statusCode: StatusCodes.Status429TooManyRequests),
                 _ => TypedResults.StatusCode(result.StatusCode),
             };
         }).WithTags("EdgeAuth").AllowAnonymous();

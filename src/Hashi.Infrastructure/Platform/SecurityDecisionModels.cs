@@ -46,7 +46,9 @@ public sealed record SecurityDecisionMatchedState(
     bool ChallengeRequired,
     int RequestsWhileChallenged,
     DateTimeOffset? SoftBlockedUntilUtc,
-    DateTimeOffset? FirewallBlockedUntilUtc);
+    DateTimeOffset? FirewallBlockedUntilUtc,
+    DateTimeOffset? RateLimitedUntilUtc = null,
+    int RateLimitRequestCount = 0);
 
 public sealed record SecurityDecisionResult(
     string Action,
