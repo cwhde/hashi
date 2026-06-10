@@ -125,6 +125,26 @@ public sealed class SyncOrchestratorService(
     AppSettingsService settings,
     AuditService audit)
 {
+    private static readonly SemaphoreSlim ApplyLock = new(1, 1);
+    private static readonly SemaphoreSlim ReconcileLock = new(1, 1);
+    private readonly TaskCompletionSource _immediateSyncRequested = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    public event Func<Task>? OnImmediateSyncRequested;
+
+    public async Task TriggerImmediateSyncAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            OnImmediateSyncRequested?.Invoke();
+        }
+        catch
+        {
+            // Best-effort notification; hosted service will pick up on next loop.
+        }
+
+        await Task.CompletedTask;
+    }
+
     public async Task<SyncPlanPreviewResponse> PlanGlobalAsync(CancellationToken cancellationToken = default)
     {
         var run = await syncRuns.BeginRunAsync("global", cancellationToken);
@@ -294,9 +314,16 @@ public sealed class SyncOrchestratorService(
 
     public async Task<SyncApplyResponse> ApplyGlobalAsync(bool confirmDestructive, CancellationToken cancellationToken = default)
     {
-        var run = await syncRuns.BeginRunAsync("global-apply", cancellationToken);
+        if (!await ApplyLock.WaitAsync(0, cancellationToken))
+        {
+            return new SyncApplyResponse(Guid.Empty, false, SyncRunStatusNames.Failed, "Another apply is already in progress. Concurrent applies are rejected.");
+        }
+
         try
         {
+            var run = await syncRuns.BeginRunAsync("global-apply", cancellationToken);
+            try
+            {
 <<<<<<< Updated upstream
 =======
             var run = await syncRuns.BeginRunAsync("global-apply", cancellationToken);

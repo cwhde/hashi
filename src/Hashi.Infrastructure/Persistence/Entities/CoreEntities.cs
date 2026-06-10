@@ -20,6 +20,8 @@ public sealed class AppSettingsEntity
 
     public string? AcmeEmail { get; set; }
 
+    public string AcmeProvider { get; set; } = "gts";
+
     public Guid? AcmeEabSecretId { get; set; }
 
     public Guid? AcmeDnsProviderConnectionId { get; set; }
