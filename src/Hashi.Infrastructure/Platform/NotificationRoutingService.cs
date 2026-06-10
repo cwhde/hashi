@@ -22,7 +22,8 @@ public sealed class NotificationRoutingService(
         }
 
         var isDown = string.Equals(newStatus, "down", StringComparison.OrdinalIgnoreCase);
-        var isRecovery = string.Equals(previousStatus, "down", StringComparison.OrdinalIgnoreCase)
+        var isRecovery = (string.Equals(previousStatus, "down", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(previousStatus, "degraded", StringComparison.OrdinalIgnoreCase))
             && string.Equals(newStatus, "up", StringComparison.OrdinalIgnoreCase);
 
         if (!isDown && !isRecovery)
