@@ -63,7 +63,8 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
         options.Cookie.SameSite = SameSiteMode.Strict;
         options.SlidingExpiration = true;
-        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        var sessionMinutes = builder.Configuration.GetValue<int?>("Hashi:AdminSessionMinutes") ?? 480;
+        options.ExpireTimeSpan = TimeSpan.FromMinutes(Math.Clamp(sessionMinutes, 5, 1440));
     });
 builder.Services.AddAuthorization();
 builder.Services.AddCors(options =>
