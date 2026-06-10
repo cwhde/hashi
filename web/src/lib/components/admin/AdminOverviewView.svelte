@@ -1,16 +1,18 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { api } from '$lib/api/client';
-	import type { AuditEvent, VaultStatus } from '$lib/api/types';
+	import type { AuditEvent, VaultStatus, HealthResponse } from '$lib/api/types';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import OverviewWidget from '$lib/components/overview/OverviewWidget.svelte';
 	import StatusRow from '$lib/components/layout/StatusRow.svelte';
 	import { DEFAULT_WIDGETS, loadDashboardWidgetPrefs, loadWidgetPrefs } from '$lib/overview/widgets';
 	import { LayoutDashboard } from 'lucide-svelte';
+	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert';
 
 	let prefs = $state(loadWidgetPrefs());
 	let audit = $state<AuditEvent[]>([]);
 	let healthVersion = $state('—');
+	let healthStatus = $state<HealthResponse | null>(null);
 	let vaultStatus = $state<VaultStatus | null>(null);
 	let resourceCounts = $state({ total: 0, enabled: 0 });
 	let statusCounts = $state({ up: 0, degraded: 0, down: 0 });
@@ -39,6 +41,7 @@
 			prefs = loadDashboardWidgetPrefs(dashboard);
 			audit = events.slice(0, 5);
 			healthVersion = health?.version ?? '—';
+			healthStatus = health;
 			vaultStatus = vault;
 			resourceCounts = {
 				total: resources.length,
@@ -76,6 +79,15 @@
 		description="Homelab edge orchestration at a glance."
 		icon={LayoutDashboard}
 	/>
+
+	{#if healthStatus?.providerSyncPaused}
+		<Alert variant="destructive" class="border-destructive bg-destructive/15 text-destructive-foreground">
+			<AlertTitle>Critical Health Warning: background synchronization is paused</AlertTitle>
+			<AlertDescription class="text-xs">
+				The service-sync vault is locked or unavailable. All provider synchronization jobs are currently paused. Please unlock the vault or check the service-sync vault configuration to resume sync.
+			</AlertDescription>
+		</Alert>
+	{/if}
 
 	<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
 		{#each orderedWidgets as widget (widget.id)}

@@ -87,6 +87,8 @@ public sealed class ServiceSyncVaultState
 
     public bool IsReady => WrapKey is not null;
 
+    public bool IsUnlocked { get; set; }
+
     public void Initialize(ReadOnlySpan<byte> wrapKey)
     {
         WrapKey = wrapKey.ToArray();

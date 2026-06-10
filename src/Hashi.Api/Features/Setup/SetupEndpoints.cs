@@ -157,15 +157,15 @@ public static class HealthEndpoints
 {
     public static IEndpointRouteBuilder MapHealthEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/health", (ServiceSyncVaultState serviceSync) =>
+        app.MapGet("/api/health", (VaultSessionState session, ServiceSyncVaultState serviceSync) =>
         {
-            var ready = serviceSync.IsReady;
+            var available = session.IsUnlocked || (serviceSync.IsReady && serviceSync.IsUnlocked);
             return TypedResults.Ok(new HealthResponse(
                 "healthy",
                 "2.0.0-alpha",
                 DateTimeOffset.UtcNow,
-                ready,
-                ProviderSyncPaused: !ready));
+                serviceSync.IsReady,
+                ProviderSyncPaused: !available));
         })
             .WithTags("Health")
             .AllowAnonymous();

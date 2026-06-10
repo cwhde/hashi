@@ -1,6 +1,7 @@
 using Hashi.Contracts.Api;
 using Hashi.Core.Sync;
 using Hashi.Core.Traefik;
+using Hashi.Infrastructure.Auth;
 using Hashi.Infrastructure.Dns;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
@@ -727,6 +728,37 @@ public sealed class SyncOrchestratorHostedService(
                 var jobs = scope.ServiceProvider.GetRequiredService<BackgroundJobService>();
                 var general = await settings.GetOrCreateAsync(stoppingToken);
                 intervalMinutes = Math.Max(5, general.DefaultSyncIntervalMinutes);
+
+                var session = scope.ServiceProvider.GetRequiredService<VaultSessionState>();
+                var serviceSync = scope.ServiceProvider.GetRequiredService<ServiceSyncVaultState>();
+                var vaultService = scope.ServiceProvider.GetRequiredService<VaultService>();
+
+                var available = session.IsUnlocked || serviceSync.IsUnlocked;
+                if (!available)
+                {
+                    await vaultService.EnsureServiceSyncWrapAsync(stoppingToken);
+                    available = session.IsUnlocked || serviceSync.IsUnlocked;
+                }
+
+                if (!available)
+                {
+                    logger.LogWarning("Service-sync vault is unavailable (locked). Sync reconcile is paused gracefully.");
+                    await jobs.BeginRunAsync(BackgroundJobKeys.SyncReconcile, stoppingToken);
+                    await jobs.CompleteRunAsync(
+                        BackgroundJobKeys.SyncReconcile,
+                        true,
+                        "Paused: Vault is locked.",
+                        "Vault is locked. Background sync will retry.",
+                        intervalMinutes * 60,
+                        stoppingToken);
+
+                    Interlocked.Exchange(ref _immediateSyncSignal, new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously));
+                    var pauseSyncTask = Task.Delay(TimeSpan.FromMinutes(intervalMinutes), stoppingToken);
+                    var pauseSignalTask = _immediateSyncSignal.Task;
+                    await Task.WhenAny(pauseSyncTask, pauseSignalTask);
+                    continue;
+                }
+
                 await jobs.BeginRunAsync(BackgroundJobKeys.SyncReconcile, stoppingToken);
                 logger.LogInformation("Starting passive sync reconcile.");
                 var result = await orchestrator.ReconcileAsync(stoppingToken);
