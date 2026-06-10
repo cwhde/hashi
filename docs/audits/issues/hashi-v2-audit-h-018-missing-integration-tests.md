@@ -4,8 +4,8 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §31 (Test Strategy - Integration tests)
 
-**Status:** Not Started
-**Branch:** 
+**Status:** Fixed
+**Branch:** h/tests
 
 ## Description
 
