@@ -1162,6 +1162,7 @@ public static class PulseEndpoints
             {
                 PulseHeartbeatAcceptResult.Accepted => TypedResults.Ok(new { accepted = true }),
                 PulseHeartbeatAcceptResult.InvalidTimestamp => TypedResults.BadRequest(new ApiErrorResponse("Heartbeat timestamp is outside the accepted clock skew.")),
+                PulseHeartbeatAcceptResult.InvalidScope => TypedResults.StatusCode(StatusCodes.Status403Forbidden),
                 _ => TypedResults.Unauthorized(),
             };
         }).AllowAnonymous();

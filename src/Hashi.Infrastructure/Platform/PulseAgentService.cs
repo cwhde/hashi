@@ -18,6 +18,7 @@ public enum PulseHeartbeatAcceptResult
     Accepted,
     Unauthorized,
     InvalidTimestamp,
+    InvalidScope,
 }
 
 public sealed class PulseAgentService(
@@ -81,6 +82,12 @@ public sealed class PulseAgentService(
         if (!string.Equals(agent.TokenHash, hash, StringComparison.Ordinal))
         {
             return PulseHeartbeatAcceptResult.Unauthorized;
+        }
+
+        var scopes = DeserializeStringList(agent.AllowedScopesJson);
+        if (scopes is null || !scopes.Contains("heartbeat", StringComparer.OrdinalIgnoreCase))
+        {
+            return PulseHeartbeatAcceptResult.InvalidScope;
         }
 
         var now = DateTimeOffset.UtcNow;

@@ -250,6 +250,31 @@ public sealed class PulseAgentServiceTests
         Assert.Null(agent.DnsPendingAtUtc);
     }
 
+    [Fact]
+    public async Task Heartbeat_rejects_agent_with_missing_heartbeat_scope()
+    {
+        using var db = CreateDb();
+        var agentId = Guid.NewGuid();
+        db.PulseAgents.Add(new PulseAgentEntity
+        {
+            Id = agentId,
+            Name = "Agent",
+            TokenHash = HashToken("pulse-token"),
+            Status = "pending",
+            AllowedScopesJson = "[\"status_only\"]",
+            HeartbeatIntervalSeconds = 60,
+        });
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+        var accepted = await service.AcceptHeartbeatAsync(
+            agentId,
+            Heartbeat("pulse-token"),
+            "10.0.0.10");
+
+        Assert.Equal(PulseHeartbeatAcceptResult.InvalidScope, accepted);
+    }
+
     private static PulseAgentService CreateService(
         HashiDbContext db,
         TestDnsProviderFactory? providerFactory = null,
