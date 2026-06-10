@@ -186,6 +186,17 @@ public sealed class SecurityDecisionService(
                 matchedState: BuildMatchedState(subjectEntity, stateEntity));
         }
 
+        if (!manualAllowBypassesBlocking && IsRateLimited(stateEntity, subjectEntity, now))
+        {
+            explanation.Add(new SecurityDecisionExplanation("rate_limit", "matched", "Subject has exceeded request rate limits."));
+            return RateLimited(
+                "rate_limit_exceeded",
+                context.Resource?.Id,
+                subject,
+                explanation,
+                matchedState: BuildMatchedState(subjectEntity, stateEntity));
+        }
+
         var abuseBucket = await db.AbuseBuckets.AsNoTracking()
             .SingleOrDefaultAsync(x => x.ClientIp == subject.NormalizedValue, cancellationToken);
         var abuseState = SecuritySubjectStateNames.Normalize(abuseBucket?.State);
@@ -685,6 +696,30 @@ public sealed class SecurityDecisionService(
             || SecuritySubjectStateNames.Normalize(subject.CurrentState) == SecuritySubjectStateNames.Challenged
             || legacyAbuseState is SecuritySubjectStateNames.Suspect or SecuritySubjectStateNames.Challenged;
 
+    private static bool IsRateLimited(SecuritySubjectStateEntity state, SecuritySubjectEntity subject, DateTimeOffset now)
+        => state.RateLimitedUntilUtc is not null && state.RateLimitedUntilUtc > now;
+
+    private SecurityDecisionResult RateLimited(
+        string reason,
+        Guid? resourceId,
+        NormalizedSecuritySubject subject,
+        List<SecurityDecisionExplanation> explanation,
+        SecurityDecisionMatchedState? matchedState = null)
+    {
+        explanation.Add(new SecurityDecisionExplanation("rate_limit", "deny", "Subject exceeded request rate limits."));
+        return SecurityDecisionResult.Create(
+            SecurityDecisionActionNames.DenyRateLimited,
+            SecurityDecisionResponseModeNames.RateLimited,
+            StatusCodes.Status429TooManyRequests,
+            null,
+            "deny",
+            reason,
+            resourceId,
+            subject,
+            explanation,
+            matchedState: matchedState);
+    }
+
     private static SecurityDecisionMatchedState BuildMatchedState(
         SecuritySubjectEntity subject,
         SecuritySubjectStateEntity state)
@@ -695,7 +730,9 @@ public sealed class SecurityDecisionService(
             state.ChallengeRequired,
             state.RequestsWhileChallenged,
             state.SoftBlockedUntilUtc,
-            state.FirewallBlockedUntilUtc);
+            state.FirewallBlockedUntilUtc,
+            state.RateLimitedUntilUtc,
+            state.RateLimitRequestCount);
 
     private static string NormalizeForwardedHost(string host)
     {

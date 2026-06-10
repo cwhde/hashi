@@ -14,6 +14,7 @@ public static class SecurityDecisionActionNames
     public const string DenyBlocklist = "deny_blocklist";
     public const string DenySoftBlock = "deny_soft_block";
     public const string DenyResourceRule = "deny_resource_rule";
+    public const string DenyRateLimited = "deny_rate_limited";
 }
 
 public static class SecurityDecisionResponseModeNames
@@ -22,6 +23,7 @@ public static class SecurityDecisionResponseModeNames
     public const string Deny = "deny";
     public const string Redirect = "redirect";
     public const string ApiChallenge = "api_challenge";
+    public const string RateLimited = "rate_limited";
 }
 
 public sealed record SecurityDecisionRequest(
@@ -46,7 +48,9 @@ public sealed record SecurityDecisionMatchedState(
     bool ChallengeRequired,
     int RequestsWhileChallenged,
     DateTimeOffset? SoftBlockedUntilUtc,
-    DateTimeOffset? FirewallBlockedUntilUtc);
+    DateTimeOffset? FirewallBlockedUntilUtc,
+    DateTimeOffset? RateLimitedUntilUtc = null,
+    int RateLimitRequestCount = 0);
 
 public sealed record SecurityDecisionResult(
     string Action,
