@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM --platform=$BUILDPLATFORM node:24-bookworm AS web-build
+FROM --platform=$BUILDPLATFORM node:24-alpine AS web-build
 WORKDIR /src/web
 RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
