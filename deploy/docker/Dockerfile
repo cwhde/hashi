@@ -51,7 +51,6 @@ RUN --mount=type=cache,id=hashi-nuget,target=/root/.nuget/packages,sharing=locke
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 RUN apt-get update \
-  && apt-get upgrade -y \
   && apt-get install -y --no-install-recommends curl \
   && rm -rf /var/lib/apt/lists/*
 COPY --from=dotnet-build /app/publish .
