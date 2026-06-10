@@ -418,20 +418,37 @@ public static class EdgeAuthEndpoints
             }
 
             var mode = ctx.Request.Query["mode"].FirstOrDefault();
-            var result = await edgeAuth.EvaluateForwardDecisionAsync(
-                new SecurityDecisionRequest(
-                    host,
-                    path,
-                    clientIp,
-                    country,
-                    region,
-                    asn,
-                    ctx.Request.Cookies["hashi.edge.session"],
-                    mode,
-                    requestContext.TrustedProxy,
-                    requestContext.Method,
-                    ctx.Request.Headers.Accept.FirstOrDefault()),
-                ct);
+            SecurityDecisionResult result;
+            try
+            {
+                result = await edgeAuth.EvaluateForwardDecisionAsync(
+                    new SecurityDecisionRequest(
+                        host,
+                        path,
+                        clientIp,
+                        country,
+                        region,
+                        asn,
+                        ctx.Request.Cookies["hashi.edge.session"],
+                        mode,
+                        requestContext.TrustedProxy,
+                        requestContext.Method,
+                        ctx.Request.Headers.Accept.FirstOrDefault()),
+                    ct);
+            }
+            catch (Exception)
+            {
+                result = SecurityDecisionResult.Create(
+                    SecurityDecisionActionNames.AllowUpstream,
+                    SecurityDecisionResponseModeNames.Allow,
+                    StatusCodes.Status204NoContent,
+                    null,
+                    "allow",
+                    "fail_open_on_error",
+                    null,
+                    SecuritySubjectNormalizer.NormalizeIp(clientIp),
+                    [new SecurityDecisionExplanation("error_handling", "fail_open", "Decision service threw an exception; failing open per policy.")]);
+            }
 
             await security.IngestForwardAuthDecisionAsync(new ForwardAuthDecisionIngestRequest(
                 clientIp.ToString(),
