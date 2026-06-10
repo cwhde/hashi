@@ -279,6 +279,14 @@ public sealed record FirewallPlanChangeResponse(
     string ResourceKey,
     string Summary);
 
+public sealed record DnsProviderCapabilitiesResponse(
+    IReadOnlyList<string> SupportedRecordTypes,
+    bool SupportsBatchOperations,
+    int? MaxRecordsPerZone,
+    bool SupportsComments,
+    int? RateLimitLimit,
+    int? RateLimitWindowSeconds);
+
 public sealed record FirewallPlanPreviewResponse(
     Guid PlanId,
     Guid FirewallHostId,

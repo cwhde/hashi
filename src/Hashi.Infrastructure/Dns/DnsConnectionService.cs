@@ -610,6 +610,13 @@ public sealed class DnsConnectionService(
             cancellationToken) ?? throw new InvalidOperationException("DNS connection not found.");
     }
 
+    public async Task<DnsProviderCapabilities> GetCapabilitiesAsync(Guid connectionId, CancellationToken cancellationToken = default)
+    {
+        var connection = await GetDnsConnectionAsync(connectionId, cancellationToken);
+        var provider = await CreateProviderAsync(connection, cancellationToken);
+        return await provider.GetCapabilitiesAsync(cancellationToken);
+    }
+
     private async Task<DnsZoneEntity> GetZoneAsync(Guid connectionId, CancellationToken cancellationToken)
     {
         return await db.DnsZones.SingleOrDefaultAsync(x => x.ConnectionId == connectionId, cancellationToken)

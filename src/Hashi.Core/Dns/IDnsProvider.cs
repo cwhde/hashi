@@ -27,6 +27,8 @@ public interface IDnsProvider
         CancellationToken cancellationToken = default);
 
     Task DeleteRecordAsync(string recordId, CancellationToken cancellationToken = default);
+
+    Task<DnsProviderCapabilities> GetCapabilitiesAsync(CancellationToken cancellationToken = default);
 }
 
 public interface IDnsProviderFactory

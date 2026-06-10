@@ -131,3 +131,11 @@ public static class DnsRecordTypeMapping
         _ => "OTHER",
     };
 }
+
+public sealed record DnsProviderCapabilities(
+    IReadOnlyList<string> SupportedRecordTypes,
+    bool SupportsBatchOperations,
+    int? MaxRecordsPerZone,
+    bool SupportsComments,
+    int? RateLimitLimit,
+    int? RateLimitWindowSeconds);

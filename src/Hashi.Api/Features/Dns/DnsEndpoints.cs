@@ -66,6 +66,22 @@ public static class DnsEndpoints
             return TypedResults.Ok(new DnsWriteValidationResponse(valid, error));
         });
 
+        group.MapGet("/connections/{connectionId:guid}/capabilities", async Task<IResult> (
+            Guid connectionId,
+            DnsConnectionService dns,
+            CancellationToken ct) =>
+        {
+            var caps = await dns.GetCapabilitiesAsync(connectionId, ct);
+            return TypedResults.Ok(new DnsProviderCapabilitiesResponse(
+                caps.SupportedRecordTypes,
+                caps.SupportsBatchOperations,
+                caps.MaxRecordsPerZone,
+                caps.SupportsComments,
+                caps.RateLimitLimit,
+                caps.RateLimitWindowSeconds));
+        })
+            .Produces<DnsProviderCapabilitiesResponse>(StatusCodes.Status200OK);
+
         group.MapGet("/connections/{connectionId:guid}/records/provider", async Task<IResult> (
             Guid connectionId,
             DnsConnectionService dns,

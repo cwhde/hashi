@@ -76,4 +76,13 @@ public sealed class InMemoryDnsProvider : IDnsProvider
 
         throw new KeyNotFoundException($"Record {recordId} not found.");
     }
+
+    public Task<DnsProviderCapabilities> GetCapabilitiesAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult(new DnsProviderCapabilities(
+            SupportedRecordTypes: ["A", "AAAA", "CNAME", "MX", "TXT", "NS", "SOA"],
+            SupportsBatchOperations: true,
+            MaxRecordsPerZone: null,
+            SupportsComments: true,
+            RateLimitLimit: null,
+            RateLimitWindowSeconds: null));
 }
