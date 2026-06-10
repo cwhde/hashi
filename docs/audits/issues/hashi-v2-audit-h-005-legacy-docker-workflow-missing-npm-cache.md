@@ -4,8 +4,8 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Addendum §17.5; validate-ci-optimization.sh
 
-**Status:** Not Started
-**Branch:** 
+**Status:** Fixed
+**Branch:** h/docker-builds
 
 ## Description
 
