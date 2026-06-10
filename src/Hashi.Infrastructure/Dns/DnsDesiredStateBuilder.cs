@@ -61,6 +61,11 @@ public static class DnsDesiredStateBuilder
         var pulseAgents = await db.PulseAgents.AsNoTracking().ToDictionaryAsync(x => x.Id, cancellationToken);
         foreach (var resource in resources)
         {
+            if (resource.FirewallHostId is null && resource.DetectedFirewallHostId is null)
+            {
+                AutoDetectFirewallHost(resource, hostTargets);
+            }
+
             var slug = resource.Slug;
             PulseDnsTarget? pulseTarget = null;
             if (resource.PulseAgentId is Guid pulseId && pulseAgents.TryGetValue(pulseId, out var agent))
