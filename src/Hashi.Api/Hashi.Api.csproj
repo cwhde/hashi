@@ -25,7 +25,7 @@
   </Target>
 
   <Target Name="BuildFrontend" BeforeTargets="PublishFrontend" Condition="'$(SkipFrontendBuild)' != 'true' And Exists('..\..\web\package.json') And !Exists('..\..\web\build\index.html')">
-    <Exec Command="pnpm install --no-frozen-lockfile" WorkingDirectory="$(MSBuildProjectDirectory)\..\..\web" />
+    <Exec Command="pnpm install --frozen-lockfile" WorkingDirectory="$(MSBuildProjectDirectory)\..\..\web" />
     <Exec Command="pnpm run build" WorkingDirectory="$(MSBuildProjectDirectory)\..\..\web" />
   </Target>
 

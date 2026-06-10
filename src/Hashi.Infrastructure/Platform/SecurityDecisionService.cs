@@ -11,6 +11,7 @@ namespace Hashi.Infrastructure.Platform;
 public sealed class SecurityDecisionService(
     HashiDbContext db,
     OidcEdgeAuthService oidc,
+    GeoIpLookupService? geoIp = null,
     CaptchaChallengeService? captcha = null,
     TimeProvider? timeProvider = null)
 {
@@ -283,6 +284,7 @@ public sealed class SecurityDecisionService(
         SecurityDecisionContext context,
         NormalizedSecuritySubject subject,
         List<SecurityDecisionExplanation> explanation,
+        GeoIpLookupService geoIp,
         CancellationToken cancellationToken)
     {
         var resource = context.Resource ?? throw new InvalidOperationException("Resource rule evaluation requires a resolved resource.");
@@ -293,6 +295,19 @@ public sealed class SecurityDecisionService(
 
         foreach (var rule in rules)
         {
+            var ruleRequiresGeo = rule.MatchType is "country" or "region" or "asn";
+            if (ruleRequiresGeo && !geoIp.IsAvailable)
+            {
+                explanation.Add(new SecurityDecisionExplanation("resource_rule_geoip_unavailable", "fail_closed", $"GeoIP rule '{rule.MatchType}:{rule.MatchValue}' cannot be evaluated — GeoIP database unavailable. Treating as deny (fail-closed)."));
+                return Deny(
+                    SecurityDecisionActionNames.DenyResourceRule,
+                    "geoip_unavailable_fail_closed",
+                    resource.Id,
+                    subject,
+                    explanation,
+                    matchedResourceRuleIds: [rule.Id]);
+            }
+
             if (!MatchesResourceRule(rule, request))
             {
                 continue;

@@ -678,7 +678,7 @@ public sealed class AdGuardSyncService(
             connection.BaseUrl,
             connection.Enabled,
             ToTargetResponse(target),
-            resolved.BaseUri.ToString().TrimEnd('/'),
+            resolved.BaseUri?.ToString().TrimEnd('/'),
             resolved.Status,
             resolved.Error);
     }

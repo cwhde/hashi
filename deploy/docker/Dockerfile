@@ -6,7 +6,7 @@ RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=hashi-pnpm-store,target=/pnpm/store \
   pnpm config set store-dir /pnpm/store \
-  && (pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile)
+  && pnpm install --frozen-lockfile
 COPY web/ ./
 RUN pnpm run build
 
