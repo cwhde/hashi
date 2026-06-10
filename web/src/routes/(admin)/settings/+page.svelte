@@ -77,7 +77,6 @@
 				theme: settings.theme ?? 'dark'
 			};
 			applyTheme(form.theme);
-			applyTheme(form.theme);
 		} catch {
 			// offline dev
 		}
@@ -296,9 +295,17 @@
 	<div class="grid max-w-xl gap-6">
 		<PanelSection title="General" description="Domain, sync interval, and public page toggles.">
 			<div class="grid gap-4">
-				<div class="grid gap-1.5">
-					<Label for="settings-root">Root domain</Label>
-					<Input id="settings-root" bind:value={form.rootDomain} />
+			<div class="grid gap-1.5">
+					<Label for="settings-theme">Theme</Label>
+					<select
+						id="settings-theme"
+						class="h-9 rounded-md border border-border bg-background px-3 text-sm text-white"
+						bind:value={form.theme}
+						onchange={() => applyTheme(form.theme)}
+					>
+						<option value="dark">Dark (Shades of Purple)</option>
+						<option value="light">Light (Pink/Violet)</option>
+					</select>
 				</div>
 				<div class="grid gap-1.5">
 					<Label for="settings-admin">Admin domain</Label>
