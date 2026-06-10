@@ -544,7 +544,7 @@ public sealed class AdGuardSyncService(
         var hosts = await db.FirewallHosts.AsNoTracking().ToDictionaryAsync(x => x.Id, cancellationToken);
         var pulseAgents = await db.PulseAgents.AsNoTracking().ToDictionaryAsync(x => x.Id, cancellationToken);
         var resources = await db.Resources
-            .Where(x => x.Enabled && (x.FirewallHostId != null || x.PulseAgentId != null))
+            .Where(x => x.Enabled && x.AdGuardRewriteEnabled && (x.FirewallHostId != null || x.PulseAgentId != null))
             .ToListAsync(cancellationToken);
 
         foreach (var resource in resources)

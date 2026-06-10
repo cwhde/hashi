@@ -228,7 +228,12 @@ public sealed record ResourceDefinition(
     string? PathRewriteMode = null,
     bool? TcpProxyProtocolEnabled = null,
     string? MonitoringProtocolHint = null,
-    bool ErrorHandlingEnabled = true)
+    bool ErrorHandlingEnabled = true,
+    bool AdGuardRewriteEnabled = true,
+    string? ExplicitRoutingOverride = null,
+    string? SecurityProfileName = null,
+    int? RateLimitAverage = null,
+    int? RateLimitBurst = null)
 {
     public int EffectivePublicPort => PublicPort ?? TargetPort;
 }

@@ -26,7 +26,8 @@ public sealed record ResourceDnsTarget(
     Guid? FirewallHostId,
     string? ManualIp,
     PulseDnsTarget? PulseTarget,
-    string? ManualHost = null);
+    string? ManualHost = null,
+    string? ExplicitRoutingOverride = null);
 
 public static class DnsRecordGenerator
 {
@@ -61,6 +62,27 @@ public static class DnsRecordGenerator
         int ttl = 3600)
     {
         var resourceFqdn = ResolveResourceFqdn(target);
+
+        if (!string.IsNullOrWhiteSpace(target.ExplicitRoutingOverride))
+        {
+            var overrideVal = target.ExplicitRoutingOverride.Trim();
+            if (IPAddress.TryParse(overrideVal, out var parsedOverrideIp))
+            {
+                var overrideRecordType = overrideVal.Contains(':') ? DnsRecordType.Aaaa : DnsRecordType.A;
+                return
+                [
+                    new DnsRecordSnapshot(string.Empty, resourceFqdn, overrideRecordType, overrideVal, ttl, true),
+                ];
+            }
+            else
+            {
+                return
+                [
+                    new DnsRecordSnapshot(string.Empty, resourceFqdn, DnsRecordType.Cname, overrideVal, ttl, true),
+                ];
+            }
+        }
+
         var matchedHost = ResolveManagedHost(target, hosts);
         if (matchedHost is not null)
         {

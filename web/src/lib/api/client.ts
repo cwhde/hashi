@@ -824,5 +824,22 @@ export const api = {
 			params: { path: { connectionId, rewriteId } }
 		});
 		return expectData(r.response, r.error, r.data);
+	},
+
+	listSecurityProfiles: async () => {
+		const r = await client.GET('/api/security/profiles');
+		return expectData(r.response, r.error, r.data ?? []);
+	},
+	createSecurityProfile: async (body: import('./types.js').CreateSecurityProfileRequest) => {
+		const r = await client.POST('/api/security/profiles', { body });
+		return expectData(r.response, r.error, r.data);
+	},
+	updateSecurityProfile: async (name: string, body: import('./types.js').UpdateSecurityProfileRequest) => {
+		const r = await client.PUT('/api/security/profiles/{name}', { params: { path: { name } }, body });
+		return expectData(r.response, r.error, r.data);
+	},
+	deleteSecurityProfile: async (name: string) => {
+		const r = await client.DELETE('/api/security/profiles/{name}', { params: { path: { name } } });
+		if (!r.response.ok) throw errorFromResult(r.response.status, r.error);
 	}
 };

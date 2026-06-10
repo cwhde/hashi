@@ -72,6 +72,12 @@ public sealed class ResourceEntity
 
     public bool ErrorHandlingEnabled { get; set; } = true;
 
+    public bool AdGuardRewriteEnabled { get; set; } = true;
+
+    public string? ExplicitRoutingOverride { get; set; }
+
+    public string? SecurityProfileName { get; set; }
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 
     public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
@@ -387,4 +393,13 @@ public static class ConnectionTargetStatusNames
     public const string Resolved = "resolved";
     public const string Stale = "stale";
     public const string Failed = "failed";
+}
+
+public sealed class SecurityProfileEntity
+{
+    public string Name { get; set; } = string.Empty;
+    public string ForwardAuthPolicy { get; set; } = "adaptive";
+    public string WafMode { get; set; } = "detect_only";
+    public int RateLimitAverage { get; set; } = 100;
+    public int RateLimitBurst { get; set; } = 200;
 }

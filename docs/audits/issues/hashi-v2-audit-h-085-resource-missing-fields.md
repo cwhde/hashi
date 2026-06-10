@@ -4,8 +4,8 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** §6 (Resources must have AdGuardRewriteVisibility, ExplicitRoutingOverride, SecurityProfile)
 
-**Status:** Not Started
-**Branch:** 
+**Status:** Fixed
+**Branch:** audit-series-h
 
 ## Description
 

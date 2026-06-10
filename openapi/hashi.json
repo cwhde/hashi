@@ -42,10 +42,48 @@
         }
       }
     },
+    "/api/error/{status}": {
+      "get": {
+        "tags": [
+          "Hashi.Api"
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/public/status": {
       "get": {
         "tags": [
           "Public"
+        ],
+        "parameters": [
+          {
+            "name": "hours",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
         ],
         "responses": {
           "200": {
@@ -1916,6 +1954,29 @@
           },
           "required": true
         },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/connections/{connectionId}": {
+      "delete": {
+        "tags": [
+          "Connections"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK"
@@ -3993,6 +4054,140 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/security/profiles": {
+      "get": {
+        "tags": [
+          "Security"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SecurityProfileResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Security"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSecurityProfileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecurityProfileResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/security/profiles/{name}": {
+      "put": {
+        "tags": [
+          "Security"
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSecurityProfileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecurityProfileResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Security"
+        ],
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
           }
         }
       }
@@ -7389,6 +7584,10 @@
           },
           "enabled": {
             "type": "boolean"
+          },
+          "isDefault": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -7596,6 +7795,35 @@
               "null",
               "string"
             ]
+          },
+          "oidcProviderId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "errorHandlingEnabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "adGuardRewriteEnabled": {
+            "type": "boolean",
+            "default": true
+          },
+          "explicitRoutingOverride": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "securityProfileName": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -7697,6 +7925,43 @@
           "firewallEnforced": {
             "type": "boolean",
             "default": false
+          }
+        }
+      },
+      "CreateSecurityProfileRequest": {
+        "required": [
+          "name",
+          "forwardAuthPolicy",
+          "wafMode",
+          "rateLimitAverage",
+          "rateLimitBurst"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "forwardAuthPolicy": {
+            "type": "string"
+          },
+          "wafMode": {
+            "type": "string"
+          },
+          "rateLimitAverage": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "rateLimitBurst": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         }
       },
@@ -9378,7 +9643,8 @@
           "issuer",
           "clientId",
           "scopes",
-          "enabled"
+          "enabled",
+          "isDefault"
         ],
         "type": "object",
         "properties": {
@@ -9399,6 +9665,9 @@
             "type": "string"
           },
           "enabled": {
+            "type": "boolean"
+          },
+          "isDefault": {
             "type": "boolean"
           }
         }
@@ -9569,6 +9838,7 @@
           "name",
           "status",
           "lastLatencyMs",
+          "lastCheckedAtUtc",
           "recentStrip"
         ],
         "type": "object",
@@ -9587,6 +9857,13 @@
               "string"
             ],
             "format": "int32"
+          },
+          "lastCheckedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           },
           "recentStrip": {
             "type": "array",
@@ -10189,6 +10466,33 @@
             "items": {
               "type": "string"
             }
+          },
+          "oidcProviderId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "errorHandlingEnabled": {
+            "type": "boolean",
+            "default": true
+          },
+          "adGuardRewriteEnabled": {
+            "type": "boolean",
+            "default": true
+          },
+          "explicitRoutingOverride": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "securityProfileName": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -11476,6 +11780,43 @@
           }
         }
       },
+      "SecurityProfileResponse": {
+        "required": [
+          "name",
+          "forwardAuthPolicy",
+          "wafMode",
+          "rateLimitAverage",
+          "rateLimitBurst"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "forwardAuthPolicy": {
+            "type": "string"
+          },
+          "wafMode": {
+            "type": "string"
+          },
+          "rateLimitAverage": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "rateLimitBurst": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "SecurityRankItem": {
         "required": [
           "label",
@@ -12208,6 +12549,15 @@
               "null",
               "string"
             ]
+          },
+          "validationErrors": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -13193,6 +13543,12 @@
               "null",
               "boolean"
             ]
+          },
+          "isDefault": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           }
         }
       },
@@ -13406,6 +13762,49 @@
           "clearWafExclusions": {
             "type": "boolean",
             "default": false
+          },
+          "oidcProviderId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "clearOidcProviderId": {
+            "type": "boolean",
+            "default": false
+          },
+          "errorHandlingEnabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "adGuardRewriteEnabled": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "explicitRoutingOverride": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clearExplicitRoutingOverride": {
+            "type": "boolean",
+            "default": false
+          },
+          "securityProfileName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "clearSecurityProfileName": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -13519,6 +13918,39 @@
               "null",
               "boolean"
             ]
+          }
+        }
+      },
+      "UpdateSecurityProfileRequest": {
+        "required": [
+          "forwardAuthPolicy",
+          "wafMode",
+          "rateLimitAverage",
+          "rateLimitBurst"
+        ],
+        "type": "object",
+        "properties": {
+          "forwardAuthPolicy": {
+            "type": "string"
+          },
+          "wafMode": {
+            "type": "string"
+          },
+          "rateLimitAverage": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "rateLimitBurst": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         }
       },

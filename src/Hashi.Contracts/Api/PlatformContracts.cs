@@ -30,7 +30,10 @@ public sealed record ResourceResponse(
     IReadOnlyList<ResourceRuleResponse> Rules,
     IReadOnlyList<string> WafExclusions,
     Guid? OidcProviderId = null,
-    bool ErrorHandlingEnabled = true);
+    bool ErrorHandlingEnabled = true,
+    bool AdGuardRewriteEnabled = true,
+    string? ExplicitRoutingOverride = null,
+    string? SecurityProfileName = null);
 
 public sealed record ResourceRouteResponse(
     Guid Id,
@@ -97,7 +100,10 @@ public sealed record CreateResourceRequest(
     string? DomainMode = null,
     string? PathRewriteMode = null,
     Guid? OidcProviderId = null,
-    bool? ErrorHandlingEnabled = null);
+    bool? ErrorHandlingEnabled = null,
+    bool AdGuardRewriteEnabled = true,
+    string? ExplicitRoutingOverride = null,
+    string? SecurityProfileName = null);
 
 public sealed record UpdateResourceRequest(
     string? Name,
@@ -135,7 +141,12 @@ public sealed record UpdateResourceRequest(
     bool ClearWafExclusions = false,
     Guid? OidcProviderId = null,
     bool ClearOidcProviderId = false,
-    bool? ErrorHandlingEnabled = null);
+    bool? ErrorHandlingEnabled = null,
+    bool? AdGuardRewriteEnabled = null,
+    string? ExplicitRoutingOverride = null,
+    bool ClearExplicitRoutingOverride = false,
+    string? SecurityProfileName = null,
+    bool ClearSecurityProfileName = false);
 
 public sealed record TraefikDynamicFilesResponse(
     string CoreYaml,
@@ -1336,3 +1347,23 @@ public sealed record PulseHeartbeatAuthRequest(
     string? SelectedIp,
     DateTimeOffset Timestamp,
     PulseDockerMetadataRequest? Docker);
+
+public sealed record SecurityProfileResponse(
+    string Name,
+    string ForwardAuthPolicy,
+    string WafMode,
+    int RateLimitAverage,
+    int RateLimitBurst);
+
+public sealed record CreateSecurityProfileRequest(
+    string Name,
+    string ForwardAuthPolicy,
+    string WafMode,
+    int RateLimitAverage,
+    int RateLimitBurst);
+
+public sealed record UpdateSecurityProfileRequest(
+    string ForwardAuthPolicy,
+    string WafMode,
+    int RateLimitAverage,
+    int RateLimitBurst);

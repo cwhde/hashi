@@ -269,7 +269,23 @@ public static class TraefikConfigRenderer
             return [];
         });
 
-        var middlewareEntries = rewriteMiddlewares.Select(x => RenderRewriteMiddleware(x.Name, x.Value, x.Mode, x.MatchPrefix)).ToList();
+        var rateLimitMiddlewares = new List<string>();
+        foreach (var r in resources)
+        {
+            if (r.RateLimitAverage.HasValue && r.RateLimitBurst.HasValue)
+            {
+                rateLimitMiddlewares.Add($$"""
+                      {{r.Slug}}-rate-limit:
+                        rateLimit:
+                          average: {{r.RateLimitAverage.Value}}
+                          burst: {{r.RateLimitBurst.Value}}
+                    """);
+            }
+        }
+
+        var middlewareEntries = rewriteMiddlewares.Select(x => RenderRewriteMiddleware(x.Name, x.Value, x.Mode, x.MatchPrefix))
+            .Concat(rateLimitMiddlewares)
+            .ToList();
         var middlewareBlock = middlewareEntries.Count > 0
             ? "  middlewares:\n" + string.Join('\n', middlewareEntries) + "\n"
             : string.Empty;
@@ -567,7 +583,14 @@ public static class TraefikConfigRenderer
             });
         }
 
-        chain.Add("hashi-rate-limit");
+        if (resource.RateLimitAverage.HasValue && resource.RateLimitBurst.HasValue)
+        {
+            chain.Add($"{resource.Slug}-rate-limit");
+        }
+        else
+        {
+            chain.Add("hashi-rate-limit");
+        }
         if (routeMiddlewares is not null)
         {
             foreach (var extra in routeMiddlewares.Where(x => !string.IsNullOrWhiteSpace(x)))

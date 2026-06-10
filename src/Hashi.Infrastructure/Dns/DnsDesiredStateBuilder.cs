@@ -96,7 +96,8 @@ public static class DnsDesiredStateBuilder
                     resource.FirewallHostId,
                     ResolveManualIp(resource.TargetHost),
                     pulseTarget,
-                    ResolveManualHost(resource.TargetHost)),
+                    ResolveManualHost(resource.TargetHost),
+                    resource.ExplicitRoutingOverride),
                 hostTargets,
                 defaultTtl);
             if (records.Count == 0 && IsPrivateManualIp(resource.TargetHost))

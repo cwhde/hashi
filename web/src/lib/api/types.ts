@@ -362,4 +362,8 @@ export type ApiError = {
 	message?: string;
 };
 
+export type SecurityProfile = Schemas['SecurityProfileResponse'];
+export type CreateSecurityProfileRequest = Schemas['CreateSecurityProfileRequest'];
+export type UpdateSecurityProfileRequest = Schemas['UpdateSecurityProfileRequest'];
+
 export type UndocumentedJson = Record<string, unknown>;

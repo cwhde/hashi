@@ -69,6 +69,9 @@ public sealed class ResourceService(
             WafExclusionsJson = SerializeWafExclusions(request.WafExclusions),
             OidcProviderId = request.OidcProviderId,
             ErrorHandlingEnabled = request.ErrorHandlingEnabled ?? true,
+            AdGuardRewriteEnabled = request.AdGuardRewriteEnabled,
+            ExplicitRoutingOverride = request.ExplicitRoutingOverride,
+            SecurityProfileName = request.SecurityProfileName,
         };
         db.Resources.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
@@ -210,6 +213,29 @@ public sealed class ResourceService(
         if (request.ErrorHandlingEnabled is bool errorHandlingEnabled)
         {
             entity.ErrorHandlingEnabled = errorHandlingEnabled;
+        }
+
+        if (request.AdGuardRewriteEnabled is bool adGuardRewriteEnabled)
+        {
+            entity.AdGuardRewriteEnabled = adGuardRewriteEnabled;
+        }
+
+        if (request.ClearExplicitRoutingOverride)
+        {
+            entity.ExplicitRoutingOverride = null;
+        }
+        else if (request.ExplicitRoutingOverride is not null)
+        {
+            entity.ExplicitRoutingOverride = request.ExplicitRoutingOverride;
+        }
+
+        if (request.ClearSecurityProfileName)
+        {
+            entity.SecurityProfileName = null;
+        }
+        else if (request.SecurityProfileName is not null)
+        {
+            entity.SecurityProfileName = request.SecurityProfileName;
         }
 
         if (request.ClearPathPrefix)
@@ -368,7 +394,10 @@ public sealed class ResourceService(
             rules.Select(ToRuleResponse).ToList(),
             ParseWafExclusions(entity.WafExclusionsJson),
             entity.OidcProviderId,
-            entity.ErrorHandlingEnabled);
+            entity.ErrorHandlingEnabled,
+            entity.AdGuardRewriteEnabled,
+            entity.ExplicitRoutingOverride,
+            entity.SecurityProfileName);
     }
 
     public static ResourceRouteResponse ToRouteResponse(ResourceRouteEntity entity) => new(
@@ -725,6 +754,8 @@ public sealed class ResourceService(
         var routes = await db.ResourceRoutes.AsNoTracking().ToListAsync(cancellationToken);
         var rules = await db.ResourceRules.AsNoTracking().ToListAsync(cancellationToken);
         var rootDomain = (await db.AppSettings.AsNoTracking().SingleOrDefaultAsync(cancellationToken))?.RootDomain;
+        var profiles = await db.SecurityProfiles.AsNoTracking().ToDictionaryAsync(x => x.Name, StringComparer.OrdinalIgnoreCase, cancellationToken);
+
         return resources.Select(entity =>
         {
             var resourceRoutes = routes.Where(x => x.ResourceId == entity.Id)
@@ -745,6 +776,21 @@ public sealed class ResourceService(
                 .OrderByDescending(x => x.Priority)
                 .Select(x => new ResourceRuleDefinition(x.Priority, x.Action, x.MatchType, x.MatchValue, x.Enabled))
                 .ToList();
+
+            SecurityProfileEntity? profile = null;
+            if (!string.IsNullOrEmpty(entity.SecurityProfileName))
+            {
+                profiles.TryGetValue(entity.SecurityProfileName, out profile);
+            }
+
+            var forwardAuth = profile is not null
+                ? ForwardAuthPolicyMapping.Parse(profile.ForwardAuthPolicy)
+                : ForwardAuthPolicyMapping.Parse(entity.ForwardAuthPolicy);
+
+            var wafMode = profile is not null
+                ? ParseWafMode(profile.WafMode)
+                : ParseWafMode(entity.WafMode);
+
             return new ResourceDefinition(
                 entity.Id,
                 entity.Name,
@@ -759,8 +805,8 @@ public sealed class ResourceService(
                 entity.PublicPort,
                 entity.PathPrefix,
                 entity.PathRewrite,
-                ForwardAuthPolicyMapping.Parse(entity.ForwardAuthPolicy),
-                ParseWafMode(entity.WafMode),
+                forwardAuth,
+                wafMode,
                 TraefikUserMiddlewareService.ParseExtraMiddlewares(entity.ExtraMiddlewaresJson),
                 resourceRoutes.Count > 0 ? resourceRoutes : null,
                 resourceRules.Count > 0 ? resourceRules : null,
@@ -769,7 +815,12 @@ public sealed class ResourceService(
                 entity.PathRewriteMode,
                 entity.TcpProxyProtocolEnabled,
                 entity.MonitoringProtocolHint,
-                entity.ErrorHandlingEnabled);
+                entity.ErrorHandlingEnabled,
+                entity.AdGuardRewriteEnabled,
+                entity.ExplicitRoutingOverride,
+                entity.SecurityProfileName,
+                profile?.RateLimitAverage,
+                profile?.RateLimitBurst);
         }).ToList();
     }
 

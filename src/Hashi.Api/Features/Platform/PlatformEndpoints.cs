@@ -1051,6 +1051,102 @@ public static class SecurityEndpoints
             CancellationToken ct) =>
             TypedResults.Ok(await blocklists.ListEntriesAsync(id, ct)))
             .Produces<IEnumerable<BlocklistEntryResponse>>(StatusCodes.Status200OK);
+
+        group.MapGet("/profiles", async (HashiDbContext db, CancellationToken ct) =>
+        {
+            var profiles = await db.SecurityProfiles.AsNoTracking().ToListAsync(ct);
+            return TypedResults.Ok(profiles.Select(p => new SecurityProfileResponse(
+                p.Name,
+                p.ForwardAuthPolicy,
+                p.WafMode,
+                p.RateLimitAverage,
+                p.RateLimitBurst)));
+        }).Produces<IEnumerable<SecurityProfileResponse>>(StatusCodes.Status200OK);
+
+        group.MapPost("/profiles", async Task<IResult> (CreateSecurityProfileRequest request, HashiDbContext db, CancellationToken ct) =>
+        {
+            if (string.IsNullOrWhiteSpace(request.Name))
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse("Profile name cannot be empty."));
+            }
+
+            var name = request.Name.Trim();
+            if (await db.SecurityProfiles.AnyAsync(x => x.Name.ToLower() == name.ToLower(), ct))
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse($"Profile '{name}' already exists."));
+            }
+
+            var profile = new SecurityProfileEntity
+            {
+                Name = name,
+                ForwardAuthPolicy = request.ForwardAuthPolicy ?? "adaptive",
+                WafMode = request.WafMode ?? "detect_only",
+                RateLimitAverage = request.RateLimitAverage,
+                RateLimitBurst = request.RateLimitBurst
+            };
+
+            db.SecurityProfiles.Add(profile);
+            await db.SaveChangesAsync(ct);
+
+            return TypedResults.Ok(new SecurityProfileResponse(
+                profile.Name,
+                profile.ForwardAuthPolicy,
+                profile.WafMode,
+                profile.RateLimitAverage,
+                profile.RateLimitBurst));
+        })
+        .Produces<SecurityProfileResponse>(StatusCodes.Status200OK)
+        .Produces<ApiErrorResponse>(StatusCodes.Status400BadRequest);
+
+        group.MapPut("/profiles/{name}", async Task<IResult> (string name, UpdateSecurityProfileRequest request, HashiDbContext db, CancellationToken ct) =>
+        {
+            var profile = await db.SecurityProfiles.SingleOrDefaultAsync(x => x.Name.ToLower() == name.ToLower(), ct);
+            if (profile is null)
+            {
+                return TypedResults.NotFound();
+            }
+
+            profile.ForwardAuthPolicy = request.ForwardAuthPolicy ?? "adaptive";
+            profile.WafMode = request.WafMode ?? "detect_only";
+            profile.RateLimitAverage = request.RateLimitAverage;
+            profile.RateLimitBurst = request.RateLimitBurst;
+
+            await db.SaveChangesAsync(ct);
+
+            return TypedResults.Ok(new SecurityProfileResponse(
+                profile.Name,
+                profile.ForwardAuthPolicy,
+                profile.WafMode,
+                profile.RateLimitAverage,
+                profile.RateLimitBurst));
+        })
+        .Produces<SecurityProfileResponse>(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status404NotFound);
+
+        group.MapDelete("/profiles/{name}", async Task<IResult> (string name, HashiDbContext db, CancellationToken ct) =>
+        {
+            var profile = await db.SecurityProfiles.SingleOrDefaultAsync(x => x.Name.ToLower() == name.ToLower(), ct);
+            if (profile is null)
+            {
+                return TypedResults.NotFound();
+            }
+
+            // Check if any resource is using this profile name.
+            var nameLower = name.ToLower();
+            if (await db.Resources.AnyAsync(r => r.SecurityProfileName != null && r.SecurityProfileName.ToLower() == nameLower, ct))
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse($"Profile '{profile.Name}' is currently in use by one or more resources."));
+            }
+
+            db.SecurityProfiles.Remove(profile);
+            await db.SaveChangesAsync(ct);
+
+            return TypedResults.NoContent();
+        })
+        .Produces(StatusCodes.Status204NoContent)
+        .Produces<ApiErrorResponse>(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status404NotFound);
+
         return app;
     }
 }
