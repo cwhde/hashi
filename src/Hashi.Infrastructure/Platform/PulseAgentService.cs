@@ -9,6 +9,7 @@ using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
 using Hashi.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Hashi.Infrastructure.Platform;
@@ -26,7 +27,8 @@ public sealed class PulseAgentService(
     DnsConnectionService dns,
     AuditService audit,
     ConnectionTargetResolver targetResolver,
-    ILogger<PulseAgentService> logger)
+    ILogger<PulseAgentService> logger,
+    Microsoft.Extensions.DependencyInjection.IServiceScopeFactory? scopeFactory = null)
 {
     private static readonly TimeSpan HeartbeatTimestampSkew = TimeSpan.FromMinutes(5);
 
@@ -152,6 +154,25 @@ public sealed class PulseAgentService(
         {
             await targetResolver.RefreshTargetsForPulseAgentAsync(agent.Id, cancellationToken);
             await ApplyDnsForPulseChangeAsync(agent, cancellationToken);
+        }
+
+        if (scopeFactory is not null)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await CheckReachabilityAsync(agent.Id, internalIp, publicIp);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to run background reachability check for Pulse agent {AgentId}", agent.Id);
+                }
+            }, CancellationToken.None);
+        }
+        else
+        {
+            await CheckReachabilityAsync(agent.Id, internalIp, publicIp, db);
         }
 
         return PulseHeartbeatAcceptResult.Accepted;
@@ -414,4 +435,59 @@ public sealed class PulseAgentService(
         DnsChangeKind.Delete => ProviderResultKind.Deleted,
         _ => ProviderResultKind.NoOp,
     };
+
+    private async Task CheckReachabilityAsync(Guid agentId, string? privateIp, string? publicIp, HashiDbContext? localDb = null)
+    {
+        bool reachable = false;
+        if (!string.IsNullOrWhiteSpace(privateIp))
+        {
+            reachable = await TestTcpConnectionAsync(privateIp, 22, 1000);
+        }
+        if (!reachable && !string.IsNullOrWhiteSpace(publicIp))
+        {
+            reachable = await TestTcpConnectionAsync(publicIp, 22, 1000);
+        }
+
+        if (localDb is not null)
+        {
+            var agent = await localDb.PulseAgents.SingleOrDefaultAsync(x => x.Id == agentId);
+            if (agent is not null)
+            {
+                agent.Status = reachable ? "online" : "degraded";
+                await localDb.SaveChangesAsync();
+            }
+        }
+        else if (scopeFactory is not null)
+        {
+            using var scope = scopeFactory.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<HashiDbContext>();
+            var agent = await dbContext.PulseAgents.SingleOrDefaultAsync(x => x.Id == agentId);
+            if (agent is not null)
+            {
+                agent.Status = reachable ? "online" : "degraded";
+                await dbContext.SaveChangesAsync();
+            }
+        }
+    }
+
+    private static async Task<bool> TestTcpConnectionAsync(string ip, int port, int timeoutMs)
+    {
+        try
+        {
+            using var client = new System.Net.Sockets.TcpClient();
+            var connectTask = client.ConnectAsync(ip, port);
+            var delayTask = Task.Delay(timeoutMs);
+            var completedTask = await Task.WhenAny(connectTask, delayTask);
+            if (completedTask == connectTask)
+            {
+                await connectTask;
+                return client.Connected;
+            }
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 }

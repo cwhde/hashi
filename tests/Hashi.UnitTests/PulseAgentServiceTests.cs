@@ -275,6 +275,34 @@ public sealed class PulseAgentServiceTests
         Assert.Equal(PulseHeartbeatAcceptResult.InvalidScope, accepted);
     }
 
+    [Fact]
+    public async Task Heartbeat_sets_status_to_degraded_when_reachability_fails()
+    {
+        using var db = CreateDb();
+        var agentId = Guid.NewGuid();
+        db.PulseAgents.Add(new PulseAgentEntity
+        {
+            Id = agentId,
+            Name = "Agent",
+            TokenHash = HashToken("pulse-token"),
+            Status = "pending",
+            AllowedScopesJson = "[\"heartbeat\"]",
+            HeartbeatIntervalSeconds = 60,
+        });
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+        var accepted = await service.AcceptHeartbeatAsync(
+            agentId,
+            Heartbeat("pulse-token"),
+            "192.0.2.1");
+
+        Assert.Equal(PulseHeartbeatAcceptResult.Accepted, accepted);
+        
+        var agent = await db.PulseAgents.SingleAsync(x => x.Id == agentId);
+        Assert.Equal("degraded", agent.Status);
+    }
+
     private static PulseAgentService CreateService(
         HashiDbContext db,
         TestDnsProviderFactory? providerFactory = null,
