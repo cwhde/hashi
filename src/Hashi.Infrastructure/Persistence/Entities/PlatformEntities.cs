@@ -187,6 +187,12 @@ public sealed class MonitorEndpointEntity
 
     public string CheckType { get; set; } = "https";
 
+    public string? Group { get; set; }
+
+    public int? CheckIntervalSeconds { get; set; }
+
+    public int? TimeoutSeconds { get; set; }
+
     public bool Enabled { get; set; } = true;
 
     public bool PublicStatusEnabled { get; set; }
