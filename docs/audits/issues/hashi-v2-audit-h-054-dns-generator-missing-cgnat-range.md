@@ -4,8 +4,8 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Main Spec §15.4, §17.4
 
-**Status:** Not Started
-**Branch:** 
+**Status:** Fixed
+**Branch:** h/backend-quality
 
 ## Description
 

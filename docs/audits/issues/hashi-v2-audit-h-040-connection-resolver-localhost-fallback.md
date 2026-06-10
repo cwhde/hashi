@@ -4,8 +4,8 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Addendum §9.4, Main Spec §3 (Non-Negotiable #3: never writes provider state when validation fails)
 
-**Status:** Not Started
-**Branch:** 
+**Status:** Fixed
+**Branch:** h/backend-quality
 
 ## Description
 
