@@ -4,8 +4,8 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Addendum §9.2
 
-**Status:** Not Started
-**Branch:** 
+**Status:** Fixed
+**Branch:** h/spec-compliance-1
 
 ## Description
 
