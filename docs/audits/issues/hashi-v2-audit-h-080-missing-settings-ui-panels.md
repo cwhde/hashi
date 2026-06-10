@@ -4,8 +4,8 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §24
 
-**Status:** Not Started
-**Branch:** 
+**Status:** Fixed
+**Branch:** h/frontend-ui
 
 ## Description
 
@@ -28,6 +28,6 @@ All 10 spec-defined settings categories have dedicated UI panels with typed form
 
 ## Acceptance Criteria
 
-- [ ] Settings page shows all 10 spec-defined categories
-- [ ] Each category has typed form controls (not raw JSON)
-- [ ] Changes are persisted via the appropriate backend endpoints
+- [x] Settings page shows all 10 spec-defined categories
+- [x] Each category has typed form controls (not raw JSON)
+- [x] Changes are persisted via the appropriate backend endpoints
