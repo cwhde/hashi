@@ -511,7 +511,8 @@ public sealed record UpdateMonitorEndpointRequest(
     string? Url = null,
     string? CheckType = null,
     bool? Enabled = null,
-    bool? PublicStatusEnabled = null);
+    bool? PublicStatusEnabled = null,
+    bool? Paused = null);
 
 public sealed record PulseInstallResponse(string LinuxInstallScript, string DockerComposeSnippet);
 

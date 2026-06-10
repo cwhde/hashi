@@ -165,6 +165,18 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
             endpoint.PublicStatusEnabled = publicStatusEnabled;
         }
 
+        if (request.Paused is bool paused)
+        {
+            if (paused)
+            {
+                endpoint.Status = "paused";
+            }
+            else if (endpoint.Status == "paused")
+            {
+                endpoint.Status = "pending";
+            }
+        }
+
         await db.SaveChangesAsync(cancellationToken);
         return endpoint;
     }
