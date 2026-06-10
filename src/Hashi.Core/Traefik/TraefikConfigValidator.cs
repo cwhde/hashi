@@ -35,14 +35,14 @@ public static class TraefikConfigValidator
         }
 
         RequireMapping(root, "entryPoints", "Static config must define entryPoints.", errors);
-        if (!TryGetMapping(root, "providers", out var providers))
+        if (!YamlNavigationHelpers.TryGetMapping(root, "providers", out var providers))
         {
             errors.Add("Static config must define providers.");
             return;
         }
 
-        if (!TryGetMapping(providers, "file", out var fileProvider)
-            || !TryGetScalar(fileProvider, "directory", out var directory)
+        if (!YamlNavigationHelpers.TryGetMapping(providers, "file", out var fileProvider)
+            || !YamlNavigationHelpers.TryGetScalar(fileProvider, "directory", out var directory)
             || !string.Equals(directory, "/etc/hashi/traefik/dynamic", StringComparison.Ordinal))
         {
             errors.Add("Static config must point at Hashi dynamic directory.");
@@ -104,8 +104,8 @@ public static class TraefikConfigValidator
 
     private static void ValidateReplacePathRegex(string name, YamlMappingNode root, List<string> errors)
     {
-        if (!TryGetMapping(root, "http", out var http)
-            || !TryGetMapping(http, "middlewares", out var middlewares))
+        if (!YamlNavigationHelpers.TryGetMapping(root, "http", out var http)
+            || !YamlNavigationHelpers.TryGetMapping(http, "middlewares", out var middlewares))
         {
             return;
         }
@@ -113,18 +113,18 @@ public static class TraefikConfigValidator
         foreach (var (middlewareKey, middlewareNode) in middlewares.Children)
         {
             if (middlewareNode is not YamlMappingNode middleware
-                || !TryGetMapping(middleware, "replacePathRegex", out var replacePathRegex))
+                || !YamlNavigationHelpers.TryGetMapping(middleware, "replacePathRegex", out var replacePathRegex))
             {
                 continue;
             }
 
             var middlewareName = middlewareKey is YamlScalarNode scalar ? scalar.Value : middlewareKey.ToString();
-            if (!TryGetScalar(replacePathRegex, "regex", out var regex) || string.IsNullOrWhiteSpace(regex))
+            if (!YamlNavigationHelpers.TryGetScalar(replacePathRegex, "regex", out var regex) || string.IsNullOrWhiteSpace(regex))
             {
                 errors.Add($"Dynamic file '{name}' middleware '{middlewareName}' replacePathRegex must define regex.");
             }
 
-            if (!TryGetScalar(replacePathRegex, "replacement", out var replacement) || string.IsNullOrWhiteSpace(replacement))
+            if (!YamlNavigationHelpers.TryGetScalar(replacePathRegex, "replacement", out var replacement) || string.IsNullOrWhiteSpace(replacement))
             {
                 errors.Add($"Dynamic file '{name}' middleware '{middlewareName}' replacePathRegex must define replacement.");
             }
@@ -133,51 +133,12 @@ public static class TraefikConfigValidator
 
     private static void RequireMapping(YamlMappingNode node, string key, string message, List<string> errors)
     {
-        if (!TryGetMapping(node, key, out _))
+        if (!YamlNavigationHelpers.TryGetMapping(node, key, out _))
         {
             errors.Add(message);
         }
     }
 
     private static bool HasKey(YamlMappingNode node, string key)
-        => TryGetNode(node, key, out _);
-
-    private static bool TryGetMapping(YamlMappingNode node, string key, out YamlMappingNode mapping)
-    {
-        if (TryGetNode(node, key, out var value) && value is YamlMappingNode child)
-        {
-            mapping = child;
-            return true;
-        }
-
-        mapping = null!;
-        return false;
-    }
-
-    private static bool TryGetScalar(YamlMappingNode node, string key, out string? value)
-    {
-        if (TryGetNode(node, key, out var yamlNode) && yamlNode is YamlScalarNode scalar)
-        {
-            value = scalar.Value;
-            return true;
-        }
-
-        value = null;
-        return false;
-    }
-
-    private static bool TryGetNode(YamlMappingNode node, string key, out YamlNode value)
-    {
-        foreach (var (candidateKey, candidateValue) in node.Children)
-        {
-            if (candidateKey is YamlScalarNode scalar && string.Equals(scalar.Value, key, StringComparison.Ordinal))
-            {
-                value = candidateValue;
-                return true;
-            }
-        }
-
-        value = null!;
-        return false;
-    }
+        => YamlNavigationHelpers.TryGetNode(node, key, out _);
 }

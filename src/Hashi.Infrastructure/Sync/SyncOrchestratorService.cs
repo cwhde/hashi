@@ -319,29 +319,21 @@ public sealed class SyncOrchestratorService(
             return new SyncApplyResponse(Guid.Empty, false, SyncRunStatusNames.Failed, "Another apply is already in progress. Concurrent applies are rejected.");
         }
 
+        var run = await syncRuns.BeginRunAsync("global-apply", cancellationToken);
         try
         {
-            var run = await syncRuns.BeginRunAsync("global-apply", cancellationToken);
-            try
+            await syncRuns.AddStepAsync(run.Id, "pre-apply-validate", SyncRunStatusNames.Planning, null, cancellationToken);
+            var preRender = await traefik.RenderAsync(cancellationToken);
+            var preValidation = TraefikConfigValidator.ValidateRender(preRender);
+            if (!preValidation.IsValid)
             {
-<<<<<<< Updated upstream
-=======
-            var run = await syncRuns.BeginRunAsync("global-apply", cancellationToken);
-            try
-            {
-                await syncRuns.AddStepAsync(run.Id, "pre-apply-validate", SyncRunStatusNames.Planning, null, cancellationToken);
-                var traefikRender = await traefik.RenderAsync(cancellationToken);
-                var traefikValidation = TraefikConfigValidator.ValidateRender(traefikRender);
-                if (!traefikValidation.IsValid)
-                {
-                    var validationError = $"Plan has validation errors: {string.Join("; ", traefikValidation.Errors)}";
-                    await syncRuns.AddStepAsync(run.Id, "pre-apply-validate", SyncRunStatusNames.Failed, validationError, cancellationToken);
-                    await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Failed, SyncRiskLevel.High, validationError, cancellationToken);
-                    return new SyncApplyResponse(run.Id, false, SyncRunStatusNames.Failed, validationError);
-                }
-                await syncRuns.AddStepAsync(run.Id, "pre-apply-validate", SyncRunStatusNames.Succeeded, "Valid", cancellationToken);
+                var validationError = $"Plan has validation errors: {string.Join("; ", preValidation.Errors)}";
+                await syncRuns.AddStepAsync(run.Id, "pre-apply-validate", SyncRunStatusNames.Failed, validationError, cancellationToken);
+                await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Failed, SyncRiskLevel.High, validationError, cancellationToken);
+                return new SyncApplyResponse(run.Id, false, SyncRunStatusNames.Failed, validationError);
+            }
+            await syncRuns.AddStepAsync(run.Id, "pre-apply-validate", SyncRunStatusNames.Succeeded, "Valid", cancellationToken);
 
->>>>>>> Stashed changes
             var dnsConnections = await db.Connections
                 .Where(x => x.Type == ConnectionTypeNames.DnsProvider && x.Enabled)
                 .ToListAsync(cancellationToken);
@@ -351,6 +343,13 @@ public sealed class SyncOrchestratorService(
                 var plan = await dns.PlanSyncAsync(connection.Id, cancellationToken);
                 if (plan.RequiresConfirmation && !confirmDestructive)
                 {
+                    var safeChanges = plan.Changes.Where(x => x.Kind != Core.Dns.DnsChangeKind.NoOp && x.Kind != Core.Dns.DnsChangeKind.Delete).ToList();
+                    if (safeChanges.Count > 0)
+                    {
+                        await dns.ApplySafePlanAsync(plan, cancellationToken);
+                        await syncRuns.AddStepAsync(run.Id, $"dns-apply-{connection.Name}", SyncRunStatusNames.Succeeded, $"Applied {safeChanges.Count} safe changes; destructive pending.", cancellationToken);
+                        continue;
+                    }
                     await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.AwaitingConfirmation, SyncRiskLevel.Destructive, "Destructive DNS changes require confirmation.", cancellationToken);
                     return new SyncApplyResponse(run.Id, false, SyncRunStatusNames.AwaitingConfirmation, "Destructive DNS changes require confirmation.");
                 }
@@ -397,6 +396,13 @@ public sealed class SyncOrchestratorService(
             {
                 try
                 {
+                    var (_, hash) = await firewall.RenderForHostAsync(host.Id, cancellationToken);
+                    if (string.Equals(host.LastAppliedScriptHash, hash, StringComparison.Ordinal))
+                    {
+                        await syncRuns.AddStepAsync(run.Id, $"firewall-apply-{host.Name}", SyncRunStatusNames.Succeeded, "Skipped: unchanged", cancellationToken);
+                        continue;
+                    }
+
                     var result = await firewall.ApplyForHostAsync(host.Id, cancellationToken);
                     await syncRuns.AddStepAsync(
                         run.Id,
@@ -424,6 +430,18 @@ public sealed class SyncOrchestratorService(
                     cancellationToken: cancellationToken);
                 if (plan.RequiresConfirmation && !confirmDestructive)
                 {
+                    var nonDestructiveChanges = plan.Changes.Where(x => x.Kind != "delete").ToList();
+                    if (nonDestructiveChanges.Count > 0)
+                    {
+                        await adguard.ApplyPlanAsync(
+                            connection.Id,
+                            new AdGuardRewriteApplyRequest(plan.PlanId, ConfirmDestructive: true),
+                            updateTopologyDesiredState: true,
+                            updateInternalAgentDnsDesiredState: true,
+                            cancellationToken: cancellationToken);
+                        await syncRuns.AddStepAsync(run.Id, $"adguard-sync-{connection.Name}", SyncRunStatusNames.Succeeded, $"Applied {nonDestructiveChanges.Count} safe changes; destructive pending.", cancellationToken);
+                        continue;
+                    }
                     await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.AwaitingConfirmation, SyncRiskLevel.Destructive, "Destructive AdGuard changes require confirmation.", cancellationToken);
                     return new SyncApplyResponse(run.Id, false, SyncRunStatusNames.AwaitingConfirmation, "Destructive AdGuard changes require confirmation.");
                 }
@@ -451,6 +469,10 @@ public sealed class SyncOrchestratorService(
         {
             await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Failed, SyncRiskLevel.High, ex.Message, cancellationToken);
             return new SyncApplyResponse(run.Id, false, SyncRunStatusNames.Failed, ex.Message);
+        }
+        finally
+        {
+            ApplyLock.Release();
         }
     }
 

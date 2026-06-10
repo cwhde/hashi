@@ -10,6 +10,8 @@ public sealed class AppSettingsEntity
 
     public string? InternalUrl { get; set; }
 
+    public string InternalScheme { get; set; } = "http";
+
     public int DefaultSyncIntervalMinutes { get; set; } = 60;
 
     public bool PublicDashboardEnabled { get; set; } = true;

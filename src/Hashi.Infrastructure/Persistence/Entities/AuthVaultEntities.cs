@@ -6,6 +6,8 @@ public sealed class PasskeyCredentialEntity
 
     public byte[] CredentialId { get; set; } = [];
 
+    public string CredentialIdBase64 { get; set; } = string.Empty;
+
     public byte[] PublicKey { get; set; } = [];
 
     public uint SignCount { get; set; }

@@ -2,13 +2,13 @@ services:
   postgres:
     image: postgres:18
     environment:
-      POSTGRES_DB: hashi
-      POSTGRES_USER: hashi
-      POSTGRES_PASSWORD: hashi
+      POSTGRES_DB: ${POSTGRES_DB:-hashi}
+      POSTGRES_USER: ${POSTGRES_USER:-hashi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     volumes:
       - hashi_pg:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hashi -d hashi"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hashi} -d ${POSTGRES_DB:-hashi}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -28,7 +28,7 @@ services:
       Hashi__Ports__Admin: ${HASHI_ADMIN_PORT:-8080}
       Hashi__Ports__PublicDashboard: ${HASHI_PUBLIC_DASHBOARD_PORT:-8081}
       Hashi__Ports__PublicStatus: ${HASHI_PUBLIC_STATUS_PORT:-8082}
-      ConnectionStrings__Hashi: Host=postgres;Port=5432;Database=hashi;Username=hashi;Password=hashi
+      ConnectionStrings__Hashi: Host=postgres;Port=5432;Database=${POSTGRES_DB:-hashi};Username=${POSTGRES_USER:-hashi};Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       # 32-byte base64 key for unattended provider sync (generate: openssl rand -base64 32)
       HASHI_SERVICE_SYNC_VAULT_KEY: ${HASHI_SERVICE_SYNC_VAULT_KEY:-}
     volumes:
