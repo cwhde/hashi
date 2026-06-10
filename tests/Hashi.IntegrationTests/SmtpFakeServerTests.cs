@@ -31,7 +31,7 @@ public sealed class SmtpFakeServerTests : IAsyncLifetime
         _listener?.Stop();
         if (_cts is not null)
         {
-            await _cts.DisposeAsync();
+            _cts.Dispose();
         }
     }
 
@@ -78,12 +78,12 @@ public sealed class SmtpFakeServerTests : IAsyncLifetime
 
     private static async Task HandleClientAsync(TcpClient client, CancellationToken cancellationToken)
     {
-        await using var _ = client;
+        using var _ = client;
         await using var stream = client.GetStream();
         var reader = new StreamReader(stream, Encoding.ASCII);
         var writer = new StreamWriter(stream, Encoding.ASCII) { AutoFlush = true };
 
-        await writer.WriteLineAsync("220 localhost SMTP ready", cancellationToken);
+        await writer.WriteLineAsync("220 localhost SMTP ready");
 
         while (!cancellationToken.IsCancellationRequested && client.Connected)
         {
@@ -95,38 +95,38 @@ public sealed class SmtpFakeServerTests : IAsyncLifetime
 
             if (line.StartsWith("QUIT", StringComparison.OrdinalIgnoreCase))
             {
-                await writer.WriteLineAsync("221 Bye", cancellationToken);
+                await writer.WriteLineAsync("221 Bye");
                 break;
             }
 
             if (line.StartsWith("EHLO", StringComparison.OrdinalIgnoreCase)
                 || line.StartsWith("HELO", StringComparison.OrdinalIgnoreCase))
             {
-                await writer.WriteLineAsync("250-localhost", cancellationToken);
-                await writer.WriteLineAsync("250 SIZE", cancellationToken);
+                await writer.WriteLineAsync("250-localhost");
+                await writer.WriteLineAsync("250 SIZE");
             }
             else if (line.StartsWith("MAIL FROM", StringComparison.OrdinalIgnoreCase))
             {
-                await writer.WriteLineAsync("250 OK", cancellationToken);
+                await writer.WriteLineAsync("250 OK");
             }
             else if (line.StartsWith("RCPT TO", StringComparison.OrdinalIgnoreCase))
             {
-                await writer.WriteLineAsync("250 OK", cancellationToken);
+                await writer.WriteLineAsync("250 OK");
             }
             else if (line.StartsWith("DATA", StringComparison.OrdinalIgnoreCase))
             {
-                await writer.WriteLineAsync("354 Start mail input", cancellationToken);
+                await writer.WriteLineAsync("354 Start mail input");
                 var dataLine = await reader.ReadLineAsync(cancellationToken);
                 while (dataLine is not null && dataLine != ".")
                 {
                     dataLine = await reader.ReadLineAsync(cancellationToken);
                 }
 
-                await writer.WriteLineAsync("250 OK", cancellationToken);
+                await writer.WriteLineAsync("250 OK");
             }
             else
             {
-                await writer.WriteLineAsync("500 Command not recognized", cancellationToken);
+                await writer.WriteLineAsync("500 Command not recognized");
             }
         }
     }

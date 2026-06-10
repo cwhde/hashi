@@ -66,6 +66,12 @@ public sealed class ResourceEntity
 
     public string ExtraMiddlewaresJson { get; set; } = "[]";
 
+    public Guid? OidcProviderId { get; set; }
+
+    public OidcProviderEntity? OidcProvider { get; set; }
+
+    public bool ErrorHandlingEnabled { get; set; } = true;
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 
     public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;

@@ -54,6 +54,8 @@ public sealed class AppSettingsEntity
 
     public bool GeoIpEnabled { get; set; }
 
+    public bool ErrorHandlingEnabled { get; set; } = true;
+
     public string? GeoIpAccountId { get; set; }
 
     public Guid? GeoIpLicenseKeySecretId { get; set; }

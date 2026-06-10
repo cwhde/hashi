@@ -1,6 +1,8 @@
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
 using Hashi.Infrastructure.Services;
+using Hashi.Infrastructure.Platform;
+using Hashi.Core.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
@@ -38,7 +40,7 @@ public sealed class StatusRollupTests
                 Url = "https://disabled.example.com/",
                 CheckType = "https",
                 Enabled = false,
-                PublicStatusEnabled: true,
+                PublicStatusEnabled = true,
                 Status = "down",
             });
         await db.SaveChangesAsync();

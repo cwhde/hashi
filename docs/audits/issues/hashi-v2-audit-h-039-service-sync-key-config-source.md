@@ -4,8 +4,8 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Main Spec §8, Non-Negotiable Rule Set §3 (#29 never commit real secrets)
 
-**Status:** Not Started
-**Branch:** 
+**Status:** Fixed
+**Branch:** h/security-1
 
 ## Description
 

@@ -103,7 +103,7 @@ public sealed class TraefikConfigValidationTests : IAsyncLifetime
 
         var render = await response.Content.ReadFromJsonAsync<TraefikRenderResponse>();
         Assert.NotNull(render);
-        Assert.NotNull(render.DynamicUserMiddlewaresYaml);
+        Assert.NotNull(render.DynamicFiles?.UserMiddlewaresYaml);
     }
 
     private sealed record CsrfToken(string? Token);

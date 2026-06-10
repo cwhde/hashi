@@ -249,8 +249,8 @@ public static class DnsDesiredStateBuilder
         {
             foreach (var candidate in candidates.Where(c => !string.IsNullOrWhiteSpace(c)))
             {
-                if (DnsRecordGenerator.IpMatchesSubnet(candidate!, host.ManagedSubnets)
-                    || DnsRecordGenerator.IpMatchesSubnet(candidate!, host.NetBirdRoutedCidrs))
+                if ((host.ManagedSubnets?.Any(subnet => DnsRecordGenerator.IpMatchesSubnet(candidate!, subnet)) ?? false)
+                    || (host.NetBirdRoutedCidrs?.Any(cidr => DnsRecordGenerator.IpMatchesSubnet(candidate!, cidr)) ?? false))
                 {
                     resource.DetectedFirewallHostId = host.Id;
                     return;

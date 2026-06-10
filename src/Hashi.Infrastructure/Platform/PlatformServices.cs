@@ -67,6 +67,8 @@ public sealed class ResourceService(
             WafMode = request.WafMode ?? "detect_only",
             ExtraMiddlewaresJson = SerializeExtraMiddlewares(request.ExtraMiddlewares),
             WafExclusionsJson = SerializeWafExclusions(request.WafExclusions),
+            OidcProviderId = request.OidcProviderId,
+            ErrorHandlingEnabled = request.ErrorHandlingEnabled ?? true,
         };
         db.Resources.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
@@ -194,6 +196,20 @@ public sealed class ResourceService(
         else if (request.PulseAgentId is Guid pulseAgentId)
         {
             entity.PulseAgentId = pulseAgentId;
+        }
+
+        if (request.ClearOidcProviderId)
+        {
+            entity.OidcProviderId = null;
+        }
+        else if (request.OidcProviderId is Guid oidcProviderId)
+        {
+            entity.OidcProviderId = oidcProviderId;
+        }
+
+        if (request.ErrorHandlingEnabled is bool errorHandlingEnabled)
+        {
+            entity.ErrorHandlingEnabled = errorHandlingEnabled;
         }
 
         if (request.ClearPathPrefix)
@@ -350,7 +366,9 @@ public sealed class ResourceService(
             TraefikUserMiddlewareService.ParseExtraMiddlewares(entity.ExtraMiddlewaresJson),
             routes.Select(ToRouteResponse).ToList(),
             rules.Select(ToRuleResponse).ToList(),
-            ParseWafExclusions(entity.WafExclusionsJson));
+            ParseWafExclusions(entity.WafExclusionsJson),
+            entity.OidcProviderId,
+            entity.ErrorHandlingEnabled);
     }
 
     public static ResourceRouteResponse ToRouteResponse(ResourceRouteEntity entity) => new(
@@ -750,7 +768,8 @@ public sealed class ResourceService(
                 entity.DomainMode,
                 entity.PathRewriteMode,
                 entity.TcpProxyProtocolEnabled,
-                entity.MonitoringProtocolHint);
+                entity.MonitoringProtocolHint,
+                entity.ErrorHandlingEnabled);
         }).ToList();
     }
 
@@ -817,6 +836,8 @@ public sealed class TraefikPlatformService(
             AdminDomain = appSettings.AdminDomain ?? "hashi.local",
             HashiForwardAuthUrl = internalUrls.ResolveUrl(appSettings, "/api/edge-auth/forward"),
             HashiHealthUrl = internalUrls.ResolveUrl(appSettings, "/api/health"),
+            HashiErrorUrl = internalUrls.ResolveUrl(appSettings, "/api/error"),
+            ErrorHandlingEnabled = appSettings.ErrorHandlingEnabled,
             ConfirmedStreamPorts = confirmedPorts,
         };
         var userYaml = await userMiddlewares.GetAppliedYamlAsync(cancellationToken);

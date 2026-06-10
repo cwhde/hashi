@@ -30,7 +30,7 @@ public sealed class ConnectionTargetResolverTests
         var resolved = await resolver.ResolveAsync(hostTarget);
 
         Assert.Equal(ConnectionTargetStatusNames.Resolved, resolved.Status);
-        Assert.Equal("https://adguard.home:30443/dns", resolved.BaseUri.ToString().TrimEnd('/'));
+        Assert.Equal("https://adguard.home:30443/dns", resolved.BaseUri?.ToString().TrimEnd('/'));
         Assert.Equal("adguard.home", hostTarget.ResolvedIpSnapshot);
     }
 

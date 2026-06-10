@@ -699,17 +699,6 @@ public sealed class SecurityDecisionService(
     private static bool IsRateLimited(SecuritySubjectStateEntity state, SecuritySubjectEntity subject, DateTimeOffset now)
         => state.RateLimitedUntilUtc is not null && state.RateLimitedUntilUtc > now;
 
-<<<<<<< HEAD
-    private static bool IsRateLimited(SecuritySubjectStateEntity state, SecuritySubjectEntity subject, DateTimeOffset now)
-    {
-        if (state.RateLimitedUntilUtc is not null && state.RateLimitedUntilUtc > now)
-        {
-            return true;
-        }
-
-
-=======
->>>>>>> h/backend-quality
     private SecurityDecisionResult RateLimited(
         string reason,
         Guid? resourceId,

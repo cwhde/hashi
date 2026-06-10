@@ -147,6 +147,20 @@ public static class FirewallScriptRenderer
             : "\"${PUBLIC_IP:-$(ip -4 addr show dev \"$WAN_IF\" | awk '/inet / {print $2}' | cut -d/ -f1 | head -1)}\"";
         var rollbackTimer = host.RollbackTimerSeconds;
 
+        var netbirdChainCreation = host.NetBirdEnabled
+            ? """
+              iptables -N HASHI_NETBIRD 2>/dev/null || iptables -F HASHI_NETBIRD
+              ip6tables -N HASHI_NETBIRD 2>/dev/null || ip6tables -F HASHI_NETBIRD
+              """
+            : "";
+
+        var netbirdForwardJump = host.NetBirdEnabled
+            ? """
+              iptables -C HASHI_FWD -j HASHI_NETBIRD 2>/dev/null || iptables -I HASHI_FWD 1 -j HASHI_NETBIRD
+              ip6tables -C HASHI_FWD -j HASHI_NETBIRD 2>/dev/null || ip6tables -I HASHI_FWD 1 -j HASHI_NETBIRD
+              """
+            : "";
+
         return $$"""
             #!/bin/bash
             # Hashi-managed firewall script for {{ShellEscape(host.Name)}} (spec section 14)
@@ -218,25 +232,23 @@ public static class FirewallScriptRenderer
             iptables -N HASHI_DNAT 2>/dev/null || iptables -F HASHI_DNAT
             iptables -N HASHI_FWD 2>/dev/null || iptables -F HASHI_FWD
             iptables -N HASHI_POSTROUTING 2>/dev/null || iptables -F HASHI_POSTROUTING
-            iptables -N HASHI_NETBIRD 2>/dev/null || iptables -F HASHI_NETBIRD
+            {{netbirdChainCreation}}
 
             ip6tables -N HASHI_INPUT 2>/dev/null || ip6tables -F HASHI_INPUT
             ip6tables -N HASHI_DNAT 2>/dev/null || ip6tables -F HASHI_DNAT
             ip6tables -N HASHI_FWD 2>/dev/null || ip6tables -F HASHI_FWD
             ip6tables -N HASHI_POSTROUTING 2>/dev/null || ip6tables -F HASHI_POSTROUTING
-            ip6tables -N HASHI_NETBIRD 2>/dev/null || ip6tables -F HASHI_NETBIRD
 
             iptables -C INPUT -j HASHI_INPUT 2>/dev/null || iptables -I INPUT 1 -j HASHI_INPUT
             iptables -C FORWARD -j HASHI_FWD 2>/dev/null || iptables -I FORWARD 1 -j HASHI_FWD
             iptables -t nat -C PREROUTING -j HASHI_DNAT 2>/dev/null || iptables -t nat -I PREROUTING 1 -j HASHI_DNAT
             iptables -t nat -C POSTROUTING -j HASHI_POSTROUTING 2>/dev/null || iptables -t nat -I POSTROUTING 1 -j HASHI_POSTROUTING
-            iptables -C HASHI_FWD -j HASHI_NETBIRD 2>/dev/null || iptables -I HASHI_FWD 1 -j HASHI_NETBIRD
+            {{netbirdForwardJump}}
 
             ip6tables -C INPUT -j HASHI_INPUT 2>/dev/null || ip6tables -I INPUT 1 -j HASHI_INPUT
             ip6tables -C FORWARD -j HASHI_FWD 2>/dev/null || ip6tables -I FORWARD 1 -j HASHI_FWD
             ip6tables -t nat -C PREROUTING -j HASHI_DNAT 2>/dev/null || ip6tables -t nat -I PREROUTING 1 -j HASHI_DNAT
             ip6tables -t nat -C POSTROUTING -j HASHI_POSTROUTING 2>/dev/null || ip6tables -t nat -I POSTROUTING 1 -j HASHI_POSTROUTING
-            ip6tables -C HASHI_FWD -j HASHI_NETBIRD 2>/dev/null || ip6tables -I HASHI_FWD 1 -j HASHI_NETBIRD
 
             iptables -A HASHI_INPUT -i lo -j ACCEPT
             iptables -A HASHI_INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT

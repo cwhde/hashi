@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Hashi.IntegrationTests.Fakes;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Hashi.IntegrationTests;
@@ -38,7 +39,9 @@ public sealed class AdGuardIntegrationTests : IAsyncLifetime
             });
         _client = _factory.CreateClient(IntegrationTestApp.HttpsClientOptions());
         await IntegrationTestAuth.EnsureBootstrapCredentialsAsync(_factory.Services);
-        await IntegrationTestAuth.AuthenticateAsBootstrapAsync(_client);
+        var sessionId = Guid.NewGuid().ToString("N");
+        IntegrationTestAuth.AuthenticateAsAdminSession(_client, _factory.Services, sessionId, unlockVault: true);
+        IntegrationTestAuth.MarkRecentReauthentication(_factory.Services, sessionId);
     }
 
     public async Task DisposeAsync()
@@ -59,7 +62,7 @@ public sealed class AdGuardIntegrationTests : IAsyncLifetime
         }
 
         var csrf = await _client.GetFromJsonAsync<CsrfToken>("/api/auth/csrf");
-        var request = new HttpRequestMessage(HttpMethod.Post, "/api/connections/adguard")
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/adguard/connections")
         {
             Content = JsonContent.Create(new
             {

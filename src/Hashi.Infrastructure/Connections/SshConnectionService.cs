@@ -55,7 +55,7 @@ public sealed class SshConnectionService(
 
             connection.SettingsJson = SerializeSettings(settings with
             {
-                Host = resolved.ResolvedHost,
+                Host = resolved.ResolvedHost ?? string.Empty,
                 Port = target.Port,
             }, authMode);
             target.ResolvedIpSnapshot = resolved.ResolvedIp;

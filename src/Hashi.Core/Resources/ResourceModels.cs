@@ -227,7 +227,8 @@ public sealed record ResourceDefinition(
     string DomainMode = ResourceDomainModeNames.Custom,
     string? PathRewriteMode = null,
     bool? TcpProxyProtocolEnabled = null,
-    string? MonitoringProtocolHint = null)
+    string? MonitoringProtocolHint = null,
+    bool ErrorHandlingEnabled = true)
 {
     public int EffectivePublicPort => PublicPort ?? TargetPort;
 }

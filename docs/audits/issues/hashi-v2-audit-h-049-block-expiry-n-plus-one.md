@@ -4,8 +4,8 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Main Spec §4, Addendum §13.3
 
-**Status:** Not Started
-**Branch:** 
+**Status:** Fixed
+**Branch:** h/security-2
 
 ## Description
 

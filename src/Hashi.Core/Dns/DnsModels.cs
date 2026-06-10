@@ -101,7 +101,7 @@ public static class DnsSafetyRules
             };
         }
 
-        return change;
+        return null;
     }
 }
 

@@ -380,7 +380,7 @@ public sealed class ConnectionTargetResolver(HashiDbContext db, AuditService aud
             {
                 connection.SettingsJson = ApplyResolvedSshTarget(
                     connection.SettingsJson,
-                    resolved.ResolvedHost,
+                    resolved.ResolvedHost ?? string.Empty,
                     tracked.Port);
                 connection.UpdatedAtUtc = DateTimeOffset.UtcNow;
             }

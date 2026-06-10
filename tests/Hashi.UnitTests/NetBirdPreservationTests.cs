@@ -151,7 +151,7 @@ public sealed class NetBirdPreservationTests
             "203.0.113.5",
             NetBirdInterface: "netbird0"));
 
-        Assert.Contains("HASHI_NETBIRD_IF=netbird0", env);
+        Assert.Contains("HASHI_NETBIRD_IF='netbird0'", env);
     }
 
     [Fact]

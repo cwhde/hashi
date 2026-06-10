@@ -3,6 +3,9 @@ using Hashi.Core.Resources;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
 using Hashi.Infrastructure.Platform;
+using Hashi.Infrastructure.Auth;
+using Hashi.Infrastructure.Services;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
@@ -37,7 +40,7 @@ public sealed class ResourceRuleEvaluationTests
             matchType switch
             {
                 ResourceRuleMatchTypeNames.Ip => requestValue,
-                ResourceRuleMatchTypeNames.Cidr => "10.0.0.1",
+                ResourceRuleMatchTypeNames.Cidr => requestValue,
                 _ => "203.0.113.10",
             },
             "app.example.com",
@@ -60,11 +63,11 @@ public sealed class ResourceRuleEvaluationTests
         if (shouldMatch)
         {
             Assert.Equal(SecurityDecisionActionNames.AllowUpstream, result.Action);
-            Assert.Contains("resource_rule", result.Explanation.Select(x => x.Source));
+            Assert.Contains("resource_rule", result.Explanation.Select(x => x.Step));
         }
         else
         {
-            Assert.NotEqual("resource_rule", result.Explanation.FirstOrDefault()?.Source);
+            Assert.NotEqual("resource_rule", result.Explanation.FirstOrDefault()?.Step);
         }
     }
 

@@ -12,9 +12,17 @@ public sealed class ServiceSyncVaultBootstrapper(
 {
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        var configured = configuration["Hashi:ServiceSyncVaultKey"]
-            ?? configuration["HASHI_SERVICE_SYNC_VAULT_KEY"]
-            ?? Environment.GetEnvironmentVariable("HASHI_SERVICE_SYNC_VAULT_KEY");
+        var configured = Environment.GetEnvironmentVariable("HASHI_SERVICE_SYNC_VAULT_KEY");
+
+        var fileConfigKey = configuration["Hashi:ServiceSyncVaultKey"];
+        if (!string.IsNullOrEmpty(fileConfigKey))
+        {
+            logger.LogWarning("Service-sync vault key should not be configured in file-based settings (e.g., appsettings.json) to prevent leakage in source control.");
+            if (string.IsNullOrEmpty(configured))
+            {
+                configured = fileConfigKey;
+            }
+        }
 
         if (string.IsNullOrWhiteSpace(configured))
         {

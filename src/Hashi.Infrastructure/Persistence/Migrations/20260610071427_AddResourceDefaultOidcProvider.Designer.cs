@@ -3,6 +3,7 @@ using System;
 using Hashi.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Hashi.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(HashiDbContext))]
-    partial class HashiDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260610071427_AddResourceDefaultOidcProvider")]
+    partial class AddResourceDefaultOidcProvider
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -225,9 +228,6 @@ namespace Hashi.Infrastructure.Persistence.Migrations
 
                     b.Property<int>("EdgeSsoSessionHours")
                         .HasColumnType("integer");
-
-                    b.Property<bool>("ErrorHandlingEnabled")
-                        .HasColumnType("boolean");
 
                     b.Property<string>("GeoIpAccountId")
                         .HasMaxLength(128)
@@ -2412,9 +2412,6 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .HasDefaultValue("custom");
 
                     b.Property<bool>("Enabled")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("ErrorHandlingEnabled")
                         .HasColumnType("boolean");
 
                     b.Property<string>("ExtraMiddlewaresJson")

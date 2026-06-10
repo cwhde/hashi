@@ -483,12 +483,33 @@ public static class EdgeAuthEndpoints
             string? returnUrl,
             bool? rememberMe,
             OidcEdgeAuthService oidc,
+            HashiDbContext db,
             CancellationToken ct) =>
         {
             var providers = await oidc.ListProvidersAsync(ct);
-            var provider = providerId is Guid id
-                ? providers.FirstOrDefault(x => x.Id == id)
-                : providers.FirstOrDefault();
+            OidcProviderEntity? provider = null;
+
+            if (providerId is Guid id)
+            {
+                provider = providers.FirstOrDefault(x => x.Id == id);
+            }
+            else
+            {
+                if (!string.IsNullOrEmpty(returnUrl) && Uri.TryCreate(returnUrl, UriKind.Absolute, out var uri))
+                {
+                    var host = uri.Host.ToLowerInvariant();
+                    var resource = await db.Resources.AsNoTracking()
+                        .FirstOrDefaultAsync(x => x.Enabled && x.Domain != null && x.Domain.ToLower() == host, ct);
+                    if (resource?.OidcProviderId is not null)
+                    {
+                        provider = providers.FirstOrDefault(x => x.Id == resource.OidcProviderId.Value);
+                    }
+                }
+
+                provider ??= providers.FirstOrDefault(x => x.IsDefault);
+                provider ??= providers.FirstOrDefault();
+            }
+
             if (provider is null)
             {
                 return TypedResults.BadRequest(new ApiErrorResponse("No enabled OIDC provider configured."));

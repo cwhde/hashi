@@ -261,6 +261,7 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
                 endpoint.Name,
                 status,
                 endpoint.LastLatencyMs,
+                endpoint.LastCheckedAtUtc,
                 strip);
         }).ToList();
     }

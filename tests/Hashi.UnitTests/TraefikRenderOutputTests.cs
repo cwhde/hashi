@@ -28,8 +28,8 @@ public sealed class TraefikRenderOutputTests
         var traefik = TestPlatformHelpers.CreateTraefikPlatform(db);
         var render = await traefik.RenderAsync();
 
-        Assert.Contains("web.example.com", render.DynamicHttpYaml);
-        Assert.Contains("10.0.0.10", render.DynamicHttpYaml);
+        Assert.Contains("web.example.com", render.DynamicFiles.HttpResourcesYaml);
+        Assert.Contains("10.0.0.10", render.DynamicFiles.HttpResourcesYaml);
     }
 
     [Fact]
@@ -52,7 +52,7 @@ public sealed class TraefikRenderOutputTests
         var traefik = TestPlatformHelpers.CreateTraefikPlatform(db);
         var render = await traefik.RenderAsync();
 
-        Assert.Contains("5432", render.DynamicStreamYaml);
+        Assert.Contains("5432", render.DynamicFiles.StreamResourcesYaml);
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public sealed class TraefikRenderOutputTests
         var traefik = TestPlatformHelpers.CreateTraefikPlatform(db);
         var render = await traefik.RenderAsync();
 
-        Assert.Contains("51820", render.DynamicStreamYaml);
+        Assert.Contains("51820", render.DynamicFiles.StreamResourcesYaml);
     }
 
     [Fact]
@@ -98,7 +98,7 @@ public sealed class TraefikRenderOutputTests
         var traefik = TestPlatformHelpers.CreateTraefikPlatform(db);
         var render = await traefik.RenderAsync();
 
-        Assert.DoesNotContain("disabled.example.com", render.DynamicHttpYaml);
+        Assert.DoesNotContain("disabled.example.com", render.DynamicFiles.HttpResourcesYaml);
     }
 
     [Fact]
@@ -138,7 +138,7 @@ public sealed class TraefikRenderOutputTests
         var traefik = TestPlatformHelpers.CreateTraefikPlatform(db);
         var render = await traefik.RenderAsync();
 
-        Assert.Contains("rate-limit", render.DynamicUserMiddlewaresYaml);
+        Assert.Contains("rate-limit", render.DynamicFiles.UserMiddlewaresYaml);
     }
 
     [Fact]
@@ -166,7 +166,7 @@ public sealed class TraefikRenderOutputTests
         var traefik = TestPlatformHelpers.CreateTraefikPlatform(db);
         var render = await traefik.RenderAsync();
 
-        Assert.Contains("health", render.DynamicHealthYaml, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("health", render.DynamicFiles.HealthYaml, StringComparison.OrdinalIgnoreCase);
     }
 
     private static HashiDbContext CreateDb()

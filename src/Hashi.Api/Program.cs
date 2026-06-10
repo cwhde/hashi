@@ -1,4 +1,5 @@
 using Hashi.Api.Features.Auth;
+using Hashi.Api.Features.Platform;
 using Hashi.Api.Features.Connections;
 using Hashi.Api.Features.Dns;
 using Hashi.Api.Features.Resources;
@@ -123,6 +124,7 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 
 app.MapHealthEndpoints();
+app.MapErrorEndpoints();
 app.MapSetupEndpoints();
 app.MapSetupAdvanceEndpoints();
 app.MapSetupCompletionEndpoints();

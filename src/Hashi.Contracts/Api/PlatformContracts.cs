@@ -28,7 +28,9 @@ public sealed record ResourceResponse(
     IReadOnlyList<string> ExtraMiddlewares,
     IReadOnlyList<ResourceRouteResponse> Routes,
     IReadOnlyList<ResourceRuleResponse> Rules,
-    IReadOnlyList<string> WafExclusions);
+    IReadOnlyList<string> WafExclusions,
+    Guid? OidcProviderId = null,
+    bool ErrorHandlingEnabled = true);
 
 public sealed record ResourceRouteResponse(
     Guid Id,
@@ -93,7 +95,9 @@ public sealed record CreateResourceRequest(
     IReadOnlyList<ResourceRuleRequest>? Rules = null,
     IReadOnlyList<string>? WafExclusions = null,
     string? DomainMode = null,
-    string? PathRewriteMode = null);
+    string? PathRewriteMode = null,
+    Guid? OidcProviderId = null,
+    bool? ErrorHandlingEnabled = null);
 
 public sealed record UpdateResourceRequest(
     string? Name,
@@ -128,7 +132,10 @@ public sealed record UpdateResourceRequest(
     IReadOnlyList<ResourceRouteRequest>? Routes = null,
     IReadOnlyList<ResourceRuleRequest>? Rules = null,
     IReadOnlyList<string>? WafExclusions = null,
-    bool ClearWafExclusions = false);
+    bool ClearWafExclusions = false,
+    Guid? OidcProviderId = null,
+    bool ClearOidcProviderId = false,
+    bool? ErrorHandlingEnabled = null);
 
 public sealed record TraefikDynamicFilesResponse(
     string CoreYaml,
@@ -347,6 +354,7 @@ public sealed record PublicStatusItemResponse(
     string Name,
     string Status,
     int? LastLatencyMs,
+    DateTimeOffset? LastCheckedAtUtc,
     IReadOnlyList<PublicStatusStripBucket> RecentStrip);
 
 public sealed record PublicStatusSummaryResponse(
@@ -411,7 +419,8 @@ public sealed record OidcProviderResponse(
     string Issuer,
     string ClientId,
     string Scopes,
-    bool Enabled);
+    bool Enabled,
+    bool IsDefault);
 
 public sealed record CreateOidcProviderRequest(
     string Name,
@@ -419,7 +428,8 @@ public sealed record CreateOidcProviderRequest(
     string ClientId,
     string ClientSecret,
     string? Scopes,
-    bool Enabled);
+    bool Enabled,
+    bool IsDefault = false);
 
 public sealed record UpdateOidcProviderRequest(
     string? Name,
@@ -427,7 +437,8 @@ public sealed record UpdateOidcProviderRequest(
     string? ClientId,
     string? ClientSecret,
     string? Scopes,
-    bool? Enabled);
+    bool? Enabled,
+    bool? IsDefault = null);
 
 public sealed record EdgeAuthRuleResponse(
     Guid Id,

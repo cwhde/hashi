@@ -3,6 +3,7 @@ using System;
 using Hashi.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Hashi.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(HashiDbContext))]
-    partial class HashiDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260610065242_FixPendingModelChanges")]
+    partial class FixPendingModelChanges
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -225,9 +228,6 @@ namespace Hashi.Infrastructure.Persistence.Migrations
 
                     b.Property<int>("EdgeSsoSessionHours")
                         .HasColumnType("integer");
-
-                    b.Property<bool>("ErrorHandlingEnabled")
-                        .HasColumnType("boolean");
 
                     b.Property<string>("GeoIpAccountId")
                         .HasMaxLength(128)
@@ -2176,9 +2176,6 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.Property<bool>("Enabled")
                         .HasColumnType("boolean");
 
-                    b.Property<bool>("IsDefault")
-                        .HasColumnType("boolean");
-
                     b.Property<string>("Issuer")
                         .IsRequired()
                         .HasColumnType("text");
@@ -2414,9 +2411,6 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.Property<bool>("Enabled")
                         .HasColumnType("boolean");
 
-                    b.Property<bool>("ErrorHandlingEnabled")
-                        .HasColumnType("boolean");
-
                     b.Property<string>("ExtraMiddlewaresJson")
                         .IsRequired()
                         .HasColumnType("text");
@@ -2451,9 +2445,6 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
-
-                    b.Property<Guid?>("OidcProviderId")
-                        .HasColumnType("uuid");
 
                     b.Property<string>("Ownership")
                         .IsRequired()
@@ -2524,8 +2515,6 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(32)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("OidcProviderId");
 
                     b.HasIndex("Slug")
                         .IsUnique();
@@ -3956,16 +3945,6 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("PulseAgent");
-                });
-
-            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.ResourceEntity", b =>
-                {
-                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.OidcProviderEntity", "OidcProvider")
-                        .WithMany()
-                        .HasForeignKey("OidcProviderId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("OidcProvider");
                 });
 
             modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.ResourcePortEntity", b =>

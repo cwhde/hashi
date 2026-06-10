@@ -1,7 +1,107 @@
 # Audit Series H — Work Status Document
 
-**Date:** $(date +%Y-%m-%d)
+**Last Updated:** 2026-06-10 (session 2)
 **Branch:** audit-series-h (from main e93b64f)
+**Active Subagent quota exhausted (429 rate limit) — session stopped mid-work**
+
+---
+
+## ⚠️ CURRENT STATE — READ FIRST
+
+The session was interrupted by quota limits. Work was **in progress** on this branch.
+The following changes are **staged locally but NOT yet committed** and must be committed on resume.
+
+### Uncommitted Changes on `audit-series-h` (as of 2026-06-10 ~09:30 CEST)
+
+All these files are modified but uncommitted:
+
+#### Issue Fixes (WIP/Done — need commit):
+| File | What Changed | Issue |
+|------|-------------|-------|
+| `docs/audits/issues/hashi-v2-audit-h-039-*.md` | Status updated to Fixed | H-039 |
+| `docs/audits/issues/hashi-v2-audit-h-049-*.md` | Status updated to Fixed | H-049 |
+| `src/Hashi.Infrastructure/Auth/ServiceSyncVaultBootstrapper.cs` | Read key from env var only, warn if in appsettings.json | H-039 |
+| `src/Hashi.Infrastructure/Platform/SecurityAddendumJobWorker.cs` | N+1 fix: single batch query + in-memory lookup (ToUpperInvariant for case-insensitive tuple match) | H-049 |
+
+#### H-068: Default Per-Resource OIDC Provider (partially done — need commit + migration):
+| File | What Changed |
+|------|-------------|
+| `src/Hashi.Infrastructure/Persistence/Entities/ExtendedPlatformEntities.cs` | Added `IsDefault bool` to `OidcProviderEntity` |
+| `src/Hashi.Infrastructure/Persistence/Entities/PlatformEntities.cs` | Added `OidcProviderId Guid?` + `OidcProvider` nav prop to `ResourceEntity`, also `ErrorHandlingEnabled bool = true` |
+| `src/Hashi.Infrastructure/Persistence/HashiDbContext.cs` | FK config for `OidcProvider` on `ResourceEntity` with `OnDelete.SetNull` |
+| `src/Hashi.Infrastructure/Platform/OidcProviderAdminService.cs` | `IsDefault` handling: `ClearOtherDefaultsAsync` on create/update |
+| `src/Hashi.Infrastructure/Platform/PlatformServices.cs` | Maps `OidcProviderId`, `ErrorHandlingEnabled` to response/definition; UpdateAsync handles `ClearOidcProviderId` + `ErrorHandlingEnabled` |
+| `src/Hashi.Contracts/Api/PlatformContracts.cs` | `ResourceResponse`, `CreateResourceRequest`, `UpdateResourceRequest` all updated with `OidcProviderId` and `ErrorHandlingEnabled` |
+| `src/Hashi.Api/Features/Platform/PlatformEndpoints.cs` | Updated to handle OIDC default provider resolution |
+| `src/Hashi.Api/Features/Platform/ErrorEndpoints.cs` | **NEW FILE** — `/api/error/{status}` endpoint serving styled 5xx HTML error pages |
+| `src/Hashi.Api/Hosting/AdminApiAuthMiddleware.cs` | Whitelisted `/api/error/` prefix from auth |
+| `src/Hashi.Api/Program.cs` | Registered `MapErrorEndpoints()` |
+| `src/Hashi.Core/Resources/ResourceModels.cs` | Added `ErrorHandlingEnabled` to `ResourceDefinition` |
+| `src/Hashi.Core/Traefik/TraefikConfigRenderer.cs` | Added `hashi-errors` middleware + service in `RenderCoreMiddlewares` (conditional on `ErrorHandlingEnabled`); added `HashiErrorUrl`, `ErrorHandlingEnabled` to `TraefikRenderOptions` |
+| `src/Hashi.Infrastructure/Persistence/Entities/CoreEntities.cs` | Added `ErrorHandlingEnabled bool = true` to `AppSettingsEntity` |
+
+#### Other Infrastructure Fixes (uncommitted):
+| File | What Changed | Issue |
+|------|-------------|-------|
+| `src/Hashi.Core/Dns/DnsModels.cs` | Various DNS model fixes | Multiple |
+| `src/Hashi.Core/Firewall/FirewallScriptRenderer.cs` | Firewall script renderer changes | Multiple |
+| `src/Hashi.Infrastructure/Connections/SshConnectionService.cs` | SSH connection fixes | Multiple |
+| `src/Hashi.Infrastructure/Crypto/KeyDerivation.cs` | Key derivation changes | Multiple |
+| `src/Hashi.Infrastructure/Dns/DnsDesiredStateBuilder.cs` | DNS desired state builder | Multiple |
+| `src/Hashi.Infrastructure/Platform/CaptchaChallengeService.cs` | Captcha challenge fixes | Multiple |
+| `src/Hashi.Infrastructure/Platform/ConnectionTargetResolver.cs` | Connection resolver fixes | Multiple |
+| `src/Hashi.Infrastructure/Platform/MonitoringService.cs` | Monitoring service updates | Multiple |
+| `src/Hashi.Infrastructure/Platform/SecurityDecisionService.cs` | Security decision fixes (also has merge conflict markers partially cleaned) | Multiple |
+| `tests/Hashi.IntegrationTests/AdGuardIntegrationTests.cs` | AdGuard integration test fixes | Multiple |
+| `tests/Hashi.IntegrationTests/SmtpFakeServerTests.cs` | SMTP test fixes | Multiple |
+| `tests/Hashi.IntegrationTests/TraefikConfigValidationTests.cs` | Traefik config validation tests | Multiple |
+| `tests/Hashi.UnitTests/ConnectionTargetResolverTests.cs` | Connection resolver unit tests | Multiple |
+| `tests/Hashi.UnitTests/HighRiskSyncPlanApprovalTests.cs` | Sync plan approval tests | Multiple |
+| `tests/Hashi.UnitTests/NetBirdPreservationTests.cs` | NetBird preservation tests | Multiple |
+| `tests/Hashi.UnitTests/ResourceRuleEvaluationTests.cs` | Resource rule tests | Multiple |
+| `tests/Hashi.UnitTests/StatusRollupTests.cs` | Status rollup tests | Multiple |
+| `tests/Hashi.UnitTests/TraefikRenderOutputTests.cs` | Traefik render tests | Multiple |
+
+#### Untracked New Files (need `git add`):
+| File | Description |
+|------|-------------|
+| `dotnet-tools.json` | EF tools manifest |
+| `src/Hashi.Api/Features/Platform/ErrorEndpoints.cs` | New error page endpoint |
+| `src/Hashi.Infrastructure/Persistence/Migrations/20260610065242_FixPendingModelChanges.*` | EF migration |
+| `src/Hashi.Infrastructure/Persistence/Migrations/20260610071427_AddResourceDefaultOidcProvider.*` | EF migration |
+| `src/Hashi.Infrastructure/Persistence/Migrations/20260610072248_AddErrorHandlingEnabled.*` | EF migration |
+
+---
+
+## ⚠️ KNOWN TEST FAILURE (must fix before committing)
+
+**Failing test:** `Hashi.UnitTests.TraefikConfigRendererTests.Render_uses_configured_internal_urls_for_hashi_middlewares_and_health_service`
+
+**Reason:** The new `hashi-errors` service section in `RenderCoreMiddlewares` contains a URL derived from `HashiHealthUrl` (e.g. `http://127.0.0.1:8080`). The test asserts `DoesNotContain("127.0.0.1:8080")` across the whole core YAML — but the test is checking that the health URL was replaced with a custom URL. The hashi-errors service also includes the default URL.
+
+**Fix needed:** The test at `tests/Hashi.UnitTests/PlatformTests.cs:124` needs to be updated to also pass a custom `HashiErrorUrl` in the test options, OR the `hashi-errors` service URL should only appear when `ErrorHandlingEnabled = true` AND a non-default URL is configured. The simplest fix is to update the test to also set `HashiErrorUrl` in the `TraefikRenderOptions` when setting custom URLs.
+
+**File:** `tests/Hashi.UnitTests/PlatformTests.cs` around line 112-130
+
+---
+
+## ⚠️ REMAINING ISSUES — H-071 is partially done
+
+### H-071: Missing Traefik Error Handling Middleware
+- **Status:** Partially implemented
+- **What's done:**
+  - `hashi-errors` middleware added to `RenderCoreMiddlewares` (conditional)
+  - `hashi-errors` service added pointing to internal Hashi error URL
+  - `ErrorHandlingEnabled` flag added to `ResourceEntity`, `AppSettingsEntity`, `ResourceDefinition`, `TraefikRenderOptions`
+  - `/api/error/{status}` endpoint created in `ErrorEndpoints.cs` serving styled HTML
+  - Auth bypass added for `/api/error/` prefix
+  - EF migration `AddErrorHandlingEnabled` generated
+- **Still needed:**
+  - Fix the failing unit test (see above)
+  - Update issue status markdown to "Fixed"
+  - Commit everything
+
+---
 
 ## Summary of Work Status
 
@@ -17,233 +117,128 @@
 | h/tests | H-015-H-019 | ✅ Merged |
 | h/frontend-ui | H-013, H-066, H-080, H-086, H-089, H-093 | ✅ Merged |
 | h/spec-compliance-1 | H-014, H-020-H-028, H-038, H-040-H-046 | ✅ Merged |
+| h/sync-engine | H-069, H-075, H-077, H-087, H-088, H-094, H-097 | ✅ Merged |
 
-**Total Completed:** 70 issues across 8 sub-branches
+**Total from branches:** ~80 issues
 
-### Currently WIP: Active development
+### Uncommitted (need commit on resume):
+- H-039: ServiceSyncVaultBootstrapper reads key from env var ✅ implemented, needs commit
+- H-049: SecurityAddendumJobWorker ExpireBlocksAsync N+1 fix ✅ implemented, needs commit
+- H-068: Default OIDC Provider per resource ✅ implemented (entity+API+migrations), needs commit
+- H-071: Traefik error handling middleware ✅ largely implemented, **test failure needs fix first**
 
-| Sub-Branch | Issues Being Fixed | Work Done |
-|------------|-------------------|-----------|
-| h/sync-engine | H-069-H-070, H-075-H-077, H-094-H-096, H-100 | 13 commits made |
-| h/monitoring-dns-firewall | H-023, H-047, H-067, H-087-H-088, H-097-H-098 | 7 commits made |
+### ❌ Not Started (not touched this session):
+| Issue | Description |
+|-------|-------------|
+| H-072 | Confirmation before entrypoint removal |
+| H-073 | DNS provider capability discovery |
+| H-074 | Warning before default deny firewall |
+| H-078 | Guard against Traefik routers for `.home.arpa` |
+| H-079 | Missing dashboard API endpoint |
+| H-081 | Vault setup tradeoff not explicit (subagent was working on this — quota exceeded) |
+| H-082 | Service-sync vault unavailable does not pause gracefully (subagent was working) |
+| H-083 | Pulse allowed scopes never enforced (subagent was working) |
+| H-084 | Pulse no reachability checks (subagent was working) |
+| H-085 | Resource missing fields (subagent was working) |
+| H-086 | Monitor paused state unreachable (subagent was working — may have partial work) |
+| H-090 | Platform endpoints splitting (mono-file refactor) |
+| H-091 | Systemd timer configuration for scripts |
+| H-092 | Connection target validation at resolution |
 
-**Total WIP:** 20 issues
+> **Note on H-081 through H-086:** The subagent working on these hit a quota limit (429) and was killed mid-task. Its worktree is at `/home/juzo/.gemini/antigravity-cli/brain/6b5e8646-3a8d-43b6-a36d-e57c17109250/.system_generated/worktrees/subagent-Security-and-Spec-Compliance-Developer-self-a66d9eba`. The branch `subagent-Security-and-Spec-Compliance-Developer-self-a66d9eba` exists and is currently checked out at the same commit as `audit-series-h` (no commits made by subagent). Its worktree had an uncommitted diff to `SecurityDecisionService.cs` (had merge conflict markers from h/backend-quality — may need manual cleanup).
 
-### Not Started Yet
+---
 
-| Sub-Branch | Issues |
-|------------|--------|
-| h/spec-compliance-2 | H-047-H-049, H-051-H-055, H-067-H-068, H-071-H-074, H-078-H-085 |
-| h/architecture | H-059, H-081-H-082, H-090 |
+## How To Continue
 
-**Total Remaining:** 35 issues
-
-**Grand Total:** 100 issues (70 completed, 20 WIP, 10 not started)
-
-## Issue Status Details
-
-### ✅ COMPLETED ISSUES (70 total)
-
-#### Docker & CI/CD Fixes (H-001-H-008, H-009-H-012)
-- H-001: Docker web-build cache invalidation — restructured web-build stage
-- H-002: Legacy Dockerfile large base image — changed to alpine
-- H-003: Legacy Dockerfile missing cache cleanup — added cleanup commands
-- H-004: Main Dockerfile missing apt cleanup — removed apt-get upgrade
-- H-005: Legacy Docker workflow missing npm cache — verified existing
-- H-006: Docker dotnet-build layer order — verified correct
-- H-007: Docker dependency-source split — verified existing
-- H-008: Docker final image size optimization — via H-004 changes
-- H-009: Security workflow duplicate build — false positive
-- H-010: CI Go module cache — verified existing
-- H-011: Docker build missing args — automatic via Buildx
-- H-012: Security Trivy single-platform — single-platform scan is sufficient
-
-#### Security Fixes (H-029-H-065)
-- H-029: Firewall script shell injection — added ShellEscape and regex validation
-- H-030: Passkey attestation not verified — implemented Fido2 callbacks
-- H-031: Recovery key raw SHA256 not KDF — replaced with PBKDF2-HMAC-SHA256
-- H-032: Hardcoded DB password in DI — removed hardcoded fallback
-- H-033: pnpm no frozen lockfile — added --frozen-lockfile
-- H-034: Admin session expiry hardcoded — made configurable (AdminSessionMinutes)
-- H-035: SameSite cookies not explicit — set to Strict
-- H-036: CSRF failure not audited — added audit logging
-- H-037: Edge SSO cookie missing path — added explicit Path="/"
-- H-050: Edge auth trusted context never set — added trusted context params
-
-#### Sync Engine (H-056-H-065)
-- H-056: Sync Apply no advisory lock — added SemaphoreSlim locks
-- H-057: GeoIP rules silently bypassed — fail-closed when GeoIP unavailable
-- H-058: No first-apply firewall rollback protection — added iptables-save rollback
-- H-059: Vault lacks three-class secret taxonomy — implemented 3 classes with purpose-specific keys
-- H-060: CAPTCHA solve erases offense history — preserved offense counts
-- H-061: No offense count tracking — added TotalOffenseCount, First/LastOffenseAtUtc
-- H-062: Forward-auth missing 429 response — added RateLimited decision
-- H-063: No immediate sync after config save — added SignalImmediateSync()
-- H-064: Forward-auth no fail-open/fail-closed — added try-catch error handling
-- H-065: No required connection minimum enforcement — added DELETE endpoint with min count check
-
-#### Backend Quality (H-032-H-037, H-048, H-089-H-092, H-099)
-- H-032-H-037: Backend code quality fixes (see H-032-H-037 summary)
-- H-048: Traefik YAML helpers duplicated — deduplicated into shared class
-- H-089: Script entity missing fields — verified relation-based design exists
-- H-092: Connection target validation at resolution time — moved to save time
-- H-099: Access log fields not minimized — added selective keep
-
-#### Tests (H-015-H-019)
-- H-015: Missing E2E tests for core user flows — created comprehensive E2E test suite
-- H-016: Missing security E2E tests — created security E2E test suite
-- H-017: Missing unit tests for core areas — added 13+ unit test files
-- H-018: Missing integration tests — added AdGuard, Traefik, SMTP integration tests
-- H-019: Incomplete safety tests — added NetBird preservation and high-risk sync plan approval tests
-
-#### Frontend UI (H-013, H-066, H-080, H-086, H-089, H-093)
-- H-013: Frontend framework deviation — documented Bits UI as shadcn-svelte backing primitive
-- H-066: No light theme — added light theme with pink/violet palette and dropdown selector
-- H-080: Missing settings UI panels — added 7 missing settings panels
-- H-086: Monitor paused state unreachable — added pause/unpause functionality
-- H-089: Script no diff view or target list — added script diff view and target hosts list
-- H-093: Missing static.juzo.io asset references — verified CDN usage
-
-#### Spec Compliance (H-014, H-020-H-028)
-- H-014: Traefik dynamic config naming — updated from http.yml to 10-hashi-http-resources.yml
-- H-020-H-025: Entity model fields — verified existing (false positives)
-- H-026: Backup-restore docs — enhanced with concrete commands
-- H-027: API types may be stale — verified types.ts uses auto-generated schema.d.ts
-- H-028: Docker-compose env validation — added env var validation with defaults
-
-### 🔄 IN PROGRESS (20 issues)
-
-#### Sync Engine (h/sync-engine)
-- H-069: Sync plan lacks validation — adding validation before apply
-- H-070: Atomic write no validation before move — adding content hash validation
-- H-075: Sync apply no risk tiering — separating low-risk (auto-apply) from high-risk
-- H-076: Reconcile missing verify/hashes/audit — adding reconcile verification and audit logging
-- H-077: Pulse IP change no AdGuard sync — queuing AdGuard sync when Pulse IP changes
-- H-094: Firewall apply no skip-if-unchanged — skipping apply if generated script unchanged
-- H-095: No remote validation for DNS/Firewall/AdGuard — adding remote validation after apply
-- H-096: Forward-auth flow order and 429 — fixing flow order per spec and adding 429 response
-- H-100: No stale plan recheck in sync apply — adding stale plan recheck
-
-#### Monitoring/DNS/Firewall (h/monitoring-dns-firewall)
-- H-023: Monitor endpoint missing fields — verified fields exist
-- H-047: Monitoring public status window hardcoded — making configurable
-- H-067: Invalid CNAME on DNS records — fixing CNAME generation when no linked host
-- H-087: No database views for monitor data — adding database views
-- H-088: Notification routing ignores degraded→up — adding recovery transitions
-- H-097: Resource detected firewall host no auto-detect — adding auto-detection logic
-- H-098: AdGuard duplicate rewrite rows no cleanup — adding cleanup logic
-
-## Next Steps to Complete All 100 Issues
-
-### Phase 1: Complete Currently WIP Work
-
-#### Continue h/sync-engine
+### Step 1: Fix the test failure
 ```bash
-git checkout h/sync-engine
-git merge audit-series-h  # if not already merged
-# Complete remaining fixes: H-069-H-070, H-075-H-077, H-094-H-096, H-100
-# Run tests, verify, update issue file statuses
+# Edit tests/Hashi.UnitTests/PlatformTests.cs around line 112-130
+# Find the test: Render_uses_configured_internal_urls_for_hashi_middlewares_and_health_service
+# Add: HashiErrorUrl = "http://custom-host:8080" to the TraefikRenderOptions
+dotnet test --filter "Render_uses_configured_internal_urls"
 ```
 
-#### Continue h/monitoring-dns-firewall  
+### Step 2: Commit all current work
 ```bash
-git checkout h/monitoring-dns-firewall
-git merge audit-series-h
-# Complete remaining fixes: H-023, H-047, H-067, H-087-H-088, H-097-H-098
-# Run tests, verify, update issue file statuses
+cd /home/juzo/git-repos/hashi
+git add -A
+git commit -m "fix(H-039): read service sync vault key exclusively from HASHI_SERVICE_SYNC_VAULT_KEY env var"
+git add src/Hashi.Infrastructure/Platform/SecurityAddendumJobWorker.cs docs/audits/issues/hashi-v2-audit-h-049-*.md
+git commit -m "fix(H-049): refactor ExpireBlocksAsync to use batch query + in-memory lookup (eliminates N+1)"
+# Then commit H-068 and H-071 together or separately
+git commit -m "fix(H-068): add IsDefault to OidcProvider, OidcProviderId to Resource, default OIDC resolution in PlatformEndpoints"
+git commit -m "fix(H-071): add hashi-errors middleware to Traefik core config with styled /api/error/{status} endpoint"
 ```
 
-### Phase 2: Start New Branches for Remaining Issues
-
-#### h/spec-compliance-2 (for remaining 35 issues)
+### Step 3: Fix SecurityDecisionService.cs merge conflict markers
+The subagent worktree had conflict markers in `SecurityDecisionService.cs`. Check the main branch's copy:
 ```bash
-git checkout audit-series-h
-git checkout -b h/spec-compliance-2
-# Implement: H-047-H-049, H-051-H-055, H-067-H-068, H-071-H-074, H-078-H-085
-# Note: H-048, H-052, H-053, H-055 were fixed by h/backend-quality
-# Note: H-081 needs separate architecture attention
+grep -n "<<<<<<\|=======\|>>>>>>>" src/Hashi.Infrastructure/Platform/SecurityDecisionService.cs
+```
+If conflict markers found, resolve them (the `HEAD` version is the correct one from `h/sync-engine` merge).
+
+### Step 4: Implement remaining issues
+For each remaining issue, read the markdown file in `docs/audits/issues/` and implement:
+
+- **H-072** (entry point removal confirmation): Add confirmation dialog/flag before removing Traefik entrypoints
+- **H-073** (DNS provider capability discovery): Add capability metadata to DNS provider connections
+- **H-074** (warning before default deny firewall): Add user warning when applying default-deny firewall rules
+- **H-078** (no home.arpa guard): In `TraefikConfigRenderer`, skip resources with `.home.arpa` domains or validate
+- **H-079** (missing dashboard API): Add `/api/dashboard` endpoint returning widget data
+- **H-081** (vault setup tradeoff docs): Update docs/setup to explain vault encryption tradeoffs
+- **H-082** (service sync vault pause): Make sync pause gracefully when vault unavailable
+- **H-083** (pulse scope enforcement): Validate `AllowedScopesJson` in `AcceptHeartbeatAsync`
+- **H-084** (pulse reachability checks): Add reachability ping before accepting pulse heartbeat
+- **H-085** (resource missing fields): Add any missing fields to resource model/API
+- **H-090** (platform endpoints refactor): Split `PlatformEndpoints.cs` (68KB mono-file) into multiple files
+- **H-091** (systemd timer for scripts): Add systemd timer config generation for script scheduling
+- **H-092** (connection target validation): Validate connection targets when resolving
+
+### Step 5: Update H-series status
+Update the WIP entries in the `## IN PROGRESS` section of this document.
+
+### Step 6: Push
+```bash
+git push origin audit-series-h
 ```
 
-#### h/architecture (for remaining 3 issues)
-```bash
-git checkout audit-series-h
-git checkout -b h/architecture
-# Implement: H-059 (if not completed by security-2), H-081, H-090
+---
+
+## Branch Map
+
+```
+main
+└── audit-series-h  ← working branch, HEAD at 4b07898
+    ├── h/docker-builds   (merged)
+    ├── h/ci-cd           (merged)
+    ├── h/security-1      (merged)
+    ├── h/security-2      (merged)
+    ├── h/backend-quality (merged)
+    ├── h/tests           (merged)
+    ├── h/frontend-ui     (merged)
+    ├── h/spec-compliance-1 (merged)
+    ├── h/sync-engine     (merged, at c27a709)
+    └── h/monitoring-dns-firewall  (local, NOT merged yet)
 ```
 
-## Development Workflow
+> `h/monitoring-dns-firewall` has commits for H-023, H-047, H-067, H-087, H-088, H-097, H-098 but was **NOT merged into audit-series-h** in this session. These were merged as part of the h/sync-engine merge (4b07898 is actually the sync-engine merge). Verify status by checking git log.
 
-1. **All development happens on sub-branches:** Each sub-branch is for a specific set of related issues
-2. **Individual commits per issue:** Each issue fix gets its own commit: `fix(H-XXX): description`
-3. **Status tracking:** Each issue file has status updated: `**Status:** Fixed` with `**Branch:** branch-name`
-4. **Merge strategy:** Merge commits preserve sub-branch history
-5. **CI validation:** After each sub-branch completion, CI runs on audit-series-h
-6. **Documentation:** `H00-h-series-completed.md` marker when all 100 issues fixed
+---
 
-## Notes on False Positives
+## Development Conventions
 
-Several issues were marked as problems but had already been fixed or were false positives:
-- H-020: `PathPrefix` already exists in ConnectionTargetEntity
-- H-021: `MatchType` supports all match types (ip/cidr/path/country/region/asn)
-- H-022: `first_seen_at_utc` and `last_seen_at_utc` already exist in BlocklistEntryEntity
-- H-024: `SettingsJson` flexible JSON supports all provider types
-- H-025: Relational design with ScriptTargetEntity and ScriptEnvironmentVariableEntity exists
-- H-041: Node.js install commands include cache mounts for pnpm store
-- H-042: ACME DNS challenge uses Hetzner only (single provider)
-- H-043: Passkey credential lookup optimized with CredentialIdBase64 column
-- H-044: dotnet-build stage explicitly excludes agents directory
-- H-045: go.sum cache key already excludes go.sum file
-- H-046: ip6tables and IPv6 support already added
-- H-048: Traefik YAML helper classes already deduplicated
-- H-053: AdGuardHome, OidcProvider, etc. already in ConnectionTypeContractNames
-- H-054: CGNAT range already included in DNS generator (100.64.0.0/10)
+1. **Branch naming:** `h/descriptive-name` branched from `audit-series-h`
+2. **Commit format:** `fix(H-XXX): short description`
+3. **Issue status format:** In each issue `.md`, change `**Status:** Not Started` → `**Status:** Fixed` and set `**Branch:** audit-series-h`
+4. **After fixing:** Run `dotnet test` to confirm all pass
+5. **Migrations:** After entity changes, run `dotnet ef migrations add MigrationName -p src/Hashi.Infrastructure -s src/Hashi.Api`
+6. **Merge:** `git checkout audit-series-h && git merge --no-ff h/branch-name`
 
-## Files to Review
+---
 
-All changes are in audit-series-h and its sub-branches. The following files contain the main implementations:
+## Test Status (as of 2026-06-10 session stop)
 
-### Backend Changes (`src/`)
-- `src/Hashi.Infrastructure/Platform/SecurityDecisionService.cs`
-- `src/Hashi.Core/Firewall/FirewallScriptRenderer.cs`
-- `src/Hashi.Infrastructure/Platform/AdGuardSyncService.cs`
-- `src/Hashi.Api/Features/Platform/PlatformEndpoints.cs`
-- `src/Hashi.Infrastructure/Persistence/Entities/ExtendedPlatformEntities.cs`
-- `src/Hashi.Core/Auth/PasskeyAuthService.cs`
-- `src/Hashi.Infrastructure/Vault/KeyDerivation.cs`
-- `src/Hashi.Infrastructure/Auth/VaultService.cs`
-- `src/Hashi.Infrastructure/Persistence/Entities/CoreEntities.cs`
-
-### Frontend Changes (`web/src/`)
-- `web/src/app.css`
-- `web/src/routes/(admin)/settings/+page.svelte`
-- `web/src/routes/(admin)/status/+page.svelte`
-- E2E test files in `web/e2e/`
-
-### Infrastructure Changes
-- `deploy/docker/Dockerfile`
-- `deploy/docker/hashi.old/Dockerfile`
-- `web/package.json`
-- `.gitea/workflows/*.yml`
-
-### Documentation
-- `docs/audits/issues/hashi-v2-audit-h-*.md` (100 issue files with status)
-
-## Commit History
-
-The audit-series-h branch contains all completed fixes with individual commits for each issue. The commit pattern is:
-- `fix(H-XXX): short description` for issue fixes
-- `audit(H): mark H-XXX through H-YYY as fixed` for status updates
-- `merge: branch-name fixes into audit-series-h` for sub-branch merges
-
-## Next Developer Instructions
-
-When resuming:
-
-1. **Check current status:** See this document for what’s done, WIP, and remaining
-2. **Determine next work:** Continue WIP branches or start new ones for remaining issues
-3. **Follow branching pattern:** Always work on sub-branches from audit-series-h
-4. **Update issue files:** After each fix, update the corresponding issue file status
-5. **Commit patterns:** Use `fix(H-XXX): description` and `audit(H): mark...` for status updates
-6. **Merge strategy:** After completing a sub-branch, merge into audit-series-h with merge commit
-
-This structured approach allows parallel development across 12 different focus areas while maintaining a clean, traceable history on the integration branch.
+- **Unit tests:** 472 passing, **1 failing** (TraefikConfigRendererTests.Render_uses_configured_internal_urls...)
+- **Integration tests:** 37 passing, 0 failing
+- **Fix needed:** PlatformTests.cs line ~124 — add `HashiErrorUrl` to custom URL test options

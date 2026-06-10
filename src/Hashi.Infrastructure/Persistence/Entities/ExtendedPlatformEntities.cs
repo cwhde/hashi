@@ -517,6 +517,8 @@ public sealed class OidcProviderEntity
     public string Scopes { get; set; } = "openid profile email";
 
     public bool Enabled { get; set; } = true;
+
+    public bool IsDefault { get; set; }
 }
 
 public sealed class EdgeAuthRuleEntity

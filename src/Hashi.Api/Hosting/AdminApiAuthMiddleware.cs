@@ -210,7 +210,8 @@ public sealed class AdminApiAuthMiddleware(RequestDelegate next)
                || IsEndpoint(value, method, "/api/auth/csrf", HttpMethods.Get)
                || IsEndpoint(value, method, "/api/auth/bootstrap/login", HttpMethods.Post)
                || IsEndpoint(value, method, "/api/auth/passkeys/login/begin", HttpMethods.Post)
-               || IsEndpoint(value, method, "/api/auth/passkeys/login/complete", HttpMethods.Post);
+               || IsEndpoint(value, method, "/api/auth/passkeys/login/complete", HttpMethods.Post)
+               || (value.StartsWith("/api/error/", StringComparison.OrdinalIgnoreCase) && string.Equals(method, HttpMethods.Get, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool IsEndpoint(string actualPath, string actualMethod, string expectedPath, string expectedMethod)

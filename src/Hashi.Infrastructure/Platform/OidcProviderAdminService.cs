@@ -25,6 +25,10 @@ public sealed class OidcProviderAdminService(
         CreateOidcProviderRequest request,
         CancellationToken cancellationToken = default)
     {
+        if (request.IsDefault)
+        {
+            await ClearOtherDefaultsAsync(null, cancellationToken);
+        }
         var secret = await secrets.StoreAsync(
             SecretPurpose.OidcClientSecret,
             $"OIDC: {request.Name}",
@@ -39,6 +43,7 @@ public sealed class OidcProviderAdminService(
             ClientSecretId = secret.Id,
             Scopes = request.Scopes ?? "openid profile email",
             Enabled = request.Enabled,
+            IsDefault = request.IsDefault,
         };
         db.OidcProviders.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
@@ -80,6 +85,15 @@ public sealed class OidcProviderAdminService(
         if (request.Enabled is bool enabled)
         {
             entity.Enabled = enabled;
+        }
+
+        if (request.IsDefault is bool isDefault)
+        {
+            if (isDefault)
+            {
+                await ClearOtherDefaultsAsync(id, cancellationToken);
+            }
+            entity.IsDefault = isDefault;
         }
 
         if (!string.IsNullOrWhiteSpace(request.ClientSecret))
@@ -190,7 +204,19 @@ public sealed class OidcProviderAdminService(
         entity.Issuer,
         entity.ClientId,
         entity.Scopes,
-        entity.Enabled);
+        entity.Enabled,
+        entity.IsDefault);
+
+    private async Task ClearOtherDefaultsAsync(Guid? excludeId, CancellationToken cancellationToken)
+    {
+        var defaults = await db.OidcProviders
+            .Where(x => x.IsDefault && (excludeId == null || x.Id != excludeId.Value))
+            .ToListAsync(cancellationToken);
+        foreach (var provider in defaults)
+        {
+            provider.IsDefault = false;
+        }
+    }
 
     private static EdgeAuthRuleResponse ToRuleResponse(EdgeAuthRuleEntity entity) => new(
         entity.Id,

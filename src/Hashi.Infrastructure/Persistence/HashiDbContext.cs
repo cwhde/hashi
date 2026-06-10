@@ -355,6 +355,10 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.Property(x => x.PathRewriteMode).HasMaxLength(32);
             entity.Property(x => x.WafExclusionsJson);
             entity.HasIndex(x => x.Slug).IsUnique();
+            entity.HasOne(x => x.OidcProvider)
+                .WithMany()
+                .HasForeignKey(x => x.OidcProviderId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<ResourceRouteEntity>(entity =>

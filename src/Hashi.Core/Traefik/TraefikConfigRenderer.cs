@@ -35,6 +35,8 @@ public sealed record TraefikRenderOptions(
     string AdminDomain = "hashi.local",
     string HashiForwardAuthUrl = HashiInternalUrlDefaults.ForwardAuthUrl,
     string HashiHealthUrl = HashiInternalUrlDefaults.HealthUrl,
+    string? HashiErrorUrl = null,
+    bool ErrorHandlingEnabled = true,
     IReadOnlySet<(int Port, string Protocol)>? ConfirmedStreamPorts = null);
 
 public static class TraefikConfigRenderer
@@ -161,7 +163,38 @@ public static class TraefikConfigRenderer
             """;
     }
 
-    private static string RenderCoreMiddlewares(TraefikRenderOptions options) => $$"""
+    private static string RenderCoreMiddlewares(TraefikRenderOptions options)
+    {
+        var errorsMiddleware = options.ErrorHandlingEnabled
+            ? """
+
+              hashi-errors:
+                errors:
+                  status:
+                    - "500-599"
+                  service: hashi-errors
+                  query: "/api/error/{status}"
+            """
+            : string.Empty;
+
+        var errorUrl = !string.IsNullOrWhiteSpace(options.HashiErrorUrl)
+            ? options.HashiErrorUrl
+            : (options.HashiHealthUrl.EndsWith("/api/health", StringComparison.OrdinalIgnoreCase)
+                ? options.HashiHealthUrl[..^11]
+                : options.HashiHealthUrl);
+
+        var errorsService = options.ErrorHandlingEnabled
+            ? $$"""
+
+              services:
+                hashi-errors:
+                  loadBalancer:
+                    servers:
+                      - url: "{{errorUrl}}"
+            """
+            : string.Empty;
+
+        return $$"""
         http:
           middlewares:
             hashi-redirect-https:
@@ -198,8 +231,9 @@ public static class TraefikConfigRenderer
             hashi-rate-limit:
               rateLimit:
                 average: 100
-                burst: 200
+                burst: 200{{errorsMiddleware}}{{errorsService}}
         """;
+    }
 
     private static string RenderHttpResources(IReadOnlyList<ResourceDefinition> resources, TraefikRenderOptions options)
     {
@@ -240,7 +274,7 @@ public static class TraefikConfigRenderer
             ? "  middlewares:\n" + string.Join('\n', middlewareEntries) + "\n"
             : string.Empty;
 
-        var routers = string.Join('\n', resources.SelectMany(RenderHttpRouters));
+        var routers = string.Join('\n', resources.SelectMany(r => RenderHttpRouters(r, options)));
 
         var serviceKeys = resources.SelectMany(r =>
             r.Routes is { Count: > 0 }
@@ -265,24 +299,24 @@ public static class TraefikConfigRenderer
         return $"http:\n{middlewareBlock}  routers:\n{routers}\n  services:\n{services}\n";
     }
 
-    private static IEnumerable<string> RenderHttpRouters(ResourceDefinition resource)
+    private static IEnumerable<string> RenderHttpRouters(ResourceDefinition resource, TraefikRenderOptions options)
     {
         if (resource.Routes is { Count: > 0 })
         {
             foreach (var route in resource.Routes.Where(x => x.Enabled).OrderByDescending(x => x.Priority))
             {
-                yield return RenderHttpRouter(resource, route);
+                yield return RenderHttpRouter(resource, route, options);
             }
 
             yield break;
         }
 
-        yield return RenderHttpRouter(resource, null);
+        yield return RenderHttpRouter(resource, null, options);
     }
 
-    private static string RenderHttpRouter(ResourceDefinition resource, ResourceRouteDefinition? route)
+    private static string RenderHttpRouter(ResourceDefinition resource, ResourceRouteDefinition? route, TraefikRenderOptions options)
     {
-        var middlewares = BuildResourceMiddlewares(resource, route?.ExtraMiddlewares);
+        var middlewares = BuildResourceMiddlewares(resource, route?.ExtraMiddlewares, options);
         var pathPrefix = route?.PathValue ?? resource.PathPrefix;
         var pathMatchType = route?.PathMatchType ?? (string.IsNullOrWhiteSpace(resource.PathPrefix) ? null : "prefix");
         var rule = BuildPathRule(resource.Domain, pathMatchType, pathPrefix);
@@ -503,7 +537,8 @@ public static class TraefikConfigRenderer
 
     private static IReadOnlyList<string> BuildResourceMiddlewares(
         ResourceDefinition resource,
-        IReadOnlyList<string>? routeMiddlewares = null)
+        IReadOnlyList<string>? routeMiddlewares = null,
+        TraefikRenderOptions? options = null)
     {
         var chain = new List<string>
         {
@@ -511,6 +546,11 @@ public static class TraefikConfigRenderer
             "hashi-security-headers",
             "hashi-compress",
         };
+
+        if (resource.ErrorHandlingEnabled && (options?.ErrorHandlingEnabled ?? true))
+        {
+            chain.Add("hashi-errors");
+        }
 
         if (resource.WafMode != WafMode.Off)
         {
