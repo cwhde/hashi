@@ -141,6 +141,7 @@ public sealed class CertificateSetupService(
             AcmeEabKeyId: keyId,
             AcmeEabHmac: hmac,
             DnsProviderName: provider?.ProviderName,
+            AcmeProvider: appSettings.AcmeProvider,
             DnsChallengeDelaySeconds: appSettings.DnsChallengeDelaySeconds,
             AcmeResolvers: ParseResolvers(appSettings.AcmeResolversJson),
             AdminDomain: adminDomain);

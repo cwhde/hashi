@@ -246,6 +246,14 @@ public sealed class FirewallApplyService(
                 host.RollbackScript = Encoding.UTF8.GetString(previous.Content);
             }
         }
+        else
+        {
+            var rollbackResult = await CaptureFirstApplyRollbackAsync(settings, request, cancellationToken);
+            if (rollbackResult is not null)
+            {
+                host.RollbackScript = rollbackResult;
+            }
+        }
 
         var scriptDir = "/opt/hashi/firewall";
         await ssh.RunCommandAsync(
@@ -516,6 +524,49 @@ public sealed class FirewallApplyService(
         {
             host.RollbackTimerSeconds = rollbackTimer;
         }
+    }
+
+    private async Task<string?> CaptureFirstApplyRollbackAsync(
+        SshConnectionSettings settings,
+        FirewallApplyRequest request,
+        CancellationToken cancellationToken)
+    {
+        const string captureScript = """
+            #!/bin/bash
+            # Capture current iptables state for rollback on first apply
+            echo "# Hashi first-apply rollback script"
+            echo "# Generated at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "# This script removes only Hashi-owned chains and jump rules."
+            echo ""
+            echo "# Flush Hashi chains if they exist"
+            for chain in HASHI_INPUT HASHI_FWD HASHI_DNAT HASHI_POSTROUTING HASHI_OUTPUT; do
+              iptables -F "$chain" 2>/dev/null || true
+              ip6tables -F "$chain" 2>/dev/null || true
+            done
+            echo ""
+            echo "# Remove jump rules from global chains"
+            iptables -D INPUT -j HASHI_INPUT 2>/dev/null || true
+            iptables -D FORWARD -j HASHI_FWD 2>/dev/null || true
+            iptables -t nat -D PREROUTING -j HASHI_DNAT 2>/dev/null || true
+            iptables -t nat -D POSTROUTING -j HASHI_POSTROUTING 2>/dev/null || true
+            iptables -D OUTPUT -j HASHI_OUTPUT 2>/dev/null || true
+            ip6tables -D INPUT -j HASHI_INPUT 2>/dev/null || true
+            ip6tables -D FORWARD -j HASHI_FWD 2>/dev/null || true
+            ip6tables -t nat -D PREROUTING -j HASHI_DNAT 2>/dev/null || true
+            ip6tables -t nat -D POSTROUTING -j HASHI_POSTROUTING 2>/dev/null || true
+            ip6tables -D OUTPUT -j HASHI_OUTPUT 2>/dev/null || true
+            echo ""
+            echo "# Flush Hashi ipsets if they exist"
+            for set in hashi_blocklist hashi_allowlist hashi_portforward; do
+              ipset flush "$set" 2>/dev/null || true
+            done
+            echo "# Rollback complete"
+            """;
+        var result = await ssh.RunCommandAsync(
+            settings, request.AuthMode, request.Password, request.PrivateKeyPem, request.PrivateKeyPassphrase,
+            captureScript,
+            cancellationToken);
+        return result.Succeeded ? result.Output : null;
     }
 
     private async Task RollbackInternalAsync(

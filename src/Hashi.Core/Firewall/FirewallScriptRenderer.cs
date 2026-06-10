@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 namespace Hashi.Core.Firewall;
 
 public sealed record FirewallHostDefinition(
@@ -28,33 +30,128 @@ public sealed record FirewallPortForward(
 
 public static class FirewallScriptRenderer
 {
+    private static readonly Regex ValidNamePattern = new(
+        @"^[a-zA-Z0-9._-]+$",
+        RegexOptions.Compiled);
+
+    private static readonly Regex ValidIpPattern = new(
+        @"^[a-zA-Z0-9.:/_ -]+$",
+        RegexOptions.Compiled);
+
+    private static readonly Regex ValidInterfacePattern = new(
+        @"^[a-zA-Z0-9._-]+$",
+        RegexOptions.Compiled);
+
+    private static readonly Regex ValidProtocolPattern = new(
+        @"^(tcp|udp|icmp|sctp)$",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    private static readonly Regex ValidCidrPattern = new(
+        @"^[a-zA-Z0-9.:/_-]+$",
+        RegexOptions.Compiled);
+
+    public static string ShellEscape(string value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(value);
+        return "'" + value.Replace("'", "'\\''", StringComparison.Ordinal) + "'";
+    }
+
+    private static void ValidateHostDefinition(FirewallHostDefinition host)
+    {
+        ValidateStringField(host.Name, nameof(host.Name), ValidNamePattern);
+        ValidateStringField(host.Domain, nameof(host.Domain), ValidNamePattern);
+        ValidateStringField(host.InternalTraefikIp, nameof(host.InternalTraefikIp), ValidIpPattern);
+        ValidateStringField(host.NetBirdInterface, nameof(host.NetBirdInterface), ValidInterfacePattern);
+
+        if (host.PublicIp is not null)
+        {
+            ValidateStringField(host.PublicIp, nameof(host.PublicIp), ValidIpPattern);
+        }
+
+        if (host.WanInterface is not null)
+        {
+            ValidateStringField(host.WanInterface, nameof(host.WanInterface), ValidInterfacePattern);
+        }
+
+        if (host.LxcBridge is not null)
+        {
+            ValidateStringField(host.LxcBridge, nameof(host.LxcBridge), ValidInterfacePattern);
+        }
+
+        foreach (var subnet in host.ManagedSubnets)
+        {
+            ValidateStringField(subnet, "ManagedSubnet", ValidCidrPattern);
+        }
+
+        foreach (var ip in host.TrustedPublicIps ?? [])
+        {
+            ValidateStringField(ip, "TrustedPublicIp", ValidIpPattern);
+        }
+
+        foreach (var ip in host.BlockedIps ?? [])
+        {
+            ValidateStringField(ip, "BlockedIp", ValidIpPattern);
+        }
+
+        foreach (var cidr in host.NetBirdOverlayCidrs ?? [])
+        {
+            ValidateStringField(cidr, "NetBirdOverlayCidr", ValidCidrPattern);
+        }
+
+        foreach (var cidr in host.NetBirdRoutedCidrs ?? [])
+        {
+            ValidateStringField(cidr, "NetBirdRoutedCidr", ValidCidrPattern);
+        }
+
+        foreach (var pf in host.PortForwards ?? [])
+        {
+            ValidateStringField(pf.Protocol, nameof(FirewallPortForward.Protocol), ValidProtocolPattern);
+            ValidateStringField(pf.TargetHost, nameof(FirewallPortForward.TargetHost), ValidIpPattern);
+        }
+    }
+
+    private static void ValidateStringField(string value, string fieldName, Regex pattern)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(value);
+        if (!pattern.IsMatch(value))
+        {
+            throw new ArgumentException($"Field '{fieldName}' contains invalid characters: {value}", fieldName);
+        }
+    }
+
     public static string Render(FirewallHostDefinition host)
     {
+        ValidateHostDefinition(host);
+
         var managedSubnetsArray = RenderBashArray("HASHI_MANAGED_SUBNETS", host.ManagedSubnets);
         var overlayCidrs = host.NetBirdOverlayCidrs ?? ["100.110.0.0/16"];
         var routedCidrs = host.NetBirdRoutedCidrs ?? [];
         var overlayCidrsArray = RenderBashArray("HASHI_NETBIRD_OVERLAY", overlayCidrs);
         var routedCidrsArray = RenderBashArray("HASHI_NETBIRD_ROUTED", routedCidrs);
-        var trustedIps = string.Join('\n', (host.TrustedPublicIps ?? []).Select(ip => $"ipset add hashi_trusted {ip} -exist"));
-        var blockedIps = string.Join('\n', (host.BlockedIps ?? []).Select(ip => $"ipset add hashi_blocked {ip} -exist"));
+        var trustedIps = string.Join('\n', (host.TrustedPublicIps ?? []).Select(ip => $"ipset add hashi_trusted {ShellEscape(ip)} -exist"));
+        var blockedIps = string.Join('\n', (host.BlockedIps ?? []).Select(ip => $"ipset add hashi_blocked {ShellEscape(ip)} -exist"));
         var dnatRules = string.Join('\n', (host.PortForwards ?? []).Select(p =>
-            $"iptables -t nat -A HASHI_DNAT -p {p.Protocol.ToLowerInvariant()} --dport {p.PublicPort} -j DNAT --to-destination {p.TargetHost}:{p.TargetPort}"));
+            $"iptables -t nat -A HASHI_DNAT -p {ShellEscape(p.Protocol.ToLowerInvariant())} --dport {p.PublicPort} -j DNAT --to-destination {ShellEscape(p.TargetHost)}:{p.TargetPort}"));
         var fwdRules = string.Join('\n', (host.PortForwards ?? []).Select(p =>
-            $"iptables -A HASHI_FWD -p {p.Protocol.ToLowerInvariant()} -d {p.TargetHost} --dport {p.TargetPort} -j ACCEPT"));
-        var wan = host.WanInterface ?? "${WAN_IF:-$(ip route show default | awk '{print $5}' | head -1)}";
-        var publicIp = host.PublicIp ?? "${PUBLIC_IP:-$(ip -4 addr show dev \"$WAN_IF\" | awk '/inet / {print $2}' | cut -d/ -f1 | head -1)}";
+            $"iptables -A HASHI_FWD -p {ShellEscape(p.Protocol.ToLowerInvariant())} -d {ShellEscape(p.TargetHost)} --dport {p.TargetPort} -j ACCEPT"));
+        var wan = host.WanInterface is not null
+            ? ShellEscape(host.WanInterface)
+            : "\"${WAN_IF:-$(ip route show default | awk '{print $5}' | head -1)}\"";
+        var publicIp = host.PublicIp is not null
+            ? ShellEscape(host.PublicIp)
+            : "\"${PUBLIC_IP:-$(ip -4 addr show dev \"$WAN_IF\" | awk '/inet / {print $2}' | cut -d/ -f1 | head -1)}\"";
         var rollbackTimer = host.RollbackTimerSeconds;
 
         return $$"""
             #!/bin/bash
-            # Hashi-managed firewall script for {{host.Name}} (spec section 14)
+            # Hashi-managed firewall script for {{ShellEscape(host.Name)}} (spec section 14)
             set -euo pipefail
 
             ROLLBACK_TIMER={{rollbackTimer}}
-            WAN_IF="{{wan}}"
-            PUBLIC_IP="{{publicIp}}"
-            TRAEFIK_IP="{{host.InternalTraefikIp}}"
-            NETBIRD_IF="{{host.NetBirdInterface}}"
+            WAN_IF={{wan}}
+            PUBLIC_IP={{publicIp}}
+            TRAEFIK_IP={{ShellEscape(host.InternalTraefikIp)}}
+            NETBIRD_IF={{ShellEscape(host.NetBirdInterface)}}
             ROLLBACK_PID_FILE="/run/hashi-firewall.rollback.pid"
 
             require_command() {
@@ -176,18 +273,22 @@ public static class FirewallScriptRenderer
             iptables -t nat -C PREROUTING -j HASHI_DNAT
             iptables -t nat -C POSTROUTING -j HASHI_POSTROUTING
             disarm_rollback
-            echo "[hashi-firewall] Applied for {{host.Name}}."
+            echo "[hashi-firewall] Applied for {{ShellEscape(host.Name)}}."
             """;
     }
 
-    public static string RenderEnvFile(FirewallHostDefinition host) => $$"""
-        HASHI_HOST={{host.Name}}
-        HASHI_DOMAIN={{host.Domain}}
-        HASHI_TRAEFIK_IP={{host.InternalTraefikIp}}
-        HASHI_WAN_IF={{host.WanInterface ?? ""}}
-        HASHI_PUBLIC_IP={{host.PublicIp ?? ""}}
-        HASHI_NETBIRD_IF={{host.NetBirdInterface}}
-        """;
+    public static string RenderEnvFile(FirewallHostDefinition host)
+    {
+        ValidateHostDefinition(host);
+        return $$"""
+            HASHI_HOST={{ShellEscape(host.Name)}}
+            HASHI_DOMAIN={{ShellEscape(host.Domain)}}
+            HASHI_TRAEFIK_IP={{ShellEscape(host.InternalTraefikIp)}}
+            HASHI_WAN_IF={{host.WanInterface is not null ? ShellEscape(host.WanInterface) : ""}}
+            HASHI_PUBLIC_IP={{host.PublicIp is not null ? ShellEscape(host.PublicIp) : ""}}
+            HASHI_NETBIRD_IF={{ShellEscape(host.NetBirdInterface)}}
+            """;
+    }
 
     private static string RenderNetBirdRules(
         FirewallHostDefinition host,
@@ -224,7 +325,7 @@ public static class FirewallScriptRenderer
 
     private static string RenderBashArray(string name, IEnumerable<string> values)
     {
-        var entries = values.Select(value => $"  \"{value.Replace("\"", "\\\"", StringComparison.Ordinal)}\"");
+        var entries = values.Select(value => $"  {ShellEscape(value)}");
         return $"{name}=(\n{string.Join("\n", entries)}\n)";
     }
 }

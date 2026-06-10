@@ -381,6 +381,14 @@ public sealed class SecuritySubjectStateEntity
 
     public DateTimeOffset? LastChallengeSolvedAtUtc { get; set; }
 
+    public int TotalOffenseCount { get; set; }
+
+    public DateTimeOffset? FirstOffenseAtUtc { get; set; }
+
+    public DateTimeOffset? LastOffenseAtUtc { get; set; }
+
+    public int TotalBlockCount { get; set; }
+
     public DateTimeOffset? SoftBlockedUntilUtc { get; set; }
 
     public DateTimeOffset? FirewallBlockedUntilUtc { get; set; }

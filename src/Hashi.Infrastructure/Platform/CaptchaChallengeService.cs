@@ -282,6 +282,9 @@ public sealed class CaptchaChallengeService(
             state.ChallengeRequiredSinceUtc = Now();
             state.ChallengeReason = reason;
             state.ChallengeResourceId = resourceId;
+            state.TotalOffenseCount++;
+            state.FirstOffenseAtUtc ??= Now();
+            state.LastOffenseAtUtc = Now();
             state.UpdatedAtUtc = Now();
             subject.CurrentState = SecuritySubjectStateNames.Challenged;
             db.SecurityEvents.Add(new SecurityEventEntity
@@ -319,6 +322,9 @@ public sealed class CaptchaChallengeService(
             state.FirewallBlockedUntilUtc ??= Now().Add(EvaluateFirewallBlockDuration(policy));
             state.LastEscalationReason = "captcha_ignored_firewall_threshold";
             state.LastEscalationAtUtc = Now();
+            state.TotalOffenseCount++;
+            state.TotalBlockCount++;
+            state.LastOffenseAtUtc = Now();
             subject.CurrentState = SecuritySubjectStateNames.FirewallBlocked;
         }
         else if (state.RequestsWhileChallenged >= policy.ChallengeIgnoredThreshold)
@@ -326,6 +332,9 @@ public sealed class CaptchaChallengeService(
             state.SoftBlockedUntilUtc ??= Now().Add(EvaluateSoftBlockDuration(policy));
             state.LastEscalationReason = "captcha_ignored_soft_threshold";
             state.LastEscalationAtUtc = Now();
+            state.TotalOffenseCount++;
+            state.TotalBlockCount++;
+            state.LastOffenseAtUtc = Now();
             subject.CurrentState = SecuritySubjectStateNames.SoftBlocked;
         }
 
@@ -423,8 +432,6 @@ public sealed class CaptchaChallengeService(
         state.ChallengeRequiredSinceUtc = null;
         state.ChallengeReason = null;
         state.ChallengeResourceId = null;
-        state.RequestsWhileChallenged = 0;
-        state.FailedChallengeCount = 0;
         state.SuccessfulChallengeCount++;
         state.LastChallengeSolvedAtUtc = Now();
         state.UpdatedAtUtc = Now();
@@ -488,11 +495,15 @@ public sealed class CaptchaChallengeService(
         CancellationToken cancellationToken)
     {
         state.FailedChallengeCount++;
+        state.TotalOffenseCount++;
+        state.FirstOffenseAtUtc ??= Now();
+        state.LastOffenseAtUtc = Now();
         if (state.FailedChallengeCount >= settings.MaximumFailuresBeforeEscalation)
         {
             state.SoftBlockedUntilUtc ??= Now().AddMinutes(10);
             state.LastEscalationReason = "captcha_failed_threshold";
             state.LastEscalationAtUtc = Now();
+            state.TotalBlockCount++;
             subject.CurrentState = SecuritySubjectStateNames.SoftBlocked;
         }
 

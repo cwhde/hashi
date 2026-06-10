@@ -26,7 +26,10 @@ public static class DependencyInjection
     public static IServiceCollection AddHashiInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         var connectionString = configuration.GetConnectionString("Hashi")
-            ?? "Host=localhost;Port=5432;Database=hashi;Username=hashi;Password=hashi";
+            ?? Environment.GetEnvironmentVariable("HASHI_CONNECTION_STRING")
+            ?? throw new InvalidOperationException(
+                "Database connection string is not configured. " +
+                "Set 'ConnectionStrings:Hashi' in configuration or the HASHI_CONNECTION_STRING environment variable.");
 
         services.AddDbContext<HashiDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql => npgsql.MigrationsAssembly(typeof(HashiDbContext).Assembly.FullName)));

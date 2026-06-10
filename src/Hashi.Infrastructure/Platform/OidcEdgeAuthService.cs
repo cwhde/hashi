@@ -286,6 +286,7 @@ public sealed class OidcEdgeAuthService(
             Secure = true,
             SameSite = SameSiteMode.Lax,
             IsEssential = true,
+            Path = "/",
         };
 
         if (persistent)

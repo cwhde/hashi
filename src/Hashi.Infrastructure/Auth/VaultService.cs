@@ -118,8 +118,8 @@ public sealed class VaultService(
             cancellationToken)
             ?? throw new InvalidOperationException("Vault is not configured.");
 
-        var hash = KeyDerivation.HashRecoveryKeyForVerification(recoveryKey);
-        if (!string.Equals(hash, wrapped.RecoveryKeyHash, StringComparison.Ordinal))
+        if (wrapped.RecoveryKeyHash is null
+            || !KeyDerivation.VerifyRecoveryKeyHash(recoveryKey, wrapped.RecoveryKeyHash))
         {
             await audit.WriteAsync("vault", "unlock_failed", outcome: "failure", cancellationToken: cancellationToken);
             return false;

@@ -6,7 +6,7 @@ RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=hashi-pnpm-store,target=/pnpm/store \
   pnpm config set store-dir /pnpm/store \
-  && (pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile)
+  && pnpm install --frozen-lockfile
 COPY web/ ./
 RUN pnpm run build
 
@@ -32,7 +32,6 @@ RUN --mount=type=cache,id=hashi-nuget,target=/root/.nuget/packages,sharing=locke
     dotnet restore src/Hashi.Api/Hashi.Api.csproj; \
   fi
 COPY src/ ./src/
-COPY agents/ ./agents/
 COPY --from=web-build /src/web/build ./web/build
 RUN --mount=type=cache,id=hashi-nuget,target=/root/.nuget/packages,sharing=locked \
   target_rid="" \
