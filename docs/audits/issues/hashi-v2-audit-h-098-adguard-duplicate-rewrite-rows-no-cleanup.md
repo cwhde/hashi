@@ -4,7 +4,8 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** §16 (Clean up duplicate Hashi-managed rewrites on sync)
 
-**Status:** Not Started
+**Status:** In Progress
+**Branch:** h/monitoring-dns-firewall
 **Branch:** 
 
 ## Description

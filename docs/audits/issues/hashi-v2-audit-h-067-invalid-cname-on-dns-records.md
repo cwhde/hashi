@@ -4,7 +4,8 @@
 **Conflict Type:** wrong_implementation
 **Spec Reference:** Main Spec §14.2
 
-**Status:** Not Started
+**Status:** In Progress
+**Branch:** h/monitoring-dns-firewall
 **Branch:** 
 
 ## Description

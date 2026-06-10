@@ -4,7 +4,8 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §3 Non-Negotiable Rule 8
 
-**Status:** Not Started
+**Status:** In Progress
+**Branch:** h/sync-engine
 **Branch:** 
 
 ## Description

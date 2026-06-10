@@ -4,7 +4,8 @@
 **Conflict Type:** partial_implementation
 **Spec Reference:** §6 (Detected Linux firewall host field on resource)
 
-**Status:** Not Started
+**Status:** In Progress
+**Branch:** h/monitoring-dns-firewall
 **Branch:** 
 
 ## Description

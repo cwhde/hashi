@@ -4,7 +4,8 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §17.4, Addendum §9.4
 
-**Status:** Not Started
+**Status:** In Progress
+**Branch:** h/sync-engine
 **Branch:** 
 
 ## Description

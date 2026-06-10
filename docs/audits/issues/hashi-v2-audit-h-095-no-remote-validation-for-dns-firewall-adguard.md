@@ -4,7 +4,8 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** §25 (Apply must run remote validation)
 
-**Status:** Not Started
+**Status:** In Progress
+**Branch:** h/sync-engine
 **Branch:** 
 
 ## Description

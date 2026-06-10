@@ -4,7 +4,8 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** §18.4 (Required views: last 60 minutes bar, last 1h/24h/7d/30d latency and uptime, event timeline)
 
-**Status:** Not Started
+**Status:** In Progress
+**Branch:** h/monitoring-dns-firewall
 **Branch:** 
 
 ## Description
