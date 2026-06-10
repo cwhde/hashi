@@ -654,7 +654,7 @@ public sealed class SyncOrchestratorHostedService(
     IServiceScopeFactory scopeFactory,
     ILogger<SyncOrchestratorHostedService> logger) : BackgroundService
 {
-    private readonly TaskCompletionSource _immediateSyncSignal = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private volatile TaskCompletionSource _immediateSyncSignal = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public void SignalImmediateSync()
     {
@@ -686,7 +686,7 @@ public sealed class SyncOrchestratorHostedService(
                     result.Succeeded ? null : "Reconcile finished with errors.",
                     intervalMinutes * 60,
                     stoppingToken);
-                _immediateSyncSignal.TryReset();
+                Interlocked.Exchange(ref _immediateSyncSignal, new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously));
                 var syncTask = Task.Delay(TimeSpan.FromMinutes(intervalMinutes), stoppingToken);
                 var signalTask = _immediateSyncSignal.Task;
                 await Task.WhenAny(syncTask, signalTask);
