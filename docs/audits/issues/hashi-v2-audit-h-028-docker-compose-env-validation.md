@@ -61,4 +61,4 @@ The implementation is correct. The application should log a clear warning when `
 - [x] Environment variables are documented in Compose file (implemented)
 - [x] Ports are configurable (implemented)
 - [x] Vault key has empty default (intentional)
-- [ ] Application logs warning when vault key is missing
+- [x] Application logs warning when vault key is missing

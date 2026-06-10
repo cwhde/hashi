@@ -52,4 +52,4 @@ The `types.ts` file contains domain-specific types that may not be auto-generate
 
 - [x] OpenAPI types are auto-generated (implemented)
 - [x] CI verifies OpenAPI contract freshness (implemented)
-- [ ] Verify types.ts is not stale or duplicated
+- [x] Verify types.ts is not stale or duplicated
