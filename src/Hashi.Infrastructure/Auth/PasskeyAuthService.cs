@@ -62,7 +62,13 @@ public sealed class PasskeyAuthService(
         var success = await fido2.MakeNewCredentialAsync(
             attestation,
             originalOptions,
-            (_, _) => Task.FromResult(true));
+            async (credentialInfo, _) =>
+            {
+                var exists = await db.PasskeyCredentials.AnyAsync(
+                    x => x.CredentialId.SequenceEqual(credentialInfo.CredentialId),
+                    cancellationToken);
+                return !exists;
+            });
 
         var entity = new PasskeyCredentialEntity
         {
@@ -117,7 +123,13 @@ public sealed class PasskeyAuthService(
             originalOptions,
             stored.PublicKey,
             stored.SignCount,
-            (_, _) => Task.FromResult(true));
+            async (metadata, _) =>
+            {
+                var credential = await db.PasskeyCredentials.SingleOrDefaultAsync(
+                    x => x.CredentialId.SequenceEqual(metadata.CredentialId),
+                    cancellationToken);
+                return credential is not null;
+            });
 
         stored.SignCount = success.Counter;
         await db.SaveChangesAsync(cancellationToken);

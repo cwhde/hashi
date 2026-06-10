@@ -228,12 +228,59 @@ public sealed class SyncOrchestratorService(
         }
 
         await syncRuns.AddDiffsAsync(run.Id, changes, cancellationToken);
+
+        var validationErrors = new List<string>();
+
+        await syncRuns.AddStepAsync(run.Id, "traefik-validate", SyncRunStatusNames.Planning, null, cancellationToken);
+        try
+        {
+            var traefikRender = await traefik.RenderAsync(cancellationToken);
+            var traefikValidation = TraefikConfigValidator.ValidateRender(traefikRender);
+            if (!traefikValidation.IsValid)
+            {
+                validationErrors.AddRange(traefikValidation.Errors);
+                await syncRuns.AddStepAsync(run.Id, "traefik-validate", SyncRunStatusNames.Failed, string.Join("; ", traefikValidation.Errors), cancellationToken);
+            }
+            else
+            {
+                await syncRuns.AddStepAsync(run.Id, "traefik-validate", SyncRunStatusNames.Succeeded, "Valid", cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            validationErrors.Add($"Traefik validation error: {ex.Message}");
+            await syncRuns.AddStepAsync(run.Id, "traefik-validate", SyncRunStatusNames.Failed, ex.Message, cancellationToken);
+        }
+
+        await syncRuns.AddStepAsync(run.Id, "firewall-validate", SyncRunStatusNames.Planning, null, cancellationToken);
+        try
+        {
+            foreach (var host in firewallHosts)
+            {
+                var (_, hostHash) = await firewall.RenderForHostAsync(host.Id, cancellationToken);
+                await syncRuns.AddStepAsync(run.Id, $"firewall-validate-{host.Name}", SyncRunStatusNames.Succeeded, $"Hash {hostHash}", cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            validationErrors.Add($"Firewall validation error: {ex.Message}");
+            await syncRuns.AddStepAsync(run.Id, "firewall-validate", SyncRunStatusNames.Failed, ex.Message, cancellationToken);
+        }
+
+        var hasValidationErrors = validationErrors.Count > 0;
+        if (hasValidationErrors)
+        {
+            risk = MaxRisk(risk, SyncRiskLevel.High);
+        }
+
         var requiresConfirmation = risk >= SyncRiskLevel.High;
         await syncRuns.CompleteRunAsync(
             run.Id,
-            requiresConfirmation ? SyncRunStatusNames.AwaitingConfirmation : SyncRunStatusNames.Succeeded,
+            hasValidationErrors ? SyncRunStatusNames.Failed
+            : requiresConfirmation ? SyncRunStatusNames.AwaitingConfirmation
+            : SyncRunStatusNames.Succeeded,
             risk,
-            null,
+            hasValidationErrors ? string.Join("; ", validationErrors) : null,
             cancellationToken);
 
         return new SyncPlanPreviewResponse(
@@ -250,6 +297,24 @@ public sealed class SyncOrchestratorService(
         var run = await syncRuns.BeginRunAsync("global-apply", cancellationToken);
         try
         {
+<<<<<<< Updated upstream
+=======
+            var run = await syncRuns.BeginRunAsync("global-apply", cancellationToken);
+            try
+            {
+                await syncRuns.AddStepAsync(run.Id, "pre-apply-validate", SyncRunStatusNames.Planning, null, cancellationToken);
+                var traefikRender = await traefik.RenderAsync(cancellationToken);
+                var traefikValidation = TraefikConfigValidator.ValidateRender(traefikRender);
+                if (!traefikValidation.IsValid)
+                {
+                    var validationError = $"Plan has validation errors: {string.Join("; ", traefikValidation.Errors)}";
+                    await syncRuns.AddStepAsync(run.Id, "pre-apply-validate", SyncRunStatusNames.Failed, validationError, cancellationToken);
+                    await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Failed, SyncRiskLevel.High, validationError, cancellationToken);
+                    return new SyncApplyResponse(run.Id, false, SyncRunStatusNames.Failed, validationError);
+                }
+                await syncRuns.AddStepAsync(run.Id, "pre-apply-validate", SyncRunStatusNames.Succeeded, "Valid", cancellationToken);
+
+>>>>>>> Stashed changes
             var dnsConnections = await db.Connections
                 .Where(x => x.Type == ConnectionTypeNames.DnsProvider && x.Enabled)
                 .ToListAsync(cancellationToken);
