@@ -223,16 +223,17 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
         return await query.OrderBy(x => x.BucketStartUtc).ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<PublicStatusItemResponse>> PublicStatusAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<PublicStatusItemResponse>> PublicStatusAsync(int? hours = null, CancellationToken cancellationToken = default)
     {
-        var hours = 1;
+        var effectiveHours = Math.Clamp(hours ?? 1, 1, 720);
+        var intervalMinutes = effectiveHours <= 1 ? 1 : effectiveHours <= 24 ? 5 : 60;
         var endpoints = await db.MonitorEndpoints.AsNoTracking()
             .Where(x => x.Enabled && x.PublicStatusEnabled)
             .OrderBy(x => x.Name)
             .ToListAsync(cancellationToken);
-        var since = DateTimeOffset.UtcNow.AddHours(-hours);
+        var since = DateTimeOffset.UtcNow.AddHours(-effectiveHours);
         var rollups = await db.MonitorRollups.AsNoTracking()
-            .Where(x => x.IntervalMinutes == 1 && x.BucketStartUtc >= since)
+            .Where(x => x.IntervalMinutes == intervalMinutes && x.BucketStartUtc >= since)
             .OrderBy(x => x.BucketStartUtc)
             .ToListAsync(cancellationToken);
         var pendingPulseIds = await db.PulseAgents.AsNoTracking()
