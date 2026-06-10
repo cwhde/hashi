@@ -234,8 +234,8 @@ public sealed class SyncOrchestratorService(
         await syncRuns.AddStepAsync(run.Id, "validate", SyncRunStatusNames.Planning, null, cancellationToken);
         try
         {
-            var render = await traefik.RenderAsync(cancellationToken);
-            var traefikValidation = TraefikConfigValidator.ValidateRender(render);
+            var traefikRender = await traefik.RenderAsync(cancellationToken);
+            var traefikValidation = TraefikConfigValidator.ValidateRender(traefikRender);
             if (!traefikValidation.IsValid)
             {
                 validationErrors.AddRange(traefikValidation.Errors.Select(e => $"Traefik: {e}"));
