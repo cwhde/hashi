@@ -4,8 +4,8 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §3 Non-Negotiable Rule 12 (Required connection types cannot be deleted below their minimum count); §3 Rule 13 (Required minimums are one DNS provider, one Traefik connection, and one Linux firewall host after setup completes)
 
-**Status:** Not Started
-**Branch:** 
+**Status:** Fixed
+**Branch:** h/security-2
 
 ## Description
 

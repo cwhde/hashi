@@ -4,8 +4,8 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §14.5 (Hashi schedules a rollback if SSH connectivity is lost during first apply); §14.4 (Hashi should install rollback protection for first firewall apply)
 
-**Status:** Not Started
-**Branch:** 
+**Status:** Fixed
+**Branch:** h/security-2
 
 ## Description
 

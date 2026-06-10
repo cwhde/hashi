@@ -4,8 +4,8 @@
 **Conflict Type:** wrong_implementation
 **Spec Reference:** Main Spec §6 (GeoIP rules become invalid with clear validation error and cannot be enabled when GeoIP unavailable)
 
-**Status:** Not Started
-**Branch:** 
+**Status:** Fixed
+**Branch:** h/security-2
 
 ## Description
 

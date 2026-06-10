@@ -4,8 +4,8 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §11 (Forward auth returns 429 for rate-limited/challenged traffic); Addendum §14 (Decision actions include rate-limiting)
 
-**Status:** Not Started
-**Branch:** 
+**Status:** Fixed
+**Branch:** h/security-2
 
 ## Description
 
