@@ -1,5 +1,6 @@
 using Hashi.Contracts.Api;
 using Hashi.Core.Sync;
+using Hashi.Core.Traefik;
 using Hashi.Infrastructure.Dns;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
@@ -125,6 +126,26 @@ public sealed class SyncOrchestratorService(
     AppSettingsService settings,
     AuditService audit)
 {
+    private static readonly SemaphoreSlim ApplyLock = new(1, 1);
+    private static readonly SemaphoreSlim ReconcileLock = new(1, 1);
+    private readonly SemaphoreSlim _triggerLock = new(1, 1);
+    private readonly TaskCompletionSource _immediateSyncRequested = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    public event Func<Task>? OnImmediateSyncRequested;
+
+    public async Task TriggerImmediateSyncAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            OnImmediateSyncRequested?.Invoke();
+        }
+        catch
+        {
+            // Best-effort notification; hosted service will pick up on next loop.
+        }
+
+        await Task.CompletedTask;
+    }
     public async Task<SyncPlanPreviewResponse> PlanGlobalAsync(CancellationToken cancellationToken = default)
     {
         var run = await syncRuns.BeginRunAsync("global", cancellationToken);
@@ -247,9 +268,16 @@ public sealed class SyncOrchestratorService(
 
     public async Task<SyncApplyResponse> ApplyGlobalAsync(bool confirmDestructive, CancellationToken cancellationToken = default)
     {
-        var run = await syncRuns.BeginRunAsync("global-apply", cancellationToken);
+        if (!await ApplyLock.WaitAsync(0, cancellationToken))
+        {
+            return new SyncApplyResponse(Guid.Empty, false, SyncRunStatusNames.Failed, "Another apply is already in progress. Concurrent applies are rejected.");
+        }
+
         try
         {
+            var run = await syncRuns.BeginRunAsync("global-apply", cancellationToken);
+            try
+            {
             var dnsConnections = await db.Connections
                 .Where(x => x.Type == ConnectionTypeNames.DnsProvider && x.Enabled)
                 .ToListAsync(cancellationToken);
@@ -357,19 +385,31 @@ public sealed class SyncOrchestratorService(
         }
         catch (Exception ex)
         {
+            var run = await syncRuns.BeginRunAsync("global-apply-failed", cancellationToken);
             await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Failed, SyncRiskLevel.High, ex.Message, cancellationToken);
             return new SyncApplyResponse(run.Id, false, SyncRunStatusNames.Failed, ex.Message);
+        }
+        finally
+        {
+            ApplyLock.Release();
         }
     }
 
     public async Task<SyncReconcileResponse> ReconcileAsync(CancellationToken cancellationToken = default)
     {
-        _ = await settings.GetOrCreateAsync(cancellationToken);
-        var run = await syncRuns.BeginRunAsync("reconcile", cancellationToken);
-        var subsystems = new List<string>();
-        var hasPendingDestructive = false;
+        if (!await ReconcileLock.WaitAsync(0, cancellationToken))
+        {
+            return new SyncReconcileResponse(Guid.Empty, false, []);
+        }
+
         try
         {
+            _ = await settings.GetOrCreateAsync(cancellationToken);
+            var run = await syncRuns.BeginRunAsync("reconcile", cancellationToken);
+            var subsystems = new List<string>();
+            var hasPendingDestructive = false;
+            try
+            {
             subsystems.Add("dns");
             await syncRuns.AddStepAsync(run.Id, "dns-reconcile", SyncRunStatusNames.Reconciling, null, cancellationToken);
             var dnsConnections = await db.Connections.Where(x => x.Type == ConnectionTypeNames.DnsProvider && x.Enabled).ToListAsync(cancellationToken);
@@ -517,8 +557,13 @@ public sealed class SyncOrchestratorService(
         }
         catch (Exception ex)
         {
+            var run = await syncRuns.BeginRunAsync("reconcile-failed", cancellationToken);
             await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Failed, SyncRiskLevel.Medium, ex.Message, cancellationToken);
-            return new SyncReconcileResponse(run.Id, false, subsystems);
+            return new SyncReconcileResponse(run.Id, false, []);
+        }
+        finally
+        {
+            ReconcileLock.Release();
         }
     }
 
@@ -562,6 +607,13 @@ public sealed class SyncOrchestratorHostedService(
     IServiceScopeFactory scopeFactory,
     ILogger<SyncOrchestratorHostedService> logger) : BackgroundService
 {
+    private readonly TaskCompletionSource _immediateSyncSignal = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    public void SignalImmediateSync()
+    {
+        _immediateSyncSignal.TrySetResult();
+    }
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
@@ -587,7 +639,10 @@ public sealed class SyncOrchestratorHostedService(
                     result.Succeeded ? null : "Reconcile finished with errors.",
                     intervalMinutes * 60,
                     stoppingToken);
-                await Task.Delay(TimeSpan.FromMinutes(intervalMinutes), stoppingToken);
+                _immediateSyncSignal.TryReset();
+                var syncTask = Task.Delay(TimeSpan.FromMinutes(intervalMinutes), stoppingToken);
+                var signalTask = _immediateSyncSignal.Task;
+                await Task.WhenAny(syncTask, signalTask);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
