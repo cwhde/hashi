@@ -20,6 +20,7 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
         foreach (var resource in resources)
         {
             var checkType = ResolveResourceCheckType(resource);
+            var group = resource.FirewallHostId is not null ? "firewall-host" : resource.Kind;
             UpsertProvisionedEndpoint(
                 existing,
                 resourceId: resource.Id,
@@ -27,7 +28,8 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
                 resource.Name,
                 BuildResourceMonitorUrl(resource, checkType),
                 checkType,
-                enabled: true);
+                enabled: true,
+                group);
         }
 
         foreach (var monitor in existing.Where(x => x.ResourceId is not null))
@@ -221,16 +223,17 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
         return await query.OrderBy(x => x.BucketStartUtc).ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<PublicStatusItemResponse>> PublicStatusAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<PublicStatusItemResponse>> PublicStatusAsync(int? hours = null, CancellationToken cancellationToken = default)
     {
-        var hours = 1;
+        var effectiveHours = Math.Clamp(hours ?? 1, 1, 720);
+        var intervalMinutes = effectiveHours <= 1 ? 1 : effectiveHours <= 24 ? 5 : 60;
         var endpoints = await db.MonitorEndpoints.AsNoTracking()
             .Where(x => x.Enabled && x.PublicStatusEnabled)
             .OrderBy(x => x.Name)
             .ToListAsync(cancellationToken);
-        var since = DateTimeOffset.UtcNow.AddHours(-hours);
+        var since = DateTimeOffset.UtcNow.AddHours(-effectiveHours);
         var rollups = await db.MonitorRollups.AsNoTracking()
-            .Where(x => x.IntervalMinutes == 1 && x.BucketStartUtc >= since)
+            .Where(x => x.IntervalMinutes == intervalMinutes && x.BucketStartUtc >= since)
             .OrderBy(x => x.BucketStartUtc)
             .ToListAsync(cancellationToken);
         var pendingPulseIds = await db.PulseAgents.AsNoTracking()
@@ -401,7 +404,8 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
             "Hashi API",
             internalUrls.ResolveUrl(appSettings, "/api/health"),
             "http",
-            enabled: true);
+            enabled: true,
+            group: "infrastructure");
 
         var firewallHosts = await db.FirewallHosts.AsNoTracking().ToListAsync(cancellationToken);
         foreach (var host in firewallHosts)
@@ -419,7 +423,8 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
                 $"Firewall: {host.Name}",
                 $"icmp://{target}",
                 "icmp",
-                enabled: true);
+                enabled: true,
+                group: "firewall-host");
         }
 
         var connections = await db.Connections.AsNoTracking()
@@ -439,7 +444,8 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
                 $"Traefik SSH: {connection.Name}",
                 $"tcp://{host}:{port}",
                 "tcp",
-                enabled: true);
+                enabled: true,
+                group: "infrastructure");
         }
 
         var adGuardConnections = await db.AdGuardConnections.AsNoTracking()
@@ -454,7 +460,8 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
                 $"AdGuard: {connection.Name}",
                 connection.BaseUrl,
                 "http",
-                enabled: true);
+                enabled: true,
+                group: "infrastructure");
         }
 
         var manualDnsRecords = await db.DnsRecords.AsNoTracking()
@@ -478,7 +485,8 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
                 monitorName,
                 $"dns://{record.Name}",
                 "dns",
-                enabled: record.Enabled);
+                enabled: record.Enabled,
+                group: "dns");
         }
 
         DisableOrphanedDnsMonitorEndpoints(existing, manualDnsRecords);
@@ -499,7 +507,8 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
                 $"Pulse network: {agent.Name}",
                 $"icmp://{target}",
                 "icmp",
-                enabled: agent.Status != "revoked");
+                enabled: agent.Status != "revoked",
+                group: "pulse");
         }
     }
 
@@ -510,7 +519,8 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
         string name,
         string url,
         string checkType,
-        bool enabled)
+        bool enabled,
+        string? group = null)
     {
         var monitor = resourceId is Guid resourceIdValue
             ? existing.SingleOrDefault(x => x.ResourceId == resourceIdValue)
@@ -529,6 +539,7 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
         monitor.Name = name;
         monitor.Url = url;
         monitor.CheckType = NormalizeManualCheckType(checkType);
+        monitor.Group = group;
         monitor.Enabled = enabled;
         return monitor;
     }

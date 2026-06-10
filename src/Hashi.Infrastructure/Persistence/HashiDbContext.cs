@@ -549,9 +549,11 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Name).HasMaxLength(128);
             entity.Property(x => x.CheckType).HasMaxLength(16);
+            entity.Property(x => x.Group).HasMaxLength(128);
             entity.Property(x => x.Status).HasMaxLength(16);
             entity.Property(x => x.PublicStatusEnabled).HasDefaultValue(false);
             entity.HasIndex(x => x.DnsRecordId);
+            entity.HasIndex(x => x.Group);
         });
 
         modelBuilder.Entity<PulseAgentEntity>(entity =>

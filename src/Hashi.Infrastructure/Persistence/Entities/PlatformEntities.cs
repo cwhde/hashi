@@ -54,6 +54,8 @@ public sealed class ResourceEntity
 
     public Guid? FirewallHostId { get; set; }
 
+    public Guid? DetectedFirewallHostId { get; set; }
+
     public Guid? PulseAgentId { get; set; }
 
     public string? PathPrefix { get; set; }
@@ -186,6 +188,12 @@ public sealed class MonitorEndpointEntity
     public string Url { get; set; } = string.Empty;
 
     public string CheckType { get; set; } = "https";
+
+    public string? Group { get; set; }
+
+    public int? CheckIntervalSeconds { get; set; }
+
+    public int? TimeoutSeconds { get; set; }
 
     public bool Enabled { get; set; } = true;
 

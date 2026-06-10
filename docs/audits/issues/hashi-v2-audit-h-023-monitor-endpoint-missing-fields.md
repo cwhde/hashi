@@ -4,9 +4,8 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §18.1, §18.2
 
-**Status:** In Progress
-**Branch:** h/monitoring-dns-firewall
-**Branch:** 
+**Status:** Fixed
+**Branch:** h/spec-compliance-1
 
 ## Description
 

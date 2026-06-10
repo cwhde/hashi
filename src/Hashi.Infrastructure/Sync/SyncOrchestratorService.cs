@@ -251,44 +251,70 @@ public sealed class SyncOrchestratorService(
         await syncRuns.AddDiffsAsync(run.Id, changes, cancellationToken);
 
         var validationErrors = new List<string>();
-
-        await syncRuns.AddStepAsync(run.Id, "traefik-validate", SyncRunStatusNames.Planning, null, cancellationToken);
+        await syncRuns.AddStepAsync(run.Id, "validate", SyncRunStatusNames.Planning, null, cancellationToken);
         try
         {
             var traefikRender = await traefik.RenderAsync(cancellationToken);
             var traefikValidation = TraefikConfigValidator.ValidateRender(traefikRender);
             if (!traefikValidation.IsValid)
             {
-                validationErrors.AddRange(traefikValidation.Errors);
-                await syncRuns.AddStepAsync(run.Id, "traefik-validate", SyncRunStatusNames.Failed, string.Join("; ", traefikValidation.Errors), cancellationToken);
+                validationErrors.AddRange(traefikValidation.Errors.Select(e => $"Traefik: {e}"));
             }
-            else
-            {
-                await syncRuns.AddStepAsync(run.Id, "traefik-validate", SyncRunStatusNames.Succeeded, "Valid", cancellationToken);
-            }
-        }
-        catch (Exception ex)
-        {
-            validationErrors.Add($"Traefik validation error: {ex.Message}");
-            await syncRuns.AddStepAsync(run.Id, "traefik-validate", SyncRunStatusNames.Failed, ex.Message, cancellationToken);
-        }
 
-        await syncRuns.AddStepAsync(run.Id, "firewall-validate", SyncRunStatusNames.Planning, null, cancellationToken);
-        try
-        {
             foreach (var host in firewallHosts)
             {
-                var (_, hostHash) = await firewall.RenderForHostAsync(host.Id, cancellationToken);
-                await syncRuns.AddStepAsync(run.Id, $"firewall-validate-{host.Name}", SyncRunStatusNames.Succeeded, $"Hash {hostHash}", cancellationToken);
+                var (_, hash) = await firewall.RenderForHostAsync(host.Id, cancellationToken);
+                if (string.IsNullOrWhiteSpace(hash))
+                {
+                    validationErrors.Add($"Firewall host {host.Name}: rendered script hash is empty.");
+                }
+            }
+
+            foreach (var connection in dnsConnections)
+            {
+                try
+                {
+                    var plan = await dns.PlanSyncAsync(connection.Id, cancellationToken);
+                    if (plan.Changes.Count == 0 && plan.RequiresConfirmation)
+                    {
+                        validationErrors.Add($"DNS connection {connection.Name}: plan reports confirmation required but has no changes.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    validationErrors.Add($"DNS connection {connection.Name}: plan validation failed — {ex.Message}");
+                }
+            }
+
+            foreach (var connection in adguardConnections)
+            {
+                try
+                {
+                    var plan = await adguard.PlanSyncAsync(connection.Id, updateTopologyDesiredState: true, updateInternalAgentDnsDesiredState: true, cancellationToken: cancellationToken);
+                    if (plan.Changes.Count == 0 && plan.RequiresConfirmation)
+                    {
+                        validationErrors.Add($"AdGuard connection {connection.Name}: plan reports confirmation required but has no changes.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    validationErrors.Add($"AdGuard connection {connection.Name}: plan validation failed — {ex.Message}");
+                }
             }
         }
         catch (Exception ex)
         {
-            validationErrors.Add($"Firewall validation error: {ex.Message}");
-            await syncRuns.AddStepAsync(run.Id, "firewall-validate", SyncRunStatusNames.Failed, ex.Message, cancellationToken);
+            validationErrors.Add($"Validation step failed: {ex.Message}");
         }
 
         var hasValidationErrors = validationErrors.Count > 0;
+        await syncRuns.AddStepAsync(
+            run.Id,
+            "validate",
+            hasValidationErrors ? SyncRunStatusNames.Failed : SyncRunStatusNames.Succeeded,
+            hasValidationErrors ? $"{validationErrors.Count} validation error(s)" : null,
+            cancellationToken);
+
         if (hasValidationErrors)
         {
             risk = MaxRisk(risk, SyncRiskLevel.High);
@@ -297,9 +323,11 @@ public sealed class SyncOrchestratorService(
         var requiresConfirmation = risk >= SyncRiskLevel.High;
         await syncRuns.CompleteRunAsync(
             run.Id,
-            hasValidationErrors ? SyncRunStatusNames.Failed
-            : requiresConfirmation ? SyncRunStatusNames.AwaitingConfirmation
-            : SyncRunStatusNames.Succeeded,
+            hasValidationErrors
+                ? SyncRunStatusNames.Failed
+                : requiresConfirmation
+                    ? SyncRunStatusNames.AwaitingConfirmation
+                    : SyncRunStatusNames.Succeeded,
             risk,
             hasValidationErrors ? string.Join("; ", validationErrors) : null,
             cancellationToken);
@@ -310,7 +338,8 @@ public sealed class SyncOrchestratorService(
             risk.ToString(),
             requiresConfirmation,
             changes.Select(c => new SyncDiffResponse(Guid.Empty, c.ResourceType, c.ResourceKey, c.Kind.ToString(), c.Summary)).ToList(),
-            BuildPreviewMarkdown(changes));
+            BuildPreviewMarkdown(changes),
+            validationErrors.Count > 0 ? validationErrors : null);
     }
 
     public async Task<SyncApplyResponse> ApplyGlobalAsync(bool confirmDestructive, CancellationToken cancellationToken = default)

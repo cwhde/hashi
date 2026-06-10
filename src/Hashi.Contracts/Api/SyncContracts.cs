@@ -32,7 +32,8 @@ public sealed record SyncPlanPreviewResponse(
     string RiskLevel,
     bool RequiresConfirmation,
     IReadOnlyList<SyncDiffResponse> Changes,
-    string? PreviewMarkdown);
+    string? PreviewMarkdown,
+    IReadOnlyList<string>? ValidationErrors = null);
 
 public sealed record SyncApplyRequest(bool ConfirmDestructive);
 

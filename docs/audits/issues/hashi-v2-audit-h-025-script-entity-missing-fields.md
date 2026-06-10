@@ -4,8 +4,8 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §23
 
-**Status:** Not Started
-**Branch:** 
+**Status:** Fixed
+**Branch:** h/spec-compliance-1
 
 ## Description
 

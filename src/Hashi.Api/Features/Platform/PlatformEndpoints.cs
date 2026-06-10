@@ -329,14 +329,14 @@ public static class PublicEndpoints
 {
     public static IEndpointRouteBuilder MapPublicEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/public/status", async Task<IResult> (MonitoringService monitoring, CancellationToken ct) =>
+        app.MapGet("/api/public/status", async Task<IResult> (int? hours, MonitoringService monitoring, CancellationToken ct) =>
         {
             if (!await monitoring.IsPublicStatusEnabledAsync(ct))
             {
                 return TypedResults.NotFound();
             }
 
-            return TypedResults.Ok(await monitoring.PublicStatusAsync(ct));
+            return TypedResults.Ok(await monitoring.PublicStatusAsync(hours, ct));
         })
             .WithTags("Public")
             .AllowAnonymous()
