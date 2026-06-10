@@ -3,8 +3,10 @@ using Hashi.Api.Hosting;
 using Hashi.Contracts.Api;
 using Hashi.Core.Connections;
 using Hashi.Infrastructure.Connections;
+using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.EntityFrameworkCore;
 
 namespace Hashi.Api.Features.Connections;
 
@@ -109,6 +111,45 @@ public static class ConnectionEndpoints
                 content,
                 ct);
             return TypedResults.Ok(new RemoteWriteResponse(result.Succeeded, result.RemotePath, result.Error));
+        });
+
+        group.MapDelete("/{connectionId:guid}", async Task<IResult> (
+            Guid connectionId,
+            HashiDbContext db,
+            CancellationToken ct) =>
+        {
+            var connection = await db.Connections.SingleOrDefaultAsync(x => x.Id == connectionId, ct);
+            if (connection is null)
+            {
+                return TypedResults.NotFound();
+            }
+
+            if (connection.DeletionPolicy == ConnectionDeletionPolicyNames.Required)
+            {
+                return TypedResults.BadRequest(new { error = "This connection has a required deletion policy and cannot be deleted." });
+            }
+
+            var setupComplete = await db.SetupStates.AnyAsync(x => x.IsComplete, ct);
+            if (setupComplete)
+            {
+                var typeCount = await db.Connections
+                    .Where(x => x.Type == connection.Type && x.Enabled && x.Id != connectionId)
+                    .CountAsync(ct);
+                var minimums = new Dictionary<string, int>
+                {
+                    [ConnectionTypeNames.DnsProvider] = 1,
+                    [ConnectionTypeNames.TraefikHost] = 1,
+                    [ConnectionTypeNames.FirewallHost] = 1,
+                };
+                if (minimums.TryGetValue(connection.Type, out var min) && typeCount < min)
+                {
+                    return TypedResults.BadRequest(new { error = $"Cannot delete the last {connection.Type} connection. At least {min} {connection.Type} connection(s) required after setup." });
+                }
+            }
+
+            db.Connections.Remove(connection);
+            await db.SaveChangesAsync(ct);
+            return TypedResults.Ok(new { deleted = true });
         });
 
         return app;
