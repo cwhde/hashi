@@ -285,6 +285,17 @@
 			html.classList.add('dark');
 		}
 	}
+
+	function applyTheme(theme: string) {
+		const html = document.documentElement;
+		if (theme === 'light') {
+			html.classList.remove('dark');
+			html.classList.add('light');
+		} else {
+			html.classList.remove('light');
+			html.classList.add('dark');
+		}
+	}
 </script>
 
 <AdminSectionPage
