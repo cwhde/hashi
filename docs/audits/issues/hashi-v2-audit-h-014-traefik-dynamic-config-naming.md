@@ -4,8 +4,8 @@
 **Conflict Type:** wrong_implementation
 **Spec Reference:** Main Spec §10.3
 
-**Status:** Not Started
-**Branch:** 
+**Status:** Fixed
+**Branch:** h/spec-compliance-1
 
 ## Description
 
