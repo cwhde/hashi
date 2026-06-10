@@ -135,7 +135,6 @@ public sealed class TraefikSyncService(
         {
             state.LastAppliedContentHash = render.ContentHash;
             state.LastAppliedAtUtc = DateTimeOffset.UtcNow;
-            state.DynamicConfigPath = $"{DynamicDirectory}/10-hashi-http-resources.yml";
             if (isNew)
             {
                 db.TraefikHostStates.Add(state);

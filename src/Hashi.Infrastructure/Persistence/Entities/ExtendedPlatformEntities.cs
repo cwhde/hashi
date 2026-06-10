@@ -24,7 +24,9 @@ public sealed class TraefikHostStateEntity
 
     public string StaticConfigPath { get; set; } = "/etc/hashi/traefik/traefik.yml";
 
-    public string DynamicConfigPath { get; set; } = "/etc/hashi/traefik/dynamic/http.yml";
+    public string DynamicConfigPath { get; set; } = "/etc/hashi/traefik/dynamic/10-hashi-http-resources.yml";
+
+    public string DynamicConfigPathsJson { get; set; } = """["00-hashi-core.yml","10-hashi-http-resources.yml","20-hashi-stream-resources.yml","30-user-middlewares.yml","40-hashi-security.yml","90-hashi-health.yml"]""";
 
     public string? LastAppliedContentHash { get; set; }
 
