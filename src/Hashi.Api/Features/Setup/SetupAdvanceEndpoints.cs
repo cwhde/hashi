@@ -4,6 +4,7 @@ using Hashi.Infrastructure.Auth;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Platform;
 using Hashi.Infrastructure.Services;
+using Hashi.Infrastructure.Sync;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
@@ -141,6 +142,7 @@ public static class SettingsEndpoints
             GeneralSettingsRequest request,
             AppSettingsService settings,
             AuditService audit,
+            IServiceScopeFactory scopeFactory,
             CancellationToken ct) =>
         {
             var s = await settings.GetOrCreateAsync(ct);
@@ -182,6 +184,16 @@ public static class SettingsEndpoints
             s.UpdatedAtUtc = DateTimeOffset.UtcNow;
             await settings.SaveAsync(ct);
             await audit.WriteAsync("settings", "general_updated", subjectType: "app_settings", cancellationToken: ct);
+            try
+            {
+                using var scope = scopeFactory.CreateScope();
+                var syncHost = scope.ServiceProvider.GetRequiredService<SyncOrchestratorHostedService>();
+                syncHost.SignalImmediateSync();
+            }
+            catch
+            {
+                // Best-effort sync trigger.
+            }
             return TypedResults.Ok(new GeneralSettingsUpdateResponse(true, s.UpdatedAtUtc));
         });
 
