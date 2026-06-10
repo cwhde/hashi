@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Addendum §17.6
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 The CI workflow (`ci.yml`) caches Go modules and build data for the Pulse agent job. However, the cache key uses `hashFiles('agents/pulse/go.mod', 'agents/pulse/go.sum')` which is correct. The cache path includes `~/go/pkg/mod` and `~/.cache/go-build` which are the standard Go cache locations.

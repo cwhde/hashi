@@ -4,6 +4,9 @@
 **Conflict Type:** wrong_implementation
 **Spec Reference:** Main Spec §14.2
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 When `LinkedTraefikHost` is unset and `InternalTraefikIp` is set (the normal case for a firewall host), `ResolveOnRouteTarget` returns the IP address. This is passed to `GenerateHostRecords` which creates `on.machine1 CNAME 10.0.0.1` — CNAME records cannot point to IP addresses per DNS spec (RFC 1034). This produces invalid DNS records that will be rejected by DNS providers. The `on.CNAME` should always default to `via` (the CNAME to the A record) unless a hostname override is provided.

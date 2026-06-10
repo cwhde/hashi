@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Main Spec §8, Non-Negotiable Rule Set §3 (#29 never commit real secrets)
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 `ServiceSyncVaultBootstrapper` in `src/Hashi.Infrastructure/Auth/ServiceSyncVaultBootstrapper.cs` reads the service-sync vault key from `IConfiguration`:

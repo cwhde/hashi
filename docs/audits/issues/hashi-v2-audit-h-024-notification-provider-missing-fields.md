@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §18.6
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 The spec defines notification providers:

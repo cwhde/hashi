@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §31 (Test Strategy - Integration tests)
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 The spec requires integration tests for:

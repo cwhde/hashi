@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** §25 (Apply must run remote validation)
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 Only Traefik Apply has remote validation (`ValidateStagedRemoteConfigAsync`). DNS, Firewall, and AdGuard apply without post-write remote verification. This means a failed write (SSH error, provider API error, network issue) could be silently accepted as successful.

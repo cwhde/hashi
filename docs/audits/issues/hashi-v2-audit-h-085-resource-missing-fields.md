@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** §6 (Resources must have AdGuardRewriteVisibility, ExplicitRoutingOverride, SecurityProfile)
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 `ResourceEntity` lacks `AdGuardRewriteVisibility` (no toggle for AdGuard rewrite per resource), `ExplicitRoutingOverride` (no way to override auto-detected routing), and `SecurityProfile` (only has separate `ForwardAuthPolicy` and `WafMode`, no unified profile).

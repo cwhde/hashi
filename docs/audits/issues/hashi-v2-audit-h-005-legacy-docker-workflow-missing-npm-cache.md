@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Addendum §17.5; validate-ci-optimization.sh
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 The `validate-ci-optimization.sh` script checks that the legacy Dockerfile has `--mount=type=cache,target=/root/.npm` for npm cache. This check exists at line 50:

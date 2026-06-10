@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** §16 (Clean up duplicate Hashi-managed rewrites on sync)
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 No explicit deduplication of multiple local `AdGuardRewriteEntity` entries for the same domain exists. While upsert operations use `SingleOrDefaultAsync` (which would throw on duplicates), there's no cleanup step in `PlanSyncAsync` that detects/removes duplicate local rows.

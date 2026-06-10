@@ -4,6 +4,9 @@
 **Conflict Type:** wrong_implementation
 **Spec Reference:** Main Spec §4 (Frontend), §15
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 The implementation spec explicitly states:

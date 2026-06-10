@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Addendum §17.3, §17.5
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 Both the main Dockerfile and legacy Dockerfile follow the correct pattern of copying dependency manifests before installing, then copying source. However, the user noted that "we have bad reusability" and "we have issues where we use unnecessarily large base images."

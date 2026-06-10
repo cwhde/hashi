@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Addendum §17.4, §17.6
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 The CI workflow `ci.yml` and the Pulse Docker build workflow reference `go.sum` in their cache key hashes:

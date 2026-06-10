@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** §8 (Tradeoff must be explicit in setup)
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 Vault setup response returns `ServiceSyncWrapStored` but no acknowledgment step or explanation of the tradeoff (unattended sync vs reduced security). Users are not informed that enabling service-sync vault means secrets are decryptable without a browser session.

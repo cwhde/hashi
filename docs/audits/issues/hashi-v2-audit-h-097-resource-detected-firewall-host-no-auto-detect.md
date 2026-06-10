@@ -4,6 +4,9 @@
 **Conflict Type:** partial_implementation
 **Spec Reference:** §6 (Detected Linux firewall host field on resource)
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 `ResourceEntity.FirewallHostId` is a manually-set FK. There's no auto-detection logic that determines which firewall host a target IP resides behind. The spec field name "DetectedFirewallHost" implies auto-detection.

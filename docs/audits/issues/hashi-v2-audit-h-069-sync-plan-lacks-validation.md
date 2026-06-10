@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §25
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 `SyncOrchestratorService.PlanGlobalAsync()` interleaves subsystem-specific plan calls but has no explicit normalization step or post-render validation step. Traefik rendering happens during Plan but validation (`TraefikConfigValidator`) is only exposed via a separate endpoint, not integrated into the Plan flow. The spec requires Plan to validate generated configs before returning the preview.

@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Addendum §17.3, §17.5
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 The main Dockerfile's final stage uses `mcr.microsoft.com/dotnet/aspnet:10.0` which is the full Debian-based ASP.NET runtime image. This includes the entire .NET runtime, ASP.NET libraries, and Debian base system. For a production deployment, this is appropriate but could be optimized.

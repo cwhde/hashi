@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Main Spec §9, §27
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 `AdminCsrfMiddleware.cs` catches `AntiforgeryValidationException` and returns a 403 response, but does not log or audit the failure:

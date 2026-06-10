@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Addendum §17.5; Main Spec §30 (Deployment)
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 The legacy Dockerfile's builder stage runs `apk add --no-cache python3 make g++` which correctly uses `--no-cache`. However, the overall image optimization could be improved. The `--no-cache` flag is used correctly in the builder stage, so the apk index is not cached. This is actually properly implemented.

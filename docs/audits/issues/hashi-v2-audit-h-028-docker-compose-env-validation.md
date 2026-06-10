@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §4 (Deployment)
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 The Docker Compose file at `deploy/compose/docker-compose.yml` defines environment variables:

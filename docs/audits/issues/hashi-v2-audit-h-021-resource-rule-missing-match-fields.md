@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §6 (Resource Rule Model)
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 The spec defines resource rules with match types:

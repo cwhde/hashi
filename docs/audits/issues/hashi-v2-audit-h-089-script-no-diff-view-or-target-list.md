@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** §23 (UI shows target hosts and diff before applying)
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 The scripts page shows name, cron, last run, and enabled — but no diff view for script body changes and no target hosts list. The spec requires showing target hosts and diff before applying script changes.

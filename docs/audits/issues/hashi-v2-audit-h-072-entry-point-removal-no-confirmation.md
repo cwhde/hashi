@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §10.5
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 `TraefikEntryPointService.RemoveIfUnusedAsync` immediately removes the entry point when no enabled resources use that port. The spec requires confirmation before removing an entry point and associated firewall opening. Without confirmation, port closures happen silently when the last resource using that port is disabled or deleted.

@@ -4,6 +4,9 @@
 **Conflict Type:** wrong_implementation
 **Spec Reference:** §8 (If service-sync vault cannot unlock, provider sync jobs pause and surface critical health warning)
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 Services needing secrets throw `InvalidOperationException` rather than gracefully pausing and retrying when the service-sync vault is unavailable. No health check endpoint or dashboard indicator exposes this state.

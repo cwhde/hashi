@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §9
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 There is no "default OIDC provider" concept. `OidcProviderEntity` has no `IsDefault` flag. `ResourceEntity` has no `OidcProviderId` field. Login always requires explicit `providerId`. The spec requires per-resource OIDC provider selection and the ability to set a default provider so Hashi can redirect directly to it.

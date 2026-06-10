@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §15.1
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 The DNS provider interface (`IDnsProvider`) supports list zones, resolve zone, list/create/update/delete records, and bulk plan/apply — but has no capability discovery method. The spec requires providers to advertise supported record types, features, batch operations, and rate limits. Without this, the UI cannot adapt to provider limitations.

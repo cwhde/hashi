@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** §28 (Repository structure: Features/ directory with per-feature endpoint files)
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 `PlatformEndpoints.cs` is 1482 lines and contains 14 distinct endpoint groups (Resource, Traefik, Firewall, Status, Public, EdgeAuth, EdgeChallenge, EdgeSsoAdmin, Security, Pulse, AdGuard, Waf, InternalAgentDns, Script, Notification). Per the spec convention, each should be its own file under `Features/{Domain}/`.

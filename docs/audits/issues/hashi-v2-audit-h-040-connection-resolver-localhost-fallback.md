@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Addendum §9.4, Main Spec §3 (Non-Negotiable #3: never writes provider state when validation fails)
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 In `ConnectionTargetResolver` (`src/Hashi.Infrastructure/Platform/ConnectionTargetResolver.cs`), when target resolution fails for a Pulse agent-based connection (stale agent, missing heartbeat, unresolvable IP), the resolver falls back to `127.0.0.1` instead of failing with an error state:

@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Addendum §17.5; Main Spec §30 (Deployment)
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 The legacy Dockerfile at `hashi.old/docker/Dockerfile` uses `node:20-alpine` for the runtime stage (stage 2). This image includes the full Node.js runtime, npm, and Alpine Linux base, resulting in an unnecessarily large final image. For a production Node.js application, a slimmer base image like `node:20-alpine` with `--omit=dev` is acceptable, but the current implementation does not properly minimize the image.

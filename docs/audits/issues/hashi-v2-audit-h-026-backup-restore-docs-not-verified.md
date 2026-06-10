@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §33
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 The spec requires operations documentation:

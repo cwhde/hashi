@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Addendum §6.2 (Offense count must be tracked separately from active block state)
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 `SecuritySubjectStateEntity` has no `OffenseCount` field. The `BanDurationPolicyEvaluator` accepts `offenseCount` as a parameter but nothing in the infrastructure tracks or persists it. Offense count is never incremented when a ban is applied or a challenge is failed. Without offense count tracking, the ban duration escalation policies (linear, exponential, capped exponential, permanent after N) cannot function correctly — they would always use offenseCount=0 or offenseCount=1.

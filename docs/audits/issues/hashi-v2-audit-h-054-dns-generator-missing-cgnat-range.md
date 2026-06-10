@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Main Spec §15.4, §17.4
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 `DnsRecordGenerator.IsPrivateIpv4` in `src/Hashi.Core/Dns/DnsRecordGenerator.cs` identifies private IPv4 addresses but does not include the Carrier-Grade NAT (CGNAT) range `100.64.0.0/10` (RFC 6598):

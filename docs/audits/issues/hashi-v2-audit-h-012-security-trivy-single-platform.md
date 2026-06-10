@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Addendum §17.7
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 The security workflow builds a local Docker image for Trivy scanning when no published image exists. The local build uses `load: true` which builds for a single platform (the runner's architecture, typically amd64). This is correct for vulnerability scanning since the same vulnerabilities exist across architectures.

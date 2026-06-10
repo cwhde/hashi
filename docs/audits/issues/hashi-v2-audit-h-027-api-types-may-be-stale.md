@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Main Spec §4 (Frontend - API client)
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 The spec requires:

@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §14.3, §14.4, §14.5
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 `FirewallScriptRenderer` in `src/Hashi.Core/Firewall/FirewallScriptRenderer.cs` generates iptables-only firewall rules with no IPv6 support:

@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Main Spec §7.8, §9; Non-Negotiable Rule Set §3 (#17 use proven libraries)
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 In `PasskeyAuthService.CompleteRegistrationAsync()` (line 65) and `CompleteLoginAsync()` (line 120), the FIDO2 server-side verification callbacks always return `true`:

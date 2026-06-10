@@ -4,6 +4,9 @@
 **Conflict Type:** wrong_implementation
 **Spec Reference:** §17.2 (Token can only submit heartbeat data for its own agent; Token cannot read config, list resources, or trigger syncs)
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 The `AllowedScopesJson` field exists on `PulseAgentEntity` but is never enforced during heartbeat acceptance. The architecture prevents scope violation (only the heartbeat endpoint validates agent tokens), but the spec requires explicit scope enforcement.

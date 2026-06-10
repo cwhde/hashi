@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §31 (Test Strategy - E2E tests)
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 The implementation spec requires comprehensive E2E tests:

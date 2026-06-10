@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Addendum §17.3, §17.5
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 The main Dockerfile's `web-build` stage uses `node:24-bookworm` as the base image:

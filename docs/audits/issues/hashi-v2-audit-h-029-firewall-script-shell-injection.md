@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Main Spec §14.3, Non-Negotiable Rule Set §3 (#18 custom scripts as privileged operations)
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 `FirewallScriptRenderer.Render()` in `src/Hashi.Core/Firewall/FirewallScriptRenderer.cs` directly interpolates user-provided strings into generated bash scripts without any sanitization or escaping. Multiple fields from the `FirewallHostDefinition` record — including `Name`, `Domain`, `InternalTraefikIp`, `NetBirdInterface`, `WanInterface`, `PublicIp`, and target host/port fields in `FirewallPortForward` — are injected directly into shell script strings using bash variable assignment syntax and `iptables` command arguments.

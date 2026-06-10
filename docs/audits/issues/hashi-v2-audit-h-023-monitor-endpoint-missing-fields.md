@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §18.1, §18.2
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 The spec defines monitor endpoints with these fields:

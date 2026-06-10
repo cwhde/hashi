@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §23
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 The spec defines script fields:

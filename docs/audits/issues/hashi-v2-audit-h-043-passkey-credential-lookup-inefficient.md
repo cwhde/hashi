@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Main Spec §4, §7.8
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 In `PasskeyAuthService.CompleteLoginAsync()` (line 110-113), the credential lookup uses `SequenceEqual` on a byte array property:

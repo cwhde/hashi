@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** §23 (Cron entries generated in /etc/cron.d/hashi-scripts or systemd timers)
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 Script scheduling on remote hosts uses only `/etc/cron.d/hashi-scripts` — no systemd timer option. The spec mentions systemd timers as an alternative.

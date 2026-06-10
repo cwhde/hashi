@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §8 (three classes of secrets: session-unlocked, service-sync, server-operational; purpose-specific vault keys)
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 The spec requires three distinct secret classes with different access semantics: (1) session-unlocked secrets for recovery-only vault material, secret reveal, and destructive approval, (2) service-sync secrets for SSH, DNS tokens, AdGuard, notifications, and ACME that background sync needs, and (3) server-operational secrets for cookie signing and data protection that must be available at boot. The implementation only has a boolean `IsServiceSyncEligible` flag — no "session-unlocked" or "server-operational" class exists. Additionally, the spec requires purpose-specific vault keys (separate wrapping keys for SSH, DNS, OIDC purposes), but the implementation wraps all DEKs with a single admin root key. Compromising this one key exposes all secrets.

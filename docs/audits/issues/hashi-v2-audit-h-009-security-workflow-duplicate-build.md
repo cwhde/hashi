@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Addendum §17.7, §17.9
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 The security workflow (`security.yml`) builds a local Docker image for vulnerability scanning when no published image digest is available. This creates a duplicate build that may overlap with the `docker-build.yml` workflow.

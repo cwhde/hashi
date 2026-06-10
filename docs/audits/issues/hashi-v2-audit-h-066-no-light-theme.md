@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §22
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 The app only implements a dark theme. The `app.css` file defines CSS variables under `.dark` but there is no `:root` or `.light` variant with bright pink/violet colors. The theme setting in the UI is a plain text input with no toggle or dropdown. The spec requires a light theme that is bright pink/violet, high contrast, not beige, not washed out, and not monochrome.

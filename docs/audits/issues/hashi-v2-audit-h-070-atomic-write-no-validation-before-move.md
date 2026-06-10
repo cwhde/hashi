@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §3 Non-Negotiable Rule 8
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 `SshRemoteExecutor.WriteAtomicCore()` writes to a temp file, then moves it to the final path. However, there is no validation step between writing the temp file and moving it. The spec explicitly requires validation before the atomic move. If invalid content is written to temp, it gets moved to the final path without any syntax or structure check.

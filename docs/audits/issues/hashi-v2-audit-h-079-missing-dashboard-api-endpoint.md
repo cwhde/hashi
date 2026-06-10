@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §27
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 The spec lists `/api/dashboard/*` as an admin API endpoint group, but no route maps to `/api/dashboard`. There is `/api/settings/dashboard` (widget preferences), `/api/security/dashboard` (security metrics), and `/api/public/apps` (public dashboard), but no dedicated admin dashboard data endpoint that aggregates overview data for the admin dashboard.

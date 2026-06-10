@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Addendum §17.3, Main Spec §30
 
+**Status:** Not Started
+**Branch:** 
+
 ## Description
 
 In the main Dockerfile, the `dotnet-build` stage copies the entire `agents/` directory:
