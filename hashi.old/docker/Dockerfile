@@ -35,6 +35,9 @@ RUN addgroup -g 1001 -S hashi && adduser -S -u 1001 -G hashi hashi
 # Copy only what's needed from builder
 COPY --from=builder /app/node_modules ./node_modules
 
+# Cleanup package manager cache from node_modules
+RUN rm -rf /root/.npm /tmp/*
+
 # Copy app source
 COPY package.json server.js ./
 COPY public ./public
