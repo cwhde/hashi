@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM --platform=$BUILDPLATFORM node:24-bookworm AS web-build
+FROM --platform=$BUILDPLATFORM node:24-alpine AS web-build
 WORKDIR /src/web
 RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
@@ -32,7 +32,6 @@ RUN --mount=type=cache,id=hashi-nuget,target=/root/.nuget/packages,sharing=locke
     dotnet restore src/Hashi.Api/Hashi.Api.csproj; \
   fi
 COPY src/ ./src/
-COPY agents/ ./agents/
 COPY --from=web-build /src/web/build ./web/build
 RUN --mount=type=cache,id=hashi-nuget,target=/root/.nuget/packages,sharing=locked \
   target_rid="" \

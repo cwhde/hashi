@@ -31,7 +31,7 @@ public sealed record FirewallPortForward(
 public static class FirewallScriptRenderer
 {
     private static readonly Regex ShellMetacharPattern = new(
-        @"[;|&`$(){}!\n\r\\\"'#<>]",
+        @"[;|&`$(){}!\n\r\\\""'#<>]",
         RegexOptions.Compiled);
 
     private static readonly Regex ValidNamePattern = new(
