@@ -75,8 +75,8 @@ public static class ConnectionSshCredentialResolver
 
         return settings with
         {
-            Host = resolved.ResolvedHost,
-            Port = resolved.BaseUri.Port,
+            Host = resolved.ResolvedHost ?? throw new InvalidOperationException("Resolved host is null for resolved target."),
+            Port = resolved.BaseUri?.Port ?? throw new InvalidOperationException("BaseUri is null for resolved target."),
         };
     }
 

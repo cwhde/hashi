@@ -17,9 +17,9 @@ public sealed record ResolvedConnectionTarget(
     string TargetMode,
     string Status,
     string? Error,
-    string ResolvedHost,
+    string? ResolvedHost,
     string? ResolvedIp,
-    Uri BaseUri,
+    Uri? BaseUri,
     bool IsStale);
 
 public sealed class ConnectionTargetResolver(HashiDbContext db, AuditService audit)
@@ -148,9 +148,11 @@ public sealed class ConnectionTargetResolver(HashiDbContext db, AuditService aud
 
     public static ConnectionTargetEntity FromAdGuardBaseUrl(AdGuardConnectionEntity connection)
     {
-        var baseUri = Uri.TryCreate(connection.BaseUrl.TrimEnd('/') + "/", UriKind.Absolute, out var parsed)
-            ? parsed
-            : new Uri("http://127.0.0.1/");
+        if (!Uri.TryCreate(connection.BaseUrl.TrimEnd('/') + "/", UriKind.Absolute, out var baseUri))
+        {
+            throw new ArgumentException($"Invalid AdGuard base URL: {connection.BaseUrl}", nameof(connection));
+        }
+
         var host = baseUri.Host;
         var isIp = IPAddress.TryParse(host, out _);
         return new ConnectionTargetEntity
@@ -456,9 +458,9 @@ public sealed class ConnectionTargetResolver(HashiDbContext db, AuditService aud
             NormalizeTargetMode(target.TargetMode),
             ConnectionTargetStatusNames.Failed,
             error,
-            "127.0.0.1",
             null,
-            BuildUri(target, "127.0.0.1"),
+            null,
+            null,
             false);
 
     private static string NormalizeTargetMode(string? mode)

@@ -88,7 +88,7 @@ public sealed class AdGuardSyncService(
                     false,
                     resolved.Error,
                     ToTargetResponse(target),
-                    resolved.BaseUri.ToString().TrimEnd('/'),
+                    resolved.BaseUri?.ToString().TrimEnd('/'),
                     resolved.IsStale);
             }
 
@@ -99,7 +99,7 @@ public sealed class AdGuardSyncService(
                 true,
                 null,
                 ToTargetResponse(target),
-                resolved.BaseUri.ToString().TrimEnd('/'),
+                resolved.BaseUri?.ToString().TrimEnd('/'),
                 resolved.IsStale);
         }
         catch (Exception ex)
@@ -108,7 +108,7 @@ public sealed class AdGuardSyncService(
                 false,
                 ex.Message,
                 target is null ? null : ToTargetResponse(target),
-                resolved?.BaseUri.ToString().TrimEnd('/'),
+                resolved?.BaseUri?.ToString().TrimEnd('/'),
                 resolved?.IsStale ?? false);
         }
     }
@@ -654,7 +654,8 @@ public sealed class AdGuardSyncService(
     {
         var password = await ResolvePasswordAsync(connection.PasswordSecretId, cancellationToken);
         var client = httpClientFactory.CreateClient("adguard");
-        client.BaseAddress = resolved.BaseUri;
+        client.BaseAddress = resolved.BaseUri
+            ?? throw new InvalidOperationException("Cannot create HTTP client for unresolved target.");
         if (!string.IsNullOrEmpty(password))
         {
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
@@ -677,7 +678,7 @@ public sealed class AdGuardSyncService(
             connection.BaseUrl,
             connection.Enabled,
             ToTargetResponse(target),
-            resolved.BaseUri.ToString().TrimEnd('/'),
+            resolved.BaseUri?.ToString().TrimEnd('/'),
             resolved.Status,
             resolved.Error);
     }
