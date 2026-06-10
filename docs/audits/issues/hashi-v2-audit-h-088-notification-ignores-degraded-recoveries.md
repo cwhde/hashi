@@ -4,9 +4,8 @@
 **Conflict Type:** wrong_implementation
 **Spec Reference:** §18.6 (Recovery notifications)
 
-**Status:** In Progress
-**Branch:** h/monitoring-dns-firewall
-**Branch:** 
+**Status:** Fixed
+**Branch:** audit-series-h
 
 ## Description
 

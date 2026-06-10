@@ -4,9 +4,8 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Main Spec §18.3, §18.5, §24
 
-**Status:** In Progress
-**Branch:** h/monitoring-dns-firewall
-**Branch:** 
+**Status:** Fixed
+**Branch:** audit-series-h
 
 ## Description
 

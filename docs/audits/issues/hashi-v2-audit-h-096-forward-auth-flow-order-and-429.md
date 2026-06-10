@@ -4,9 +4,8 @@
 **Conflict Type:** wrong_implementation
 **Spec Reference:** §11 (Forward auth returns 429 for rate-limited traffic); Addendum §14 (11-step evaluation order)
 
-**Status:** In Progress
-**Branch:** h/sync-engine
-**Branch:** 
+**Status:** Fixed
+**Branch:** audit-series-h
 
 ## Description
 
