@@ -76,6 +76,7 @@
 				publicStatusEnabled: settings.publicStatusEnabled,
 				theme: settings.theme ?? 'dark'
 			};
+			applyTheme(form.theme);
 		} catch {
 			// offline dev
 		}
@@ -273,6 +274,17 @@
 		if (!value) return 'No file';
 		return `${Math.round(Number(value) / 1024)} KB`;
 	}
+
+	function applyTheme(theme: string) {
+		const html = document.documentElement;
+		if (theme === 'light') {
+			html.classList.remove('dark');
+			html.classList.add('light');
+		} else {
+			html.classList.remove('light');
+			html.classList.add('dark');
+		}
+	}
 </script>
 
 <AdminSectionPage
@@ -314,7 +326,15 @@
 				</div>
 				<div class="grid gap-1.5">
 					<Label for="settings-theme">Theme</Label>
-					<Input id="settings-theme" bind:value={form.theme} />
+					<select
+						id="settings-theme"
+						class="h-9 rounded-md border border-border bg-background px-3 text-sm text-white"
+						bind:value={form.theme}
+						onchange={() => applyTheme(form.theme)}
+					>
+						<option value="dark">Dark (Shades of Purple)</option>
+						<option value="light">Light (Pink/Violet)</option>
+					</select>
 				</div>
 				{#if message}
 					<p class="text-xs text-muted-foreground">{message}</p>
