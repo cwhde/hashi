@@ -4,8 +4,8 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Addendum §17.7
 
-**Status:** Not Started
-**Branch:** 
+**Status:** Fixed
+**Branch:** h/ci-cd
 
 ## Description
 

@@ -4,8 +4,8 @@
 **Conflict Type:** wrong_implementation
 **Spec Reference:** Main Spec §4 (Frontend), §15
 
-**Status:** Not Started
-**Branch:** 
+**Status:** Fixed
+**Branch:** h/frontend-ui
 
 ## Description
 
@@ -34,7 +34,7 @@ Main component system: shadcn-svelte, backed by Bits UI primitives.
 Actual implementation:
 - SvelteKit 5 with TypeScript: ✅ Present
 - shadcn-svelte: ✅ Present (`components.json` configured)
-- Bits UI primitives: ❓ Not confirmed in `package.json`
+- Bits UI primitives: ✅ Confirmed — `bits-ui` v2.18.1 is listed as a direct dependency in `web/package.json` and is used as the backing primitive layer for all shadcn-svelte components.
 
 ## Expected Outcome
 
@@ -52,5 +52,5 @@ Actual implementation:
 
 - [x] SvelteKit 5 with TypeScript is used (implemented)
 - [x] shadcn-svelte is the component system (implemented)
-- [ ] Bits UI primitives are confirmed as backing shadcn-svelte
-- [ ] Any deviations from spec are documented
+- [x] Bits UI primitives are confirmed as backing shadcn-svelte (verified in package.json)
+- [x] Any deviations from spec are documented (none — implementation matches spec)
