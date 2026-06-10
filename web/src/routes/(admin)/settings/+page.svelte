@@ -33,6 +33,35 @@
 	let internalDnsMessage = $state<string | null>(null);
 	let internalDnsPlan = $state<AdGuardRewritePlan | null>(null);
 	let adguardConnections = $state<AdGuardConnection[]>([]);
+	let monitoringSaving = $state(false);
+	let monitoringMessage = $state<string | null>(null);
+	let monitoringForm = $state({
+		monitorCheckIntervalSeconds: 60,
+		monitorCheckTimeoutSeconds: 10,
+		monitorSampleRetentionDays: 90,
+		monitorDegradedLatencyMs: 1000
+	});
+	let edgeSsoSaving = $state(false);
+	let edgeSsoMessage = $state<string | null>(null);
+	let edgeSsoForm = $state({
+		edgeSsoSessionHours: 24,
+		edgeSsoIdleTimeoutMinutes: 30,
+		edgeSsoRememberDeviceDays: 30
+	});
+	let firewallSaving = $state(false);
+	let firewallMessage = $state<string | null>(null);
+	let firewallForm = $state({
+		trustedCidrs: '',
+		requirePortConfirmation: true,
+		persistenceMode: 'agent',
+		netbirdEnabled: false
+	});
+	let pulseSaving = $state(false);
+	let pulseMessage = $state<string | null>(null);
+	let pulseForm = $state({
+		heartbeatIntervalSeconds: 30,
+		staleThresholdSeconds: 120
+	});
 	let internalDnsForm = $state({
 		enabled: false,
 		domain: 'hashi.home.arpa',
@@ -64,6 +93,17 @@
 		theme: 'dark'
 	});
 
+	function applyTheme(theme: string) {
+		const html = document.documentElement;
+		if (theme === 'light') {
+			html.classList.remove('dark');
+			html.classList.add('light');
+		} else {
+			html.classList.remove('light');
+			html.classList.add('dark');
+		}
+	}
+
 	onMount(async () => {
 		try {
 			const settings = await api.getGeneralSettings();
@@ -76,6 +116,7 @@
 				publicStatusEnabled: settings.publicStatusEnabled,
 				theme: settings.theme ?? 'dark'
 			};
+			applyTheme(form.theme);
 		} catch {
 			// offline dev
 		}
@@ -107,6 +148,53 @@
 				adGuardConnectionId: dnsSettings.adGuardConnectionId ?? '',
 				lastSyncStatus: dnsSettings.lastSyncStatus,
 				lastAppliedHash: dnsSettings.lastAppliedHash
+			};
+		} catch {
+			// offline dev
+		}
+
+		try {
+			const monitoringSettings = await api.getMonitoringSettings();
+			monitoringForm = {
+				monitorCheckIntervalSeconds: Number(monitoringSettings.monitorCheckIntervalSeconds),
+				monitorCheckTimeoutSeconds: Number(monitoringSettings.monitorCheckTimeoutSeconds),
+				monitorSampleRetentionDays: Number(monitoringSettings.monitorSampleRetentionDays),
+				monitorDegradedLatencyMs: Number(monitoringSettings.monitorDegradedLatencyMs)
+			};
+		} catch {
+			// offline dev
+		}
+
+		try {
+			const edgeSsoSettings = await api.getEdgeSsoSettings();
+			edgeSsoForm = {
+				edgeSsoSessionHours: Number(edgeSsoSettings.edgeSsoSessionHours),
+				edgeSsoIdleTimeoutMinutes: Number(edgeSsoSettings.edgeSsoIdleTimeoutMinutes),
+				edgeSsoRememberDeviceDays: Number(edgeSsoSettings.edgeSsoRememberDeviceDays)
+			};
+		} catch {
+			// offline dev
+		}
+
+		try {
+			const firewallCat = await api.getCategorySettings('firewall');
+			const parsed = JSON.parse(firewallCat.settingsJson || '{}');
+			firewallForm = {
+				trustedCidrs: parsed.trustedCidrs ?? '',
+				requirePortConfirmation: parsed.requirePortConfirmation ?? true,
+				persistenceMode: parsed.persistenceMode ?? 'agent',
+				netbirdEnabled: parsed.netbirdEnabled ?? false
+			};
+		} catch {
+			// offline dev
+		}
+
+		try {
+			const pulseCat = await api.getCategorySettings('pulse');
+			const parsed = JSON.parse(pulseCat.settingsJson || '{}');
+			pulseForm = {
+				heartbeatIntervalSeconds: parsed.heartbeatIntervalSeconds ?? 30,
+				staleThresholdSeconds: parsed.staleThresholdSeconds ?? 120
 			};
 		} catch {
 			// offline dev
@@ -264,6 +352,71 @@
 		}
 	}
 
+	async function saveMonitoringSettings() {
+		monitoringSaving = true;
+		monitoringMessage = null;
+		try {
+			await api.updateMonitoringSettings({
+				monitorCheckIntervalSeconds: monitoringForm.monitorCheckIntervalSeconds,
+				monitorCheckTimeoutSeconds: monitoringForm.monitorCheckTimeoutSeconds,
+				monitorSampleRetentionDays: monitoringForm.monitorSampleRetentionDays,
+				monitorDegradedLatencyMs: monitoringForm.monitorDegradedLatencyMs
+			});
+			monitoringMessage = 'Monitoring settings saved.';
+		} catch (e) {
+			monitoringMessage = e instanceof Error ? e.message : 'Failed to save monitoring settings';
+		} finally {
+			monitoringSaving = false;
+		}
+	}
+
+	async function saveEdgeSsoSettings() {
+		edgeSsoSaving = true;
+		edgeSsoMessage = null;
+		try {
+			await api.updateEdgeSsoSettings({
+				edgeSsoSessionHours: edgeSsoForm.edgeSsoSessionHours,
+				edgeSsoIdleTimeoutMinutes: edgeSsoForm.edgeSsoIdleTimeoutMinutes,
+				edgeSsoRememberDeviceDays: edgeSsoForm.edgeSsoRememberDeviceDays
+			});
+			edgeSsoMessage = 'Edge SSO settings saved.';
+		} catch (e) {
+			edgeSsoMessage = e instanceof Error ? e.message : 'Failed to save edge SSO settings';
+		} finally {
+			edgeSsoSaving = false;
+		}
+	}
+
+	async function saveFirewallSettings() {
+		firewallSaving = true;
+		firewallMessage = null;
+		try {
+			await api.updateCategorySettings('firewall', {
+				settingsJson: JSON.stringify(firewallForm)
+			});
+			firewallMessage = 'Firewall settings saved.';
+		} catch (e) {
+			firewallMessage = e instanceof Error ? e.message : 'Failed to save firewall settings';
+		} finally {
+			firewallSaving = false;
+		}
+	}
+
+	async function savePulseSettings() {
+		pulseSaving = true;
+		pulseMessage = null;
+		try {
+			await api.updateCategorySettings('pulse', {
+				settingsJson: JSON.stringify(pulseForm)
+			});
+			pulseMessage = 'Pulse settings saved.';
+		} catch (e) {
+			pulseMessage = e instanceof Error ? e.message : 'Failed to save pulse settings';
+		} finally {
+			pulseSaving = false;
+		}
+	}
+
 	function formatDate(value: string | null) {
 		if (!value) return 'Never';
 		return new Date(value).toLocaleString();
@@ -320,7 +473,7 @@
 					<p class="text-xs text-muted-foreground">{message}</p>
 				{/if}
 				<Button onclick={() => save()} disabled={saving}>
-					{saving ? 'Saving…' : 'Save settings'}
+					{saving ? 'Saving...' : 'Save settings'}
 				</Button>
 			</div>
 		</PanelSection>
@@ -471,6 +624,170 @@
 						Apply preview
 					</Button>
 				</div>
+			</div>
+		</PanelSection>
+
+		<PanelSection
+			title="Security"
+			description="Edge SSO session settings and authentication defaults."
+		>
+			<div class="grid gap-4">
+				<div class="grid gap-1.5">
+					<Label for="settings-sso-session">SSO session duration (hours)</Label>
+					<Input
+						id="settings-sso-session"
+						type="number"
+						min="1"
+						bind:value={edgeSsoForm.edgeSsoSessionHours}
+					/>
+				</div>
+				<div class="grid gap-1.5">
+					<Label for="settings-sso-idle">Idle timeout (minutes)</Label>
+					<Input
+						id="settings-sso-idle"
+						type="number"
+						min="5"
+						bind:value={edgeSsoForm.edgeSsoIdleTimeoutMinutes}
+					/>
+				</div>
+				<div class="grid gap-1.5">
+					<Label for="settings-sso-remember">Remember device (days)</Label>
+					<Input
+						id="settings-sso-remember"
+						type="number"
+						min="1"
+						bind:value={edgeSsoForm.edgeSsoRememberDeviceDays}
+					/>
+				</div>
+				{#if edgeSsoMessage}
+					<p class="text-xs text-muted-foreground">{edgeSsoMessage}</p>
+				{/if}
+				<Button onclick={() => saveEdgeSsoSettings()} disabled={edgeSsoSaving}>
+					{edgeSsoSaving ? 'Saving...' : 'Save security settings'}
+				</Button>
+			</div>
+		</PanelSection>
+
+		<PanelSection
+			title="Monitoring"
+			description="Check intervals, timeouts, latency thresholds, and retention."
+		>
+			<div class="grid gap-4">
+				<div class="grid gap-1.5">
+					<Label for="settings-mon-interval">Check interval (seconds)</Label>
+					<Input
+						id="settings-mon-interval"
+						type="number"
+						min="10"
+						bind:value={monitoringForm.monitorCheckIntervalSeconds}
+					/>
+				</div>
+				<div class="grid gap-1.5">
+					<Label for="settings-mon-timeout">Check timeout (seconds)</Label>
+					<Input
+						id="settings-mon-timeout"
+						type="number"
+						min="1"
+						bind:value={monitoringForm.monitorCheckTimeoutSeconds}
+					/>
+				</div>
+				<div class="grid gap-1.5">
+					<Label for="settings-mon-retention">Sample retention (days)</Label>
+					<Input
+						id="settings-mon-retention"
+						type="number"
+						min="7"
+						bind:value={monitoringForm.monitorSampleRetentionDays}
+					/>
+				</div>
+				<div class="grid gap-1.5">
+					<Label for="settings-mon-degraded">Degraded latency threshold (ms)</Label>
+					<Input
+						id="settings-mon-degraded"
+						type="number"
+						min="100"
+						bind:value={monitoringForm.monitorDegradedLatencyMs}
+					/>
+				</div>
+				{#if monitoringMessage}
+					<p class="text-xs text-muted-foreground">{monitoringMessage}</p>
+				{/if}
+				<Button onclick={() => saveMonitoringSettings()} disabled={monitoringSaving}>
+					{monitoringSaving ? 'Saving...' : 'Save monitoring settings'}
+				</Button>
+			</div>
+		</PanelSection>
+
+		<PanelSection
+			title="Firewall"
+			description="Trusted CIDRs, port confirmation, persistence mode, and NetBird settings."
+		>
+			<div class="grid gap-4">
+				<div class="grid gap-1.5">
+					<Label for="settings-fw-cidrs">Trusted CIDRs (comma-separated)</Label>
+					<Input
+						id="settings-fw-cidrs"
+						placeholder="10.0.0.0/8, 192.168.0.0/16"
+						bind:value={firewallForm.trustedCidrs}
+					/>
+				</div>
+				<div class="flex items-center justify-between rounded-md border border-border px-3 py-2">
+					<span class="text-sm text-white">Require port confirmation</span>
+					<Switch bind:checked={firewallForm.requirePortConfirmation} />
+				</div>
+				<div class="grid gap-1.5">
+					<Label for="settings-fw-mode">Persistence mode</Label>
+					<select
+						id="settings-fw-mode"
+						class="h-9 rounded-md border border-border bg-background px-3 text-sm text-white"
+						bind:value={firewallForm.persistenceMode}
+					>
+						<option value="agent">Agent</option>
+						<option value="static">Static rules</option>
+					</select>
+				</div>
+				<div class="flex items-center justify-between rounded-md border border-border px-3 py-2">
+					<span class="text-sm text-white">Enable NetBird integration</span>
+					<Switch bind:checked={firewallForm.netbirdEnabled} />
+				</div>
+				{#if firewallMessage}
+					<p class="text-xs text-muted-foreground">{firewallMessage}</p>
+				{/if}
+				<Button onclick={() => saveFirewallSettings()} disabled={firewallSaving}>
+					{firewallSaving ? 'Saving...' : 'Save firewall settings'}
+				</Button>
+			</div>
+		</PanelSection>
+
+		<PanelSection
+			title="Pulse"
+			description="Heartbeat interval and stale threshold for remote agents."
+		>
+			<div class="grid gap-4">
+				<div class="grid gap-1.5">
+					<Label for="settings-pulse-heartbeat">Heartbeat interval (seconds)</Label>
+					<Input
+						id="settings-pulse-heartbeat"
+						type="number"
+						min="10"
+						bind:value={pulseForm.heartbeatIntervalSeconds}
+					/>
+				</div>
+				<div class="grid gap-1.5">
+					<Label for="settings-pulse-stale">Stale threshold (seconds)</Label>
+					<Input
+						id="settings-pulse-stale"
+						type="number"
+						min="30"
+						bind:value={pulseForm.staleThresholdSeconds}
+					/>
+				</div>
+				{#if pulseMessage}
+					<p class="text-xs text-muted-foreground">{pulseMessage}</p>
+				{/if}
+				<Button onclick={() => savePulseSettings()} disabled={pulseSaving}>
+					{pulseSaving ? 'Saving...' : 'Save pulse settings'}
+				</Button>
 			</div>
 		</PanelSection>
 
