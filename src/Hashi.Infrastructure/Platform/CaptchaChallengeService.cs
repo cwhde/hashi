@@ -423,8 +423,6 @@ public sealed class CaptchaChallengeService(
         state.ChallengeRequiredSinceUtc = null;
         state.ChallengeReason = null;
         state.ChallengeResourceId = null;
-        state.RequestsWhileChallenged = 0;
-        state.FailedChallengeCount = 0;
         state.SuccessfulChallengeCount++;
         state.LastChallengeSolvedAtUtc = Now();
         state.UpdatedAtUtc = Now();
