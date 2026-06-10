@@ -4,8 +4,8 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §14.3, §14.4, §14.5
 
-**Status:** Not Started
-**Branch:** 
+**Status:** Fixed
+**Branch:** h/backend-quality
 
 ## Description
 

@@ -4,8 +4,8 @@
 **Conflict Type:** wrong_implementation
 **Spec Reference:** §10.2 (Access log: minimal useful fields)
 
-**Status:** Not Started
-**Branch:** 
+**Status:** Fixed
+**Branch:** h/backend-quality
 
 ## Description
 

@@ -99,7 +99,7 @@ public sealed class AdGuardSyncService(
                 true,
                 null,
                 ToTargetResponse(target),
-            resolved.BaseUri?.ToString().TrimEnd('/'),
+                resolved.BaseUri?.ToString().TrimEnd('/'),
                 resolved.IsStale);
         }
         catch (Exception ex)

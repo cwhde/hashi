@@ -401,6 +401,10 @@ public sealed class SecuritySubjectStateEntity
 
     public DateTimeOffset? LastEscalationAtUtc { get; set; }
 
+    public DateTimeOffset? RateLimitedUntilUtc { get; set; }
+
+    public int RateLimitRequestCount { get; set; }
+
     public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }
 

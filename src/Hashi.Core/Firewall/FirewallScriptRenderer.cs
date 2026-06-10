@@ -30,6 +30,11 @@ public sealed record FirewallPortForward(
 
 public static class FirewallScriptRenderer
 {
+    private static readonly Regex ShellMetacharPattern = new(
+        @"[;|&`$(){}!\n\r\\\""'#<>]",
+        RegexOptions.Compiled);
+
+
     private static readonly Regex ValidNamePattern = new(
         @"^[a-zA-Z0-9._-]+$",
         RegexOptions.Compiled);

@@ -1,5 +1,6 @@
 using Hashi.Contracts.Api;
 using Hashi.Core.Sync;
+using Hashi.Core.Traefik;
 using Hashi.Infrastructure.Dns;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
