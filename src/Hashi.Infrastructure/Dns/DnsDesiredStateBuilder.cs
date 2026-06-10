@@ -195,9 +195,20 @@ public static class DnsDesiredStateBuilder
         => ResolveManualIp(targetHost) is string ip && !DnsRecordGenerator.IsPublicIp(ip);
 
     private static string? ResolveOnRouteTarget(FirewallHostEntity host)
-        => !string.IsNullOrWhiteSpace(host.LinkedTraefikHost)
-            ? host.LinkedTraefikHost
-            : host.InternalTraefikIp;
+    {
+        if (!string.IsNullOrWhiteSpace(host.LinkedTraefikHost))
+        {
+            return host.LinkedTraefikHost.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(host.InternalTraefikIp)
+            && System.Net.IPAddress.TryParse(host.InternalTraefikIp.Trim(), out _))
+        {
+            return null;
+        }
+
+        return host.InternalTraefikIp?.Trim();
+    }
 
     private static IReadOnlyList<string> BuildConfiguredFqdns(FirewallHostEntity host, string rootDomain)
     {

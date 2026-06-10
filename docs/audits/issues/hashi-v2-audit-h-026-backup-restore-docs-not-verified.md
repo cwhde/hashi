@@ -52,7 +52,7 @@ Verify that `docs/operations/backup-restore.md` covers:
 ## Acceptance Criteria
 
 - [x] backup-restore.md exists (implemented)
-- [ ] Content covers PostgreSQL backup
-- [ ] Content covers /data backup
-- [ ] Content covers recovery key storage
-- [ ] Content covers disaster recovery
+- [x] Content covers PostgreSQL backup
+- [x] Content covers /data backup
+- [x] Content covers recovery key storage
+- [x] Content covers disaster recovery
