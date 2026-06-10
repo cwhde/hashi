@@ -34,6 +34,8 @@
 	let prfOutput = $state<string | null>(null);
 	let message = $state<string | null>(null);
 	let error = $state<string | null>(null);
+	let serviceSyncVaultReady = $state(false);
+	let acknowledgedServiceSync = $state(false);
 
 	onMount(async () => {
 		webauthnOk = isWebAuthnSupported();
@@ -43,6 +45,12 @@
 			recoveryKey = generated.recoveryKey;
 		} catch {
 			recoveryKey = '(offline — start API to generate)';
+		}
+		try {
+			const vStatus = await api.getVaultStatus();
+			serviceSyncVaultReady = vStatus.serviceSyncVaultReady;
+		} catch {
+			// ignore
 		}
 	});
 
@@ -76,6 +84,7 @@
 
 	async function configureVault() {
 		if (!credentialId || !recoveryKey || !confirmedRecovery) return;
+		if (serviceSyncVaultReady && !acknowledgedServiceSync) return;
 		configuring = true;
 		error = null;
 		try {
@@ -127,6 +136,23 @@
 		<Label for="confirm-recovery">I have saved the recovery key securely</Label>
 	</div>
 
+	{#if serviceSyncVaultReady}
+		<Alert class="border-amber-500/50 bg-amber-500/10 text-amber-200">
+			<AlertTitle>Security Warning: Unattended Sync Enabled</AlertTitle>
+			<AlertDescription class="text-xs leading-relaxed">
+				An environment key for the service-sync vault is configured. This enables unattended routine synchronization, allowing background syncs to decrypt secrets without an active browser session.
+				<br /><br />
+				<strong>Security Tradeoff:</strong> If this server is compromised, anyone with access to the vault key will be able to expose sync secrets.
+			</AlertDescription>
+		</Alert>
+		<div class="flex items-start gap-2">
+			<Checkbox bind:checked={acknowledgedServiceSync} id="acknowledge-servicesync" />
+			<Label for="acknowledge-servicesync" class="text-xs leading-tight">
+				I understand and accept the security tradeoff of enabling the unattended service-sync vault.
+			</Label>
+		</div>
+	{/if}
+
 	{#if message}
 		<p class="text-xs text-emerald-300">{message}</p>
 	{/if}
@@ -137,7 +163,7 @@
 	<div class="flex justify-end">
 		<Button
 			onclick={() => configureVault()}
-			disabled={advancing || configuring || !credentialId || !confirmedRecovery}
+			disabled={advancing || configuring || !credentialId || !confirmedRecovery || (serviceSyncVaultReady && !acknowledgedServiceSync)}
 		>
 			<Shield class="size-4" />
 			{configuring ? 'Configuring vault…' : 'Configure vault & continue'}
