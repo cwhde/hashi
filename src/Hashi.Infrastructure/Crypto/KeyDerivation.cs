@@ -5,6 +5,9 @@ namespace Hashi.Infrastructure.Crypto;
 
 public static class KeyDerivation
 {
+    private const int Pbkdf2Iterations = 600_000;
+    private const int SaltSizeBytes = 32;
+
     public static byte[] DeriveRecoveryWrapKey(string recoveryKey)
         => DeriveKey("hashi:vault:recovery", Encoding.UTF8.GetBytes(recoveryKey));
 
@@ -21,8 +24,34 @@ public static class KeyDerivation
 
     public static string HashRecoveryKeyForVerification(string recoveryKey)
     {
-        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(recoveryKey));
-        return Convert.ToHexString(hash).ToLowerInvariant();
+        var salt = RandomNumberGenerator.GetBytes(SaltSizeBytes);
+        var hash = Pbkdf2Hash(recoveryKey, salt);
+        return $"{Convert.ToHexString(salt).ToLowerInvariant()}:{Convert.ToHexString(hash).ToLowerInvariant()}";
+    }
+
+    public static bool VerifyRecoveryKeyHash(string recoveryKey, string storedHash)
+    {
+        var parts = storedHash.Split(':');
+        if (parts.Length != 2)
+        {
+            return false;
+        }
+
+        var salt = Convert.FromHexString(parts[0]);
+        var expectedHash = Convert.FromHexString(parts[1]);
+        var computedHash = Pbkdf2Hash(recoveryKey, salt);
+        return CryptographicOperations.FixedTimeEquals(computedHash, expectedHash);
+    }
+
+    private static byte[] Pbkdf2Hash(string password, byte[] salt)
+    {
+        using var pbkdf2 = new Rfc2898DeriveBytes(
+            password,
+            salt,
+            Pbkdf2Iterations,
+            HashAlgorithmName.SHA256,
+            HashAlgorithmName.SHA256);
+        return pbkdf2.GetBytes(32);
     }
 
     private static byte[] DeriveKey(string purpose, ReadOnlySpan<byte> input)

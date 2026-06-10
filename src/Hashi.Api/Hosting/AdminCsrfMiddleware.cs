@@ -1,3 +1,4 @@
+using Hashi.Infrastructure.Services;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Http;
 
@@ -16,7 +17,11 @@ public sealed class AdminCsrfMiddleware(RequestDelegate next)
         HttpMethods.Delete,
     };
 
-    public async Task InvokeAsync(HttpContext context, IAntiforgery antiforgery)
+    public async Task InvokeAsync(
+        HttpContext context,
+        IAntiforgery antiforgery,
+        ILogger<AdminCsrfMiddleware> logger,
+        AuditService audit)
     {
         if (!context.Request.Path.StartsWithSegments("/api")
             || !UnsafeMethods.Contains(context.Request.Method)
@@ -39,6 +44,18 @@ public sealed class AdminCsrfMiddleware(RequestDelegate next)
         }
         catch (AntiforgeryValidationException)
         {
+            var clientIp = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            logger.LogWarning(
+                "CSRF validation failed for {Method} {Path} from {ClientIp}",
+                context.Request.Method,
+                context.Request.Path,
+                clientIp);
+            await audit.WriteAsync(
+                "auth",
+                "csrf_validation_failed",
+                outcome: "failure",
+                metadata: new { method = context.Request.Method, path = context.Request.Path.Value, clientIp },
+                cancellationToken: context.RequestAborted);
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             return;
         }

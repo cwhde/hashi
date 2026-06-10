@@ -20,6 +20,8 @@ public sealed class AppSettingsEntity
 
     public string? AcmeEmail { get; set; }
 
+    public string AcmeProvider { get; set; } = "gts";
+
     public Guid? AcmeEabSecretId { get; set; }
 
     public Guid? AcmeDnsProviderConnectionId { get; set; }
@@ -41,6 +43,8 @@ public sealed class AppSettingsEntity
     public int EdgeSsoIdleTimeoutMinutes { get; set; } = 60;
 
     public int EdgeSsoRememberDeviceDays { get; set; } = 30;
+
+    public int AdminSessionMinutes { get; set; } = 480;
 
     public string OverviewWidgetsJson { get; set; } = "{}";
 

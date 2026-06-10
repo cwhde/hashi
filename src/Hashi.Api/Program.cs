@@ -61,8 +61,10 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.Cookie.Name = "hashi.session";
         options.Cookie.HttpOnly = true;
         options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        options.Cookie.SameSite = SameSiteMode.Strict;
         options.SlidingExpiration = true;
-        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        var sessionMinutes = builder.Configuration.GetValue<int?>("Hashi:AdminSessionMinutes") ?? 480;
+        options.ExpireTimeSpan = TimeSpan.FromMinutes(Math.Clamp(sessionMinutes, 5, 1440));
     });
 builder.Services.AddAuthorization();
 builder.Services.AddCors(options =>
@@ -86,6 +88,7 @@ builder.Services.AddAntiforgery(options =>
     options.Cookie.Name = "hashi.csrf";
     options.Cookie.HttpOnly = true;
     options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.Strict;
 });
 
 var app = builder.Build();

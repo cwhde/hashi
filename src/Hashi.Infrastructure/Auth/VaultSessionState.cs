@@ -83,11 +83,23 @@ public sealed class ServiceSyncVaultState
 {
     public byte[]? WrapKey { get; private set; }
 
+    private readonly Dictionary<string, byte[]> _purposeKeys = new(StringComparer.OrdinalIgnoreCase);
+
     public bool IsReady => WrapKey is not null;
 
     public void Initialize(ReadOnlySpan<byte> wrapKey)
     {
         WrapKey = wrapKey.ToArray();
+    }
+
+    public void InitializePurposeKey(string purposeTag, ReadOnlySpan<byte> purposeKey)
+    {
+        if (_purposeKeys.TryGetValue(purposeTag, out var existing))
+        {
+            CryptographicOperations.ZeroMemory(existing);
+        }
+
+        _purposeKeys[purposeTag] = purposeKey.ToArray();
     }
 
     public ReadOnlySpan<byte> GetWrapKeyOrThrow()
@@ -98,6 +110,16 @@ public sealed class ServiceSyncVaultState
         }
 
         return WrapKey;
+    }
+
+    public ReadOnlySpan<byte> GetPurposeWrapKeyOrThrow(string purposeTag)
+    {
+        if (_purposeKeys.TryGetValue(purposeTag, out var key))
+        {
+            return key;
+        }
+
+        return GetWrapKeyOrThrow();
     }
 }
 
