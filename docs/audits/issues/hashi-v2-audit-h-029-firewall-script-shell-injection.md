@@ -4,8 +4,8 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Main Spec §14.3, Non-Negotiable Rule Set §3 (#18 custom scripts as privileged operations)
 
-**Status:** Not Started
-**Branch:** 
+**Status:** Fixed
+**Branch:** h/security-1
 
 ## Description
 
