@@ -33,6 +33,35 @@
 	let internalDnsMessage = $state<string | null>(null);
 	let internalDnsPlan = $state<AdGuardRewritePlan | null>(null);
 	let adguardConnections = $state<AdGuardConnection[]>([]);
+	let monitoringSaving = $state(false);
+	let monitoringMessage = $state<string | null>(null);
+	let monitoringForm = $state({
+		monitorCheckIntervalSeconds: 60,
+		monitorCheckTimeoutSeconds: 10,
+		monitorSampleRetentionDays: 90,
+		monitorDegradedLatencyMs: 1000
+	});
+	let edgeSsoSaving = $state(false);
+	let edgeSsoMessage = $state<string | null>(null);
+	let edgeSsoForm = $state({
+		edgeSsoSessionHours: 24,
+		edgeSsoIdleTimeoutMinutes: 30,
+		edgeSsoRememberDeviceDays: 30
+	});
+	let firewallSaving = $state(false);
+	let firewallMessage = $state<string | null>(null);
+	let firewallForm = $state({
+		trustedCidrs: '',
+		requirePortConfirmation: true,
+		persistenceMode: 'agent',
+		netbirdEnabled: false
+	});
+	let pulseSaving = $state(false);
+	let pulseMessage = $state<string | null>(null);
+	let pulseForm = $state({
+		heartbeatIntervalSeconds: 30,
+		staleThresholdSeconds: 120
+	});
 	let internalDnsForm = $state({
 		enabled: false,
 		domain: 'hashi.home.arpa',
@@ -63,6 +92,17 @@
 		publicStatusEnabled: true,
 		theme: 'dark'
 	});
+
+	function applyTheme(theme: string) {
+		const html = document.documentElement;
+		if (theme === 'light') {
+			html.classList.remove('dark');
+			html.classList.add('light');
+		} else {
+			html.classList.remove('light');
+			html.classList.add('dark');
+		}
+	}
 
 	onMount(async () => {
 		try {
@@ -108,6 +148,53 @@
 				adGuardConnectionId: dnsSettings.adGuardConnectionId ?? '',
 				lastSyncStatus: dnsSettings.lastSyncStatus,
 				lastAppliedHash: dnsSettings.lastAppliedHash
+			};
+		} catch {
+			// offline dev
+		}
+
+		try {
+			const monitoringSettings = await api.getMonitoringSettings();
+			monitoringForm = {
+				monitorCheckIntervalSeconds: Number(monitoringSettings.monitorCheckIntervalSeconds),
+				monitorCheckTimeoutSeconds: Number(monitoringSettings.monitorCheckTimeoutSeconds),
+				monitorSampleRetentionDays: Number(monitoringSettings.monitorSampleRetentionDays),
+				monitorDegradedLatencyMs: Number(monitoringSettings.monitorDegradedLatencyMs)
+			};
+		} catch {
+			// offline dev
+		}
+
+		try {
+			const edgeSsoSettings = await api.getEdgeSsoSettings();
+			edgeSsoForm = {
+				edgeSsoSessionHours: Number(edgeSsoSettings.edgeSsoSessionHours),
+				edgeSsoIdleTimeoutMinutes: Number(edgeSsoSettings.edgeSsoIdleTimeoutMinutes),
+				edgeSsoRememberDeviceDays: Number(edgeSsoSettings.edgeSsoRememberDeviceDays)
+			};
+		} catch {
+			// offline dev
+		}
+
+		try {
+			const firewallCat = await api.getCategorySettings('firewall');
+			const parsed = JSON.parse(firewallCat.settingsJson || '{}');
+			firewallForm = {
+				trustedCidrs: parsed.trustedCidrs ?? '',
+				requirePortConfirmation: parsed.requirePortConfirmation ?? true,
+				persistenceMode: parsed.persistenceMode ?? 'agent',
+				netbirdEnabled: parsed.netbirdEnabled ?? false
+			};
+		} catch {
+			// offline dev
+		}
+
+		try {
+			const pulseCat = await api.getCategorySettings('pulse');
+			const parsed = JSON.parse(pulseCat.settingsJson || '{}');
+			pulseForm = {
+				heartbeatIntervalSeconds: parsed.heartbeatIntervalSeconds ?? 30,
+				staleThresholdSeconds: parsed.staleThresholdSeconds ?? 120
 			};
 		} catch {
 			// offline dev
@@ -413,7 +500,7 @@
 					<p class="text-xs text-muted-foreground">{message}</p>
 				{/if}
 				<Button onclick={() => save()} disabled={saving}>
-					{saving ? 'Saving…' : 'Save settings'}
+					{saving ? 'Saving...' : 'Save settings'}
 				</Button>
 			</div>
 		</PanelSection>
