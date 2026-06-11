@@ -128,17 +128,24 @@ public static class FirewallScriptRenderer
     {
         ValidateHostDefinition(host);
 
-        var managedSubnetsArray = RenderBashArray("HASHI_MANAGED_SUBNETS", host.ManagedSubnets);
+        var managedSubnetsV4Array = RenderBashArray("HASHI_MANAGED_SUBNETS", host.ManagedSubnets.Where(x => !IsIpv6(x)));
+        var managedSubnetsV6Array = RenderBashArray("HASHI_MANAGED_SUBNETS6", host.ManagedSubnets.Where(IsIpv6));
         var overlayCidrs = host.NetBirdOverlayCidrs ?? ["100.110.0.0/16"];
         var routedCidrs = host.NetBirdRoutedCidrs ?? [];
-        var overlayCidrsArray = RenderBashArray("HASHI_NETBIRD_OVERLAY", overlayCidrs);
-        var routedCidrsArray = RenderBashArray("HASHI_NETBIRD_ROUTED", routedCidrs);
-        var trustedIps = string.Join('\n', (host.TrustedPublicIps ?? []).Select(ip => $"ipset add hashi_trusted {ShellEscape(ip)} -exist"));
-        var blockedIps = string.Join('\n', (host.BlockedIps ?? []).Select(ip => $"ipset add hashi_blocked {ShellEscape(ip)} -exist"));
+        var overlayCidrsV4Array = RenderBashArray("HASHI_NETBIRD_OVERLAY", overlayCidrs.Where(x => !IsIpv6(x)));
+        var overlayCidrsV6Array = RenderBashArray("HASHI_NETBIRD_OVERLAY6", overlayCidrs.Where(IsIpv6));
+        var routedCidrsV4Array = RenderBashArray("HASHI_NETBIRD_ROUTED", routedCidrs.Where(x => !IsIpv6(x)));
+        var routedCidrsV6Array = RenderBashArray("HASHI_NETBIRD_ROUTED6", routedCidrs.Where(IsIpv6));
+        var trustedIps = string.Join('\n', (host.TrustedPublicIps ?? []).Select(ip =>
+            $"ipset add {(IsIpv6(ip) ? "hashi_trusted6" : "hashi_trusted")} {ShellEscape(ip)} -exist"));
+        var blockedIps = string.Join('\n', (host.BlockedIps ?? []).Select(ip =>
+            $"ipset add {(IsIpv6(ip) ? "hashi_blocked6" : "hashi_blocked")} {ShellEscape(ip)} -exist"));
         var dnatRules = string.Join('\n', (host.PortForwards ?? []).Select(p =>
-            $"iptables -t nat -A HASHI_DNAT -p {ShellEscape(p.Protocol.ToLowerInvariant())} --dport {p.PublicPort} -j DNAT --to-destination {ShellEscape(p.TargetHost)}:{p.TargetPort}"));
+            IsIpv6(p.TargetHost)
+                ? $"ip6tables -t nat -A HASHI_DNAT -p {ShellEscape(p.Protocol.ToLowerInvariant())} --dport {p.PublicPort} -j DNAT --to-destination {ShellEscape($"[{p.TargetHost}]:{p.TargetPort}")}"
+                : $"iptables -t nat -A HASHI_DNAT -p {ShellEscape(p.Protocol.ToLowerInvariant())} --dport {p.PublicPort} -j DNAT --to-destination {ShellEscape(p.TargetHost)}:{p.TargetPort}"));
         var fwdRules = string.Join('\n', (host.PortForwards ?? []).Select(p =>
-            $"iptables -A HASHI_FWD -p {ShellEscape(p.Protocol.ToLowerInvariant())} -d {ShellEscape(p.TargetHost)} --dport {p.TargetPort} -j ACCEPT"));
+            $"{(IsIpv6(p.TargetHost) ? "ip6tables" : "iptables")} -A HASHI_FWD -p {ShellEscape(p.Protocol.ToLowerInvariant())} -d {ShellEscape(p.TargetHost)} --dport {p.TargetPort} -j ACCEPT"));
         var wan = host.WanInterface is not null
             ? ShellEscape(host.WanInterface)
             : "\"${WAN_IF:-$(ip route show default | awk '{print $5}' | head -1)}\"";
@@ -221,9 +228,13 @@ public static class FirewallScriptRenderer
             ipset flush hashi_trusted6
             ipset flush hashi_blocked6
 
-            {{managedSubnetsArray}}
+            {{managedSubnetsV4Array}}
             for subnet in "${HASHI_MANAGED_SUBNETS[@]}"; do
               ipset add hashi_trusted "$subnet" -exist
+            done
+            {{managedSubnetsV6Array}}
+            for subnet in "${HASHI_MANAGED_SUBNETS6[@]}"; do
+              ipset add hashi_trusted6 "$subnet" -exist
             done
             {{trustedIps}}
             {{blockedIps}}
@@ -260,7 +271,7 @@ public static class FirewallScriptRenderer
             ip6tables -A HASHI_INPUT -m set --match-set hashi_blocked6 src -j DROP
             ip6tables -A HASHI_INPUT -m set --match-set hashi_trusted6 src -j ACCEPT
 
-            {{RenderNetBirdRules(host, overlayCidrsArray, routedCidrsArray)}}
+            {{RenderNetBirdRules(host, overlayCidrsV4Array, overlayCidrsV6Array, routedCidrsV4Array, routedCidrsV6Array)}}
 
             iptables -A HASHI_INPUT -j DROP
 
@@ -273,10 +284,17 @@ public static class FirewallScriptRenderer
               iptables -A HASHI_FWD -s "$subnet" -j ACCEPT
               iptables -A HASHI_FWD -d "$subnet" -j ACCEPT
             done
+            for subnet in "${HASHI_MANAGED_SUBNETS6[@]}"; do
+              ip6tables -A HASHI_FWD -s "$subnet" -j ACCEPT
+              ip6tables -A HASHI_FWD -d "$subnet" -j ACCEPT
+            done
 
             for subnet in "${HASHI_MANAGED_SUBNETS[@]}"; do
               iptables -t nat -A HASHI_POSTROUTING -s "$subnet" -o "$WAN_IF" -j MASQUERADE
               iptables -t nat -A HASHI_POSTROUTING -d "$TRAEFIK_IP" -s "$subnet" -j SNAT --to-source "$PUBLIC_IP"
+            done
+            for subnet in "${HASHI_MANAGED_SUBNETS6[@]}"; do
+              ip6tables -t nat -A HASHI_POSTROUTING -s "$subnet" -o "$WAN_IF" -j MASQUERADE
             done
 
             if command -v netfilter-persistent >/dev/null 2>&1; then
@@ -338,8 +356,10 @@ public static class FirewallScriptRenderer
 
     private static string RenderNetBirdRules(
         FirewallHostDefinition host,
-        string overlayCidrsArray,
-        string routedCidrsArray)
+        string overlayCidrsV4Array,
+        string overlayCidrsV6Array,
+        string routedCidrsV4Array,
+        string routedCidrsV6Array)
     {
         if (!host.NetBirdEnabled)
         {
@@ -348,22 +368,48 @@ public static class FirewallScriptRenderer
 
         var lines = new List<string>
         {
-            overlayCidrsArray,
+            overlayCidrsV4Array,
             "for cidr in \"${HASHI_NETBIRD_OVERLAY[@]}\"; do",
             "  ipset add hashi_netbird \"$cidr\" -exist",
             "done",
+            overlayCidrsV6Array,
+            "for cidr in \"${HASHI_NETBIRD_OVERLAY6[@]}\"; do",
+            "  ipset add hashi_netbird6 \"$cidr\" -exist",
+            "done",
             "iptables -A HASHI_INPUT -i \"$NETBIRD_IF\" -m set --match-set hashi_netbird src -j ACCEPT",
             "iptables -A HASHI_NETBIRD -i \"$NETBIRD_IF\" -m set --match-set hashi_netbird src -j ACCEPT",
+            "ip6tables -A HASHI_INPUT -i \"$NETBIRD_IF\" -m set --match-set hashi_netbird6 src -j ACCEPT",
+            "ip6tables -A HASHI_NETBIRD -i \"$NETBIRD_IF\" -m set --match-set hashi_netbird6 src -j ACCEPT",
         };
 
         if (host.NetBirdRoutingPeer && (host.NetBirdRoutedCidrs ?? []).Count > 0)
         {
-            lines.Add(routedCidrsArray);
-            lines.Add("for cidr in \"${HASHI_NETBIRD_ROUTED[@]}\"; do");
-            lines.Add("  iptables -A HASHI_NETBIRD -i \"$NETBIRD_IF\" -d \"$cidr\" -j ACCEPT");
-            lines.Add("  iptables -A HASHI_POSTROUTING -s \"${HASHI_NETBIRD_OVERLAY[0]}\" -d \"$cidr\" -j MASQUERADE");
-            lines.Add("  iptables -A HASHI_NETBIRD -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu");
-            lines.Add("done");
+            var overlay = host.NetBirdOverlayCidrs ?? ["100.110.0.0/16"];
+            var routed = host.NetBirdRoutedCidrs ?? [];
+            if (routed.Any(x => !IsIpv6(x)))
+            {
+                lines.Add(routedCidrsV4Array);
+                lines.Add("for cidr in \"${HASHI_NETBIRD_ROUTED[@]}\"; do");
+                lines.Add("  iptables -A HASHI_NETBIRD -i \"$NETBIRD_IF\" -d \"$cidr\" -j ACCEPT");
+                if (overlay.Any(x => !IsIpv6(x)))
+                {
+                    lines.Add("  iptables -A HASHI_POSTROUTING -s \"${HASHI_NETBIRD_OVERLAY[0]}\" -d \"$cidr\" -j MASQUERADE");
+                }
+                lines.Add("  iptables -A HASHI_NETBIRD -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu");
+                lines.Add("done");
+            }
+            if (routed.Any(IsIpv6))
+            {
+                lines.Add(routedCidrsV6Array);
+                lines.Add("for cidr in \"${HASHI_NETBIRD_ROUTED6[@]}\"; do");
+                lines.Add("  ip6tables -A HASHI_NETBIRD -i \"$NETBIRD_IF\" -d \"$cidr\" -j ACCEPT");
+                if (overlay.Any(IsIpv6))
+                {
+                    lines.Add("  ip6tables -t nat -A HASHI_POSTROUTING -s \"${HASHI_NETBIRD_OVERLAY6[0]}\" -d \"$cidr\" -j MASQUERADE");
+                }
+                lines.Add("  ip6tables -A HASHI_NETBIRD -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu");
+                lines.Add("done");
+            }
         }
 
         return string.Join('\n', lines);
@@ -374,4 +420,7 @@ public static class FirewallScriptRenderer
         var entries = values.Select(value => $"  {ShellEscape(value)}");
         return $"{name}=(\n{string.Join("\n", entries)}\n)";
     }
+
+    private static bool IsIpv6(string value)
+        => value.Split('/', 2, StringSplitOptions.TrimEntries)[0].Contains(':', StringComparison.Ordinal);
 }
