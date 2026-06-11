@@ -272,7 +272,8 @@ public sealed record FirewallApplyRequest(
     string AuthMode,
     string? Password,
     string? PrivateKeyPem,
-    string? PrivateKeyPassphrase);
+    string? PrivateKeyPassphrase,
+    bool AcknowledgeSshBlockRisk = false);
 
 public sealed record FirewallPlanChangeResponse(
     string Kind,
@@ -293,7 +294,9 @@ public sealed record FirewallPlanPreviewResponse(
     string ScriptHash,
     bool HasChanges,
     IReadOnlyList<FirewallPlanChangeResponse> Changes,
-    string Preview);
+    string Preview,
+    bool SshBlockRisk = false,
+    string? SshBlockWarningMessage = null);
 
 public sealed record FirewallApplyResponse(
     bool Succeeded,

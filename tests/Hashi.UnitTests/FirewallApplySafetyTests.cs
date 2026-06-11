@@ -4,6 +4,10 @@ using Hashi.Core.Connections;
 using Hashi.Core.Firewall;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
+using Hashi.Infrastructure.Platform;
+using Hashi.Infrastructure.Services;
+using Hashi.Infrastructure.Sync;
+using Hashi.Infrastructure.Auth;
 using Hashi.UnitTests.Fakes;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
@@ -241,6 +245,85 @@ public sealed class FirewallApplySafetyTests
         };
         db.FirewallHosts.Add(host);
         return host;
+    }
+
+    [Fact]
+    public void IsIpAllowed_Detects_Blocked_And_Allowed_Ips()
+    {
+        var definition = new FirewallHostDefinition(
+            Guid.NewGuid(),
+            "fw1",
+            "example.com",
+            ["192.168.1.0/24"],
+            "traefik.local",
+            "10.0.0.2",
+            "203.0.113.5",
+            BlockedIps: ["192.168.1.100"],
+            TrustedPublicIps: ["203.0.113.10"],
+            NetBirdEnabled: true,
+            NetBirdOverlayCidrs: ["100.64.0.0/10"]);
+
+        // Loopback should be allowed
+        Assert.True(FirewallApplyService.IsIpAllowed("127.0.0.1", definition));
+        Assert.True(FirewallApplyService.IsIpAllowed("::1", definition));
+
+        // Allowed managed subnet
+        Assert.True(FirewallApplyService.IsIpAllowed("192.168.1.50", definition));
+
+        // Blocked IP (even if in managed subnet)
+        Assert.False(FirewallApplyService.IsIpAllowed("192.168.1.100", definition));
+
+        // Trusted public IP
+        Assert.True(FirewallApplyService.IsIpAllowed("203.0.113.10", definition));
+
+        // NetBird overlay IP
+        Assert.True(FirewallApplyService.IsIpAllowed("100.64.0.5", definition));
+
+        // Random blocked IP
+        Assert.False(FirewallApplyService.IsIpAllowed("8.8.8.8", definition));
+    }
+
+    [Fact]
+    public async Task Apply_AcknowledgeSshBlockRisk_Succeeds_Or_Fails()
+    {
+        await using var db = CreateDb();
+        var host = SeedFirewallHost(db);
+        await db.SaveChangesAsync();
+
+        var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+        httpContext.Connection.RemoteIpAddress = System.Net.IPAddress.Parse("8.8.8.8"); // Blocked IP
+        var httpContextAccessor = new Microsoft.AspNetCore.Http.HttpContextAccessor { HttpContext = httpContext };
+
+        var ssh = new FakeSshRemoteExecutor();
+        ssh.CommandResults.Enqueue(new RemoteCommandResult(true, "hashi-firewall-preflight-ok", null));
+        ssh.CommandResults.Enqueue(new RemoteCommandResult(true, "no", null));
+        ssh.CommandResults.Enqueue(new RemoteCommandResult(true, string.Empty, null));
+        ssh.CommandResults.Enqueue(new RemoteCommandResult(true, string.Empty, null));
+        ssh.CommandResults.Enqueue(new RemoteCommandResult(true, string.Empty, null));
+
+        var secrets = new SecretRecordService(db, new VaultSessionState(), new ServiceSyncVaultState());
+        var service = new FirewallApplyService(
+            db,
+            ssh,
+            secrets,
+            new AuditService(db),
+            new FirewallTrustedIpResolver(Microsoft.Extensions.Logging.Abstractions.NullLogger<FirewallTrustedIpResolver>.Instance),
+            new SyncRunService(db),
+            new ConnectionTargetResolver(db, new AuditService(db)),
+            httpContextAccessor);
+
+        // When AcknowledgeSshBlockRisk is false, it should fail
+        var requestWithoutAck = BuildRequest(host.Id) with { AcknowledgeSshBlockRisk = false };
+        var resultFail = await service.ApplyAsync(requestWithoutAck);
+
+        Assert.False(resultFail.Succeeded);
+        Assert.Contains("block your current SSH connection", resultFail.Message);
+
+        // When AcknowledgeSshBlockRisk is true, it should proceed (and succeed since commands are enqueued)
+        var requestWithAck = BuildRequest(host.Id) with { AcknowledgeSshBlockRisk = true };
+        var resultSuccess = await service.ApplyAsync(requestWithAck);
+
+        Assert.True(resultSuccess.Succeeded);
     }
 
     private static FirewallApplyRequest BuildRequest(Guid hostId) => new(

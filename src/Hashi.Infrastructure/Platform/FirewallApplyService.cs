@@ -1,6 +1,8 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Net;
+using Microsoft.AspNetCore.Http;
 using Hashi.Contracts.Api;
 using Hashi.Core.Connections;
 using Hashi.Core.Firewall;
@@ -22,7 +24,8 @@ public sealed class FirewallApplyService(
     AuditService audit,
     FirewallTrustedIpResolver trustedIpResolver,
     SyncRunService syncRuns,
-    ConnectionTargetResolver targetResolver)
+    ConnectionTargetResolver targetResolver,
+    IHttpContextAccessor? httpContextAccessor = null)
 {
     public async Task<IReadOnlyList<FirewallHostResponse>> ListHostsAsync(CancellationToken cancellationToken = default)
     {
@@ -130,7 +133,22 @@ public sealed class FirewallApplyService(
     {
         var host = await db.FirewallHosts.SingleAsync(x => x.Id == firewallHostId, cancellationToken);
         var definition = await BuildHostDefinitionAsync(host, cancellationToken);
-        var plan = BuildPlan(host, definition);
+        
+        string? clientIp = null;
+        if (httpContextAccessor?.HttpContext is not null)
+        {
+            var context = httpContextAccessor.HttpContext;
+            if (context.Request.Headers.TryGetValue("X-Forwarded-For", out var forwardedFor))
+            {
+                clientIp = forwardedFor.FirstOrDefault()?.Split(',').FirstOrDefault()?.Trim();
+            }
+            if (string.IsNullOrEmpty(clientIp))
+            {
+                clientIp = context.Connection.RemoteIpAddress?.ToString();
+            }
+        }
+
+        var plan = BuildPlan(host, definition, clientIp);
         db.FirewallGeneratedScripts.Add(new FirewallGeneratedScriptEntity
         {
             FirewallHostId = host.Id,
@@ -160,7 +178,36 @@ public sealed class FirewallApplyService(
         FirewallApplyRequest request,
         CancellationToken cancellationToken)
     {
-        var plan = BuildPlan(host, definition);
+        string? clientIp = null;
+        if (httpContextAccessor?.HttpContext is not null)
+        {
+            var context = httpContextAccessor.HttpContext;
+            if (context.Request.Headers.TryGetValue("X-Forwarded-For", out var forwardedFor))
+            {
+                clientIp = forwardedFor.FirstOrDefault()?.Split(',').FirstOrDefault()?.Trim();
+            }
+            if (string.IsNullOrEmpty(clientIp))
+            {
+                clientIp = context.Connection.RemoteIpAddress?.ToString();
+            }
+        }
+
+        if (!string.IsNullOrEmpty(clientIp) && !IsIpAllowed(clientIp, definition))
+        {
+            if (!request.AcknowledgeSshBlockRisk)
+            {
+                return new FirewallApplyResponse(
+                    Succeeded: false,
+                    Skipped: false,
+                    NetBirdDetected: false,
+                    Message: $"Applying this firewall profile would block your current SSH connection (IP: {clientIp}). Please check allowed subnets/IPs or acknowledge the SSH block risk.",
+                    PlanId: null,
+                    ScriptHash: null,
+                    Preview: null);
+            }
+        }
+
+        var plan = BuildPlan(host, definition, clientIp);
         var script = plan.Preview;
         var envFile = FirewallScriptRenderer.RenderEnvFile(definition);
         var scriptHash = plan.ScriptHash;
@@ -583,7 +630,7 @@ public sealed class FirewallApplyService(
             cancellationToken);
     }
 
-    private FirewallPlanPreviewResponse BuildPlan(FirewallHostEntity host, FirewallHostDefinition definition)
+    private FirewallPlanPreviewResponse BuildPlan(FirewallHostEntity host, FirewallHostDefinition definition, string? clientIp)
     {
         var script = FirewallScriptRenderer.Render(definition);
         var scriptHash = ComputeHash(script);
@@ -598,13 +645,23 @@ public sealed class FirewallApplyService(
                     : $"Firewall script unchanged at {scriptHash}."),
         };
 
+        var sshBlockRisk = false;
+        string? warningMessage = null;
+        if (!string.IsNullOrEmpty(clientIp) && !IsIpAllowed(clientIp, definition))
+        {
+            sshBlockRisk = true;
+            warningMessage = $"Applying this firewall profile would block your current SSH connection (IP: {clientIp}). Please check allowed subnets/IPs or configure NetBird.";
+        }
+
         return new FirewallPlanPreviewResponse(
             ComputePlanId(host.Id, scriptHash),
             host.Id,
             scriptHash,
             hasChanges,
             changes,
-            script);
+            script,
+            sshBlockRisk,
+            warningMessage);
     }
 
     private async Task<SshValidationResult> ValidateConnectivityAsync(
@@ -748,6 +805,68 @@ public sealed class FirewallApplyService(
             .ThenBy(x => x.PublicPort)
             .ThenBy(x => x.TargetPort)
             .ToList();
+    }
+
+    public static bool IsIpAllowed(string ipText, FirewallHostDefinition host)
+    {
+        if (string.IsNullOrWhiteSpace(ipText)) return false;
+
+        // Normalize loopback
+        if (ipText == "127.0.0.1" || ipText == "::1") return true;
+
+        // Check blocked IPs first
+        if (host.BlockedIps is not null)
+        {
+            foreach (var blocked in host.BlockedIps)
+            {
+                if (Hashi.Core.Dns.DnsRecordGenerator.IpMatchesSubnet(ipText, blocked) || 
+                    (IPAddress.TryParse(blocked, out var blockedIp) && IPAddress.TryParse(ipText, out var ip) && ip.Equals(blockedIp)))
+                {
+                    return false;
+                }
+            }
+        }
+
+        // Check managed subnets
+        foreach (var subnet in host.ManagedSubnets)
+        {
+            if (Hashi.Core.Dns.DnsRecordGenerator.IpMatchesSubnet(ipText, subnet) || 
+                (IPAddress.TryParse(subnet, out var subnetIp) && IPAddress.TryParse(ipText, out var ip) && ip.Equals(subnetIp)))
+            {
+                return true;
+            }
+        }
+
+        // Check trusted public IPs
+        if (host.TrustedPublicIps is not null)
+        {
+            foreach (var trusted in host.TrustedPublicIps)
+            {
+                if (Hashi.Core.Dns.DnsRecordGenerator.IpMatchesSubnet(ipText, trusted) || 
+                    (IPAddress.TryParse(trusted, out var trustedIp) && IPAddress.TryParse(ipText, out var ip) && ip.Equals(trustedIp)))
+                {
+                    return true;
+                }
+            }
+        }
+
+        // Check NetBird if enabled
+        if (host.NetBirdEnabled)
+        {
+            if (host.NetBirdOverlayCidrs is not null)
+            {
+                foreach (var cidr in host.NetBirdOverlayCidrs)
+                {
+                    if (Hashi.Core.Dns.DnsRecordGenerator.IpMatchesSubnet(ipText, cidr) || 
+                        (IPAddress.TryParse(cidr, out var cidrIp) && IPAddress.TryParse(ipText, out var ip) && ip.Equals(cidrIp)))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     public static FirewallHostResponse ToResponse(FirewallHostEntity host)

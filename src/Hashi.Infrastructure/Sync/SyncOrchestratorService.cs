@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Http;
 
 namespace Hashi.Infrastructure.Sync;
 
@@ -125,7 +126,8 @@ public sealed class SyncOrchestratorService(
     AdGuardSyncService adguard,
     SyncRunService syncRuns,
     AppSettingsService settings,
-    AuditService audit)
+    AuditService audit,
+    IHttpContextAccessor? httpContextAccessor = null)
 {
     private static readonly SemaphoreSlim ApplyLock = new(1, 1);
     private static readonly SemaphoreSlim ReconcileLock = new(1, 1);
@@ -204,6 +206,21 @@ public sealed class SyncOrchestratorService(
 
         await syncRuns.AddStepAsync(run.Id, "firewall-plan", SyncRunStatusNames.Planning, null, cancellationToken);
         var firewallHosts = await db.FirewallHosts.AsNoTracking().ToListAsync(cancellationToken);
+        string? clientIp = null;
+        if (httpContextAccessor?.HttpContext is not null)
+        {
+            var context = httpContextAccessor.HttpContext;
+            if (context.Request.Headers.TryGetValue("X-Forwarded-For", out var forwardedFor))
+            {
+                clientIp = forwardedFor.FirstOrDefault()?.Split(',').FirstOrDefault()?.Trim();
+            }
+            if (string.IsNullOrEmpty(clientIp))
+            {
+                clientIp = context.Connection.RemoteIpAddress?.ToString();
+            }
+        }
+
+        var blockedHosts = new List<string>();
         foreach (var host in firewallHosts)
         {
             var (_, hash) = await firewall.RenderForHostAsync(host.Id, cancellationToken);
@@ -217,6 +234,20 @@ public sealed class SyncOrchestratorService(
             {
                 risk = MaxRisk(risk, SyncRiskLevel.Low);
             }
+
+            if (!string.IsNullOrEmpty(clientIp))
+            {
+                var definition = await firewall.BuildHostDefinitionAsync(host, cancellationToken);
+                if (!FirewallApplyService.IsIpAllowed(clientIp, definition))
+                {
+                    blockedHosts.Add(host.Name);
+                }
+            }
+        }
+
+        if (blockedHosts.Count > 0)
+        {
+            risk = MaxRisk(risk, SyncRiskLevel.Destructive);
         }
 
         await syncRuns.AddStepAsync(run.Id, "firewall-plan", SyncRunStatusNames.Succeeded, $"{firewallHosts.Count} hosts", cancellationToken);
@@ -346,13 +377,20 @@ public sealed class SyncOrchestratorService(
             hasValidationErrors ? string.Join("; ", validationErrors) : null,
             cancellationToken);
 
+        var previewMarkdown = BuildPreviewMarkdown(changes);
+        if (blockedHosts.Count > 0 && !string.IsNullOrEmpty(clientIp))
+        {
+            var alert = $"> [!WARNING]\n> Applying this global configuration will block your current SSH connection (IP: {clientIp}) on the following host(s): **{string.Join(", ", blockedHosts)}**. Please check allowed subnets/IPs or configure NetBird.\n\n";
+            previewMarkdown = alert + previewMarkdown;
+        }
+
         return new SyncPlanPreviewResponse(
             run.Id,
             "global",
             risk.ToString(),
             requiresConfirmation,
             changes.Select(c => new SyncDiffResponse(Guid.Empty, c.ResourceType, c.ResourceKey, c.Kind.ToString(), c.Summary)).ToList(),
-            BuildPreviewMarkdown(changes),
+            previewMarkdown,
             validationErrors.Count > 0 ? validationErrors : null);
     }
 
@@ -366,6 +404,40 @@ public sealed class SyncOrchestratorService(
         var run = await syncRuns.BeginRunAsync("global-apply", cancellationToken);
         try
         {
+            string? clientIp = null;
+            if (httpContextAccessor?.HttpContext is not null)
+            {
+                var context = httpContextAccessor.HttpContext;
+                if (context.Request.Headers.TryGetValue("X-Forwarded-For", out var forwardedFor))
+                {
+                    clientIp = forwardedFor.FirstOrDefault()?.Split(',').FirstOrDefault()?.Trim();
+                }
+                if (string.IsNullOrEmpty(clientIp))
+                {
+                    clientIp = context.Connection.RemoteIpAddress?.ToString();
+                }
+            }
+
+            if (!string.IsNullOrEmpty(clientIp))
+            {
+                var allFirewallHosts = await db.FirewallHosts.AsNoTracking().ToListAsync(cancellationToken);
+                var blockedHosts = new List<string>();
+                foreach (var host in allFirewallHosts)
+                {
+                    var definition = await firewall.BuildHostDefinitionAsync(host, cancellationToken);
+                    if (!FirewallApplyService.IsIpAllowed(clientIp, definition))
+                    {
+                        blockedHosts.Add(host.Name);
+                    }
+                }
+
+                if (blockedHosts.Count > 0 && !confirmDestructive)
+                {
+                    var msg = $"Applying this global configuration would block your current SSH connection (IP: {clientIp}) on host(s): {string.Join(", ", blockedHosts)}. Confirm destructive changes to override.";
+                    await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.AwaitingConfirmation, SyncRiskLevel.Destructive, msg, cancellationToken);
+                    return new SyncApplyResponse(run.Id, false, SyncRunStatusNames.AwaitingConfirmation, msg);
+                }
+            }
             if (confirmDestructive)
             {
                 var pendingRemovals = await db.TraefikEntryPoints
