@@ -4,8 +4,8 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Addendum §10.2
 
-**Status:** Not Started
-**Branch:** 
+**Status:** Fixed
+**Branch:** audit-series-h
 
 ## Description
 
@@ -27,6 +27,6 @@ Resources cannot be configured with `hashi.home.arpa` domains. If attempted, the
 
 ## Acceptance Criteria
 
-- [ ] Creating a resource with `hashi.home.arpa` domain returns a validation error
-- [ ] Traefik renderer skips any resource with an internal DNS domain
-- [ ] Error message clearly explains the domain reservation
+- [x] Creating a resource with `hashi.home.arpa` domain returns a validation error
+- [x] Traefik renderer skips any resource with an internal DNS domain
+- [x] Error message clearly explains the domain reservation
