@@ -94,6 +94,8 @@ public sealed class FirewallApplySafetyTests
         Assert.NotNull(result.ScriptHash);
         Assert.Contains("--dport 443", result.Preview);
         Assert.Contains("/run/hashi-firewall.rollback.pid", ssh.Commands[^1]);
+        Assert.Contains($"sha256sum '/opt/hashi/firewall/hashi-firewall.sh'", ssh.Commands[^1]);
+        Assert.Contains(result.ScriptHash!, ssh.Commands[^1]);
         Assert.Contains("iptables -C INPUT -j HASHI_INPUT", ssh.Commands[^1]);
         Assert.Contains("/opt/hashi/firewall/hashi-firewall.sh", ssh.WrittenFiles.Keys);
         var rollback = Encoding.UTF8.GetString(ssh.WrittenFiles["/opt/hashi/firewall/hashi-firewall.rollback.sh"]);

@@ -345,7 +345,7 @@ public sealed class FirewallApplyService(
             return new FirewallApplyResponse(false, false, netBird, message, plan.PlanId, scriptHash, plan.Preview);
         }
 
-        var verification = await VerifyPostApplyAsync(settings, request, cancellationToken);
+        var verification = await VerifyPostApplyAsync(settings, request, host.ScriptPath, scriptHash, cancellationToken);
         if (!verification.Succeeded)
         {
             if (!string.IsNullOrWhiteSpace(host.RollbackScript))
@@ -697,10 +697,13 @@ public sealed class FirewallApplyService(
     private Task<RemoteCommandResult> VerifyPostApplyAsync(
         SshConnectionSettings settings,
         FirewallApplyRequest request,
+        string scriptPath,
+        string expectedScriptHash,
         CancellationToken cancellationToken)
     {
-        const string command = """
+        var command = $$"""
             test ! -f /run/hashi-firewall.rollback.pid &&
+            test "$(sha256sum {{Quote(scriptPath)}} | awk '{print $1}')" = {{Quote(expectedScriptHash)}} &&
             iptables -C INPUT -j HASHI_INPUT &&
             iptables -C FORWARD -j HASHI_FWD &&
             iptables -t nat -C PREROUTING -j HASHI_DNAT &&
