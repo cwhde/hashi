@@ -324,6 +324,7 @@ public sealed class AdGuardSyncService(
 
         try
         {
+            await CleanupDuplicateRemoteRewritesAsync(connectionId, cancellationToken);
             foreach (var change in plan.Changes)
             {
                 await ApplyChangeAsync(connectionId, change, cancellationToken);
@@ -875,13 +876,55 @@ public sealed class AdGuardSyncService(
                 break;
             case "delete":
                 var deleteRemote = (await ListRemoteRewritesAsync(connectionId, cancellationToken))
-                    .FirstOrDefault(x => string.Equals(x.Domain, change.Domain, StringComparison.OrdinalIgnoreCase));
-                if (deleteRemote is not null)
+                    .Where(x => string.Equals(x.Domain, change.Domain, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                foreach (var rewrite in deleteRemote)
                 {
-                    await DeleteRemoteRewriteAsync(connectionId, deleteRemote, cancellationToken);
+                    await DeleteRemoteRewriteAsync(connectionId, rewrite, cancellationToken);
                 }
 
                 break;
+        }
+    }
+
+    private async Task CleanupDuplicateRemoteRewritesAsync(
+        Guid connectionId,
+        CancellationToken cancellationToken)
+    {
+        var desired = await db.AdGuardRewrites.AsNoTracking()
+            .Where(x => x.ConnectionId == connectionId && x.ManagedByHashi)
+            .ToDictionaryAsync(x => x.Domain, x => x.Answer, StringComparer.OrdinalIgnoreCase, cancellationToken);
+        if (desired.Count == 0)
+        {
+            return;
+        }
+
+        var remote = await ListRemoteRewritesAsync(connectionId, cancellationToken);
+        var removed = new List<object>();
+        foreach (var group in remote
+            .Where(x => desired.ContainsKey(x.Domain))
+            .GroupBy(x => x.Domain, StringComparer.OrdinalIgnoreCase)
+            .Where(x => x.Count() > 1))
+        {
+            var desiredAnswer = desired[group.Key];
+            var keep = group.FirstOrDefault(x => string.Equals(x.Answer, desiredAnswer, StringComparison.Ordinal))
+                ?? group.First();
+            foreach (var duplicate in group.Where(x => !ReferenceEquals(x, keep)))
+            {
+                await DeleteRemoteRewriteAsync(connectionId, duplicate, cancellationToken);
+                removed.Add(new { duplicate.Domain, duplicate.Answer, duplicate.Id });
+            }
+        }
+
+        if (removed.Count > 0)
+        {
+            await audit.WriteAsync(
+                "adguard",
+                "duplicate_rewrites_cleaned",
+                subjectType: "adguard_connection",
+                subjectId: connectionId.ToString(),
+                metadata: new { removed },
+                cancellationToken: cancellationToken);
         }
     }
 

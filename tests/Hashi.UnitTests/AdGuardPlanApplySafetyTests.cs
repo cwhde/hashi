@@ -92,6 +92,34 @@ public sealed class AdGuardPlanApplySafetyTests
     }
 
     [Fact]
+    public async Task ApplyPlanAsync_cleans_duplicate_remote_rows_for_managed_domains()
+    {
+        await using var db = CreateDb();
+        var connectionId = await AddConnectionAsync(db);
+        db.AdGuardRewrites.Add(new AdGuardRewriteEntity
+        {
+            ConnectionId = connectionId,
+            Domain = "app.example.com",
+            Answer = "10.0.0.10",
+            ManagedByHashi = true,
+        });
+        await db.SaveChangesAsync();
+        var handler = new FakeAdGuardHandler(
+            """{"rewrites":[{"domain":"app.example.com","answer":"10.0.0.10","id":"remote-1"},{"domain":"app.example.com","answer":"10.0.0.11","id":"remote-2"}]}""");
+        var service = CreateService(db, handler);
+        var plan = await service.PlanSyncAsync(connectionId);
+
+        var result = await service.ApplyPlanAsync(
+            connectionId,
+            new AdGuardRewriteApplyRequest(plan.PlanId, ConfirmDestructive: false));
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(1, handler.DeleteCalls);
+        Assert.Equal(1, handler.CountForDomain("app.example.com"));
+        Assert.True(await db.AuditEvents.AnyAsync(x => x.Action == "duplicate_rewrites_cleaned"));
+    }
+
+    [Fact]
     public async Task Topology_sync_preserves_manual_hashi_rewrites_outside_resource_desired_set()
     {
         await using var db = CreateDb();
@@ -484,7 +512,7 @@ public sealed class AdGuardPlanApplySafetyTests
 
     private sealed class FakeAdGuardHandler(string rewriteListJson) : HttpMessageHandler
     {
-        private readonly Dictionary<string, (string Answer, string Id)> _rewrites = ParseRewrites(rewriteListJson);
+        private readonly List<RemoteRewrite> _rewrites = ParseRewrites(rewriteListJson);
 
         public int AddCalls { get; private set; }
 
@@ -496,6 +524,9 @@ public sealed class AdGuardPlanApplySafetyTests
 
         public Uri? LastRequestUri { get; private set; }
 
+        public int CountForDomain(string domain)
+            => _rewrites.Count(x => string.Equals(x.Domain, domain, StringComparison.OrdinalIgnoreCase));
+
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             LastRequestUri = request.RequestUri;
@@ -503,7 +534,7 @@ public sealed class AdGuardPlanApplySafetyTests
             {
                 return JsonResponse(JsonSerializer.Serialize(new
                 {
-                    rewrites = _rewrites.Select(x => new { domain = x.Key, answer = x.Value.Answer, id = x.Value.Id }),
+                    rewrites = _rewrites.Select(x => new { domain = x.Domain, answer = x.Answer, id = x.Id }),
                 }));
             }
 
@@ -514,7 +545,8 @@ public sealed class AdGuardPlanApplySafetyTests
                     ?? throw new InvalidOperationException("Missing rewrite payload.");
                 if (PersistMutations)
                 {
-                    _rewrites[payload.Domain] = (payload.Answer, "created-1");
+                    _rewrites.RemoveAll(x => string.Equals(x.Domain, payload.Domain, StringComparison.OrdinalIgnoreCase));
+                    _rewrites.Add(new RemoteRewrite(payload.Domain, payload.Answer, "created-1"));
                 }
                 return JsonResponse("""{"id":"created-1"}""");
             }
@@ -528,7 +560,13 @@ public sealed class AdGuardPlanApplySafetyTests
                         ?? throw new InvalidOperationException("Missing rewrite payload.");
                     if (PersistMutations)
                     {
-                        _rewrites.Remove(payload.Domain);
+                        var index = _rewrites.FindIndex(x =>
+                            string.Equals(x.Domain, payload.Domain, StringComparison.OrdinalIgnoreCase) &&
+                            string.Equals(x.Answer, payload.Answer, StringComparison.Ordinal));
+                        if (index >= 0)
+                        {
+                            _rewrites.RemoveAt(index);
+                        }
                     }
                 }
                 return new HttpResponseMessage(DeleteStatusCode)
@@ -543,15 +581,15 @@ public sealed class AdGuardPlanApplySafetyTests
             };
         }
 
-        private static Dictionary<string, (string Answer, string Id)> ParseRewrites(string json)
+        private static List<RemoteRewrite> ParseRewrites(string json)
         {
             using var doc = JsonDocument.Parse(json);
-            return doc.RootElement.GetProperty("rewrites").EnumerateArray().ToDictionary(
-                x => x.GetProperty("domain").GetString() ?? string.Empty,
-                x => (
+            return doc.RootElement.GetProperty("rewrites").EnumerateArray().Select(x =>
+                new RemoteRewrite(
+                    x.GetProperty("domain").GetString() ?? string.Empty,
                     x.GetProperty("answer").GetString() ?? string.Empty,
-                    x.TryGetProperty("id", out var id) ? id.GetString() ?? string.Empty : string.Empty),
-                StringComparer.OrdinalIgnoreCase);
+                    x.TryGetProperty("id", out var id) ? id.GetString() ?? string.Empty : string.Empty))
+                .ToList();
         }
 
         private static HttpResponseMessage JsonResponse(string json) => new(HttpStatusCode.OK)
@@ -560,5 +598,7 @@ public sealed class AdGuardPlanApplySafetyTests
         };
 
         private sealed record RewritePayload(string Domain, string Answer);
+
+        private sealed record RemoteRewrite(string Domain, string Answer, string Id);
     }
 }
