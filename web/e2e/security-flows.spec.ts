@@ -1,6 +1,6 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 
-test.use({ viewport: { width: 1280, height: 900 } });
+test.use({ viewport: { width: 1280, height: 900 }, serviceWorkers: 'block' });
 
 async function json(route: Route, body: unknown, status = 200) {
 	await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
@@ -182,6 +182,51 @@ test('adds a custom HTTPS blocklist source', async ({ page }) => {
 	await page.getByPlaceholder('https://example.test/feed.txt').fill('https://example.test/feed.txt');
 	await page.getByRole('button', { name: 'Add source' }).click();
 	await expect(page.getByText('Threat feed', { exact: true })).toBeVisible();
+});
+
+test('solves a CAPTCHA challenge and submits the widget token', async ({ page }) => {
+	await page.route('**/api/edge-challenge/status**', (route) =>
+		json(route, {
+			enabled: true,
+			capApiEndpoint: 'https://captcha.example.test/api',
+			safeReturnUrl: '/dashboard'
+		})
+	);
+	await page.route('https://cdn.jsdelivr.net/npm/cap-widget**', (route) =>
+		route.fulfill({
+			status: 200,
+			contentType: 'text/javascript',
+			body: `customElements.define('cap-widget', class extends HTMLElement {
+				connectedCallback() {
+					this.textContent = 'Solve challenge';
+					this.style.display = 'block';
+					this.addEventListener('click', () => this.dispatchEvent(new CustomEvent('solve', {
+						detail: { token: 'captcha-token-1' }
+					})));
+				}
+			});`
+		})
+	);
+	await page.route('**/api/auth/csrf', (route) => json(route, { token: 'csrf-token' }));
+	let verification: Record<string, unknown> | null = null;
+	await page.route('**/api/edge-challenge/verify', async (route) => {
+		verification = JSON.parse(route.request().postData() ?? '{}') as Record<string, unknown>;
+		return json(route, { verified: false, redirectUrl: null, error: 'Test verification received.' });
+	});
+
+	await page.goto('/challenge?returnUrl=%2Fdashboard');
+	const widget = page.locator('cap-widget');
+	await expect(widget).toBeAttached();
+	await page.waitForFunction(() => customElements.get('cap-widget') !== undefined);
+	await widget.evaluate((element) => {
+		element.dispatchEvent(
+			new CustomEvent('solve', { detail: { token: 'captcha-token-1' } })
+		);
+	});
+
+	await expect.poll(() => verification).not.toBeNull();
+	expect(verification).toMatchObject({ token: 'captcha-token-1', returnUrl: '/dashboard' });
+	await expect(page.getByText('Test verification received.')).toBeVisible();
 });
 
 test('challenge and connection-target routes are real and render', async ({ page }) => {

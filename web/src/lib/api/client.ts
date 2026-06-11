@@ -99,30 +99,43 @@ async function expectData<T>(response: Response, error: unknown, data: T | undef
 }
 
 async function postUndocumented(path: string, init?: Record<string, unknown>): Promise<UndocumentedJson> {
-	const result = await client.POST(path as never, (init ?? {}) as never);
-	await expectOk(result.response, result.error);
-	const parsed = result.data as unknown;
-	if (parsed && typeof parsed === 'object') {
-		return parsed as UndocumentedJson;
+	const params = init?.params as
+		| { path?: Record<string, string | number>; query?: Record<string, unknown> }
+		| undefined;
+	let resolvedPath = path.replace(/\{([^}]+)\}/g, (_, key: string) => {
+		const value = params?.path?.[key];
+		if (value === undefined) throw new Error(`Missing path parameter: ${key}`);
+		return encodeURIComponent(String(value));
+	});
+	if (params?.query) {
+		const query = new URLSearchParams();
+		for (const [key, value] of Object.entries(params.query)) {
+			if (value !== undefined && value !== null) query.set(key, String(value));
+		}
+		const encoded = query.toString();
+		if (encoded) resolvedPath += `${resolvedPath.includes('?') ? '&' : '?'}${encoded}`;
 	}
-	return readUndocumentedJson(result.response);
-}
 
-async function postJson<T>(path: string, body?: unknown): Promise<T> {
-	const token = await ensureCsrfToken();
+	const body = init?.body;
 	const headers = new Headers({ Accept: 'application/json' });
 	if (body !== undefined) headers.set('Content-Type', 'application/json');
-	if (token) headers.set('X-CSRF-TOKEN', token);
-	const response = await fetch(path, {
+	if (!isCsrfExemptRequest(resolvedPath, 'POST')) {
+		const token = await ensureCsrfToken();
+		if (token) headers.set('X-CSRF-TOKEN', token);
+	}
+	const response = await fetch(resolvedPath, {
 		method: 'POST',
 		credentials: 'include',
 		headers,
 		body: body === undefined ? undefined : JSON.stringify(body)
 	});
-	if (!response.ok) {
-		throw errorFromResult(response.status, await readUndocumentedJson(response));
-	}
-	return (await response.json()) as T;
+	const parsed = await readUndocumentedJson(response);
+	if (!response.ok) throw errorFromResult(response.status, parsed);
+	return parsed;
+}
+
+async function postJson<T>(path: string, body?: unknown): Promise<T> {
+	return (await postUndocumented(path, body === undefined ? undefined : { body })) as T;
 }
 
 export const api = {
@@ -194,9 +207,7 @@ export const api = {
 		return expectData(r.response, r.error, r.data ?? []);
 	},
 	bootstrapLogin: async (username: string, password: string) => {
-		const r = await client.POST('/api/auth/bootstrap/login', { body: { username, password } });
-		if (!r.response.ok) throw errorFromResult(r.response.status, r.error);
-		const body = await readUndocumentedJson(r.response);
+		const body = await postUndocumented('/api/auth/bootstrap/login', { body: { username, password } });
 		return { succeeded: body.succeeded !== false, error: typeof body.error === 'string' ? body.error : null };
 	},
 	getSession: async () => {
@@ -575,11 +586,10 @@ export const api = {
 		return (await expectData(r.response, r.error, r.data)) as unknown as import('./types.js').CaptchaChallengeStatus;
 	},
 	verifyCaptchaChallenge: async (token: string, returnUrl?: string | null) => {
-		const r = await client.POST('/api/edge-challenge/verify' as never, {
-			body: { token, returnUrl: returnUrl ?? null }
-		} as never);
-		if (!r.response.ok) throw errorFromResult(r.response.status, r.error);
-		return (await readUndocumentedJson(r.response)) as import('./types.js').CaptchaChallengeVerifyResult;
+		return postJson<import('./types.js').CaptchaChallengeVerifyResult>(
+			'/api/edge-challenge/verify',
+			{ token, returnUrl: returnUrl ?? null }
+		);
 	},
 	getInternalAgentDnsSettings: async () => {
 		const r = await client.GET('/api/settings/internal-agent-dns/' as never);
