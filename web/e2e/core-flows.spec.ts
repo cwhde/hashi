@@ -1,6 +1,6 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 
-test.use({ viewport: { width: 1280, height: 720 } });
+test.use({ viewport: { width: 1280, height: 720 }, serviceWorkers: 'block' });
 
 const connectionId = '11111111-1111-1111-1111-111111111111';
 
@@ -97,6 +97,98 @@ test('previews and applies a DNS import', async ({ page }) => {
 	await page.getByRole('button', { name: 'Import 1 records' }).click();
 	await expect(page.getByText('Imported 1 DNS records into Hashi.')).toBeVisible();
 	expect(importedIds).toEqual(['33333333-3333-3333-3333-333333333333']);
+});
+
+test('validates user middleware YAML through the editor', async ({ page }) => {
+	await mockAdmin(page);
+	await page.route('**/api/traefik/render', (route) =>
+		json(route, { staticConfigYaml: '', dynamicHttpYaml: '', contentHash: 'hash', dynamicFiles: null })
+	);
+	await page.route('**/api/connections?type=traefik_host', (route) => json(route, []));
+	await page.route('**/api/traefik/entrypoints/pending', (route) => json(route, []));
+	await page.route(/\/api\/traefik\/user-middlewares$/, (route) =>
+		json(route, {
+			yaml: 'http:\n  middlewares: {}\n',
+			lastParseError: null,
+			middlewareNames: [],
+			updatedAtUtc: new Date().toISOString()
+		})
+	);
+	let validatedYaml = '';
+	await page.route(/\/api\/traefik\/user-middlewares\/validate$/, async (route) => {
+		validatedYaml = (route.request().postDataJSON() as { yaml: string }).yaml;
+		return json(route, { isValid: true, error: null, middlewareNames: ['secure-headers'] });
+	});
+
+	await page.goto('/traefik');
+	await page.getByRole('button', { name: 'User middlewares' }).click();
+	const editor = page.locator('.cm-content').first();
+	await editor.click();
+	await page.keyboard.press('Control+A');
+	await page.keyboard.insertText('http:\n  middlewares:\n    secure-headers:\n      headers: {}\n');
+	await page.getByRole('button', { name: 'Validate YAML' }).click();
+	await expect.poll(() => validatedYaml).toContain('secure-headers');
+	await expect(page.getByText('Valid. Middlewares: secure-headers')).toBeVisible();
+});
+
+test('creates and manually runs a privileged script', async ({ page }) => {
+	await mockAdmin(page);
+	const scriptId = '44444444-4444-4444-4444-444444444444';
+	const connection = {
+		id: connectionId,
+		name: 'edge',
+		type: 'firewall_host',
+		enabled: true,
+		healthState: 'healthy',
+		lastValidationMessage: null,
+		lastValidatedAtUtc: null
+	};
+	let scripts: Record<string, unknown>[] = [];
+	let createBody: Record<string, unknown> | null = null;
+	await page.route(/\/api\/connections$/, (route) => json(route, [connection]));
+	await page.route(/\/api\/scripts(?:\?.*)?$/, async (route) => {
+		if (route.request().method() === 'POST') {
+			const body = route.request().postDataJSON() as Record<string, unknown>;
+			createBody = body;
+			scripts = [
+				{
+					id: scriptId,
+					connectionId,
+					name: body.name,
+					enabled: true,
+					description: body.description,
+					body: body.body,
+					cronExpression: body.cronExpression,
+					runTimeoutSeconds: 300,
+					lastRunAtUtc: null,
+					lastRunOutput: null,
+					lastRunError: null,
+					lastRunStatus: 'never',
+					lastRunId: null,
+					targets: [{ connectionId, connectionName: 'edge', enabled: true }],
+					environmentVariables: []
+				}
+			];
+			return json(route, scripts[0], 201);
+		}
+		return json(route, scripts);
+	});
+	await page.route(new RegExp(`/api/scripts/${scriptId}/run$`), (route) =>
+		json(route, { succeeded: true, output: 'script-ok', error: null, status: 'succeeded', runId: null, runs: null })
+	);
+
+	await page.goto('/scripts');
+	await page.getByLabel('Name').fill('health-check');
+	const editor = page.locator('.cm-content').first();
+	await editor.click();
+	await page.keyboard.insertText('#!/bin/bash\necho script-ok\n');
+	await page.getByRole('button', { name: 'Create script' }).click();
+	await expect.poll(() => createBody).not.toBeNull();
+	await expect(page.getByText('Script "health-check" created.')).toBeVisible();
+	expect(createBody).toMatchObject({ name: 'health-check', connectionId });
+	await page.getByTitle('Run script').click();
+	await expect(page.getByText('Run completed for health-check.')).toBeVisible();
+	await expect(page.getByText('script-ok', { exact: true })).toBeVisible();
 });
 
 
