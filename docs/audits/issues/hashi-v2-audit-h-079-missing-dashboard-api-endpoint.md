@@ -4,8 +4,8 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §27
 
-**Status:** Not Started
-**Branch:** 
+**Status:** Fixed
+**Branch:** audit-series-h
 
 ## Description
 
@@ -27,6 +27,6 @@ A `/api/dashboard` endpoint that returns aggregated overview data (system status
 
 ## Acceptance Criteria
 
-- [ ] `GET /api/dashboard` returns a non-404 response with aggregated overview data
-- [ ] Response includes all overview widget data in a single payload
-- [ ] Reduces number of API calls needed for the overview page
+- [x] `GET /api/dashboard` returns a non-404 response with aggregated overview data
+- [x] Response includes all overview widget data in a single payload
+- [x] Reduces number of API calls needed for the overview page
