@@ -152,6 +152,10 @@ export const api = {
 		const r = await client.GET('/api/health');
 		return expectData(r.response, r.error, r.data);
 	},
+	getAdminDashboard: async () => {
+		const r = await client.GET('/api/dashboard');
+		return expectData(r.response, r.error, r.data);
+	},
 	getGeneralSettings: async () => {
 		const r = await client.GET('/api/settings/general');
 		return expectData(r.response, r.error, r.data);

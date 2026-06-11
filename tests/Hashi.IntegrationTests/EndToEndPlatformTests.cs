@@ -125,6 +125,30 @@ public sealed class EndToEndPlatformTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Admin_dashboard_endpoint_returns_aggregated_overview_data()
+    {
+        if (!_fixture.IsAvailable || _client is null)
+        {
+            return;
+        }
+
+        var response = await _client.GetAsync("/api/dashboard");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        
+        var dashboard = await response.Content.ReadFromJsonAsync<AdminDashboardResponse>();
+        Assert.NotNull(dashboard);
+        Assert.NotNull(dashboard.Health);
+        Assert.NotNull(dashboard.Vault);
+        Assert.NotNull(dashboard.AuditEvents);
+        Assert.NotNull(dashboard.Resources);
+        Assert.NotNull(dashboard.Monitors);
+        Assert.NotNull(dashboard.Security);
+        Assert.NotNull(dashboard.DnsConnections);
+        Assert.NotNull(dashboard.PulseAgents);
+        Assert.NotNull(dashboard.SyncRuns);
+    }
+
+    [Fact]
     public async Task Waf_event_ingest_endpoint_records_security_event()
     {
         if (!_fixture.IsAvailable || _client is null || _factory is null)

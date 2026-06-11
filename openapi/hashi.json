@@ -66,6 +66,26 @@
         }
       }
     },
+    "/api/dashboard": {
+      "get": {
+        "tags": [
+          "Platform"
+        ],
+        "operationId": "GetAdminDashboard",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminDashboardResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/public/status": {
       "get": {
         "tags": [
@@ -5810,6 +5830,67 @@
           }
         }
       },
+      "AdminDashboardResponse": {
+        "required": [
+          "auditEvents",
+          "health",
+          "vault",
+          "resources",
+          "monitors",
+          "security",
+          "dnsConnections",
+          "pulseAgents",
+          "syncRuns"
+        ],
+        "type": "object",
+        "properties": {
+          "auditEvents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditEventResponse"
+            }
+          },
+          "health": {
+            "$ref": "#/components/schemas/HealthResponse"
+          },
+          "vault": {
+            "$ref": "#/components/schemas/VaultStatusResponse"
+          },
+          "resources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResourceResponse"
+            }
+          },
+          "monitors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MonitorEndpointResponse"
+            }
+          },
+          "security": {
+            "$ref": "#/components/schemas/SecurityDashboardResponse"
+          },
+          "dnsConnections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConnectionSummaryResponse"
+            }
+          },
+          "pulseAgents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PulseAgentResponse"
+            }
+          },
+          "syncRuns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SyncRunResponse"
+            }
+          }
+        }
+      },
       "AnonymousTypeOfstring": {
         "required": [
           "token"
@@ -9519,6 +9600,96 @@
               "string"
             ],
             "format": "date-time"
+          }
+        }
+      },
+      "MonitorEndpointResponse": {
+        "required": [
+          "id",
+          "name",
+          "url",
+          "checkType",
+          "enabled",
+          "publicStatusEnabled",
+          "status",
+          "lastCheckedAtUtc",
+          "lastLatencyMs"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "checkType": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "publicStatusEnabled": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string"
+          },
+          "lastCheckedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lastLatencyMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "resourceId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "resourceType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "host": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "firewallHostId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "firewallHostName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "provisioned": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -14448,6 +14619,9 @@
     },
     {
       "name": "Health"
+    },
+    {
+      "name": "Platform"
     },
     {
       "name": "Public"

@@ -426,17 +426,6 @@
 		if (!value) return 'No file';
 		return `${Math.round(Number(value) / 1024)} KB`;
 	}
-
-	function applyTheme(theme: string) {
-		const html = document.documentElement;
-		if (theme === 'light') {
-			html.classList.remove('dark');
-			html.classList.add('light');
-		} else {
-			html.classList.remove('light');
-			html.classList.add('dark');
-		}
-	}
 </script>
 
 <AdminSectionPage

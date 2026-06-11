@@ -18,6 +18,7 @@ export type VaultSetupRequest = Schemas['VaultSetupRequest'];
 export type VaultGenerateRecoveryKeyResponse = Schemas['VaultGenerateRecoveryKeyResponse'];
 export type SecretDescriptor = Schemas['SecretDescriptorResponse'];
 export type DnsProviderCapabilities = Schemas['DnsProviderCapabilitiesResponse'];
+export type AdminDashboard = Schemas['AdminDashboardResponse'];
 
 export type ConnectionSummary = Schemas['ConnectionSummaryResponse'];
 export type CreateHetznerDnsConnectionRequest = Schemas['CreateHetznerDnsConnectionRequest'];

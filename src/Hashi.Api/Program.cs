@@ -139,6 +139,7 @@ app.UseStaticFiles();
 
 app.MapHealthEndpoints();
 app.MapErrorEndpoints();
+app.MapDashboardEndpoints();
 app.MapSetupEndpoints();
 app.MapSetupAdvanceEndpoints();
 app.MapSetupCompletionEndpoints();

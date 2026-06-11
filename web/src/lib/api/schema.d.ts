@@ -107,6 +107,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GetAdminDashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/status": {
         parameters: {
             query?: never;
@@ -7106,6 +7122,17 @@ export interface components {
             managedByHashi: boolean;
             source: string;
         };
+        AdminDashboardResponse: {
+            auditEvents: components["schemas"]["AuditEventResponse"][];
+            health: components["schemas"]["HealthResponse"];
+            vault: components["schemas"]["VaultStatusResponse"];
+            resources: components["schemas"]["ResourceResponse"][];
+            monitors: components["schemas"]["MonitorEndpointResponse"][];
+            security: components["schemas"]["SecurityDashboardResponse"];
+            dnsConnections: components["schemas"]["ConnectionSummaryResponse"][];
+            pulseAgents: components["schemas"]["PulseAgentResponse"][];
+            syncRuns: components["schemas"]["SyncRunResponse"][];
+        };
         AnonymousTypeOfstring: {
             token: null | string;
         };
@@ -7953,6 +7980,29 @@ export interface components {
             enabled: boolean;
             /** Format: date-time */
             lastHitAtUtc: null | string;
+        };
+        MonitorEndpointResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            url: string;
+            checkType: string;
+            enabled: boolean;
+            publicStatusEnabled: boolean;
+            status: string;
+            /** Format: date-time */
+            lastCheckedAtUtc: null | string;
+            /** Format: int32 */
+            lastLatencyMs: null | number | string;
+            /** Format: uuid */
+            resourceId?: null | string;
+            resourceType?: null | string;
+            host?: null | string;
+            /** Format: uuid */
+            firewallHostId?: null | string;
+            firewallHostName?: null | string;
+            /** @default false */
+            provisioned: boolean;
         };
         MonitoringSettingsRequest: {
             /** Format: int32 */
@@ -9075,4 +9125,25 @@ export interface components {
     pathItems: never;
 }
 export type $defs = Record<string, never>;
-export type operations = Record<string, never>;
+export interface operations {
+    GetAdminDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDashboardResponse"];
+                };
+            };
+        };
+    };
+}

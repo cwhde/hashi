@@ -1380,3 +1380,14 @@ public sealed record UpdateSecurityProfileRequest(
     string WafMode,
     int RateLimitAverage,
     int RateLimitBurst);
+
+public sealed record AdminDashboardResponse(
+    IReadOnlyList<AuditEventResponse> AuditEvents,
+    HealthResponse Health,
+    VaultStatusResponse Vault,
+    IReadOnlyList<ResourceResponse> Resources,
+    IReadOnlyList<MonitorEndpointResponse> Monitors,
+    SecurityDashboardResponse Security,
+    IReadOnlyList<ConnectionSummaryResponse> DnsConnections,
+    IReadOnlyList<PulseAgentResponse> PulseAgents,
+    IReadOnlyList<SyncRunResponse> SyncRuns);

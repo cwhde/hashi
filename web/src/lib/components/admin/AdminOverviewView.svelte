@@ -25,41 +25,32 @@
 
 	onMount(async () => {
 		try {
-			const [dashboard, events, health, vault, resources, monitors, security, dns, pulse, runs] =
-				await Promise.all([
-					api.getDashboardSettings().catch(() => null),
-					api.getAuditEvents().catch(() => []),
-					api.getHealth().catch(() => null),
-					api.getVaultStatus().catch(() => null),
-					api.listResources().catch(() => []),
-					api.listStatusEndpoints().catch(() => []),
-					api.getSecurityDashboard().catch(() => null),
-					api.listDnsConnections().catch(() => []),
-					api.listPulseAgents().catch(() => []),
-					api.listSyncRuns().catch(() => [])
-				]);
+			const [dashboard, data] = await Promise.all([
+				api.getDashboardSettings().catch(() => null),
+				api.getAdminDashboard()
+			]);
 			prefs = loadDashboardWidgetPrefs(dashboard);
-			audit = events.slice(0, 5);
-			healthVersion = health?.version ?? '—';
-			healthStatus = health;
-			vaultStatus = vault;
+			audit = data.auditEvents.slice(0, 5);
+			healthVersion = data.health?.version ?? '—';
+			healthStatus = data.health;
+			vaultStatus = data.vault;
 			resourceCounts = {
-				total: resources.length,
-				enabled: resources.filter((r) => r.enabled).length
+				total: data.resources.length,
+				enabled: data.resources.filter((r) => r.enabled).length
 			};
 			statusCounts = {
-				up: monitors.filter((m) => m.status === 'Up').length,
-				degraded: monitors.filter((m) => m.status === 'Degraded').length,
-				down: monitors.filter((m) => m.status === 'Down').length
+				up: data.monitors.filter((m) => m.status === 'Up').length,
+				degraded: data.monitors.filter((m) => m.status === 'Degraded').length,
+				down: data.monitors.filter((m) => m.status === 'Down').length
 			};
-			securityBlocked = security ? String(security.blocked) : '—';
-			securityAllowed = security ? String(security.allowed) : '—';
-			securityChallenged = security ? String(security.challenged) : '—';
-			dnsConnections = dns.length;
-			pulseAgents = pulse.length;
+			securityBlocked = data.security ? String(data.security.blocked) : '—';
+			securityAllowed = data.security ? String(data.security.allowed) : '—';
+			securityChallenged = data.security ? String(data.security.challenged) : '—';
+			dnsConnections = data.dnsConnections.length;
+			pulseAgents = data.pulseAgents.length;
 			syncRuns = {
-				recent: runs.length,
-				pending: runs.filter((r) => r.status === 'awaiting_confirmation').length
+				recent: data.syncRuns.length,
+				pending: data.syncRuns.filter((r) => r.status === 'awaiting_confirmation').length
 			};
 		} catch {
 			// offline dev
