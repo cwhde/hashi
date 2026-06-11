@@ -36,10 +36,10 @@
 	<div class="mb-2 flex items-center gap-2 px-3">
 		<a
 			href={resolve('/')}
-			class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-hashi-hover text-sm font-bold text-white"
+			class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-hashi-hover text-sm font-bold text-white overflow-hidden"
 			title="Hashi"
 		>
-			H
+			<img src="https://static.juzo.io/assets/logo.png" class="size-6 object-contain" alt="Hashi Logo" />
 		</a>
 		{#if expanded || pinned}
 			<span class="truncate text-sm font-semibold text-white">Hashi</span>
