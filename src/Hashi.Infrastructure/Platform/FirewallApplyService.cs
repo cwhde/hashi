@@ -725,10 +725,22 @@ public sealed class FirewallApplyService(
         => request.AuthMode switch
         {
             "password" when !string.IsNullOrWhiteSpace(request.Password) =>
-                await ssh.WriteAtomicAsync(settings, request.Password, remotePath, Encoding.UTF8.GetBytes(script), cancellationToken),
+                await ssh.WriteAtomicAsync(
+                    settings,
+                    request.Password,
+                    remotePath,
+                    Encoding.UTF8.GetBytes(script),
+                    cancellationToken,
+                    "bash -n {path}"),
             "private_key" when !string.IsNullOrWhiteSpace(request.PrivateKeyPem) =>
                 await ssh.WriteAtomicWithPrivateKeyAsync(
-                    settings, request.PrivateKeyPem, request.PrivateKeyPassphrase, remotePath, Encoding.UTF8.GetBytes(script), cancellationToken),
+                    settings,
+                    request.PrivateKeyPem,
+                    request.PrivateKeyPassphrase,
+                    remotePath,
+                    Encoding.UTF8.GetBytes(script),
+                    cancellationToken,
+                    "bash -n {path}"),
             _ => new RemoteWriteResult(false, remotePath, "Unsupported auth mode."),
         };
 

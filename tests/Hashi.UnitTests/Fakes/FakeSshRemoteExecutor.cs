@@ -34,7 +34,8 @@ public sealed class FakeSshRemoteExecutor : ISshRemoteExecutor
         string password,
         string remotePath,
         ReadOnlyMemory<byte> content,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? remoteValidationCommand = null)
     {
         WriteCount++;
         WrittenFiles[remotePath] = content.ToArray();
@@ -47,7 +48,8 @@ public sealed class FakeSshRemoteExecutor : ISshRemoteExecutor
         string? passphrase,
         string remotePath,
         ReadOnlyMemory<byte> content,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? remoteValidationCommand = null)
     {
         WriteCount++;
         WrittenFiles[remotePath] = content.ToArray();

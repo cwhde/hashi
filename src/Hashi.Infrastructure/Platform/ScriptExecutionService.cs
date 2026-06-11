@@ -295,7 +295,13 @@ public sealed partial class ScriptExecutionService(
         var write = credentials.AuthMode switch
         {
             "password" when !string.IsNullOrWhiteSpace(credentials.Password) =>
-                await ssh.WriteAtomicAsync(credentials.Settings, credentials.Password, remotePath, Encoding.UTF8.GetBytes(script.Body), cancellationToken),
+                await ssh.WriteAtomicAsync(
+                    credentials.Settings,
+                    credentials.Password,
+                    remotePath,
+                    Encoding.UTF8.GetBytes(script.Body),
+                    cancellationToken,
+                    "bash -n {path}"),
             "private_key" when !string.IsNullOrWhiteSpace(credentials.PrivateKeyPem) =>
                 await ssh.WriteAtomicWithPrivateKeyAsync(
                     credentials.Settings,
@@ -303,7 +309,8 @@ public sealed partial class ScriptExecutionService(
                     credentials.PrivateKeyPassphrase,
                     remotePath,
                     Encoding.UTF8.GetBytes(script.Body),
-                    cancellationToken),
+                    cancellationToken,
+                    "bash -n {path}"),
             _ => new RemoteWriteResult(false, remotePath, "Unsupported auth mode."),
         };
         if (!write.Succeeded)
