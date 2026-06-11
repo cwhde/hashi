@@ -8230,6 +8230,8 @@ export interface components {
             /** Format: uuid */
             firewallHostId: null | string;
             /** Format: uuid */
+            detectedFirewallHostId: null | string;
+            /** Format: uuid */
             pulseAgentId: null | string;
             pathPrefix: null | string;
             pathRewriteMode: null | string;

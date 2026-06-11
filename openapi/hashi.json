@@ -10584,6 +10584,7 @@
           "dashboardEnabled",
           "statusEnabled",
           "firewallHostId",
+          "detectedFirewallHostId",
           "pulseAgentId",
           "pathPrefix",
           "pathRewriteMode",
@@ -10673,6 +10674,13 @@
             "type": "boolean"
           },
           "firewallHostId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "detectedFirewallHostId": {
             "type": [
               "null",
               "string"

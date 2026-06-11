@@ -61,11 +61,6 @@ public static class DnsDesiredStateBuilder
         var pulseAgents = await db.PulseAgents.AsNoTracking().ToDictionaryAsync(x => x.Id, cancellationToken);
         foreach (var resource in resources)
         {
-            if (resource.FirewallHostId is null && resource.DetectedFirewallHostId is null)
-            {
-                AutoDetectFirewallHost(resource, hostTargets);
-            }
-
             var slug = resource.Slug;
             PulseDnsTarget? pulseTarget = null;
             if (resource.PulseAgentId is Guid pulseId && pulseAgents.TryGetValue(pulseId, out var agent))
@@ -75,6 +70,11 @@ public static class DnsDesiredStateBuilder
                     agent.LastPublicIp,
                     agent.LastSelectedIp ?? agent.LastPrivateIp,
                     agent.LastHostname);
+            }
+
+            if (resource.FirewallHostId is null)
+            {
+                resource.DetectedFirewallHostId = AutoDetectFirewallHost(resource.TargetHost, pulseTarget, hostTargets);
             }
 
             var resolvedDomain = ResourceDomainResolver.Resolve(
@@ -93,7 +93,7 @@ public static class DnsDesiredStateBuilder
                     slug,
                     rootDomain,
                     resolvedDomain,
-                    resource.FirewallHostId,
+                    resource.FirewallHostId ?? resource.DetectedFirewallHostId,
                     ResolveManualIp(resource.TargetHost),
                     pulseTarget,
                     ResolveManualHost(resource.TargetHost),
@@ -238,25 +238,30 @@ public static class DnsDesiredStateBuilder
     private static IReadOnlyList<string> DeserializeStringList(string json)
         => JsonSerializer.Deserialize<List<string>>(json) ?? [];
 
-    private static void AutoDetectFirewallHost(ResourceEntity resource, IReadOnlyList<FirewallHostDnsTarget> hosts)
+    private static Guid? AutoDetectFirewallHost(
+        string targetHost,
+        PulseDnsTarget? pulseTarget,
+        IReadOnlyList<FirewallHostDnsTarget> hosts)
     {
-        var candidates = new List<string?>();
-        if (!string.IsNullOrWhiteSpace(resource.TargetHost))
+        var candidates = new[]
         {
-            candidates.Add(resource.TargetHost.Trim());
-        }
+            targetHost,
+            pulseTarget?.InternalIp,
+            pulseTarget?.PublicIp,
+        }.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim()).Distinct(StringComparer.OrdinalIgnoreCase);
 
         foreach (var host in hosts)
         {
-            foreach (var candidate in candidates.Where(c => !string.IsNullOrWhiteSpace(c)))
+            foreach (var candidate in candidates)
             {
-                if ((host.ManagedSubnets?.Any(subnet => DnsRecordGenerator.IpMatchesSubnet(candidate!, subnet)) ?? false)
-                    || (host.NetBirdRoutedCidrs?.Any(cidr => DnsRecordGenerator.IpMatchesSubnet(candidate!, cidr)) ?? false))
+                if ((host.ManagedSubnets?.Any(subnet => DnsRecordGenerator.IpMatchesSubnet(candidate, subnet)) ?? false)
+                    || (host.NetBirdRoutedCidrs?.Any(cidr => DnsRecordGenerator.IpMatchesSubnet(candidate, cidr)) ?? false))
                 {
-                    resource.DetectedFirewallHostId = host.Id;
-                    return;
+                    return host.Id;
                 }
             }
         }
+
+        return null;
     }
 }

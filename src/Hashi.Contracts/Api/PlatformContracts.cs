@@ -19,6 +19,7 @@ public sealed record ResourceResponse(
     bool DashboardEnabled,
     bool StatusEnabled,
     Guid? FirewallHostId,
+    Guid? DetectedFirewallHostId,
     Guid? PulseAgentId,
     string? PathPrefix,
     string? PathRewriteMode,

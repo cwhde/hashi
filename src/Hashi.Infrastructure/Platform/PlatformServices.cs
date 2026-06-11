@@ -73,6 +73,7 @@ public sealed class ResourceService(
             ExplicitRoutingOverride = request.ExplicitRoutingOverride,
             SecurityProfileName = request.SecurityProfileName,
         };
+        entity.DetectedFirewallHostId = await DetectFirewallHostAsync(entity.TargetHost, entity.PulseAgentId, cancellationToken);
         db.Resources.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
         await UpsertRoutesAsync(entity.Id, request.Routes, cancellationToken);
@@ -300,6 +301,7 @@ public sealed class ResourceService(
             await EnsureStreamPortConfirmedOrPendingAsync(streamKey.Port, streamKey.Protocol, cancellationToken);
         }
 
+        entity.DetectedFirewallHostId = await DetectFirewallHostAsync(entity.TargetHost, entity.PulseAgentId, cancellationToken);
         entity.UpdatedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
 
@@ -383,6 +385,7 @@ public sealed class ResourceService(
             entity.DashboardEnabled,
             entity.StatusEnabled,
             entity.FirewallHostId,
+            entity.DetectedFirewallHostId,
             entity.PulseAgentId,
             entity.PathPrefix,
             entity.PathRewriteMode,
@@ -665,6 +668,47 @@ public sealed class ResourceService(
         {
             throw new InvalidOperationException("Domains matching home.arpa or ending in .home.arpa are reserved for internal agent DNS and cannot be used as resource domains.");
         }
+    }
+
+    private async Task<Guid?> DetectFirewallHostAsync(
+        string targetHost,
+        Guid? pulseAgentId,
+        CancellationToken cancellationToken)
+    {
+        var candidates = new List<string>();
+        if (!string.IsNullOrWhiteSpace(targetHost))
+        {
+            candidates.Add(targetHost.Trim());
+        }
+
+        if (pulseAgentId is Guid agentId)
+        {
+            var agent = await db.PulseAgents.AsNoTracking().SingleOrDefaultAsync(x => x.Id == agentId, cancellationToken);
+            if (agent is not null)
+            {
+                candidates.AddRange(new[] { agent.LastSelectedIp, agent.LastPrivateIp, agent.LastPublicIp }
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Select(x => x!.Trim()));
+            }
+        }
+
+        if (candidates.Count == 0)
+        {
+            return null;
+        }
+
+        var hosts = await db.FirewallHosts.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
+        foreach (var host in hosts)
+        {
+            var cidrs = (JsonSerializer.Deserialize<List<string>>(host.ManagedSubnetsJson) ?? [])
+                .Concat(JsonSerializer.Deserialize<List<string>>(host.NetBirdRoutedCidrsJson) ?? []);
+            if (candidates.Any(candidate => cidrs.Any(cidr => DnsRecordGenerator.IpMatchesSubnet(candidate, cidr))))
+            {
+                return host.Id;
+            }
+        }
+
+        return null;
     }
 
     private static void ValidateRewrite(

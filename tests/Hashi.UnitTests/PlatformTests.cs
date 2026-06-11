@@ -446,6 +446,55 @@ public sealed class ResourceSlugTests
     }
 }
 
+public sealed class ResourceFirewallDetectionTests
+{
+    [Fact]
+    public async Task Create_detects_firewall_host_but_preserves_manual_override()
+    {
+        await using var db = CreateDb();
+        var detectedHost = new FirewallHostEntity
+        {
+            Name = "detected",
+            ConnectionId = Guid.NewGuid(),
+            ManagedSubnetsJson = """["10.20.0.0/16"]""",
+        };
+        var manualHost = new FirewallHostEntity
+        {
+            Name = "manual",
+            ConnectionId = Guid.NewGuid(),
+            ManagedSubnetsJson = "[]",
+        };
+        db.FirewallHosts.AddRange(detectedHost, manualHost);
+        await db.SaveChangesAsync();
+        var service = TestPlatformHelpers.CreateResourceService(db);
+
+        var resource = await service.CreateAsync(new CreateResourceRequest(
+            "App",
+            "https",
+            "app.example.com",
+            "http",
+            "10.20.1.5",
+            8080,
+            false,
+            false,
+            FirewallHostId: manualHost.Id));
+
+        Assert.Equal(detectedHost.Id, resource.DetectedFirewallHostId);
+        Assert.Equal(manualHost.Id, resource.FirewallHostId);
+        var response = await service.ToResponseAsync(resource);
+        Assert.Equal(detectedHost.Id, response.DetectedFirewallHostId);
+        Assert.Equal(manualHost.Id, response.FirewallHostId);
+    }
+
+    private static HashiDbContext CreateDb()
+    {
+        var options = new DbContextOptionsBuilder<HashiDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        return new HashiDbContext(options);
+    }
+}
+
 public sealed class FirewallHostResponseTests
 {
     [Fact]
