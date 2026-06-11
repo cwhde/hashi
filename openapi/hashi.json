@@ -4900,6 +4900,35 @@
         }
       }
     },
+    "/api/settings/notifications/discord/discover-channel": {
+      "post": {
+        "tags": [
+          "Settings"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiscordChannelDiscoveryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscordChannelDiscoveryResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/settings/notifications/routes": {
       "get": {
         "tags": [
@@ -8173,6 +8202,56 @@
               "string"
             ],
             "format": "date-time"
+          }
+        }
+      },
+      "DiscordChannelDiscoveryRequest": {
+        "required": [
+          "botToken"
+        ],
+        "type": "object",
+        "properties": {
+          "botToken": {
+            "type": "string"
+          }
+        }
+      },
+      "DiscordChannelDiscoveryResponse": {
+        "required": [
+          "found",
+          "channelId",
+          "channelName",
+          "userId",
+          "error"
+        ],
+        "type": "object",
+        "properties": {
+          "found": {
+            "type": "boolean"
+          },
+          "channelId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "channelName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "userId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "error": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

@@ -6339,6 +6339,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings/notifications/discord/discover-channel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DiscordChannelDiscoveryRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DiscordChannelDiscoveryResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/settings/notifications/routes": {
         parameters: {
             query?: never;
@@ -7646,6 +7685,16 @@ export interface components {
             overviewWidgetsJson: string;
             /** Format: date-time */
             updatedAtUtc: null | string;
+        };
+        DiscordChannelDiscoveryRequest: {
+            botToken: string;
+        };
+        DiscordChannelDiscoveryResponse: {
+            found: boolean;
+            channelId: null | string;
+            channelName: null | string;
+            userId: null | string;
+            error: null | string;
         };
         DnsImportApplyRequest: {
             selectedDecisionIds: string[];

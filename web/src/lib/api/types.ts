@@ -244,6 +244,13 @@ export type TelegramChatDiscoveryResponse = {
 	chatTitle: string | null;
 	error: string | null;
 };
+export type DiscordChannelDiscoveryResponse = {
+	found: boolean;
+	channelId: string | null;
+	channelName: string | null;
+	userId: string | null;
+	error: string | null;
+};
 export type AdGuardConnection = Schemas['AdGuardConnectionResponse'];
 export type CreateAdGuardConnectionRequest = Schemas['CreateAdGuardConnectionRequest'];
 export type AdGuardRewrite = NonNullable<Schemas['AdGuardRewriteResponse']>;

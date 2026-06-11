@@ -764,6 +764,18 @@ export const api = {
 			error: typeof body.error === 'string' ? body.error : null
 		} as import('./types.js').TelegramChatDiscoveryResponse;
 	},
+	discoverDiscordChannel: async (botToken: string) => {
+		const body = await postUndocumented('/api/settings/notifications/discord/discover-channel', {
+			body: { botToken }
+		});
+		return {
+			found: body.found === true,
+			channelId: typeof body.channelId === 'string' ? body.channelId : null,
+			channelName: typeof body.channelName === 'string' ? body.channelName : null,
+			userId: typeof body.userId === 'string' ? body.userId : null,
+			error: typeof body.error === 'string' ? body.error : null
+		} as import('./types.js').DiscordChannelDiscoveryResponse;
+	},
 	deleteNotificationProvider: async (providerId: string) => {
 		const r = await client.DELETE('/api/settings/notifications/providers/{providerId}', {
 			params: { path: { providerId } }

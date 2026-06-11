@@ -51,6 +51,12 @@ public static class NotificationEndpoints
             CancellationToken ct) =>
             TypedResults.Ok(await notifications.DiscoverTelegramChatAsync(request.BotToken, ct)))
             .Produces<TelegramChatDiscoveryResponse>(StatusCodes.Status200OK);
+        group.MapPost("/discord/discover-channel", async (
+            DiscordChannelDiscoveryRequest request,
+            NotificationDispatcher notifications,
+            CancellationToken ct) =>
+            TypedResults.Ok(await notifications.DiscoverDiscordChannelAsync(request.BotToken, ct)))
+            .Produces<DiscordChannelDiscoveryResponse>(StatusCodes.Status200OK);
         group.MapGet("/routes", async (NotificationDispatcher notifications, CancellationToken ct) =>
             TypedResults.Ok(await notifications.ListRoutesAsync(ct)));
         group.MapPost("/routes", async Task<IResult> (CreateNotificationRouteRequest request, NotificationDispatcher notifications, CancellationToken ct) =>

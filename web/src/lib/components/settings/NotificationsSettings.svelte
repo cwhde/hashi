@@ -20,6 +20,7 @@
 	let loading = $state(true);
 	let saving = $state(false);
 	let discoveringChat = $state(false);
+	let discoveringDiscord = $state(false);
 	let error = $state<string | null>(null);
 	let message = $state<string | null>(null);
 	let form = $state({
@@ -28,7 +29,8 @@
 		enabled: true,
 		telegramBotToken: '',
 		telegramChatId: '',
-		discordWebhookUrl: '',
+		discordBotToken: '',
+		discordChannelId: '',
 		smtpHost: '',
 		smtpPort: 587,
 		smtpUsername: '',
@@ -85,7 +87,8 @@
 	function resetProviderFields() {
 		form.telegramBotToken = '';
 		form.telegramChatId = '';
-		form.discordWebhookUrl = '';
+		form.discordBotToken = '';
+		form.discordChannelId = '';
 		form.smtpHost = '';
 		form.smtpPort = 587;
 		form.smtpUsername = '';
@@ -118,13 +121,18 @@
 		}
 
 		if (form.type === 'discord') {
-			if (!form.discordWebhookUrl.trim()) {
-				error = 'Discord webhook URL is required.';
+			if (!form.discordBotToken.trim()) {
+				error = 'Discord bot token is required.';
+				return null;
+			}
+			if (!form.discordChannelId.trim()) {
+				error = 'Discord channel or DM ID is required.';
 				return null;
 			}
 
 			return JSON.stringify({
-				webhookUrl: form.discordWebhookUrl.trim()
+				botToken: form.discordBotToken.trim(),
+				channelId: form.discordChannelId.trim()
 			});
 		}
 
@@ -231,6 +239,33 @@
 		}
 	}
 
+	async function discoverDiscordChannel() {
+		if (!form.discordBotToken.trim()) {
+			error = 'Enter the Discord bot token first.';
+			return;
+		}
+
+		discoveringDiscord = true;
+		error = null;
+		message = 'Pairing is listening for a DM or bot mention for 30 seconds.';
+		try {
+			const result = await withReauth(() => api.discoverDiscordChannel(form.discordBotToken.trim()));
+			if (!result) return;
+			if (result.found && result.channelId) {
+				form.discordChannelId = result.channelId;
+				message = result.channelName
+					? `Discovered Discord channel "${result.channelName}" (${result.channelId}).`
+					: `Discovered Discord channel or DM ID ${result.channelId}.`;
+			} else {
+				error = result.error ?? 'No Discord DM or mention was received during pairing.';
+			}
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Failed to pair Discord channel';
+		} finally {
+			discoveringDiscord = false;
+		}
+	}
+
 	async function testProvider(providerId: string) {
 		saving = true;
 		error = null;
@@ -321,7 +356,7 @@
 				>
 					<option value="smtp">SMTP email</option>
 					<option value="telegram">Telegram bot</option>
-					<option value="discord">Discord webhook</option>
+					<option value="discord">Discord bot</option>
 				</select>
 			</div>
 		</div>
@@ -348,15 +383,29 @@
 			</div>
 		{:else if form.type === 'discord'}
 			<div class="grid gap-2 rounded-md border border-border p-3">
-				<p class="text-xs text-muted-foreground">Paste your Discord incoming webhook URL.</p>
+				<p class="text-xs text-muted-foreground">
+					Enter a channel or DM ID manually, or start pairing and then DM or mention the bot.
+				</p>
 				<div class="grid gap-1.5">
-					<Label for="notify-discord-webhook">Webhook URL</Label>
+					<Label for="notify-discord-token">Bot token</Label>
 					<Input
-						id="notify-discord-webhook"
-						bind:value={form.discordWebhookUrl}
-						placeholder="https://discord.com/api/webhooks/..."
+						id="notify-discord-token"
+						type="password"
+						bind:value={form.discordBotToken}
+						placeholder="Discord application bot token"
 					/>
 				</div>
+				<div class="grid gap-1.5">
+					<Label for="notify-discord-channel">Channel or DM ID</Label>
+					<Input id="notify-discord-channel" bind:value={form.discordChannelId} placeholder="123456789012345678" />
+				</div>
+				<Button
+					variant="secondary"
+					onclick={() => discoverDiscordChannel()}
+					disabled={saving || discoveringDiscord || !form.discordBotToken.trim()}
+				>
+					{discoveringDiscord ? 'Pairing...' : 'Pair Discord channel'}
+				</Button>
 			</div>
 		{:else}
 			<div class="grid gap-2 rounded-md border border-border p-3">

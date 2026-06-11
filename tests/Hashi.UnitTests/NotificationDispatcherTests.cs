@@ -28,10 +28,32 @@ public sealed class NotificationDispatcherTests
         Assert.Null(result.Error);
     }
 
+    [Fact]
+    public async Task DiscordChannelDiscovery_returns_channel_from_gateway_pairing()
+    {
+        await using var db = CreateDb();
+        var discovery = new FakeDiscordDiscovery(new DiscordDiscoveredChannel("channel-1", "alerts", "user-1"));
+        var dispatcher = new NotificationDispatcher(
+            db,
+            new FakeHttpClientFactory(new HttpClient()),
+            CreateSecrets(db, new ServiceSyncVaultState()),
+            discovery);
+
+        var result = await dispatcher.DiscoverDiscordChannelAsync("discord-token");
+
+        Assert.True(result.Found);
+        Assert.Equal("channel-1", result.ChannelId);
+        Assert.Equal("alerts", result.ChannelName);
+        Assert.Equal("user-1", result.UserId);
+        Assert.Equal("discord-token", discovery.BotToken);
+        Assert.Empty(await db.SecretRecords.ToListAsync());
+    }
+
     [Theory]
     [InlineData("smtp", """{"host":"smtp.example.com","port":587,"username":"mailer","password":"smtp-secret","from":"hashi@example.com","to":"admin@example.com","useTls":true}""", "smtp-secret", "password", "passwordSecretId")]
     [InlineData("telegram", """{"botToken":"telegram-secret","chatId":"-100123"}""", "telegram-secret", "botToken", "botTokenSecretId")]
     [InlineData("discord", """{"webhookUrl":"https://discord.example/webhook-secret"}""", "webhook-secret", "webhookUrl", "webhookSecretId")]
+    [InlineData("discord", """{"botToken":"discord-secret","channelId":"123"}""", "discord-secret", "botToken", "botTokenSecretId")]
     public async Task CreateProviderAsync_moves_notification_secrets_to_secret_records(
         string type,
         string settingsJson,
@@ -101,6 +123,26 @@ public sealed class NotificationDispatcherTests
         Assert.Equal("telegram-secret", Encoding.UTF8.GetString((await secrets.DecryptForServiceSyncAsync(secret.Id))!));
     }
 
+    [Fact]
+    public async Task Discord_bot_provider_sends_to_manual_channel_id()
+    {
+        await using var db = CreateDb();
+        var handler = new DiscordBotFakeHandler();
+        var dispatcher = CreateDispatcher(db, new HttpClient(handler));
+        var provider = await dispatcher.CreateProviderAsync(new CreateNotificationProviderRequest(
+            "Discord",
+            "discord",
+            """{"botToken":"discord-secret","channelId":"123456"}""",
+            Enabled: true));
+
+        var result = await dispatcher.TestProviderAsync(provider.Id, new NotificationTestRequest("Subject", "Body"));
+
+        Assert.True(result.Sent, result.Error);
+        Assert.Equal("Bot", handler.AuthorizationScheme);
+        Assert.Equal("discord-secret", handler.AuthorizationParameter);
+        Assert.EndsWith("/api/v10/channels/123456/messages", handler.RequestUri?.AbsolutePath, StringComparison.Ordinal);
+    }
+
     private static string ExtractJsonString(string json, string property)
     {
         using var doc = System.Text.Json.JsonDocument.Parse(json);
@@ -135,6 +177,37 @@ public sealed class NotificationDispatcherTests
     private sealed class FakeHttpClientFactory(HttpClient client) : IHttpClientFactory
     {
         public HttpClient CreateClient(string name) => client;
+    }
+
+    private sealed class FakeDiscordDiscovery(DiscordDiscoveredChannel? result) : IDiscordChannelDiscovery
+    {
+        public string? BotToken { get; private set; }
+
+        public Task<DiscordDiscoveredChannel?> DiscoverAsync(
+            string botToken,
+            TimeSpan timeout,
+            CancellationToken cancellationToken)
+        {
+            BotToken = botToken;
+            return Task.FromResult(result);
+        }
+    }
+
+    private sealed class DiscordBotFakeHandler : HttpMessageHandler
+    {
+        public string? AuthorizationScheme { get; private set; }
+
+        public string? AuthorizationParameter { get; private set; }
+
+        public Uri? RequestUri { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            AuthorizationScheme = request.Headers.Authorization?.Scheme;
+            AuthorizationParameter = request.Headers.Authorization?.Parameter;
+            RequestUri = request.RequestUri;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+        }
     }
 
     private sealed class TelegramGetUpdatesFakeHandler : HttpMessageHandler

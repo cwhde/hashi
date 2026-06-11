@@ -108,6 +108,7 @@ public static class DependencyInjection
         services.AddScoped<ScriptExecutionService>();
         services.AddScoped<PulseAgentService>();
         services.AddScoped<NotificationDispatcher>();
+        services.AddSingleton<IDiscordChannelDiscovery, DiscordChannelDiscovery>();
         services.AddSingleton<IDnsProviderFactory, DnsProviderFactory>();
         services.AddSingleton<ISshRemoteExecutor, SshRemoteExecutor>();
         services.AddValidatorsFromAssemblyContaining<CreateResourceRequestValidator>();

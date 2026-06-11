@@ -1226,6 +1226,15 @@ public sealed record TelegramChatDiscoveryResponse(
     string? ChatTitle,
     string? Error);
 
+public sealed record DiscordChannelDiscoveryRequest(string BotToken);
+
+public sealed record DiscordChannelDiscoveryResponse(
+    bool Found,
+    string? ChannelId,
+    string? ChannelName,
+    string? UserId,
+    string? Error);
+
 public sealed record SendNotificationRequest(string Subject, string Body, IReadOnlyList<string> ProviderTypes);
 
 public sealed record NotificationRouteResponse(
