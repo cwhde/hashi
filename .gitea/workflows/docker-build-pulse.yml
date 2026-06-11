@@ -35,7 +35,7 @@ jobs:
           path: |
             ~/go/pkg/mod
             ~/.cache/go-build
-          key: go-pulse-${{ runner.os }}-${{ hashFiles('agents/pulse/go.mod') }}
+          key: go-pulse-${{ runner.os }}-${{ hashFiles('agents/pulse/go.mod', 'agents/pulse/go.sum') }}
           restore-keys: |
             go-pulse-${{ runner.os }}-
 

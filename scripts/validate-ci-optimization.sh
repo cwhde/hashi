@@ -53,6 +53,7 @@ require_literal '.gitea/workflows/ci.yml' 'actions/cache@v3' 'CI workflow must i
 require_literal '.gitea/workflows/ci.yml' '~/.nuget/packages' 'CI workflow must cache NuGet packages'
 require_literal '.gitea/workflows/ci.yml' 'pnpm store path' 'CI workflow must cache pnpm store'
 require_literal '.gitea/workflows/ci.yml' '~/.cache/go-build' 'CI workflow must cache Go build data'
+require_literal '.gitea/workflows/ci.yml' "hashFiles('agents/pulse/go.mod', 'agents/pulse/go.sum')" 'CI Go cache key must include module and checksum files'
 require_literal '.gitea/workflows/ci.yml' '~/.cache/ms-playwright' 'CI workflow must cache Playwright browsers'
 require_literal '.gitea/workflows/ci.yml' 'shellcheck-' 'CI workflow must cache ShellCheck'
 require_literal '.gitea/workflows/security.yml' 'actions/cache@v3' 'security workflow must include dependency/tool cache steps'
@@ -64,6 +65,7 @@ require_literal '.gitea/workflows/docker-build-pulse.yml' 'platforms: linux/amd6
 require_literal '.gitea/workflows/docker-build-old.yml' 'platforms: linux/amd64,linux/arm64' 'legacy image build must remain multi-arch'
 require_literal '.gitea/workflows/docker-build.yml' 'cache-from: type=registry' 'main image build must keep registry cache'
 require_literal '.gitea/workflows/docker-build-pulse.yml' 'cache-from: type=registry' 'Pulse image build must keep registry cache'
+require_literal '.gitea/workflows/docker-build-pulse.yml' "hashFiles('agents/pulse/go.mod', 'agents/pulse/go.sum')" 'Pulse release cache key must include module and checksum files'
 require_literal '.gitea/workflows/docker-build-old.yml' 'cache-from: type=registry' 'legacy image build must keep registry cache'
 
 printf 'CI optimization invariants validated.\n'
