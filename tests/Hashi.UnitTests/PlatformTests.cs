@@ -436,6 +436,14 @@ public sealed class ResourceSlugTests
     {
         Assert.Equal("my-app", ResourceSlug.Normalize("My App!"));
     }
+
+    [Fact]
+    public void Normalize_rejects_names_without_letters_or_digits()
+    {
+        var error = Assert.Throws<ArgumentException>(() => ResourceSlug.Normalize("!@#$"));
+
+        Assert.Contains("letter or digit", error.Message);
+    }
 }
 
 public sealed class FirewallHostResponseTests

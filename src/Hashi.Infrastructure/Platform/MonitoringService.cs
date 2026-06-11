@@ -237,7 +237,9 @@ public sealed class MonitoringService(HashiDbContext db, AppSettingsService sett
 
     public async Task<IReadOnlyList<PublicStatusItemResponse>> PublicStatusAsync(int? hours = null, CancellationToken cancellationToken = default)
     {
-        var effectiveHours = Math.Clamp(hours ?? 1, 1, 720);
+        var appSettings = await settings.GetOrCreateAsync(cancellationToken);
+        var retentionHours = Math.Clamp(appSettings.MonitorSampleRetentionDays, 7, 365) * 24;
+        var effectiveHours = Math.Min(Math.Clamp(hours ?? 1, 1, 720), retentionHours);
         var intervalMinutes = effectiveHours <= 1 ? 1 : effectiveHours <= 24 ? 5 : 60;
         var endpoints = await db.MonitorEndpoints.AsNoTracking()
             .Where(x => x.Enabled && x.PublicStatusEnabled)

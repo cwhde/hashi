@@ -234,6 +234,44 @@ public sealed class StatusRollupTests
     }
 
     [Fact]
+    public async Task PublicStatus_clamps_requested_range_to_configured_retention()
+    {
+        await using var db = CreateDb();
+        var endpoint = new MonitorEndpointEntity
+        {
+            Name = "Retained",
+            Url = "https://retained.example.com/",
+            CheckType = "https",
+            Enabled = true,
+            PublicStatusEnabled = true,
+            Status = "up",
+        };
+        db.MonitorEndpoints.Add(endpoint);
+        db.AppSettings.Add(new AppSettingsEntity { MonitorSampleRetentionDays = 7 });
+        db.MonitorRollups.AddRange(
+            new MonitorRollupEntity
+            {
+                MonitorEndpointId = endpoint.Id,
+                IntervalMinutes = 60,
+                BucketStartUtc = DateTimeOffset.UtcNow.AddDays(-6),
+                UpCount = 1,
+            },
+            new MonitorRollupEntity
+            {
+                MonitorEndpointId = endpoint.Id,
+                IntervalMinutes = 60,
+                BucketStartUtc = DateTimeOffset.UtcNow.AddDays(-8),
+                UpCount = 1,
+            });
+        await db.SaveChangesAsync();
+
+        var service = new MonitoringService(db, new AppSettingsService(db), new HashiInternalUrlResolver(new HashiPortOptions()));
+        var status = await service.PublicStatusAsync(720);
+
+        Assert.Single(Assert.Single(status).RecentStrip);
+    }
+
+    [Fact]
     public async Task PublicSummary_returns_zero_counts_when_no_public_endpoints()
     {
         await using var db = CreateDb();

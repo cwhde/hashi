@@ -296,6 +296,11 @@ public static class ResourceSlug
         result = System.Text.RegularExpressions.Regex.Replace(result, @"-+", "-");
         result = result.Trim('-');
 
+        if (result.Length == 0)
+        {
+            throw new ArgumentException("Resource name must contain at least one letter or digit.", nameof(name));
+        }
+
         if (result.Length > MaxLength)
         {
             result = result[..MaxLength].TrimEnd('-');
