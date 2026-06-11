@@ -735,7 +735,17 @@ public sealed class SyncOrchestratorService(
             {
                 try
                 {
-                    await traefikSync.ApplyForConnectionInternalAsync(connection.Id, cancellationToken);
+                    var result = await traefikSync.ApplyForConnectionInternalAsync(connection.Id, cancellationToken);
+                    if (!result.Succeeded)
+                    {
+                        hasFailures = true;
+                        await syncRuns.AddStepAsync(
+                            run.Id,
+                            $"traefik-reconcile-{connection.Name}",
+                            SyncRunStatusNames.Failed,
+                            result.Message ?? "Traefik apply failed.",
+                            cancellationToken);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -771,28 +781,54 @@ public sealed class SyncOrchestratorService(
                 if (plan.RequiresConfirmation)
                 {
                     hasPendingDestructive = true;
-                    await adguard.ApplySafePlanAsync(
+                    var result = await adguard.ApplySafePlanAsync(
                         connection.Id,
                         plan.PlanId,
                         updateTopologyDesiredState: true,
                         updateInternalAgentDnsDesiredState: true,
                         cancellationToken: cancellationToken);
-                    await syncRuns.AddStepAsync(
-                        run.Id,
-                        $"adguard-reconcile-{connection.Name}",
-                        SyncRunStatusNames.Succeeded,
-                        "Destructive changes pending confirmation.",
-                        cancellationToken);
+                    if (result.Succeeded)
+                    {
+                        await syncRuns.AddStepAsync(
+                            run.Id,
+                            $"adguard-reconcile-{connection.Name}",
+                            SyncRunStatusNames.Succeeded,
+                            "Destructive changes pending confirmation.",
+                            cancellationToken);
+                    }
+                    else
+                    {
+                        hasFailures = true;
+                        await syncRuns.AddStepAsync(
+                            run.Id,
+                            $"adguard-reconcile-{connection.Name}",
+                            SyncRunStatusNames.Failed,
+                            result.Message ?? "AdGuard safe apply failed.",
+                            cancellationToken);
+                    }
                 }
                 else if (plan.Changes.Count > 0)
                 {
-                    await adguard.ApplyPlanAsync(
+                    var result = await adguard.ApplyPlanAsync(
                         connection.Id,
                         new AdGuardRewriteApplyRequest(plan.PlanId, ConfirmDestructive: false),
                         updateTopologyDesiredState: true,
                         updateInternalAgentDnsDesiredState: true,
                         cancellationToken: cancellationToken);
-                    await syncRuns.AddStepAsync(run.Id, $"adguard-reconcile-{connection.Name}", SyncRunStatusNames.Succeeded, "Applied", cancellationToken);
+                    if (result.Succeeded)
+                    {
+                        await syncRuns.AddStepAsync(run.Id, $"adguard-reconcile-{connection.Name}", SyncRunStatusNames.Succeeded, "Applied", cancellationToken);
+                    }
+                    else
+                    {
+                        hasFailures = true;
+                        await syncRuns.AddStepAsync(
+                            run.Id,
+                            $"adguard-reconcile-{connection.Name}",
+                            SyncRunStatusNames.Failed,
+                            result.Message ?? "AdGuard apply failed.",
+                            cancellationToken);
+                    }
                 }
                 else
                 {
@@ -809,7 +845,17 @@ public sealed class SyncOrchestratorService(
                 {
                     try
                     {
-                        await firewall.ApplyForHostAsync(host.Id, cancellationToken);
+                        var result = await firewall.ApplyForHostAsync(host.Id, cancellationToken);
+                        if (!result.Succeeded)
+                        {
+                            hasFailures = true;
+                            await syncRuns.AddStepAsync(
+                                run.Id,
+                                $"firewall-reconcile-{host.Name}",
+                                SyncRunStatusNames.Failed,
+                                result.Message ?? "Firewall apply failed.",
+                                cancellationToken);
+                        }
                     }
                     catch (Exception ex)
                     {

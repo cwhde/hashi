@@ -160,6 +160,72 @@ public sealed class PassiveSyncSafetyTests
     }
 
     [Fact]
+    public async Task ReconcileAsync_fails_when_adguard_apply_readback_fails()
+    {
+        var options = new DbContextOptionsBuilder<HashiDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        await using var db = new HashiDbContext(options);
+        db.AppSettings.Add(new AppSettingsEntity { RootDomain = "example.com" });
+
+        var rootKey = new byte[32];
+        var connectionId = await AddAdGuardConnectionAsync(db, rootKey);
+        var firewallHostId = Guid.NewGuid();
+        db.FirewallHosts.Add(new FirewallHostEntity
+        {
+            Id = firewallHostId,
+            ConnectionId = Guid.NewGuid(),
+            Name = "edge",
+            Domain = "edge.example.com",
+            LinkedTraefikHost = "edge.example.com",
+            InternalTraefikIp = "10.0.0.2",
+        });
+        db.Resources.Add(new ResourceEntity
+        {
+            Name = "App",
+            Slug = "app",
+            Domain = "app.example.com",
+            FirewallHostId = firewallHostId,
+            Enabled = true,
+        });
+        await db.SaveChangesAsync();
+
+        var vault = new VaultSessionState();
+        vault.Unlock(rootKey);
+        var secrets = new SecretRecordService(db, vault, new ServiceSyncVaultState());
+        var syncRuns = new SyncRunService(db);
+        var handler = new FakeAdGuardHandler("""{"rewrites":[]}""");
+        var orchestrator = new SyncOrchestratorService(
+            db,
+            new DnsConnectionService(db, new TestDnsProviderFactory(), secrets, new AuditService(db)),
+            TestPlatformHelpers.CreateTraefikPlatform(db, vault),
+            TestPlatformHelpers.CreateTraefikSync(db, new FakeSshRemoteExecutor(), vault),
+            TestPlatformHelpers.CreateFirewallApply(db, new FakeSshRemoteExecutor(), vault),
+            new AdGuardSyncService(
+                db,
+                new FakeHttpClientFactory(handler),
+                secrets,
+                new AuditService(db),
+                syncRuns,
+                new ConnectionTargetResolver(db, new AuditService(db))),
+            syncRuns,
+            new AppSettingsService(db),
+            new AuditService(db));
+
+        var result = await orchestrator.ReconcileAsync();
+
+        Assert.False(result.Succeeded);
+        var run = await db.SyncRuns.Include(x => x.Steps).SingleAsync(x => x.Id == result.RunId);
+        Assert.Equal(SyncRunStatusNames.Failed, run.Status);
+        Assert.Contains(run.Steps, step =>
+            step.Name == "adguard-reconcile-home" &&
+            step.Status == SyncRunStatusNames.Failed &&
+            step.Message!.Contains("remote verification failed", StringComparison.OrdinalIgnoreCase));
+        Assert.True(await db.AdGuardRewrites.AnyAsync(x =>
+            x.ConnectionId == connectionId && x.Domain == "app.example.com"));
+    }
+
+    [Fact]
     public async Task ApplySafePlanAsync_skips_deletes_but_applies_creates()
     {
         var options = new DbContextOptionsBuilder<HashiDbContext>()
