@@ -156,6 +156,98 @@ test('creates a manual soft block for a selected IP', async ({ page }) => {
 	});
 });
 
+test('creates a manual allow for a selected IP', async ({ page }) => {
+	await mockAdmin(page);
+	await page.route('**/api/security/subjects/search**', (route) =>
+		json(route, { results: [subjectDetail().subject] })
+	);
+	await page.route('**/api/security/subjects/subject-1', (route) => json(route, subjectDetail()));
+	await page.route('**/api/security/subjects/subject-1/effective-decision', (route) =>
+		json(route, { decision: 'allow', reasons: [], matchedManualEntryIds: [] })
+	);
+	await page.route('**/api/security/subjects/subject-1/events', (route) => json(route, []));
+	await page.route('**/api/security/subjects/subject-1/buckets**', (route) => json(route, []));
+	let allowBody: Record<string, unknown> | null = null;
+	await page.route('**/api/security/manual-entries', async (route) => {
+		allowBody = route.request().postDataJSON() as Record<string, unknown>;
+		return json(route, { id: 'allow-1' }, 201);
+	});
+
+	await page.goto('/security');
+	await page.getByLabel('Subject search').fill('203.0.113.7');
+	await page.getByRole('button', { name: 'Search' }).click();
+	await page.getByLabel('Action reason').fill('Known administrator');
+	await page.getByRole('button', { name: 'Allow', exact: true }).click();
+
+	await expect.poll(() => allowBody).not.toBeNull();
+	expect(allowBody).toMatchObject({
+		subjectType: 'ip',
+		subjectValue: '203.0.113.7',
+		entryType: 'allow',
+		scopeType: 'global',
+		reason: 'Known administrator',
+		isPermanent: true,
+		enabled: true
+	});
+});
+
+test('extends and shortens an active manual ban', async ({ page }) => {
+	await mockAdmin(page);
+	const activeBlock = {
+		id: 'block-1',
+		subjectType: 'ip',
+		subjectValue: '203.0.113.7',
+		normalizedValue: '203.0.113.7',
+		entryType: 'block',
+		scopeType: 'global',
+		scopeId: null,
+		reason: 'Repeated abuse',
+		createdAtUtc: new Date().toISOString(),
+		expiresAtUtc: new Date(Date.now() + 3_600_000).toISOString(),
+		isPermanent: false,
+		bypassBlocking: false,
+		bypassAdaptiveEscalation: false,
+		bypassRateLimit: false,
+		bypassChallenge: false,
+		bypassSso: false,
+		enabled: true,
+		lastHitAtUtc: null
+	};
+	await page.route('**/api/security/subjects/search**', (route) =>
+		json(route, { results: [subjectDetail([activeBlock]).subject] })
+	);
+	await page.route('**/api/security/subjects/subject-1', (route) =>
+		json(route, subjectDetail([activeBlock]))
+	);
+	await page.route('**/api/security/subjects/subject-1/effective-decision', (route) =>
+		json(route, { decision: 'block', reasons: ['manual'], matchedManualEntryIds: ['block-1'] })
+	);
+	await page.route('**/api/security/subjects/subject-1/events', (route) => json(route, []));
+	await page.route('**/api/security/subjects/subject-1/buckets**', (route) => json(route, []));
+	const actions: { path: string; body: Record<string, unknown> }[] = [];
+	await page.route('**/api/security/blocks/block-1/*', async (route) => {
+		actions.push({
+			path: new URL(route.request().url()).pathname,
+			body: route.request().postDataJSON() as Record<string, unknown>
+		});
+		return json(route, { succeeded: true });
+	});
+
+	await page.goto('/security');
+	await page.getByLabel('Subject search').fill('203.0.113.7');
+	await page.getByRole('button', { name: 'Search' }).click();
+	await page.getByLabel('Block duration').fill('6');
+	await page.getByRole('button', { name: 'Extend', exact: true }).click();
+	await expect.poll(() => actions.length).toBe(1);
+	await page.getByRole('button', { name: 'Shorten', exact: true }).click();
+	await expect.poll(() => actions.length).toBe(2);
+
+	expect(actions).toEqual([
+		{ path: '/api/security/blocks/block-1/extend', body: { durationSeconds: 21600 } },
+		{ path: '/api/security/blocks/block-1/shorten', body: { durationSeconds: 21600 } }
+	]);
+});
+
 test('adds a custom HTTPS blocklist source', async ({ page }) => {
 	await mockAdmin(page);
 	let createdSource: Record<string, unknown> | null = null;
@@ -227,6 +319,123 @@ test('solves a CAPTCHA challenge and submits the widget token', async ({ page })
 	await expect.poll(() => verification).not.toBeNull();
 	expect(verification).toMatchObject({ token: 'captcha-token-1', returnUrl: '/dashboard' });
 	await expect(page.getByText('Test verification received.')).toBeVisible();
+});
+
+test('updates internal DNS settings for a Pulse agent', async ({ page }) => {
+	await mockAdmin(page);
+	const agent = {
+		id: 'agent-1',
+		name: 'edge-node-1',
+		installType: 'linux_service',
+		allowedScopes: [],
+		heartbeatIntervalSeconds: 30,
+		status: 'online',
+		lastSeenAtUtc: new Date().toISOString(),
+		lastPublicIp: '198.51.100.10',
+		lastPrivateIp: '10.0.0.10',
+		lastPrivateIpv4Candidates: ['10.0.0.10'],
+		lastPrivateIpv6Candidates: [],
+		lastSelectedIp: '10.0.0.10',
+		lastSelectedInterface: 'eth0',
+		lastHostname: 'edge-node-1',
+		lastAgentVersion: '1.0.0',
+		dnsPendingAtUtc: null
+	};
+	const settings = {
+		enabled: true,
+		domain: 'hashi.home.arpa',
+		keepLastRewriteWhenAgentStale: true,
+		adGuardConnectionId: 'adguard-1',
+		lastSyncStatus: 'idle',
+		lastAppliedHash: null,
+		agents: [
+			{
+				id: 'dns-agent-1',
+				pulseAgentId: 'agent-1',
+				enabled: false,
+				nameOverride: null,
+				ipMode: 'selected',
+				keepLastRewriteWhenStale: true,
+				updatedAtUtc: new Date().toISOString()
+			}
+		]
+	};
+	await page.route('**/api/pulse/agents', (route) => json(route, [agent]));
+	let dnsBody: Record<string, unknown> | null = null;
+	await page.route('**/api/settings/internal-agent-dns/', async (route) => {
+		if (route.request().method() === 'PUT') {
+			dnsBody = route.request().postDataJSON() as Record<string, unknown>;
+			return json(route, { ...settings, agents: [{ ...settings.agents[0], enabled: true }] });
+		}
+		return json(route, settings);
+	});
+
+	await page.goto('/pulse');
+	await expect(page.getByRole('cell', { name: 'edge-node-1' }).first()).toBeVisible();
+	await page.getByRole('switch', { checked: false }).click();
+	await page.getByRole('button', { name: 'Save DNS' }).click();
+
+	await expect.poll(() => dnsBody).not.toBeNull();
+	expect(dnsBody).toMatchObject({
+		enabled: true,
+		domain: 'hashi.home.arpa',
+		adGuardConnectionId: 'adguard-1',
+		agents: [{ pulseAgentId: 'agent-1', enabled: true, ipMode: 'selected' }]
+	});
+});
+
+test('creates an AdGuard connection targeting a Pulse agent', async ({ page }) => {
+	await mockAdmin(page);
+	const agent = {
+		id: 'agent-1',
+		name: 'edge-node-1',
+		installType: 'linux_service',
+		allowedScopes: [],
+		heartbeatIntervalSeconds: 30,
+		status: 'online',
+		lastSeenAtUtc: new Date().toISOString(),
+		lastPublicIp: '198.51.100.10',
+		lastPrivateIp: '10.0.0.10',
+		lastPrivateIpv4Candidates: ['10.0.0.10'],
+		lastPrivateIpv6Candidates: [],
+		lastSelectedIp: '10.0.0.10',
+		lastSelectedInterface: 'eth0',
+		lastHostname: 'edge-node-1',
+		lastAgentVersion: '1.0.0',
+		dnsPendingAtUtc: null
+	};
+	await page.route('**/api/pulse/agents', (route) => json(route, [agent]));
+	let connections: Record<string, unknown>[] = [];
+	let createBody: Record<string, unknown> | null = null;
+	await page.route('**/api/adguard/connections', async (route) => {
+		if (route.request().method() === 'POST') {
+			createBody = route.request().postDataJSON() as Record<string, unknown>;
+			const created = { id: 'adguard-1', name: 'home-adguard', ...createBody };
+			connections = [created];
+			return json(route, created, 201);
+		}
+		return json(route, connections);
+	});
+	await page.route('**/api/adguard/connections/adguard-1/rewrites', (route) => json(route, []));
+
+	await page.goto('/adguard');
+	await page.getByLabel('Target').selectOption('pulse_agent');
+	await page.getByLabel('Pulse agent').selectOption('agent-1');
+	await page.getByLabel('Admin password').fill('test-password');
+	await page.getByRole('button', { name: 'Add connection' }).click();
+
+	await expect.poll(() => createBody).not.toBeNull();
+	expect(createBody).toMatchObject({
+		name: 'home-adguard',
+		baseUrl: null,
+		target: {
+			targetMode: 'pulse_agent',
+			pulseAgentId: 'agent-1',
+			pulseIpMode: 'selected',
+			port: 3000,
+			scheme: 'http'
+		}
+	});
 });
 
 test('challenge and connection-target routes are real and render', async ({ page }) => {
