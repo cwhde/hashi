@@ -37,7 +37,8 @@ public sealed record TraefikRenderOptions(
     string HashiHealthUrl = HashiInternalUrlDefaults.HealthUrl,
     string? HashiErrorUrl = null,
     bool ErrorHandlingEnabled = true,
-    IReadOnlySet<(int Port, string Protocol)>? ConfirmedStreamPorts = null);
+    IReadOnlySet<(int Port, string Protocol)>? ConfirmedStreamPorts = null,
+    string? InternalDnsDomain = null);
 
 public static class TraefikConfigRenderer
 {
@@ -51,6 +52,7 @@ public static class TraefikConfigRenderer
         var httpResources = enabled
             .Where(r => r.Kind is ResourceKind.Http or ResourceKind.Https or ResourceKind.H2c)
             .Where(r => !string.IsNullOrWhiteSpace(r.Domain))
+            .Where(r => !IsInternalDnsDomain(r.Domain, options.InternalDnsDomain))
             .ToList();
         var streamResources = enabled.Where(r => r.Kind is ResourceKind.Tcp or ResourceKind.Udp).ToList();
         var confirmedPorts = options.ConfirmedStreamPorts;
@@ -678,4 +680,23 @@ public static class TraefikConfigRenderer
                 servers:
                   - url: "{{options.HashiHealthUrl}}"
         """;
+
+    private static bool IsInternalDnsDomain(string? domain, string? internalDnsDomain)
+    {
+        if (string.IsNullOrWhiteSpace(domain)) return false;
+        var normalized = domain.Trim().ToLowerInvariant();
+        if (normalized == "home.arpa" || normalized.EndsWith(".home.arpa", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+        if (!string.IsNullOrWhiteSpace(internalDnsDomain))
+        {
+            var normalizedInternal = internalDnsDomain.Trim().ToLowerInvariant();
+            if (normalized == normalizedInternal || normalized.EndsWith($".{normalizedInternal}", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 }

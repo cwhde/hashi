@@ -508,4 +508,23 @@ public sealed class TraefikStreamRendererTests
 
         Assert.True(validation.IsValid, string.Join("; ", validation.Errors));
     }
+
+    [Fact]
+    public void Render_skips_resources_with_internal_dns_domains()
+    {
+        var resources = new List<ResourceDefinition>
+        {
+            new(Guid.NewGuid(), "Valid", "valid", ResourceKind.Https, true, false, "valid.example.com", "http", "10.0.0.2", 8080),
+            new(Guid.NewGuid(), "HomeArpa", "homearpa", ResourceKind.Https, true, false, "home.arpa", "http", "10.0.0.2", 8080),
+            new(Guid.NewGuid(), "SubHomeArpa", "subhomearpa", ResourceKind.Https, true, false, "test.home.arpa", "http", "10.0.0.2", 8080),
+            new(Guid.NewGuid(), "CustomInternal", "custominternal", ResourceKind.Https, true, false, "test.custom.internal", "http", "10.0.0.2", 8080),
+        };
+        var options = new TraefikRenderOptions(InternalDnsDomain: "custom.internal");
+        var result = TraefikConfigRenderer.Render(resources, options);
+
+        Assert.Contains("valid.example.com", result.DynamicFiles.HttpResourcesYaml);
+        Assert.DoesNotContain("home.arpa", result.DynamicFiles.HttpResourcesYaml);
+        Assert.DoesNotContain("test.home.arpa", result.DynamicFiles.HttpResourcesYaml);
+        Assert.DoesNotContain("test.custom.internal", result.DynamicFiles.HttpResourcesYaml);
+    }
 }

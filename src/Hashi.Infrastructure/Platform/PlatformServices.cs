@@ -659,6 +659,12 @@ public sealed class ResourceService(
         {
             throw new InvalidOperationException("Internal agent DNS is DNS-only and cannot be used as a reverse-proxy resource domain.");
         }
+
+        if (string.Equals(resolvedDomain, "home.arpa", StringComparison.OrdinalIgnoreCase) ||
+            resolvedDomain.EndsWith(".home.arpa", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Domains matching home.arpa or ending in .home.arpa are reserved for internal agent DNS and cannot be used as resource domains.");
+        }
     }
 
     private static void ValidateRewrite(
@@ -882,6 +888,7 @@ public sealed class TraefikPlatformService(
         var appSettings = await settings.GetOrCreateAsync(cancellationToken);
         var acmeOptions = await certificateSetup.BuildTraefikOptionsAsync(appSettings.AdminDomain ?? "hashi.local", cancellationToken);
         var confirmedPorts = await entryPoints.GetConfirmedPortKeysAsync(cancellationToken);
+        var configuredDns = await db.InternalAgentDnsSettings.AsNoTracking().SingleOrDefaultAsync(cancellationToken);
         var options = acmeOptions with
         {
             AdminDomain = appSettings.AdminDomain ?? "hashi.local",
@@ -890,6 +897,7 @@ public sealed class TraefikPlatformService(
             HashiErrorUrl = internalUrls.ResolveUrl(appSettings, "/api/error"),
             ErrorHandlingEnabled = appSettings.ErrorHandlingEnabled,
             ConfirmedStreamPorts = confirmedPorts,
+            InternalDnsDomain = configuredDns?.Domain,
         };
         var userYaml = await userMiddlewares.GetAppliedYamlAsync(cancellationToken);
         return TraefikConfigRenderer.Render(defs, options, userYaml);

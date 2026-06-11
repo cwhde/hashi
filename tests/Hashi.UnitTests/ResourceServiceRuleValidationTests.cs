@@ -108,6 +108,26 @@ public sealed class ResourceServiceRuleValidationTests
         Assert.Empty(await db.ResourceRules.AsNoTracking().ToListAsync());
     }
 
+    [Fact]
+    public async Task CreateAsync_rejects_home_arpa_domains()
+    {
+        await using var db = CreateDb();
+        var service = TestPlatformHelpers.CreateResourceService(db);
+
+        var request = new CreateResourceRequest(
+            "App",
+            "https",
+            "test.home.arpa",
+            "http",
+            "127.0.0.1",
+            8080,
+            true,
+            true);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => service.CreateAsync(request));
+        Assert.Contains("home.arpa", ex.Message);
+    }
+
     private static CreateResourceRequest CreateRequest(IReadOnlyList<ResourceRuleRequest> rules)
         => new(
             "App",
