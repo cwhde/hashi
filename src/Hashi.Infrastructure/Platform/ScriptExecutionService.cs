@@ -636,13 +636,36 @@ public sealed partial class ScriptExecutionService(
         var targets = await db.ScriptTargets.AsNoTracking()
             .Where(x => x.ScriptId == entity.Id)
             .OrderBy(x => x.ConnectionId)
-            .Select(x => new ScriptTargetResponse(x.Id, x.ConnectionId, x.Enabled))
             .ToListAsync(cancellationToken);
-        if (targets.Count == 0)
+
+        var defaultIds = targets.Count == 0
+            ? await GetDefaultTargetConnectionIdsAsync(cancellationToken)
+            : (IReadOnlyList<Guid>)Array.Empty<Guid>();
+
+        var connectionIds = targets.Select(x => x.ConnectionId)
+            .Concat(defaultIds)
+            .Distinct()
+            .ToList();
+
+        var connectionNames = await db.Connections.AsNoTracking()
+            .Where(x => connectionIds.Contains(x.Id))
+            .ToDictionaryAsync(x => x.Id, x => x.Name, cancellationToken);
+
+        var targetResponses = new List<ScriptTargetResponse>();
+        if (targets.Count > 0)
         {
-            foreach (var connectionId in await GetDefaultTargetConnectionIdsAsync(cancellationToken))
+            foreach (var target in targets)
             {
-                targets.Add(new ScriptTargetResponse(Guid.Empty, connectionId, true));
+                var name = connectionNames.TryGetValue(target.ConnectionId, out var n) ? n : "Unknown";
+                targetResponses.Add(new ScriptTargetResponse(target.Id, target.ConnectionId, name, target.Enabled));
+            }
+        }
+        else
+        {
+            foreach (var connectionId in defaultIds)
+            {
+                var name = connectionNames.TryGetValue(connectionId, out var n) ? n : "Unknown";
+                targetResponses.Add(new ScriptTargetResponse(Guid.Empty, connectionId, name, true));
             }
         }
 
@@ -658,6 +681,7 @@ public sealed partial class ScriptExecutionService(
             entity.Name,
             entity.Enabled,
             entity.Description,
+            entity.Body,
             entity.CronExpression,
             entity.RunTimeoutSeconds,
             entity.LastRunAtUtc,
@@ -665,7 +689,7 @@ public sealed partial class ScriptExecutionService(
             entity.LastRunError,
             entity.LastRunStatus,
             entity.LastRunId,
-            targets,
+            targetResponses,
             environment);
     }
 

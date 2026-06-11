@@ -11142,6 +11142,7 @@
           "name",
           "enabled",
           "description",
+          "body",
           "cronExpression",
           "runTimeoutSeconds",
           "lastRunAtUtc",
@@ -11169,6 +11170,9 @@
             "type": "boolean"
           },
           "description": {
+            "type": "string"
+          },
+          "body": {
             "type": "string"
           },
           "cronExpression": {
@@ -11279,6 +11283,7 @@
         "required": [
           "id",
           "connectionId",
+          "connectionName",
           "enabled"
         ],
         "type": "object",
@@ -11290,6 +11295,9 @@
           "connectionId": {
             "type": "string",
             "format": "uuid"
+          },
+          "connectionName": {
+            "type": "string"
           },
           "enabled": {
             "type": "boolean"

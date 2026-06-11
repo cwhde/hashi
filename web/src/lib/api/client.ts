@@ -287,7 +287,7 @@ export const api = {
 		const r = await client.GET('/api/dns/connections/{connectionId}/capabilities' as never, {
 			params: { path: { connectionId } }
 		} as never);
-		return expectData(r.response, r.error, r.data) as Promise<import('./types.js').DnsProviderCapabilities>;
+		return expectData(r.response, r.error, r.data) as unknown as Promise<import('./types.js').DnsProviderCapabilities>;
 	},
 	applyDnsPrune: (connectionId: string) =>
 		postUndocumented('/api/dns/connections/{connectionId}/prune/apply', {
@@ -581,7 +581,8 @@ export const api = {
 			issuer: String(result.issuer ?? body.issuer),
 			clientId: String(result.clientId ?? body.clientId),
 			scopes: String(result.scopes ?? body.scopes ?? ''),
-			enabled: result.enabled !== false
+			enabled: result.enabled !== false,
+			isDefault: result.isDefault === true || body.isDefault === true
 		} satisfies import('./types.js').OidcProvider;
 	},
 	getSecurityDashboard: async (params?: {

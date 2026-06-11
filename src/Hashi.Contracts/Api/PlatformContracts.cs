@@ -1162,6 +1162,7 @@ public sealed record ScriptResponse(
     string Name,
     bool Enabled,
     string Description,
+    string Body,
     string CronExpression,
     int RunTimeoutSeconds,
     DateTimeOffset? LastRunAtUtc,
@@ -1172,7 +1173,7 @@ public sealed record ScriptResponse(
     IReadOnlyList<ScriptTargetResponse> Targets,
     IReadOnlyList<ScriptEnvironmentVariableResponse> EnvironmentVariables);
 
-public sealed record ScriptTargetResponse(Guid Id, Guid ConnectionId, bool Enabled);
+public sealed record ScriptTargetResponse(Guid Id, Guid ConnectionId, string ConnectionName, bool Enabled);
 
 public sealed record ScriptEnvironmentVariableResponse(Guid Id, string Name, bool IsSecret, Guid? SecretId);
 

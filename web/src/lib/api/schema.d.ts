@@ -8351,6 +8351,7 @@ export interface components {
             name: string;
             enabled: boolean;
             description: string;
+            body: string;
             cronExpression: string;
             /** Format: int32 */
             runTimeoutSeconds: number | string;
@@ -8384,6 +8385,7 @@ export interface components {
             id: string;
             /** Format: uuid */
             connectionId: string;
+            connectionName: string;
             enabled: boolean;
         };
         SecretDescriptorResponse: {

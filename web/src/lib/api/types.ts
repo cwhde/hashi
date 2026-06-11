@@ -96,6 +96,7 @@ export type UpdateMonitorEndpointRequest = {
 	checkType?: string | null;
 	enabled?: boolean | null;
 	publicStatusEnabled?: boolean | null;
+	paused?: boolean | null;
 };
 export type MonitorRollup = {
 	monitorEndpointId: string;

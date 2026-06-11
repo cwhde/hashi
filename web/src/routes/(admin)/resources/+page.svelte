@@ -172,7 +172,8 @@
 		clearWafExclusions: false,
 		clearMonitoringProtocolHint: false,
 		clearExplicitRoutingOverride: false,
-		clearSecurityProfileName: false
+		clearSecurityProfileName: false,
+		clearOidcProviderId: false
 	} as const;
 
 	async function updateAdGuardRewrite(resource: Resource, enabled: boolean) {
@@ -198,6 +199,7 @@
 	async function updateExplicitRoutingOverride(resource: Resource, overrideVal: string) {
 		try {
 			await api.updateResource(resource.id, {
+				...resourcePatchFlags,
 				name: null,
 				enabled: null,
 				domain: null,
@@ -207,8 +209,7 @@
 				dashboardEnabled: null,
 				statusEnabled: null,
 				explicitRoutingOverride: overrideVal || null,
-				clearExplicitRoutingOverride: !overrideVal,
-				...resourcePatchFlags
+				clearExplicitRoutingOverride: !overrideVal
 			});
 			await load();
 		} catch (e) {
@@ -219,6 +220,7 @@
 	async function updateSecurityProfile(resource: Resource, profileName: string) {
 		try {
 			await api.updateResource(resource.id, {
+				...resourcePatchFlags,
 				name: null,
 				enabled: null,
 				domain: null,
@@ -228,8 +230,7 @@
 				dashboardEnabled: null,
 				statusEnabled: null,
 				securityProfileName: profileName || null,
-				clearSecurityProfileName: !profileName,
-				...resourcePatchFlags
+				clearSecurityProfileName: !profileName
 			});
 			await load();
 		} catch (e) {
