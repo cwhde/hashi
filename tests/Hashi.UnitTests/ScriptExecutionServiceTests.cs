@@ -133,6 +133,11 @@ public sealed class ScriptExecutionServiceTests
         await db.SaveChangesAsync();
         var enabledScript = await db.Scripts.SingleAsync(x => x.Name == "Enabled");
         var ssh = new FakeSshRemoteExecutor();
+        ssh.CommandResults.Enqueue(new RemoteCommandResult(true, "", null));
+        ssh.CommandResults.Enqueue(new RemoteCommandResult(true, "", null));
+        ssh.CommandResults.Enqueue(new RemoteCommandResult(true, "", null));
+        ssh.CommandResults.Enqueue(new RemoteCommandResult(false, "", "No systemd"));
+        ssh.CommandResults.Enqueue(new RemoteCommandResult(true, "", null));
         var scripts = CreateService(db, ssh, secrets);
 
         await scripts.SyncAllEnabledScriptsAsync();
@@ -250,5 +255,72 @@ public sealed class ScriptExecutionServiceTests
         db.Connections.Add(connection);
         await db.SaveChangesAsync();
         return connection.Id;
+    }
+
+    [Theory]
+    [InlineData("0 3 * * *", "*-*-* 03:00:00")]
+    [InlineData("*/5 * * * *", "*-*-* *:*/5:00")]
+    [InlineData("30 2 * * 1-5", "Mon-Fri *-*-* 02:30:00")]
+    [InlineData("0 0 1 1 *", "*-1-1 00:00:00")]
+    [InlineData("0 12 * * 0,6", "Sun,Sat *-*-* 12:00:00")]
+    public void ConvertCronToOnCalendar_translates_cron_expressions(string cron, string expected)
+    {
+        var result = ScriptExecutionService.ConvertCronToOnCalendar(cron);
+        Assert.Equal(expected, result);
+    }
+
+    [Fact]
+    public async Task SyncAllEnabledScriptsAsync_writes_systemd_timers_when_systemd_present()
+    {
+        await using var db = CreateDb();
+        var vault = new VaultSessionState();
+        vault.Unlock(RandomNumberGenerator.GetBytes(32));
+        var secrets = new SecretRecordService(db, vault, new ServiceSyncVaultState());
+        var connectionId = await AddConnectionAsync(db, secrets, "firewall", "10.0.0.40");
+        
+        var script = new ScriptEntity
+        {
+            ConnectionId = connectionId,
+            Name = "SystemdBackup",
+            Body = "echo backup",
+            CronExpression = "0 3 * * *",
+            Enabled = true,
+            RunTimeoutSeconds = 120,
+        };
+        db.Scripts.Add(script);
+        await db.SaveChangesAsync();
+
+        var ssh = new FakeSshRemoteExecutor();
+        // Since default CommandResult.Succeeded is true, systemd is detected as present.
+        // We can set output for find command.
+        ssh.CommandResult = new RemoteCommandResult(true, "/etc/systemd/system/hashi-script-00000000000000000000000000000000.timer\n", null);
+
+        var scripts = CreateService(db, ssh, secrets);
+        await scripts.SyncAllEnabledScriptsAsync();
+
+        var servicePath = $"/etc/systemd/system/hashi-script-{script.Id:N}.service";
+        var timerPath = $"/etc/systemd/system/hashi-script-{script.Id:N}.timer";
+
+        Assert.True(ssh.WrittenFiles.ContainsKey(servicePath));
+        Assert.True(ssh.WrittenFiles.ContainsKey(timerPath));
+        
+        var serviceContent = System.Text.Encoding.UTF8.GetString(ssh.WrittenFiles[servicePath]);
+        var timerContent = System.Text.Encoding.UTF8.GetString(ssh.WrittenFiles[timerPath]);
+
+        Assert.Contains($"Description=Hashi Script execution - {script.Name}", serviceContent);
+        Assert.Contains("Type=oneshot", serviceContent);
+        Assert.Contains($"ExecStart=/bin/bash /opt/hashi/scripts/{script.Id:N}.sh", serviceContent);
+        Assert.Contains($"TimeoutStartSec=120", serviceContent);
+        Assert.Contains($"StandardOutput=append:/var/log/hashi/scripts/{script.Id:N}.log", serviceContent);
+
+        Assert.Contains("OnCalendar=*-*-* 03:00:00", timerContent);
+        Assert.Contains("Persistent=true", timerContent);
+
+        // Check that daemon-reload and systemctl enable --now were called
+        Assert.Contains(ssh.Commands, cmd => cmd.Contains("systemctl daemon-reload", StringComparison.Ordinal));
+        Assert.Contains(ssh.Commands, cmd => cmd.Contains($"systemctl enable --now hashi-script-{script.Id:N}.timer", StringComparison.Ordinal));
+        
+        // Check cleanup of obsolete timer
+        Assert.Contains(ssh.Commands, cmd => cmd.Contains("systemctl disable --now hashi-script-00000000000000000000000000000000.timer", StringComparison.Ordinal));
     }
 }

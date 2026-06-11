@@ -350,12 +350,113 @@ public sealed partial class ScriptExecutionService(
         }
 
         await WriteRemoteFileAsync(credentials, ManifestPath, Encoding.UTF8.GetBytes(RenderManifest(scripts)), cancellationToken);
-        await WriteRemoteFileAsync(credentials, CronPath, Encoding.UTF8.GetBytes(RenderCron(scripts)), cancellationToken);
         await RunRequiredCommandAsync(
             credentials,
-            $"chown root:root {ShellQuote(ManifestPath)} {ShellQuote(CronPath)} && chmod 0640 {ShellQuote(ManifestPath)} && chmod 0644 {ShellQuote(CronPath)}",
-            "Failed to harden script manifest and cron files.",
+            $"chown root:root {ShellQuote(ManifestPath)} && chmod 0640 {ShellQuote(ManifestPath)}",
+            "Failed to harden script manifest.",
             cancellationToken);
+
+        var checkSystemd = await ssh.RunCommandAsync(
+            credentials.Settings,
+            credentials.AuthMode,
+            credentials.Password,
+            credentials.PrivateKeyPem,
+            credentials.PrivateKeyPassphrase,
+            "[ -d /run/systemd/system ]",
+            cancellationToken);
+
+        bool useSystemd = checkSystemd.Succeeded;
+
+        if (useSystemd)
+        {
+            var activeTimerScriptIds = new HashSet<Guid>();
+
+            foreach (var script in scripts)
+            {
+                if (script.Enabled && !string.IsNullOrWhiteSpace(script.CronExpression))
+                {
+                    var onCalendar = ConvertCronToOnCalendar(script.CronExpression);
+                    if (onCalendar != null)
+                    {
+                        var servicePath = $"/etc/systemd/system/hashi-script-{script.Id:N}.service";
+                        var timerPath = $"/etc/systemd/system/hashi-script-{script.Id:N}.timer";
+
+                        var serviceContent = RenderSystemdService(script);
+                        var timerContent = RenderSystemdTimer(script, onCalendar);
+
+                        await WriteRemoteFileAsync(credentials, servicePath, Encoding.UTF8.GetBytes(serviceContent), cancellationToken);
+                        await WriteRemoteFileAsync(credentials, timerPath, Encoding.UTF8.GetBytes(timerContent), cancellationToken);
+
+                        await RunRequiredCommandAsync(
+                            credentials,
+                            $"chown root:root {ShellQuote(servicePath)} {ShellQuote(timerPath)} && chmod 0644 {ShellQuote(servicePath)} {ShellQuote(timerPath)}",
+                            $"Failed to harden systemd files for script {script.Name}.",
+                            cancellationToken);
+
+                        await RunRequiredCommandAsync(
+                            credentials,
+                            $"systemctl daemon-reload && systemctl enable --now hashi-script-{script.Id:N}.timer",
+                            $"Failed to enable and start systemd timer for script {script.Name}.",
+                            cancellationToken);
+
+                        activeTimerScriptIds.Add(script.Id);
+                    }
+                }
+            }
+
+            // Clean up obsolete timers
+            var findTimers = await ssh.RunCommandAsync(
+                credentials.Settings,
+                credentials.AuthMode,
+                credentials.Password,
+                credentials.PrivateKeyPem,
+                credentials.PrivateKeyPassphrase,
+                "find /etc/systemd/system/ -name 'hashi-script-*.timer' 2>/dev/null",
+                cancellationToken);
+
+            if (findTimers.Succeeded && !string.IsNullOrWhiteSpace(findTimers.Output))
+            {
+                var lines = findTimers.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                foreach (var line in lines)
+                {
+                    var fileName = Path.GetFileName(line);
+                    var match = SystemdTimerRegex().Match(fileName);
+                    if (match.Success && match.Groups[1].Value is string idHex && Guid.TryParse(idHex, out var scriptId))
+                    {
+                        if (!activeTimerScriptIds.Contains(scriptId))
+                        {
+                            var servicePath = $"/etc/systemd/system/hashi-script-{idHex}.service";
+                            var timerPath = $"/etc/systemd/system/hashi-script-{idHex}.timer";
+
+                            await ssh.RunCommandAsync(
+                                credentials.Settings,
+                                credentials.AuthMode,
+                                credentials.Password,
+                                credentials.PrivateKeyPem,
+                                credentials.PrivateKeyPassphrase,
+                                $"systemctl disable --now hashi-script-{idHex}.timer && rm -f {ShellQuote(timerPath)} {ShellQuote(servicePath)}",
+                                cancellationToken);
+                        }
+                    }
+                }
+            }
+
+            // Final daemon reload and clean up legacy cron
+            await RunRequiredCommandAsync(
+                credentials,
+                $"systemctl daemon-reload && systemctl reset-failed && rm -f {ShellQuote(CronPath)}",
+                "Failed to clean up legacy cron and finalize systemd reload.",
+                cancellationToken);
+        }
+        else
+        {
+            await WriteRemoteFileAsync(credentials, CronPath, Encoding.UTF8.GetBytes(RenderCron(scripts)), cancellationToken);
+            await RunRequiredCommandAsync(
+                credentials,
+                $"chown root:root {ShellQuote(CronPath)} && chmod 0644 {ShellQuote(CronPath)}",
+                "Failed to harden legacy cron file.",
+                cancellationToken);
+        }
     }
 
     private async Task WriteRemoteFileAsync(
@@ -815,4 +916,135 @@ public sealed partial class ScriptExecutionService(
         bool Enabled,
         string? CronExpression,
         int RunTimeoutSeconds);
+
+    internal static string? ConvertCronToOnCalendar(string cronExpression)
+    {
+        if (string.IsNullOrWhiteSpace(cronExpression)) return null;
+
+        var parts = cronExpression.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 5) return null;
+
+        var min = parts[0];
+        var hour = parts[1];
+        var dom = parts[2];
+        var mon = parts[3];
+        var dow = parts[4];
+
+        string? dowStr = null;
+        if (dow != "*")
+        {
+            var dowParts = dow.Split(',');
+            var mappedDows = new List<string>();
+            foreach (var dp in dowParts)
+            {
+                if (dp.Contains('-'))
+                {
+                    var rangeParts = dp.Split('-');
+                    if (rangeParts.Length == 2)
+                    {
+                        var start = MapSingleDow(rangeParts[0]);
+                        var end = MapSingleDow(rangeParts[1]);
+                        if (start != null && end != null)
+                        {
+                            mappedDows.Add($"{start}-{end}");
+                            continue;
+                        }
+                    }
+                    return null;
+                }
+                var single = MapSingleDow(dp);
+                if (single != null)
+                {
+                    mappedDows.Add(single);
+                }
+                else
+                {
+                    return null;
+                }
+            }
+            dowStr = string.Join(",", mappedDows);
+        }
+
+        var yearMonthDay = $"*-{MapCronField(mon)}-{MapCronField(dom)}";
+        var time = $"{MapCronTimeField(hour)}:{MapCronTimeField(min)}:00";
+
+        if (dowStr != null)
+        {
+            return $"{dowStr} {yearMonthDay} {time}";
+        }
+        return $"{yearMonthDay} {time}";
+    }
+
+    private static string? MapSingleDow(string value)
+    {
+        var clean = value.Trim().ToLowerInvariant();
+        return clean switch
+        {
+            "0" or "7" or "sun" or "sunday" => "Sun",
+            "1" or "mon" or "monday" => "Mon",
+            "2" or "tue" or "tuesday" => "Tue",
+            "3" or "wed" or "wednesday" => "Wed",
+            "4" or "thu" or "thursday" => "Thu",
+            "5" or "fri" or "friday" => "Fri",
+            "6" or "sat" or "saturday" => "Sat",
+            _ => null
+        };
+    }
+
+    private static string MapCronField(string field)
+    {
+        if (field == "*") return "*";
+        if (field.StartsWith("*/")) return field[2..];
+        return field;
+    }
+
+    private static string MapCronTimeField(string field)
+    {
+        if (field == "*") return "*";
+        if (field.StartsWith("*/")) return field;
+        if (int.TryParse(field, out var val))
+        {
+            return val.ToString("D2");
+        }
+        return field;
+    }
+
+    internal static string RenderSystemdService(ScriptEntity script)
+    {
+        var builder = new StringBuilder()
+            .AppendLine("[Unit]")
+            .AppendLine($"Description=Hashi Script execution - {script.Name}")
+            .AppendLine("RefuseManualStart=no")
+            .AppendLine("RefuseManualStop=no")
+            .AppendLine()
+            .AppendLine("[Service]")
+            .AppendLine("Type=oneshot")
+            .AppendLine($"ExecStart=/bin/bash {RemotePath(script)}")
+            .AppendLine("User=root")
+            .AppendLine("Group=root")
+            .AppendLine($"TimeoutStartSec={script.RunTimeoutSeconds}")
+            .AppendLine($"StandardOutput=append:/var/log/hashi/scripts/{script.Id:N}.log")
+            .AppendLine($"StandardError=append:/var/log/hashi/scripts/{script.Id:N}.log");
+
+        return builder.ToString();
+    }
+
+    internal static string RenderSystemdTimer(ScriptEntity script, string onCalendar)
+    {
+        var builder = new StringBuilder()
+            .AppendLine("[Unit]")
+            .AppendLine($"Description=Hashi Script timer - {script.Name}")
+            .AppendLine()
+            .AppendLine("[Timer]")
+            .AppendLine($"OnCalendar={onCalendar}")
+            .AppendLine("Persistent=true")
+            .AppendLine()
+            .AppendLine("[Install]")
+            .AppendLine("WantedBy=timers.target");
+
+        return builder.ToString();
+    }
+
+    [GeneratedRegex(@"^hashi-script-([0-9a-fA-F]{32})\.timer$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex SystemdTimerRegex();
 }
