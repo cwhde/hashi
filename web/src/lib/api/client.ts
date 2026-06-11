@@ -279,6 +279,12 @@ export const api = {
 		});
 		return expectData(r.response, r.error, r.data);
 	},
+	getDnsConnectionCapabilities: async (connectionId: string) => {
+		const r = await client.GET('/api/dns/connections/{connectionId}/capabilities' as never, {
+			params: { path: { connectionId } }
+		} as never);
+		return expectData(r.response, r.error, r.data) as Promise<import('./types.js').DnsProviderCapabilities>;
+	},
 	applyDnsPrune: (connectionId: string) =>
 		postUndocumented('/api/dns/connections/{connectionId}/prune/apply', {
 			params: { path: { connectionId } },

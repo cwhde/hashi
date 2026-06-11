@@ -4,8 +4,8 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §15.1
 
-**Status:** Not Started
-**Branch:** 
+**Status:** Fixed
+**Branch:** audit-series-h
 
 ## Description
 
@@ -29,6 +29,6 @@ Each DNS provider advertises its capabilities (supported record types, batch ope
 
 ## Acceptance Criteria
 
-- [ ] `IDnsProvider` has `GetCapabilitiesAsync` method
-- [ ] UI shows only record types supported by the active provider
-- [ ] Provider-specific limitations are surfaced to the user
+- [x] `IDnsProvider` has `GetCapabilitiesAsync` method
+- [x] UI shows only record types supported by the active provider
+- [x] Provider-specific limitations are surfaced to the user
