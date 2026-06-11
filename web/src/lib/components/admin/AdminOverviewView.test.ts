@@ -5,15 +5,7 @@ import AdminOverviewView from './AdminOverviewView.svelte';
 
 const apiMock = vi.hoisted(() => ({
 	getDashboardSettings: vi.fn(),
-	getAuditEvents: vi.fn(),
-	getHealth: vi.fn(),
-	getVaultStatus: vi.fn(),
-	listResources: vi.fn(),
-	listStatusEndpoints: vi.fn(),
-	getSecurityDashboard: vi.fn(),
-	listDnsConnections: vi.fn(),
-	listPulseAgents: vi.fn(),
-	listSyncRuns: vi.fn()
+	getAdminDashboard: vi.fn()
 }));
 
 vi.mock('$lib/api/client', () => ({
@@ -27,18 +19,17 @@ function mockOverviewApi() {
 			order: ['dns-sync', 'resource-health']
 		})
 	});
-	apiMock.getAuditEvents.mockResolvedValue([]);
-	apiMock.getHealth.mockResolvedValue({ version: 'test-version' });
-	apiMock.getVaultStatus.mockResolvedValue({ lockState: 'Unlocked', hasPasskey: true });
-	apiMock.listResources.mockResolvedValue([{ enabled: true }, { enabled: false }]);
-	apiMock.listStatusEndpoints.mockResolvedValue([{ status: 'Up' }, { status: 'Down' }]);
-	apiMock.getSecurityDashboard.mockResolvedValue({ allowed: 9, blocked: 1, challenged: 2 });
-	apiMock.listDnsConnections.mockResolvedValue([{ id: 'dns-1' }]);
-	apiMock.listPulseAgents.mockResolvedValue([{ id: 'pulse-1' }]);
-	apiMock.listSyncRuns.mockResolvedValue([
-		{ status: 'awaiting_confirmation' },
-		{ status: 'completed' }
-	]);
+	apiMock.getAdminDashboard.mockResolvedValue({
+		auditEvents: [],
+		health: { version: 'test-version' },
+		vault: { lockState: 'Unlocked', hasPasskey: true },
+		resources: [{ enabled: true }, { enabled: false }],
+		monitors: [{ status: 'Up' }, { status: 'Down' }],
+		security: { allowed: 9, blocked: 1, challenged: 2 },
+		dnsConnections: [{ id: 'dns-1' }],
+		pulseAgents: [{ id: 'pulse-1' }],
+		syncRuns: [{ status: 'awaiting_confirmation' }, { status: 'completed' }]
+	});
 }
 
 describe('AdminOverviewView', () => {

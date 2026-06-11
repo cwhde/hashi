@@ -1,5 +1,7 @@
 using System.Net;
+using System.Net.Http.Json;
 using System.Text;
+using System.Text.Json;
 using Hashi.Contracts.Api;
 using Hashi.Core.Auth;
 using Hashi.Infrastructure.Auth;
@@ -68,6 +70,25 @@ public sealed class AdGuardPlanApplySafetyTests
         Assert.Equal(SyncRunStatusNames.Failed, result.Status);
         Assert.True(await db.AdGuardRewrites.AnyAsync(x => x.Id == rewrite.Id));
         Assert.Contains(await db.AuditEvents.ToListAsync(), x => x.Category == "adguard" && x.Action == "apply_failed");
+    }
+
+    [Fact]
+    public async Task ApplyPlanAsync_fails_when_remote_readback_does_not_contain_created_rewrite()
+    {
+        await using var db = CreateDb();
+        var connectionId = await AddConnectionAsync(db);
+        var handler = new FakeAdGuardHandler("""{"rewrites":[]}""") { PersistMutations = false };
+        var service = CreateService(db, handler);
+        var mutation = await service.UpsertRewriteAsync(
+            connectionId,
+            new UpsertAdGuardRewriteRequest("app.example.com", "10.0.0.10"));
+
+        var result = await service.ApplyPlanAsync(
+            connectionId,
+            new AdGuardRewriteApplyRequest(mutation.Plan.PlanId, ConfirmDestructive: false));
+
+        Assert.False(result.Succeeded);
+        Assert.Contains("remote verification failed", result.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -166,6 +187,47 @@ public sealed class AdGuardPlanApplySafetyTests
         Assert.True(confirmed.Succeeded);
         Assert.Equal(1, handler.DeleteCalls);
         Assert.False(await db.AdGuardRewrites.AnyAsync(x => x.Domain == "stale.example.com"));
+    }
+
+    [Fact]
+    public async Task Safe_apply_creates_rewrites_without_applying_pending_deletes()
+    {
+        await using var db = CreateDb();
+        db.AppSettings.Add(new AppSettingsEntity { RootDomain = "example.com" });
+        var connectionId = await AddConnectionAsync(db);
+        db.AdGuardRewrites.AddRange(
+            new AdGuardRewriteEntity
+            {
+                ConnectionId = connectionId,
+                Domain = "stale.example.com",
+                Answer = "10.0.0.99",
+                ManagedByHashi = true,
+                Source = AdGuardRewriteSourceNames.Topology,
+            },
+            new AdGuardRewriteEntity
+            {
+                ConnectionId = connectionId,
+                Domain = "new.example.com",
+                Answer = "10.0.0.50",
+                ManagedByHashi = true,
+                Source = AdGuardRewriteSourceNames.Manual,
+            });
+        await db.SaveChangesAsync();
+
+        var handler = new FakeAdGuardHandler("""{"rewrites":[{"domain":"stale.example.com","answer":"10.0.0.99","id":"remote-1"}]}""");
+        var service = CreateService(db, handler);
+        var plan = await service.PlanSyncAsync(connectionId, updateTopologyDesiredState: true);
+
+        var result = await service.ApplySafePlanAsync(
+            connectionId,
+            plan.PlanId,
+            updateTopologyDesiredState: true);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(SyncRunStatusNames.AwaitingConfirmation, result.Status);
+        Assert.Equal(1, handler.AddCalls);
+        Assert.Equal(0, handler.DeleteCalls);
+        Assert.True(await db.AdGuardRewrites.AnyAsync(x => x.Domain == "stale.example.com"));
     }
 
     [Fact]
@@ -422,46 +484,81 @@ public sealed class AdGuardPlanApplySafetyTests
 
     private sealed class FakeAdGuardHandler(string rewriteListJson) : HttpMessageHandler
     {
+        private readonly Dictionary<string, (string Answer, string Id)> _rewrites = ParseRewrites(rewriteListJson);
+
         public int AddCalls { get; private set; }
 
         public int DeleteCalls { get; private set; }
 
         public HttpStatusCode DeleteStatusCode { get; init; } = HttpStatusCode.OK;
 
+        public bool PersistMutations { get; init; } = true;
+
         public Uri? LastRequestUri { get; private set; }
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             LastRequestUri = request.RequestUri;
             if (request.RequestUri?.AbsolutePath.EndsWith("/control/rewrite/list", StringComparison.Ordinal) == true)
             {
-                return Task.FromResult(JsonResponse(rewriteListJson));
+                return JsonResponse(JsonSerializer.Serialize(new
+                {
+                    rewrites = _rewrites.Select(x => new { domain = x.Key, answer = x.Value.Answer, id = x.Value.Id }),
+                }));
             }
 
             if (request.RequestUri?.AbsolutePath.EndsWith("/control/rewrite/add", StringComparison.Ordinal) == true)
             {
                 AddCalls++;
-                return Task.FromResult(JsonResponse("""{"id":"created-1"}"""));
+                var payload = await request.Content!.ReadFromJsonAsync<RewritePayload>(cancellationToken: cancellationToken)
+                    ?? throw new InvalidOperationException("Missing rewrite payload.");
+                if (PersistMutations)
+                {
+                    _rewrites[payload.Domain] = (payload.Answer, "created-1");
+                }
+                return JsonResponse("""{"id":"created-1"}""");
             }
 
             if (request.RequestUri?.AbsolutePath.EndsWith("/control/rewrite/delete", StringComparison.Ordinal) == true)
             {
                 DeleteCalls++;
-                return Task.FromResult(new HttpResponseMessage(DeleteStatusCode)
+                if ((int)DeleteStatusCode is >= 200 and < 300)
+                {
+                    var payload = await request.Content!.ReadFromJsonAsync<RewritePayload>(cancellationToken: cancellationToken)
+                        ?? throw new InvalidOperationException("Missing rewrite payload.");
+                    if (PersistMutations)
+                    {
+                        _rewrites.Remove(payload.Domain);
+                    }
+                }
+                return new HttpResponseMessage(DeleteStatusCode)
                 {
                     Content = new StringContent("{}", Encoding.UTF8, "application/json"),
-                });
+                };
             }
 
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            return new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent("{}", Encoding.UTF8, "application/json"),
-            });
+            };
+        }
+
+        private static Dictionary<string, (string Answer, string Id)> ParseRewrites(string json)
+        {
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.GetProperty("rewrites").EnumerateArray().ToDictionary(
+                x => x.GetProperty("domain").GetString() ?? string.Empty,
+                x => (
+                    x.GetProperty("answer").GetString() ?? string.Empty,
+                    x.TryGetProperty("id", out var id) ? id.GetString() ?? string.Empty : string.Empty),
+                StringComparer.OrdinalIgnoreCase);
         }
 
         private static HttpResponseMessage JsonResponse(string json) => new(HttpStatusCode.OK)
         {
             Content = new StringContent(json, Encoding.UTF8, "application/json"),
         };
+
+        private sealed record RewritePayload(string Domain, string Answer);
     }
 }

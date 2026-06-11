@@ -64,8 +64,9 @@ public sealed class PasskeyAuthService(
             originalOptions,
             async (credentialInfo, _) =>
             {
+                var credentialIdBase64 = Convert.ToBase64String(credentialInfo.CredentialId);
                 var exists = await db.PasskeyCredentials.AnyAsync(
-                    x => x.CredentialId.SequenceEqual(credentialInfo.CredentialId),
+                    x => x.CredentialIdBase64 == credentialIdBase64,
                     cancellationToken);
                 return !exists;
             });
@@ -125,13 +126,8 @@ public sealed class PasskeyAuthService(
             originalOptions,
             stored.PublicKey,
             stored.SignCount,
-            async (metadata, _) =>
-            {
-                var credential = await db.PasskeyCredentials.SingleOrDefaultAsync(
-                    x => x.CredentialId.SequenceEqual(metadata.CredentialId),
-                    cancellationToken);
-                return credential is not null;
-            });
+            (metadata, _) => Task.FromResult(
+                CryptographicOperations.FixedTimeEquals(metadata.CredentialId, stored.CredentialId)));
 
         stored.SignCount = success.Counter;
         await db.SaveChangesAsync(cancellationToken);

@@ -61,11 +61,16 @@
 	}
 
 	async function applySync(confirmDestructive: boolean) {
+		if (!plan) {
+			error = 'Create and review a sync plan before applying changes.';
+			return;
+		}
+		const approvedPlanId = plan.planId;
 		syncing = true;
 		error = null;
 		message = null;
 		try {
-			const result = await api.applyGlobalSync(confirmDestructive);
+			const result = await api.applyGlobalSync(approvedPlanId, confirmDestructive);
 			message = result.succeeded
 				? `Apply completed (${result.status}).`
 				: result.error ?? `Apply failed (${result.status}).`;
@@ -131,7 +136,7 @@
 				<Button variant="outline" onclick={() => planSync()} disabled={syncing || loading}>
 					Plan
 				</Button>
-				<Button onclick={() => applySync(false)} disabled={syncing || loading}>
+				<Button onclick={() => applySync(false)} disabled={syncing || loading || !plan}>
 					Apply safe changes
 				</Button>
 				<Button

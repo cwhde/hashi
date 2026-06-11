@@ -115,13 +115,15 @@ public static class DependencyInjection
         var skipStartupHooks = configuration.GetValue<bool>("Hashi:SkipStartupHooks")
             || string.Equals(Environment.GetEnvironmentVariable("HASHI_SKIP_STARTUP_HOOKS"), "1", StringComparison.Ordinal);
         services.AddScoped<SyncRunService>();
+        services.AddSingleton<SyncApplyCoordinator>();
         services.AddScoped<SyncOrchestratorService>();
+        services.AddSingleton<SyncOrchestratorHostedService>();
         services.AddHostedService<ServiceSyncVaultBootstrapper>();
         if (!skipStartupHooks)
         {
             services.AddHostedService<MonitorCheckWorker>();
             services.AddHostedService<MonitorRollupWorker>();
-            services.AddHostedService<SyncOrchestratorHostedService>();
+            services.AddHostedService(sp => sp.GetRequiredService<SyncOrchestratorHostedService>());
             services.AddHostedService<ScriptCronHostedService>();
             services.AddHostedService<AccessLogIngestWorker>();
             services.AddHostedService<GeoIpUpdateWorker>();

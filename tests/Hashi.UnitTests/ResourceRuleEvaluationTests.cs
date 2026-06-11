@@ -6,6 +6,7 @@ using Hashi.Infrastructure.Platform;
 using Hashi.Infrastructure.Auth;
 using Hashi.Infrastructure.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
@@ -152,6 +153,40 @@ public sealed class ResourceRuleEvaluationTests
             Request("198.51.100.25", "app.example.com", "/"));
 
         Assert.Equal(SecurityDecisionActionNames.AllowUpstream, result.Action);
+    }
+
+    [Fact]
+    public async Task Geo_rule_fails_closed_when_geoip_database_is_unavailable()
+    {
+        await using var db = CreateDb();
+        var resource = Resource("app.example.com", "off");
+        db.Resources.Add(resource);
+        db.ResourceRules.Add(new ResourceRuleEntity
+        {
+            ResourceId = resource.Id,
+            MatchType = ResourceRuleMatchTypeNames.Country,
+            MatchValue = "US",
+            Action = "deny",
+        });
+        await db.SaveChangesAsync();
+        var configuration = new Microsoft.Extensions.Configuration.ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Hashi:DataPath"] = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString()),
+            })
+            .Build();
+        using var geoIp = new GeoIpLookupService(
+            configuration,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<GeoIpLookupService>.Instance);
+        var decisions = new SecurityDecisionService(
+            db,
+            CreateOidcService(db),
+            geoIp: geoIp);
+
+        var result = await decisions.DecideForwardAuthAsync(Request("198.51.100.25"));
+
+        Assert.Equal(SecurityDecisionActionNames.DenyResourceRule, result.Action);
+        Assert.Equal("geoip_unavailable", result.Reason);
     }
 
     private static SecurityDecisionRequest Request(

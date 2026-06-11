@@ -1,5 +1,7 @@
 using System.Net;
+using System.Net.Http.Json;
 using System.Text;
+using System.Text.Json;
 using Hashi.Core.Auth;
 using Hashi.Core.Dns;
 using Hashi.Core.Sync;
@@ -255,30 +257,51 @@ public sealed class PassiveSyncSafetyTests
 
     private sealed class FakeAdGuardHandler(string rewriteListJson) : HttpMessageHandler
     {
+        private readonly Dictionary<string, (string Answer, string Id)> _rewrites = ParseRewrites(rewriteListJson);
+
         public int DeleteCalls { get; private set; }
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             if (request.RequestUri?.AbsolutePath.EndsWith("/control/rewrite/list", StringComparison.Ordinal) == true)
             {
-                return Task.FromResult(JsonResponse(rewriteListJson));
+                return JsonResponse(JsonSerializer.Serialize(new
+                {
+                    rewrites = _rewrites.Select(x => new { domain = x.Key, answer = x.Value.Answer, id = x.Value.Id }),
+                }));
             }
 
             if (request.RequestUri?.AbsolutePath.EndsWith("/control/rewrite/delete", StringComparison.Ordinal) == true)
             {
                 DeleteCalls++;
-                return Task.FromResult(JsonResponse("{}"));
+                var payload = await request.Content!.ReadFromJsonAsync<RewritePayload>(cancellationToken: cancellationToken)
+                    ?? throw new InvalidOperationException("Missing rewrite payload.");
+                _rewrites.Remove(payload.Domain);
+                return JsonResponse("{}");
             }
 
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            return new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent("{}", Encoding.UTF8, "application/json"),
-            });
+            };
+        }
+
+        private static Dictionary<string, (string Answer, string Id)> ParseRewrites(string json)
+        {
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.GetProperty("rewrites").EnumerateArray().ToDictionary(
+                x => x.GetProperty("domain").GetString() ?? string.Empty,
+                x => (
+                    x.GetProperty("answer").GetString() ?? string.Empty,
+                    x.TryGetProperty("id", out var id) ? id.GetString() ?? string.Empty : string.Empty),
+                StringComparer.OrdinalIgnoreCase);
         }
 
         private static HttpResponseMessage JsonResponse(string json) => new(HttpStatusCode.OK)
         {
             Content = new StringContent(json, Encoding.UTF8, "application/json"),
         };
+
+        private sealed record RewritePayload(string Domain, string Answer);
     }
 }

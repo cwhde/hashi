@@ -326,7 +326,7 @@
 						{#if selectedScript.targets.length === 0}
 							<span class="text-xs text-muted-foreground">No target hosts defined.</span>
 						{:else}
-							{#each selectedScript.targets as target}
+							{#each selectedScript.targets as target (target.connectionId)}
 								<span class="rounded bg-secondary/80 px-2 py-1 text-xs font-mono text-secondary-foreground border border-border/50">
 									{target.connectionName} ({target.enabled ? 'enabled' : 'disabled'})
 								</span>
@@ -343,7 +343,7 @@
 					<div class="grid gap-1.5 mt-2">
 						<p class="text-sm font-medium leading-none text-muted-foreground">Inline Diff Preview</p>
 						<div class="max-h-60 overflow-y-auto rounded-md border border-border bg-black/40 p-3 font-mono text-xs space-y-1">
-							{#each diffLines as line}
+							{#each diffLines as line, index (`${line.type}:${index}:${line.text}`)}
 								{#if line.type === 'added'}
 									<div class="text-emerald-400 bg-emerald-950/20 px-1 py-0.5 whitespace-pre-wrap">+ {line.text}</div>
 								{:else if line.type === 'removed'}
@@ -448,7 +448,7 @@
 						{#if selectedScript.targets.length === 0}
 							<span class="text-xs text-muted-foreground">No target connections.</span>
 						{:else}
-							{#each selectedScript.targets as target}
+							{#each selectedScript.targets as target (target.connectionId)}
 								<span class="rounded bg-secondary px-2.5 py-1 text-xs font-mono text-secondary-foreground border border-border">
 									{target.connectionName}
 								</span>
@@ -460,7 +460,7 @@
 				<div class="space-y-2">
 					<p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Diff Preview</p>
 					<div class="max-h-60 overflow-y-auto rounded-md border border-border bg-black/40 p-3 font-mono text-xs space-y-1">
-						{#each diffLines as line}
+						{#each diffLines as line, index (`${line.type}:${index}:${line.text}`)}
 							{#if line.type === 'added'}
 								<div class="text-emerald-400 bg-emerald-950/30 px-1 py-0.5 whitespace-pre-wrap">+ {line.text}</div>
 							{:else if line.type === 'removed'}

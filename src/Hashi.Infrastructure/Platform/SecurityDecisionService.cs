@@ -12,7 +12,8 @@ public sealed class SecurityDecisionService(
     HashiDbContext db,
     OidcEdgeAuthService oidc,
     CaptchaChallengeService? captcha = null,
-    TimeProvider? timeProvider = null)
+    TimeProvider? timeProvider = null,
+    GeoIpLookupService? geoIp = null)
 {
     public async Task<SecurityDecisionResult> DecideForwardAuthAsync(
         SecurityDecisionRequest request,
@@ -247,6 +248,29 @@ public sealed class SecurityDecisionService(
 
         if (context.Resource is not null)
         {
+            if (geoIp is not null && !geoIp.IsAvailable)
+            {
+                var hasGeoRule = await db.ResourceRules.AsNoTracking()
+                    .AnyAsync(x => x.ResourceId == context.Resource.Id
+                        && x.Enabled
+                        && (x.MatchType == ResourceRuleMatchTypeNames.Country
+                            || x.MatchType == ResourceRuleMatchTypeNames.Region
+                            || x.MatchType == ResourceRuleMatchTypeNames.Asn), cancellationToken);
+                if (hasGeoRule)
+                {
+                    explanation.Add(new SecurityDecisionExplanation(
+                        "geoip",
+                        "deny",
+                        "GeoIP-dependent security rules cannot be evaluated because the GeoIP database is unavailable."));
+                    return Deny(
+                        SecurityDecisionActionNames.DenyResourceRule,
+                        "geoip_unavailable",
+                        context.Resource.Id,
+                        subject,
+                        explanation);
+                }
+            }
+
             var ruleResult = await EvaluateResourceRulesAsync(request, context, subject, explanation, cancellationToken);
             if (ruleResult is not null)
             {

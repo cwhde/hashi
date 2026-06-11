@@ -8712,6 +8712,8 @@ export interface components {
             updatedAtUtc: null | string;
         };
         SyncApplyRequest: {
+            /** Format: uuid */
+            planId: string;
             confirmDestructive: boolean;
         };
         SyncDiffResponse: {

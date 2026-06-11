@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
 
 namespace Hashi.IntegrationTests.Fakes;
@@ -25,36 +26,48 @@ public sealed class FakeAdGuardHandler : HttpMessageHandler
         _rewrites[id] = new FakeRewrite(id, domain, answer);
     }
 
-    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         var path = request.RequestUri?.AbsolutePath.Trim('/') ?? string.Empty;
 
         if (path.EndsWith("/control/rewrite/list", StringComparison.Ordinal) && request.Method == HttpMethod.Get)
         {
-            return Task.FromResult(JsonResponse(HttpStatusCode.OK, new
+            return JsonResponse(HttpStatusCode.OK, new
             {
                 rewrites = _rewrites.Values.Select(r => new { id = r.Id, domain = r.Domain, answer = r.Answer }).ToArray(),
-            }));
+            });
         }
 
         if (path.EndsWith("/control/rewrite/add", StringComparison.Ordinal) && request.Method == HttpMethod.Post)
         {
             CreateCalls++;
-            return Task.FromResult(JsonResponse(HttpStatusCode.OK, new { }));
+            var payload = await request.Content!.ReadFromJsonAsync<RewritePayload>(cancellationToken: cancellationToken)
+                ?? throw new InvalidOperationException("Missing rewrite payload.");
+            AddRewrite(payload.Domain, payload.Answer);
+            return JsonResponse(HttpStatusCode.OK, new { });
         }
 
         if (path.EndsWith("/control/rewrite/delete", StringComparison.Ordinal) && request.Method == HttpMethod.Post)
         {
             DeleteCalls++;
-            return Task.FromResult(JsonResponse(HttpStatusCode.OK, new { }));
+            var payload = await request.Content!.ReadFromJsonAsync<RewritePayload>(cancellationToken: cancellationToken)
+                ?? throw new InvalidOperationException("Missing rewrite payload.");
+            var match = _rewrites.FirstOrDefault(x =>
+                string.Equals(x.Value.Domain, payload.Domain, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(x.Value.Answer, payload.Answer, StringComparison.Ordinal));
+            if (!string.IsNullOrEmpty(match.Key))
+            {
+                _rewrites.TryRemove(match.Key, out _);
+            }
+            return JsonResponse(HttpStatusCode.OK, new { });
         }
 
         if (path.EndsWith("/control/status", StringComparison.Ordinal))
         {
-            return Task.FromResult(JsonResponse(HttpStatusCode.OK, new { dns_addresses = new[] { "10.0.0.53" } }));
+            return JsonResponse(HttpStatusCode.OK, new { dns_addresses = new[] { "10.0.0.53" } });
         }
 
-        return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
+        return new HttpResponseMessage(HttpStatusCode.NotFound);
     }
 
     private static HttpResponseMessage JsonResponse(HttpStatusCode status, object payload)
@@ -69,4 +82,6 @@ public sealed class FakeAdGuardHandler : HttpMessageHandler
         public string Domain { get; } = domain;
         public string Answer { get; } = answer;
     }
+
+    private sealed record RewritePayload(string Domain, string Answer);
 }

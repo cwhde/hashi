@@ -776,9 +776,9 @@ export const api = {
 		const body = await postUndocumented('/api/sync/plan');
 		return body as import('./types.js').SyncPlanPreview;
 	},
-	applyGlobalSync: async (confirmDestructive: boolean) => {
+	applyGlobalSync: async (planId: string, confirmDestructive: boolean) => {
 		const body = await postUndocumented('/api/sync/apply', {
-			body: { confirmDestructive }
+			body: { planId, confirmDestructive }
 		});
 		return {
 			runId: String(body.runId ?? ''),

@@ -184,16 +184,9 @@ public static class SettingsEndpoints
             s.UpdatedAtUtc = DateTimeOffset.UtcNow;
             await settings.SaveAsync(ct);
             await audit.WriteAsync("settings", "general_updated", subjectType: "app_settings", cancellationToken: ct);
-            try
-            {
-                using var scope = scopeFactory.CreateScope();
-                var syncHost = scope.ServiceProvider.GetRequiredService<SyncOrchestratorHostedService>();
-                syncHost.SignalImmediateSync();
-            }
-            catch
-            {
-                // Best-effort sync trigger.
-            }
+            using var scope = scopeFactory.CreateScope();
+            var orchestrator = scope.ServiceProvider.GetRequiredService<SyncOrchestratorService>();
+            await orchestrator.TriggerImmediateSyncAsync(ct);
             return TypedResults.Ok(new GeneralSettingsUpdateResponse(true, s.UpdatedAtUtc));
         });
 

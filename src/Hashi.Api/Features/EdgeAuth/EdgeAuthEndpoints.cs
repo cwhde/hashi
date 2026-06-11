@@ -1,5 +1,6 @@
 using Hashi.Api.Hosting;
 using Hashi.Contracts.Api;
+using Hashi.Core.Resources;
 using Hashi.Infrastructure.Platform;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
@@ -19,6 +20,8 @@ public static class EdgeAuthEndpoints
             SecurityIngestionService security,
             GeoIpLookupService geoIp,
             ForwardedClientContextResolver forwardedContext,
+            HashiDbContext db,
+            IConfiguration configuration,
             CancellationToken ct) =>
         {
             var requestContext = forwardedContext.Resolve(ctx);
@@ -72,16 +75,7 @@ public static class EdgeAuthEndpoints
             }
             catch (Exception)
             {
-                result = SecurityDecisionResult.Create(
-                    SecurityDecisionActionNames.AllowUpstream,
-                    SecurityDecisionResponseModeNames.Allow,
-                    StatusCodes.Status204NoContent,
-                    null,
-                    "allow",
-                    "fail_open_on_error",
-                    null,
-                    SecuritySubjectNormalizer.NormalizeIp(clientIp),
-                    [new SecurityDecisionExplanation("error_handling", "fail_open", "Decision service threw an exception; failing open per policy.")]);
+                result = await ResolveFailureDecisionAsync(db, configuration, host, clientIp, ct);
             }
 
             await security.IngestForwardAuthDecisionAsync(new ForwardAuthDecisionIngestRequest(
@@ -194,5 +188,64 @@ public static class EdgeAuthEndpoints
         }).WithTags("EdgeAuth").AllowAnonymous();
 
         return app;
+    }
+
+    private static async Task<SecurityDecisionResult> ResolveFailureDecisionAsync(
+        HashiDbContext db,
+        IConfiguration configuration,
+        string host,
+        System.Net.IPAddress clientIp,
+        CancellationToken cancellationToken)
+    {
+        var policy = configuration["Hashi:ForwardAuthFailurePolicy"]?.Trim().ToLowerInvariant() ?? "closed";
+        var allow = policy == "open";
+
+        if (policy == "auto")
+        {
+            try
+            {
+                var normalizedHost = host.Split(':', 2)[0].Trim().TrimEnd('.').ToLowerInvariant();
+                var rootDomain = (await db.AppSettings.AsNoTracking().SingleOrDefaultAsync(cancellationToken))?.RootDomain;
+                var resources = await db.Resources.AsNoTracking().Where(x => x.Enabled).ToListAsync(cancellationToken);
+                var resource = resources.FirstOrDefault(x => string.Equals(
+                    ResourceDomainResolver.Resolve(x.DomainMode, x.Domain, x.Slug, rootDomain),
+                    normalizedHost,
+                    StringComparison.OrdinalIgnoreCase));
+                var normalizedIp = SecuritySubjectNormalizer.NormalizeIp(clientIp).NormalizedValue;
+                var now = DateTimeOffset.UtcNow;
+                var activeBlock = await db.ManualSecurityEntries.AsNoTracking().AnyAsync(x =>
+                        x.Enabled
+                        && x.EntryType == ManualSecurityEntryTypeNames.Block
+                        && x.SubjectType == SecuritySubjectTypeNames.Ip
+                        && x.NormalizedValue == normalizedIp
+                        && (x.ExpiresAtUtc == null || x.ExpiresAtUtc > now), cancellationToken)
+                    || await db.BlocklistEntries.AsNoTracking().AnyAsync(x =>
+                        x.Enabled
+                        && x.SubjectType == SecuritySubjectTypeNames.Ip
+                        && x.NormalizedValue == normalizedIp
+                        && (x.ExpiresAtUtc == null || x.ExpiresAtUtc > now), cancellationToken);
+                allow = !activeBlock
+                    && resource is not null
+                    && ForwardAuthPolicyMapping.Parse(resource.ForwardAuthPolicy) is ForwardAuthPolicy.Off or ForwardAuthPolicy.Observe;
+            }
+            catch
+            {
+                allow = false;
+            }
+        }
+
+        return SecurityDecisionResult.Create(
+            allow ? SecurityDecisionActionNames.AllowUpstream : SecurityDecisionActionNames.DenyInvalidMetadata,
+            allow ? SecurityDecisionResponseModeNames.Allow : SecurityDecisionResponseModeNames.Deny,
+            allow ? StatusCodes.Status204NoContent : StatusCodes.Status503ServiceUnavailable,
+            null,
+            allow ? "allow" : "deny",
+            allow ? "fail_open_on_error" : "fail_closed_on_error",
+            null,
+            SecuritySubjectNormalizer.NormalizeIp(clientIp),
+            [new SecurityDecisionExplanation(
+                "error_handling",
+                allow ? "fail_open" : "fail_closed",
+                $"Decision service threw an exception; applying the '{policy}' forward-auth failure policy.")]);
     }
 }

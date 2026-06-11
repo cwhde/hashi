@@ -329,6 +329,9 @@ public sealed class DnsConnectionService(
             }
         }
 
+        var remoteAfterApply = await provider.ListRecordsAsync(zone.ProviderZoneId, cancellationToken);
+        VerifyRemoteApply(plan.Changes, remoteAfterApply);
+
         await db.SaveChangesAsync(cancellationToken);
         await audit.WriteAsync("dns", "sync_applied", subjectType: "connection", subjectId: connection.Id.ToString(), cancellationToken: cancellationToken);
     }
@@ -576,6 +579,40 @@ public sealed class DnsConnectionService(
         => type is DnsRecordType.Mx or DnsRecordType.Txt;
 
     private static string Normalize(string value) => value.Trim().TrimEnd('.');
+
+    private static void VerifyRemoteApply(
+        IReadOnlyList<DnsPlanChange> changes,
+        IReadOnlyList<DnsRecordSnapshot> remoteRecords)
+    {
+        foreach (var change in changes.Where(x => x.Kind != DnsChangeKind.NoOp))
+        {
+            if (change.Kind == DnsChangeKind.Delete && DnsSafetyRules.IsProtectedType(change.Type))
+            {
+                continue;
+            }
+
+            var matches = remoteRecords.Where(x => IsSameRecordKey(x, change)).ToList();
+            var verified = change.Kind switch
+            {
+                DnsChangeKind.Create or DnsChangeKind.Update => matches.Any(x =>
+                    string.Equals(
+                        Normalize(x.Value),
+                        Normalize(change.DesiredValue ?? string.Empty),
+                        StringComparison.OrdinalIgnoreCase)
+                    && x.Ttl == change.Ttl),
+                DnsChangeKind.Delete => !remoteRecords.Any(x =>
+                    (!string.IsNullOrWhiteSpace(change.ProviderRecordId)
+                        && string.Equals(x.ProviderRecordId, change.ProviderRecordId, StringComparison.OrdinalIgnoreCase))
+                    || (string.IsNullOrWhiteSpace(change.ProviderRecordId) && IsSameRecordKey(x, change))),
+                _ => true,
+            };
+            if (!verified)
+            {
+                throw new InvalidOperationException(
+                    $"DNS remote verification failed for {change.Kind} {change.Name}/{DnsRecordTypeMapping.ToApiName(change.Type)}.");
+            }
+        }
+    }
 
     private static SyncRiskLevel GetRiskLevel(DnsSyncPlan plan)
     {

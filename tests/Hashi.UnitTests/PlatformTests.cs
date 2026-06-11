@@ -236,7 +236,7 @@ public sealed class TraefikConfigRendererTests
         Assert.Contains(plan.Changes, x => x.ResourceType == "entrypoint-removal" && x.ResourceKey == "tcp/15432" && x.ChangeKind == "Deleted");
         Assert.True(plan.RequiresConfirmation);
 
-        var applyResult = await syncOrchestrator.ApplyGlobalAsync(confirmDestructive: true);
+        var applyResult = await syncOrchestrator.ApplyGlobalAsync(plan.PlanId, confirmDestructive: true);
         Assert.True(applyResult.Succeeded);
 
         Assert.False(await db.TraefikEntryPoints.AnyAsync(x => x.Port == 15432 && x.Protocol == "tcp"));
@@ -276,11 +276,39 @@ public sealed class TraefikConfigRendererTests
         var plan = await syncOrchestrator.PlanGlobalAsync();
         Assert.Contains(plan.Changes, x => x.ResourceType == "entrypoint-removal" && x.ResourceKey == "tcp/15432" && x.ChangeKind == "Deleted");
 
-        var applyResult = await syncOrchestrator.ApplyGlobalAsync(confirmDestructive: true);
+        var applyResult = await syncOrchestrator.ApplyGlobalAsync(plan.PlanId, confirmDestructive: true);
         Assert.True(applyResult.Succeeded);
 
         Assert.False(await db.TraefikEntryPoints.AnyAsync(x => x.Port == 15432 && x.Protocol == "tcp"));
         Assert.True(await db.TraefikEntryPoints.AnyAsync(x => x.Port == 25432 && x.Protocol == "tcp"));
+    }
+
+    [Fact]
+    public async Task Global_apply_rejects_an_approved_plan_after_desired_state_changes()
+    {
+        await using var db = CreateDb();
+        var resource = new ResourceEntity
+        {
+            Name = "App",
+            Slug = "app",
+            Kind = "https",
+            Domain = "app.example.com",
+            TargetScheme = "http",
+            TargetHost = "10.0.0.5",
+            TargetPort = 8080,
+        };
+        db.Resources.Add(resource);
+        await db.SaveChangesAsync();
+        var sync = TestPlatformHelpers.CreateSyncOrchestrator(db);
+        var plan = await sync.PlanGlobalAsync();
+
+        resource.TargetPort = 9090;
+        await db.SaveChangesAsync();
+
+        var result = await sync.ApplyGlobalAsync(plan.PlanId, confirmDestructive: true);
+
+        Assert.False(result.Succeeded);
+        Assert.Contains("stale", result.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

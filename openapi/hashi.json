@@ -12749,10 +12749,15 @@
       },
       "SyncApplyRequest": {
         "required": [
+          "planId",
           "confirmDestructive"
         ],
         "type": "object",
         "properties": {
+          "planId": {
+            "type": "string",
+            "format": "uuid"
+          },
           "confirmDestructive": {
             "type": "boolean"
           }

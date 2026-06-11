@@ -35,7 +35,7 @@ public sealed record SyncPlanPreviewResponse(
     string? PreviewMarkdown,
     IReadOnlyList<string>? ValidationErrors = null);
 
-public sealed record SyncApplyRequest(bool ConfirmDestructive);
+public sealed record SyncApplyRequest(Guid PlanId, bool ConfirmDestructive);
 
 public sealed record SyncApplyResponse(
     Guid RunId,

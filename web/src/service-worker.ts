@@ -1,5 +1,8 @@
 /// <reference types="@sveltejs/kit" />
+/// <reference lib="webworker" />
 import { build, files, version } from '$service-worker';
+
+declare const self: ServiceWorkerGlobalScope;
 
 const CACHE_NAME = `hashi-cdn-cache-${version}`;
 
@@ -8,17 +11,17 @@ const ASSETS = [
 	...files
 ];
 
-self.addEventListener('install', (event: any) => {
+self.addEventListener('install', (event: ExtendableEvent) => {
 	event.waitUntil(
 		caches.open(CACHE_NAME).then((cache) => {
 			return cache.addAll(ASSETS);
 		}).then(() => {
-			(self as any).skipWaiting();
+			self.skipWaiting();
 		})
 	);
 });
 
-self.addEventListener('activate', (event: any) => {
+self.addEventListener('activate', (event: ExtendableEvent) => {
 	event.waitUntil(
 		caches.keys().then((keys) => {
 			return Promise.all(
@@ -29,12 +32,12 @@ self.addEventListener('activate', (event: any) => {
 				})
 			);
 		}).then(() => {
-			(self as any).clients.claim();
+			self.clients.claim();
 		})
 	);
 });
 
-self.addEventListener('fetch', (event: any) => {
+self.addEventListener('fetch', (event: FetchEvent) => {
 	if (event.request.method !== 'GET') return;
 
 	const url = new URL(event.request.url);
@@ -54,7 +57,7 @@ self.addEventListener('fetch', (event: any) => {
 						await cache.put(event.request, networkResponse.clone());
 					}
 					return networkResponse;
-				} catch (error) {
+				} catch {
 					return new Response('CDN resource offline and not cached', {
 						status: 503,
 						statusText: 'Service Unavailable'

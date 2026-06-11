@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using Hashi.Contracts.Api;
 using Hashi.Core.Connections;
@@ -95,8 +96,25 @@ public sealed class FirewallApplySafetyTests
         Assert.Contains("/run/hashi-firewall.rollback.pid", ssh.Commands[^1]);
         Assert.Contains("iptables -C INPUT -j HASHI_INPUT", ssh.Commands[^1]);
         Assert.Contains("/opt/hashi/firewall/hashi-firewall.sh", ssh.WrittenFiles.Keys);
+        var rollback = Encoding.UTF8.GetString(ssh.WrittenFiles["/opt/hashi/firewall/hashi-firewall.rollback.sh"]);
+        Assert.Contains("iptables -D INPUT -j HASHI_INPUT", rollback);
+        Assert.Contains("iptables -X \"$chain\"", rollback);
+        Assert.DoesNotContain("iptables-save", rollback);
         Assert.True(await db.SyncRuns.AnyAsync(x => x.Subsystem == "firewall" && x.Status == "succeeded"));
         Assert.True(await db.AuditEvents.AnyAsync(x => x.Action == "script_applied"));
+    }
+
+    [Fact]
+    public void First_apply_rollback_removes_only_hashi_owned_state()
+    {
+        var script = FirewallApplyService.BuildFirstApplyRollbackScript();
+
+        Assert.Contains("HASHI_INPUT", script);
+        Assert.Contains("HASHI_NETBIRD", script);
+        Assert.Contains("hashi_blocked6", script);
+        Assert.DoesNotContain("iptables -F INPUT", script);
+        Assert.DoesNotContain("iptables -F FORWARD", script);
+        Assert.DoesNotContain("iptables-save", script);
     }
 
     [Fact]

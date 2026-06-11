@@ -12,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Http;
+using Npgsql;
 
 namespace Hashi.Infrastructure.Sync;
 
@@ -127,26 +128,17 @@ public sealed class SyncOrchestratorService(
     SyncRunService syncRuns,
     AppSettingsService settings,
     AuditService audit,
-    IHttpContextAccessor? httpContextAccessor = null)
+    IHttpContextAccessor? httpContextAccessor = null,
+    SyncOrchestratorHostedService? syncHost = null,
+    SyncApplyCoordinator? applyCoordinator = null)
 {
-    private static readonly SemaphoreSlim ApplyLock = new(1, 1);
-    private static readonly SemaphoreSlim ReconcileLock = new(1, 1);
-    private readonly TaskCompletionSource _immediateSyncRequested = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly SyncApplyCoordinator _applyCoordinator = applyCoordinator ?? new SyncApplyCoordinator();
 
-    public event Func<Task>? OnImmediateSyncRequested;
-
-    public async Task TriggerImmediateSyncAsync(CancellationToken cancellationToken = default)
+    public Task TriggerImmediateSyncAsync(CancellationToken cancellationToken = default)
     {
-        try
-        {
-            OnImmediateSyncRequested?.Invoke();
-        }
-        catch
-        {
-            // Best-effort notification; hosted service will pick up on next loop.
-        }
-
-        await Task.CompletedTask;
+        cancellationToken.ThrowIfCancellationRequested();
+        syncHost?.SignalImmediateSync();
+        return Task.CompletedTask;
     }
 
     public async Task<SyncPlanPreviewResponse> PlanGlobalAsync(CancellationToken cancellationToken = default)
@@ -394,16 +386,46 @@ public sealed class SyncOrchestratorService(
             validationErrors.Count > 0 ? validationErrors : null);
     }
 
-    public async Task<SyncApplyResponse> ApplyGlobalAsync(bool confirmDestructive, CancellationToken cancellationToken = default)
+    public async Task<SyncApplyResponse> ApplyGlobalAsync(
+        Guid approvedPlanId,
+        bool confirmDestructive,
+        CancellationToken cancellationToken = default)
     {
-        if (!await ApplyLock.WaitAsync(0, cancellationToken))
+        if (!await _applyCoordinator.ApplyLock.WaitAsync(0, cancellationToken))
         {
             return new SyncApplyResponse(Guid.Empty, false, SyncRunStatusNames.Failed, "Another apply is already in progress. Concurrent applies are rejected.");
         }
 
-        var run = await syncRuns.BeginRunAsync("global-apply", cancellationToken);
+        SyncRunEntity? run = null;
         try
         {
+            await using var databaseLock = await PostgresAdvisoryLock.TryAcquireAsync(db, cancellationToken);
+            if (databaseLock is null)
+            {
+                return new SyncApplyResponse(Guid.Empty, false, SyncRunStatusNames.Failed, "Another apply is already in progress. Concurrent applies are rejected.");
+            }
+
+            var approvedPlan = await db.SyncRuns
+                .AsNoTracking()
+                .Include(x => x.Diffs)
+                .SingleOrDefaultAsync(x => x.Id == approvedPlanId && x.Subsystem == "global", cancellationToken);
+            if (approvedPlan is null || approvedPlan.Status == SyncRunStatusNames.Failed)
+            {
+                return new SyncApplyResponse(Guid.Empty, false, SyncRunStatusNames.Failed, "The approved sync plan was not found or failed validation. Create a new plan before applying.");
+            }
+
+            var currentPreview = await PlanGlobalAsync(cancellationToken);
+            var currentPlan = await db.SyncRuns
+                .AsNoTracking()
+                .Include(x => x.Diffs)
+                .SingleAsync(x => x.Id == currentPreview.PlanId, cancellationToken);
+            if (!PlansMatch(approvedPlan, currentPlan))
+            {
+                return new SyncApplyResponse(Guid.Empty, false, SyncRunStatusNames.Failed, "The approved sync plan is stale. Preview the current changes and approve the new plan before applying.");
+            }
+
+            run = await syncRuns.BeginRunAsync("global-apply", cancellationToken);
+            var applyFailures = new List<string>();
             string? clientIp = null;
             if (httpContextAccessor?.HttpContext is not null)
             {
@@ -501,10 +523,15 @@ public sealed class SyncOrchestratorService(
                         result.Succeeded ? SyncRunStatusNames.Succeeded : SyncRunStatusNames.Failed,
                         result.Message ?? result.ContentHash,
                         cancellationToken);
+                    if (!result.Succeeded)
+                    {
+                        applyFailures.Add($"Traefik {connection.Name}: {result.Message ?? "apply failed"}");
+                    }
                 }
                 catch (Exception ex)
                 {
                     await syncRuns.AddStepAsync(run.Id, $"traefik-apply-{connection.Name}", SyncRunStatusNames.Failed, ex.Message, cancellationToken);
+                    applyFailures.Add($"Traefik {connection.Name}: {ex.Message}");
                 }
             }
 
@@ -538,10 +565,15 @@ public sealed class SyncOrchestratorService(
                         result.Succeeded ? SyncRunStatusNames.Succeeded : SyncRunStatusNames.Failed,
                         result.Message,
                         cancellationToken);
+                    if (!result.Succeeded)
+                    {
+                        applyFailures.Add($"Firewall {host.Name}: {result.Message ?? "apply failed"}");
+                    }
                 }
                 catch (Exception ex)
                 {
                     await syncRuns.AddStepAsync(run.Id, $"firewall-apply-{host.Name}", SyncRunStatusNames.Failed, ex.Message, cancellationToken);
+                    applyFailures.Add($"Firewall {host.Name}: {ex.Message}");
                 }
             }
 
@@ -561,9 +593,9 @@ public sealed class SyncOrchestratorService(
                     var nonDestructiveChanges = plan.Changes.Where(x => x.Kind != "delete").ToList();
                     if (nonDestructiveChanges.Count > 0)
                     {
-                        await adguard.ApplyPlanAsync(
+                        await adguard.ApplySafePlanAsync(
                             connection.Id,
-                            new AdGuardRewriteApplyRequest(plan.PlanId, ConfirmDestructive: true),
+                            plan.PlanId,
                             updateTopologyDesiredState: true,
                             updateInternalAgentDnsDesiredState: true,
                             cancellationToken: cancellationToken);
@@ -589,29 +621,66 @@ public sealed class SyncOrchestratorService(
 
             await syncRuns.AddStepAsync(run.Id, "adguard-sync", SyncRunStatusNames.Succeeded, "Applied", cancellationToken);
 
+            if (applyFailures.Count > 0)
+            {
+                throw new InvalidOperationException(string.Join("; ", applyFailures));
+            }
+
             await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Succeeded, SyncRiskLevel.Low, null, cancellationToken);
             await audit.WriteAsync("sync", "global_apply", subjectType: "sync_run", subjectId: run.Id.ToString(), cancellationToken: cancellationToken);
             return new SyncApplyResponse(run.Id, true, SyncRunStatusNames.Succeeded, null);
         }
         catch (Exception ex)
         {
-            await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Failed, SyncRiskLevel.High, ex.Message, cancellationToken);
-            return new SyncApplyResponse(run.Id, false, SyncRunStatusNames.Failed, ex.Message);
+            if (run is not null)
+            {
+                await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Failed, SyncRiskLevel.High, ex.Message, cancellationToken);
+            }
+            return new SyncApplyResponse(run?.Id ?? Guid.Empty, false, SyncRunStatusNames.Failed, ex.Message);
         }
         finally
         {
-            ApplyLock.Release();
+            _applyCoordinator.ApplyLock.Release();
         }
+    }
+
+    private static bool PlansMatch(SyncRunEntity approved, SyncRunEntity current)
+    {
+        if (!string.Equals(approved.RiskLevel, current.RiskLevel, StringComparison.Ordinal)
+            || approved.Diffs.Count != current.Diffs.Count)
+        {
+            return false;
+        }
+
+        static string Key(SyncDiffEntity diff)
+            => string.Join('\u001f', diff.ResourceType, diff.ResourceKey, diff.ChangeKind, diff.Summary ?? string.Empty);
+
+        return approved.Diffs.Select(Key).OrderBy(x => x, StringComparer.Ordinal)
+            .SequenceEqual(current.Diffs.Select(Key).OrderBy(x => x, StringComparer.Ordinal), StringComparer.Ordinal);
     }
 
     public async Task<SyncReconcileResponse> ReconcileAsync(CancellationToken cancellationToken = default)
     {
-        _ = await settings.GetOrCreateAsync(cancellationToken);
-        var run = await syncRuns.BeginRunAsync("reconcile", cancellationToken);
-        var subsystems = new List<string>();
-        var hasPendingDestructive = false;
+        if (!await _applyCoordinator.ApplyLock.WaitAsync(0, cancellationToken))
+        {
+            return new SyncReconcileResponse(Guid.Empty, false, []);
+        }
+
         try
         {
+            await using var databaseLock = await PostgresAdvisoryLock.TryAcquireAsync(db, cancellationToken);
+            if (databaseLock is null)
+            {
+                return new SyncReconcileResponse(Guid.Empty, false, []);
+            }
+
+            _ = await settings.GetOrCreateAsync(cancellationToken);
+            var run = await syncRuns.BeginRunAsync("reconcile", cancellationToken);
+            var subsystems = new List<string>();
+            var hasPendingDestructive = false;
+            var hasFailures = false;
+            try
+            {
             subsystems.Add("dns");
             await syncRuns.AddStepAsync(run.Id, "dns-reconcile", SyncRunStatusNames.Reconciling, null, cancellationToken);
             var dnsConnections = await db.Connections.Where(x => x.Type == ConnectionTypeNames.DnsProvider && x.Enabled).ToListAsync(cancellationToken);
@@ -653,6 +722,7 @@ public sealed class SyncOrchestratorService(
                 catch (Exception ex)
                 {
                     await syncRuns.AddStepAsync(run.Id, $"dns-reconcile-{connection.Name}", SyncRunStatusNames.Failed, ex.Message, cancellationToken);
+                    hasFailures = true;
                 }
             }
 
@@ -667,9 +737,10 @@ public sealed class SyncOrchestratorService(
                 {
                     await traefikSync.ApplyForConnectionInternalAsync(connection.Id, cancellationToken);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Passive reconcile skips hosts without available credentials.
+                    hasFailures = true;
+                    await syncRuns.AddStepAsync(run.Id, $"traefik-reconcile-{connection.Name}", SyncRunStatusNames.Failed, ex.Message, cancellationToken);
                 }
             }
 
@@ -700,9 +771,9 @@ public sealed class SyncOrchestratorService(
                 if (plan.RequiresConfirmation)
                 {
                     hasPendingDestructive = true;
-                    await adguard.ApplyPlanAsync(
+                    await adguard.ApplySafePlanAsync(
                         connection.Id,
-                        new AdGuardRewriteApplyRequest(plan.PlanId, ConfirmDestructive: false),
+                        plan.PlanId,
                         updateTopologyDesiredState: true,
                         updateInternalAgentDnsDesiredState: true,
                         cancellationToken: cancellationToken);
@@ -740,9 +811,10 @@ public sealed class SyncOrchestratorService(
                     {
                         await firewall.ApplyForHostAsync(host.Id, cancellationToken);
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        // Passive reconcile skips when credentials unavailable.
+                        hasFailures = true;
+                        await syncRuns.AddStepAsync(run.Id, $"firewall-reconcile-{host.Name}", SyncRunStatusNames.Failed, ex.Message, cancellationToken);
                     }
                 }
 
@@ -751,16 +823,29 @@ public sealed class SyncOrchestratorService(
 
             await syncRuns.CompleteRunAsync(
                 run.Id,
-                hasPendingDestructive ? SyncRunStatusNames.AwaitingConfirmation : SyncRunStatusNames.Succeeded,
-                hasPendingDestructive ? SyncRiskLevel.Destructive : SyncRiskLevel.None,
-                hasPendingDestructive ? "Destructive changes require confirmation." : null,
+                hasFailures
+                    ? SyncRunStatusNames.Failed
+                    : hasPendingDestructive
+                        ? SyncRunStatusNames.AwaitingConfirmation
+                        : SyncRunStatusNames.Succeeded,
+                hasFailures ? SyncRiskLevel.High : hasPendingDestructive ? SyncRiskLevel.Destructive : SyncRiskLevel.None,
+                hasFailures
+                    ? "One or more subsystems failed to reconcile."
+                    : hasPendingDestructive
+                        ? "Destructive changes require confirmation."
+                        : null,
                 cancellationToken);
-            return new SyncReconcileResponse(run.Id, true, subsystems);
+            return new SyncReconcileResponse(run.Id, !hasFailures, subsystems);
+            }
+            catch (Exception ex)
+            {
+                await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Failed, SyncRiskLevel.Medium, ex.Message, cancellationToken);
+                return new SyncReconcileResponse(run.Id, false, subsystems);
+            }
         }
-        catch (Exception ex)
+        finally
         {
-            await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Failed, SyncRiskLevel.Medium, ex.Message, cancellationToken);
-            return new SyncReconcileResponse(run.Id, false, subsystems);
+            _applyCoordinator.ApplyLock.Release();
         }
     }
 
@@ -797,6 +882,67 @@ public sealed class SyncOrchestratorService(
         }
 
         return string.Join('\n', changes.Select(c => $"- **{c.ResourceType}** `{c.ResourceKey}`: {c.Kind} — {c.Summary}"));
+    }
+}
+
+public sealed class SyncApplyCoordinator
+{
+    internal SemaphoreSlim ApplyLock { get; } = new(1, 1);
+}
+
+internal sealed class PostgresAdvisoryLock : IAsyncDisposable
+{
+    // Stable application-wide lock key. A global lock is stricter than per-provider locking
+    // and prevents apply/reconcile races across multiple Hashi instances.
+    private const long LockKey = 0x484153484953594E;
+    private readonly NpgsqlConnection _connection;
+
+    private PostgresAdvisoryLock(NpgsqlConnection connection)
+    {
+        _connection = connection;
+    }
+
+    public static async Task<PostgresAdvisoryLock?> TryAcquireAsync(
+        HashiDbContext db,
+        CancellationToken cancellationToken)
+    {
+        if (!string.Equals(
+                db.Database.ProviderName,
+                "Npgsql.EntityFrameworkCore.PostgreSQL",
+                StringComparison.Ordinal))
+        {
+            return new PostgresAdvisoryLock(new NpgsqlConnection());
+        }
+
+        var connectionString = db.Database.GetConnectionString()
+            ?? throw new InvalidOperationException("PostgreSQL connection string is unavailable for sync locking.");
+        var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = new NpgsqlCommand("SELECT pg_try_advisory_lock(@key)", connection);
+        command.Parameters.AddWithValue("key", LockKey);
+        var acquired = (bool)(await command.ExecuteScalarAsync(cancellationToken) ?? false);
+        if (!acquired)
+        {
+            await connection.DisposeAsync();
+            return null;
+        }
+
+        return new PostgresAdvisoryLock(connection);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_connection.State != System.Data.ConnectionState.Open)
+        {
+            await _connection.DisposeAsync();
+            return;
+        }
+
+        await using var command = new NpgsqlCommand("SELECT pg_advisory_unlock(@key)", _connection);
+        command.Parameters.AddWithValue("key", LockKey);
+        await command.ExecuteScalarAsync();
+        await _connection.DisposeAsync();
     }
 }
 

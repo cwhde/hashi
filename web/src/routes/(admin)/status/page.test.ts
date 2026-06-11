@@ -130,7 +130,7 @@ describe('status page operations view', () => {
 		expect(sortSelect.value).toBe('lastEvent');
 
 		const publicToggles = screen.getAllByRole('switch');
-		await fireEvent.click(publicToggles[publicToggles.length - 1]);
+		await fireEvent.click(publicToggles[0]);
 		await waitFor(() =>
 			expect(apiMock.updateStatusEndpoint).toHaveBeenCalledWith('endpoint-a', {
 				publicStatusEnabled: false
