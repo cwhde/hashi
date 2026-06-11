@@ -101,7 +101,28 @@ async function expectData<T>(response: Response, error: unknown, data: T | undef
 async function postUndocumented(path: string, init?: Record<string, unknown>): Promise<UndocumentedJson> {
 	const result = await client.POST(path as never, (init ?? {}) as never);
 	await expectOk(result.response, result.error);
+	const parsed = result.data as unknown;
+	if (parsed && typeof parsed === 'object') {
+		return parsed as UndocumentedJson;
+	}
 	return readUndocumentedJson(result.response);
+}
+
+async function postJson<T>(path: string, body?: unknown): Promise<T> {
+	const token = await ensureCsrfToken();
+	const headers = new Headers({ Accept: 'application/json' });
+	if (body !== undefined) headers.set('Content-Type', 'application/json');
+	if (token) headers.set('X-CSRF-TOKEN', token);
+	const response = await fetch(path, {
+		method: 'POST',
+		credentials: 'include',
+		headers,
+		body: body === undefined ? undefined : JSON.stringify(body)
+	});
+	if (!response.ok) {
+		throw errorFromResult(response.status, await readUndocumentedJson(response));
+	}
+	return (await response.json()) as T;
 }
 
 export const api = {
@@ -195,17 +216,22 @@ export const api = {
 		postUndocumented('/api/auth/reauthenticate/complete', {
 			body: { assertion, challengeSessionId }
 		}),
-	passkeyRegisterBegin: async (nickname = 'Primary passkey') =>
-		postUndocumented('/api/auth/passkeys/register/begin', { params: { query: { nickname } } }),
+	passkeyRegisterBegin: async (nickname = 'Primary passkey') => {
+		const query = new URLSearchParams({ nickname });
+		return postJson<{ options: Record<string, unknown>; challengeSessionId: string }>(
+			`/api/auth/passkeys/register/begin?${query}`
+		);
+	},
 	passkeyRegisterComplete: async (
 		attestation: Record<string, unknown>,
 		challengeSessionId: string,
 		nickname = 'Primary passkey',
 		clientReportsPrfSupported = false
 	) => {
-		const body = await postUndocumented('/api/auth/passkeys/register/complete', {
-			body: { attestation, challengeSessionId, nickname, clientReportsPrfSupported }
-		});
+		const body = await postJson<{ credentialId: string; prfSupported: boolean }>(
+			'/api/auth/passkeys/register/complete',
+			{ attestation, challengeSessionId, nickname, clientReportsPrfSupported }
+		);
 		return { credentialId: String(body.credentialId ?? ''), prfSupported: body.prfSupported === true };
 	},
 	passkeyLoginBegin: async () => postUndocumented('/api/auth/passkeys/login/begin'),
