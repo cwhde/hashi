@@ -2,6 +2,7 @@ using FluentValidation;
 using Hashi.Api.Hosting;
 using Hashi.Contracts.Api;
 using Hashi.Infrastructure.Platform;
+using Hashi.Infrastructure.Sync;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Routing;
@@ -30,6 +31,7 @@ public static class ResourceEndpoints
             CreateResourceRequest request,
             IValidator<CreateResourceRequest> validator,
             ResourceService resources,
+            SyncOrchestratorService sync,
             CancellationToken ct) =>
         {
             var validationErrors = await validator!.ValidateRequestAsync(request, ct);
@@ -41,6 +43,7 @@ public static class ResourceEndpoints
             try
             {
                 var created = await resources.CreateAsync(request, ct);
+                await sync.TriggerImmediateSyncAsync(ct);
                 return TypedResults.Ok(await resources.ToResponseAsync(created, ct));
             }
             catch (InvalidOperationException ex)
@@ -49,11 +52,15 @@ public static class ResourceEndpoints
             }
         });
 
-        group.MapPut("/{id:guid}", async Task<IResult> (Guid id, UpdateResourceRequest request, ResourceService resources, CancellationToken ct) =>
+        group.MapPut("/{id:guid}", async Task<IResult> (Guid id, UpdateResourceRequest request, ResourceService resources, SyncOrchestratorService sync, CancellationToken ct) =>
         {
             try
             {
                 var updated = await resources.UpdateAsync(id, request, ct);
+                if (updated is not null)
+                {
+                    await sync.TriggerImmediateSyncAsync(ct);
+                }
                 return updated is null
                     ? TypedResults.NotFound()
                     : TypedResults.Ok(await resources.ToResponseAsync(updated, ct));
@@ -64,11 +71,15 @@ public static class ResourceEndpoints
             }
         });
 
-        group.MapDelete("/{id:guid}", async Task<IResult> (Guid id, ResourceService resources, CancellationToken ct) =>
+        group.MapDelete("/{id:guid}", async Task<IResult> (Guid id, ResourceService resources, SyncOrchestratorService sync, CancellationToken ct) =>
         {
             try
             {
                 var deleted = await resources.DeleteAsync(id, ct);
+                if (deleted)
+                {
+                    await sync.TriggerImmediateSyncAsync(ct);
+                }
                 return deleted ? TypedResults.NoContent() : TypedResults.NotFound();
             }
             catch (InvalidOperationException ex)

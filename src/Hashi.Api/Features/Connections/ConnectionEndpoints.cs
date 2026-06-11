@@ -5,6 +5,7 @@ using Hashi.Core.Connections;
 using Hashi.Infrastructure.Connections;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
+using Hashi.Infrastructure.Sync;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,6 +28,7 @@ public static class ConnectionEndpoints
             CreateSshConnectionRequest request,
             IValidator<CreateSshConnectionRequest> validator,
             SshConnectionService connections,
+            SyncOrchestratorService sync,
             CancellationToken ct) =>
         {
             var validationErrors = await validator!.ValidateRequestAsync(request, ct);
@@ -60,6 +62,8 @@ public static class ConnectionEndpoints
             {
                 return TypedResults.BadRequest(new { error = ex.Message });
             }
+
+            await sync.TriggerImmediateSyncAsync(ct);
 
             return TypedResults.Ok(new ConnectionSummaryResponse(
                 connection.Id, connection.Name, connection.Type, connection.Enabled,
@@ -116,6 +120,7 @@ public static class ConnectionEndpoints
         group.MapDelete("/{connectionId:guid}", async Task<IResult> (
             Guid connectionId,
             HashiDbContext db,
+            SyncOrchestratorService sync,
             CancellationToken ct) =>
         {
             var connection = await db.Connections.SingleOrDefaultAsync(x => x.Id == connectionId, ct);
@@ -149,6 +154,7 @@ public static class ConnectionEndpoints
 
             db.Connections.Remove(connection);
             await db.SaveChangesAsync(ct);
+            await sync.TriggerImmediateSyncAsync(ct);
             return TypedResults.Ok(new { deleted = true });
         });
 
