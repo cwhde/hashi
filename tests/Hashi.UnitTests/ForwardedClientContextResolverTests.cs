@@ -40,6 +40,18 @@ public sealed class ForwardedClientContextResolverTests
         Assert.False(resolved.TrustedProxy);
     }
 
+    [Fact]
+    public void Trusted_proxy_walks_forwarded_chain_from_the_trusted_boundary()
+    {
+        var context = new DefaultHttpContext();
+        context.Connection.RemoteIpAddress = IPAddress.Parse("172.18.0.4");
+        context.Request.Headers["X-Forwarded-For"] = "198.51.100.200, 203.0.113.44, 172.18.0.5";
+
+        var resolved = CreateResolver().Resolve(context);
+
+        Assert.Equal("203.0.113.44", resolved.ClientIp.ToString());
+    }
+
     private static ForwardedClientContextResolver CreateResolver()
         => new(new ConfigurationBuilder().Build());
 }

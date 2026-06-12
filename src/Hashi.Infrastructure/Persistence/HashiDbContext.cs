@@ -23,6 +23,8 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
 
     public DbSet<PasskeyCredentialEntity> PasskeyCredentials => Set<PasskeyCredentialEntity>();
 
+    public DbSet<AdminSessionEntity> AdminSessions => Set<AdminSessionEntity>();
+
     public DbSet<VaultWrappedKeyEntity> VaultWrappedKeys => Set<VaultWrappedKeyEntity>();
 
     public DbSet<SecretRecordEntity> SecretRecords => Set<SecretRecordEntity>();
@@ -148,6 +150,8 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
         {
             entity.ToTable("app_settings");
             entity.HasKey(x => x.Id);
+            entity.Property(x => x.AdminSessionMinutes).HasDefaultValue(240);
+            entity.Property(x => x.AdminSessionAbsoluteMinutes).HasDefaultValue(480);
             entity.Property(x => x.Theme).HasMaxLength(32);
             entity.Property(x => x.AcmeEmail).HasMaxLength(256);
             entity.Property(x => x.GeoIpEnabled).HasDefaultValue(false);
@@ -240,6 +244,26 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Nickname).HasMaxLength(128);
             entity.HasIndex(x => x.CredentialId).IsUnique();
+        });
+
+        modelBuilder.Entity<AdminSessionEntity>(entity =>
+        {
+            entity.ToTable("admin_sessions");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).HasMaxLength(64);
+            entity.Property(x => x.AuthMethod).HasMaxLength(32);
+            entity.Property(x => x.BoundIp).HasMaxLength(45);
+            entity.Property(x => x.ScopesJson).HasColumnType("jsonb").HasDefaultValueSql("'[]'::jsonb");
+            entity.Property(x => x.IdleTimeoutMinutes).HasDefaultValue(240);
+            entity.Property(x => x.RevocationReason).HasMaxLength(64);
+            entity.Property(x => x.UserAgentHash).HasMaxLength(64);
+            entity.HasOne(x => x.PasskeyCredential)
+                .WithMany()
+                .HasForeignKey(x => x.PasskeyCredentialId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(x => x.AbsoluteExpiresAtUtc);
+            entity.HasIndex(x => x.IdleExpiresAtUtc);
+            entity.HasIndex(x => x.RevokedAtUtc);
         });
 
         modelBuilder.Entity<VaultWrappedKeyEntity>(entity =>

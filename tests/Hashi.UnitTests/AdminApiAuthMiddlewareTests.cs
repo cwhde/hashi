@@ -191,6 +191,25 @@ public sealed class AdminApiAuthMiddlewareTests
         context.Request.Path = path;
         context.Request.Method = method;
 
+        if (context.User.Identity?.IsAuthenticated == true)
+        {
+            var session = new Hashi.Infrastructure.Persistence.Entities.AdminSessionEntity
+            {
+                Id = "test-session",
+                AuthMethod = AdminAuthMethods.Passkey,
+                BoundIp = "127.0.0.1",
+                ScopesJson = System.Text.Json.JsonSerializer.Serialize(AdminSessionScopes.All),
+                CreatedAtUtc = DateTimeOffset.UtcNow,
+                LastSeenAtUtc = DateTimeOffset.UtcNow,
+                IdleExpiresAtUtc = DateTimeOffset.UtcNow.AddHours(4),
+                AbsoluteExpiresAtUtc = DateTimeOffset.UtcNow.AddHours(8),
+                ReauthenticatedAtUtc = reauth?.IsRecent(context) == true ? DateTimeOffset.UtcNow : null,
+            };
+            context.Items[AdminSessionCookieEvents.ValidationItemKey] = AdminSessionValidationResult.Valid(
+                session,
+                AdminSessionScopes.All);
+        }
+
         var invoked = false;
         var middleware = new AdminApiAuthMiddleware(httpContext =>
         {
@@ -199,7 +218,7 @@ public sealed class AdminApiAuthMiddlewareTests
             return Task.CompletedTask;
         });
 
-        await middleware.InvokeAsync(context, setup, reauth ?? new ReauthenticationState());
+        await middleware.InvokeAsync(context, setup);
         return (context, invoked);
     }
 

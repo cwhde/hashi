@@ -20,8 +20,7 @@ public sealed class AdminApiAuthMiddleware(RequestDelegate next)
 
     public async Task InvokeAsync(
         HttpContext context,
-        SetupStateService setupState,
-        ReauthenticationState reauth)
+        SetupStateService setupState)
     {
         var path = context.Request.Path;
         if (!path.StartsWithSegments("/api"))
@@ -52,7 +51,29 @@ public sealed class AdminApiAuthMiddleware(RequestDelegate next)
             return;
         }
 
-        if (RequiresReauthentication(path, context.Request.Method) && !reauth.IsRecent(context))
+        var validation = context.Items[AdminSessionCookieEvents.ValidationItemKey] as AdminSessionValidationResult;
+        if (validation?.Session is null)
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            await context.Response.WriteAsJsonAsync(new { error = "Authentication session is invalid." });
+            return;
+        }
+
+        var requiredScope = RequiredScope(path, context.Request.Method);
+        if (!validation.Scopes.Contains(requiredScope, StringComparer.Ordinal))
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            await context.Response.WriteAsJsonAsync(new
+            {
+                error = "Session scope is insufficient.",
+                code = "scope_required",
+                scope = requiredScope,
+            });
+            return;
+        }
+
+        if (RequiresReauthentication(path, context.Request.Method)
+            && !AdminSessionService.IsRecentlyReauthenticated(validation.Session, DateTimeOffset.UtcNow))
         {
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             await context.Response.WriteAsJsonAsync(new { error = "Recent reauthentication required.", code = "reauth_required" });
@@ -60,6 +81,50 @@ public sealed class AdminApiAuthMiddleware(RequestDelegate next)
         }
 
         await next(context);
+    }
+
+    public static string RequiredScope(PathString path, string method)
+    {
+        var value = path.Value ?? string.Empty;
+        if (!IsUnsafeMethod(method))
+        {
+            return AdminSessionScopes.Read;
+        }
+
+        if (value.StartsWith("/api/settings", StringComparison.OrdinalIgnoreCase))
+        {
+            return AdminSessionScopes.SettingsManage;
+        }
+
+        if (value.StartsWith("/api/vault", StringComparison.OrdinalIgnoreCase))
+        {
+            return AdminSessionScopes.SecretsManage;
+        }
+
+        if (value.StartsWith("/api/scripts", StringComparison.OrdinalIgnoreCase))
+        {
+            return AdminSessionScopes.ScriptsManage;
+        }
+
+        if (value.StartsWith("/api/security", StringComparison.OrdinalIgnoreCase))
+        {
+            return AdminSessionScopes.SecurityManage;
+        }
+
+        if (value.StartsWith("/api/firewall", StringComparison.OrdinalIgnoreCase)
+            && (value.Contains("/apply", StringComparison.OrdinalIgnoreCase)
+                || value.Contains("/rollback", StringComparison.OrdinalIgnoreCase)))
+        {
+            return AdminSessionScopes.FirewallApply;
+        }
+
+        if (value.Contains("/apply", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("/prune", StringComparison.OrdinalIgnoreCase))
+        {
+            return AdminSessionScopes.SyncApply;
+        }
+
+        return AdminSessionScopes.Write;
     }
 
     public static bool RequiresReauthentication(PathString path, string method)

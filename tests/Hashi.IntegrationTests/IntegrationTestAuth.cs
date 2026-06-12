@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Hashi.Core.Auth;
 using Hashi.Infrastructure.Auth;
 using Hashi.Infrastructure.Persistence;
+using Hashi.Infrastructure.Persistence.Entities;
 using Hashi.Infrastructure.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -50,6 +51,25 @@ public static class IntegrationTestAuth
         string sessionId,
         bool unlockVault = false)
     {
+        using (var scope = services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<HashiDbContext>();
+            var now = DateTimeOffset.UtcNow;
+            db.AdminSessions.Add(new AdminSessionEntity
+            {
+                Id = sessionId,
+                AuthMethod = AdminAuthMethods.Bootstrap,
+                BoundIp = "127.0.0.1",
+                ScopesJson = System.Text.Json.JsonSerializer.Serialize(AdminSessionScopes.All),
+                IdleTimeoutMinutes = 240,
+                CreatedAtUtc = now,
+                LastSeenAtUtc = now,
+                IdleExpiresAtUtc = now.AddHours(4),
+                AbsoluteExpiresAtUtc = now.AddHours(8),
+            });
+            db.SaveChanges();
+        }
+
         var protector = services.GetRequiredService<IDataProtectionProvider>().CreateProtector(
             "Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationMiddleware",
             CookieAuthenticationDefaults.AuthenticationScheme,
@@ -79,8 +99,11 @@ public static class IntegrationTestAuth
 
     public static void MarkRecentReauthentication(IServiceProvider services, string sessionId = "admin")
     {
-        var reauth = services.GetRequiredService<ReauthenticationState>();
-        reauth.MarkRecent(CreateAdminHttpContext(sessionId));
+        using var scope = services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<HashiDbContext>();
+        var session = db.AdminSessions.Single(x => x.Id == sessionId);
+        session.ReauthenticatedAtUtc = DateTimeOffset.UtcNow;
+        db.SaveChanges();
     }
 
     private static ClaimsPrincipal CreateAdminPrincipal(string sessionId)

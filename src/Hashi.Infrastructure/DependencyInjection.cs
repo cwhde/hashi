@@ -60,6 +60,7 @@ public static class DependencyInjection
         services.AddScoped<AppSettingsService>();
         services.AddScoped<BootstrapAuthService>();
         services.AddScoped<PasskeyAuthService>();
+        services.AddScoped<AdminSessionService>();
         services.AddScoped<VaultService>();
         services.AddScoped<SecretRecordService>();
         services.AddScoped<SetupCompletionService>();

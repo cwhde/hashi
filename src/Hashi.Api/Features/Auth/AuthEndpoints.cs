@@ -1,9 +1,11 @@
 using System.Security.Claims;
 using Fido2NetLib;
+using Hashi.Api.Hosting;
 using Hashi.Contracts.Api;
 using Hashi.Core.Auth;
 using Hashi.Infrastructure.Auth;
 using Hashi.Infrastructure.Bootstrap;
+using Hashi.Infrastructure.Persistence.Entities;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Antiforgery;
@@ -28,6 +30,8 @@ public static class AuthEndpoints
             BootstrapLoginRequest request,
             HttpContext httpContext,
             BootstrapAuthService bootstrapAuth,
+            AdminSessionService sessions,
+            ForwardedClientContextResolver forwardedClientContext,
             VaultService vault,
             CancellationToken ct) =>
         {
@@ -43,7 +47,14 @@ public static class AuthEndpoints
                 return TypedResults.Unauthorized();
             }
 
-            await SignInAsync(httpContext, AdminAuthMethods.Bootstrap, vaultUnlocked: false);
+            var client = forwardedClientContext.Resolve(httpContext);
+            var session = await sessions.CreateAsync(
+                AdminAuthMethods.Bootstrap,
+                client.ClientIp.ToString(),
+                AdminSessionScopes.All,
+                userAgent: httpContext.Request.Headers.UserAgent.ToString(),
+                cancellationToken: ct);
+            await SignInAsync(httpContext, session, vaultUnlocked: false);
             return TypedResults.Ok(new BootstrapLoginResponse(true, null));
         });
 
@@ -134,6 +145,8 @@ public static class AuthEndpoints
             PasskeyLoginCompleteRequest request,
             HttpContext httpContext,
             PasskeyAuthService passkeys,
+            AdminSessionService sessions,
+            ForwardedClientContextResolver forwardedClientContext,
             VaultService vault,
             WebAuthnChallengeStore challenges,
             CancellationToken ct) =>
@@ -153,14 +166,21 @@ public static class AuthEndpoints
                 : Convert.FromBase64String(request.PrfOutputBase64);
 
             var result = await passkeys.CompleteLoginAsync(assertion, options, prfOutput, ct);
-            var sessionId = Guid.NewGuid().ToString("N");
+            var client = forwardedClientContext.Resolve(httpContext);
+            var session = await sessions.CreateAsync(
+                AdminAuthMethods.Passkey,
+                client.ClientIp.ToString(),
+                AdminSessionScopes.All,
+                result.CredentialId,
+                httpContext.Request.Headers.UserAgent.ToString(),
+                ct);
             var vaultUnlocked = false;
             if (result.PrfOutput is { Length: >= 32 })
             {
-                vaultUnlocked = await vault.UnlockWithPrfAsync(result.CredentialId, result.PrfOutput, sessionId, ct);
+                vaultUnlocked = await vault.UnlockWithPrfAsync(result.CredentialId, result.PrfOutput, session.Id, ct);
             }
 
-            await SignInAsync(httpContext, AdminAuthMethods.Passkey, vaultUnlocked, sessionId);
+            await SignInAsync(httpContext, session, vaultUnlocked);
             return TypedResults.Ok(new PasskeyLoginCompleteResponse(true, vaultUnlocked));
         });
 
@@ -176,7 +196,6 @@ public static class AuthEndpoints
 
         group.MapPost("/reauthenticate", async Task<IResult> (
             HttpContext httpContext,
-            ReauthenticationState reauth,
             PasskeyAuthService passkeys,
             WebAuthnChallengeStore challenges,
             CancellationToken ct) =>
@@ -196,7 +215,7 @@ public static class AuthEndpoints
             PasskeyLoginCompleteRequest request,
             HttpContext httpContext,
             PasskeyAuthService passkeys,
-            ReauthenticationState reauth,
+            AdminSessionService sessions,
             WebAuthnChallengeStore challenges,
             CancellationToken ct) =>
         {
@@ -216,15 +235,17 @@ public static class AuthEndpoints
                 ?? throw new InvalidOperationException("Invalid assertion payload.");
 
             await passkeys.CompleteLoginAsync(assertion, options, null, ct);
-            reauth.MarkRecent(httpContext);
+            await sessions.MarkReauthenticatedAsync(CurrentSessionId(httpContext), ct);
             return TypedResults.Ok(new { reauthenticated = true });
         });
 
         group.MapPost("/logout", async Task<IResult> (
             HttpContext httpContext,
+            AdminSessionService sessions,
             VaultService vault,
             CancellationToken ct) =>
         {
+            await sessions.RevokeAsync(CurrentSessionId(httpContext), "logout", ct);
             await vault.LockAsync(ct);
             await httpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return TypedResults.Ok(new LogoutResponse(true));
@@ -236,15 +257,14 @@ public static class AuthEndpoints
     private static bool IsAuthenticatedDuringSetup(HttpContext httpContext)
         => httpContext.User.Identity?.IsAuthenticated == true;
 
-    internal static async Task SignInAsync(HttpContext httpContext, string authMethod, bool vaultUnlocked, string? sessionId = null)
+    internal static async Task SignInAsync(HttpContext httpContext, AdminSessionEntity session, bool vaultUnlocked)
     {
-        sessionId ??= Guid.NewGuid().ToString("N");
         var claims = new List<Claim>
         {
-            new(ClaimTypes.NameIdentifier, sessionId),
-            new(ClaimTypes.Sid, sessionId),
+            new(ClaimTypes.NameIdentifier, session.Id),
+            new(ClaimTypes.Sid, session.Id),
             new(ClaimTypes.Name, "admin"),
-            new(AdminClaimTypes.AuthMethod, authMethod),
+            new(AdminClaimTypes.AuthMethod, session.AuthMethod),
         };
 
         if (vaultUnlocked)
@@ -257,4 +277,9 @@ public static class AuthEndpoints
             CookieAuthenticationDefaults.AuthenticationScheme,
             new ClaimsPrincipal(identity));
     }
+
+    private static string CurrentSessionId(HttpContext httpContext)
+        => httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? httpContext.User.FindFirstValue(ClaimTypes.Sid)
+            ?? throw new InvalidOperationException("Authenticated admin session identifier is missing.");
 }
