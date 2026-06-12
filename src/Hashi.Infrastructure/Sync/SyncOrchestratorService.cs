@@ -681,207 +681,207 @@ public sealed class SyncOrchestratorService(
             var hasFailures = false;
             try
             {
-            subsystems.Add("dns");
-            await syncRuns.AddStepAsync(run.Id, "dns-reconcile", SyncRunStatusNames.Reconciling, null, cancellationToken);
-            var dnsConnections = await db.Connections.Where(x => x.Type == ConnectionTypeNames.DnsProvider && x.Enabled).ToListAsync(cancellationToken);
-            foreach (var connection in dnsConnections)
-            {
-                try
-                {
-                    var plan = await dns.PlanSyncAsync(connection.Id, cancellationToken);
-                    var dnsChanges = plan.Changes
-                        .Where(x => x.Kind != Core.Dns.DnsChangeKind.NoOp)
-                        .Select(MapDnsPlanChange)
-                        .ToList();
-                    if (dnsChanges.Count > 0)
-                    {
-                        await syncRuns.AddDiffsAsync(run.Id, dnsChanges, cancellationToken);
-                    }
-
-                    if (plan.RequiresConfirmation)
-                    {
-                        hasPendingDestructive = true;
-                        await dns.ApplySafePlanAsync(plan, cancellationToken);
-                        await syncRuns.AddStepAsync(
-                            run.Id,
-                            $"dns-reconcile-{connection.Name}",
-                            SyncRunStatusNames.Succeeded,
-                            "Safe changes applied; destructive changes pending confirmation.",
-                            cancellationToken);
-                    }
-                    else if (plan.Changes.Any(x => x.Kind != Core.Dns.DnsChangeKind.NoOp))
-                    {
-                        await dns.ApplyPlanAsync(plan, confirmDestructive: true, cancellationToken);
-                        await syncRuns.AddStepAsync(run.Id, $"dns-reconcile-{connection.Name}", SyncRunStatusNames.Succeeded, "Applied", cancellationToken);
-                    }
-                    else
-                    {
-                        await syncRuns.AddStepAsync(run.Id, $"dns-reconcile-{connection.Name}", SyncRunStatusNames.Succeeded, "No changes", cancellationToken);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    await syncRuns.AddStepAsync(run.Id, $"dns-reconcile-{connection.Name}", SyncRunStatusNames.Failed, ex.Message, cancellationToken);
-                    hasFailures = true;
-                }
-            }
-
-            await syncRuns.AddStepAsync(run.Id, "dns-reconcile", SyncRunStatusNames.Succeeded, null, cancellationToken);
-
-            subsystems.Add("traefik");
-            await syncRuns.AddStepAsync(run.Id, "traefik-reconcile", SyncRunStatusNames.Reconciling, null, cancellationToken);
-            var traefikConnections = await db.Connections.Where(x => x.Type == ConnectionTypeNames.TraefikHost && x.Enabled).ToListAsync(cancellationToken);
-            foreach (var connection in traefikConnections)
-            {
-                try
-                {
-                    var result = await traefikSync.ApplyForConnectionInternalAsync(connection.Id, cancellationToken);
-                    if (!result.Succeeded)
-                    {
-                        hasFailures = true;
-                        await syncRuns.AddStepAsync(
-                            run.Id,
-                            $"traefik-reconcile-{connection.Name}",
-                            SyncRunStatusNames.Failed,
-                            result.Message ?? "Traefik apply failed.",
-                            cancellationToken);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    hasFailures = true;
-                    await syncRuns.AddStepAsync(run.Id, $"traefik-reconcile-{connection.Name}", SyncRunStatusNames.Failed, ex.Message, cancellationToken);
-                }
-            }
-
-            if (traefikConnections.Count == 0)
-            {
-                await traefik.RenderAsync(cancellationToken);
-            }
-
-            await syncRuns.AddStepAsync(run.Id, "traefik-reconcile", SyncRunStatusNames.Succeeded, null, cancellationToken);
-
-            subsystems.Add("adguard");
-            var adguardConnections = await db.AdGuardConnections.ToListAsync(cancellationToken);
-            foreach (var connection in adguardConnections)
-            {
-                var plan = await adguard.PlanSyncAsync(
-                    connection.Id,
-                    updateTopologyDesiredState: true,
-                    updateInternalAgentDnsDesiredState: true,
-                    cancellationToken: cancellationToken);
-                var adguardChanges = plan.Changes
-                    .Select(x => new ProviderChange("adguard-rewrite", x.Domain, MapAdGuardKind(x.Kind), x.Summary))
-                    .ToList();
-                if (adguardChanges.Count > 0)
-                {
-                    await syncRuns.AddDiffsAsync(run.Id, adguardChanges, cancellationToken);
-                }
-
-                if (plan.RequiresConfirmation)
-                {
-                    hasPendingDestructive = true;
-                    var result = await adguard.ApplySafePlanAsync(
-                        connection.Id,
-                        plan.PlanId,
-                        updateTopologyDesiredState: true,
-                        updateInternalAgentDnsDesiredState: true,
-                        cancellationToken: cancellationToken);
-                    if (result.Succeeded)
-                    {
-                        await syncRuns.AddStepAsync(
-                            run.Id,
-                            $"adguard-reconcile-{connection.Name}",
-                            SyncRunStatusNames.Succeeded,
-                            "Destructive changes pending confirmation.",
-                            cancellationToken);
-                    }
-                    else
-                    {
-                        hasFailures = true;
-                        await syncRuns.AddStepAsync(
-                            run.Id,
-                            $"adguard-reconcile-{connection.Name}",
-                            SyncRunStatusNames.Failed,
-                            result.Message ?? "AdGuard safe apply failed.",
-                            cancellationToken);
-                    }
-                }
-                else if (plan.Changes.Count > 0)
-                {
-                    var result = await adguard.ApplyPlanAsync(
-                        connection.Id,
-                        new AdGuardRewriteApplyRequest(plan.PlanId, ConfirmDestructive: false),
-                        updateTopologyDesiredState: true,
-                        updateInternalAgentDnsDesiredState: true,
-                        cancellationToken: cancellationToken);
-                    if (result.Succeeded)
-                    {
-                        await syncRuns.AddStepAsync(run.Id, $"adguard-reconcile-{connection.Name}", SyncRunStatusNames.Succeeded, "Applied", cancellationToken);
-                    }
-                    else
-                    {
-                        hasFailures = true;
-                        await syncRuns.AddStepAsync(
-                            run.Id,
-                            $"adguard-reconcile-{connection.Name}",
-                            SyncRunStatusNames.Failed,
-                            result.Message ?? "AdGuard apply failed.",
-                            cancellationToken);
-                    }
-                }
-                else
-                {
-                    await syncRuns.AddStepAsync(run.Id, $"adguard-reconcile-{connection.Name}", SyncRunStatusNames.Succeeded, "No changes", cancellationToken);
-                }
-            }
-
-            if (await db.FirewallHosts.AnyAsync(cancellationToken))
-            {
-                subsystems.Add("firewall");
-                await syncRuns.AddStepAsync(run.Id, "firewall-reconcile", SyncRunStatusNames.Reconciling, null, cancellationToken);
-                var hosts = await db.FirewallHosts.ToListAsync(cancellationToken);
-                foreach (var host in hosts)
+                subsystems.Add("dns");
+                await syncRuns.AddStepAsync(run.Id, "dns-reconcile", SyncRunStatusNames.Reconciling, null, cancellationToken);
+                var dnsConnections = await db.Connections.Where(x => x.Type == ConnectionTypeNames.DnsProvider && x.Enabled).ToListAsync(cancellationToken);
+                foreach (var connection in dnsConnections)
                 {
                     try
                     {
-                        var result = await firewall.ApplyForHostAsync(host.Id, cancellationToken);
+                        var plan = await dns.PlanSyncAsync(connection.Id, cancellationToken);
+                        var dnsChanges = plan.Changes
+                            .Where(x => x.Kind != Core.Dns.DnsChangeKind.NoOp)
+                            .Select(MapDnsPlanChange)
+                            .ToList();
+                        if (dnsChanges.Count > 0)
+                        {
+                            await syncRuns.AddDiffsAsync(run.Id, dnsChanges, cancellationToken);
+                        }
+
+                        if (plan.RequiresConfirmation)
+                        {
+                            hasPendingDestructive = true;
+                            await dns.ApplySafePlanAsync(plan, cancellationToken);
+                            await syncRuns.AddStepAsync(
+                                run.Id,
+                                $"dns-reconcile-{connection.Name}",
+                                SyncRunStatusNames.Succeeded,
+                                "Safe changes applied; destructive changes pending confirmation.",
+                                cancellationToken);
+                        }
+                        else if (plan.Changes.Any(x => x.Kind != Core.Dns.DnsChangeKind.NoOp))
+                        {
+                            await dns.ApplyPlanAsync(plan, confirmDestructive: true, cancellationToken);
+                            await syncRuns.AddStepAsync(run.Id, $"dns-reconcile-{connection.Name}", SyncRunStatusNames.Succeeded, "Applied", cancellationToken);
+                        }
+                        else
+                        {
+                            await syncRuns.AddStepAsync(run.Id, $"dns-reconcile-{connection.Name}", SyncRunStatusNames.Succeeded, "No changes", cancellationToken);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        await syncRuns.AddStepAsync(run.Id, $"dns-reconcile-{connection.Name}", SyncRunStatusNames.Failed, ex.Message, cancellationToken);
+                        hasFailures = true;
+                    }
+                }
+
+                await syncRuns.AddStepAsync(run.Id, "dns-reconcile", SyncRunStatusNames.Succeeded, null, cancellationToken);
+
+                subsystems.Add("traefik");
+                await syncRuns.AddStepAsync(run.Id, "traefik-reconcile", SyncRunStatusNames.Reconciling, null, cancellationToken);
+                var traefikConnections = await db.Connections.Where(x => x.Type == ConnectionTypeNames.TraefikHost && x.Enabled).ToListAsync(cancellationToken);
+                foreach (var connection in traefikConnections)
+                {
+                    try
+                    {
+                        var result = await traefikSync.ApplyForConnectionInternalAsync(connection.Id, cancellationToken);
                         if (!result.Succeeded)
                         {
                             hasFailures = true;
                             await syncRuns.AddStepAsync(
                                 run.Id,
-                                $"firewall-reconcile-{host.Name}",
+                                $"traefik-reconcile-{connection.Name}",
                                 SyncRunStatusNames.Failed,
-                                result.Message ?? "Firewall apply failed.",
+                                result.Message ?? "Traefik apply failed.",
                                 cancellationToken);
                         }
                     }
                     catch (Exception ex)
                     {
                         hasFailures = true;
-                        await syncRuns.AddStepAsync(run.Id, $"firewall-reconcile-{host.Name}", SyncRunStatusNames.Failed, ex.Message, cancellationToken);
+                        await syncRuns.AddStepAsync(run.Id, $"traefik-reconcile-{connection.Name}", SyncRunStatusNames.Failed, ex.Message, cancellationToken);
                     }
                 }
 
-                await syncRuns.AddStepAsync(run.Id, "firewall-reconcile", SyncRunStatusNames.Succeeded, null, cancellationToken);
-            }
+                if (traefikConnections.Count == 0)
+                {
+                    await traefik.RenderAsync(cancellationToken);
+                }
 
-            await syncRuns.CompleteRunAsync(
-                run.Id,
-                hasFailures
-                    ? SyncRunStatusNames.Failed
-                    : hasPendingDestructive
-                        ? SyncRunStatusNames.AwaitingConfirmation
-                        : SyncRunStatusNames.Succeeded,
-                hasFailures ? SyncRiskLevel.High : hasPendingDestructive ? SyncRiskLevel.Destructive : SyncRiskLevel.None,
-                hasFailures
-                    ? "One or more subsystems failed to reconcile."
-                    : hasPendingDestructive
-                        ? "Destructive changes require confirmation."
-                        : null,
-                cancellationToken);
-            return new SyncReconcileResponse(run.Id, !hasFailures, subsystems);
+                await syncRuns.AddStepAsync(run.Id, "traefik-reconcile", SyncRunStatusNames.Succeeded, null, cancellationToken);
+
+                subsystems.Add("adguard");
+                var adguardConnections = await db.AdGuardConnections.ToListAsync(cancellationToken);
+                foreach (var connection in adguardConnections)
+                {
+                    var plan = await adguard.PlanSyncAsync(
+                        connection.Id,
+                        updateTopologyDesiredState: true,
+                        updateInternalAgentDnsDesiredState: true,
+                        cancellationToken: cancellationToken);
+                    var adguardChanges = plan.Changes
+                        .Select(x => new ProviderChange("adguard-rewrite", x.Domain, MapAdGuardKind(x.Kind), x.Summary))
+                        .ToList();
+                    if (adguardChanges.Count > 0)
+                    {
+                        await syncRuns.AddDiffsAsync(run.Id, adguardChanges, cancellationToken);
+                    }
+
+                    if (plan.RequiresConfirmation)
+                    {
+                        hasPendingDestructive = true;
+                        var result = await adguard.ApplySafePlanAsync(
+                            connection.Id,
+                            plan.PlanId,
+                            updateTopologyDesiredState: true,
+                            updateInternalAgentDnsDesiredState: true,
+                            cancellationToken: cancellationToken);
+                        if (result.Succeeded)
+                        {
+                            await syncRuns.AddStepAsync(
+                                run.Id,
+                                $"adguard-reconcile-{connection.Name}",
+                                SyncRunStatusNames.Succeeded,
+                                "Destructive changes pending confirmation.",
+                                cancellationToken);
+                        }
+                        else
+                        {
+                            hasFailures = true;
+                            await syncRuns.AddStepAsync(
+                                run.Id,
+                                $"adguard-reconcile-{connection.Name}",
+                                SyncRunStatusNames.Failed,
+                                result.Message ?? "AdGuard safe apply failed.",
+                                cancellationToken);
+                        }
+                    }
+                    else if (plan.Changes.Count > 0)
+                    {
+                        var result = await adguard.ApplyPlanAsync(
+                            connection.Id,
+                            new AdGuardRewriteApplyRequest(plan.PlanId, ConfirmDestructive: false),
+                            updateTopologyDesiredState: true,
+                            updateInternalAgentDnsDesiredState: true,
+                            cancellationToken: cancellationToken);
+                        if (result.Succeeded)
+                        {
+                            await syncRuns.AddStepAsync(run.Id, $"adguard-reconcile-{connection.Name}", SyncRunStatusNames.Succeeded, "Applied", cancellationToken);
+                        }
+                        else
+                        {
+                            hasFailures = true;
+                            await syncRuns.AddStepAsync(
+                                run.Id,
+                                $"adguard-reconcile-{connection.Name}",
+                                SyncRunStatusNames.Failed,
+                                result.Message ?? "AdGuard apply failed.",
+                                cancellationToken);
+                        }
+                    }
+                    else
+                    {
+                        await syncRuns.AddStepAsync(run.Id, $"adguard-reconcile-{connection.Name}", SyncRunStatusNames.Succeeded, "No changes", cancellationToken);
+                    }
+                }
+
+                if (await db.FirewallHosts.AnyAsync(cancellationToken))
+                {
+                    subsystems.Add("firewall");
+                    await syncRuns.AddStepAsync(run.Id, "firewall-reconcile", SyncRunStatusNames.Reconciling, null, cancellationToken);
+                    var hosts = await db.FirewallHosts.ToListAsync(cancellationToken);
+                    foreach (var host in hosts)
+                    {
+                        try
+                        {
+                            var result = await firewall.ApplyForHostAsync(host.Id, cancellationToken);
+                            if (!result.Succeeded)
+                            {
+                                hasFailures = true;
+                                await syncRuns.AddStepAsync(
+                                    run.Id,
+                                    $"firewall-reconcile-{host.Name}",
+                                    SyncRunStatusNames.Failed,
+                                    result.Message ?? "Firewall apply failed.",
+                                    cancellationToken);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            hasFailures = true;
+                            await syncRuns.AddStepAsync(run.Id, $"firewall-reconcile-{host.Name}", SyncRunStatusNames.Failed, ex.Message, cancellationToken);
+                        }
+                    }
+
+                    await syncRuns.AddStepAsync(run.Id, "firewall-reconcile", SyncRunStatusNames.Succeeded, null, cancellationToken);
+                }
+
+                await syncRuns.CompleteRunAsync(
+                    run.Id,
+                    hasFailures
+                        ? SyncRunStatusNames.Failed
+                        : hasPendingDestructive
+                            ? SyncRunStatusNames.AwaitingConfirmation
+                            : SyncRunStatusNames.Succeeded,
+                    hasFailures ? SyncRiskLevel.High : hasPendingDestructive ? SyncRiskLevel.Destructive : SyncRiskLevel.None,
+                    hasFailures
+                        ? "One or more subsystems failed to reconcile."
+                        : hasPendingDestructive
+                            ? "Destructive changes require confirmation."
+                            : null,
+                    cancellationToken);
+                return new SyncReconcileResponse(run.Id, !hasFailures, subsystems);
             }
             catch (Exception ex)
             {

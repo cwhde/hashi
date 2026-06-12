@@ -133,7 +133,7 @@ public sealed class FirewallApplyService(
     {
         var host = await db.FirewallHosts.SingleAsync(x => x.Id == firewallHostId, cancellationToken);
         var definition = await BuildHostDefinitionAsync(host, cancellationToken);
-        
+
         string? clientIp = null;
         if (httpContextAccessor?.HttpContext is not null)
         {
@@ -822,7 +822,7 @@ public sealed class FirewallApplyService(
         {
             foreach (var blocked in host.BlockedIps)
             {
-                if (Hashi.Core.Dns.DnsRecordGenerator.IpMatchesSubnet(ipText, blocked) || 
+                if (Hashi.Core.Dns.DnsRecordGenerator.IpMatchesSubnet(ipText, blocked) ||
                     (IPAddress.TryParse(blocked, out var blockedIp) && IPAddress.TryParse(ipText, out var ip) && ip.Equals(blockedIp)))
                 {
                     return false;
@@ -833,7 +833,7 @@ public sealed class FirewallApplyService(
         // Check managed subnets
         foreach (var subnet in host.ManagedSubnets)
         {
-            if (Hashi.Core.Dns.DnsRecordGenerator.IpMatchesSubnet(ipText, subnet) || 
+            if (Hashi.Core.Dns.DnsRecordGenerator.IpMatchesSubnet(ipText, subnet) ||
                 (IPAddress.TryParse(subnet, out var subnetIp) && IPAddress.TryParse(ipText, out var ip) && ip.Equals(subnetIp)))
             {
                 return true;
@@ -845,7 +845,7 @@ public sealed class FirewallApplyService(
         {
             foreach (var trusted in host.TrustedPublicIps)
             {
-                if (Hashi.Core.Dns.DnsRecordGenerator.IpMatchesSubnet(ipText, trusted) || 
+                if (Hashi.Core.Dns.DnsRecordGenerator.IpMatchesSubnet(ipText, trusted) ||
                     (IPAddress.TryParse(trusted, out var trustedIp) && IPAddress.TryParse(ipText, out var ip) && ip.Equals(trustedIp)))
                 {
                     return true;
@@ -860,7 +860,7 @@ public sealed class FirewallApplyService(
             {
                 foreach (var cidr in host.NetBirdOverlayCidrs)
                 {
-                    if (Hashi.Core.Dns.DnsRecordGenerator.IpMatchesSubnet(ipText, cidr) || 
+                    if (Hashi.Core.Dns.DnsRecordGenerator.IpMatchesSubnet(ipText, cidr) ||
                         (IPAddress.TryParse(cidr, out var cidrIp) && IPAddress.TryParse(ipText, out var ip) && ip.Equals(cidrIp)))
                     {
                         return true;

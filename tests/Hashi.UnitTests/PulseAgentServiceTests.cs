@@ -304,7 +304,7 @@ public sealed class PulseAgentServiceTests
             "192.0.2.1");
 
         Assert.Equal(PulseHeartbeatAcceptResult.Accepted, accepted);
-        
+
         var agent = await db.PulseAgents.SingleAsync(x => x.Id == agentId);
         Assert.Equal("degraded", agent.Status);
     }

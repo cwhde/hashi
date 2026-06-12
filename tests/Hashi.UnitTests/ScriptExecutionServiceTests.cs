@@ -277,7 +277,7 @@ public sealed class ScriptExecutionServiceTests
         vault.Unlock(RandomNumberGenerator.GetBytes(32));
         var secrets = new SecretRecordService(db, vault, new ServiceSyncVaultState());
         var connectionId = await AddConnectionAsync(db, secrets, "firewall", "10.0.0.40");
-        
+
         var script = new ScriptEntity
         {
             ConnectionId = connectionId,
@@ -303,7 +303,7 @@ public sealed class ScriptExecutionServiceTests
 
         Assert.True(ssh.WrittenFiles.ContainsKey(servicePath));
         Assert.True(ssh.WrittenFiles.ContainsKey(timerPath));
-        
+
         var serviceContent = System.Text.Encoding.UTF8.GetString(ssh.WrittenFiles[servicePath]);
         var timerContent = System.Text.Encoding.UTF8.GetString(ssh.WrittenFiles[timerPath]);
 
@@ -319,7 +319,7 @@ public sealed class ScriptExecutionServiceTests
         // Check that daemon-reload and systemctl enable --now were called
         Assert.Contains(ssh.Commands, cmd => cmd.Contains("systemctl daemon-reload", StringComparison.Ordinal));
         Assert.Contains(ssh.Commands, cmd => cmd.Contains($"systemctl enable --now hashi-script-{script.Id:N}.timer", StringComparison.Ordinal));
-        
+
         // Check cleanup of obsolete timer
         Assert.Contains(ssh.Commands, cmd => cmd.Contains("systemctl disable --now hashi-script-00000000000000000000000000000000.timer", StringComparison.Ordinal));
     }

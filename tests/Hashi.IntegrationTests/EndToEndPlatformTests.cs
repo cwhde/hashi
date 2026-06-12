@@ -134,7 +134,7 @@ public sealed class EndToEndPlatformTests : IAsyncLifetime
 
         var response = await _client.GetAsync("/api/dashboard");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        
+
         var dashboard = await response.Content.ReadFromJsonAsync<AdminDashboardResponse>();
         Assert.NotNull(dashboard);
         Assert.NotNull(dashboard.Health);

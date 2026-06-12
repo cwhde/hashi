@@ -227,7 +227,7 @@ public sealed class TraefikConfigRendererTests
         Assert.DoesNotContain("postgres-b-tcp:", render.StaticConfigYaml);
 
         Assert.True(await resources.DeleteAsync(first.Id));
-        
+
         var pendingEntry = await db.TraefikEntryPoints.SingleAsync(x => x.Port == 15432 && x.Protocol == "tcp");
         Assert.True(pendingEntry.PendingRemoval);
 
