@@ -32,6 +32,7 @@ RUN --mount=type=cache,id=hashi-nuget,target=/root/.nuget/packages,sharing=locke
     dotnet restore src/Hashi.Api/Hashi.Api.csproj; \
   fi
 COPY src/ ./src/
+COPY agents/pulse/install.sh ./agents/pulse/install.sh
 COPY --from=web-build /src/web/build ./web/build
 RUN --mount=type=cache,id=hashi-nuget,target=/root/.nuget/packages,sharing=locked \
   target_rid="" \
