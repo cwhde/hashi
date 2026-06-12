@@ -5,11 +5,11 @@
 **Spec Reference:** Addendum §17.6
 
 **Status:** Fixed
-**Branch:** h/ci-cd
+**Branch:** audit-series-h
 
 ## Description
 
-The CI workflow (`ci.yml`) caches Go modules and build data for the Pulse agent job. However, the cache key uses `hashFiles('agents/pulse/go.mod', 'agents/pulse/go.sum')` which is correct. The cache path includes `~/go/pkg/mod` and `~/.cache/go-build` which are the standard Go cache locations.
+The CI workflow caches Go modules and build data for the Pulse agent job. The Pulse module currently has no `go.sum`, so the runner-compatible cache key hashes the existing `agents/pulse/go.mod` file only. The cache path includes `~/go/pkg/mod` and `~/.cache/go-build`.
 
 This finding is a false positive - the Go caching is correctly implemented. The `validate-ci-optimization.sh` script also verifies this at line 55:
 ```bash
@@ -48,4 +48,4 @@ No changes needed - this is correctly implemented.
 
 - [x] Go module cache is configured (implemented)
 - [x] Go build cache is configured (implemented)
-- [x] Cache key includes go.mod and go.sum (implemented)
+- [x] Cache key hashes the existing `go.mod` and does not reference a missing `go.sum`

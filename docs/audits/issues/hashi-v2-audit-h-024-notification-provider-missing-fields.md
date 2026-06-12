@@ -5,7 +5,7 @@
 **Spec Reference:** Main Spec §18.6
 
 **Status:** Fixed
-**Branch:** h/spec-compliance-1
+**Branch:** audit-series-h
 
 ## Description
 
@@ -63,6 +63,6 @@ The entity model is correct. The JSON-based approach is flexible and supports al
 
 - [x] Provider type field exists (implemented)
 - [x] Settings JSON field exists (implemented)
-- [ ] Verify Telegram setup discovers chat/channel
-- [ ] Verify Discord pairing mode works
-- [ ] Verify SMTP test email works
+- [x] Verify Telegram setup discovers chat/channel
+- [x] Verify Discord pairing mode works
+- [x] Verify SMTP test email works

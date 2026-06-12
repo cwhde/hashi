@@ -5,7 +5,7 @@
 **Spec Reference:** Main Spec §6, Addendum §10.3
 
 **Status:** Fixed
-**Branch:** h/backend-quality
+**Branch:** audit-series-h
 
 ## Description
 
@@ -45,8 +45,8 @@ The addendum §10.3 specifies similar normalization rules for Pulse agent DNS na
 
 ## Acceptance Criteria
 
-- [ ] Empty input produces a valid non-empty slug or throws a clear error
-- [ ] Multiple consecutive non-alphanumeric characters collapse to a single hyphen
-- [ ] Leading and trailing hyphens are trimmed
-- [ ] Slug does not exceed maximum length (63 chars for DNS compatibility)
-- [ ] Unit tests cover all edge cases
+- [x] Empty input produces a valid non-empty slug or throws a clear error
+- [x] Multiple consecutive non-alphanumeric characters collapse to a single hyphen
+- [x] Leading and trailing hyphens are trimmed
+- [x] Slug does not exceed maximum length (63 chars for DNS compatibility)
+- [x] Unit tests cover all edge cases

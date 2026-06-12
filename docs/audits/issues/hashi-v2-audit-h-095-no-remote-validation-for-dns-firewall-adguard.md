@@ -29,7 +29,7 @@ Each subsystem should verify its apply succeeded via read-back. Failed verificat
 
 ## Acceptance Criteria
 
-- [ ] DNS Apply verifies records via provider read-back
-- [ ] Firewall Apply verifies deployed file hash matches
-- [ ] AdGuard Apply verifies rewrites via API read-back
-- [ ] Failed verification produces clear error
+- [x] DNS Apply verifies records via provider read-back
+- [x] Firewall Apply verifies deployed file hash matches
+- [x] AdGuard Apply verifies rewrites via API read-back
+- [x] Failed verification produces clear error

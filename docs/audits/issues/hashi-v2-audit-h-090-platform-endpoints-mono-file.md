@@ -28,6 +28,6 @@ Each domain should have its own `Features/{Domain}/{Domain}Endpoints.cs` file. N
 
 ## Acceptance Criteria
 
-- [ ] Each domain has its own Features/{Domain}/{Domain}Endpoints.cs file
-- [ ] No single endpoint file exceeds 300 lines
-- [ ] Import paths remain correct after split
+- [x] Each domain has its own Features/{Domain}/{Domain}Endpoints.cs file
+- [x] No single endpoint file exceeds 300 lines
+- [x] Import paths remain correct after split

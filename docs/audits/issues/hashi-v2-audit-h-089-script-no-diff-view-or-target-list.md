@@ -4,8 +4,8 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** §23 (UI shows target hosts and diff before applying)
 
-**Status:** Not Started
-**Branch:** 
+**Status:** Fixed
+**Branch:** audit-series-h
 
 ## Description
 
@@ -29,6 +29,6 @@ Script editor should show a diff of changes vs the currently deployed version. S
 
 ## Acceptance Criteria
 
-- [ ] Script editor shows diff of changes vs deployed version
-- [ ] Script detail shows list of target hosts
-- [ ] Apply requires confirmation showing diff and targets
+- [x] Script editor shows diff of changes vs deployed version
+- [x] Script detail shows list of target hosts
+- [x] Apply requires confirmation showing diff and targets

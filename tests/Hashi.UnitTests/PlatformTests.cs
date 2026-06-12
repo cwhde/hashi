@@ -444,6 +444,16 @@ public sealed class ResourceSlugTests
 
         Assert.Contains("letter or digit", error.Message);
     }
+
+    [Fact]
+    public void Normalize_collapses_separators_trims_edges_and_limits_dns_label_length()
+    {
+        Assert.Equal("my-app", ResourceSlug.Normalize("--My___App!!--"));
+
+        var slug = ResourceSlug.Normalize(new string('a', 70) + "-");
+        Assert.Equal(63, slug.Length);
+        Assert.False(slug.EndsWith("-", StringComparison.Ordinal));
+    }
 }
 
 public sealed class ResourceFirewallDetectionTests

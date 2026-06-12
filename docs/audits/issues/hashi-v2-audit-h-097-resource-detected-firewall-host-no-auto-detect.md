@@ -28,6 +28,6 @@ Resources should auto-detect their firewall host based on target IP. Auto-detect
 
 ## Acceptance Criteria
 
-- [ ] Resources auto-detect their firewall host based on target IP
-- [ ] Auto-detection checks managed subnets and NetBird CIDRs
-- [ ] Manual override takes precedence over auto-detection
+- [x] Resources auto-detect their firewall host based on target IP
+- [x] Auto-detection checks managed subnets and NetBird CIDRs
+- [x] Manual override takes precedence over auto-detection
