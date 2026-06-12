@@ -169,6 +169,10 @@ public static class ConnectionTypeNames
     public const string DnsProvider = ConnectionTypeContractNames.DnsProvider;
     public const string TraefikHost = ConnectionTypeContractNames.TraefikHost;
     public const string FirewallHost = ConnectionTypeContractNames.FirewallHost;
+    public const string AdGuardHome = ConnectionTypeContractNames.AdGuardHome;
+    public const string OidcProvider = ConnectionTypeContractNames.OidcProvider;
+    public const string NotificationProvider = ConnectionTypeContractNames.NotificationProvider;
+    public const string NetBirdManagement = ConnectionTypeContractNames.NetBirdManagement;
 }
 
 public static class ConnectionHealthStateNames

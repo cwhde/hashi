@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §14.5 (Hashi schedules a rollback if SSH connectivity is lost during first apply); §14.4 (Hashi should install rollback protection for first firewall apply)
 
+**Status:** Fixed
+**Branch:** h/security-2
+
 ## Description
 
 The firewall rollback mechanism requires a previous script to exist. On the very first apply to a new host, `host.RollbackScript` is empty and no `hashi-firewall.rollback.sh` is written. If SSH is lost during the very first firewall apply, the host becomes unreachable with no recovery path. The spec explicitly requires rollback protection for first apply because losing NetBird access can also mean losing the rescue path.

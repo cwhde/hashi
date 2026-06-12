@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { api, ApiRequestError } from '$lib/api/client';
-	import type { FirewallHost, PulseAgent, Resource } from '$lib/api/types';
+	import type { FirewallHost, PulseAgent, Resource, SecurityProfile } from '$lib/api/types';
 	import ResourceRoutesEditor from '$lib/components/resources/ResourceRoutesEditor.svelte';
 	import {
 		normalizeRoutes,
@@ -28,6 +28,7 @@
 	let firewallHosts = $state<FirewallHost[]>([]);
 	let pulseAgents = $state<PulseAgent[]>([]);
 	let availableMiddlewares = $state<string[]>([]);
+	let securityProfiles = $state<SecurityProfile[]>([]);
 	let routeDrafts = $state<Record<string, ResourceRouteRequest[]>>({});
 	let ruleDrafts = $state<Record<string, ResourceRuleRequest[]>>({});
 	let wafExclusionDrafts = $state<Record<string, string>>({});
@@ -57,6 +58,9 @@
 		firewallHostId: '',
 		dashboardEnabled: false,
 		statusEnabled: true,
+		adGuardRewriteEnabled: true,
+		explicitRoutingOverride: '',
+		securityProfileName: '',
 		routes: [] as ResourceRouteRequest[],
 		rules: [] as ResourceRuleRequest[]
 	});
@@ -69,11 +73,12 @@
 		loading = true;
 		error = null;
 		try {
-			const [resourceList, hostList, middlewares, agents] = await Promise.all([
+			const [resourceList, hostList, middlewares, agents, profileList] = await Promise.all([
 				api.listResources(),
 				api.listFirewallHosts(),
 				api.getTraefikUserMiddlewares().catch(() => ({ middlewareNames: [] })),
-				api.listPulseAgents().catch(() => [])
+				api.listPulseAgents().catch(() => []),
+				api.listSecurityProfiles().catch(() => [])
 			]);
 			resources = resourceList;
 			routeDrafts = Object.fromEntries(
@@ -87,6 +92,7 @@
 			);
 			firewallHosts = hostList;
 			pulseAgents = agents;
+			securityProfiles = profileList;
 			availableMiddlewares = middlewares.middlewareNames ?? [];
 		} catch (e) {
 			error = e instanceof ApiRequestError ? e.message : 'Failed to load resources';
@@ -125,7 +131,10 @@
 				pathRewriteMode: form.pathRewriteMode || null,
 				pathRewrite: form.pathRewriteMode ? form.pathRewrite || null : null,
 				routes: form.routes.length > 0 ? normalizeRoutes(form.routes) : null,
-				rules: form.rules.length > 0 ? normalizeRules(form.rules) : null
+				rules: form.rules.length > 0 ? normalizeRules(form.rules) : null,
+				adGuardRewriteEnabled: form.adGuardRewriteEnabled,
+				explicitRoutingOverride: form.explicitRoutingOverride || null,
+				securityProfileName: form.securityProfileName || null
 			});
 			form.name = '';
 			form.domainMode = 'subdomain';
@@ -138,6 +147,9 @@
 			form.pathRewrite = '';
 			form.wafExclusions = '';
 			form.firewallHostId = '';
+			form.adGuardRewriteEnabled = true;
+			form.explicitRoutingOverride = '';
+			form.securityProfileName = '';
 			form.routes = [];
 			form.rules = [];
 			await load();
@@ -158,8 +170,73 @@
 		clearPathRewrite: false,
 		clearExtraMiddlewares: false,
 		clearWafExclusions: false,
-		clearMonitoringProtocolHint: false
+		clearMonitoringProtocolHint: false,
+		clearExplicitRoutingOverride: false,
+		clearSecurityProfileName: false,
+		clearOidcProviderId: false
 	} as const;
+
+	async function updateAdGuardRewrite(resource: Resource, enabled: boolean) {
+		try {
+			await api.updateResource(resource.id, {
+				name: null,
+				enabled: null,
+				domain: null,
+				targetScheme: null,
+				targetHost: null,
+				targetPort: null,
+				dashboardEnabled: null,
+				statusEnabled: null,
+				adGuardRewriteEnabled: enabled,
+				...resourcePatchFlags
+			});
+			await load();
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Failed to update AdGuard sync';
+		}
+	}
+
+	async function updateExplicitRoutingOverride(resource: Resource, overrideVal: string) {
+		try {
+			await api.updateResource(resource.id, {
+				...resourcePatchFlags,
+				name: null,
+				enabled: null,
+				domain: null,
+				targetScheme: null,
+				targetHost: null,
+				targetPort: null,
+				dashboardEnabled: null,
+				statusEnabled: null,
+				explicitRoutingOverride: overrideVal || null,
+				clearExplicitRoutingOverride: !overrideVal
+			});
+			await load();
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Failed to update routing override';
+		}
+	}
+
+	async function updateSecurityProfile(resource: Resource, profileName: string) {
+		try {
+			await api.updateResource(resource.id, {
+				...resourcePatchFlags,
+				name: null,
+				enabled: null,
+				domain: null,
+				targetScheme: null,
+				targetHost: null,
+				targetPort: null,
+				dashboardEnabled: null,
+				statusEnabled: null,
+				securityProfileName: profileName || null,
+				clearSecurityProfileName: !profileName
+			});
+			await load();
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Failed to update security profile';
+		}
+	}
 
 	async function toggleEnabled(resource: Resource) {
 		try {
@@ -570,6 +647,29 @@
 					</select>
 				</div>
 			</div>
+			<div class="grid grid-cols-2 gap-3">
+				<div class="grid gap-1.5">
+					<Label for="res-security-profile">Security profile</Label>
+					<select
+						id="res-security-profile"
+						class="h-9 rounded-md border border-border bg-background px-3 text-sm text-white"
+						bind:value={form.securityProfileName}
+					>
+						<option value="">None (Use below settings)</option>
+						{#each securityProfiles as profile (profile.name)}
+							<option value={profile.name}>{profile.name}</option>
+						{/each}
+					</select>
+				</div>
+				<div class="grid gap-1.5">
+					<Label for="res-routing-override">Explicit routing override</Label>
+					<Input id="res-routing-override" bind:value={form.explicitRoutingOverride} placeholder="e.g. 10.0.0.5 or custom.host" />
+				</div>
+			</div>
+			<div class="flex items-center gap-2 py-1">
+				<Switch bind:checked={form.adGuardRewriteEnabled} id="res-adguard-rewrite" />
+				<Label for="res-adguard-rewrite">Enable AdGuard sync</Label>
+			</div>
 			<div class="grid gap-1.5">
 				<Label for="res-waf-exclusions">WAF exclusions</Label>
 				<textarea
@@ -627,6 +727,9 @@
 							<TableHead>Domain</TableHead>
 							<TableHead>Firewall host</TableHead>
 							<TableHead>Pulse agent</TableHead>
+							<TableHead>Routing override</TableHead>
+							<TableHead>AdGuard sync</TableHead>
+							<TableHead>Security profile</TableHead>
 							<TableHead>Target</TableHead>
 							<TableHead>TCP proxy</TableHead>
 							<TableHead>Monitor hint</TableHead>
@@ -679,6 +782,41 @@
 										<option value="">None</option>
 										{#each pulseAgents as agent (agent.id)}
 											<option value={agent.id}>{agent.name}</option>
+										{/each}
+									</select>
+								</TableCell>
+								<TableCell>
+									<Input
+										class="h-8 max-w-[12rem] text-xs text-white bg-background border-border"
+										value={resource.explicitRoutingOverride ?? ''}
+										onblur={(e) =>
+											updateExplicitRoutingOverride(
+												resource,
+												(e.currentTarget as HTMLInputElement).value
+											)}
+										placeholder="None"
+									/>
+								</TableCell>
+								<TableCell>
+									<Switch
+										checked={resource.adGuardRewriteEnabled !== false}
+										onCheckedChange={(enabled) =>
+											updateAdGuardRewrite(resource, enabled === true)}
+									/>
+								</TableCell>
+								<TableCell>
+									<select
+										class="h-8 max-w-[12rem] rounded-md border border-border bg-background px-2 text-xs text-white"
+										value={resource.securityProfileName ?? ''}
+										onchange={(e) =>
+											updateSecurityProfile(
+												resource,
+												(e.currentTarget as HTMLSelectElement).value
+											)}
+									>
+										<option value="">None</option>
+										{#each securityProfiles as profile (profile.name)}
+											<option value={profile.name}>{profile.name}</option>
 										{/each}
 									</select>
 								</TableCell>

@@ -41,6 +41,8 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
 
     public DbSet<ResourceEntity> Resources => Set<ResourceEntity>();
 
+    public DbSet<SecurityProfileEntity> SecurityProfiles => Set<SecurityProfileEntity>();
+
     public DbSet<ResourceRouteEntity> ResourceRoutes => Set<ResourceRouteEntity>();
 
     public DbSet<ResourceTargetEntity> ResourceTargets => Set<ResourceTargetEntity>();
@@ -355,6 +357,24 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.Property(x => x.PathRewriteMode).HasMaxLength(32);
             entity.Property(x => x.WafExclusionsJson);
             entity.HasIndex(x => x.Slug).IsUnique();
+            entity.Property(x => x.AdGuardRewriteEnabled).HasDefaultValue(true);
+            entity.Property(x => x.ExplicitRoutingOverride).HasMaxLength(256);
+            entity.Property(x => x.SecurityProfileName).HasMaxLength(128);
+            entity.HasOne(x => x.OidcProvider)
+                .WithMany()
+                .HasForeignKey(x => x.OidcProviderId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<SecurityProfileEntity>(entity =>
+        {
+            entity.ToTable("security_profiles");
+            entity.HasKey(x => x.Name);
+            entity.Property(x => x.Name).HasMaxLength(128);
+            entity.Property(x => x.ForwardAuthPolicy).HasMaxLength(32).HasDefaultValue("adaptive");
+            entity.Property(x => x.WafMode).HasMaxLength(32).HasDefaultValue("detect_only");
+            entity.Property(x => x.RateLimitAverage).HasDefaultValue(100);
+            entity.Property(x => x.RateLimitBurst).HasDefaultValue(200);
         });
 
         modelBuilder.Entity<ResourceRouteEntity>(entity =>
@@ -549,9 +569,11 @@ public sealed class HashiDbContext(DbContextOptions<HashiDbContext> options) : D
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Name).HasMaxLength(128);
             entity.Property(x => x.CheckType).HasMaxLength(16);
+            entity.Property(x => x.Group).HasMaxLength(128);
             entity.Property(x => x.Status).HasMaxLength(16);
             entity.Property(x => x.PublicStatusEnabled).HasDefaultValue(false);
             entity.HasIndex(x => x.DnsRecordId);
+            entity.HasIndex(x => x.Group);
         });
 
         modelBuilder.Entity<PulseAgentEntity>(entity =>

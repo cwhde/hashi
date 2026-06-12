@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §25 (Immediate sync after save; Default periodic sync: every hour, immediate sync after save, manual sync button per subsystem and global)
 
+**Status:** Fixed
+**Branch:** h/security-2
+
 ## Description
 
 Settings endpoints, resource CRUD, connection CRUD, and DNS record changes all save data but never trigger a sync. The SyncOrchestratorHostedService only runs on its hourly timer. There is no mechanism to trigger an immediate Plan+Apply after a configuration change. Users must wait up to an hour for changes to propagate.

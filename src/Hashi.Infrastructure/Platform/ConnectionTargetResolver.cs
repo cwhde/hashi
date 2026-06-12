@@ -17,14 +17,45 @@ public sealed record ResolvedConnectionTarget(
     string TargetMode,
     string Status,
     string? Error,
-    string ResolvedHost,
+    string? ResolvedHost,
     string? ResolvedIp,
-    Uri BaseUri,
+    Uri? BaseUri,
     bool IsStale);
 
 public sealed class ConnectionTargetResolver(HashiDbContext db, AuditService audit)
 {
     public static readonly TimeSpan MinimumStaleAfter = TimeSpan.FromMinutes(2);
+
+    public static void ValidateTarget(ConnectionTargetEntity target)
+    {
+        var mode = (target.TargetMode ?? string.Empty).Trim().ToLowerInvariant();
+        switch (mode)
+        {
+            case ConnectionTargetModeNames.PulseAgent:
+                if (target.PulseAgentId is null || target.PulseAgentId == Guid.Empty)
+                {
+                    throw new InvalidOperationException("Pulse agent mode requires a valid PulseAgentId.");
+                }
+                break;
+            case ConnectionTargetModeNames.StaticIp:
+                if (string.IsNullOrWhiteSpace(target.StaticIp))
+                {
+                    throw new InvalidOperationException("Static IP mode requires a valid StaticIp.");
+                }
+                break;
+            case ConnectionTargetModeNames.StaticHost:
+                if (string.IsNullOrWhiteSpace(target.StaticHost))
+                {
+                    throw new InvalidOperationException("Static host mode requires a valid StaticHost.");
+                }
+                break;
+        }
+
+        if (target.Port <= 0 || target.Port > 65535)
+        {
+            throw new InvalidOperationException($"Port must be between 1 and 65535, got {target.Port}.");
+        }
+    }
 
     public async Task<ResolvedConnectionTarget> ResolveAsync(
         ConnectionTargetEntity target,
@@ -117,9 +148,11 @@ public sealed class ConnectionTargetResolver(HashiDbContext db, AuditService aud
 
     public static ConnectionTargetEntity FromAdGuardBaseUrl(AdGuardConnectionEntity connection)
     {
-        var baseUri = Uri.TryCreate(connection.BaseUrl.TrimEnd('/') + "/", UriKind.Absolute, out var parsed)
-            ? parsed
-            : new Uri("http://127.0.0.1/");
+        if (!Uri.TryCreate(connection.BaseUrl.TrimEnd('/') + "/", UriKind.Absolute, out var baseUri))
+        {
+            throw new ArgumentException($"Invalid AdGuard base URL: {connection.BaseUrl}", nameof(connection));
+        }
+
         var host = baseUri.Host;
         var isIp = IPAddress.TryParse(host, out _);
         return new ConnectionTargetEntity
@@ -347,7 +380,7 @@ public sealed class ConnectionTargetResolver(HashiDbContext db, AuditService aud
             {
                 connection.SettingsJson = ApplyResolvedSshTarget(
                     connection.SettingsJson,
-                    resolved.ResolvedHost,
+                    resolved.ResolvedHost ?? string.Empty,
                     tracked.Port);
                 connection.UpdatedAtUtc = DateTimeOffset.UtcNow;
             }
@@ -425,9 +458,9 @@ public sealed class ConnectionTargetResolver(HashiDbContext db, AuditService aud
             NormalizeTargetMode(target.TargetMode),
             ConnectionTargetStatusNames.Failed,
             error,
-            "127.0.0.1",
             null,
-            BuildUri(target, "127.0.0.1"),
+            null,
+            null,
             false);
 
     private static string NormalizeTargetMode(string? mode)

@@ -4,9 +4,12 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** §16 (Clean up duplicate Hashi-managed rewrites on sync)
 
+**Status:** Fixed
+**Branch:** audit-series-h
+
 ## Description
 
-No explicit deduplication of multiple local `AdGuardRewriteEntity` entries for the same domain exists. While upsert operations use `SingleOrDefaultAsync` (which would throw on duplicates), there's no cleanup step in `PlanSyncAsync` that detects/removes duplicate local rows.
+The local table has a unique `(ConnectionId, Domain)` index, so duplicate local rows are prevented by the database. The real operational gap was duplicate remote AdGuard rows for a Hashi-managed domain. Apply now removes remote extras, preserves a row matching desired state when present, and audits the cleanup.
 
 ## Evidence
 
@@ -26,6 +29,6 @@ Duplicate AdGuard rewrite rows should be cleaned up during sync. Only one rewrit
 
 ## Acceptance Criteria
 
-- [ ] Duplicate AdGuard rewrite rows are cleaned up during sync
-- [ ] Only one rewrite per domain exists after cleanup
-- [ ] Cleanup preserves the most recent or most specific rewrite
+- [x] Duplicate AdGuard rewrite rows are cleaned up during sync
+- [x] Only one remote rewrite per Hashi-managed domain exists after cleanup
+- [x] Cleanup preserves the rewrite matching Hashi desired state when present

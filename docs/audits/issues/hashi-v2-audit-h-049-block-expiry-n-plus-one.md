@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Main Spec §4, Addendum §13.3
 
+**Status:** Fixed
+**Branch:** h/security-2
+
 ## Description
 
 `SecurityAddendumJobWorker.ExpireBlocksAsync` in `src/Hashi.Infrastructure/Platform/SecurityAddendumJobWorker.cs` performs N+1 database queries when expiring blocks. For each expired subject, it:

@@ -29,7 +29,8 @@ public sealed class SystemResourceSetupService(
     public async Task<SystemResourceSyncResponse> SyncAsync(CancellationToken cancellationToken = default)
     {
         await EnsureSystemResourceAsync(cancellationToken);
-        var apply = await sync.ApplyGlobalAsync(confirmDestructive: false, cancellationToken);
+        var plan = await sync.PlanGlobalAsync(cancellationToken);
+        var apply = await sync.ApplyGlobalAsync(plan.PlanId, confirmDestructive: false, cancellationToken);
         return new SystemResourceSyncResponse(
             apply.Succeeded,
             apply.RunId,

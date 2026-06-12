@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Addendum §17.3, Main Spec §30
 
+**Status:** Fixed
+**Branch:** h/backend-quality
+
 ## Description
 
 In the main Dockerfile, the `dotnet-build` stage copies the entire `agents/` directory:
@@ -44,7 +47,11 @@ COPY agents/ ./agents/   # ← copies all 6 subdirectories/files including .giti
 
 ## Acceptance Criteria
 
-- [ ] `dotnet-build` stage does not copy the `agents/` directory
-- [ ] Building the Docker image when only Go source changes does not invalidate the .NET build cache
-- [ ] All required runtime files are included through explicit COPY of specific files
-- [ ] Pulse install script inclusion (if needed) is handled separately from the .NET build context
+- [x] `dotnet-build` stage does not copy the `agents/` directory
+- [x] Building the Docker image when only Go source changes does not invalidate the .NET build cache
+- [x] All required runtime files are included through explicit COPY of specific files
+- [x] Pulse install script inclusion (if needed) is handled separately from the .NET build context
+
+## Verification - 2026-06-12
+
+Independent runtime verification found that the earlier fix removed the broad `agents/` copy without replacing the Pulse installer required by `Hashi.Api.csproj`, causing `dotnet publish` to fail in Docker. The Dockerfile now copies only `agents/pulse/install.sh`, and the CI invariant rejects a whole-directory copy. Fresh amd64 and arm64 main image builds pass and contain `/app/content/pulse/install.sh`.

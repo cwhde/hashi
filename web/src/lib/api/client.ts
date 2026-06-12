@@ -99,9 +99,43 @@ async function expectData<T>(response: Response, error: unknown, data: T | undef
 }
 
 async function postUndocumented(path: string, init?: Record<string, unknown>): Promise<UndocumentedJson> {
-	const result = await client.POST(path as never, (init ?? {}) as never);
-	await expectOk(result.response, result.error);
-	return readUndocumentedJson(result.response);
+	const params = init?.params as
+		| { path?: Record<string, string | number>; query?: Record<string, unknown> }
+		| undefined;
+	let resolvedPath = path.replace(/\{([^}]+)\}/g, (_, key: string) => {
+		const value = params?.path?.[key];
+		if (value === undefined) throw new Error(`Missing path parameter: ${key}`);
+		return encodeURIComponent(String(value));
+	});
+	if (params?.query) {
+		const query = new URLSearchParams();
+		for (const [key, value] of Object.entries(params.query)) {
+			if (value !== undefined && value !== null) query.set(key, String(value));
+		}
+		const encoded = query.toString();
+		if (encoded) resolvedPath += `${resolvedPath.includes('?') ? '&' : '?'}${encoded}`;
+	}
+
+	const body = init?.body;
+	const headers = new Headers({ Accept: 'application/json' });
+	if (body !== undefined) headers.set('Content-Type', 'application/json');
+	if (!isCsrfExemptRequest(resolvedPath, 'POST')) {
+		const token = await ensureCsrfToken();
+		if (token) headers.set('X-CSRF-TOKEN', token);
+	}
+	const response = await fetch(resolvedPath, {
+		method: 'POST',
+		credentials: 'include',
+		headers,
+		body: body === undefined ? undefined : JSON.stringify(body)
+	});
+	const parsed = await readUndocumentedJson(response);
+	if (!response.ok) throw errorFromResult(response.status, parsed);
+	return parsed;
+}
+
+async function postJson<T>(path: string, body?: unknown): Promise<T> {
+	return (await postUndocumented(path, body === undefined ? undefined : { body })) as T;
 }
 
 export const api = {
@@ -152,6 +186,10 @@ export const api = {
 		const r = await client.GET('/api/health');
 		return expectData(r.response, r.error, r.data);
 	},
+	getAdminDashboard: async () => {
+		const r = await client.GET('/api/dashboard');
+		return expectData(r.response, r.error, r.data);
+	},
 	getGeneralSettings: async () => {
 		const r = await client.GET('/api/settings/general');
 		return expectData(r.response, r.error, r.data);
@@ -169,9 +207,7 @@ export const api = {
 		return expectData(r.response, r.error, r.data ?? []);
 	},
 	bootstrapLogin: async (username: string, password: string) => {
-		const r = await client.POST('/api/auth/bootstrap/login', { body: { username, password } });
-		if (!r.response.ok) throw errorFromResult(r.response.status, r.error);
-		const body = await readUndocumentedJson(r.response);
+		const body = await postUndocumented('/api/auth/bootstrap/login', { body: { username, password } });
 		return { succeeded: body.succeeded !== false, error: typeof body.error === 'string' ? body.error : null };
 	},
 	getSession: async () => {
@@ -191,17 +227,22 @@ export const api = {
 		postUndocumented('/api/auth/reauthenticate/complete', {
 			body: { assertion, challengeSessionId }
 		}),
-	passkeyRegisterBegin: async (nickname = 'Primary passkey') =>
-		postUndocumented('/api/auth/passkeys/register/begin', { params: { query: { nickname } } }),
+	passkeyRegisterBegin: async (nickname = 'Primary passkey') => {
+		const query = new URLSearchParams({ nickname });
+		return postJson<{ options: Record<string, unknown>; challengeSessionId: string }>(
+			`/api/auth/passkeys/register/begin?${query}`
+		);
+	},
 	passkeyRegisterComplete: async (
 		attestation: Record<string, unknown>,
 		challengeSessionId: string,
 		nickname = 'Primary passkey',
 		clientReportsPrfSupported = false
 	) => {
-		const body = await postUndocumented('/api/auth/passkeys/register/complete', {
-			body: { attestation, challengeSessionId, nickname, clientReportsPrfSupported }
-		});
+		const body = await postJson<{ credentialId: string; prfSupported: boolean }>(
+			'/api/auth/passkeys/register/complete',
+			{ attestation, challengeSessionId, nickname, clientReportsPrfSupported }
+		);
 		return { credentialId: String(body.credentialId ?? ''), prfSupported: body.prfSupported === true };
 	},
 	passkeyLoginBegin: async () => postUndocumented('/api/auth/passkeys/login/begin'),
@@ -278,6 +319,12 @@ export const api = {
 			params: { path: { connectionId } }
 		});
 		return expectData(r.response, r.error, r.data);
+	},
+	getDnsConnectionCapabilities: async (connectionId: string) => {
+		const r = await client.GET('/api/dns/connections/{connectionId}/capabilities' as never, {
+			params: { path: { connectionId } }
+		} as never);
+		return expectData(r.response, r.error, r.data) as unknown as Promise<import('./types.js').DnsProviderCapabilities>;
 	},
 	applyDnsPrune: (connectionId: string) =>
 		postUndocumented('/api/dns/connections/{connectionId}/prune/apply', {
@@ -539,11 +586,10 @@ export const api = {
 		return (await expectData(r.response, r.error, r.data)) as unknown as import('./types.js').CaptchaChallengeStatus;
 	},
 	verifyCaptchaChallenge: async (token: string, returnUrl?: string | null) => {
-		const r = await client.POST('/api/edge-challenge/verify' as never, {
-			body: { token, returnUrl: returnUrl ?? null }
-		} as never);
-		if (!r.response.ok) throw errorFromResult(r.response.status, r.error);
-		return (await readUndocumentedJson(r.response)) as import('./types.js').CaptchaChallengeVerifyResult;
+		return postJson<import('./types.js').CaptchaChallengeVerifyResult>(
+			'/api/edge-challenge/verify',
+			{ token, returnUrl: returnUrl ?? null }
+		);
 	},
 	getInternalAgentDnsSettings: async () => {
 		const r = await client.GET('/api/settings/internal-agent-dns/' as never);
@@ -571,7 +617,8 @@ export const api = {
 			issuer: String(result.issuer ?? body.issuer),
 			clientId: String(result.clientId ?? body.clientId),
 			scopes: String(result.scopes ?? body.scopes ?? ''),
-			enabled: result.enabled !== false
+			enabled: result.enabled !== false,
+			isDefault: result.isDefault === true || body.isDefault === true
 		} satisfies import('./types.js').OidcProvider;
 	},
 	getSecurityDashboard: async (params?: {
@@ -717,6 +764,18 @@ export const api = {
 			error: typeof body.error === 'string' ? body.error : null
 		} as import('./types.js').TelegramChatDiscoveryResponse;
 	},
+	discoverDiscordChannel: async (botToken: string) => {
+		const body = await postUndocumented('/api/settings/notifications/discord/discover-channel', {
+			body: { botToken }
+		});
+		return {
+			found: body.found === true,
+			channelId: typeof body.channelId === 'string' ? body.channelId : null,
+			channelName: typeof body.channelName === 'string' ? body.channelName : null,
+			userId: typeof body.userId === 'string' ? body.userId : null,
+			error: typeof body.error === 'string' ? body.error : null
+		} as import('./types.js').DiscordChannelDiscoveryResponse;
+	},
 	deleteNotificationProvider: async (providerId: string) => {
 		const r = await client.DELETE('/api/settings/notifications/providers/{providerId}', {
 			params: { path: { providerId } }
@@ -765,9 +824,9 @@ export const api = {
 		const body = await postUndocumented('/api/sync/plan');
 		return body as import('./types.js').SyncPlanPreview;
 	},
-	applyGlobalSync: async (confirmDestructive: boolean) => {
+	applyGlobalSync: async (planId: string, confirmDestructive: boolean) => {
 		const body = await postUndocumented('/api/sync/apply', {
-			body: { confirmDestructive }
+			body: { planId, confirmDestructive }
 		});
 		return {
 			runId: String(body.runId ?? ''),
@@ -824,5 +883,22 @@ export const api = {
 			params: { path: { connectionId, rewriteId } }
 		});
 		return expectData(r.response, r.error, r.data);
+	},
+
+	listSecurityProfiles: async () => {
+		const r = await client.GET('/api/security/profiles');
+		return expectData(r.response, r.error, r.data ?? []);
+	},
+	createSecurityProfile: async (body: import('./types.js').CreateSecurityProfileRequest) => {
+		const r = await client.POST('/api/security/profiles', { body });
+		return expectData(r.response, r.error, r.data);
+	},
+	updateSecurityProfile: async (name: string, body: import('./types.js').UpdateSecurityProfileRequest) => {
+		const r = await client.PUT('/api/security/profiles/{name}', { params: { path: { name } }, body });
+		return expectData(r.response, r.error, r.data);
+	},
+	deleteSecurityProfile: async (name: string) => {
+		const r = await client.DELETE('/api/security/profiles/{name}', { params: { path: { name } } });
+		if (!r.response.ok) throw errorFromResult(r.response.status, r.error);
 	}
 };

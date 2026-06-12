@@ -26,6 +26,16 @@ require_literal() {
   fi
 }
 
+reject_literal() {
+  local file="$1"
+  local needle="$2"
+  local description="$3"
+
+  if grep -Fq -- "$needle" "$file"; then
+    fail "${description} (${file})"
+  fi
+}
+
 main_dockerfile="deploy/docker/Dockerfile"
 pulse_dockerfile="agents/pulse/Dockerfile"
 legacy_dockerfile="hashi.old/docker/Dockerfile"
@@ -38,6 +48,8 @@ require_literal "$main_dockerfile" 'hashi-pnpm-store' 'main Dockerfile must cach
 require_literal "$main_dockerfile" 'hashi-nuget' 'main Dockerfile must cache NuGet packages'
 require_literal "$main_dockerfile" 'linux-arm64' 'main Dockerfile must map arm64 to a .NET runtime identifier'
 require_literal "$main_dockerfile" 'linux-x64' 'main Dockerfile must map amd64 to a .NET runtime identifier'
+require_literal "$main_dockerfile" 'COPY agents/pulse/install.sh ./agents/pulse/install.sh' 'main Dockerfile must include the Pulse installer required by publish'
+reject_literal "$main_dockerfile" 'COPY agents/ ./agents/' 'main Dockerfile must not copy the entire agents directory'
 
 require_literal "$pulse_dockerfile" 'FROM --platform=$BUILDPLATFORM golang:' 'Pulse Dockerfile must pin Go build stage to BUILDPLATFORM'
 require_literal "$pulse_dockerfile" 'ARG TARGETOS' 'Pulse Dockerfile must declare TARGETOS'
@@ -53,6 +65,7 @@ require_literal '.gitea/workflows/ci.yml' 'actions/cache@v3' 'CI workflow must i
 require_literal '.gitea/workflows/ci.yml' '~/.nuget/packages' 'CI workflow must cache NuGet packages'
 require_literal '.gitea/workflows/ci.yml' 'pnpm store path' 'CI workflow must cache pnpm store'
 require_literal '.gitea/workflows/ci.yml' '~/.cache/go-build' 'CI workflow must cache Go build data'
+require_literal '.gitea/workflows/ci.yml' "hashFiles('agents/pulse/go.mod')" 'CI Go cache key must use the existing module manifest'
 require_literal '.gitea/workflows/ci.yml' '~/.cache/ms-playwright' 'CI workflow must cache Playwright browsers'
 require_literal '.gitea/workflows/ci.yml' 'shellcheck-' 'CI workflow must cache ShellCheck'
 require_literal '.gitea/workflows/security.yml' 'actions/cache@v3' 'security workflow must include dependency/tool cache steps'
@@ -64,6 +77,7 @@ require_literal '.gitea/workflows/docker-build-pulse.yml' 'platforms: linux/amd6
 require_literal '.gitea/workflows/docker-build-old.yml' 'platforms: linux/amd64,linux/arm64' 'legacy image build must remain multi-arch'
 require_literal '.gitea/workflows/docker-build.yml' 'cache-from: type=registry' 'main image build must keep registry cache'
 require_literal '.gitea/workflows/docker-build-pulse.yml' 'cache-from: type=registry' 'Pulse image build must keep registry cache'
+require_literal '.gitea/workflows/docker-build-pulse.yml' "hashFiles('agents/pulse/go.mod')" 'Pulse release cache key must use the existing module manifest'
 require_literal '.gitea/workflows/docker-build-old.yml' 'cache-from: type=registry' 'legacy image build must keep registry cache'
 
 printf 'CI optimization invariants validated.\n'

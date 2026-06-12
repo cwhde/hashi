@@ -1,20 +1,16 @@
 using Hashi.Infrastructure.Crypto;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace Hashi.Infrastructure.Auth;
 
 public sealed class ServiceSyncVaultBootstrapper(
-    IConfiguration configuration,
     ServiceSyncVaultState serviceSync,
     ILogger<ServiceSyncVaultBootstrapper> logger) : IHostedService
 {
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        var configured = configuration["Hashi:ServiceSyncVaultKey"]
-            ?? configuration["HASHI_SERVICE_SYNC_VAULT_KEY"]
-            ?? Environment.GetEnvironmentVariable("HASHI_SERVICE_SYNC_VAULT_KEY");
+        var configured = Environment.GetEnvironmentVariable("HASHI_SERVICE_SYNC_VAULT_KEY");
 
         if (string.IsNullOrWhiteSpace(configured))
         {
@@ -33,7 +29,7 @@ public sealed class ServiceSyncVaultBootstrapper(
 
             var wrapKey = KeyDerivation.DeriveServiceSyncWrapKey(secretBytes);
             serviceSync.Initialize(wrapKey);
-            logger.LogInformation("Service-sync vault key loaded from configuration.");
+            logger.LogInformation("Service-sync vault key loaded from the process environment.");
         }
         catch (FormatException ex)
         {

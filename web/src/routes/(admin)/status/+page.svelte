@@ -229,6 +229,16 @@
 			savingPublicId = null;
 		}
 	}
+
+	async function togglePaused(endpoint: MonitorEndpoint, checked: boolean) {
+		error = null;
+		try {
+			const updated = await api.updateStatusEndpoint(endpoint.id, { paused: checked });
+			endpoints = endpoints.map((item) => (item.id === endpoint.id ? updated : item));
+		} catch (e) {
+			error = e instanceof ApiRequestError ? e.message : 'Failed to update paused status';
+		}
+	}
 </script>
 
 <AdminSectionPage
@@ -323,6 +333,7 @@
 									<TableHead>60 min</TableHead>
 									<TableHead>Status</TableHead>
 									<TableHead>Public</TableHead>
+									<TableHead>Paused</TableHead>
 									<TableHead>Latency</TableHead>
 									<TableHead>Uptime</TableHead>
 									<TableHead>Last event</TableHead>
@@ -355,6 +366,13 @@
 												disabled={savingPublicId === endpoint.id}
 												onclick={(event) => event.stopPropagation()}
 												onCheckedChange={(checked) => void togglePublicStatus(endpoint, checked)}
+											/>
+										</TableCell>
+										<TableCell>
+											<Switch
+												checked={endpoint.status === 'Paused'}
+												onclick={(event) => event.stopPropagation()}
+												onCheckedChange={(checked) => void togglePaused(endpoint, checked)}
 											/>
 										</TableCell>
 										<TableCell>{formatLatency(endpoint.lastLatencyMs)}</TableCell>
@@ -410,6 +428,13 @@
 								checked={selectedEndpoint.publicStatusEnabled}
 								disabled={savingPublicId === selectedEndpoint.id}
 								onCheckedChange={(checked) => void togglePublicStatus(selectedEndpoint, checked)}
+							/>
+						</div>
+						<div class="flex items-center justify-between gap-3 rounded-md border border-border/70 px-3 py-2">
+							<span class="text-muted-foreground">Paused</span>
+							<Switch
+								checked={selectedEndpoint.status === 'Paused'}
+								onCheckedChange={(checked) => void togglePaused(selectedEndpoint, checked)}
 							/>
 						</div>
 					</div>

@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Main Spec §30 (CI/CD), Addendum §17.3
 
+**Status:** Fixed
+**Branch:** h/security-1
+
 ## Description
 
 Multiple build targets use `pnpm install` with `--no-frozen-lockfile` or fallback logic that ignores the lockfile, producing non-reproducible builds:

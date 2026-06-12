@@ -52,7 +52,8 @@ public interface ISshRemoteExecutor
         string password,
         string remotePath,
         ReadOnlyMemory<byte> content,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        string? remoteValidationCommand = null);
 
     Task<RemoteWriteResult> WriteAtomicWithPrivateKeyAsync(
         SshConnectionSettings settings,
@@ -60,7 +61,8 @@ public interface ISshRemoteExecutor
         string? passphrase,
         string remotePath,
         ReadOnlyMemory<byte> content,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        string? remoteValidationCommand = null);
 
     Task<RemoteReadResult> ReadFileAsync(
         SshConnectionSettings settings,

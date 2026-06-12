@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** §22 (Default assets can be fetched from https://static.juzo.io/)
 
+**Status:** Fixed
+**Branch:** audit-series-h
+
 ## Description
 
 No references to `static.juzo.io` exist in the V2 codebase. The spec requires icons, logos, and backgrounds from this CDN. The NavRail uses a letter "H" instead of an icon image.
@@ -27,6 +30,6 @@ Logo and favicon should reference `static.juzo.io` URLs. NavRail should show a l
 
 ## Acceptance Criteria
 
-- [ ] Logo and favicon reference static.juzo.io URLs
-- [ ] NavRail shows logo image instead of letter
-- [ ] Assets are cached locally after first fetch
+- [x] Logo and favicon reference static.juzo.io URLs
+- [x] NavRail shows logo image instead of letter
+- [x] Assets are cached locally after first fetch

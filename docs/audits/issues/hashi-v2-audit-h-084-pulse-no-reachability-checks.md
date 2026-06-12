@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** §17.3 (Server records reachability check results)
 
+**Status:** Fixed
+**Branch:** audit-series-h
+
 ## Description
 
 The spec mentions "reachability check results" for heartbeat data. There is no code that verifies the reported IPs are reachable from the Hashi server. The agent reports IPs and the server accepts them without validation.

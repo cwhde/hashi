@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §17.4, Addendum §9.4
 
+**Status:** Fixed
+**Branch:** audit-series-h
+
 ## Description
 
 When a Pulse agent's IP changes, `AcceptHeartbeatAsync` triggers DNS provider sync via `ApplyDnsForPulseChangeAsync`, but does NOT trigger AdGuard topology rewrite sync. The AdGuard topology rewrites use the agent's last known IP, but the IP change doesn't automatically push updated rewrites to AdGuard. This means internal DNS rewrites can become stale until the next periodic AdGuard sync.

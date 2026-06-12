@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Main Spec §4, §10
 
+**Status:** Fixed
+**Branch:** h/backend-quality
+
 ## Description
 
 Both `TraefikConfigValidator` (`src/Hashi.Core/Traefik/TraefikConfigValidator.cs`) and `TraefikUserMiddlewareParser` (`src/Hashi.Core/Traefik/TraefikUserMiddlewareParser.cs`) contain identical implementations of `TryGetMapping` and `TryGetNode` methods:

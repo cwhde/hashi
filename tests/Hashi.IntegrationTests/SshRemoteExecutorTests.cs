@@ -109,6 +109,52 @@ public sealed class SshRemoteExecutorTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task WriteAtomic_validation_failure_keeps_existing_file_and_removes_temp_file()
+    {
+        if (_sshUnavailable)
+        {
+            return;
+        }
+
+        var settings = CreateSettings();
+        const string remotePath = "/config/hashi-validation-test.txt";
+        var initial = await _executor.WriteAtomicAsync(
+            settings,
+            Password,
+            remotePath,
+            Encoding.UTF8.GetBytes("original"));
+        Assert.True(initial.Succeeded, initial.Error);
+
+        var rejected = await _executor.WriteAtomicAsync(
+            settings,
+            Password,
+            remotePath,
+            Encoding.UTF8.GetBytes("rejected"),
+            remoteValidationCommand: "grep -q '^accepted$' {path}");
+
+        Assert.False(rejected.Succeeded);
+        Assert.Contains("Remote validation failed", rejected.Error, StringComparison.OrdinalIgnoreCase);
+        var read = await _executor.ReadFileAsync(
+            settings,
+            "password",
+            Password,
+            null,
+            null,
+            remotePath);
+        Assert.True(read.Succeeded, read.Error);
+        Assert.Equal("original", Encoding.UTF8.GetString(read.Content!));
+
+        var temp = await _executor.ReadFileAsync(
+            settings,
+            "password",
+            Password,
+            null,
+            null,
+            remotePath + ".hashi.tmp");
+        Assert.False(temp.Succeeded);
+    }
+
+    [Fact]
     public async Task Validate_with_encrypted_private_key_succeeds()
     {
         if (_sshUnavailable)

@@ -4,6 +4,9 @@
 **Conflict Type:** wrong_implementation
 **Spec Reference:** Main Spec §6 (GeoIP rules become invalid with clear validation error and cannot be enabled when GeoIP unavailable)
 
+**Status:** Fixed
+**Branch:** h/security-2
+
 ## Description
 
 When GeoIP is unavailable, Country/Region/ASN match types simply fail to match (return false) in `SecurityDecisionService.MatchesResourceRule()`. This means rules meant to deny access are silently bypassed. The spec explicitly states that GeoIP-dependent rules must become invalid with a clear validation error and cannot be enabled when the GeoIP database is unavailable. Current behavior is fail-open for security rules, which is dangerous.

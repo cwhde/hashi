@@ -10,6 +10,8 @@ public sealed class AppSettingsEntity
 
     public string? InternalUrl { get; set; }
 
+    public string InternalScheme { get; set; } = "http";
+
     public int DefaultSyncIntervalMinutes { get; set; } = 60;
 
     public bool PublicDashboardEnabled { get; set; } = true;
@@ -19,6 +21,8 @@ public sealed class AppSettingsEntity
     public string Theme { get; set; } = "dark";
 
     public string? AcmeEmail { get; set; }
+
+    public string AcmeProvider { get; set; } = "gts";
 
     public Guid? AcmeEabSecretId { get; set; }
 
@@ -42,11 +46,15 @@ public sealed class AppSettingsEntity
 
     public int EdgeSsoRememberDeviceDays { get; set; } = 30;
 
+    public int AdminSessionMinutes { get; set; } = 480;
+
     public string OverviewWidgetsJson { get; set; } = "{}";
 
     public string SettingsCategoriesJson { get; set; } = "{}";
 
     public bool GeoIpEnabled { get; set; }
+
+    public bool ErrorHandlingEnabled { get; set; } = true;
 
     public string? GeoIpAccountId { get; set; }
 

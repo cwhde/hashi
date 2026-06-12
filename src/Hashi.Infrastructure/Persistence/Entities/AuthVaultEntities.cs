@@ -6,6 +6,8 @@ public sealed class PasskeyCredentialEntity
 
     public byte[] CredentialId { get; set; } = [];
 
+    public string CredentialIdBase64 { get; set; } = string.Empty;
+
     public byte[] PublicKey { get; set; } = [];
 
     public uint SignCount { get; set; }
@@ -24,6 +26,8 @@ public sealed class VaultWrappedKeyEntity
     public Guid Id { get; set; } = Guid.NewGuid();
 
     public string WrapMethod { get; set; } = string.Empty;
+
+    public string? PurposeTag { get; set; }
 
     public byte[] WrappedKeyBlob { get; set; } = [];
 
@@ -44,9 +48,15 @@ public sealed class SecretRecordEntity
 
     public string Label { get; set; } = string.Empty;
 
+    public string SecretClass { get; set; } = SecretClassNames.ServiceSync;
+
+    public string? PurposeKeyTag { get; set; }
+
     public byte[] AdminWrappedDekBlob { get; set; } = [];
 
     public byte[]? ServiceWrappedDekBlob { get; set; }
+
+    public byte[]? PurposeWrappedDekBlob { get; set; }
 
     public bool IsServiceSyncEligible { get; set; }
 
@@ -55,6 +65,27 @@ public sealed class SecretRecordEntity
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 
     public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public static class SecretClassNames
+{
+    public const string SessionUnlocked = "session_unlocked";
+    public const string ServiceSync = "service_sync";
+    public const string ServerOperational = "server_operational";
+}
+
+public static class SecretPurposeKeyNames
+{
+    public const string Ssh = "ssh";
+    public const string Dns = "dns";
+    public const string Oidc = "oidc";
+    public const string Acme = "acme";
+    public const string AdGuard = "adguard";
+    public const string Notification = "notification";
+    public const string Cap = "cap";
+    public const string MaxMind = "maxmind";
+    public const string Script = "script";
+    public const string Generic = "generic";
 }
 
 public static class VaultWrapMethodNames

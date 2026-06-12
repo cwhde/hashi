@@ -1,10 +1,25 @@
 using Hashi.Api.Features.Auth;
+using Hashi.Api.Features.Platform;
 using Hashi.Api.Features.Connections;
 using Hashi.Api.Features.Dns;
 using Hashi.Api.Features.Resources;
 using Hashi.Api.Features.Setup;
 using Hashi.Api.Features.Sync;
 using Hashi.Api.Features.Vault;
+using Hashi.Api.Features.Traefik;
+using Hashi.Api.Features.Firewall;
+using Hashi.Api.Features.Status;
+using Hashi.Api.Features.Public;
+using Hashi.Api.Features.EdgeAuth;
+using Hashi.Api.Features.EdgeChallenge;
+using Hashi.Api.Features.EdgeSsoAdmin;
+using Hashi.Api.Features.Security;
+using Hashi.Api.Features.Pulse;
+using Hashi.Api.Features.InternalAgentDns;
+using Hashi.Api.Features.Script;
+using Hashi.Api.Features.Notification;
+using Hashi.Api.Features.AdGuard;
+using Hashi.Api.Features.Waf;
 using Hashi.Api.Hosting;
 using Hashi.Core.Hosting;
 using Hashi.Infrastructure;
@@ -61,8 +76,10 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.Cookie.Name = "hashi.session";
         options.Cookie.HttpOnly = true;
         options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        options.Cookie.SameSite = SameSiteMode.Strict;
         options.SlidingExpiration = true;
-        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        var sessionMinutes = builder.Configuration.GetValue<int?>("Hashi:AdminSessionMinutes") ?? 480;
+        options.ExpireTimeSpan = TimeSpan.FromMinutes(Math.Clamp(sessionMinutes, 5, 1440));
     });
 builder.Services.AddAuthorization();
 builder.Services.AddCors(options =>
@@ -86,6 +103,7 @@ builder.Services.AddAntiforgery(options =>
     options.Cookie.Name = "hashi.csrf";
     options.Cookie.HttpOnly = true;
     options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.Strict;
 });
 
 var app = builder.Build();
@@ -120,6 +138,8 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 
 app.MapHealthEndpoints();
+app.MapErrorEndpoints();
+app.MapDashboardEndpoints();
 app.MapSetupEndpoints();
 app.MapSetupAdvanceEndpoints();
 app.MapSetupCompletionEndpoints();
@@ -137,6 +157,7 @@ app.MapEdgeAuthEndpoints();
 app.MapEdgeChallengeEndpoints();
 app.MapEdgeSsoAdminEndpoints();
 app.MapSecurityEndpoints();
+app.MapSecuritySubjectEndpoints();
 app.MapPulseEndpoints();
 app.MapInternalAgentDnsEndpoints();
 app.MapScriptEndpoints();

@@ -19,6 +19,7 @@ public sealed record ResourceResponse(
     bool DashboardEnabled,
     bool StatusEnabled,
     Guid? FirewallHostId,
+    Guid? DetectedFirewallHostId,
     Guid? PulseAgentId,
     string? PathPrefix,
     string? PathRewriteMode,
@@ -28,7 +29,12 @@ public sealed record ResourceResponse(
     IReadOnlyList<string> ExtraMiddlewares,
     IReadOnlyList<ResourceRouteResponse> Routes,
     IReadOnlyList<ResourceRuleResponse> Rules,
-    IReadOnlyList<string> WafExclusions);
+    IReadOnlyList<string> WafExclusions,
+    Guid? OidcProviderId = null,
+    bool ErrorHandlingEnabled = true,
+    bool AdGuardRewriteEnabled = true,
+    string? ExplicitRoutingOverride = null,
+    string? SecurityProfileName = null);
 
 public sealed record ResourceRouteResponse(
     Guid Id,
@@ -93,7 +99,12 @@ public sealed record CreateResourceRequest(
     IReadOnlyList<ResourceRuleRequest>? Rules = null,
     IReadOnlyList<string>? WafExclusions = null,
     string? DomainMode = null,
-    string? PathRewriteMode = null);
+    string? PathRewriteMode = null,
+    Guid? OidcProviderId = null,
+    bool? ErrorHandlingEnabled = null,
+    bool AdGuardRewriteEnabled = true,
+    string? ExplicitRoutingOverride = null,
+    string? SecurityProfileName = null);
 
 public sealed record UpdateResourceRequest(
     string? Name,
@@ -128,7 +139,15 @@ public sealed record UpdateResourceRequest(
     IReadOnlyList<ResourceRouteRequest>? Routes = null,
     IReadOnlyList<ResourceRuleRequest>? Rules = null,
     IReadOnlyList<string>? WafExclusions = null,
-    bool ClearWafExclusions = false);
+    bool ClearWafExclusions = false,
+    Guid? OidcProviderId = null,
+    bool ClearOidcProviderId = false,
+    bool? ErrorHandlingEnabled = null,
+    bool? AdGuardRewriteEnabled = null,
+    string? ExplicitRoutingOverride = null,
+    bool ClearExplicitRoutingOverride = false,
+    string? SecurityProfileName = null,
+    bool ClearSecurityProfileName = false);
 
 public sealed record TraefikDynamicFilesResponse(
     string CoreYaml,
@@ -175,7 +194,8 @@ public sealed record TraefikEntryPointResponse(
     Guid? ResourceId,
     string? Label,
     bool Confirmed,
-    DateTimeOffset? ConfirmedAtUtc);
+    DateTimeOffset? ConfirmedAtUtc,
+    bool PendingRemoval);
 
 public sealed record CertificateSetupRequest(
     string AcmeEmail,
@@ -253,12 +273,21 @@ public sealed record FirewallApplyRequest(
     string AuthMode,
     string? Password,
     string? PrivateKeyPem,
-    string? PrivateKeyPassphrase);
+    string? PrivateKeyPassphrase,
+    bool AcknowledgeSshBlockRisk = false);
 
 public sealed record FirewallPlanChangeResponse(
     string Kind,
     string ResourceKey,
     string Summary);
+
+public sealed record DnsProviderCapabilitiesResponse(
+    IReadOnlyList<string> SupportedRecordTypes,
+    bool SupportsBatchOperations,
+    int? MaxRecordsPerZone,
+    bool SupportsComments,
+    int? RateLimitLimit,
+    int? RateLimitWindowSeconds);
 
 public sealed record FirewallPlanPreviewResponse(
     Guid PlanId,
@@ -266,7 +295,9 @@ public sealed record FirewallPlanPreviewResponse(
     string ScriptHash,
     bool HasChanges,
     IReadOnlyList<FirewallPlanChangeResponse> Changes,
-    string Preview);
+    string Preview,
+    bool SshBlockRisk = false,
+    string? SshBlockWarningMessage = null);
 
 public sealed record FirewallApplyResponse(
     bool Succeeded,
@@ -347,6 +378,7 @@ public sealed record PublicStatusItemResponse(
     string Name,
     string Status,
     int? LastLatencyMs,
+    DateTimeOffset? LastCheckedAtUtc,
     IReadOnlyList<PublicStatusStripBucket> RecentStrip);
 
 public sealed record PublicStatusSummaryResponse(
@@ -411,7 +443,8 @@ public sealed record OidcProviderResponse(
     string Issuer,
     string ClientId,
     string Scopes,
-    bool Enabled);
+    bool Enabled,
+    bool IsDefault);
 
 public sealed record CreateOidcProviderRequest(
     string Name,
@@ -419,7 +452,8 @@ public sealed record CreateOidcProviderRequest(
     string ClientId,
     string ClientSecret,
     string? Scopes,
-    bool Enabled);
+    bool Enabled,
+    bool IsDefault = false);
 
 public sealed record UpdateOidcProviderRequest(
     string? Name,
@@ -427,7 +461,8 @@ public sealed record UpdateOidcProviderRequest(
     string? ClientId,
     string? ClientSecret,
     string? Scopes,
-    bool? Enabled);
+    bool? Enabled,
+    bool? IsDefault = null);
 
 public sealed record EdgeAuthRuleResponse(
     Guid Id,
@@ -489,7 +524,8 @@ public sealed record UpdateMonitorEndpointRequest(
     string? Url = null,
     string? CheckType = null,
     bool? Enabled = null,
-    bool? PublicStatusEnabled = null);
+    bool? PublicStatusEnabled = null,
+    bool? Paused = null);
 
 public sealed record PulseInstallResponse(string LinuxInstallScript, string DockerComposeSnippet);
 
@@ -1127,6 +1163,7 @@ public sealed record ScriptResponse(
     string Name,
     bool Enabled,
     string Description,
+    string Body,
     string CronExpression,
     int RunTimeoutSeconds,
     DateTimeOffset? LastRunAtUtc,
@@ -1137,7 +1174,7 @@ public sealed record ScriptResponse(
     IReadOnlyList<ScriptTargetResponse> Targets,
     IReadOnlyList<ScriptEnvironmentVariableResponse> EnvironmentVariables);
 
-public sealed record ScriptTargetResponse(Guid Id, Guid ConnectionId, bool Enabled);
+public sealed record ScriptTargetResponse(Guid Id, Guid ConnectionId, string ConnectionName, bool Enabled);
 
 public sealed record ScriptEnvironmentVariableResponse(Guid Id, string Name, bool IsSecret, Guid? SecretId);
 
@@ -1187,6 +1224,15 @@ public sealed record TelegramChatDiscoveryResponse(
     bool Found,
     string? ChatId,
     string? ChatTitle,
+    string? Error);
+
+public sealed record DiscordChannelDiscoveryRequest(string BotToken);
+
+public sealed record DiscordChannelDiscoveryResponse(
+    bool Found,
+    string? ChannelId,
+    string? ChannelName,
+    string? UserId,
     string? Error);
 
 public sealed record SendNotificationRequest(string Subject, string Body, IReadOnlyList<string> ProviderTypes);
@@ -1325,3 +1371,34 @@ public sealed record PulseHeartbeatAuthRequest(
     string? SelectedIp,
     DateTimeOffset Timestamp,
     PulseDockerMetadataRequest? Docker);
+
+public sealed record SecurityProfileResponse(
+    string Name,
+    string ForwardAuthPolicy,
+    string WafMode,
+    int RateLimitAverage,
+    int RateLimitBurst);
+
+public sealed record CreateSecurityProfileRequest(
+    string Name,
+    string ForwardAuthPolicy,
+    string WafMode,
+    int RateLimitAverage,
+    int RateLimitBurst);
+
+public sealed record UpdateSecurityProfileRequest(
+    string ForwardAuthPolicy,
+    string WafMode,
+    int RateLimitAverage,
+    int RateLimitBurst);
+
+public sealed record AdminDashboardResponse(
+    IReadOnlyList<AuditEventResponse> AuditEvents,
+    HealthResponse Health,
+    VaultStatusResponse Vault,
+    IReadOnlyList<ResourceResponse> Resources,
+    IReadOnlyList<MonitorEndpointResponse> Monitors,
+    SecurityDashboardResponse Security,
+    IReadOnlyList<ConnectionSummaryResponse> DnsConnections,
+    IReadOnlyList<PulseAgentResponse> PulseAgents,
+    IReadOnlyList<SyncRunResponse> SyncRuns);

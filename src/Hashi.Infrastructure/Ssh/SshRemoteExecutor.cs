@@ -26,9 +26,15 @@ public sealed class SshRemoteExecutor : ISshRemoteExecutor
         string password,
         string remotePath,
         ReadOnlyMemory<byte> content,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? remoteValidationCommand = null)
         => Task.Run(
-            () => WriteAtomicCore(settings, () => SshConnectionHelper.CreatePasswordClient(settings, password), remotePath, content),
+            () => WriteAtomicCore(
+                settings,
+                () => SshConnectionHelper.CreatePasswordClient(settings, password),
+                remotePath,
+                content,
+                remoteValidationCommand),
             cancellationToken);
 
     public Task<RemoteWriteResult> WriteAtomicWithPrivateKeyAsync(
@@ -37,13 +43,15 @@ public sealed class SshRemoteExecutor : ISshRemoteExecutor
         string? passphrase,
         string remotePath,
         ReadOnlyMemory<byte> content,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? remoteValidationCommand = null)
         => Task.Run(
             () => WriteAtomicCore(
                 settings,
                 () => SshConnectionHelper.CreatePrivateKeyClient(settings, privateKeyPem, passphrase),
                 remotePath,
-                content),
+                content,
+                remoteValidationCommand),
             cancellationToken);
 
     public Task<RemoteReadResult> ReadFileAsync(
@@ -115,7 +123,9 @@ public sealed class SshRemoteExecutor : ISshRemoteExecutor
         SshConnectionSettings settings,
         Func<SshClient> createClient,
         string remotePath,
-        ReadOnlyMemory<byte> content)
+        ReadOnlyMemory<byte> content,
+        string? remoteValidationCommand = null,
+        Func<ReadOnlyMemory<byte>, (bool IsValid, string? Error)>? validateContent = null)
     {
         if (string.IsNullOrWhiteSpace(remotePath))
         {
@@ -146,6 +156,48 @@ public sealed class SshRemoteExecutor : ISshRemoteExecutor
             using (var stream = sftp.OpenWrite(tempPath))
             {
                 stream.Write(content.Span);
+            }
+
+            if (sftp.Exists(tempPath))
+            {
+                using var tempStream = sftp.OpenRead(tempPath);
+                using var tempMs = new MemoryStream();
+                tempStream.CopyTo(tempMs);
+                var tempBytes = tempMs.ToArray();
+                var writtenHash = Convert.ToHexString(SHA256.HashData(tempBytes));
+                var expectedHash = Convert.ToHexString(SHA256.HashData(content.Span));
+                if (!string.Equals(writtenHash, expectedHash, StringComparison.OrdinalIgnoreCase))
+                {
+                    SshConnectionHelper.RunCommand(client, $"rm -f {ShellQuote(tempPath)}");
+                    return new RemoteWriteResult(false, remotePath, $"Content hash mismatch after write: expected {expectedHash}, got {writtenHash}.");
+                }
+
+                if (validateContent is not null)
+                {
+                    var (isValid, validationError) = validateContent(tempBytes);
+                    if (!isValid)
+                    {
+                        SshConnectionHelper.RunCommand(client, $"rm -f {ShellQuote(tempPath)}");
+                        return new RemoteWriteResult(false, remotePath, validationError ?? "Content validation failed before atomic move.");
+                    }
+                }
+
+                if (!string.IsNullOrWhiteSpace(remoteValidationCommand))
+                {
+                    var validationCommand = remoteValidationCommand.Replace(
+                        "{path}",
+                        ShellQuote(tempPath),
+                        StringComparison.Ordinal);
+                    try
+                    {
+                        SshConnectionHelper.RunCommand(client, validationCommand);
+                    }
+                    catch (Exception ex)
+                    {
+                        SshConnectionHelper.RunCommand(client, $"rm -f {ShellQuote(tempPath)}");
+                        return new RemoteWriteResult(false, remotePath, $"Remote validation failed before atomic move: {ex.Message}");
+                    }
+                }
             }
 
             SshConnectionHelper.RunCommand(

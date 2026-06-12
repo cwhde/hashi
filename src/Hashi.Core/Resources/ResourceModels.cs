@@ -227,7 +227,13 @@ public sealed record ResourceDefinition(
     string DomainMode = ResourceDomainModeNames.Custom,
     string? PathRewriteMode = null,
     bool? TcpProxyProtocolEnabled = null,
-    string? MonitoringProtocolHint = null)
+    string? MonitoringProtocolHint = null,
+    bool ErrorHandlingEnabled = true,
+    bool AdGuardRewriteEnabled = true,
+    string? ExplicitRoutingOverride = null,
+    string? SecurityProfileName = null,
+    int? RateLimitAverage = null,
+    int? RateLimitBurst = null)
 {
     public int EffectivePublicPort => PublicPort ?? TargetPort;
 }
@@ -277,9 +283,29 @@ public static class ResourceDomainResolver
 
 public static class ResourceSlug
 {
+    private const int MaxLength = 63;
+
     public static string Normalize(string name)
-        => new string(name.Trim().ToLowerInvariant()
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        var result = new string(name.Trim().ToLowerInvariant()
             .Select(ch => char.IsLetterOrDigit(ch) ? ch : '-')
-            .ToArray())
-            .Trim('-');
+            .ToArray());
+
+        result = System.Text.RegularExpressions.Regex.Replace(result, @"-+", "-");
+        result = result.Trim('-');
+
+        if (result.Length == 0)
+        {
+            throw new ArgumentException("Resource name must contain at least one letter or digit.", nameof(name));
+        }
+
+        if (result.Length > MaxLength)
+        {
+            result = result[..MaxLength].TrimEnd('-');
+        }
+
+        return result;
+    }
 }

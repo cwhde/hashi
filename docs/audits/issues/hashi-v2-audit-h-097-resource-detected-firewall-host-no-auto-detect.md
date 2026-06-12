@@ -4,6 +4,9 @@
 **Conflict Type:** partial_implementation
 **Spec Reference:** §6 (Detected Linux firewall host field on resource)
 
+**Status:** Fixed
+**Branch:** audit-series-h
+
 ## Description
 
 `ResourceEntity.FirewallHostId` is a manually-set FK. There's no auto-detection logic that determines which firewall host a target IP resides behind. The spec field name "DetectedFirewallHost" implies auto-detection.
@@ -25,6 +28,6 @@ Resources should auto-detect their firewall host based on target IP. Auto-detect
 
 ## Acceptance Criteria
 
-- [ ] Resources auto-detect their firewall host based on target IP
-- [ ] Auto-detection checks managed subnets and NetBird CIDRs
-- [ ] Manual override takes precedence over auto-detection
+- [x] Resources auto-detect their firewall host based on target IP
+- [x] Auto-detection checks managed subnets and NetBird CIDRs
+- [x] Manual override takes precedence over auto-detection

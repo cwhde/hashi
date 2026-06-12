@@ -197,12 +197,19 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
+                    b.Property<string>("AcmeProvider")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("AcmeResolversJson")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("AdminDomain")
                         .HasColumnType("text");
+
+                    b.Property<int>("AdminSessionMinutes")
+                        .HasColumnType("integer");
 
                     b.Property<int>("DefaultSyncIntervalMinutes")
                         .HasColumnType("integer");
@@ -218,6 +225,9 @@ namespace Hashi.Infrastructure.Persistence.Migrations
 
                     b.Property<int>("EdgeSsoSessionHours")
                         .HasColumnType("integer");
+
+                    b.Property<bool>("ErrorHandlingEnabled")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("GeoIpAccountId")
                         .HasMaxLength(128)
@@ -251,6 +261,10 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
                         .HasDefaultValue(72);
+
+                    b.Property<string>("InternalScheme")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("InternalUrl")
                         .HasColumnType("text");
@@ -568,10 +582,10 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .HasColumnType("jsonb")
                         .HasDefaultValueSql("'{}'::jsonb");
 
-                    b.Property<int>("RemovedCount")
+                    b.Property<int>("RejectedCount")
                         .HasColumnType("integer");
 
-                    b.Property<int>("RejectedCount")
+                    b.Property<int>("RemovedCount")
                         .HasColumnType("integer");
 
                     b.Property<DateTimeOffset>("StartedAtUtc")
@@ -625,15 +639,15 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(false);
 
-                    b.Property<int>("EntryCount")
-                        .HasColumnType("integer");
-
                     b.Property<string>("EnforcementMode")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)")
                         .HasDefaultValue("middleware");
+
+                    b.Property<int>("EntryCount")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Format")
                         .IsRequired()
@@ -1859,6 +1873,9 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<int?>("CheckIntervalSeconds")
+                        .HasColumnType("integer");
+
                     b.Property<string>("CheckType")
                         .IsRequired()
                         .HasMaxLength(16)
@@ -1869,6 +1886,10 @@ namespace Hashi.Infrastructure.Persistence.Migrations
 
                     b.Property<bool>("Enabled")
                         .HasColumnType("boolean");
+
+                    b.Property<string>("Group")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
 
                     b.Property<DateTimeOffset?>("LastCheckedAtUtc")
                         .HasColumnType("timestamp with time zone");
@@ -1894,6 +1915,9 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("character varying(16)");
 
+                    b.Property<int?>("TimeoutSeconds")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Url")
                         .IsRequired()
                         .HasColumnType("text");
@@ -1901,6 +1925,8 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("DnsRecordId");
+
+                    b.HasIndex("Group");
 
                     b.ToTable("monitor_endpoints", (string)null);
                 });
@@ -2150,6 +2176,9 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.Property<bool>("Enabled")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Issuer")
                         .IsRequired()
                         .HasColumnType("text");
@@ -2180,6 +2209,10 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.Property<byte[]>("CredentialId")
                         .IsRequired()
                         .HasColumnType("bytea");
+
+                    b.Property<string>("CredentialIdBase64")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("Nickname")
                         .IsRequired()
@@ -2352,6 +2385,11 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("AdGuardRewriteEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -2365,6 +2403,9 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(32)")
                         .HasDefaultValue("optional");
 
+                    b.Property<Guid?>("DetectedFirewallHostId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Domain")
                         .HasColumnType("text");
 
@@ -2377,6 +2418,13 @@ namespace Hashi.Infrastructure.Persistence.Migrations
 
                     b.Property<bool>("Enabled")
                         .HasColumnType("boolean");
+
+                    b.Property<bool>("ErrorHandlingEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ExplicitRoutingOverride")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
 
                     b.Property<string>("ExtraMiddlewaresJson")
                         .IsRequired()
@@ -2413,6 +2461,9 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
 
+                    b.Property<Guid?>("OidcProviderId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Ownership")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -2439,6 +2490,10 @@ namespace Hashi.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid?>("PulseAgentId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("SecurityProfileName")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
 
                     b.Property<string>("Slug")
                         .IsRequired()
@@ -2482,6 +2537,8 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(32)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("OidcProviderId");
 
                     b.HasIndex("Slug")
                         .IsUnique();
@@ -2877,6 +2934,16 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
+                    b.Property<string>("PurposeKeyTag")
+                        .HasColumnType("text");
+
+                    b.Property<byte[]>("PurposeWrappedDekBlob")
+                        .HasColumnType("bytea");
+
+                    b.Property<string>("SecretClass")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<byte[]>("ServiceWrappedDekBlob")
                         .HasColumnType("bytea");
 
@@ -3053,6 +3120,41 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("security_policy_settings", (string)null);
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.SecurityProfileEntity", b =>
+                {
+                    b.Property<string>("Name")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("ForwardAuthPolicy")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("adaptive");
+
+                    b.Property<int>("RateLimitAverage")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(100);
+
+                    b.Property<int>("RateLimitBurst")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(200);
+
+                    b.Property<string>("WafMode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("detect_only");
+
+                    b.HasKey("Name");
+
+                    b.ToTable("security_profiles", (string)null);
                 });
 
             modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.SecurityRequestBucketEntity", b =>
@@ -3274,6 +3376,9 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("FirewallBlockedUntilUtc")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTimeOffset?>("FirstOffenseAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTimeOffset?>("LastChallengeSolvedAtUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -3283,6 +3388,9 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.Property<string>("LastEscalationReason")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
+
+                    b.Property<DateTimeOffset?>("LastOffenseAtUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("ManualAllowActive")
                         .ValueGeneratedOnAdd()
@@ -3294,6 +3402,12 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(false);
 
+                    b.Property<int>("RateLimitRequestCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("RateLimitedUntilUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<int>("RequestsWhileChallenged")
                         .HasColumnType("integer");
 
@@ -3304,6 +3418,12 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("SuccessfulChallengeCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TotalBlockCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TotalOffenseCount")
                         .HasColumnType("integer");
 
                     b.Property<DateTimeOffset>("UpdatedAtUtc")
@@ -3520,6 +3640,9 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                     b.Property<string>("Label")
                         .HasColumnType("text");
 
+                    b.Property<bool>("PendingRemoval")
+                        .HasColumnType("boolean");
+
                     b.Property<int>("Port")
                         .HasColumnType("integer");
 
@@ -3549,6 +3672,10 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<string>("DynamicConfigPath")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("DynamicConfigPathsJson")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -3611,6 +3738,9 @@ namespace Hashi.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid?>("PasskeyCredentialId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("PurposeTag")
+                        .HasColumnType("text");
 
                     b.Property<string>("RecoveryKeyHash")
                         .HasColumnType("text");
@@ -3877,6 +4007,16 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("PulseAgent");
+                });
+
+            modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.ResourceEntity", b =>
+                {
+                    b.HasOne("Hashi.Infrastructure.Persistence.Entities.OidcProviderEntity", "OidcProvider")
+                        .WithMany()
+                        .HasForeignKey("OidcProviderId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("OidcProvider");
                 });
 
             modelBuilder.Entity("Hashi.Infrastructure.Persistence.Entities.ResourcePortEntity", b =>

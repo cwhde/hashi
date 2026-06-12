@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §27
 
+**Status:** Fixed
+**Branch:** audit-series-h
+
 ## Description
 
 The spec lists `/api/dashboard/*` as an admin API endpoint group, but no route maps to `/api/dashboard`. There is `/api/settings/dashboard` (widget preferences), `/api/security/dashboard` (security metrics), and `/api/public/apps` (public dashboard), but no dedicated admin dashboard data endpoint that aggregates overview data for the admin dashboard.
@@ -24,6 +27,6 @@ A `/api/dashboard` endpoint that returns aggregated overview data (system status
 
 ## Acceptance Criteria
 
-- [ ] `GET /api/dashboard` returns a non-404 response with aggregated overview data
-- [ ] Response includes all overview widget data in a single payload
-- [ ] Reduces number of API calls needed for the overview page
+- [x] `GET /api/dashboard` returns a non-404 response with aggregated overview data
+- [x] Response includes all overview widget data in a single payload
+- [x] Reduces number of API calls needed for the overview page

@@ -62,11 +62,19 @@ public sealed class PasskeyAuthService(
         var success = await fido2.MakeNewCredentialAsync(
             attestation,
             originalOptions,
-            (_, _) => Task.FromResult(true));
+            async (credentialInfo, _) =>
+            {
+                var credentialIdBase64 = Convert.ToBase64String(credentialInfo.CredentialId);
+                var exists = await db.PasskeyCredentials.AnyAsync(
+                    x => x.CredentialIdBase64 == credentialIdBase64,
+                    cancellationToken);
+                return !exists;
+            });
 
         var entity = new PasskeyCredentialEntity
         {
             CredentialId = success.Result!.CredentialId,
+            CredentialIdBase64 = Convert.ToBase64String(success.Result.CredentialId),
             PublicKey = success.Result.PublicKey,
             SignCount = success.Result.Counter,
             Nickname = string.IsNullOrWhiteSpace(nickname) ? "Primary passkey" : nickname.Trim(),
@@ -107,8 +115,9 @@ public sealed class PasskeyAuthService(
         CancellationToken cancellationToken = default)
     {
         var credentialId = assertion.RawId;
+        var credentialIdBase64 = Convert.ToBase64String(credentialId);
         var stored = await db.PasskeyCredentials.SingleOrDefaultAsync(
-            x => x.CredentialId.SequenceEqual(credentialId),
+            x => x.CredentialIdBase64 == credentialIdBase64,
             cancellationToken)
             ?? throw new InvalidOperationException("Unknown passkey credential.");
 
@@ -117,7 +126,8 @@ public sealed class PasskeyAuthService(
             originalOptions,
             stored.PublicKey,
             stored.SignCount,
-            (_, _) => Task.FromResult(true));
+            (metadata, _) => Task.FromResult(
+                CryptographicOperations.FixedTimeEquals(metadata.CredentialId, stored.CredentialId)));
 
         stored.SignCount = success.Counter;
         await db.SaveChangesAsync(cancellationToken);

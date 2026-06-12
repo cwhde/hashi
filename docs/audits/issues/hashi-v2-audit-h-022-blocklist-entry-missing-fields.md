@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Addendum §8.6
 
+**Status:** Fixed
+**Branch:** h/spec-compliance-1
+
 ## Description
 
 The Addendum specifies `blocklist_entries` with `first_seen_at_utc` and `last_seen_at_utc` fields. The `BlocklistEntryEntity` in `ExtendedPlatformEntities.cs` includes both:

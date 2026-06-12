@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Addendum §17.3
 
+**Status:** Fixed
+**Branch:** h/docker-builds
+
 ## Description
 
 In `deploy/docker/Dockerfile`, the `dotnet-build` stage correctly separates csproj copying for restore from source copying for build. The restore step copies only csproj files, runs `dotnet restore`, then copies the full source. This is the standard pattern for Docker layer caching with .NET.

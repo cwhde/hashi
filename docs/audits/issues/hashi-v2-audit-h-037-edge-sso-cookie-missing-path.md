@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Main Spec §11, §9
 
+**Status:** Fixed
+**Branch:** h/security-1
+
 ## Description
 
 In `OidcEdgeAuthService.BuildSessionCookie()` (around lines 296-306), the edge SSO session cookie is created without explicitly setting the `Path` property:

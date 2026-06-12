@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §14.5
 
+**Status:** Fixed
+**Branch:** audit-series-h
+
 ## Description
 
 The generated firewall script ends with `iptables -A HASHI_INPUT -j DROP` which blocks ALL traffic not explicitly allowed. There is no mechanism to check if the user's current SSH source IP would be blocked, or to warn the user before applying this default-deny policy. If the admin's source IP is not in `ManagedSubnets`, `TrustedPublicIps`, or NetBird, their SSH session will be dropped.
@@ -26,6 +29,6 @@ Before applying a default-deny firewall policy, the system should warn the user 
 
 ## Acceptance Criteria
 
-- [ ] Firewall plan preview warns if admin's source IP would be blocked
-- [ ] Applying default-deny requires explicit acknowledgment
-- [ ] Warning clearly explains the risk of losing SSH access
+- [x] Firewall plan preview warns if admin's source IP would be blocked
+- [x] Applying default-deny requires explicit acknowledgment
+- [x] Warning clearly explains the risk of losing SSH access

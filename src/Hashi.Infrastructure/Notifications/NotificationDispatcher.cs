@@ -16,7 +16,8 @@ namespace Hashi.Infrastructure.Notifications;
 public sealed class NotificationDispatcher(
     HashiDbContext db,
     IHttpClientFactory httpClientFactory,
-    SecretRecordService secrets)
+    SecretRecordService secrets,
+    IDiscordChannelDiscovery? discordDiscovery = null)
 {
     public async Task<IReadOnlyList<NotificationProviderResponse>> ListProvidersAsync(CancellationToken cancellationToken = default)
     {
@@ -190,6 +191,33 @@ public sealed class NotificationDispatcher(
         catch (Exception ex)
         {
             return new TelegramChatDiscoveryResponse(false, null, null, ex.Message);
+        }
+    }
+
+    public async Task<DiscordChannelDiscoveryResponse> DiscoverDiscordChannelAsync(
+        string botToken,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(botToken))
+        {
+            return new DiscordChannelDiscoveryResponse(false, null, null, null, "Bot token is required.");
+        }
+
+        try
+        {
+            var discovery = discordDiscovery ?? new DiscordChannelDiscovery(httpClientFactory);
+            var found = await discovery.DiscoverAsync(botToken, TimeSpan.FromSeconds(30), cancellationToken);
+            return found is null
+                ? new DiscordChannelDiscoveryResponse(false, null, null, null, "No DM or bot mention was received during pairing.")
+                : new DiscordChannelDiscoveryResponse(true, found.ChannelId, found.ChannelName, found.UserId, null);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return new DiscordChannelDiscoveryResponse(false, null, null, null, "Discord pairing timed out.");
+        }
+        catch (Exception ex)
+        {
+            return new DiscordChannelDiscoveryResponse(false, null, null, null, ex.Message);
         }
     }
 
@@ -419,11 +447,31 @@ public sealed class NotificationDispatcher(
     private async Task SendDiscordAsync(NotificationProviderEntity provider, string subject, string body, CancellationToken cancellationToken)
     {
         using var doc = JsonDocument.Parse(provider.SettingsJson);
-        var webhook = await ResolveSecretStringAsync(doc.RootElement, "webhookSecretId", "Discord webhook URL", cancellationToken);
         var client = httpClientFactory.CreateClient();
         var payload = new { content = $"{subject}\n{body}" };
-        using var response = await client.PostAsJsonAsync(webhook, payload, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        HttpResponseMessage response;
+        if (doc.RootElement.TryGetProperty("botTokenSecretId", out _) &&
+            doc.RootElement.TryGetProperty("channelId", out var channelIdElement))
+        {
+            var token = await ResolveSecretStringAsync(doc.RootElement, "botTokenSecretId", "Discord bot token", cancellationToken);
+            using var request = new HttpRequestMessage(
+                HttpMethod.Post,
+                $"https://discord.com/api/v10/channels/{Uri.EscapeDataString(channelIdElement.GetString() ?? string.Empty)}/messages")
+            {
+                Content = JsonContent.Create(payload),
+            };
+            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bot", token);
+            response = await client.SendAsync(request, cancellationToken);
+        }
+        else
+        {
+            var webhook = await ResolveSecretStringAsync(doc.RootElement, "webhookSecretId", "Discord webhook URL", cancellationToken);
+            response = await client.PostAsJsonAsync(webhook, payload, cancellationToken);
+        }
+        using (response)
+        {
+            response.EnsureSuccessStatusCode();
+        }
     }
 
     private async Task<string> BuildStoredSettingsJsonAsync(
@@ -459,6 +507,13 @@ public sealed class NotificationDispatcher(
                     cancellationToken);
                 break;
             case "discord":
+                await MoveSecretToVaultAsync(
+                    settings,
+                    existing,
+                    plaintextProperty: "botToken",
+                    secretIdProperty: "botTokenSecretId",
+                    label: $"Notification Discord bot token: {providerName}",
+                    cancellationToken);
                 await MoveSecretToVaultAsync(
                     settings,
                     existing,

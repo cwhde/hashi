@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §25
 
+**Status:** Fixed
+**Branch:** audit-series-h
+
 ## Description
 
 `ReconcileAsync()` re-plans and applies but: (1) does not verify the applied state matches desired state post-apply, (2) does not explicitly update hash records, (3) does not write audit entries (no `audit.WriteAsync` call in Reconcile), and (4) does not queue dependent syncs. These are all explicit requirements in the spec's Reconcile phase.

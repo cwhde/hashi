@@ -4,9 +4,12 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** §18.4 (Required views: last 60 minutes bar, last 1h/24h/7d/30d latency and uptime, event timeline)
 
+**Status:** False positive - verified product views
+**Branch:** audit-series-h
+
 ## Description
 
-No database views for monitor data are implemented. The spec mentions "required views" for efficient querying of monitor rollup data at different time windows.
+The original finding interpreted "required views" as PostgreSQL `CREATE VIEW` objects. In context, the spec lists user-facing time-range views and then immediately defines their UI. Hashi serves those views from partitioned raw samples and retained 1m/5m/1h rollups; separate SQL view objects are not required by the spec.
 
 ## Evidence
 
@@ -26,6 +29,6 @@ PostgreSQL views should exist for the required monitor data aggregations: last 6
 
 ## Acceptance Criteria
 
-- [ ] Database views exist for 60-min bar, 1h/24h/7d/30d latency/uptime, event timeline
-- [ ] Views use partition pruning for efficient querying
-- [ ] Monitor API queries use these views
+- [x] 60-min bar, 1h/24h/7d/30d latency/uptime, and event timeline product views exist
+- [x] Raw sample retention uses partition pruning and longer ranges use retained rollups
+- [x] Monitor APIs select the appropriate rollup interval for the requested range

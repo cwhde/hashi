@@ -24,7 +24,9 @@ public sealed class TraefikHostStateEntity
 
     public string StaticConfigPath { get; set; } = "/etc/hashi/traefik/traefik.yml";
 
-    public string DynamicConfigPath { get; set; } = "/etc/hashi/traefik/dynamic/http.yml";
+    public string DynamicConfigPath { get; set; } = "/etc/hashi/traefik/dynamic/10-hashi-http-resources.yml";
+
+    public string DynamicConfigPathsJson { get; set; } = """["00-hashi-core.yml","10-hashi-http-resources.yml","20-hashi-stream-resources.yml","30-user-middlewares.yml","40-hashi-security.yml","90-hashi-health.yml"]""";
 
     public string? LastAppliedContentHash { get; set; }
 
@@ -257,6 +259,8 @@ public sealed class TraefikEntryPointEntity
 
     public bool Confirmed { get; set; }
 
+    public bool PendingRemoval { get; set; }
+
     public DateTimeOffset? ConfirmedAtUtc { get; set; }
 
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
@@ -381,6 +385,14 @@ public sealed class SecuritySubjectStateEntity
 
     public DateTimeOffset? LastChallengeSolvedAtUtc { get; set; }
 
+    public int TotalOffenseCount { get; set; }
+
+    public DateTimeOffset? FirstOffenseAtUtc { get; set; }
+
+    public DateTimeOffset? LastOffenseAtUtc { get; set; }
+
+    public int TotalBlockCount { get; set; }
+
     public DateTimeOffset? SoftBlockedUntilUtc { get; set; }
 
     public DateTimeOffset? FirewallBlockedUntilUtc { get; set; }
@@ -392,6 +404,10 @@ public sealed class SecuritySubjectStateEntity
     public string? LastEscalationReason { get; set; }
 
     public DateTimeOffset? LastEscalationAtUtc { get; set; }
+
+    public DateTimeOffset? RateLimitedUntilUtc { get; set; }
+
+    public int RateLimitRequestCount { get; set; }
 
     public DateTimeOffset UpdatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }
@@ -503,6 +519,8 @@ public sealed class OidcProviderEntity
     public string Scopes { get; set; } = "openid profile email";
 
     public bool Enabled { get; set; } = true;
+
+    public bool IsDefault { get; set; }
 }
 
 public sealed class EdgeAuthRuleEntity

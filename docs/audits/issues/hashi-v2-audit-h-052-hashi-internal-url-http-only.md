@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Main Spec §7.2, §7.7
 
+**Status:** Fixed
+**Branch:** h/backend-quality
+
 ## Description
 
 `HashiInternalUrlResolver` in `src/Hashi.Infrastructure/Platform/HashiInternalUrlResolver.cs` always constructs the internal URL using `http://`:

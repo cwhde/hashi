@@ -1,12 +1,12 @@
 # syntax=docker/dockerfile:1.7
 
-FROM --platform=$BUILDPLATFORM node:24-bookworm AS web-build
+FROM --platform=$BUILDPLATFORM node:24-alpine AS web-build
 WORKDIR /src/web
 RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=hashi-pnpm-store,target=/pnpm/store \
   pnpm config set store-dir /pnpm/store \
-  && (pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile)
+  && pnpm install --frozen-lockfile
 COPY web/ ./
 RUN pnpm run build
 
@@ -32,7 +32,7 @@ RUN --mount=type=cache,id=hashi-nuget,target=/root/.nuget/packages,sharing=locke
     dotnet restore src/Hashi.Api/Hashi.Api.csproj; \
   fi
 COPY src/ ./src/
-COPY agents/ ./agents/
+COPY agents/pulse/install.sh ./agents/pulse/install.sh
 COPY --from=web-build /src/web/build ./web/build
 RUN --mount=type=cache,id=hashi-nuget,target=/root/.nuget/packages,sharing=locked \
   target_rid="" \
@@ -51,7 +51,6 @@ RUN --mount=type=cache,id=hashi-nuget,target=/root/.nuget/packages,sharing=locke
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 RUN apt-get update \
-  && apt-get upgrade -y \
   && apt-get install -y --no-install-recommends curl \
   && rm -rf /var/lib/apt/lists/*
 COPY --from=dotnet-build /app/publish .

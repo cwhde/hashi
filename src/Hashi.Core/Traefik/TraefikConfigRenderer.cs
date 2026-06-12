@@ -29,12 +29,16 @@ public sealed record TraefikRenderOptions(
     string? AcmeEabKeyId = null,
     string? AcmeEabHmac = null,
     string? DnsProviderName = null,
+    string AcmeProvider = "gts",
     int DnsChallengeDelaySeconds = 30,
     IReadOnlyList<string>? AcmeResolvers = null,
     string AdminDomain = "hashi.local",
     string HashiForwardAuthUrl = HashiInternalUrlDefaults.ForwardAuthUrl,
     string HashiHealthUrl = HashiInternalUrlDefaults.HealthUrl,
-    IReadOnlySet<(int Port, string Protocol)>? ConfirmedStreamPorts = null);
+    string? HashiErrorUrl = null,
+    bool ErrorHandlingEnabled = true,
+    IReadOnlySet<(int Port, string Protocol)>? ConfirmedStreamPorts = null,
+    string? InternalDnsDomain = null);
 
 public static class TraefikConfigRenderer
 {
@@ -48,6 +52,7 @@ public static class TraefikConfigRenderer
         var httpResources = enabled
             .Where(r => r.Kind is ResourceKind.Http or ResourceKind.Https or ResourceKind.H2c)
             .Where(r => !string.IsNullOrWhiteSpace(r.Domain))
+            .Where(r => !IsInternalDnsDomain(r.Domain, options.InternalDnsDomain))
             .ToList();
         var streamResources = enabled.Where(r => r.Kind is ResourceKind.Tcp or ResourceKind.Udp).ToList();
         var confirmedPorts = options.ConfirmedStreamPorts;
@@ -129,6 +134,20 @@ public static class TraefikConfigRenderer
                 statusCodes:
                   - "200-599"
               fields:
+                general:
+                  defaultMode: drop
+                  names:
+                    ClientAddr: keep
+                    ClientHost: keep
+                    DownstreamContentSize: keep
+                    Duration: keep
+                    OriginStatus: keep
+                    RequestAddr: keep
+                    RequestMethod: keep
+                    RequestPath: keep
+                    RequestProtocol: keep
+                    RouterName: keep
+                    ServiceName: keep
                 headers:
                   defaultMode: drop
                   names:
@@ -146,7 +165,38 @@ public static class TraefikConfigRenderer
             """;
     }
 
-    private static string RenderCoreMiddlewares(TraefikRenderOptions options) => $$"""
+    private static string RenderCoreMiddlewares(TraefikRenderOptions options)
+    {
+        var errorsMiddleware = options.ErrorHandlingEnabled
+            ? """
+
+              hashi-errors:
+                errors:
+                  status:
+                    - "500-599"
+                  service: hashi-errors
+                  query: "/api/error/{status}"
+            """
+            : string.Empty;
+
+        var errorUrl = !string.IsNullOrWhiteSpace(options.HashiErrorUrl)
+            ? options.HashiErrorUrl
+            : (options.HashiHealthUrl.EndsWith("/api/health", StringComparison.OrdinalIgnoreCase)
+                ? options.HashiHealthUrl[..^11]
+                : options.HashiHealthUrl);
+
+        var errorsService = options.ErrorHandlingEnabled
+            ? $$"""
+
+              services:
+                hashi-errors:
+                  loadBalancer:
+                    servers:
+                      - url: "{{errorUrl}}"
+            """
+            : string.Empty;
+
+        return $$"""
         http:
           middlewares:
             hashi-redirect-https:
@@ -183,8 +233,9 @@ public static class TraefikConfigRenderer
             hashi-rate-limit:
               rateLimit:
                 average: 100
-                burst: 200
+                burst: 200{{errorsMiddleware}}{{errorsService}}
         """;
+    }
 
     private static string RenderHttpResources(IReadOnlyList<ResourceDefinition> resources, TraefikRenderOptions options)
     {
@@ -220,12 +271,28 @@ public static class TraefikConfigRenderer
             return [];
         });
 
-        var middlewareEntries = rewriteMiddlewares.Select(x => RenderRewriteMiddleware(x.Name, x.Value, x.Mode, x.MatchPrefix)).ToList();
+        var rateLimitMiddlewares = new List<string>();
+        foreach (var r in resources)
+        {
+            if (r.RateLimitAverage.HasValue && r.RateLimitBurst.HasValue)
+            {
+                rateLimitMiddlewares.Add($$"""
+                      {{r.Slug}}-rate-limit:
+                        rateLimit:
+                          average: {{r.RateLimitAverage.Value}}
+                          burst: {{r.RateLimitBurst.Value}}
+                    """);
+            }
+        }
+
+        var middlewareEntries = rewriteMiddlewares.Select(x => RenderRewriteMiddleware(x.Name, x.Value, x.Mode, x.MatchPrefix))
+            .Concat(rateLimitMiddlewares)
+            .ToList();
         var middlewareBlock = middlewareEntries.Count > 0
             ? "  middlewares:\n" + string.Join('\n', middlewareEntries) + "\n"
             : string.Empty;
 
-        var routers = string.Join('\n', resources.SelectMany(RenderHttpRouters));
+        var routers = string.Join('\n', resources.SelectMany(r => RenderHttpRouters(r, options)));
 
         var serviceKeys = resources.SelectMany(r =>
             r.Routes is { Count: > 0 }
@@ -250,24 +317,24 @@ public static class TraefikConfigRenderer
         return $"http:\n{middlewareBlock}  routers:\n{routers}\n  services:\n{services}\n";
     }
 
-    private static IEnumerable<string> RenderHttpRouters(ResourceDefinition resource)
+    private static IEnumerable<string> RenderHttpRouters(ResourceDefinition resource, TraefikRenderOptions options)
     {
         if (resource.Routes is { Count: > 0 })
         {
             foreach (var route in resource.Routes.Where(x => x.Enabled).OrderByDescending(x => x.Priority))
             {
-                yield return RenderHttpRouter(resource, route);
+                yield return RenderHttpRouter(resource, route, options);
             }
 
             yield break;
         }
 
-        yield return RenderHttpRouter(resource, null);
+        yield return RenderHttpRouter(resource, null, options);
     }
 
-    private static string RenderHttpRouter(ResourceDefinition resource, ResourceRouteDefinition? route)
+    private static string RenderHttpRouter(ResourceDefinition resource, ResourceRouteDefinition? route, TraefikRenderOptions options)
     {
-        var middlewares = BuildResourceMiddlewares(resource, route?.ExtraMiddlewares);
+        var middlewares = BuildResourceMiddlewares(resource, route?.ExtraMiddlewares, options);
         var pathPrefix = route?.PathValue ?? resource.PathPrefix;
         var pathMatchType = route?.PathMatchType ?? (string.IsNullOrWhiteSpace(resource.PathPrefix) ? null : "prefix");
         var rule = BuildPathRule(resource.Domain, pathMatchType, pathPrefix);
@@ -488,7 +555,8 @@ public static class TraefikConfigRenderer
 
     private static IReadOnlyList<string> BuildResourceMiddlewares(
         ResourceDefinition resource,
-        IReadOnlyList<string>? routeMiddlewares = null)
+        IReadOnlyList<string>? routeMiddlewares = null,
+        TraefikRenderOptions? options = null)
     {
         var chain = new List<string>
         {
@@ -496,6 +564,11 @@ public static class TraefikConfigRenderer
             "hashi-security-headers",
             "hashi-compress",
         };
+
+        if (resource.ErrorHandlingEnabled && (options?.ErrorHandlingEnabled ?? true))
+        {
+            chain.Add("hashi-errors");
+        }
 
         if (resource.WafMode != WafMode.Off)
         {
@@ -512,7 +585,14 @@ public static class TraefikConfigRenderer
             });
         }
 
-        chain.Add("hashi-rate-limit");
+        if (resource.RateLimitAverage.HasValue && resource.RateLimitBurst.HasValue)
+        {
+            chain.Add($"{resource.Slug}-rate-limit");
+        }
+        else
+        {
+            chain.Add("hashi-rate-limit");
+        }
         if (routeMiddlewares is not null)
         {
             foreach (var extra in routeMiddlewares.Where(x => !string.IsNullOrWhiteSpace(x)))
@@ -548,6 +628,14 @@ public static class TraefikConfigRenderer
             throw new InvalidOperationException("ACME DNS provider is required when ACME email is configured.");
         }
 
+        var provider = options.AcmeProvider?.Trim().ToLowerInvariant() ?? "gts";
+        var (resolverName, caServer) = provider switch
+        {
+            "letsencrypt" => ("letsencrypt", "https://acme-v02.api.letsencrypt.org/directory"),
+            "letsencrypt-staging" => ("letsencrypt-staging", "https://acme-staging-v02.api.letsencrypt.org/directory"),
+            _ => ("gts", "https://dv.acme-v02.api.pki.goog/directory"),
+        };
+
         var eabBlock = string.IsNullOrWhiteSpace(options.AcmeEabKeyId) || string.IsNullOrWhiteSpace(options.AcmeEabHmac)
             ? string.Empty
             : $$"""
@@ -563,11 +651,11 @@ public static class TraefikConfigRenderer
 
         return $$"""
             certificatesResolvers:
-              gts:
+              {{resolverName}}:
                 acme:
                   email: {{options.AcmeEmail}}
                   storage: /var/lib/hashi/traefik/acme.json
-                  caServer: https://dv.acme-v02.api.pki.goog/directory
+                  caServer: {{caServer}}
                   dnsChallenge:
                     provider: {{options.DnsProviderName}}
                     delayBeforeCheck: {{options.DnsChallengeDelaySeconds}}s
@@ -585,11 +673,30 @@ public static class TraefikConfigRenderer
                 - websecure
               service: hashi-health
               tls:
-                certResolver: gts
+                certResolver: {{options.AcmeProvider}}
           services:
             hashi-health:
               loadBalancer:
                 servers:
                   - url: "{{options.HashiHealthUrl}}"
         """;
+
+    private static bool IsInternalDnsDomain(string? domain, string? internalDnsDomain)
+    {
+        if (string.IsNullOrWhiteSpace(domain)) return false;
+        var normalized = domain.Trim().ToLowerInvariant();
+        if (normalized == "home.arpa" || normalized.EndsWith(".home.arpa", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+        if (!string.IsNullOrWhiteSpace(internalDnsDomain))
+        {
+            var normalizedInternal = internalDnsDomain.Trim().ToLowerInvariant();
+            if (normalized == normalizedInternal || normalized.EndsWith($".{normalizedInternal}", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 }

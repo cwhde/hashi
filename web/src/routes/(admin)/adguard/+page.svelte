@@ -151,7 +151,8 @@
 			const created = await withReauth(() =>
 				api.createAdGuardConnection({
 					name: connectionForm.name,
-					baseUrl: connectionForm.baseUrl || null,
+					baseUrl:
+						connectionForm.targetMode === 'pulse_agent' ? null : connectionForm.baseUrl || null,
 					password: connectionForm.password,
 					target: {
 						targetMode: connectionForm.targetMode,

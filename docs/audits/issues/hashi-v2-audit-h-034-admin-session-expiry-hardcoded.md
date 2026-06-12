@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Main Spec §9, §24
 
+**Status:** Fixed
+**Branch:** h/security-1
+
 ## Description
 
 In `src/Hashi.Api/Program.cs`, the admin auth session cookie sliding expiry is hardcoded:

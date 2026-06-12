@@ -4,6 +4,9 @@
 **Conflict Type:** wrong_implementation
 **Spec Reference:** §18.6 (Recovery notifications)
 
+**Status:** Fixed
+**Branch:** audit-series-h
+
 ## Description
 
 Notification routing only fires on down→up recovery, not degraded→up. The spec says "recovery notifications" broadly. Degraded→up recoveries are silently ignored.

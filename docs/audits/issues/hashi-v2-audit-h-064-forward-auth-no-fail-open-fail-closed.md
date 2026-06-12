@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §11 (For resources without SSO required, fail open only when Hashi is unreachable and no active challenge/block policy exists); Addendum §14 (Configurable forward-auth failure policy)
 
+**Status:** Fixed
+**Branch:** h/security-2
+
 ## Description
 
 There is no configurable fail-open/fail-closed behavior for the forward-auth endpoint. When the decision service throws an exception, the endpoint returns a 500 error, implicitly denying access. The spec requires that for resources with SSO required, forward-auth must fail closed, but for resources without SSO, it should fail open only when Hashi is unreachable and no active challenge/block policy exists. Neither behavior is configurable.

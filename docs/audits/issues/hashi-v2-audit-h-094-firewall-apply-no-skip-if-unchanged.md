@@ -4,6 +4,9 @@
 **Conflict Type:** wrong_implementation
 **Spec Reference:** §3 Rule 9 (Hashi avoids hot reloads caused by rewriting identical files); §25 (Restart/reload services only if needed)
 
+**Status:** Fixed
+**Branch:** audit-series-h
+
 ## Description
 
 `Firewall ApplyForHostAsync` always applies the script regardless of whether it changed. Traefik has change-detection via hash comparison, but Firewall does not short-circuit on unchanged config. This means unnecessary SSH connections, script deployments, and service reloads.

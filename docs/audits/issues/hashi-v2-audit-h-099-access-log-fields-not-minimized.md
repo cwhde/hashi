@@ -4,6 +4,9 @@
 **Conflict Type:** wrong_implementation
 **Spec Reference:** §10.2 (Access log: minimal useful fields)
 
+**Status:** Fixed
+**Branch:** h/backend-quality
+
 ## Description
 
 The Traefik static config renderer sets access log format to JSON with header redaction (`defaultMode: drop` with selective keep), but general access log fields are not restricted. The spec requires "minimal useful fields" — all default Traefik fields are logged, not just the minimal set needed for security analysis.

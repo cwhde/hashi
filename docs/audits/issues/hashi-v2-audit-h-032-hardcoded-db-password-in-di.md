@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Main Spec §30, Non-Negotiable Rule Set §3 (#29 never commit real secrets)
 
+**Status:** Fixed
+**Branch:** h/security-1
+
 ## Description
 
 `DependencyInjection.cs` in `src/Hashi.Infrastructure/` contains a hardcoded default PostgreSQL connection string with an embedded password:

@@ -196,7 +196,8 @@
 				clientId: oidcForm.clientId,
 				clientSecret: oidcForm.clientSecret,
 				scopes: oidcForm.scopes,
-				enabled: oidcForm.enabled
+				enabled: oidcForm.enabled,
+				isDefault: false
 			});
 			oidcMessage = `Saved OIDC provider "${oidcForm.name}".`;
 			oidcForm.clientSecret = '';

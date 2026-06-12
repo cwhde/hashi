@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Addendum §17.5; Main Spec §30 (Deployment)
 
+**Status:** Fixed
+**Branch:** h/docker-builds
+
 ## Description
 
 The legacy Dockerfile at `hashi.old/docker/Dockerfile` uses `node:20-alpine` for the runtime stage (stage 2). This image includes the full Node.js runtime, npm, and Alpine Linux base, resulting in an unnecessarily large final image. For a production Node.js application, a slimmer base image like `node:20-alpine` with `--omit=dev` is acceptable, but the current implementation does not properly minimize the image.
@@ -44,6 +47,10 @@ The image is functional but could be smaller. The spec's requirement to "avoid u
 
 ## Acceptance Criteria
 
-- [ ] Runtime stage does not contain python3, make, or g++
-- [ ] Only production dependencies are installed in the final image
-- [ ] Image size is documented and reasonable for a Node.js application
+- [x] Runtime stage does not contain python3, make, or g++
+- [x] Only production dependencies are installed in the final image
+- [x] Image size is documented and reasonable for a Node.js application
+
+## Verification - 2026-06-12
+
+Built the reviewed commit on an isolated Buildx builder. The amd64 runtime image is 55,553,564 bytes (52 MiB), runs as UID/GID 1001, contains only the production dependency tree, and does not contain Python, make, GCC, or G++. The complete legacy image also builds for both `linux/amd64` and `linux/arm64`.

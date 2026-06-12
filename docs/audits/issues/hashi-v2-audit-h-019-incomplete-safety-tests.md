@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §31 (Test Strategy - Safety tests)
 
+**Status:** Fixed
+**Branch:** h/tests
+
 ## Description
 
 The spec requires specific safety tests:

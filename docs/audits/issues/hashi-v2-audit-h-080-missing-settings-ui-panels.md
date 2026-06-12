@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §24
 
+**Status:** Fixed
+**Branch:** h/frontend-ui
+
 ## Description
 
 The settings page only renders panels for General, GeoIP, Internal Agent DNS, CAPTCHA, Overview Widgets, and Notifications. Missing panels: Security (session duration, edge SSO, adaptive auth defaults, WAF defaults, block TTLs, GeoIP updates), Appearance (theme, logo, icon, public page assets, widget order), Monitoring (check interval, timeout, allowed HTTP codes, latency thresholds, retention), DNS (default TTL, prune policy, import behavior), Traefik (config paths, log paths, ACME defaults, middleware editor), Firewall (trusted CIDRs, default port confirmation, persistence mode, NetBird settings), and Pulse (heartbeat interval, stale threshold). Backend APIs exist for some of these (e.g., `/api/settings/monitoring`, `/api/settings/edge-sso/session`) but the frontend never calls them.
@@ -25,6 +28,6 @@ All 10 spec-defined settings categories have dedicated UI panels with typed form
 
 ## Acceptance Criteria
 
-- [ ] Settings page shows all 10 spec-defined categories
-- [ ] Each category has typed form controls (not raw JSON)
-- [ ] Changes are persisted via the appropriate backend endpoints
+- [x] Settings page shows all 10 spec-defined categories
+- [x] Each category has typed form controls (not raw JSON)
+- [x] Changes are persisted via the appropriate backend endpoints

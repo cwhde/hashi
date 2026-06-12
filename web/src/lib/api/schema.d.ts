@@ -72,7 +72,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/public/status": {
+    "/api/error/{status}": {
         parameters: {
             query?: never;
             header?: never;
@@ -82,6 +82,59 @@ export interface paths {
         get: {
             parameters: {
                 query?: never;
+                header?: never;
+                path: {
+                    status: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["GetAdminDashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    hours?: number | string;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -2274,6 +2327,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/dns/connections/{connectionId}/capabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    connectionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DnsProviderCapabilitiesResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/dns/connections/{connectionId}/records/provider": {
         parameters: {
             query?: never;
@@ -2831,6 +2921,41 @@ export interface paths {
             };
         };
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/connections/{connectionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    connectionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -4245,6 +4370,544 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/security/blocklists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BlocklistSourceResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpsertBlocklistSourceRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BlocklistSourceResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/blocklists/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BlocklistSourceResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpsertBlocklistSourceRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BlocklistSourceResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiErrorResponse"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/security/blocklists/{id}/fetch-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BlocklistFetchPreviewResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/blocklists/{id}/enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BlocklistSourceMutationResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/blocklists/{id}/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BlocklistSourceMutationResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/blocklists/{id}/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BlocklistSourceMutationResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/blocklists/{id}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BlocklistFetchRunResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/blocklists/{id}/entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BlocklistEntryResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SecurityProfileResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateSecurityProfileRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SecurityProfileResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiErrorResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/profiles/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    name: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateSecurityProfileRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SecurityProfileResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    name: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiErrorResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/security/subjects/search": {
         parameters: {
             query?: never;
@@ -4884,394 +5547,6 @@ export interface paths {
                 };
             };
         };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/security/blocklists": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["BlocklistSourceResponse"][];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["UpsertBlocklistSourceRequest"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["BlocklistSourceResponse"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ApiErrorResponse"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/security/blocklists/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["BlocklistSourceResponse"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-            };
-        };
-        options?: never;
-        head?: never;
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["UpsertBlocklistSourceRequest"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["BlocklistSourceResponse"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ApiErrorResponse"];
-                    };
-                };
-            };
-        };
-        trace?: never;
-    };
-    "/api/security/blocklists/{id}/fetch-preview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["BlocklistFetchPreviewResponse"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ApiErrorResponse"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/security/blocklists/{id}/enable": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["BlocklistSourceMutationResponse"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/security/blocklists/{id}/disable": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["BlocklistSourceMutationResponse"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/security/blocklists/{id}/refresh": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["BlocklistSourceMutationResponse"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/security/blocklists/{id}/runs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["BlocklistFetchRunResponse"][];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/security/blocklists/{id}/entries": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["BlocklistEntryResponse"][];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -6054,6 +6329,45 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["TelegramChatDiscoveryResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/notifications/discord/discover-channel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["DiscordChannelDiscoveryRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DiscordChannelDiscoveryResponse"];
                     };
                 };
             };
@@ -6847,6 +7161,17 @@ export interface components {
             managedByHashi: boolean;
             source: string;
         };
+        AdminDashboardResponse: {
+            auditEvents: components["schemas"]["AuditEventResponse"][];
+            health: components["schemas"]["HealthResponse"];
+            vault: components["schemas"]["VaultStatusResponse"];
+            resources: components["schemas"]["ResourceResponse"][];
+            monitors: components["schemas"]["MonitorEndpointResponse"][];
+            security: components["schemas"]["SecurityDashboardResponse"];
+            dnsConnections: components["schemas"]["ConnectionSummaryResponse"][];
+            pulseAgents: components["schemas"]["PulseAgentResponse"][];
+            syncRuns: components["schemas"]["SyncRunResponse"][];
+        };
         AnonymousTypeOfstring: {
             token: null | string;
         };
@@ -7252,6 +7577,8 @@ export interface components {
             clientSecret: string;
             scopes: null | string;
             enabled: boolean;
+            /** @default false */
+            isDefault: boolean;
         };
         CreatePulseAgentRequest: {
             name: string;
@@ -7295,6 +7622,13 @@ export interface components {
             wafExclusions?: null | string[];
             domainMode?: null | string;
             pathRewriteMode?: null | string;
+            /** Format: uuid */
+            oidcProviderId?: null | string;
+            errorHandlingEnabled?: null | boolean;
+            /** @default true */
+            adGuardRewriteEnabled: boolean;
+            explicitRoutingOverride?: null | string;
+            securityProfileName?: null | string;
         };
         CreateScriptRequest: {
             /** Format: uuid */
@@ -7322,6 +7656,15 @@ export interface components {
             /** @default false */
             firewallEnforced: boolean;
         };
+        CreateSecurityProfileRequest: {
+            name: string;
+            forwardAuthPolicy: string;
+            wafMode: string;
+            /** Format: int32 */
+            rateLimitAverage: number | string;
+            /** Format: int32 */
+            rateLimitBurst: number | string;
+        };
         CreateSshConnectionRequest: {
             name: string;
             connectionType: string;
@@ -7342,6 +7685,16 @@ export interface components {
             overviewWidgetsJson: string;
             /** Format: date-time */
             updatedAtUtc: null | string;
+        };
+        DiscordChannelDiscoveryRequest: {
+            botToken: string;
+        };
+        DiscordChannelDiscoveryResponse: {
+            found: boolean;
+            channelId: null | string;
+            channelName: null | string;
+            userId: null | string;
+            error: null | string;
         };
         DnsImportApplyRequest: {
             selectedDecisionIds: string[];
@@ -7364,6 +7717,17 @@ export interface components {
             /** Format: int32 */
             ttl: null | number | string;
             riskReason: string;
+        };
+        DnsProviderCapabilitiesResponse: {
+            supportedRecordTypes: string[];
+            supportsBatchOperations: boolean;
+            /** Format: int32 */
+            maxRecordsPerZone: null | number | string;
+            supportsComments: boolean;
+            /** Format: int32 */
+            rateLimitLimit: null | number | string;
+            /** Format: int32 */
+            rateLimitWindowSeconds: null | number | string;
         };
         DnsProviderValidationRequest: {
             apiToken: string;
@@ -7456,6 +7820,8 @@ export interface components {
             password: null | string;
             privateKeyPem: null | string;
             privateKeyPassphrase: null | string;
+            /** @default false */
+            acknowledgeSshBlockRisk: boolean;
         };
         FirewallHostResponse: {
             /** Format: uuid */
@@ -7494,6 +7860,9 @@ export interface components {
             hasChanges: boolean;
             changes: components["schemas"]["FirewallPlanChangeResponse"][];
             preview: string;
+            /** @default false */
+            sshBlockRisk: boolean;
+            sshBlockWarningMessage?: null | string;
         };
         FirewallRenderRequest: {
             name: string;
@@ -7661,6 +8030,29 @@ export interface components {
             /** Format: date-time */
             lastHitAtUtc: null | string;
         };
+        MonitorEndpointResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            url: string;
+            checkType: string;
+            enabled: boolean;
+            publicStatusEnabled: boolean;
+            status: string;
+            /** Format: date-time */
+            lastCheckedAtUtc: null | string;
+            /** Format: int32 */
+            lastLatencyMs: null | number | string;
+            /** Format: uuid */
+            resourceId?: null | string;
+            resourceType?: null | string;
+            host?: null | string;
+            /** Format: uuid */
+            firewallHostId?: null | string;
+            firewallHostName?: null | string;
+            /** @default false */
+            provisioned: boolean;
+        };
         MonitoringSettingsRequest: {
             /** Format: int32 */
             monitorCheckIntervalSeconds: null | number | string;
@@ -7722,6 +8114,7 @@ export interface components {
             clientId: string;
             scopes: string;
             enabled: boolean;
+            isDefault: boolean;
         };
         PasskeyLoginCompleteRequest: {
             assertion: unknown;
@@ -7769,6 +8162,8 @@ export interface components {
             status: string;
             /** Format: int32 */
             lastLatencyMs: null | number | string;
+            /** Format: date-time */
+            lastCheckedAtUtc: null | string;
             recentStrip: components["schemas"]["PublicStatusStripBucket"][];
         };
         PublicStatusStripBucket: {
@@ -7884,6 +8279,8 @@ export interface components {
             /** Format: uuid */
             firewallHostId: null | string;
             /** Format: uuid */
+            detectedFirewallHostId: null | string;
+            /** Format: uuid */
             pulseAgentId: null | string;
             pathPrefix: null | string;
             pathRewriteMode: null | string;
@@ -7894,6 +8291,14 @@ export interface components {
             routes: components["schemas"]["ResourceRouteResponse"][];
             rules: components["schemas"]["ResourceRuleResponse"][];
             wafExclusions: string[];
+            /** Format: uuid */
+            oidcProviderId?: null | string;
+            /** @default true */
+            errorHandlingEnabled: boolean;
+            /** @default true */
+            adGuardRewriteEnabled: boolean;
+            explicitRoutingOverride?: null | string;
+            securityProfileName?: null | string;
         };
         ResourceRouteRequest: {
             enabled: boolean;
@@ -7997,6 +8402,7 @@ export interface components {
             name: string;
             enabled: boolean;
             description: string;
+            body: string;
             cronExpression: string;
             /** Format: int32 */
             runTimeoutSeconds: number | string;
@@ -8030,6 +8436,7 @@ export interface components {
             id: string;
             /** Format: uuid */
             connectionId: string;
+            connectionName: string;
             enabled: boolean;
         };
         SecretDescriptorResponse: {
@@ -8193,6 +8600,15 @@ export interface components {
             missingDatabases?: string[];
             staleDatabases?: string[];
         };
+        SecurityProfileResponse: {
+            name: string;
+            forwardAuthPolicy: string;
+            wafMode: string;
+            /** Format: int32 */
+            rateLimitAverage: number | string;
+            /** Format: int32 */
+            rateLimitBurst: number | string;
+        };
         SecurityRankItem: {
             label: string;
             /** Format: int64 */
@@ -8347,6 +8763,8 @@ export interface components {
             updatedAtUtc: null | string;
         };
         SyncApplyRequest: {
+            /** Format: uuid */
+            planId: string;
             confirmDestructive: boolean;
         };
         SyncDiffResponse: {
@@ -8365,6 +8783,7 @@ export interface components {
             requiresConfirmation: boolean;
             changes: components["schemas"]["SyncDiffResponse"][];
             previewMarkdown: null | string;
+            validationErrors?: null | string[];
         };
         SyncReconcileResponse: {
             /** Format: uuid */
@@ -8456,6 +8875,7 @@ export interface components {
             confirmed: boolean;
             /** Format: date-time */
             confirmedAtUtc: null | string;
+            pendingRemoval: boolean;
         };
         TraefikHostStateResponse: {
             /** Format: uuid */
@@ -8573,6 +8993,7 @@ export interface components {
             clientSecret: null | string;
             scopes: null | string;
             enabled: null | boolean;
+            isDefault?: null | boolean;
         };
         UpdateResourceRequest: {
             name: null | string;
@@ -8622,6 +9043,18 @@ export interface components {
             wafExclusions?: null | string[];
             /** @default false */
             clearWafExclusions: boolean;
+            /** Format: uuid */
+            oidcProviderId?: null | string;
+            /** @default false */
+            clearOidcProviderId: boolean;
+            errorHandlingEnabled?: null | boolean;
+            adGuardRewriteEnabled?: null | boolean;
+            explicitRoutingOverride?: null | string;
+            /** @default false */
+            clearExplicitRoutingOverride: boolean;
+            securityProfileName?: null | string;
+            /** @default false */
+            clearSecurityProfileName: boolean;
         };
         UpdateScriptRequest: {
             name: null | string;
@@ -8641,6 +9074,14 @@ export interface components {
             isPermanent: null | boolean;
             enabled: null | boolean;
             firewallEnforced: null | boolean;
+        };
+        UpdateSecurityProfileRequest: {
+            forwardAuthPolicy: string;
+            wafMode: string;
+            /** Format: int32 */
+            rateLimitAverage: number | string;
+            /** Format: int32 */
+            rateLimitBurst: number | string;
         };
         UpdateTraefikUserMiddlewareRequest: {
             yaml: string;
@@ -8739,4 +9180,25 @@ export interface components {
     pathItems: never;
 }
 export type $defs = Record<string, never>;
-export type operations = Record<string, never>;
+export interface operations {
+    GetAdminDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminDashboardResponse"];
+                };
+            };
+        };
+    };
+}

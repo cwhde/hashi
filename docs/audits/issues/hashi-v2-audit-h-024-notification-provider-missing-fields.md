@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §18.6
 
+**Status:** Fixed
+**Branch:** audit-series-h
+
 ## Description
 
 The spec defines notification providers:
@@ -60,6 +63,6 @@ The entity model is correct. The JSON-based approach is flexible and supports al
 
 - [x] Provider type field exists (implemented)
 - [x] Settings JSON field exists (implemented)
-- [ ] Verify Telegram setup discovers chat/channel
-- [ ] Verify Discord pairing mode works
-- [ ] Verify SMTP test email works
+- [x] Verify Telegram setup discovers chat/channel
+- [x] Verify Discord pairing mode works
+- [x] Verify SMTP test email works

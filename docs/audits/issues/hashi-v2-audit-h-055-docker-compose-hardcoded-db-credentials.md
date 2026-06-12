@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Main Spec §30, §33; Non-Negotiable Rule Set §3 (#29 never commit real secrets)
 
+**Status:** Fixed
+**Branch:** audit-series-h
+
 ## Description
 
 `docker-compose.dev.yml` exposes PostgreSQL on the host network with hardcoded credentials:
@@ -55,7 +58,7 @@ The dev compose file additionally exposes PostgreSQL port 5432 to the host machi
 
 ## Acceptance Criteria
 
-- [ ] Production compose file does not contain hardcoded default credentials (or requires them via env vars)
-- [ ] Dev compose file does not expose PostgreSQL port by default
-- [ ] `.env.example` exists with documented required variables
-- [ ] Docker Compose fails with clear error if required credentials are not provided
+- [x] Production compose file does not contain hardcoded default credentials (or requires them via env vars)
+- [x] Dev compose file does not expose PostgreSQL port by default
+- [x] `.env.example` exists with documented required variables
+- [x] Docker Compose fails with clear error if required credentials are not provided

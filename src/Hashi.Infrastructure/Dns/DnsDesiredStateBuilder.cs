@@ -72,6 +72,11 @@ public static class DnsDesiredStateBuilder
                     agent.LastHostname);
             }
 
+            if (resource.FirewallHostId is null)
+            {
+                resource.DetectedFirewallHostId = AutoDetectFirewallHost(resource.TargetHost, pulseTarget, hostTargets);
+            }
+
             var resolvedDomain = ResourceDomainResolver.Resolve(
                 resource.DomainMode,
                 resource.Domain,
@@ -88,10 +93,11 @@ public static class DnsDesiredStateBuilder
                     slug,
                     rootDomain,
                     resolvedDomain,
-                    resource.FirewallHostId,
+                    resource.FirewallHostId ?? resource.DetectedFirewallHostId,
                     ResolveManualIp(resource.TargetHost),
                     pulseTarget,
-                    ResolveManualHost(resource.TargetHost)),
+                    ResolveManualHost(resource.TargetHost),
+                    resource.ExplicitRoutingOverride),
                 hostTargets,
                 defaultTtl);
             if (records.Count == 0 && IsPrivateManualIp(resource.TargetHost))
@@ -195,9 +201,20 @@ public static class DnsDesiredStateBuilder
         => ResolveManualIp(targetHost) is string ip && !DnsRecordGenerator.IsPublicIp(ip);
 
     private static string? ResolveOnRouteTarget(FirewallHostEntity host)
-        => !string.IsNullOrWhiteSpace(host.LinkedTraefikHost)
-            ? host.LinkedTraefikHost
-            : host.InternalTraefikIp;
+    {
+        if (!string.IsNullOrWhiteSpace(host.LinkedTraefikHost))
+        {
+            return host.LinkedTraefikHost.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(host.InternalTraefikIp)
+            && System.Net.IPAddress.TryParse(host.InternalTraefikIp.Trim(), out _))
+        {
+            return null;
+        }
+
+        return host.InternalTraefikIp?.Trim();
+    }
 
     private static IReadOnlyList<string> BuildConfiguredFqdns(FirewallHostEntity host, string rootDomain)
     {
@@ -220,4 +237,31 @@ public static class DnsDesiredStateBuilder
 
     private static IReadOnlyList<string> DeserializeStringList(string json)
         => JsonSerializer.Deserialize<List<string>>(json) ?? [];
+
+    private static Guid? AutoDetectFirewallHost(
+        string targetHost,
+        PulseDnsTarget? pulseTarget,
+        IReadOnlyList<FirewallHostDnsTarget> hosts)
+    {
+        var candidates = new[]
+        {
+            targetHost,
+            pulseTarget?.InternalIp,
+            pulseTarget?.PublicIp,
+        }.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!.Trim()).Distinct(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var host in hosts)
+        {
+            foreach (var candidate in candidates)
+            {
+                if ((host.ManagedSubnets?.Any(subnet => DnsRecordGenerator.IpMatchesSubnet(candidate, subnet)) ?? false)
+                    || (host.NetBirdRoutedCidrs?.Any(cidr => DnsRecordGenerator.IpMatchesSubnet(candidate, cidr)) ?? false))
+                {
+                    return host.Id;
+                }
+            }
+        }
+
+        return null;
+    }
 }

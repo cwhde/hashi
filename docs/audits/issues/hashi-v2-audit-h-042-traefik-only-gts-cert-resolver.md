@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §7.4, §10.3
 
+**Status:** Fixed
+**Branch:** h/backend-quality
+
 ## Description
 
 `TraefikConfigRenderer` in `src/Hashi.Core/Traefik/TraefikConfigRenderer.cs` hardcodes the ACME certificate resolver to `gts` (Google Trust Services):

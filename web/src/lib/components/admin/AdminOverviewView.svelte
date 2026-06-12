@@ -1,16 +1,18 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { api } from '$lib/api/client';
-	import type { AuditEvent, VaultStatus } from '$lib/api/types';
+	import type { AuditEvent, VaultStatus, HealthResponse } from '$lib/api/types';
 	import PageHeader from '$lib/components/layout/PageHeader.svelte';
 	import OverviewWidget from '$lib/components/overview/OverviewWidget.svelte';
 	import StatusRow from '$lib/components/layout/StatusRow.svelte';
 	import { DEFAULT_WIDGETS, loadDashboardWidgetPrefs, loadWidgetPrefs } from '$lib/overview/widgets';
 	import { LayoutDashboard } from 'lucide-svelte';
+	import { Alert, AlertDescription, AlertTitle } from '$lib/components/ui/alert';
 
 	let prefs = $state(loadWidgetPrefs());
 	let audit = $state<AuditEvent[]>([]);
 	let healthVersion = $state('—');
+	let healthStatus = $state<HealthResponse | null>(null);
 	let vaultStatus = $state<VaultStatus | null>(null);
 	let resourceCounts = $state({ total: 0, enabled: 0 });
 	let statusCounts = $state({ up: 0, degraded: 0, down: 0 });
@@ -23,40 +25,32 @@
 
 	onMount(async () => {
 		try {
-			const [dashboard, events, health, vault, resources, monitors, security, dns, pulse, runs] =
-				await Promise.all([
-					api.getDashboardSettings().catch(() => null),
-					api.getAuditEvents().catch(() => []),
-					api.getHealth().catch(() => null),
-					api.getVaultStatus().catch(() => null),
-					api.listResources().catch(() => []),
-					api.listStatusEndpoints().catch(() => []),
-					api.getSecurityDashboard().catch(() => null),
-					api.listDnsConnections().catch(() => []),
-					api.listPulseAgents().catch(() => []),
-					api.listSyncRuns().catch(() => [])
-				]);
+			const [dashboard, data] = await Promise.all([
+				api.getDashboardSettings().catch(() => null),
+				api.getAdminDashboard()
+			]);
 			prefs = loadDashboardWidgetPrefs(dashboard);
-			audit = events.slice(0, 5);
-			healthVersion = health?.version ?? '—';
-			vaultStatus = vault;
+			audit = data.auditEvents.slice(0, 5);
+			healthVersion = data.health?.version ?? '—';
+			healthStatus = data.health;
+			vaultStatus = data.vault;
 			resourceCounts = {
-				total: resources.length,
-				enabled: resources.filter((r) => r.enabled).length
+				total: data.resources.length,
+				enabled: data.resources.filter((r) => r.enabled).length
 			};
 			statusCounts = {
-				up: monitors.filter((m) => m.status === 'Up').length,
-				degraded: monitors.filter((m) => m.status === 'Degraded').length,
-				down: monitors.filter((m) => m.status === 'Down').length
+				up: data.monitors.filter((m) => m.status === 'Up').length,
+				degraded: data.monitors.filter((m) => m.status === 'Degraded').length,
+				down: data.monitors.filter((m) => m.status === 'Down').length
 			};
-			securityBlocked = security ? String(security.blocked) : '—';
-			securityAllowed = security ? String(security.allowed) : '—';
-			securityChallenged = security ? String(security.challenged) : '—';
-			dnsConnections = dns.length;
-			pulseAgents = pulse.length;
+			securityBlocked = data.security ? String(data.security.blocked) : '—';
+			securityAllowed = data.security ? String(data.security.allowed) : '—';
+			securityChallenged = data.security ? String(data.security.challenged) : '—';
+			dnsConnections = data.dnsConnections.length;
+			pulseAgents = data.pulseAgents.length;
 			syncRuns = {
-				recent: runs.length,
-				pending: runs.filter((r) => r.status === 'awaiting_confirmation').length
+				recent: data.syncRuns.length,
+				pending: data.syncRuns.filter((r) => r.status === 'awaiting_confirmation').length
 			};
 		} catch {
 			// offline dev
@@ -76,6 +70,15 @@
 		description="Homelab edge orchestration at a glance."
 		icon={LayoutDashboard}
 	/>
+
+	{#if healthStatus?.providerSyncPaused}
+		<Alert variant="destructive" class="border-destructive bg-destructive/15 text-destructive-foreground">
+			<AlertTitle>Critical Health Warning: background synchronization is paused</AlertTitle>
+			<AlertDescription class="text-xs">
+				The service-sync vault is locked or unavailable. All provider synchronization jobs are currently paused. Please unlock the vault or check the service-sync vault configuration to resume sync.
+			</AlertDescription>
+		</Alert>
+	{/if}
 
 	<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
 		{#each orderedWidgets as widget (widget.id)}

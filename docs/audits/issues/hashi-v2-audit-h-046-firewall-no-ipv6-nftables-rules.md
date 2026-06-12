@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §14.3, §14.4, §14.5
 
+**Status:** Fixed
+**Branch:** audit-series-h
+
 ## Description
 
 `FirewallScriptRenderer` in `src/Hashi.Core/Firewall/FirewallScriptRenderer.cs` generates iptables-only firewall rules with no IPv6 support:
@@ -42,8 +45,8 @@ sysctl -w net.ipv4.ip_forward=1                      // IPv4 only
 
 ## Acceptance Criteria
 
-- [ ] IPv6 traffic is handled by Hashi-managed firewall rules
-- [ ] IPv6 ipsets exist for trusted, blocked, and NetBird addresses
-- [ ] `net.ipv6.conf.all.forwarding` is configured
-- [ ] Public ports are DNAT'd for both IPv4 and IPv6
+- [x] IPv6 traffic is handled by Hashi-managed firewall rules
+- [x] IPv6 ipsets exist for trusted, blocked, and NetBird addresses
+- [x] `net.ipv6.conf.all.forwarding` is configured
+- [x] Public ports are DNAT'd for both IPv4 and IPv6
 - [ ] Or: clear documentation and UI warning about IPv6 not being managed

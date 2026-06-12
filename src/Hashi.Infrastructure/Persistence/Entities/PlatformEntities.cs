@@ -54,6 +54,8 @@ public sealed class ResourceEntity
 
     public Guid? FirewallHostId { get; set; }
 
+    public Guid? DetectedFirewallHostId { get; set; }
+
     public Guid? PulseAgentId { get; set; }
 
     public string? PathPrefix { get; set; }
@@ -63,6 +65,18 @@ public sealed class ResourceEntity
     public string? PathRewrite { get; set; }
 
     public string ExtraMiddlewaresJson { get; set; } = "[]";
+
+    public Guid? OidcProviderId { get; set; }
+
+    public OidcProviderEntity? OidcProvider { get; set; }
+
+    public bool ErrorHandlingEnabled { get; set; } = true;
+
+    public bool AdGuardRewriteEnabled { get; set; } = true;
+
+    public string? ExplicitRoutingOverride { get; set; }
+
+    public string? SecurityProfileName { get; set; }
 
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 
@@ -186,6 +200,12 @@ public sealed class MonitorEndpointEntity
     public string Url { get; set; } = string.Empty;
 
     public string CheckType { get; set; } = "https";
+
+    public string? Group { get; set; }
+
+    public int? CheckIntervalSeconds { get; set; }
+
+    public int? TimeoutSeconds { get; set; }
 
     public bool Enabled { get; set; } = true;
 
@@ -373,4 +393,13 @@ public static class ConnectionTargetStatusNames
     public const string Resolved = "resolved";
     public const string Stale = "stale";
     public const string Failed = "failed";
+}
+
+public sealed class SecurityProfileEntity
+{
+    public string Name { get; set; } = string.Empty;
+    public string ForwardAuthPolicy { get; set; } = "adaptive";
+    public string WafMode { get; set; } = "detect_only";
+    public int RateLimitAverage { get; set; } = 100;
+    public int RateLimitBurst { get; set; } = 200;
 }

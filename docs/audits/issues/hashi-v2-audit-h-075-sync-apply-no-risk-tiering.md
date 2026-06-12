@@ -4,6 +4,9 @@
 **Conflict Type:** wrong_implementation
 **Spec Reference:** Main Spec §25
 
+**Status:** Fixed
+**Branch:** audit-series-h
+
 ## Description
 
 `ApplyGlobalAsync()` takes a single `confirmDestructive` boolean. It doesn't separate low-risk auto-apply from high-risk confirmation — the entire Apply is all-or-nothing. If `confirmDestructive=false` and ANY subsystem has destructive changes, the entire Apply aborts for that subsystem. The spec requires auto-applying safe changes while only holding destructive changes for confirmation.

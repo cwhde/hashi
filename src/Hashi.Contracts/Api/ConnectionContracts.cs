@@ -5,6 +5,10 @@ public static class ConnectionTypeContractNames
     public const string DnsProvider = "dns_provider";
     public const string TraefikHost = "traefik_host";
     public const string FirewallHost = "firewall_host";
+    public const string AdGuardHome = "adguard_home";
+    public const string OidcProvider = "oidc_provider";
+    public const string NotificationProvider = "notification_provider";
+    public const string NetBirdManagement = "netbird_management";
 
     public static readonly string[] SshConnectionTypes =
     [

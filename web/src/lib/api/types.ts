@@ -17,6 +17,8 @@ export type VaultStatus = Schemas['VaultStatusResponse'];
 export type VaultSetupRequest = Schemas['VaultSetupRequest'];
 export type VaultGenerateRecoveryKeyResponse = Schemas['VaultGenerateRecoveryKeyResponse'];
 export type SecretDescriptor = Schemas['SecretDescriptorResponse'];
+export type DnsProviderCapabilities = Schemas['DnsProviderCapabilitiesResponse'];
+export type AdminDashboard = Schemas['AdminDashboardResponse'];
 
 export type ConnectionSummary = Schemas['ConnectionSummaryResponse'];
 export type CreateHetznerDnsConnectionRequest = Schemas['CreateHetznerDnsConnectionRequest'];
@@ -94,6 +96,7 @@ export type UpdateMonitorEndpointRequest = {
 	checkType?: string | null;
 	enabled?: boolean | null;
 	publicStatusEnabled?: boolean | null;
+	paused?: boolean | null;
 };
 export type MonitorRollup = {
 	monitorEndpointId: string;
@@ -241,6 +244,13 @@ export type TelegramChatDiscoveryResponse = {
 	chatTitle: string | null;
 	error: string | null;
 };
+export type DiscordChannelDiscoveryResponse = {
+	found: boolean;
+	channelId: string | null;
+	channelName: string | null;
+	userId: string | null;
+	error: string | null;
+};
 export type AdGuardConnection = Schemas['AdGuardConnectionResponse'];
 export type CreateAdGuardConnectionRequest = Schemas['CreateAdGuardConnectionRequest'];
 export type AdGuardRewrite = NonNullable<Schemas['AdGuardRewriteResponse']>;
@@ -361,5 +371,9 @@ export type ApiError = {
 	error?: string;
 	message?: string;
 };
+
+export type SecurityProfile = Schemas['SecurityProfileResponse'];
+export type CreateSecurityProfileRequest = Schemas['CreateSecurityProfileRequest'];
+export type UpdateSecurityProfileRequest = Schemas['UpdateSecurityProfileRequest'];
 
 export type UndocumentedJson = Record<string, unknown>;

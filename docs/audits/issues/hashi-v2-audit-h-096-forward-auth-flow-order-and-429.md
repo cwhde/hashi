@@ -4,6 +4,9 @@
 **Conflict Type:** wrong_implementation
 **Spec Reference:** §11 (Forward auth returns 429 for rate-limited traffic); Addendum §14 (11-step evaluation order)
 
+**Status:** Fixed
+**Branch:** audit-series-h
+
 ## Description
 
 The decision flow has 16 steps instead of the spec's 11. Missing from the expected flow: rate-limiting step (should produce 429 response). The implemented order also intermixes manual allow processing with block checks rather than having clean sequential steps matching the spec's priority order.

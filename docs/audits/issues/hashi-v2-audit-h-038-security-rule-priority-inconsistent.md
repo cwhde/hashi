@@ -4,6 +4,9 @@
 **Conflict Type:** wrong_implementation
 **Spec Reference:** Main Spec §6 (Resource Rule Model)
 
+**Status:** Fixed
+**Branch:** h/backend-quality
+
 ## Description
 
 `SecurityDecisionService` in `src/Hashi.Infrastructure/Platform/SecurityDecisionService.cs` evaluates resource rules and global edge-auth rules with opposite priority ordering:

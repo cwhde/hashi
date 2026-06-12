@@ -194,6 +194,51 @@ public sealed class FirewallScriptRendererTests
     }
 
     [Fact]
+    public void Render_routes_ipv6_values_through_ipv6_sets_and_rules()
+    {
+        var script = Hashi.Core.Firewall.FirewallScriptRenderer.Render(new Hashi.Core.Firewall.FirewallHostDefinition(
+            Guid.NewGuid(),
+            "fw1",
+            "example.com",
+            ["192.168.1.0/24", "fd00:1::/64"],
+            "traefik.local",
+            "10.0.0.2",
+            "203.0.113.5",
+            NetBirdOverlayCidrs: ["100.110.0.0/16", "fd00:110::/64"],
+            NetBirdRoutedCidrs: ["10.44.0.0/16", "fd00:44::/64"],
+            NetBirdRoutingPeer: true,
+            PortForwards: [new Hashi.Core.Firewall.FirewallPortForward("tcp", 8443, "fd00:1::20", 443)],
+            TrustedPublicIps: ["2001:db8::10"],
+            BlockedIps: ["2001:db8::20"]));
+
+        Assert.Contains("ipset add hashi_trusted6 '2001:db8::10' -exist", script);
+        Assert.Contains("ipset add hashi_blocked6 '2001:db8::20' -exist", script);
+        Assert.Contains("ipset add hashi_netbird6 \"$cidr\" -exist", script);
+        Assert.Contains("ip6tables -A HASHI_FWD -s \"$subnet\" -j ACCEPT", script);
+        Assert.Contains("ip6tables -t nat -A HASHI_DNAT", script);
+        Assert.Contains("'[fd00:1::20]:443'", script);
+        Assert.DoesNotContain("ipset add hashi_trusted '2001:db8::10'", script);
+    }
+
+    [Fact]
+    public void Render_does_not_reference_missing_ipv6_overlay_for_ipv6_routed_networks()
+    {
+        var script = Hashi.Core.Firewall.FirewallScriptRenderer.Render(new Hashi.Core.Firewall.FirewallHostDefinition(
+            Guid.NewGuid(),
+            "fw1",
+            "example.com",
+            ["192.168.1.0/24"],
+            "traefik.local",
+            "10.0.0.2",
+            "203.0.113.5",
+            NetBirdRoutedCidrs: ["fd00:44::/64"],
+            NetBirdRoutingPeer: true));
+
+        Assert.Contains("ip6tables -A HASHI_NETBIRD -i \"$NETBIRD_IF\" -d \"$cidr\" -j ACCEPT", script);
+        Assert.DoesNotContain("${HASHI_NETBIRD_OVERLAY6[0]}", script);
+    }
+
+    [Fact]
     public void Render_passes_shellcheck_when_available()
     {
         if (OperatingSystem.IsWindows())

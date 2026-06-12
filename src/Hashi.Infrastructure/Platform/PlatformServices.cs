@@ -67,7 +67,13 @@ public sealed class ResourceService(
             WafMode = request.WafMode ?? "detect_only",
             ExtraMiddlewaresJson = SerializeExtraMiddlewares(request.ExtraMiddlewares),
             WafExclusionsJson = SerializeWafExclusions(request.WafExclusions),
+            OidcProviderId = request.OidcProviderId,
+            ErrorHandlingEnabled = request.ErrorHandlingEnabled ?? true,
+            AdGuardRewriteEnabled = request.AdGuardRewriteEnabled,
+            ExplicitRoutingOverride = request.ExplicitRoutingOverride,
+            SecurityProfileName = request.SecurityProfileName,
         };
+        entity.DetectedFirewallHostId = await DetectFirewallHostAsync(entity.TargetHost, entity.PulseAgentId, cancellationToken);
         db.Resources.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
         await UpsertRoutesAsync(entity.Id, request.Routes, cancellationToken);
@@ -196,6 +202,43 @@ public sealed class ResourceService(
             entity.PulseAgentId = pulseAgentId;
         }
 
+        if (request.ClearOidcProviderId)
+        {
+            entity.OidcProviderId = null;
+        }
+        else if (request.OidcProviderId is Guid oidcProviderId)
+        {
+            entity.OidcProviderId = oidcProviderId;
+        }
+
+        if (request.ErrorHandlingEnabled is bool errorHandlingEnabled)
+        {
+            entity.ErrorHandlingEnabled = errorHandlingEnabled;
+        }
+
+        if (request.AdGuardRewriteEnabled is bool adGuardRewriteEnabled)
+        {
+            entity.AdGuardRewriteEnabled = adGuardRewriteEnabled;
+        }
+
+        if (request.ClearExplicitRoutingOverride)
+        {
+            entity.ExplicitRoutingOverride = null;
+        }
+        else if (request.ExplicitRoutingOverride is not null)
+        {
+            entity.ExplicitRoutingOverride = request.ExplicitRoutingOverride;
+        }
+
+        if (request.ClearSecurityProfileName)
+        {
+            entity.SecurityProfileName = null;
+        }
+        else if (request.SecurityProfileName is not null)
+        {
+            entity.SecurityProfileName = request.SecurityProfileName;
+        }
+
         if (request.ClearPathPrefix)
         {
             entity.PathPrefix = null;
@@ -258,6 +301,7 @@ public sealed class ResourceService(
             await EnsureStreamPortConfirmedOrPendingAsync(streamKey.Port, streamKey.Protocol, cancellationToken);
         }
 
+        entity.DetectedFirewallHostId = await DetectFirewallHostAsync(entity.TargetHost, entity.PulseAgentId, cancellationToken);
         entity.UpdatedAtUtc = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
 
@@ -341,6 +385,7 @@ public sealed class ResourceService(
             entity.DashboardEnabled,
             entity.StatusEnabled,
             entity.FirewallHostId,
+            entity.DetectedFirewallHostId,
             entity.PulseAgentId,
             entity.PathPrefix,
             entity.PathRewriteMode,
@@ -350,7 +395,12 @@ public sealed class ResourceService(
             TraefikUserMiddlewareService.ParseExtraMiddlewares(entity.ExtraMiddlewaresJson),
             routes.Select(ToRouteResponse).ToList(),
             rules.Select(ToRuleResponse).ToList(),
-            ParseWafExclusions(entity.WafExclusionsJson));
+            ParseWafExclusions(entity.WafExclusionsJson),
+            entity.OidcProviderId,
+            entity.ErrorHandlingEnabled,
+            entity.AdGuardRewriteEnabled,
+            entity.ExplicitRoutingOverride,
+            entity.SecurityProfileName);
     }
 
     public static ResourceRouteResponse ToRouteResponse(ResourceRouteEntity entity) => new(
@@ -612,6 +662,53 @@ public sealed class ResourceService(
         {
             throw new InvalidOperationException("Internal agent DNS is DNS-only and cannot be used as a reverse-proxy resource domain.");
         }
+
+        if (string.Equals(resolvedDomain, "home.arpa", StringComparison.OrdinalIgnoreCase) ||
+            resolvedDomain.EndsWith(".home.arpa", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Domains matching home.arpa or ending in .home.arpa are reserved for internal agent DNS and cannot be used as resource domains.");
+        }
+    }
+
+    private async Task<Guid?> DetectFirewallHostAsync(
+        string targetHost,
+        Guid? pulseAgentId,
+        CancellationToken cancellationToken)
+    {
+        var candidates = new List<string>();
+        if (!string.IsNullOrWhiteSpace(targetHost))
+        {
+            candidates.Add(targetHost.Trim());
+        }
+
+        if (pulseAgentId is Guid agentId)
+        {
+            var agent = await db.PulseAgents.AsNoTracking().SingleOrDefaultAsync(x => x.Id == agentId, cancellationToken);
+            if (agent is not null)
+            {
+                candidates.AddRange(new[] { agent.LastSelectedIp, agent.LastPrivateIp, agent.LastPublicIp }
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Select(x => x!.Trim()));
+            }
+        }
+
+        if (candidates.Count == 0)
+        {
+            return null;
+        }
+
+        var hosts = await db.FirewallHosts.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
+        foreach (var host in hosts)
+        {
+            var cidrs = (JsonSerializer.Deserialize<List<string>>(host.ManagedSubnetsJson) ?? [])
+                .Concat(JsonSerializer.Deserialize<List<string>>(host.NetBirdRoutedCidrsJson) ?? []);
+            if (candidates.Any(candidate => cidrs.Any(cidr => DnsRecordGenerator.IpMatchesSubnet(candidate, cidr))))
+            {
+                return host.Id;
+            }
+        }
+
+        return null;
     }
 
     private static void ValidateRewrite(
@@ -707,6 +804,8 @@ public sealed class ResourceService(
         var routes = await db.ResourceRoutes.AsNoTracking().ToListAsync(cancellationToken);
         var rules = await db.ResourceRules.AsNoTracking().ToListAsync(cancellationToken);
         var rootDomain = (await db.AppSettings.AsNoTracking().SingleOrDefaultAsync(cancellationToken))?.RootDomain;
+        var profiles = await db.SecurityProfiles.AsNoTracking().ToDictionaryAsync(x => x.Name, StringComparer.OrdinalIgnoreCase, cancellationToken);
+
         return resources.Select(entity =>
         {
             var resourceRoutes = routes.Where(x => x.ResourceId == entity.Id)
@@ -727,6 +826,21 @@ public sealed class ResourceService(
                 .OrderByDescending(x => x.Priority)
                 .Select(x => new ResourceRuleDefinition(x.Priority, x.Action, x.MatchType, x.MatchValue, x.Enabled))
                 .ToList();
+
+            SecurityProfileEntity? profile = null;
+            if (!string.IsNullOrEmpty(entity.SecurityProfileName))
+            {
+                profiles.TryGetValue(entity.SecurityProfileName, out profile);
+            }
+
+            var forwardAuth = profile is not null
+                ? ForwardAuthPolicyMapping.Parse(profile.ForwardAuthPolicy)
+                : ForwardAuthPolicyMapping.Parse(entity.ForwardAuthPolicy);
+
+            var wafMode = profile is not null
+                ? ParseWafMode(profile.WafMode)
+                : ParseWafMode(entity.WafMode);
+
             return new ResourceDefinition(
                 entity.Id,
                 entity.Name,
@@ -741,8 +855,8 @@ public sealed class ResourceService(
                 entity.PublicPort,
                 entity.PathPrefix,
                 entity.PathRewrite,
-                ForwardAuthPolicyMapping.Parse(entity.ForwardAuthPolicy),
-                ParseWafMode(entity.WafMode),
+                forwardAuth,
+                wafMode,
                 TraefikUserMiddlewareService.ParseExtraMiddlewares(entity.ExtraMiddlewaresJson),
                 resourceRoutes.Count > 0 ? resourceRoutes : null,
                 resourceRules.Count > 0 ? resourceRules : null,
@@ -750,7 +864,13 @@ public sealed class ResourceService(
                 entity.DomainMode,
                 entity.PathRewriteMode,
                 entity.TcpProxyProtocolEnabled,
-                entity.MonitoringProtocolHint);
+                entity.MonitoringProtocolHint,
+                entity.ErrorHandlingEnabled,
+                entity.AdGuardRewriteEnabled,
+                entity.ExplicitRoutingOverride,
+                entity.SecurityProfileName,
+                profile?.RateLimitAverage,
+                profile?.RateLimitBurst);
         }).ToList();
     }
 
@@ -812,12 +932,16 @@ public sealed class TraefikPlatformService(
         var appSettings = await settings.GetOrCreateAsync(cancellationToken);
         var acmeOptions = await certificateSetup.BuildTraefikOptionsAsync(appSettings.AdminDomain ?? "hashi.local", cancellationToken);
         var confirmedPorts = await entryPoints.GetConfirmedPortKeysAsync(cancellationToken);
+        var configuredDns = await db.InternalAgentDnsSettings.AsNoTracking().SingleOrDefaultAsync(cancellationToken);
         var options = acmeOptions with
         {
             AdminDomain = appSettings.AdminDomain ?? "hashi.local",
             HashiForwardAuthUrl = internalUrls.ResolveUrl(appSettings, "/api/edge-auth/forward"),
             HashiHealthUrl = internalUrls.ResolveUrl(appSettings, "/api/health"),
+            HashiErrorUrl = internalUrls.ResolveUrl(appSettings, "/api/error"),
+            ErrorHandlingEnabled = appSettings.ErrorHandlingEnabled,
             ConfirmedStreamPorts = confirmedPorts,
+            InternalDnsDomain = configuredDns?.Domain,
         };
         var userYaml = await userMiddlewares.GetAppliedYamlAsync(cancellationToken);
         return TraefikConfigRenderer.Render(defs, options, userYaml);

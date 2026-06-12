@@ -4,6 +4,9 @@
 **Conflict Type:** wrong_implementation
 **Spec Reference:** Addendum §6.2 (Do not reset offense history after a successful CAPTCHA solve); §7.4 (Hashi does not clear offense history; Hashi does not bypass SSO)
 
+**Status:** Fixed
+**Branch:** h/security-2
+
 ## Description
 
 `CaptchaChallengeService.ClearChallengeAfterSolveAsync()` resets `RequestsWhileChallenged = 0` and `FailedChallengeCount = 0`, and optionally fully resets or decays bucket challenge counters. The spec explicitly requires that CAPTCHA solve does NOT erase offense history, including soft block count, firewall block count, manual block history, security event history, and repeat-offender counters. Resetting these metrics means repeat offenders can clear their track record with each CAPTCHA solve, defeating the escalation system.

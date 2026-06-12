@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Main Spec §18.3, §18.5, §24
 
+**Status:** Fixed
+**Branch:** audit-series-h
+
 ## Description
 
 `MonitoringService.PublicStatusAsync` in `src/Hashi.Infrastructure/Platform/MonitoringService.cs` hardcodes a 1-hour window for public status data:
@@ -37,7 +40,7 @@ The public status API should accept a configurable time range parameter and use 
 
 ## Acceptance Criteria
 
-- [ ] Public status API accepts a configurable time range parameter
-- [ ] Last 60 minutes strip remains the default
-- [ ] 24h, 7d, and 30d views return data from monitor rollup tables
-- [ ] Time range respects configured data retention limits
+- [x] Public status API accepts a configurable time range parameter
+- [x] Last 60 minutes strip remains the default
+- [x] 24h, 7d, and 30d views return data from monitor rollup tables
+- [x] Time range respects configured data retention limits

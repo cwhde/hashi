@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §6
 
+**Status:** Fixed
+**Branch:** h/backend-quality
+
 ## Description
 
 The `ConnectionTypeNames` constants in `DnsEntities.cs` only define three connection types:

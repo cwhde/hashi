@@ -4,6 +4,9 @@
 **Conflict Type:** wrong_implementation
 **Spec Reference:** Addendum §9.5 (Before saving an agent-bound connection: agent must exist, agent must have heartbeat unless explicitly allowed, port must be valid)
 
+**Status:** Fixed
+**Branch:** h/backend-quality
+
 ## Description
 
 Connection target validation happens at resolution time, not at save time. Invalid combinations (e.g., PulseAgent mode without `PulseAgentId`) are saved to the database and only fail when resolution is attempted.

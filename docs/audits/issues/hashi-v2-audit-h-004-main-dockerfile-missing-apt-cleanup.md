@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Addendum §17.3; Main Spec §30 (Deployment)
 
+**Status:** Fixed
+**Branch:** h/docker-builds
+
 ## Description
 
 The main Dockerfile's `final` stage installs `curl` for healthcheck purposes but does not clean up the apt cache after installation. This leaves the `/var/lib/apt/lists/` directory in the final image, adding unnecessary size. While the Dockerfile does run `rm -rf /var/lib/apt/lists/*` after the install, the `apt-get upgrade -y` step downloads and installs package upgrades that increase the image size beyond what's necessary.

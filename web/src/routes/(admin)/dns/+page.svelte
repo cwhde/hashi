@@ -51,6 +51,29 @@
 		defaultTtl: 300
 	});
 
+
+	let supportedTypes = $state<string[]>(['A', 'AAAA', 'CNAME', 'MX', 'TXT']);
+	$effect(() => {
+		const zoneId = recordForm.zoneId;
+		if (zoneId) {
+			const zone = zones.find((z) => z.id === zoneId);
+			if (zone && zone.connectionId) {
+				api.getDnsConnectionCapabilities(zone.connectionId)
+					.then((caps) => {
+						if (caps && caps.supportedRecordTypes) {
+							supportedTypes = caps.supportedRecordTypes;
+							if (!supportedTypes.includes(recordForm.type) && supportedTypes.length > 0) {
+								recordForm.type = supportedTypes[0];
+							}
+						}
+					})
+					.catch(() => {
+						supportedTypes = ['A', 'AAAA', 'CNAME', 'MX', 'TXT'];
+					});
+			}
+		}
+	});
+
 	$effect(() => {
 		void load();
 	});
@@ -363,7 +386,7 @@
 					class="h-10 rounded-md border border-input bg-background px-3 text-sm"
 					bind:value={recordForm.type}
 				>
-					{#each ['A', 'AAAA', 'CNAME', 'MX', 'TXT'] as type (type)}
+					{#each supportedTypes as type (type)}
 						<option value={type}>{type}</option>
 					{/each}
 				</select>

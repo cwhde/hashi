@@ -19,6 +19,11 @@ namespace Hashi.UnitTests;
 
 public sealed class PulseAgentServiceTests
 {
+    public PulseAgentServiceTests()
+    {
+        PulseAgentService.TcpConnectionTester = (ip, port, timeoutMs) => Task.FromResult(false);
+    }
+
     [Fact]
     public async Task RevokeAgent_rejects_subsequent_heartbeat()
     {
@@ -113,6 +118,7 @@ public sealed class PulseAgentServiceTests
     [Fact]
     public async Task Heartbeat_persists_timestamp_candidates_selected_interface_and_docker_metadata()
     {
+        PulseAgentService.TcpConnectionTester = (_, _, _) => Task.FromResult(true);
         await using var db = CreateDb();
         var service = CreateService(db);
         var created = await service.CreateAgentAsync(new Hashi.Contracts.Api.CreatePulseAgentRequest("edge-1"));
@@ -248,6 +254,59 @@ public sealed class PulseAgentServiceTests
         Assert.Contains(records, x => x.Name == "app.example.com" && x.Value == "203.0.113.10");
         var agent = await db.PulseAgents.SingleAsync(x => x.Id == agentId);
         Assert.Null(agent.DnsPendingAtUtc);
+    }
+
+    [Fact]
+    public async Task Heartbeat_rejects_agent_with_missing_heartbeat_scope()
+    {
+        using var db = CreateDb();
+        var agentId = Guid.NewGuid();
+        db.PulseAgents.Add(new PulseAgentEntity
+        {
+            Id = agentId,
+            Name = "Agent",
+            TokenHash = HashToken("pulse-token"),
+            Status = "pending",
+            AllowedScopesJson = "[\"status_only\"]",
+            HeartbeatIntervalSeconds = 60,
+        });
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+        var accepted = await service.AcceptHeartbeatAsync(
+            agentId,
+            Heartbeat("pulse-token"),
+            "10.0.0.10");
+
+        Assert.Equal(PulseHeartbeatAcceptResult.InvalidScope, accepted);
+    }
+
+    [Fact]
+    public async Task Heartbeat_sets_status_to_degraded_when_reachability_fails()
+    {
+        using var db = CreateDb();
+        var agentId = Guid.NewGuid();
+        db.PulseAgents.Add(new PulseAgentEntity
+        {
+            Id = agentId,
+            Name = "Agent",
+            TokenHash = HashToken("pulse-token"),
+            Status = "pending",
+            AllowedScopesJson = "[\"heartbeat\"]",
+            HeartbeatIntervalSeconds = 60,
+        });
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+        var accepted = await service.AcceptHeartbeatAsync(
+            agentId,
+            Heartbeat("pulse-token"),
+            "192.0.2.1");
+
+        Assert.Equal(PulseHeartbeatAcceptResult.Accepted, accepted);
+
+        var agent = await db.PulseAgents.SingleAsync(x => x.Id == agentId);
+        Assert.Equal("degraded", agent.Status);
     }
 
     private static PulseAgentService CreateService(

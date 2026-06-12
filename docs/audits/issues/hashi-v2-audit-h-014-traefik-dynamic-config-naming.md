@@ -4,6 +4,9 @@
 **Conflict Type:** wrong_implementation
 **Spec Reference:** Main Spec §10.3
 
+**Status:** Fixed
+**Branch:** h/spec-compliance-1
+
 ## Description
 
 The implementation spec defines specific naming for Traefik dynamic config files:

@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Main Spec §9
 
+**Status:** Fixed
+**Branch:** h/security-1
+
 ## Description
 
 The admin authentication cookie (`hashi.session`) and CSRF cookie (`hashi.csrf`) are configured in `Program.cs` without explicitly setting the `SameSite` property. On .NET 10, the default `SameSite` value is `Lax`, which may be insufficient for certain deployment scenarios:

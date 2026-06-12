@@ -3,6 +3,7 @@ using Hashi.Core.Dns;
 using Hashi.Infrastructure.Dns;
 using Hashi.Infrastructure.Persistence;
 using Hashi.Infrastructure.Persistence.Entities;
+using Hashi.Infrastructure.Sync;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 
@@ -36,6 +37,7 @@ public static class DnsEndpoints
         group.MapPost("/connections/hetzner", async Task<IResult> (
             CreateHetznerDnsConnectionRequest request,
             DnsConnectionService dns,
+            SyncOrchestratorService sync,
             CancellationToken ct) =>
         {
             var connection = await dns.CreateHetznerConnectionAsync(
@@ -44,6 +46,7 @@ public static class DnsEndpoints
                 request.ZoneName,
                 request.DefaultTtl,
                 ct);
+            await sync.TriggerImmediateSyncAsync(ct);
             return TypedResults.Ok(ToSummary(connection));
         });
 
@@ -65,6 +68,22 @@ public static class DnsEndpoints
             var (valid, error) = await dns.ValidateWriteAsync(connectionId, request.ConfirmDryRun, ct);
             return TypedResults.Ok(new DnsWriteValidationResponse(valid, error));
         });
+
+        group.MapGet("/connections/{connectionId:guid}/capabilities", async Task<IResult> (
+            Guid connectionId,
+            DnsConnectionService dns,
+            CancellationToken ct) =>
+        {
+            var caps = await dns.GetCapabilitiesAsync(connectionId, ct);
+            return TypedResults.Ok(new DnsProviderCapabilitiesResponse(
+                caps.SupportedRecordTypes,
+                caps.SupportsBatchOperations,
+                caps.MaxRecordsPerZone,
+                caps.SupportsComments,
+                caps.RateLimitLimit,
+                caps.RateLimitWindowSeconds));
+        })
+            .Produces<DnsProviderCapabilitiesResponse>(StatusCodes.Status200OK);
 
         group.MapGet("/connections/{connectionId:guid}/records/provider", async Task<IResult> (
             Guid connectionId,
@@ -115,9 +134,11 @@ public static class DnsEndpoints
             Guid connectionId,
             DnsImportApplyRequest request,
             DnsConnectionService dns,
+            SyncOrchestratorService sync,
             CancellationToken ct) =>
         {
             await dns.ApplyImportAsync(connectionId, request.SelectedDecisionIds, ct);
+            await sync.TriggerImmediateSyncAsync(ct);
             return TypedResults.Ok(new { applied = true });
         });
 
@@ -135,6 +156,7 @@ public static class DnsEndpoints
             Guid connectionId,
             DnsPruneApplyRequest request,
             DnsConnectionService dns,
+            SyncOrchestratorService sync,
             CancellationToken ct) =>
         {
             if (!request.ConfirmDestructive)
@@ -143,6 +165,7 @@ public static class DnsEndpoints
             }
 
             await dns.ApplyPruneAsync(connectionId, request.ConfirmDestructive, ct);
+            await sync.TriggerImmediateSyncAsync(ct);
             return TypedResults.Ok(new { applied = true });
         });
 
@@ -160,6 +183,7 @@ public static class DnsEndpoints
             Guid connectionId,
             DnsSyncApplyRequest request,
             DnsConnectionService dns,
+            SyncOrchestratorService sync,
             CancellationToken ct) =>
         {
             if (request.ConnectionId != connectionId)
@@ -174,82 +198,11 @@ public static class DnsEndpoints
             }
 
             var syncRunId = await dns.ApplyPlanWithSyncRunAsync(plan, request.ConfirmDestructive, ct);
+            await sync.TriggerImmediateSyncAsync(ct);
             return TypedResults.Ok(new { applied = true, syncRunId });
         });
 
-        group.MapGet("/records", async (DnsRecordService records, CancellationToken ct) =>
-        {
-            var items = await records.ListAsync(ct);
-            return TypedResults.Ok(items.Select(ToRecord));
-        });
-
-        group.MapPost("/records", async Task<IResult> (
-            UpsertDnsRecordRequest request,
-            DnsRecordService records,
-            CancellationToken ct) =>
-        {
-            try
-            {
-                return TypedResults.Ok(ToRecord(await records.CreateManualAsync(
-                    request.ZoneId,
-                    request.Name,
-                    request.Type,
-                    request.Value,
-                    request.Ttl,
-                    request.Enabled,
-                    request.DashboardEnabled,
-                    request.DashboardDisplayName,
-                    request.MonitoringEnabled,
-                    request.MonitoringDisplayName,
-                    ct)));
-            }
-            catch (InvalidOperationException ex)
-            {
-                return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
-            }
-        });
-
-        group.MapPut("/records/{recordId:guid}", async Task<IResult> (
-            Guid recordId,
-            UpsertDnsRecordRequest request,
-            DnsRecordService records,
-            CancellationToken ct) =>
-        {
-            try
-            {
-                var updated = await records.UpdateManualAsync(
-                    recordId,
-                    request.ZoneId,
-                    request.Name,
-                    request.Type,
-                    request.Value,
-                    request.Ttl,
-                    request.Enabled,
-                    request.DashboardEnabled,
-                    request.DashboardDisplayName,
-                    request.MonitoringEnabled,
-                    request.MonitoringDisplayName,
-                    ct);
-                return updated is null
-                    ? TypedResults.NotFound(new ApiErrorResponse("Manual DNS record not found."))
-                    : TypedResults.Ok(ToRecord(updated));
-            }
-            catch (InvalidOperationException ex)
-            {
-                return TypedResults.BadRequest(new ApiErrorResponse(ex.Message));
-            }
-        });
-
-        group.MapDelete("/records/{recordId:guid}", async Task<IResult> (
-            Guid recordId,
-            DnsRecordService records,
-            CancellationToken ct) =>
-        {
-            var deleted = await records.DeleteManualAsync(recordId, ct);
-            return deleted
-                ? TypedResults.NoContent()
-                : TypedResults.NotFound(new ApiErrorResponse("Manual DNS record not found."));
-        });
+        DnsRecordEndpoints.Map(group);
 
         return app;
     }
@@ -263,21 +216,6 @@ public static class DnsEndpoints
             connection.HealthState,
             connection.LastValidationMessage,
             connection.LastValidatedAtUtc);
-
-    private static DnsRecordResponse ToRecord(DnsRecordEntity record)
-        => new(
-            record.Id,
-            record.ZoneId,
-            record.Name,
-            record.Type,
-            record.Value,
-            record.Ttl,
-            record.Ownership,
-            record.Enabled,
-            record.DashboardEnabled,
-            record.DashboardDisplayName,
-            record.MonitoringEnabled,
-            record.MonitoringDisplayName);
 
     private static DnsSyncPlanResponse ToPlan(Hashi.Core.Dns.DnsSyncPlan plan)
         => new(

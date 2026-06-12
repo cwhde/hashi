@@ -118,8 +118,8 @@ public sealed class VaultService(
             cancellationToken)
             ?? throw new InvalidOperationException("Vault is not configured.");
 
-        var hash = KeyDerivation.HashRecoveryKeyForVerification(recoveryKey);
-        if (!string.Equals(hash, wrapped.RecoveryKeyHash, StringComparison.Ordinal))
+        if (wrapped.RecoveryKeyHash is null
+            || !KeyDerivation.VerifyRecoveryKeyHash(recoveryKey, wrapped.RecoveryKeyHash))
         {
             await audit.WriteAsync("vault", "unlock_failed", outcome: "failure", cancellationToken: cancellationToken);
             return false;
@@ -172,6 +172,7 @@ public sealed class VaultService(
     {
         if (!serviceSync.IsReady)
         {
+            serviceSync.IsUnlocked = false;
             return;
         }
 
@@ -180,6 +181,7 @@ public sealed class VaultService(
             cancellationToken);
         if (wrapped is null)
         {
+            serviceSync.IsUnlocked = false;
             return;
         }
 
@@ -187,10 +189,12 @@ public sealed class VaultService(
         {
             var rootKey = AesGcmCipher.Decrypt(wrapped.WrappedKeyBlob, serviceSync.GetWrapKeyOrThrow());
             CryptographicOperations.ZeroMemory(rootKey);
+            serviceSync.IsUnlocked = true;
         }
         catch (CryptographicException ex)
         {
             logger.LogWarning(ex, "Service-sync vault unlock failed.");
+            serviceSync.IsUnlocked = false;
         }
     }
 }

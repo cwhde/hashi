@@ -74,7 +74,7 @@ public sealed class MonitorCheckWorker(
         var monitoring = scope.ServiceProvider.GetRequiredService<MonitoringService>();
         var appSettings = scope.ServiceProvider.GetRequiredService<AppSettingsService>();
         await monitoring.SyncEndpointsFromResourcesAsync(cancellationToken);
-        var endpoints = await db.MonitorEndpoints.Where(x => x.Enabled).ToListAsync(cancellationToken);
+        var endpoints = await db.MonitorEndpoints.Where(x => x.Enabled && x.Status != "paused").ToListAsync(cancellationToken);
         var client = httpClientFactory.CreateClient("monitor-checks");
         client.Timeout = TimeSpan.FromSeconds(Math.Clamp(timeoutSeconds, 5, 120));
         var retentionDays = Math.Clamp((await appSettings.GetOrCreateAsync(cancellationToken)).MonitorSampleRetentionDays, 7, 365);

@@ -183,15 +183,27 @@ public sealed class SecurityMaintenanceService(
         }
 
         var states = await db.SecuritySubjectStates
+            .Include(x => x.SecuritySubject)
             .Where(x =>
                 (x.SoftBlockedUntilUtc != null && x.SoftBlockedUntilUtc <= now) ||
                 (x.FirewallBlockedUntilUtc != null && x.FirewallBlockedUntilUtc <= now) ||
                 x.ManualBlockActive)
             .ToListAsync(cancellationToken);
+
+        var activeManualBlocks = await db.ManualSecurityEntries.AsNoTracking()
+            .Where(x =>
+                x.Enabled &&
+                x.EntryType == ManualSecurityEntryTypeNames.Block &&
+                (x.IsPermanent || x.ExpiresAtUtc == null || x.ExpiresAtUtc > now))
+            .ToListAsync(cancellationToken);
+
+        var activeManualBlockLookup = activeManualBlocks
+            .ToLookup(x => (x.SubjectType.ToUpperInvariant(), x.NormalizedValue.ToUpperInvariant()));
+
         var statesUpdated = 0;
         foreach (var state in states)
         {
-            var subject = await db.SecuritySubjects.SingleOrDefaultAsync(x => x.Id == state.SecuritySubjectId, cancellationToken);
+            var subject = state.SecuritySubject;
             if (subject is null)
             {
                 continue;
@@ -210,14 +222,7 @@ public sealed class SecurityMaintenanceService(
                 changed = true;
             }
 
-            var hasActiveManualBlock = await db.ManualSecurityEntries.AsNoTracking()
-                .AnyAsync(x =>
-                    x.Enabled &&
-                    x.EntryType == ManualSecurityEntryTypeNames.Block &&
-                    x.SubjectType == subject.SubjectType &&
-                    x.NormalizedValue == subject.NormalizedValue &&
-                    (x.IsPermanent || x.ExpiresAtUtc == null || x.ExpiresAtUtc > now),
-                    cancellationToken);
+            var hasActiveManualBlock = activeManualBlockLookup.Contains((subject.SubjectType.ToUpperInvariant(), subject.NormalizedValue.ToUpperInvariant()));
             if (state.ManualBlockActive != hasActiveManualBlock)
             {
                 state.ManualBlockActive = hasActiveManualBlock;

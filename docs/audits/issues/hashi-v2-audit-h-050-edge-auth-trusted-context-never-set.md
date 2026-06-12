@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Main Spec §11, §13
 
+**Status:** Fixed
+**Branch:** h/security-1
+
 ## Description
 
 `EdgeAuthService.EvaluateForwardAsync` in `src/Hashi.Infrastructure/Platform/EdgeAuthService.cs` creates a `SecurityDecisionRequest` without setting `TrustedForwardedContext`:

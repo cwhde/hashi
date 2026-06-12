@@ -88,7 +88,7 @@ public sealed class AdGuardSyncService(
                     false,
                     resolved.Error,
                     ToTargetResponse(target),
-                    resolved.BaseUri.ToString().TrimEnd('/'),
+                    resolved.BaseUri?.ToString().TrimEnd('/'),
                     resolved.IsStale);
             }
 
@@ -99,7 +99,7 @@ public sealed class AdGuardSyncService(
                 true,
                 null,
                 ToTargetResponse(target),
-                resolved.BaseUri.ToString().TrimEnd('/'),
+                resolved.BaseUri?.ToString().TrimEnd('/'),
                 resolved.IsStale);
         }
         catch (Exception ex)
@@ -108,7 +108,7 @@ public sealed class AdGuardSyncService(
                 false,
                 ex.Message,
                 target is null ? null : ToTargetResponse(target),
-                resolved?.BaseUri.ToString().TrimEnd('/'),
+                resolved?.BaseUri?.ToString().TrimEnd('/'),
                 resolved?.IsStale ?? false);
         }
     }
@@ -324,10 +324,13 @@ public sealed class AdGuardSyncService(
 
         try
         {
+            await CleanupDuplicateRemoteRewritesAsync(connectionId, cancellationToken);
             foreach (var change in plan.Changes)
             {
                 await ApplyChangeAsync(connectionId, change, cancellationToken);
             }
+
+            await VerifyRemoteApplyAsync(connectionId, plan.Changes, cancellationToken);
 
             if (deleteRewriteId is Guid rewriteId)
             {
@@ -397,6 +400,79 @@ public sealed class AdGuardSyncService(
             }
 
             await audit.WriteAsync("adguard", "apply_failed", "failure", subjectType: "sync_run", subjectId: run.Id.ToString(), metadata: new { connectionId, error = ex.Message }, cancellationToken: cancellationToken);
+            return new AdGuardRewriteApplyResponse(run.Id, false, SyncRunStatusNames.Failed, ex.Message);
+        }
+    }
+
+    public async Task<AdGuardRewriteApplyResponse> ApplySafePlanAsync(
+        Guid connectionId,
+        Guid planId,
+        bool updateTopologyDesiredState = false,
+        bool updateInternalAgentDnsDesiredState = false,
+        CancellationToken cancellationToken = default)
+    {
+        var plan = await PlanSyncAsync(
+            connectionId,
+            updateTopologyDesiredState: updateTopologyDesiredState,
+            updateInternalAgentDnsDesiredState: updateInternalAgentDnsDesiredState,
+            cancellationToken: cancellationToken);
+        if (plan.PlanId != planId)
+        {
+            throw new InvalidOperationException("AdGuard plan is stale; preview the rewrite changes again.");
+        }
+
+        var safeChanges = plan.Changes.Where(x => x.Kind != "delete").ToList();
+        var run = await syncRuns.BeginRunAsync("adguard", cancellationToken);
+        await syncRuns.AddDiffsAsync(
+            run.Id,
+            safeChanges.Select(x => new ProviderChange(
+                "adguard-rewrite",
+                x.Domain,
+                MapProviderKind(x.Kind),
+                x.Summary)),
+            cancellationToken);
+        await syncRuns.AddStepAsync(run.Id, "adguard-apply-safe", SyncRunStatusNames.Applying, null, cancellationToken);
+
+        try
+        {
+            foreach (var change in safeChanges)
+            {
+                await ApplyChangeAsync(connectionId, change, cancellationToken);
+            }
+
+            await VerifyRemoteApplyAsync(connectionId, safeChanges, cancellationToken);
+
+            var status = plan.RequiresConfirmation
+                ? SyncRunStatusNames.AwaitingConfirmation
+                : SyncRunStatusNames.Succeeded;
+            var message = plan.RequiresConfirmation
+                ? "Safe AdGuard changes applied; deletes still require confirmation."
+                : null;
+            await syncRuns.AddStepAsync(
+                run.Id,
+                "adguard-apply-safe",
+                SyncRunStatusNames.Succeeded,
+                $"{safeChanges.Count} safe changes",
+                cancellationToken);
+            await syncRuns.CompleteRunAsync(
+                run.Id,
+                status,
+                plan.RequiresConfirmation ? SyncRiskLevel.Destructive : SyncRiskLevel.Low,
+                message,
+                cancellationToken);
+            await audit.WriteAsync(
+                "adguard",
+                "safe_apply_succeeded",
+                subjectType: "sync_run",
+                subjectId: run.Id.ToString(),
+                metadata: new { connectionId, changes = safeChanges.Count, deletesPending = plan.RequiresConfirmation },
+                cancellationToken: cancellationToken);
+            return new AdGuardRewriteApplyResponse(run.Id, true, status, message);
+        }
+        catch (Exception ex)
+        {
+            await syncRuns.AddStepAsync(run.Id, "adguard-apply-safe", SyncRunStatusNames.Failed, ex.Message, cancellationToken);
+            await syncRuns.CompleteRunAsync(run.Id, SyncRunStatusNames.Failed, SyncRiskLevel.High, ex.Message, cancellationToken);
             return new AdGuardRewriteApplyResponse(run.Id, false, SyncRunStatusNames.Failed, ex.Message);
         }
     }
@@ -544,7 +620,7 @@ public sealed class AdGuardSyncService(
         var hosts = await db.FirewallHosts.AsNoTracking().ToDictionaryAsync(x => x.Id, cancellationToken);
         var pulseAgents = await db.PulseAgents.AsNoTracking().ToDictionaryAsync(x => x.Id, cancellationToken);
         var resources = await db.Resources
-            .Where(x => x.Enabled && (x.FirewallHostId != null || x.PulseAgentId != null))
+            .Where(x => x.Enabled && x.AdGuardRewriteEnabled && (x.FirewallHostId != null || x.PulseAgentId != null))
             .ToListAsync(cancellationToken);
 
         foreach (var resource in resources)
@@ -654,7 +730,8 @@ public sealed class AdGuardSyncService(
     {
         var password = await ResolvePasswordAsync(connection.PasswordSecretId, cancellationToken);
         var client = httpClientFactory.CreateClient("adguard");
-        client.BaseAddress = resolved.BaseUri;
+        client.BaseAddress = resolved.BaseUri
+            ?? throw new InvalidOperationException("Cannot create HTTP client for unresolved target.");
         if (!string.IsNullOrEmpty(password))
         {
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
@@ -677,7 +754,7 @@ public sealed class AdGuardSyncService(
             connection.BaseUrl,
             connection.Enabled,
             ToTargetResponse(target),
-            resolved.BaseUri.ToString().TrimEnd('/'),
+            resolved.BaseUri?.ToString().TrimEnd('/'),
             resolved.Status,
             resolved.Error);
     }
@@ -799,13 +876,76 @@ public sealed class AdGuardSyncService(
                 break;
             case "delete":
                 var deleteRemote = (await ListRemoteRewritesAsync(connectionId, cancellationToken))
-                    .FirstOrDefault(x => string.Equals(x.Domain, change.Domain, StringComparison.OrdinalIgnoreCase));
-                if (deleteRemote is not null)
+                    .Where(x => string.Equals(x.Domain, change.Domain, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                foreach (var rewrite in deleteRemote)
                 {
-                    await DeleteRemoteRewriteAsync(connectionId, deleteRemote, cancellationToken);
+                    await DeleteRemoteRewriteAsync(connectionId, rewrite, cancellationToken);
                 }
 
                 break;
+        }
+    }
+
+    private async Task CleanupDuplicateRemoteRewritesAsync(
+        Guid connectionId,
+        CancellationToken cancellationToken)
+    {
+        var desired = await db.AdGuardRewrites.AsNoTracking()
+            .Where(x => x.ConnectionId == connectionId && x.ManagedByHashi)
+            .ToDictionaryAsync(x => x.Domain, x => x.Answer, StringComparer.OrdinalIgnoreCase, cancellationToken);
+        if (desired.Count == 0)
+        {
+            return;
+        }
+
+        var remote = await ListRemoteRewritesAsync(connectionId, cancellationToken);
+        var removed = new List<object>();
+        foreach (var group in remote
+            .Where(x => desired.ContainsKey(x.Domain))
+            .GroupBy(x => x.Domain, StringComparer.OrdinalIgnoreCase)
+            .Where(x => x.Count() > 1))
+        {
+            var desiredAnswer = desired[group.Key];
+            var keep = group.FirstOrDefault(x => string.Equals(x.Answer, desiredAnswer, StringComparison.Ordinal))
+                ?? group.First();
+            foreach (var duplicate in group.Where(x => !ReferenceEquals(x, keep)))
+            {
+                await DeleteRemoteRewriteAsync(connectionId, duplicate, cancellationToken);
+                removed.Add(new { duplicate.Domain, duplicate.Answer, duplicate.Id });
+            }
+        }
+
+        if (removed.Count > 0)
+        {
+            await audit.WriteAsync(
+                "adguard",
+                "duplicate_rewrites_cleaned",
+                subjectType: "adguard_connection",
+                subjectId: connectionId.ToString(),
+                metadata: new { removed },
+                cancellationToken: cancellationToken);
+        }
+    }
+
+    private async Task VerifyRemoteApplyAsync(
+        Guid connectionId,
+        IReadOnlyList<AdGuardRewritePlanChangeResponse> changes,
+        CancellationToken cancellationToken)
+    {
+        var remote = await ListRemoteRewritesAsync(connectionId, cancellationToken);
+        foreach (var change in changes)
+        {
+            var matchingDomain = remote
+                .Where(x => string.Equals(x.Domain, change.Domain, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            var verified = change.Kind == "delete"
+                ? matchingDomain.Count == 0
+                : matchingDomain.Any(x => string.Equals(x.Answer, change.DesiredAnswer, StringComparison.Ordinal));
+            if (!verified)
+            {
+                throw new InvalidOperationException($"AdGuard remote verification failed for {change.Kind} {change.Domain}.");
+            }
         }
     }
 

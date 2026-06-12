@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Addendum §17.8
 
+**Status:** Fixed
+**Branch:** h/ci-cd
+
 ## Description
 
 The `docker-build.yml` workflow builds the main Docker image but does not explicitly pass any build arguments. The Dockerfile uses `ARG TARGETARCH` which is automatically set by Buildx for multi-platform builds. However, the workflow does not pass any custom build arguments that might be needed for configuration.

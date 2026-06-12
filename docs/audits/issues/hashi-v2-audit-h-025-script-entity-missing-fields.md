@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §23
 
+**Status:** Fixed
+**Branch:** h/spec-compliance-1
+
 ## Description
 
 The spec defines script fields:

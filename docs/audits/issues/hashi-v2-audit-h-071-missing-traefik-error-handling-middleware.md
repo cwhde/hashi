@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §10.4
 
+**Status:** Fixed
+**Branch:** audit-series-h
+
 ## Description
 
 The generated default middlewares include HTTP-to-HTTPS redirect, security headers, compression, forward auth, WAF, and baseline rate limit — but there is no error handling middleware. The spec lists "Error handling, optional" as one of the default middlewares. Without it, Traefik returns its default plain-text error pages for 5xx responses, which are unstyled and unhelpful.

@@ -227,6 +227,18 @@ public sealed class TraefikConfigRendererTests
         Assert.DoesNotContain("postgres-b-tcp:", render.StaticConfigYaml);
 
         Assert.True(await resources.DeleteAsync(first.Id));
+
+        var pendingEntry = await db.TraefikEntryPoints.SingleAsync(x => x.Port == 15432 && x.Protocol == "tcp");
+        Assert.True(pendingEntry.PendingRemoval);
+
+        var syncOrchestrator = TestPlatformHelpers.CreateSyncOrchestrator(db);
+        var plan = await syncOrchestrator.PlanGlobalAsync();
+        Assert.Contains(plan.Changes, x => x.ResourceType == "entrypoint-removal" && x.ResourceKey == "tcp/15432" && x.ChangeKind == "Deleted");
+        Assert.True(plan.RequiresConfirmation);
+
+        var applyResult = await syncOrchestrator.ApplyGlobalAsync(plan.PlanId, confirmDestructive: true);
+        Assert.True(applyResult.Succeeded);
+
         Assert.False(await db.TraefikEntryPoints.AnyAsync(x => x.Port == 15432 && x.Protocol == "tcp"));
     }
 
@@ -257,8 +269,46 @@ public sealed class TraefikConfigRendererTests
             first.Id,
             new UpdateResourceRequest(null, false, null, null, null, null, null, null));
 
+        var oldEntryPending = await db.TraefikEntryPoints.SingleAsync(x => x.Port == 15432 && x.Protocol == "tcp");
+        Assert.True(oldEntryPending.PendingRemoval);
+
+        var syncOrchestrator = TestPlatformHelpers.CreateSyncOrchestrator(db);
+        var plan = await syncOrchestrator.PlanGlobalAsync();
+        Assert.Contains(plan.Changes, x => x.ResourceType == "entrypoint-removal" && x.ResourceKey == "tcp/15432" && x.ChangeKind == "Deleted");
+
+        var applyResult = await syncOrchestrator.ApplyGlobalAsync(plan.PlanId, confirmDestructive: true);
+        Assert.True(applyResult.Succeeded);
+
         Assert.False(await db.TraefikEntryPoints.AnyAsync(x => x.Port == 15432 && x.Protocol == "tcp"));
         Assert.True(await db.TraefikEntryPoints.AnyAsync(x => x.Port == 25432 && x.Protocol == "tcp"));
+    }
+
+    [Fact]
+    public async Task Global_apply_rejects_an_approved_plan_after_desired_state_changes()
+    {
+        await using var db = CreateDb();
+        var resource = new ResourceEntity
+        {
+            Name = "App",
+            Slug = "app",
+            Kind = "https",
+            Domain = "app.example.com",
+            TargetScheme = "http",
+            TargetHost = "10.0.0.5",
+            TargetPort = 8080,
+        };
+        db.Resources.Add(resource);
+        await db.SaveChangesAsync();
+        var sync = TestPlatformHelpers.CreateSyncOrchestrator(db);
+        var plan = await sync.PlanGlobalAsync();
+
+        resource.TargetPort = 9090;
+        await db.SaveChangesAsync();
+
+        var result = await sync.ApplyGlobalAsync(plan.PlanId, confirmDestructive: true);
+
+        Assert.False(result.Succeeded);
+        Assert.Contains("stale", result.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -386,6 +436,73 @@ public sealed class ResourceSlugTests
     {
         Assert.Equal("my-app", ResourceSlug.Normalize("My App!"));
     }
+
+    [Fact]
+    public void Normalize_rejects_names_without_letters_or_digits()
+    {
+        var error = Assert.Throws<ArgumentException>(() => ResourceSlug.Normalize("!@#$"));
+
+        Assert.Contains("letter or digit", error.Message);
+    }
+
+    [Fact]
+    public void Normalize_collapses_separators_trims_edges_and_limits_dns_label_length()
+    {
+        Assert.Equal("my-app", ResourceSlug.Normalize("--My___App!!--"));
+
+        var slug = ResourceSlug.Normalize(new string('a', 70) + "-");
+        Assert.Equal(63, slug.Length);
+        Assert.False(slug.EndsWith("-", StringComparison.Ordinal));
+    }
+}
+
+public sealed class ResourceFirewallDetectionTests
+{
+    [Fact]
+    public async Task Create_detects_firewall_host_but_preserves_manual_override()
+    {
+        await using var db = CreateDb();
+        var detectedHost = new FirewallHostEntity
+        {
+            Name = "detected",
+            ConnectionId = Guid.NewGuid(),
+            ManagedSubnetsJson = """["10.20.0.0/16"]""",
+        };
+        var manualHost = new FirewallHostEntity
+        {
+            Name = "manual",
+            ConnectionId = Guid.NewGuid(),
+            ManagedSubnetsJson = "[]",
+        };
+        db.FirewallHosts.AddRange(detectedHost, manualHost);
+        await db.SaveChangesAsync();
+        var service = TestPlatformHelpers.CreateResourceService(db);
+
+        var resource = await service.CreateAsync(new CreateResourceRequest(
+            "App",
+            "https",
+            "app.example.com",
+            "http",
+            "10.20.1.5",
+            8080,
+            false,
+            false,
+            FirewallHostId: manualHost.Id));
+
+        Assert.Equal(detectedHost.Id, resource.DetectedFirewallHostId);
+        Assert.Equal(manualHost.Id, resource.FirewallHostId);
+        var response = await service.ToResponseAsync(resource);
+        Assert.Equal(detectedHost.Id, response.DetectedFirewallHostId);
+        Assert.Equal(manualHost.Id, response.FirewallHostId);
+    }
+
+    private static HashiDbContext CreateDb()
+    {
+        var options = new DbContextOptionsBuilder<HashiDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        return new HashiDbContext(options);
+    }
 }
 
 public sealed class FirewallHostResponseTests
@@ -485,5 +602,24 @@ public sealed class TraefikStreamRendererTests
         var validation = TraefikConfigValidator.ValidateRender(result);
 
         Assert.True(validation.IsValid, string.Join("; ", validation.Errors));
+    }
+
+    [Fact]
+    public void Render_skips_resources_with_internal_dns_domains()
+    {
+        var resources = new List<ResourceDefinition>
+        {
+            new(Guid.NewGuid(), "Valid", "valid", ResourceKind.Https, true, false, "valid.example.com", "http", "10.0.0.2", 8080),
+            new(Guid.NewGuid(), "HomeArpa", "homearpa", ResourceKind.Https, true, false, "home.arpa", "http", "10.0.0.2", 8080),
+            new(Guid.NewGuid(), "SubHomeArpa", "subhomearpa", ResourceKind.Https, true, false, "test.home.arpa", "http", "10.0.0.2", 8080),
+            new(Guid.NewGuid(), "CustomInternal", "custominternal", ResourceKind.Https, true, false, "test.custom.internal", "http", "10.0.0.2", 8080),
+        };
+        var options = new TraefikRenderOptions(InternalDnsDomain: "custom.internal");
+        var result = TraefikConfigRenderer.Render(resources, options);
+
+        Assert.Contains("valid.example.com", result.DynamicFiles.HttpResourcesYaml);
+        Assert.DoesNotContain("home.arpa", result.DynamicFiles.HttpResourcesYaml);
+        Assert.DoesNotContain("test.home.arpa", result.DynamicFiles.HttpResourcesYaml);
+        Assert.DoesNotContain("test.custom.internal", result.DynamicFiles.HttpResourcesYaml);
     }
 }

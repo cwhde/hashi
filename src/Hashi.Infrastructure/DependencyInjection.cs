@@ -26,7 +26,10 @@ public static class DependencyInjection
     public static IServiceCollection AddHashiInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         var connectionString = configuration.GetConnectionString("Hashi")
-            ?? "Host=localhost;Port=5432;Database=hashi;Username=hashi;Password=hashi";
+            ?? Environment.GetEnvironmentVariable("HASHI_CONNECTION_STRING")
+            ?? throw new InvalidOperationException(
+                "Database connection string is not configured. " +
+                "Set 'ConnectionStrings:Hashi' in configuration or the HASHI_CONNECTION_STRING environment variable.");
 
         services.AddDbContext<HashiDbContext>(options =>
             options.UseNpgsql(connectionString, npgsql => npgsql.MigrationsAssembly(typeof(HashiDbContext).Assembly.FullName)));
@@ -105,6 +108,7 @@ public static class DependencyInjection
         services.AddScoped<ScriptExecutionService>();
         services.AddScoped<PulseAgentService>();
         services.AddScoped<NotificationDispatcher>();
+        services.AddSingleton<IDiscordChannelDiscovery, DiscordChannelDiscovery>();
         services.AddSingleton<IDnsProviderFactory, DnsProviderFactory>();
         services.AddSingleton<ISshRemoteExecutor, SshRemoteExecutor>();
         services.AddValidatorsFromAssemblyContaining<CreateResourceRequestValidator>();
@@ -112,13 +116,15 @@ public static class DependencyInjection
         var skipStartupHooks = configuration.GetValue<bool>("Hashi:SkipStartupHooks")
             || string.Equals(Environment.GetEnvironmentVariable("HASHI_SKIP_STARTUP_HOOKS"), "1", StringComparison.Ordinal);
         services.AddScoped<SyncRunService>();
+        services.AddSingleton<SyncApplyCoordinator>();
         services.AddScoped<SyncOrchestratorService>();
+        services.AddSingleton<SyncOrchestratorHostedService>();
         services.AddHostedService<ServiceSyncVaultBootstrapper>();
         if (!skipStartupHooks)
         {
             services.AddHostedService<MonitorCheckWorker>();
             services.AddHostedService<MonitorRollupWorker>();
-            services.AddHostedService<SyncOrchestratorHostedService>();
+            services.AddHostedService(sp => sp.GetRequiredService<SyncOrchestratorHostedService>());
             services.AddHostedService<ScriptCronHostedService>();
             services.AddHostedService<AccessLogIngestWorker>();
             services.AddHostedService<GeoIpUpdateWorker>();

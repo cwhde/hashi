@@ -8,9 +8,13 @@ public sealed class HashiInternalUrlResolver(HashiPortOptions ports)
     public string ResolveBaseUrl(AppSettingsEntity settings)
     {
         var configured = settings.InternalUrl?.Trim();
-        return string.IsNullOrWhiteSpace(configured)
-            ? $"http://127.0.0.1:{ports.Admin}"
-            : configured.TrimEnd('/');
+        if (!string.IsNullOrWhiteSpace(configured))
+        {
+            return configured.TrimEnd('/');
+        }
+
+        var scheme = settings.InternalScheme?.Trim().ToLowerInvariant() ?? "http";
+        return $"{scheme}://127.0.0.1:{ports.Admin}";
     }
 
     public string ResolveUrl(AppSettingsEntity settings, string path)

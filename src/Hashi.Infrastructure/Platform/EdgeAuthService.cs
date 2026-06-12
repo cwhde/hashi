@@ -23,6 +23,9 @@ public sealed class EdgeAuthService
         string? asn,
         string? edgeSessionKey = null,
         string? mode = null,
+        bool trustedForwardedContext = true,
+        string method = "GET",
+        string? acceptHeader = null,
         CancellationToken cancellationToken = default)
     {
         var decision = await EvaluateForwardDecisionAsync(
@@ -34,7 +37,10 @@ public sealed class EdgeAuthService
                 regionCode,
                 asn,
                 edgeSessionKey,
-                mode),
+                mode,
+                trustedForwardedContext,
+                method,
+                acceptHeader),
             cancellationToken);
         return new EdgeAuthForwardResponse(decision.Decision, decision.RedirectUrl);
     }

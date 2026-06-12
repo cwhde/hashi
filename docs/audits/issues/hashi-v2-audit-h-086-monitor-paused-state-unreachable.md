@@ -4,6 +4,9 @@
 **Conflict Type:** wrong_implementation
 **Spec Reference:** §18.3 (Status states include Paused)
 
+**Status:** Fixed
+**Branch:** audit-series-h
+
 ## Description
 
 The Paused monitor state exists in code normalization but is unreachable — there is no mechanism to pause a monitor endpoint. The Enabled toggle disables it entirely. No API endpoint or UI control sets Paused state.

@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Addendum §9.2
 
+**Status:** Fixed
+**Branch:** h/spec-compliance-1
+
 ## Description
 
 The Addendum specifies the connection target model with these fields:

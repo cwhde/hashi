@@ -30,7 +30,7 @@ public static class SyncEndpoints
 
         group.MapPost("/apply", async Task<IResult> (SyncApplyRequest request, SyncOrchestratorService orchestrator, CancellationToken ct) =>
         {
-            var result = await orchestrator.ApplyGlobalAsync(request.ConfirmDestructive, ct);
+            var result = await orchestrator.ApplyGlobalAsync(request.PlanId, request.ConfirmDestructive, ct);
             return TypedResults.Ok(result);
         });
 

@@ -85,6 +85,15 @@ public sealed class HetznerDnsProvider(HttpClient httpClient, string apiToken, I
         await SendAsync(HttpMethod.Delete, $"records/{recordId}", cancellationToken);
     }
 
+    public Task<DnsProviderCapabilities> GetCapabilitiesAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult(new DnsProviderCapabilities(
+            SupportedRecordTypes: ["A", "AAAA", "CNAME", "MX", "TXT"],
+            SupportsBatchOperations: true,
+            MaxRecordsPerZone: null,
+            SupportsComments: false,
+            RateLimitLimit: 60,
+            RateLimitWindowSeconds: 60));
+
     public static async Task<(bool Valid, string? Error)> ValidateTokenAsync(
         HttpClient httpClient,
         string apiToken,

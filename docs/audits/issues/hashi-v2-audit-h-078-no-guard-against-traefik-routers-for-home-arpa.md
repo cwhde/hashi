@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Addendum §10.2
 
+**Status:** Fixed
+**Branch:** audit-series-h
+
 ## Description
 
 There is no explicit guard in the Traefik rendering/sync code that prevents creating routers for `hashi.home.arpa` domains. Internal agent DNS only creates AdGuard rewrites, not Traefik routers. But if a resource were accidentally configured with a `hashi.home.arpa` domain, the Traefik sync would create a router for it without any warning or rejection. The spec requires an explicit guard against this.
@@ -24,6 +27,6 @@ Resources cannot be configured with `hashi.home.arpa` domains. If attempted, the
 
 ## Acceptance Criteria
 
-- [ ] Creating a resource with `hashi.home.arpa` domain returns a validation error
-- [ ] Traefik renderer skips any resource with an internal DNS domain
-- [ ] Error message clearly explains the domain reservation
+- [x] Creating a resource with `hashi.home.arpa` domain returns a validation error
+- [x] Traefik renderer skips any resource with an internal DNS domain
+- [x] Error message clearly explains the domain reservation

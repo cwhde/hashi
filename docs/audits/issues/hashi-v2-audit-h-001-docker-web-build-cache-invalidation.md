@@ -4,6 +4,9 @@
 **Conflict Type:** bad_implementation
 **Spec Reference:** Addendum §17.3, §17.5, §17.8; Main Spec §30
 
+**Status:** Fixed
+**Branch:** h/docker-builds
+
 ## Description
 
 In `deploy/docker/Dockerfile`, the `web-build` stage copies `web/package.json`, `web/pnpm-lock.yaml`, and `web/pnpm-workspace.yaml` for dependency installation, then copies the entire `web/` directory. The `COPY web/ ./` instruction after the install step invalidates the pnpm store cache layer whenever any source file under `web/` changes, even though the pnpm store is separately cached via BuildKit.

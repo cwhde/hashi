@@ -8,21 +8,25 @@
 	let loading = $state(true);
 	let verifying = $state(false);
 	let message = $state<string | null>(null);
-	let widgetElement = $state<HTMLElement | null>(null);
 	const handleSolveEvent = (event: globalThis.Event) => {
 		void handleSolve(event as CustomEvent<{ token?: string }>);
 	};
 
+	function listenForSolve(node: HTMLElement) {
+		node.addEventListener('solve', handleSolveEvent);
+		return {
+			destroy() {
+				node.removeEventListener('solve', handleSolveEvent);
+			}
+		};
+	}
+
 	onMount(() => {
-		let disposed = false;
 		async function init() {
 			returnUrl = new URL(window.location.href).searchParams.get('returnUrl');
 			try {
 				status = await api.getCaptchaChallengeStatus(returnUrl);
 				await loadWidgetScript();
-				if (!disposed) {
-					widgetElement?.addEventListener('solve', handleSolveEvent);
-				}
 			} catch (e) {
 				message = e instanceof Error ? e.message : 'Challenge unavailable';
 			} finally {
@@ -31,10 +35,6 @@
 		}
 
 		void init();
-		return () => {
-			disposed = true;
-			widgetElement?.removeEventListener('solve', handleSolveEvent);
-		};
 	});
 
 	async function loadWidgetScript() {
@@ -92,7 +92,7 @@
 			<p class="text-sm text-destructive">Challenge flow is not available.</p>
 		{:else}
 			<div class="grid min-h-16 place-items-start">
-				<cap-widget bind:this={widgetElement} data-cap-api-endpoint={status.capApiEndpoint}></cap-widget>
+				<cap-widget use:listenForSolve data-cap-api-endpoint={status.capApiEndpoint}></cap-widget>
 			</div>
 			{#if verifying}
 				<p class="text-sm text-muted-foreground">Verifying...</p>

@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** §25 (Apply must recheck current state if plan is stale)
 
+**Status:** Fixed
+**Branch:** audit-series-h
+
 ## Description
 
 `ApplyGlobalAsync` re-plans from scratch inside Apply, but doesn't compare against the plan the user approved. There is no plan ID verification or content hash comparison. If desired state changed between Plan and Apply, the Apply proceeds with the new state without the user seeing the updated preview.

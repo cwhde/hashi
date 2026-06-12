@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §25 (Apply must acquire advisory lock per provider/connection)
 
+**Status:** Fixed
+**Branch:** h/security-2
+
 ## Description
 
 `SyncOrchestratorService.ApplyGlobalAsync()` has no lock mechanism. Concurrent Apply calls could race, leading to corrupted state. No SemaphoreSlim, database advisory lock, or similar pattern exists anywhere in the codebase. The spec explicitly requires acquiring an advisory lock per provider/connection before applying changes.

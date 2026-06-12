@@ -12,7 +12,8 @@ public sealed class SecurityDecisionService(
     HashiDbContext db,
     OidcEdgeAuthService oidc,
     CaptchaChallengeService? captcha = null,
-    TimeProvider? timeProvider = null)
+    TimeProvider? timeProvider = null,
+    GeoIpLookupService? geoIp = null)
 {
     public async Task<SecurityDecisionResult> DecideForwardAuthAsync(
         SecurityDecisionRequest request,
@@ -186,6 +187,17 @@ public sealed class SecurityDecisionService(
                 matchedState: BuildMatchedState(subjectEntity, stateEntity));
         }
 
+        if (!manualAllowBypassesBlocking && IsRateLimited(stateEntity, subjectEntity, now))
+        {
+            explanation.Add(new SecurityDecisionExplanation("rate_limit", "matched", "Subject has exceeded request rate limits."));
+            return RateLimited(
+                "rate_limit_exceeded",
+                context.Resource?.Id,
+                subject,
+                explanation,
+                matchedState: BuildMatchedState(subjectEntity, stateEntity));
+        }
+
         var abuseBucket = await db.AbuseBuckets.AsNoTracking()
             .SingleOrDefaultAsync(x => x.ClientIp == subject.NormalizedValue, cancellationToken);
         var abuseState = SecuritySubjectStateNames.Normalize(abuseBucket?.State);
@@ -236,6 +248,29 @@ public sealed class SecurityDecisionService(
 
         if (context.Resource is not null)
         {
+            if (geoIp is not null && !geoIp.IsAvailable)
+            {
+                var hasGeoRule = await db.ResourceRules.AsNoTracking()
+                    .AnyAsync(x => x.ResourceId == context.Resource.Id
+                        && x.Enabled
+                        && (x.MatchType == ResourceRuleMatchTypeNames.Country
+                            || x.MatchType == ResourceRuleMatchTypeNames.Region
+                            || x.MatchType == ResourceRuleMatchTypeNames.Asn), cancellationToken);
+                if (hasGeoRule)
+                {
+                    explanation.Add(new SecurityDecisionExplanation(
+                        "geoip",
+                        "deny",
+                        "GeoIP-dependent security rules cannot be evaluated because the GeoIP database is unavailable."));
+                    return Deny(
+                        SecurityDecisionActionNames.DenyResourceRule,
+                        "geoip_unavailable",
+                        context.Resource.Id,
+                        subject,
+                        explanation);
+                }
+            }
+
             var ruleResult = await EvaluateResourceRulesAsync(request, context, subject, explanation, cancellationToken);
             if (ruleResult is not null)
             {
@@ -345,7 +380,7 @@ public sealed class SecurityDecisionService(
     {
         var rules = await db.EdgeAuthRules.AsNoTracking()
             .Where(x => x.Enabled)
-            .OrderBy(x => x.Priority)
+            .OrderByDescending(x => x.Priority)
             .ToListAsync(cancellationToken);
 
         foreach (var rule in rules)
@@ -685,6 +720,30 @@ public sealed class SecurityDecisionService(
             || SecuritySubjectStateNames.Normalize(subject.CurrentState) == SecuritySubjectStateNames.Challenged
             || legacyAbuseState is SecuritySubjectStateNames.Suspect or SecuritySubjectStateNames.Challenged;
 
+    private static bool IsRateLimited(SecuritySubjectStateEntity state, SecuritySubjectEntity subject, DateTimeOffset now)
+        => state.RateLimitedUntilUtc is not null && state.RateLimitedUntilUtc > now;
+
+    private SecurityDecisionResult RateLimited(
+        string reason,
+        Guid? resourceId,
+        NormalizedSecuritySubject subject,
+        List<SecurityDecisionExplanation> explanation,
+        SecurityDecisionMatchedState? matchedState = null)
+    {
+        explanation.Add(new SecurityDecisionExplanation("rate_limit", "deny", "Subject exceeded request rate limits."));
+        return SecurityDecisionResult.Create(
+            SecurityDecisionActionNames.DenyRateLimited,
+            SecurityDecisionResponseModeNames.RateLimited,
+            StatusCodes.Status429TooManyRequests,
+            null,
+            "deny",
+            reason,
+            resourceId,
+            subject,
+            explanation,
+            matchedState: matchedState);
+    }
+
     private static SecurityDecisionMatchedState BuildMatchedState(
         SecuritySubjectEntity subject,
         SecuritySubjectStateEntity state)
@@ -695,7 +754,9 @@ public sealed class SecurityDecisionService(
             state.ChallengeRequired,
             state.RequestsWhileChallenged,
             state.SoftBlockedUntilUtc,
-            state.FirewallBlockedUntilUtc);
+            state.FirewallBlockedUntilUtc,
+            state.RateLimitedUntilUtc,
+            state.RateLimitRequestCount);
 
     private static string NormalizeForwardedHost(string host)
     {

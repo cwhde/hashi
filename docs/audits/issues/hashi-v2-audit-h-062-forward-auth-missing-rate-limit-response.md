@@ -4,6 +4,9 @@
 **Conflict Type:** missing_implementation
 **Spec Reference:** Main Spec §11 (Forward auth returns 429 for rate-limited/challenged traffic); Addendum §14 (Decision actions include rate-limiting)
 
+**Status:** Fixed
+**Branch:** h/security-2
+
 ## Description
 
 `SecurityDecisionService.DecideForwardAuthAsync()` never returns a 429 status code. All deny responses return 403. Rate limiting exists as Traefik middleware (`hashi-rate-limit`) but is not part of the forward-auth decision flow. The `BypassRateLimit` flag exists on manual entries but no rate-limit enforcement or 429 response exists in the decision engine. The spec requires forward-auth to return 429 for rate-limited traffic.
