@@ -111,6 +111,13 @@ public sealed class AdminApiAuthMiddleware(RequestDelegate next)
             return AdminSessionScopes.SecurityManage;
         }
 
+        if (value.StartsWith("/api/auth/sessions", StringComparison.OrdinalIgnoreCase)
+            || (value.StartsWith("/api/auth/passkeys/", StringComparison.OrdinalIgnoreCase)
+                && method.Equals(HttpMethods.Delete, StringComparison.OrdinalIgnoreCase)))
+        {
+            return AdminSessionScopes.SecurityManage;
+        }
+
         if (value.StartsWith("/api/firewall", StringComparison.OrdinalIgnoreCase)
             && (value.Contains("/apply", StringComparison.OrdinalIgnoreCase)
                 || value.Contains("/rollback", StringComparison.OrdinalIgnoreCase)))
@@ -139,6 +146,13 @@ public sealed class AdminApiAuthMiddleware(RequestDelegate next)
         if (!IsUnsafeMethod(method))
         {
             return false;
+        }
+
+        if (value.StartsWith("/api/auth/sessions/", StringComparison.OrdinalIgnoreCase)
+            || (value.StartsWith("/api/auth/passkeys/", StringComparison.OrdinalIgnoreCase)
+                && method.Equals(HttpMethods.Delete, StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
         }
 
         if (value.StartsWith("/api/vault/secrets/", StringComparison.OrdinalIgnoreCase))

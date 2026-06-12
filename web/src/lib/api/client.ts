@@ -214,6 +214,20 @@ export const api = {
 		const r = await client.GET('/api/auth/session');
 		return expectData(r.response, r.error, r.data);
 	},
+	listAdminSessions: async () => {
+		const r = await client.GET('/api/auth/sessions');
+		return expectData(r.response, r.error, r.data ?? []);
+	},
+	revokeAdminSession: async (sessionId: string) => {
+		const r = await client.DELETE('/api/auth/sessions/{sessionId}', {
+			params: { path: { sessionId } }
+		});
+		await expectOk(r.response, r.error);
+	},
+	revokeOtherAdminSessions: async () => {
+		const r = await client.POST('/api/auth/sessions/revoke-others');
+		return expectData(r.response, r.error, r.data);
+	},
 	logout: async () => {
 		const r = await client.POST('/api/auth/logout');
 		await expectOk(r.response, r.error);
@@ -525,6 +539,14 @@ export const api = {
 	},
 	updateEdgeSsoSettings: async (body: import('./types.js').EdgeSsoSettingsRequest) => {
 		const r = await client.PUT('/api/settings/edge-sso/session', { body });
+		return expectData(r.response, r.error, r.data);
+	},
+	getAdminSessionSettings: async () => {
+		const r = await client.GET('/api/settings/admin-session');
+		return expectData(r.response, r.error, r.data);
+	},
+	updateAdminSessionSettings: async (body: import('./types.js').AdminSessionSettingsRequest) => {
+		const r = await client.PUT('/api/settings/admin-session', { body });
 		return expectData(r.response, r.error, r.data);
 	},
 	getDashboardSettings: async () => {

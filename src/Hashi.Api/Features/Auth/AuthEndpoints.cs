@@ -51,7 +51,7 @@ public static class AuthEndpoints
             var session = await sessions.CreateAsync(
                 AdminAuthMethods.Bootstrap,
                 client.ClientIp.ToString(),
-                AdminSessionScopes.All,
+                AdminSessionScopes.Bootstrap,
                 userAgent: httpContext.Request.Headers.UserAgent.ToString(),
                 cancellationToken: ct);
             await SignInAsync(httpContext, session, vaultUnlocked: false);
@@ -187,11 +187,70 @@ public static class AuthEndpoints
         group.MapGet("/session", (HttpContext httpContext, VaultSessionState vaultSession) =>
         {
             var authMethod = httpContext.User.FindFirstValue(AdminClaimTypes.AuthMethod);
+            var validation = httpContext.Items[AdminSessionCookieEvents.ValidationItemKey] as AdminSessionValidationResult;
             return TypedResults.Ok(new SessionStatusResponse(
                 httpContext.User.Identity?.IsAuthenticated == true,
                 authMethod,
                 vaultSession.IsUnlocked,
-                httpContext.User.HasClaim(c => c.Type == ClaimTypes.Name && c.Value == "setup-complete")));
+                httpContext.User.HasClaim(c => c.Type == ClaimTypes.Name && c.Value == "setup-complete"),
+                validation?.Scopes,
+                validation?.Session?.BoundIp,
+                validation?.Session?.IdleExpiresAtUtc,
+                validation?.Session?.AbsoluteExpiresAtUtc,
+                validation?.Session?.ReauthenticatedAtUtc));
+        });
+
+        group.MapGet("/sessions", async (
+            HttpContext httpContext,
+            AdminSessionService sessions,
+            CancellationToken ct) =>
+        {
+            var currentSessionId = CurrentSessionId(httpContext);
+            var items = await sessions.ListActiveAsync(ct);
+            return TypedResults.Ok(items.Select(x => new AdminSessionSummaryResponse(
+                AdminSessionService.GetCorrelationId(x),
+                x.AuthMethod,
+                x.BoundIp,
+                AdminSessionService.GetScopes(x),
+                x.CreatedAtUtc,
+                x.LastSeenAtUtc,
+                x.IdleExpiresAtUtc,
+                x.AbsoluteExpiresAtUtc,
+                x.ReauthenticatedAtUtc,
+                x.Id == currentSessionId)));
+        });
+
+        group.MapDelete("/sessions/{sessionId}", async Task<IResult> (
+            string sessionId,
+            HttpContext httpContext,
+            AdminSessionService sessions,
+            VaultSessionState vaultSession,
+            CancellationToken ct) =>
+        {
+            var currentSessionId = CurrentSessionId(httpContext);
+            var revoked = await sessions.RevokeByCorrelationIdAsync(sessionId, "manual", ct);
+            if (!revoked)
+            {
+                return TypedResults.NotFound();
+            }
+
+            var currentCorrelationId = AdminSessionService.GetCorrelationId(currentSessionId);
+            if (string.Equals(sessionId, currentCorrelationId, StringComparison.OrdinalIgnoreCase))
+            {
+                vaultSession.LockForSession(currentSessionId);
+                await httpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            }
+
+            return TypedResults.NoContent();
+        });
+
+        group.MapPost("/sessions/revoke-others", async (
+            HttpContext httpContext,
+            AdminSessionService sessions,
+            CancellationToken ct) =>
+        {
+            var count = await sessions.RevokeOtherSessionsAsync(CurrentSessionId(httpContext), ct);
+            return TypedResults.Ok(new RevokeOtherSessionsResponse(count));
         });
 
         group.MapPost("/reauthenticate", async Task<IResult> (

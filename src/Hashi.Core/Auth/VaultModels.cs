@@ -70,4 +70,15 @@ public static class AdminSessionScopes
         ScriptsManage,
         SecurityManage,
     ];
+
+    public static readonly IReadOnlyList<string> Bootstrap =
+    [
+        Read,
+        Write,
+        SettingsManage,
+        SecretsManage,
+        SyncApply,
+        FirewallApply,
+        SecurityManage,
+    ];
 }

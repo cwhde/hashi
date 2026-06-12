@@ -1081,6 +1081,73 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings/admin-session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminSessionSettingsResponse"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AdminSessionSettingsRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminSessionSettingsResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ApiErrorResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/settings/dashboard": {
         parameters: {
             query?: never;
@@ -1728,6 +1795,111 @@ export interface paths {
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminSessionSummaryResponse"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/sessions/{sessionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    sessionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/sessions/revoke-others": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RevokeOtherSessionsResponse"];
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -7172,6 +7344,37 @@ export interface components {
             pulseAgents: components["schemas"]["PulseAgentResponse"][];
             syncRuns: components["schemas"]["SyncRunResponse"][];
         };
+        AdminSessionSettingsRequest: {
+            /** Format: int32 */
+            idleTimeoutMinutes: null | number | string;
+            /** Format: int32 */
+            absoluteTimeoutMinutes: null | number | string;
+        };
+        AdminSessionSettingsResponse: {
+            /** Format: int32 */
+            idleTimeoutMinutes: number | string;
+            /** Format: int32 */
+            absoluteTimeoutMinutes: number | string;
+            /** Format: date-time */
+            updatedAtUtc: null | string;
+        };
+        AdminSessionSummaryResponse: {
+            sessionId: string;
+            authMethod: string;
+            boundIp: string;
+            scopes: string[];
+            /** Format: date-time */
+            createdAtUtc: string;
+            /** Format: date-time */
+            lastSeenAtUtc: string;
+            /** Format: date-time */
+            idleExpiresAtUtc: string;
+            /** Format: date-time */
+            absoluteExpiresAtUtc: string;
+            /** Format: date-time */
+            reauthenticatedAtUtc: null | string;
+            isCurrent: boolean;
+        };
         AnonymousTypeOfstring: {
             token: null | string;
         };
@@ -8348,6 +8551,10 @@ export interface components {
             matchType: string;
             matchValue: string;
         };
+        RevokeOtherSessionsResponse: {
+            /** Format: int32 */
+            revokedCount: number | string;
+        };
         RotatePulseAgentTokenResponse: {
             /** Format: uuid */
             id: string;
@@ -8753,6 +8960,14 @@ export interface components {
             authMethod: null | string;
             vaultUnlocked: boolean;
             setupComplete: boolean;
+            scopes?: null | string[];
+            boundIp?: null | string;
+            /** Format: date-time */
+            idleExpiresAtUtc?: null | string;
+            /** Format: date-time */
+            absoluteExpiresAtUtc?: null | string;
+            /** Format: date-time */
+            reauthenticatedAtUtc?: null | string;
         };
         SetupStatusResponse: {
             isComplete: boolean;

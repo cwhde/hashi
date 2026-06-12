@@ -170,6 +170,107 @@ public sealed class AdminSessionService(
         await RevokeTrackedAsync(entity, reason, "session_revoked", null, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<AdminSessionEntity>> ListActiveAsync(CancellationToken cancellationToken = default)
+    {
+        var now = UtcNow();
+        return await db.AdminSessions
+            .AsNoTracking()
+            .Where(x => x.RevokedAtUtc == null
+                && x.IdleExpiresAtUtc > now
+                && x.AbsoluteExpiresAtUtc > now)
+            .OrderByDescending(x => x.LastSeenAtUtc)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<bool> RevokeByCorrelationIdAsync(
+        string correlationId,
+        string reason,
+        CancellationToken cancellationToken = default)
+    {
+        var active = await db.AdminSessions
+            .Where(x => x.RevokedAtUtc == null)
+            .ToListAsync(cancellationToken);
+        var entity = active.SingleOrDefault(x => string.Equals(CorrelationId(x.Id), correlationId, StringComparison.OrdinalIgnoreCase));
+        if (entity is null)
+        {
+            return false;
+        }
+
+        await RevokeTrackedAsync(entity, reason, "session_revoked", null, cancellationToken);
+        return true;
+    }
+
+    public async Task<int> RevokeOtherSessionsAsync(
+        string currentSessionId,
+        CancellationToken cancellationToken = default)
+    {
+        var entities = await db.AdminSessions
+            .Where(x => x.Id != currentSessionId && x.RevokedAtUtc == null)
+            .ToListAsync(cancellationToken);
+        foreach (var entity in entities)
+        {
+            entity.RevokedAtUtc = UtcNow();
+            entity.RevocationReason = "revoked_others";
+            entity.ReauthenticatedAtUtc = null;
+            AddAudit("session_revoked", entity, metadata: new { reason = "revoked_others" });
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        return entities.Count;
+    }
+
+    public async Task<int> RevokeForPasskeyAsync(
+        Guid passkeyCredentialId,
+        CancellationToken cancellationToken = default)
+    {
+        var entities = await db.AdminSessions
+            .Where(x => x.PasskeyCredentialId == passkeyCredentialId && x.RevokedAtUtc == null)
+            .ToListAsync(cancellationToken);
+        foreach (var entity in entities)
+        {
+            entity.RevokedAtUtc = UtcNow();
+            entity.RevocationReason = "passkey_removed";
+            entity.ReauthenticatedAtUtc = null;
+            AddAudit("session_revoked", entity, metadata: new { reason = "passkey_removed" });
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+        return entities.Count;
+    }
+
+    public async Task<IReadOnlyList<string>> CleanupAsync(CancellationToken cancellationToken = default)
+    {
+        var now = UtcNow();
+        var retentionCutoff = now.AddDays(-7);
+        var expired = await db.AdminSessions
+            .Where(x => x.RevokedAtUtc == null
+                && (x.IdleExpiresAtUtc <= now || x.AbsoluteExpiresAtUtc <= now))
+            .ToListAsync(cancellationToken);
+        foreach (var entity in expired)
+        {
+            entity.RevokedAtUtc = now;
+            entity.RevocationReason = entity.AbsoluteExpiresAtUtc <= now ? "absolute_expired" : "idle_expired";
+            entity.ReauthenticatedAtUtc = null;
+        }
+
+        var removedIds = await db.AdminSessions
+            .Where(x => x.RevokedAtUtc != null && x.RevokedAtUtc < retentionCutoff)
+            .Select(x => x.Id)
+            .ToListAsync(cancellationToken);
+        await db.AdminSessions
+            .Where(x => x.RevokedAtUtc != null && x.RevokedAtUtc < retentionCutoff)
+            .ExecuteDeleteAsync(cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+        return expired.Select(x => x.Id).Concat(removedIds).Distinct(StringComparer.Ordinal).ToArray();
+    }
+
+    public static IReadOnlyList<string> GetScopes(AdminSessionEntity session)
+        => DeserializeScopes(session.ScopesJson);
+
+    public static string GetCorrelationId(AdminSessionEntity session) => CorrelationId(session.Id);
+
+    public static string GetCorrelationId(string sessionId) => CorrelationId(sessionId);
+
     public static string NormalizeIp(string value)
     {
         if (!IPAddress.TryParse(value, out var address))
