@@ -43,7 +43,11 @@ The .NET aspnet image is approximately 220MB compressed. The node:20-alpine imag
 
 ## Acceptance Criteria
 
-- [ ] Final image size is documented
-- [ ] No unnecessary packages are installed
-- [ ] Healthcheck works with minimal tools
-- [ ] Images are reproducible (no random package upgrades)
+- [x] Final image size is documented
+- [x] No unnecessary packages are installed
+- [x] Healthcheck works with minimal tools
+- [x] Images are reproducible (no random package upgrades)
+
+## Verification - 2026-06-12
+
+The amd64 main image is 112,134,813 bytes (106 MiB). Its final stage contains the ASP.NET 10.0 runtime and `curl` required by the declared healthcheck; apt lists are empty after installation and no random package upgrade is performed. The legacy amd64 runtime is 52 MiB. Fresh main and legacy builds completed successfully, including multi-architecture builds for `linux/amd64` and `linux/arm64`.

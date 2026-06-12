@@ -4,7 +4,7 @@
 
 This review treated the H-series issue files and commit messages as untrusted leads. The implementation specification, addendum, current source, migrations, generated contracts, and executable tests were used as the authority.
 
-All 100 H-series findings were reviewed. Ninety-six are source- and test-verified, H-087 is a false positive caused by reading product "views" as PostgreSQL views, and three container-size/runtime criteria (H-002, H-008, H-041) require Docker/CI evidence because Docker is unavailable in the review environment.
+All 100 H-series findings were reviewed. Ninety-nine applicable findings are source-, test-, and where required runtime-verified. H-087 is a false positive caused by reading product "views" as PostgreSQL views.
 
 ## Independent Fixes
 
@@ -22,15 +22,16 @@ The earlier implementation was not accepted unchanged. This review found and cor
 - Detected firewall routing being calculated on an untracked entity, ignored by DNS generation, and duplicated by two migrations.
 - Discord being implemented as webhook-only despite the bot/manual-ID/pairing specification.
 - Endpoint modules still exceeding the H-090 300-line limit.
+- The H-044 optimization removing the whole `agents/` copy also removed the Pulse installer required by publish, causing the production Docker build to fail.
 
 ## Disposition Matrix
 
 | Issues | Result | Review evidence |
 | --- | --- | --- |
 | H-001 | Pass | Web dependency cache keys follow lockfile/package boundaries. |
-| H-002 | CI verification required | Legacy image/base definition reviewed; final image size requires Docker build evidence. |
+| H-002 | Pass | Legacy amd64 runtime is 52 MiB, production-only, non-root, and contains no build tools; amd64/arm64 builds pass. |
 | H-003-H-007 | Pass | Docker cleanup, dependency layering, and source-copy boundaries verified in Dockerfiles/workflows. |
-| H-008 | CI verification required | Final-stage composition reviewed; final image size requires Docker build evidence. |
+| H-008 | Pass | Main amd64 runtime is 106 MiB; apt cleanup, healthcheck tooling, reproducible package steps, and multi-arch builds verified. |
 | H-009-H-014 | Pass | Security build reuse, Pulse cache keys, build args, multi-platform scanning, frontend convention, and Traefik naming verified. H-010 corrected to hash the existing `go.mod` only. |
 | H-015-H-019 | Pass | Frontend E2E, security E2E, unit, integration, and safety suites exist and pass. |
 | H-020-H-023 | Pass | Connection target, rule, blocklist, and monitor endpoint contracts include required fields and persistence. |
@@ -38,8 +39,10 @@ The earlier implementation was not accepted unchanged. This review found and cor
 | H-025-H-028 | Pass | Script contract, operations docs, generated API contract, and Compose environment validation verified. |
 | H-029-H-031 | Pass | Firewall shell escaping, passkey verification, and recovery-key KDF behavior verified by tests. |
 | H-032-H-040 | Pass | Credential/configuration, cookie/session/CSRF, service-sync source, rule priority, and target resolution behavior verified. |
-| H-041 | CI verification required | Web build base and stage layout reviewed; produced layer/image size requires Docker build evidence. |
-| H-042-H-045 | Pass | Certificate resolver configurability, passkey lookup, Docker copy boundaries, and runner-compatible Pulse cache keys verified. |
+| H-041 | Pass | `node:24-alpine` frontend build and complete amd64/arm64 main image builds verified. |
+| H-042-H-043 | Pass | Certificate resolver configurability and passkey lookup verified. |
+| H-044 | Pass after independent fix | Docker publish now receives only the required Pulse installer instead of the whole agents tree; amd64/arm64 builds pass. |
+| H-045 | Pass | Runner-compatible Pulse cache keys verified. |
 | H-046 | Pass after independent fix | IPv4/IPv6 sets, forwarding, NAT, NetBird rules, and empty-family edge cases covered. |
 | H-047-H-050 | Pass | Public status ranges, shared YAML helpers, batched expiry, and trusted forwarded context verified. |
 | H-051 | Pass after independent fix | Empty/all-invalid input, separator collapse, trimming, and 63-character limit tested. |
@@ -74,5 +77,8 @@ Final verification completed on 2026-06-12:
 - `bash scripts/validate-ci-optimization.sh`: passed
 - Fresh OpenAPI export and TypeScript generation: no committed artifact diff
 - Merge simulation into current `origin/main` (`e93b64f`): no conflicts; the resulting tree exactly matched the tested audit branch tree
+- Isolated Docker host verification: legacy amd64 image 52 MiB; main amd64 image 106 MiB; complete main and legacy builds passed for `linux/amd64` and `linux/arm64`
 
-Docker image-size/runtime checks remain delegated to CI because no Docker CLI is installed locally. They are the only review items without local execution evidence.
+## Residual Observation Outside Series H
+
+The deprecated `hashi.old` production lockfile reports 14 npm advisories (5 moderate and 9 high). The direct upgrade paths require major-version updates to bcrypt and Fastify and were not folded into the H-series Docker optimization work without compatibility tests. The current Hashi v2 application and its .NET/Svelte runtime are not affected by that legacy dependency tree.

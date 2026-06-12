@@ -47,6 +47,10 @@ The image is functional but could be smaller. The spec's requirement to "avoid u
 
 ## Acceptance Criteria
 
-- [ ] Runtime stage does not contain python3, make, or g++
-- [ ] Only production dependencies are installed in the final image
-- [ ] Image size is documented and reasonable for a Node.js application
+- [x] Runtime stage does not contain python3, make, or g++
+- [x] Only production dependencies are installed in the final image
+- [x] Image size is documented and reasonable for a Node.js application
+
+## Verification - 2026-06-12
+
+Built the reviewed commit on an isolated Buildx builder. The amd64 runtime image is 55,553,564 bytes (52 MiB), runs as UID/GID 1001, contains only the production dependency tree, and does not contain Python, make, GCC, or G++. The complete legacy image also builds for both `linux/amd64` and `linux/arm64`.

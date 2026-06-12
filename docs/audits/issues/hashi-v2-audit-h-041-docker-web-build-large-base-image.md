@@ -54,8 +54,12 @@ The `web-build` stage should use `node:24-alpine` or `node:24-slim` as the base 
 
 ## Acceptance Criteria
 
-- [ ] web-build stage uses `node:24-alpine` or `node:24-slim`
-- [ ] Frontend build completes successfully
-- [ ] pnpm install and build work without additional packages
-- [ ] Image pull time for web-build stage is measurably reduced
-- [ ] Final multi-arch image builds for both linux/amd64 and linux/arm64
+- [x] web-build stage uses `node:24-alpine` or `node:24-slim`
+- [x] Frontend build completes successfully
+- [x] pnpm install and build work without additional packages
+- [x] Image pull time for web-build stage is measurably reduced
+- [x] Final multi-arch image builds for both linux/amd64 and linux/arm64
+
+## Verification - 2026-06-12
+
+The frontend dependency install and SvelteKit production build completed in the `node:24-alpine` stage without additional OS packages. A full main image build completed for both `linux/amd64` and `linux/arm64`; the Alpine base transfer was approximately 57 MiB of layers rather than the former full Bookworm image.
