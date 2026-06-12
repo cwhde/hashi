@@ -47,7 +47,11 @@ public static class AuthEndpoints
                 return TypedResults.Unauthorized();
             }
 
-            var client = forwardedClientContext.Resolve(httpContext);
+            if (!forwardedClientContext.TryResolve(httpContext, out var client))
+            {
+                return TypedResults.Unauthorized();
+            }
+
             var session = await sessions.CreateAsync(
                 AdminAuthMethods.Bootstrap,
                 client.ClientIp.ToString(),
@@ -157,6 +161,11 @@ public static class AuthEndpoints
                 return TypedResults.BadRequest(new ApiErrorResponse("Login challenge expired or invalid."));
             }
 
+            if (!forwardedClientContext.TryResolve(httpContext, out var client))
+            {
+                return TypedResults.Unauthorized();
+            }
+
             var assertion = System.Text.Json.JsonSerializer.Deserialize<AuthenticatorAssertionRawResponse>(
                 System.Text.Json.JsonSerializer.Serialize(request.Assertion))
                 ?? throw new InvalidOperationException("Invalid assertion payload.");
@@ -166,7 +175,6 @@ public static class AuthEndpoints
                 : Convert.FromBase64String(request.PrfOutputBase64);
 
             var result = await passkeys.CompleteLoginAsync(assertion, options, prfOutput, ct);
-            var client = forwardedClientContext.Resolve(httpContext);
             var session = await sessions.CreateAsync(
                 AdminAuthMethods.Passkey,
                 client.ClientIp.ToString(),
@@ -283,18 +291,29 @@ public static class AuthEndpoints
                 return TypedResults.Unauthorized();
             }
 
+            var currentSessionId = CurrentSessionId(httpContext);
+
             var options = challenges.GetLogin(request.ChallengeSessionId);
             if (options is null)
             {
+                await sessions.RecordReauthenticationFailureAsync(currentSessionId, "challenge_invalid", ct);
                 return TypedResults.BadRequest(new ApiErrorResponse("Reauthentication challenge expired or invalid."));
             }
 
-            var assertion = System.Text.Json.JsonSerializer.Deserialize<AuthenticatorAssertionRawResponse>(
-                System.Text.Json.JsonSerializer.Serialize(request.Assertion))
-                ?? throw new InvalidOperationException("Invalid assertion payload.");
+            try
+            {
+                var assertion = System.Text.Json.JsonSerializer.Deserialize<AuthenticatorAssertionRawResponse>(
+                    System.Text.Json.JsonSerializer.Serialize(request.Assertion))
+                    ?? throw new InvalidOperationException("Invalid assertion payload.");
+                await passkeys.CompleteLoginAsync(assertion, options, null, ct);
+                await sessions.MarkReauthenticatedAsync(currentSessionId, ct);
+            }
+            catch
+            {
+                await sessions.RecordReauthenticationFailureAsync(currentSessionId, "assertion_failed", ct);
+                throw;
+            }
 
-            await passkeys.CompleteLoginAsync(assertion, options, null, ct);
-            await sessions.MarkReauthenticatedAsync(CurrentSessionId(httpContext), ct);
             return TypedResults.Ok(new { reauthenticated = true });
         });
 

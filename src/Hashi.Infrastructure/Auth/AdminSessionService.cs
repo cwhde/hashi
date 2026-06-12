@@ -84,12 +84,28 @@ public sealed class AdminSessionService(
         }
 
         var now = UtcNow();
-        var observedIp = NormalizeIp(clientIp);
-        if (!string.Equals(entity.BoundIp, observedIp, StringComparison.Ordinal))
+        string boundIp;
+        string observedIp;
+        try
+        {
+            boundIp = NormalizeIp(entity.BoundIp);
+            observedIp = NormalizeIp(clientIp);
+        }
+        catch (InvalidOperationException)
+        {
+            await RevokeTrackedAsync(entity, "client_ip_invalid", "session_ip_invalid", new
+            {
+                storedIp = entity.BoundIp,
+                observedIp = clientIp,
+            }, cancellationToken);
+            return AdminSessionValidationResult.Invalid(AdminSessionInvalidReason.InvalidClientIp, entity);
+        }
+
+        if (!string.Equals(boundIp, observedIp, StringComparison.Ordinal))
         {
             await RevokeTrackedAsync(entity, "ip_mismatch", "session_ip_mismatch", new
             {
-                boundIp = entity.BoundIp,
+                boundIp,
                 observedIp,
             }, cancellationToken);
             return AdminSessionValidationResult.Invalid(AdminSessionInvalidReason.IpMismatch, entity);
@@ -111,6 +127,11 @@ public sealed class AdminSessionService(
         {
             entity.LastSeenAtUtc = now;
             entity.IdleExpiresAtUtc = Min(now.AddMinutes(entity.IdleTimeoutMinutes), entity.AbsoluteExpiresAtUtc);
+            AddAudit("session_activity_renewed", entity, metadata: new
+            {
+                entity.LastSeenAtUtc,
+                entity.IdleExpiresAtUtc,
+            });
             await db.SaveChangesAsync(cancellationToken);
         }
 
@@ -151,11 +172,33 @@ public sealed class AdminSessionService(
             .Where(x => x.Id == sessionId && x.RevokedAtUtc == null)
             .Select(x => x.ReauthenticatedAtUtc)
             .SingleOrDefaultAsync(cancellationToken);
-        return at is not null && UtcNow() - at.Value <= RecentReauthenticationWindow;
+        var now = UtcNow();
+        return at is not null && now >= at.Value && now - at.Value <= RecentReauthenticationWindow;
     }
 
     public static bool IsRecentlyReauthenticated(AdminSessionEntity session, DateTimeOffset now)
-        => session.ReauthenticatedAtUtc is { } at && now - at <= RecentReauthenticationWindow;
+        => session.ReauthenticatedAtUtc is { } at
+            && now >= at
+            && now - at <= RecentReauthenticationWindow;
+
+    public async Task RecordReauthenticationFailureAsync(
+        string sessionId,
+        string reason,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await db.AdminSessions.SingleOrDefaultAsync(x => x.Id == sessionId, cancellationToken);
+        if (entity is null)
+        {
+            return;
+        }
+
+        AddAudit(
+            "session_reauthentication_failed",
+            entity,
+            outcome: "failure",
+            metadata: new { reason });
+        await db.SaveChangesAsync(cancellationToken);
+    }
 
     public async Task RevokeAsync(
         string sessionId,
@@ -255,17 +298,18 @@ public sealed class AdminSessionService(
             entity.RevocationReason = entity.AbsoluteExpiresAtUtc <= now ? "absolute_expired" : "idle_expired";
             entity.ReauthenticatedAtUtc = null;
             vaultSession.LockForSession(entity.Id);
+            AddAudit(
+                entity.AbsoluteExpiresAtUtc <= now ? "session_absolute_expired" : "session_idle_expired",
+                entity,
+                outcome: "rejected");
         }
 
-        var removedIds = await db.AdminSessions
+        var removed = await db.AdminSessions
             .Where(x => x.RevokedAtUtc != null && x.RevokedAtUtc < retentionCutoff)
-            .Select(x => x.Id)
             .ToListAsync(cancellationToken);
-        await db.AdminSessions
-            .Where(x => x.RevokedAtUtc != null && x.RevokedAtUtc < retentionCutoff)
-            .ExecuteDeleteAsync(cancellationToken);
+        db.AdminSessions.RemoveRange(removed);
         await db.SaveChangesAsync(cancellationToken);
-        return expired.Select(x => x.Id).Concat(removedIds).Distinct(StringComparer.Ordinal).ToArray();
+        return expired.Select(x => x.Id).Concat(removed.Select(x => x.Id)).Distinct(StringComparer.Ordinal).ToArray();
     }
 
     public async Task RecordScopeFailureAsync(
@@ -373,6 +417,7 @@ public enum AdminSessionInvalidReason
 {
     Unknown,
     Revoked,
+    InvalidClientIp,
     IpMismatch,
     IdleExpired,
     AbsoluteExpired,

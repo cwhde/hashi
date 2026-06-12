@@ -64,6 +64,51 @@ public sealed class ForwardedClientContextResolverTests
         Assert.Equal("127.0.0.2", resolved.ClientIp.ToString());
     }
 
+    [Fact]
+    public void Trusted_proxy_normalizes_ipv4_mapped_ipv6_client()
+    {
+        var context = new DefaultHttpContext();
+        context.Connection.RemoteIpAddress = IPAddress.Loopback;
+        context.Request.Headers["X-Forwarded-For"] = "::ffff:203.0.113.44";
+
+        var resolved = CreateResolver().Resolve(context);
+
+        Assert.Equal("203.0.113.44", resolved.ClientIp.ToString());
+    }
+
+    [Fact]
+    public void Missing_direct_peer_address_fails_closed()
+    {
+        var context = new DefaultHttpContext();
+        context.Connection.RemoteIpAddress = null;
+
+        Assert.False(CreateResolver().TryResolve(context, out _));
+    }
+
+    [Theory]
+    [InlineData(" ")]
+    [InlineData("not-an-ip")]
+    [InlineData("203.0.113.44, not-an-ip")]
+    [InlineData("203.0.113.44, , 172.18.0.4")]
+    public void Trusted_proxy_rejects_malformed_forwarded_chain(string forwardedFor)
+    {
+        var context = new DefaultHttpContext();
+        context.Connection.RemoteIpAddress = IPAddress.Parse("172.18.0.4");
+        context.Request.Headers["X-Forwarded-For"] = forwardedFor;
+
+        Assert.False(CreateResolver().TryResolve(context, out _));
+    }
+
+    [Fact]
+    public void Trusted_proxy_rejects_malformed_real_ip()
+    {
+        var context = new DefaultHttpContext();
+        context.Connection.RemoteIpAddress = IPAddress.Parse("172.18.0.4");
+        context.Request.Headers["X-Real-IP"] = "not-an-ip";
+
+        Assert.False(CreateResolver().TryResolve(context, out _));
+    }
+
     private static ForwardedClientContextResolver CreateResolver()
         => new(new ConfigurationBuilder().Build());
 }

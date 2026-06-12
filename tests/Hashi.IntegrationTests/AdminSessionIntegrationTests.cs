@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 using Hashi.Contracts.Api;
+using Hashi.Core.Auth;
+using Hashi.Infrastructure.Auth;
 using Hashi.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +15,7 @@ namespace Hashi.IntegrationTests;
 public sealed class AdminSessionIntegrationTests : IAsyncLifetime
 {
     private readonly PostgresIntegrationFixture _fixture;
+    private string? _connectionString;
     private WebApplicationFactory<Program>? _factory;
 
     public AdminSessionIntegrationTests(PostgresIntegrationFixture fixture)
@@ -27,8 +30,8 @@ public sealed class AdminSessionIntegrationTests : IAsyncLifetime
             return;
         }
 
-        var connectionString = await _fixture.CreateDatabaseAsync();
-        _factory = IntegrationTestApp.CreateFactory(connectionString);
+        _connectionString = await _fixture.CreateDatabaseAsync();
+        _factory = IntegrationTestApp.CreateFactory(_connectionString);
         await IntegrationTestAuth.EnsureBootstrapCredentialsAsync(_factory.Services);
     }
 
@@ -90,6 +93,97 @@ public sealed class AdminSessionIntegrationTests : IAsyncLifetime
         var db = scope.ServiceProvider.GetRequiredService<HashiDbContext>();
         var boundIps = await db.AdminSessions.OrderBy(x => x.BoundIp).Select(x => x.BoundIp).ToListAsync();
         Assert.Equal(["203.0.113.10", "203.0.113.11"], boundIps);
+    }
+
+    [Fact]
+    public async Task Malformed_forwarded_address_cannot_issue_session()
+    {
+        if (_factory is null)
+        {
+            return;
+        }
+
+        using var client = _factory.CreateClient(IntegrationTestApp.HttpsClientOptions());
+        var response = await SendBootstrapLoginAsync(client, "not-an-ip");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        using var scope = _factory.Services.CreateScope();
+        Assert.Empty(await scope.ServiceProvider.GetRequiredService<HashiDbContext>().AdminSessions.ToListAsync());
+    }
+
+    [Fact]
+    public async Task Malformed_forwarded_address_revokes_existing_session()
+    {
+        if (_factory is null)
+        {
+            return;
+        }
+
+        using var client = _factory.CreateClient(IntegrationTestApp.HttpsClientOptions());
+        Assert.Equal(HttpStatusCode.OK, (await SendBootstrapLoginAsync(client, "203.0.113.10")).StatusCode);
+
+        var malformedRequest = new HttpRequestMessage(HttpMethod.Get, "/api/auth/session");
+        malformedRequest.Headers.Add("X-Forwarded-For", "not-an-ip");
+        var response = await client.SendAsync(malformedRequest);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        using var scope = _factory.Services.CreateScope();
+        var session = await scope.ServiceProvider.GetRequiredService<HashiDbContext>().AdminSessions.SingleAsync();
+        Assert.Equal("client_ip_unavailable", session.RevocationReason);
+    }
+
+    [Fact]
+    public async Task Revoked_session_is_rejected_before_cookie_expiry()
+    {
+        if (_factory is null)
+        {
+            return;
+        }
+
+        using var client = _factory.CreateClient(IntegrationTestApp.HttpsClientOptions());
+        const string sessionId = "revocation-integration-session";
+        IntegrationTestAuth.AuthenticateAsAdminSession(client, _factory.Services, sessionId);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            await scope.ServiceProvider.GetRequiredService<AdminSessionService>()
+                .RevokeAsync(sessionId, "manual");
+        }
+
+        var response = await client.GetAsync("/api/auth/session");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Session_and_recent_reauthentication_survive_application_restart()
+    {
+        if (_factory is null || _connectionString is null)
+        {
+            return;
+        }
+
+        string sessionId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var sessions = scope.ServiceProvider.GetRequiredService<AdminSessionService>();
+            var session = await sessions.CreateAsync(
+                AdminAuthMethods.Passkey,
+                "203.0.113.10",
+                AdminSessionScopes.All);
+            sessionId = session.Id;
+            await sessions.MarkReauthenticatedAsync(sessionId);
+        }
+
+        await _factory.DisposeAsync();
+        _factory = IntegrationTestApp.CreateFactory(_connectionString);
+
+        using var restartedScope = _factory.Services.CreateScope();
+        var restartedSessions = restartedScope.ServiceProvider.GetRequiredService<AdminSessionService>();
+        var validation = await restartedSessions.ValidateAsync(sessionId, "203.0.113.10");
+
+        Assert.True(validation.IsValid);
+        Assert.True(await restartedSessions.IsRecentlyReauthenticatedAsync(sessionId));
     }
 
     private static Task<HttpResponseMessage> SendBootstrapLoginAsync(HttpClient client, string clientIp)

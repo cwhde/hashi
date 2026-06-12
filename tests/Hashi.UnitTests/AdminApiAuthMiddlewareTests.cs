@@ -50,6 +50,7 @@ public sealed class AdminApiAuthMiddlewareTests
     [InlineData("/api/resources", "POST", AdminSessionScopes.Write)]
     [InlineData("/api/settings/admin-session", "PUT", AdminSessionScopes.SettingsManage)]
     [InlineData("/api/vault/secrets", "POST", AdminSessionScopes.SecretsManage)]
+    [InlineData("/api/vault/secrets/11111111-1111-1111-1111-111111111111/reveal", "GET", AdminSessionScopes.SecretsManage)]
     [InlineData("/api/scripts/abc/run", "POST", AdminSessionScopes.ScriptsManage)]
     [InlineData("/api/security/blocks", "POST", AdminSessionScopes.SecurityManage)]
     [InlineData("/api/auth/sessions/revoke-others", "POST", AdminSessionScopes.SecurityManage)]
@@ -172,6 +173,21 @@ public sealed class AdminApiAuthMiddlewareTests
 
         Assert.True(invoked);
         Assert.Equal(StatusCodes.Status204NoContent, context.Response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Secret_reveal_get_rejects_read_only_session_after_reauthentication()
+    {
+        var (context, invoked) = await InvokeMiddlewareAsync(
+            "/api/vault/secrets/11111111-1111-1111-1111-111111111111/reveal",
+            HttpMethods.Get,
+            setupComplete: true,
+            user: AuthenticatedUser(),
+            recentlyReauthenticated: true,
+            scopes: [AdminSessionScopes.Read]);
+
+        Assert.False(invoked);
+        Assert.Equal(StatusCodes.Status403Forbidden, context.Response.StatusCode);
     }
 
     [Fact]

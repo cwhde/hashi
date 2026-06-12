@@ -17,47 +17,107 @@ public sealed class ForwardedClientContextResolver(IConfiguration configuration)
 
     public ForwardedClientContext Resolve(HttpContext context)
     {
-        var remoteIp = context.Connection.RemoteIpAddress ?? IPAddress.Loopback;
-        if (!IsTrustedProxy(remoteIp))
+        if (!TryResolve(context, out var resolved))
         {
-            return new ForwardedClientContext(remoteIp, NormalizeMethod(context.Request.Method), false);
+            throw new InvalidOperationException("A canonical client IP address could not be resolved.");
         }
 
-        var clientIp = TryResolveForwardedClientIp(context, remoteIp) ?? remoteIp;
+        return resolved;
+    }
+
+    public bool TryResolve(HttpContext context, out ForwardedClientContext resolved)
+    {
+        var remoteIp = context.Connection.RemoteIpAddress;
+        if (remoteIp is null)
+        {
+            resolved = default!;
+            return false;
+        }
+
+        remoteIp = Normalize(remoteIp);
+        if (!IsTrustedProxy(remoteIp))
+        {
+            resolved = new ForwardedClientContext(remoteIp, NormalizeMethod(context.Request.Method), false);
+            return true;
+        }
+
+        if (!TryResolveForwardedClientIp(context, remoteIp, out var clientIp))
+        {
+            resolved = default!;
+            return false;
+        }
+
         var method = context.Request.Headers["X-Forwarded-Method"].FirstOrDefault()
             ?? context.Request.Headers["X-Original-Method"].FirstOrDefault()
             ?? context.Request.Headers["X-Forwarded-Http-Method"].FirstOrDefault()
             ?? context.Request.Method;
-        return new ForwardedClientContext(clientIp, NormalizeMethod(method), true);
+        resolved = new ForwardedClientContext(clientIp, NormalizeMethod(method), true);
+        return true;
     }
 
-    private IPAddress? TryResolveForwardedClientIp(HttpContext context, IPAddress remoteIp)
+    private bool TryResolveForwardedClientIp(
+        HttpContext context,
+        IPAddress remoteIp,
+        out IPAddress clientIp)
     {
-        var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
-        if (!string.IsNullOrWhiteSpace(forwardedFor))
+        if (context.Request.Headers.TryGetValue("X-Forwarded-For", out var forwardedValues))
         {
-            var chain = forwardedFor
-                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Select(StripPort)
-                .Select(value => IPAddress.TryParse(value, out var parsed) ? parsed : null)
-                .Where(value => value is not null)
-                .Cast<IPAddress>()
-                .Append(remoteIp)
-                .ToArray();
-            for (var index = chain.Length - 1; index >= 0; index--)
+            var forwardedFor = forwardedValues.ToString();
+            if (string.IsNullOrWhiteSpace(forwardedFor))
+            {
+                clientIp = default!;
+                return false;
+            }
+
+            var values = forwardedFor.Split(',', StringSplitOptions.TrimEntries);
+            if (values.Length == 0 || values.Any(string.IsNullOrWhiteSpace))
+            {
+                clientIp = default!;
+                return false;
+            }
+
+            var chain = new List<IPAddress>(values.Length + 1);
+            foreach (var value in values)
+            {
+                if (!IPAddress.TryParse(StripPort(value), out var parsed))
+                {
+                    clientIp = default!;
+                    return false;
+                }
+
+                chain.Add(Normalize(parsed));
+            }
+
+            chain.Add(remoteIp);
+            for (var index = chain.Count - 1; index >= 0; index--)
             {
                 if (!IsTrustedProxy(chain[index]))
                 {
-                    return Normalize(chain[index]);
+                    clientIp = Normalize(chain[index]);
+                    return true;
                 }
             }
 
-            return Normalize(chain[0]);
+            clientIp = Normalize(chain[0]);
+            return true;
         }
 
-        var realIp = context.Request.Headers["X-Real-IP"].FirstOrDefault()
-            ?? context.Request.Headers["X-Forwarded-Client-IP"].FirstOrDefault();
-        return IPAddress.TryParse(StripPort(realIp), out var ip) ? Normalize(ip) : null;
+        if (context.Request.Headers.TryGetValue("X-Real-IP", out var realIpValues)
+            || context.Request.Headers.TryGetValue("X-Forwarded-Client-IP", out realIpValues))
+        {
+            var realIp = realIpValues.ToString();
+            if (!IPAddress.TryParse(StripPort(realIp), out var parsed))
+            {
+                clientIp = default!;
+                return false;
+            }
+
+            clientIp = Normalize(parsed);
+            return true;
+        }
+
+        clientIp = remoteIp;
+        return true;
     }
 
     private bool IsTrustedProxy(IPAddress remoteIp)

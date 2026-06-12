@@ -16,7 +16,21 @@ public sealed class AdminSessionCookieEvents(
     {
         var sessionId = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier)
             ?? context.Principal?.FindFirstValue(ClaimTypes.Sid);
-        var client = forwardedClientContext.Resolve(context.HttpContext);
+        if (!forwardedClientContext.TryResolve(context.HttpContext, out var client))
+        {
+            if (!string.IsNullOrWhiteSpace(sessionId))
+            {
+                await sessions.RevokeAsync(
+                    sessionId,
+                    "client_ip_unavailable",
+                    context.HttpContext.RequestAborted);
+                vaultSession.LockForSession(sessionId);
+            }
+
+            RejectAndClearCookie(context);
+            return;
+        }
+
         var validation = await sessions.ValidateAsync(
             sessionId,
             client.ClientIp.ToString(),
@@ -24,19 +38,12 @@ public sealed class AdminSessionCookieEvents(
 
         if (!validation.IsValid || validation.Session is null)
         {
-            context.RejectPrincipal();
             if (!string.IsNullOrWhiteSpace(sessionId))
             {
                 vaultSession.LockForSession(sessionId);
             }
 
-            context.HttpContext.Response.Cookies.Delete("hashi.session", new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.Strict,
-                Path = "/",
-            });
+            RejectAndClearCookie(context);
             return;
         }
 
@@ -44,11 +51,23 @@ public sealed class AdminSessionCookieEvents(
         if (!string.Equals(authMethod, validation.Session.AuthMethod, StringComparison.Ordinal))
         {
             await sessions.RevokeAsync(validation.Session.Id, "claim_mismatch", context.HttpContext.RequestAborted);
-            context.RejectPrincipal();
             vaultSession.LockForSession(validation.Session.Id);
+            RejectAndClearCookie(context);
             return;
         }
 
         context.HttpContext.Items[ValidationItemKey] = validation;
+    }
+
+    private static void RejectAndClearCookie(CookieValidatePrincipalContext context)
+    {
+        context.RejectPrincipal();
+        context.HttpContext.Response.Cookies.Delete("hashi.session", new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = true,
+            SameSite = SameSiteMode.Strict,
+            Path = "/",
+        });
     }
 }

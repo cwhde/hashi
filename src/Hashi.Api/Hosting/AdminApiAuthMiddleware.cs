@@ -88,6 +88,12 @@ public sealed class AdminApiAuthMiddleware(RequestDelegate next)
     public static string RequiredScope(PathString path, string method)
     {
         var value = path.Value ?? string.Empty;
+        if (value.StartsWith("/api/vault/secrets/", StringComparison.OrdinalIgnoreCase)
+            && value.EndsWith("/reveal", StringComparison.OrdinalIgnoreCase))
+        {
+            return AdminSessionScopes.SecretsManage;
+        }
+
         if (!IsUnsafeMethod(method))
         {
             return AdminSessionScopes.Read;
