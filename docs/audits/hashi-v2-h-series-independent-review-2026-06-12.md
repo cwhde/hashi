@@ -60,6 +60,19 @@ The earlier implementation was not accepted unchanged. This review found and cor
 
 ## Verification
 
-Final verification must include release build, formatting, unit and integration suites, frontend check/lint/unit/build/E2E, Pulse `go test`/`go vet`, CI invariant script, generated OpenAPI cleanliness, and a conflict-only merge simulation against current `origin/main`.
+Final verification completed on 2026-06-12:
+
+- `dotnet format Hashi.slnx --verify-no-changes --no-restore`
+- `dotnet build Hashi.slnx -c Release --no-restore`: 0 warnings, 0 errors
+- Unit tests: 501 passed
+- Integration tests: 39 passed
+- Frontend `check` and `lint`: passed with 0 diagnostics
+- Frontend Vitest: 30 passed
+- Frontend production build: passed
+- Frontend Playwright: 25 passed
+- Pulse Go 1.22.12 `go test ./...` and `go vet ./...`: passed
+- `bash scripts/validate-ci-optimization.sh`: passed
+- Fresh OpenAPI export and TypeScript generation: no committed artifact diff
+- Merge simulation into current `origin/main` (`e93b64f`): no conflicts; the resulting tree exactly matched the tested audit branch tree
 
 Docker image-size/runtime checks remain delegated to CI because no Docker CLI is installed locally. They are the only review items without local execution evidence.
