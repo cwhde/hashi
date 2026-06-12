@@ -51,6 +51,8 @@ public sealed class ForwardedClientContextResolver(IConfiguration configuration)
                     return Normalize(chain[index]);
                 }
             }
+
+            return Normalize(chain[0]);
         }
 
         var realIp = context.Request.Headers["X-Real-IP"].FirstOrDefault()

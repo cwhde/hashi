@@ -249,7 +249,8 @@ public sealed class AdminApiAuthMiddlewareTests
             return Task.CompletedTask;
         });
 
-        await middleware.InvokeAsync(context, setup);
+        var sessions = new AdminSessionService(db, new AppSettingsService(db), new VaultSessionState());
+        await middleware.InvokeAsync(context, setup, sessions);
         return (context, invoked);
     }
 

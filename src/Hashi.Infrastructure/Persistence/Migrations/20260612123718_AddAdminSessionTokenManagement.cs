@@ -28,7 +28,9 @@ namespace Hashi.Infrastructure.Persistence.Migrations
                 defaultValue: 480);
 
             migrationBuilder.Sql(
-                "UPDATE app_settings SET \"AdminSessionMinutes\" = LEAST(GREATEST(\"AdminSessionMinutes\", 5), 240);");
+                "UPDATE app_settings SET \"AdminSessionMinutes\" = CASE " +
+                "WHEN \"AdminSessionMinutes\" <= 0 THEN 240 " +
+                "ELSE LEAST(\"AdminSessionMinutes\", 240) END;");
 
             migrationBuilder.CreateTable(
                 name: "admin_sessions",

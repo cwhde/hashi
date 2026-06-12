@@ -59,6 +59,8 @@ public sealed class VaultSessionState(IHttpContextAccessor? httpContextAccessor 
         }
     }
 
+    public bool IsUnlockedForSession(string sessionKey) => _adminRootKeys.ContainsKey(sessionKey);
+
     private string GetRequiredCurrentSessionKey()
         => TryGetCurrentSessionKey(out var sessionKey)
             ? sessionKey

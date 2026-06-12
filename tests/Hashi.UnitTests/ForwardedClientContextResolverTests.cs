@@ -52,6 +52,18 @@ public sealed class ForwardedClientContextResolverTests
         Assert.Equal("203.0.113.44", resolved.ClientIp.ToString());
     }
 
+    [Fact]
+    public void Trusted_proxy_uses_leftmost_address_when_entire_chain_is_trusted()
+    {
+        var context = new DefaultHttpContext();
+        context.Connection.RemoteIpAddress = IPAddress.Loopback;
+        context.Request.Headers["X-Forwarded-For"] = "127.0.0.2, 127.0.0.3";
+
+        var resolved = CreateResolver().Resolve(context);
+
+        Assert.Equal("127.0.0.2", resolved.ClientIp.ToString());
+    }
+
     private static ForwardedClientContextResolver CreateResolver()
         => new(new ConfigurationBuilder().Build());
 }

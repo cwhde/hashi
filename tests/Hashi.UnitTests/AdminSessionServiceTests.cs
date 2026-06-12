@@ -38,17 +38,20 @@ public sealed class AdminSessionServiceTests
     {
         await using var db = CreateDb();
         var clock = new MutableTimeProvider(new DateTimeOffset(2026, 6, 12, 8, 0, 0, TimeSpan.Zero));
-        var service = CreateService(db, clock);
+        var vaultSession = new VaultSessionState();
+        var service = new AdminSessionService(db, new AppSettingsService(db), vaultSession, clock);
         var session = await service.CreateAsync(
             AdminAuthMethods.Passkey,
             "203.0.113.10",
             AdminSessionScopes.All);
+        vaultSession.UnlockForSession(session.Id, new byte[32]);
 
         var result = await service.ValidateAsync(session.Id, "203.0.113.11");
 
         Assert.False(result.IsValid);
         Assert.Equal(AdminSessionInvalidReason.IpMismatch, result.InvalidReason);
         Assert.Equal("ip_mismatch", (await db.AdminSessions.SingleAsync()).RevocationReason);
+        Assert.False(vaultSession.IsUnlockedForSession(session.Id));
     }
 
     [Fact]
@@ -101,7 +104,7 @@ public sealed class AdminSessionServiceTests
     }
 
     private static AdminSessionService CreateService(HashiDbContext db, TimeProvider clock)
-        => new(db, new AppSettingsService(db), clock);
+        => new(db, new AppSettingsService(db), new VaultSessionState(), clock);
 
     private static HashiDbContext CreateDb()
     {

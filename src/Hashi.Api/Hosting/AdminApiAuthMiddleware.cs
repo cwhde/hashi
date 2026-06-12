@@ -20,7 +20,8 @@ public sealed class AdminApiAuthMiddleware(RequestDelegate next)
 
     public async Task InvokeAsync(
         HttpContext context,
-        SetupStateService setupState)
+        SetupStateService setupState,
+        AdminSessionService sessions)
     {
         var path = context.Request.Path;
         if (!path.StartsWithSegments("/api"))
@@ -62,6 +63,7 @@ public sealed class AdminApiAuthMiddleware(RequestDelegate next)
         var requiredScope = RequiredScope(path, context.Request.Method);
         if (!validation.Scopes.Contains(requiredScope, StringComparer.Ordinal))
         {
+            await sessions.RecordScopeFailureAsync(validation.Session, requiredScope, context.RequestAborted);
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             await context.Response.WriteAsJsonAsync(new
             {

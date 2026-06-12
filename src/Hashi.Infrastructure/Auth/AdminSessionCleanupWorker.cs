@@ -6,7 +6,6 @@ namespace Hashi.Infrastructure.Auth;
 
 public sealed class AdminSessionCleanupWorker(
     IServiceScopeFactory scopeFactory,
-    VaultSessionState vaultSession,
     ILogger<AdminSessionCleanupWorker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -18,11 +17,7 @@ public sealed class AdminSessionCleanupWorker(
             {
                 using var scope = scopeFactory.CreateScope();
                 var sessions = scope.ServiceProvider.GetRequiredService<AdminSessionService>();
-                var invalidatedSessionIds = await sessions.CleanupAsync(stoppingToken);
-                foreach (var sessionId in invalidatedSessionIds)
-                {
-                    vaultSession.LockForSession(sessionId);
-                }
+                await sessions.CleanupAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {

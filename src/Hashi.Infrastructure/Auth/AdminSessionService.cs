@@ -13,6 +13,7 @@ namespace Hashi.Infrastructure.Auth;
 public sealed class AdminSessionService(
     HashiDbContext db,
     AppSettingsService settingsService,
+    VaultSessionState vaultSession,
     TimeProvider? timeProvider = null)
 {
     public static readonly TimeSpan RecentReauthenticationWindow = TimeSpan.FromMinutes(5);
@@ -213,6 +214,7 @@ public sealed class AdminSessionService(
             entity.RevocationReason = "revoked_others";
             entity.ReauthenticatedAtUtc = null;
             AddAudit("session_revoked", entity, metadata: new { reason = "revoked_others" });
+            vaultSession.LockForSession(entity.Id);
         }
 
         await db.SaveChangesAsync(cancellationToken);
@@ -232,6 +234,7 @@ public sealed class AdminSessionService(
             entity.RevocationReason = "passkey_removed";
             entity.ReauthenticatedAtUtc = null;
             AddAudit("session_revoked", entity, metadata: new { reason = "passkey_removed" });
+            vaultSession.LockForSession(entity.Id);
         }
 
         await db.SaveChangesAsync(cancellationToken);
@@ -251,6 +254,7 @@ public sealed class AdminSessionService(
             entity.RevokedAtUtc = now;
             entity.RevocationReason = entity.AbsoluteExpiresAtUtc <= now ? "absolute_expired" : "idle_expired";
             entity.ReauthenticatedAtUtc = null;
+            vaultSession.LockForSession(entity.Id);
         }
 
         var removedIds = await db.AdminSessions
@@ -262,6 +266,19 @@ public sealed class AdminSessionService(
             .ExecuteDeleteAsync(cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         return expired.Select(x => x.Id).Concat(removedIds).Distinct(StringComparer.Ordinal).ToArray();
+    }
+
+    public async Task RecordScopeFailureAsync(
+        AdminSessionEntity session,
+        string requiredScope,
+        CancellationToken cancellationToken = default)
+    {
+        AddAudit(
+            "session_scope_rejected",
+            session,
+            outcome: "rejected",
+            metadata: new { requiredScope });
+        await db.SaveChangesAsync(cancellationToken);
     }
 
     public static IReadOnlyList<string> GetScopes(AdminSessionEntity session)
@@ -291,6 +308,7 @@ public sealed class AdminSessionService(
         entity.RevokedAtUtc = UtcNow();
         entity.RevocationReason = reason;
         entity.ReauthenticatedAtUtc = null;
+        vaultSession.LockForSession(entity.Id);
         AddAudit(auditAction, entity, outcome: "rejected", metadata: metadata);
         await db.SaveChangesAsync(cancellationToken);
     }
