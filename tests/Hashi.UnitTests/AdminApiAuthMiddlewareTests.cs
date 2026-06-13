@@ -32,6 +32,9 @@ public sealed class AdminApiAuthMiddlewareTests
     [InlineData("/api/security/blocks", "POST", true)]
     [InlineData("/api/security/blocks/11111111-1111-1111-1111-111111111111/make-permanent", "POST", true)]
     [InlineData("/api/security/blocks/11111111-1111-1111-1111-111111111111/preview-firewall-sync", "POST", true)]
+    [InlineData("/api/auth/sessions/revoke-others", "POST", true)]
+    [InlineData("/api/auth/sessions/0123456789abcdef", "DELETE", true)]
+    [InlineData("/api/auth/passkeys/11111111-1111-1111-1111-111111111111", "DELETE", true)]
     [InlineData("/api/pulse/agents", "POST", true)]
     [InlineData("/api/resources", "GET", false)]
     [InlineData("/api/resources", "POST", false)]
@@ -40,6 +43,22 @@ public sealed class AdminApiAuthMiddlewareTests
     {
         var actual = AdminApiAuthMiddleware.RequiresReauthentication(new PathString(path), method);
         Assert.Equal(expected, actual);
+    }
+
+    [Theory]
+    [InlineData("/api/resources", "GET", AdminSessionScopes.Read)]
+    [InlineData("/api/resources", "POST", AdminSessionScopes.Write)]
+    [InlineData("/api/settings/admin-session", "PUT", AdminSessionScopes.SettingsManage)]
+    [InlineData("/api/vault/secrets", "POST", AdminSessionScopes.SecretsManage)]
+    [InlineData("/api/vault/secrets/11111111-1111-1111-1111-111111111111/reveal", "GET", AdminSessionScopes.SecretsManage)]
+    [InlineData("/api/scripts/abc/run", "POST", AdminSessionScopes.ScriptsManage)]
+    [InlineData("/api/security/blocks", "POST", AdminSessionScopes.SecurityManage)]
+    [InlineData("/api/auth/sessions/revoke-others", "POST", AdminSessionScopes.SecurityManage)]
+    [InlineData("/api/firewall/abc/apply", "POST", AdminSessionScopes.FirewallApply)]
+    [InlineData("/api/sync/abc/apply", "POST", AdminSessionScopes.SyncApply)]
+    public void RequiredScope_maps_admin_operations(string path, string method, string expected)
+    {
+        Assert.Equal(expected, AdminApiAuthMiddleware.RequiredScope(new PathString(path), method));
     }
 
     [Theory]
@@ -144,18 +163,45 @@ public sealed class AdminApiAuthMiddlewareTests
     public async Task Secret_reveal_get_allows_recent_reauthentication()
     {
         var user = AuthenticatedUser();
-        var reauth = new ReauthenticationState();
-        reauth.MarkRecent(new DefaultHttpContext { User = user });
 
         var (context, invoked) = await InvokeMiddlewareAsync(
             "/api/vault/secrets/11111111-1111-1111-1111-111111111111/reveal",
             HttpMethods.Get,
             setupComplete: true,
             user: user,
-            reauth: reauth);
+            recentlyReauthenticated: true);
 
         Assert.True(invoked);
         Assert.Equal(StatusCodes.Status204NoContent, context.Response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Secret_reveal_get_rejects_read_only_session_after_reauthentication()
+    {
+        var (context, invoked) = await InvokeMiddlewareAsync(
+            "/api/vault/secrets/11111111-1111-1111-1111-111111111111/reveal",
+            HttpMethods.Get,
+            setupComplete: true,
+            user: AuthenticatedUser(),
+            recentlyReauthenticated: true,
+            scopes: [AdminSessionScopes.Read]);
+
+        Assert.False(invoked);
+        Assert.Equal(StatusCodes.Status403Forbidden, context.Response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Authenticated_session_without_required_scope_is_rejected()
+    {
+        var (context, invoked) = await InvokeMiddlewareAsync(
+            "/api/settings/admin-session",
+            HttpMethods.Put,
+            setupComplete: true,
+            user: AuthenticatedUser(),
+            scopes: [AdminSessionScopes.Read]);
+
+        Assert.False(invoked);
+        Assert.Equal(StatusCodes.Status403Forbidden, context.Response.StatusCode);
     }
 
     [Theory]
@@ -176,7 +222,8 @@ public sealed class AdminApiAuthMiddlewareTests
         string method,
         bool setupComplete,
         ClaimsPrincipal? user = null,
-        ReauthenticationState? reauth = null)
+        bool recentlyReauthenticated = false,
+        IReadOnlyList<string>? scopes = null)
     {
         await using var db = CreateDb();
         var setup = new SetupStateService(db, NullLogger<SetupStateService>.Instance);
@@ -191,6 +238,25 @@ public sealed class AdminApiAuthMiddlewareTests
         context.Request.Path = path;
         context.Request.Method = method;
 
+        if (context.User.Identity?.IsAuthenticated == true)
+        {
+            var session = new Hashi.Infrastructure.Persistence.Entities.AdminSessionEntity
+            {
+                Id = "test-session",
+                AuthMethod = AdminAuthMethods.Passkey,
+                BoundIp = "127.0.0.1",
+                ScopesJson = System.Text.Json.JsonSerializer.Serialize(AdminSessionScopes.All),
+                CreatedAtUtc = DateTimeOffset.UtcNow,
+                LastSeenAtUtc = DateTimeOffset.UtcNow,
+                IdleExpiresAtUtc = DateTimeOffset.UtcNow.AddHours(4),
+                AbsoluteExpiresAtUtc = DateTimeOffset.UtcNow.AddHours(8),
+                ReauthenticatedAtUtc = recentlyReauthenticated ? DateTimeOffset.UtcNow : null,
+            };
+            context.Items[AdminSessionCookieEvents.ValidationItemKey] = AdminSessionValidationResult.Valid(
+                session,
+                scopes ?? AdminSessionScopes.All);
+        }
+
         var invoked = false;
         var middleware = new AdminApiAuthMiddleware(httpContext =>
         {
@@ -199,7 +265,8 @@ public sealed class AdminApiAuthMiddlewareTests
             return Task.CompletedTask;
         });
 
-        await middleware.InvokeAsync(context, setup, reauth ?? new ReauthenticationState());
+        var sessions = new AdminSessionService(db, new AppSettingsService(db), new VaultSessionState());
+        await middleware.InvokeAsync(context, setup, sessions);
         return (context, invoked);
     }
 

@@ -39,7 +39,6 @@ public static class DependencyInjection
         services.AddHttpContextAccessor();
         services.AddSingleton<VaultSessionState>();
         services.AddSingleton<ServiceSyncVaultState>();
-        services.AddSingleton<ReauthenticationState>();
         services.TryAddSingleton(_ => HashiPortOptions.FromConfiguration(configuration));
 
         services.AddHttpClient("hetzner-dns", client =>
@@ -60,6 +59,8 @@ public static class DependencyInjection
         services.AddScoped<AppSettingsService>();
         services.AddScoped<BootstrapAuthService>();
         services.AddScoped<PasskeyAuthService>();
+        services.AddScoped<AdminSessionService>();
+        services.AddHostedService<AdminSessionCleanupWorker>();
         services.AddScoped<VaultService>();
         services.AddScoped<SecretRecordService>();
         services.AddScoped<SetupCompletionService>();

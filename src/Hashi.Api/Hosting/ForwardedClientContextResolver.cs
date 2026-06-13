@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
@@ -17,37 +18,107 @@ public sealed class ForwardedClientContextResolver(IConfiguration configuration)
 
     public ForwardedClientContext Resolve(HttpContext context)
     {
-        var remoteIp = context.Connection.RemoteIpAddress ?? IPAddress.Loopback;
-        if (!IsTrustedProxy(remoteIp))
+        if (!TryResolve(context, out var resolved))
         {
-            return new ForwardedClientContext(remoteIp, NormalizeMethod(context.Request.Method), false);
+            throw new InvalidOperationException("A canonical client IP address could not be resolved.");
         }
 
-        var clientIp = TryResolveForwardedClientIp(context) ?? remoteIp;
+        return resolved;
+    }
+
+    public bool TryResolve(HttpContext context, out ForwardedClientContext resolved)
+    {
+        var remoteIp = context.Connection.RemoteIpAddress;
+        if (remoteIp is null)
+        {
+            resolved = default!;
+            return false;
+        }
+
+        remoteIp = Normalize(remoteIp);
+        if (!IsTrustedProxy(remoteIp))
+        {
+            resolved = new ForwardedClientContext(remoteIp, NormalizeMethod(context.Request.Method), false);
+            return true;
+        }
+
+        if (!TryResolveForwardedClientIp(context, remoteIp, out var clientIp))
+        {
+            resolved = default!;
+            return false;
+        }
+
         var method = context.Request.Headers["X-Forwarded-Method"].FirstOrDefault()
             ?? context.Request.Headers["X-Original-Method"].FirstOrDefault()
             ?? context.Request.Headers["X-Forwarded-Http-Method"].FirstOrDefault()
             ?? context.Request.Method;
-        return new ForwardedClientContext(clientIp, NormalizeMethod(method), true);
+        resolved = new ForwardedClientContext(clientIp, NormalizeMethod(method), true);
+        return true;
     }
 
-    private IPAddress? TryResolveForwardedClientIp(HttpContext context)
+    private bool TryResolveForwardedClientIp(
+        HttpContext context,
+        IPAddress remoteIp,
+        out IPAddress clientIp)
     {
-        var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
-        if (!string.IsNullOrWhiteSpace(forwardedFor))
+        if (context.Request.Headers.TryGetValue("X-Forwarded-For", out var forwardedValues))
         {
-            foreach (var candidate in forwardedFor.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            var forwardedFor = forwardedValues.ToString();
+            if (string.IsNullOrWhiteSpace(forwardedFor))
             {
-                if (IPAddress.TryParse(StripPort(candidate), out var parsed))
+                clientIp = default!;
+                return false;
+            }
+
+            var values = forwardedFor.Split(',', StringSplitOptions.TrimEntries);
+            if (values.Length == 0 || values.Any(string.IsNullOrWhiteSpace))
+            {
+                clientIp = default!;
+                return false;
+            }
+
+            var chain = new List<IPAddress>(values.Length + 1);
+            foreach (var value in values)
+            {
+                if (!TryParseAddress(value, out var parsed))
                 {
-                    return parsed;
+                    clientIp = default!;
+                    return false;
+                }
+
+                chain.Add(Normalize(parsed));
+            }
+
+            chain.Add(remoteIp);
+            for (var index = chain.Count - 1; index >= 0; index--)
+            {
+                if (!IsTrustedProxy(chain[index]))
+                {
+                    clientIp = Normalize(chain[index]);
+                    return true;
                 }
             }
+
+            clientIp = Normalize(chain[0]);
+            return true;
         }
 
-        var realIp = context.Request.Headers["X-Real-IP"].FirstOrDefault()
-            ?? context.Request.Headers["X-Forwarded-Client-IP"].FirstOrDefault();
-        return IPAddress.TryParse(StripPort(realIp), out var ip) ? ip : null;
+        if (context.Request.Headers.TryGetValue("X-Real-IP", out var realIpValues)
+            || context.Request.Headers.TryGetValue("X-Forwarded-Client-IP", out realIpValues))
+        {
+            var realIp = realIpValues.ToString();
+            if (!TryParseAddress(realIp, out var parsed))
+            {
+                clientIp = default!;
+                return false;
+            }
+
+            clientIp = Normalize(parsed);
+            return true;
+        }
+
+        clientIp = remoteIp;
+        return true;
     }
 
     private bool IsTrustedProxy(IPAddress remoteIp)
@@ -78,23 +149,53 @@ public sealed class ForwardedClientContextResolver(IConfiguration configuration)
     private static string NormalizeMethod(string? method)
         => string.IsNullOrWhiteSpace(method) ? "GET" : method.Trim().ToUpperInvariant();
 
-    private static string? StripPort(string? value)
+    private static bool TryParseAddress(string? value, out IPAddress address)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            return null;
+            address = default!;
+            return false;
         }
 
         var trimmed = value.Trim();
+        if (IPAddress.TryParse(trimmed, out address!))
+        {
+            return true;
+        }
+
         if (trimmed.StartsWith('['))
         {
             var closing = trimmed.IndexOf(']');
-            return closing > 0 ? trimmed[1..closing] : trimmed;
+            if (closing <= 1
+                || !TryParsePortSuffix(trimmed[(closing + 1)..])
+                || !IPAddress.TryParse(trimmed[1..closing], out address!))
+            {
+                address = default!;
+                return false;
+            }
+
+            return true;
         }
 
         var colon = trimmed.LastIndexOf(':');
-        return colon > 0 && trimmed.Count(x => x == ':') == 1 ? trimmed[..colon] : trimmed;
+        if (colon <= 0
+            || trimmed.Count(x => x == ':') != 1
+            || !TryParsePort(trimmed[(colon + 1)..])
+            || !IPAddress.TryParse(trimmed[..colon], out address!))
+        {
+            address = default!;
+            return false;
+        }
+
+        return true;
     }
+
+    private static bool TryParsePortSuffix(string suffix)
+        => suffix.Length == 0 || (suffix.StartsWith(':') && TryParsePort(suffix[1..]));
+
+    private static bool TryParsePort(string value)
+        => int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var port)
+            && port is >= 1 and <= 65535;
 
     private static bool IsInCidr(IPAddress ip, string cidr)
     {
@@ -140,4 +241,7 @@ public sealed class ForwardedClientContextResolver(IConfiguration configuration)
         var mask = (byte)(0xFF << (8 - remainingBits));
         return (ipBytes[fullBytes] & mask) == (networkBytes[fullBytes] & mask);
     }
+
+    private static IPAddress Normalize(IPAddress address)
+        => address.IsIPv4MappedToIPv6 ? address.MapToIPv4() : address;
 }

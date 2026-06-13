@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { api } from '$lib/api/client';
+	import { api, ApiRequestError } from '$lib/api/client';
+	import { performPasskeyReauthentication } from '$lib/auth/reauth';
 	import AdminSectionPage from '$lib/components/layout/AdminSectionPage.svelte';
 	import PanelSection from '$lib/components/layout/PanelSection.svelte';
 	import { Checkbox } from '$lib/components/ui/checkbox';
@@ -18,7 +19,7 @@
 	import { Settings as SettingsIcon } from 'lucide-svelte';
 	import NotificationsSettings from '$lib/components/settings/NotificationsSettings.svelte';
 	import CaptchaSettings from '$lib/components/settings/CaptchaSettings.svelte';
-	import type { AdGuardConnection, AdGuardRewritePlan } from '$lib/api/types';
+	import type { AdGuardConnection, AdGuardRewritePlan, AdminSession } from '$lib/api/types';
 
 	let saving = $state(false);
 	let message = $state<string | null>(null);
@@ -48,6 +49,14 @@
 		edgeSsoIdleTimeoutMinutes: 30,
 		edgeSsoRememberDeviceDays: 30
 	});
+	let adminSessionSaving = $state(false);
+	let adminSessionMessage = $state<string | null>(null);
+	let adminSessionForm = $state({
+		idleTimeoutMinutes: 240,
+		absoluteTimeoutMinutes: 480
+	});
+	let adminSessions = $state<AdminSession[]>([]);
+	let sessionActionId = $state<string | null>(null);
 	let firewallSaving = $state(false);
 	let firewallMessage = $state<string | null>(null);
 	let firewallForm = $state({
@@ -172,6 +181,20 @@
 				edgeSsoIdleTimeoutMinutes: Number(edgeSsoSettings.edgeSsoIdleTimeoutMinutes),
 				edgeSsoRememberDeviceDays: Number(edgeSsoSettings.edgeSsoRememberDeviceDays)
 			};
+		} catch {
+			// offline dev
+		}
+
+		try {
+			const [sessionSettings, sessions] = await Promise.all([
+				api.getAdminSessionSettings(),
+				api.listAdminSessions()
+			]);
+			adminSessionForm = {
+				idleTimeoutMinutes: Number(sessionSettings.idleTimeoutMinutes),
+				absoluteTimeoutMinutes: Number(sessionSettings.absoluteTimeoutMinutes)
+			};
+			adminSessions = sessions;
 		} catch {
 			// offline dev
 		}
@@ -385,6 +408,70 @@
 		} finally {
 			edgeSsoSaving = false;
 		}
+	}
+
+	async function runWithReauthentication(action: () => Promise<void>) {
+		try {
+			await action();
+		} catch (e) {
+			if (e instanceof ApiRequestError && e.code === 'reauth_required') {
+				await performPasskeyReauthentication();
+				await action();
+				return;
+			}
+			throw e;
+		}
+	}
+
+	async function saveAdminSessionSettings() {
+		adminSessionSaving = true;
+		adminSessionMessage = null;
+		try {
+			await runWithReauthentication(async () => {
+				await api.updateAdminSessionSettings(adminSessionForm);
+			});
+			adminSessionMessage = 'Admin session settings saved. New limits apply to newly issued tokens.';
+		} catch (e) {
+			adminSessionMessage = e instanceof Error ? e.message : 'Failed to save admin session settings';
+		} finally {
+			adminSessionSaving = false;
+		}
+	}
+
+	async function revokeAdminSession(session: AdminSession) {
+		sessionActionId = session.sessionId;
+		adminSessionMessage = null;
+		try {
+			await runWithReauthentication(async () => {
+				await api.revokeAdminSession(session.sessionId);
+			});
+			adminSessions = await api.listAdminSessions();
+			adminSessionMessage = session.isCurrent ? 'Current token revoked.' : 'Session token revoked.';
+		} catch (e) {
+			adminSessionMessage = e instanceof Error ? e.message : 'Failed to revoke session token';
+		} finally {
+			sessionActionId = null;
+		}
+	}
+
+	async function revokeOtherAdminSessions() {
+		sessionActionId = 'others';
+		adminSessionMessage = null;
+		try {
+			await runWithReauthentication(async () => {
+				await api.revokeOtherAdminSessions();
+			});
+			adminSessions = await api.listAdminSessions();
+			adminSessionMessage = 'Other session tokens revoked.';
+		} catch (e) {
+			adminSessionMessage = e instanceof Error ? e.message : 'Failed to revoke other sessions';
+		} finally {
+			sessionActionId = null;
+		}
+	}
+
+	function formatSessionTime(value: string) {
+		return new Date(value).toLocaleString();
 	}
 
 	async function saveFirewallSettings() {
@@ -645,9 +732,89 @@
 
 		<PanelSection
 			title="Security"
-			description="Edge SSO session settings and authentication defaults."
+			description="Admin token limits, active IP-bound sessions, and Edge SSO defaults."
 		>
 			<div class="grid gap-4">
+				<div class="grid gap-3 rounded-md border border-border p-4">
+					<div>
+						<p class="text-sm font-medium">Admin session tokens</p>
+						<p class="text-xs text-muted-foreground">
+							Each token is strictly bound to the IP address used when it was issued.
+						</p>
+					</div>
+					<div class="grid gap-1.5">
+						<Label for="settings-admin-session-idle">Idle timeout (minutes)</Label>
+						<Input
+							id="settings-admin-session-idle"
+							type="number"
+							min="5"
+							max="240"
+							bind:value={adminSessionForm.idleTimeoutMinutes}
+						/>
+					</div>
+					<div class="grid gap-1.5">
+						<Label for="settings-admin-session-absolute">Absolute timeout (minutes)</Label>
+						<Input
+							id="settings-admin-session-absolute"
+							type="number"
+							min="5"
+							max="480"
+							bind:value={adminSessionForm.absoluteTimeoutMinutes}
+						/>
+						<p class="text-xs text-muted-foreground">
+							Activity can extend the idle deadline, but never the absolute deadline.
+						</p>
+					</div>
+					<Button onclick={() => saveAdminSessionSettings()} disabled={adminSessionSaving}>
+						{adminSessionSaving ? 'Saving...' : 'Save admin token limits'}
+					</Button>
+				</div>
+
+				<div class="grid gap-3 rounded-md border border-border p-4">
+					<div class="flex flex-wrap items-center justify-between gap-2">
+						<div>
+							<p class="text-sm font-medium">Active admin sessions</p>
+							<p class="text-xs text-muted-foreground">One row represents one independently IP-bound token.</p>
+						</div>
+						<Button
+							variant="outline"
+							onclick={() => revokeOtherAdminSessions()}
+							disabled={sessionActionId !== null || adminSessions.filter((session) => !session.isCurrent).length === 0}
+						>
+							{sessionActionId === 'others' ? 'Revoking...' : 'Revoke all other tokens'}
+						</Button>
+					</div>
+					{#if adminSessions.length === 0}
+						<p class="text-xs text-muted-foreground">No active sessions were returned.</p>
+					{:else}
+						{#each adminSessions as session (session.sessionId)}
+							<div class="grid gap-2 rounded-md border border-border/70 p-3 text-xs sm:grid-cols-[1fr_auto]">
+								<div class="grid gap-1">
+									<p class="font-medium">
+										{session.boundIp} {session.isCurrent ? '(current token)' : ''}
+									</p>
+									<p class="text-muted-foreground">
+										Created {formatSessionTime(session.createdAtUtc)} · Last active {formatSessionTime(session.lastSeenAtUtc)}
+									</p>
+									<p class="text-muted-foreground">
+										Idle expiry {formatSessionTime(session.idleExpiresAtUtc)} · Absolute expiry {formatSessionTime(session.absoluteExpiresAtUtc)}
+									</p>
+								</div>
+								<Button
+									variant="outline"
+									onclick={() => revokeAdminSession(session)}
+									disabled={sessionActionId !== null || session.isCurrent}
+								>
+									{session.isCurrent ? 'Current' : sessionActionId === session.sessionId ? 'Revoking...' : 'Revoke'}
+								</Button>
+							</div>
+						{/each}
+					{/if}
+					{#if adminSessionMessage}
+						<p class="text-xs text-muted-foreground">{adminSessionMessage}</p>
+					{/if}
+				</div>
+
 				<div class="grid gap-1.5">
 					<Label for="settings-sso-session">SSO session duration (hours)</Label>
 					<Input

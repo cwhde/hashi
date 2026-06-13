@@ -716,6 +716,62 @@
         }
       }
     },
+    "/api/settings/admin-session": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSessionSettingsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Settings"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminSessionSettingsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSessionSettingsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/settings/dashboard": {
       "get": {
         "tags": [
@@ -1166,6 +1222,69 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SessionStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/sessions": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AdminSessionSummaryResponse"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/sessions/{sessionId}": {
+      "delete": {
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/auth/sessions/revoke-others": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevokeOtherSessionsResponse"
                 }
               }
             }
@@ -5917,6 +6036,124 @@
             "items": {
               "$ref": "#/components/schemas/SyncRunResponse"
             }
+          }
+        }
+      },
+      "AdminSessionSettingsRequest": {
+        "required": [
+          "idleTimeoutMinutes",
+          "absoluteTimeoutMinutes"
+        ],
+        "type": "object",
+        "properties": {
+          "idleTimeoutMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "absoluteTimeoutMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "AdminSessionSettingsResponse": {
+        "required": [
+          "idleTimeoutMinutes",
+          "absoluteTimeoutMinutes",
+          "updatedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "idleTimeoutMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "absoluteTimeoutMinutes": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "updatedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "AdminSessionSummaryResponse": {
+        "required": [
+          "sessionId",
+          "authMethod",
+          "boundIp",
+          "scopes",
+          "createdAtUtc",
+          "lastSeenAtUtc",
+          "idleExpiresAtUtc",
+          "absoluteExpiresAtUtc",
+          "reauthenticatedAtUtc",
+          "isCurrent"
+        ],
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string"
+          },
+          "authMethod": {
+            "type": "string"
+          },
+          "boundIp": {
+            "type": "string"
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastSeenAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "idleExpiresAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "absoluteExpiresAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "reauthenticatedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "isCurrent": {
+            "type": "boolean"
           }
         }
       },
@@ -11056,6 +11293,22 @@
           }
         }
       },
+      "RevokeOtherSessionsResponse": {
+        "required": [
+          "revokedCount"
+        ],
+        "type": "object",
+        "properties": {
+          "revokedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "RotatePulseAgentTokenResponse": {
         "required": [
           "id",
@@ -12797,6 +13050,42 @@
           },
           "setupComplete": {
             "type": "boolean"
+          },
+          "scopes": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "boundIp": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "idleExpiresAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "absoluteExpiresAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "reauthenticatedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },

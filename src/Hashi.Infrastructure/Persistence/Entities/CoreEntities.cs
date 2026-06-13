@@ -46,7 +46,9 @@ public sealed class AppSettingsEntity
 
     public int EdgeSsoRememberDeviceDays { get; set; } = 30;
 
-    public int AdminSessionMinutes { get; set; } = 480;
+    public int AdminSessionMinutes { get; set; } = 240;
+
+    public int AdminSessionAbsoluteMinutes { get; set; } = 480;
 
     public string OverviewWidgetsJson { get; set; } = "{}";
 

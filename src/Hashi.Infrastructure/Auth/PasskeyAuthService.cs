@@ -15,6 +15,7 @@ public sealed class PasskeyAuthService(
     HashiDbContext db,
     SetupStateService setupState,
     AuditService audit,
+    AdminSessionService sessions,
     ILogger<PasskeyAuthService> logger)
 {
     public async Task<CredentialCreateOptions> BeginRegistrationAsync(
@@ -153,6 +154,7 @@ public sealed class PasskeyAuthService(
             return false;
         }
 
+        await sessions.RevokeForPasskeyAsync(credentialId, cancellationToken);
         db.PasskeyCredentials.Remove(credential);
         await db.SaveChangesAsync(cancellationToken);
         await audit.WriteAsync("auth", "passkey_removed", subjectType: "passkey", subjectId: credentialId.ToString(), cancellationToken: cancellationToken);

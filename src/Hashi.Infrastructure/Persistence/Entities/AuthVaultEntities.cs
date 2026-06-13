@@ -21,6 +21,39 @@ public sealed class PasskeyCredentialEntity
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }
 
+public sealed class AdminSessionEntity
+{
+    public string Id { get; set; } = string.Empty;
+
+    public string AuthMethod { get; set; } = string.Empty;
+
+    public Guid? PasskeyCredentialId { get; set; }
+
+    public PasskeyCredentialEntity? PasskeyCredential { get; set; }
+
+    public string BoundIp { get; set; } = string.Empty;
+
+    public string ScopesJson { get; set; } = "[]";
+
+    public int IdleTimeoutMinutes { get; set; } = 240;
+
+    public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+
+    public DateTimeOffset LastSeenAtUtc { get; set; } = DateTimeOffset.UtcNow;
+
+    public DateTimeOffset IdleExpiresAtUtc { get; set; }
+
+    public DateTimeOffset AbsoluteExpiresAtUtc { get; set; }
+
+    public DateTimeOffset? ReauthenticatedAtUtc { get; set; }
+
+    public DateTimeOffset? RevokedAtUtc { get; set; }
+
+    public string? RevocationReason { get; set; }
+
+    public string? UserAgentHash { get; set; }
+}
+
 public sealed class VaultWrappedKeyEntity
 {
     public Guid Id { get; set; } = Guid.NewGuid();

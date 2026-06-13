@@ -47,3 +47,38 @@ public static class AdminClaimTypes
     public const string AuthMethod = "hashi:auth_method";
     public const string VaultUnlocked = "hashi:vault_unlocked";
 }
+
+public static class AdminSessionScopes
+{
+    public const string Read = "admin.read";
+    public const string Write = "admin.write";
+    public const string SettingsManage = "settings.manage";
+    public const string SecretsManage = "secrets.manage";
+    public const string SyncApply = "sync.apply";
+    public const string FirewallApply = "firewall.apply";
+    public const string ScriptsManage = "scripts.manage";
+    public const string SecurityManage = "security.manage";
+
+    public static readonly IReadOnlyList<string> All =
+    [
+        Read,
+        Write,
+        SettingsManage,
+        SecretsManage,
+        SyncApply,
+        FirewallApply,
+        ScriptsManage,
+        SecurityManage,
+    ];
+
+    public static readonly IReadOnlyList<string> Bootstrap =
+    [
+        Read,
+        Write,
+        SettingsManage,
+        SecretsManage,
+        SyncApply,
+        FirewallApply,
+        SecurityManage,
+    ];
+}

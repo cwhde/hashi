@@ -8,7 +8,35 @@ public sealed record SessionStatusResponse(
     bool IsAuthenticated,
     string? AuthMethod,
     bool VaultUnlocked,
-    bool SetupComplete);
+    bool SetupComplete,
+    IReadOnlyList<string>? Scopes = null,
+    string? BoundIp = null,
+    DateTimeOffset? IdleExpiresAtUtc = null,
+    DateTimeOffset? AbsoluteExpiresAtUtc = null,
+    DateTimeOffset? ReauthenticatedAtUtc = null);
+
+public sealed record AdminSessionSummaryResponse(
+    string SessionId,
+    string AuthMethod,
+    string BoundIp,
+    IReadOnlyList<string> Scopes,
+    DateTimeOffset CreatedAtUtc,
+    DateTimeOffset LastSeenAtUtc,
+    DateTimeOffset IdleExpiresAtUtc,
+    DateTimeOffset AbsoluteExpiresAtUtc,
+    DateTimeOffset? ReauthenticatedAtUtc,
+    bool IsCurrent);
+
+public sealed record RevokeOtherSessionsResponse(int RevokedCount);
+
+public sealed record AdminSessionSettingsResponse(
+    int IdleTimeoutMinutes,
+    int AbsoluteTimeoutMinutes,
+    DateTimeOffset? UpdatedAtUtc);
+
+public sealed record AdminSessionSettingsRequest(
+    int? IdleTimeoutMinutes,
+    int? AbsoluteTimeoutMinutes);
 
 public sealed record PasskeyRegistrationBeginResponse(object Options, string ChallengeSessionId);
 

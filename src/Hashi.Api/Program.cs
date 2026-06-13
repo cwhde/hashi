@@ -68,6 +68,7 @@ builder.Services.AddOpenApi(options =>
 builder.Services.AddSingleton(portOptions);
 builder.Services.AddHashiInfrastructure(builder.Configuration);
 builder.Services.AddSingleton<ForwardedClientContextResolver>();
+builder.Services.AddScoped<AdminSessionCookieEvents>();
 builder.Services.AddScoped<BootstrapInitializer>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -78,8 +79,9 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
         options.Cookie.SameSite = SameSiteMode.Strict;
         options.SlidingExpiration = true;
-        var sessionMinutes = builder.Configuration.GetValue<int?>("Hashi:AdminSessionMinutes") ?? 480;
-        options.ExpireTimeSpan = TimeSpan.FromMinutes(Math.Clamp(sessionMinutes, 5, 1440));
+        options.EventsType = typeof(AdminSessionCookieEvents);
+        var sessionMinutes = builder.Configuration.GetValue<int?>("Hashi:AdminSessionMinutes") ?? 240;
+        options.ExpireTimeSpan = TimeSpan.FromMinutes(Math.Clamp(sessionMinutes, 5, 240));
     });
 builder.Services.AddAuthorization();
 builder.Services.AddCors(options =>

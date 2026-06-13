@@ -183,6 +183,50 @@ public static class SettingsEndpoints
                 s.UpdatedAtUtc));
         });
 
+        group.MapGet("/admin-session", async (AppSettingsService settings, CancellationToken ct) =>
+        {
+            var s = await settings.GetOrCreateAsync(ct);
+            return TypedResults.Ok(new AdminSessionSettingsResponse(
+                s.AdminSessionMinutes,
+                s.AdminSessionAbsoluteMinutes,
+                s.UpdatedAtUtc));
+        });
+
+        group.MapPut("/admin-session", async Task<Results<Ok<AdminSessionSettingsResponse>, BadRequest<ApiErrorResponse>>> (
+            AdminSessionSettingsRequest request,
+            AppSettingsService settings,
+            AuditService audit,
+            CancellationToken ct) =>
+        {
+            var s = await settings.GetOrCreateAsync(ct);
+            var idleMinutes = request.IdleTimeoutMinutes is { } requestedIdle
+                ? Math.Clamp(requestedIdle, 5, 240)
+                : s.AdminSessionMinutes;
+            var absoluteMinutes = request.AbsoluteTimeoutMinutes is { } requestedAbsolute
+                ? Math.Clamp(requestedAbsolute, 5, 480)
+                : s.AdminSessionAbsoluteMinutes;
+            if (absoluteMinutes < idleMinutes)
+            {
+                return TypedResults.BadRequest(new ApiErrorResponse(
+                    "Absolute session timeout must be greater than or equal to idle timeout."));
+            }
+
+            s.AdminSessionMinutes = idleMinutes;
+            s.AdminSessionAbsoluteMinutes = absoluteMinutes;
+            s.UpdatedAtUtc = DateTimeOffset.UtcNow;
+            await settings.SaveAsync(ct);
+            await audit.WriteAsync(
+                "settings",
+                "admin_session_updated",
+                subjectType: "app_settings",
+                metadata: new { idleMinutes, absoluteMinutes },
+                cancellationToken: ct);
+            return TypedResults.Ok(new AdminSessionSettingsResponse(
+                s.AdminSessionMinutes,
+                s.AdminSessionAbsoluteMinutes,
+                s.UpdatedAtUtc));
+        });
+
         group.MapGet("/dashboard", async (AppSettingsService settings, CancellationToken ct) =>
         {
             var s = await settings.GetOrCreateAsync(ct);
