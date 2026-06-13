@@ -11,7 +11,7 @@ public sealed class AdminSessionCleanupWorker(
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         using var timer = new PeriodicTimer(TimeSpan.FromHours(1));
-        while (!stoppingToken.IsCancellationRequested)
+        while (await timer.WaitForNextTickAsync(stoppingToken))
         {
             try
             {
@@ -26,11 +26,6 @@ public sealed class AdminSessionCleanupWorker(
             catch (Exception ex)
             {
                 logger.LogError(ex, "Admin session cleanup failed.");
-            }
-
-            if (!await timer.WaitForNextTickAsync(stoppingToken))
-            {
-                break;
             }
         }
     }
