@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
@@ -79,7 +80,7 @@ public sealed class ForwardedClientContextResolver(IConfiguration configuration)
             var chain = new List<IPAddress>(values.Length + 1);
             foreach (var value in values)
             {
-                if (!IPAddress.TryParse(StripPort(value), out var parsed))
+                if (!TryParseAddress(value, out var parsed))
                 {
                     clientIp = default!;
                     return false;
@@ -106,7 +107,7 @@ public sealed class ForwardedClientContextResolver(IConfiguration configuration)
             || context.Request.Headers.TryGetValue("X-Forwarded-Client-IP", out realIpValues))
         {
             var realIp = realIpValues.ToString();
-            if (!IPAddress.TryParse(StripPort(realIp), out var parsed))
+            if (!TryParseAddress(realIp, out var parsed))
             {
                 clientIp = default!;
                 return false;
@@ -148,23 +149,53 @@ public sealed class ForwardedClientContextResolver(IConfiguration configuration)
     private static string NormalizeMethod(string? method)
         => string.IsNullOrWhiteSpace(method) ? "GET" : method.Trim().ToUpperInvariant();
 
-    private static string? StripPort(string? value)
+    private static bool TryParseAddress(string? value, out IPAddress address)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            return null;
+            address = default!;
+            return false;
         }
 
         var trimmed = value.Trim();
+        if (IPAddress.TryParse(trimmed, out address!))
+        {
+            return true;
+        }
+
         if (trimmed.StartsWith('['))
         {
             var closing = trimmed.IndexOf(']');
-            return closing > 0 ? trimmed[1..closing] : trimmed;
+            if (closing <= 1
+                || !TryParsePortSuffix(trimmed[(closing + 1)..])
+                || !IPAddress.TryParse(trimmed[1..closing], out address!))
+            {
+                address = default!;
+                return false;
+            }
+
+            return true;
         }
 
         var colon = trimmed.LastIndexOf(':');
-        return colon > 0 && trimmed.Count(x => x == ':') == 1 ? trimmed[..colon] : trimmed;
+        if (colon <= 0
+            || trimmed.Count(x => x == ':') != 1
+            || !TryParsePort(trimmed[(colon + 1)..])
+            || !IPAddress.TryParse(trimmed[..colon], out address!))
+        {
+            address = default!;
+            return false;
+        }
+
+        return true;
     }
+
+    private static bool TryParsePortSuffix(string suffix)
+        => suffix.Length == 0 || (suffix.StartsWith(':') && TryParsePort(suffix[1..]));
+
+    private static bool TryParsePort(string value)
+        => int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var port)
+            && port is >= 1 and <= 65535;
 
     private static bool IsInCidr(IPAddress ip, string cidr)
     {

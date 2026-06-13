@@ -161,6 +161,27 @@ public sealed class AdminSessionServiceTests
         Assert.Equal(AdminSessionInvalidReason.Revoked, result.InvalidReason);
     }
 
+    [Theory]
+    [InlineData("logout")]
+    [InlineData("manual")]
+    public async Task Revocation_audit_preserves_cause_without_exposing_session_token(string reason)
+    {
+        await using var db = CreateDb();
+        var clock = new MutableTimeProvider(new DateTimeOffset(2026, 6, 12, 8, 0, 0, TimeSpan.Zero));
+        var service = CreateService(db, clock);
+        var session = await service.CreateAsync(
+            AdminAuthMethods.Passkey,
+            "203.0.113.10",
+            AdminSessionScopes.All);
+
+        await service.RevokeAsync(session.Id, reason);
+
+        var audit = await db.AuditEvents.SingleAsync(x => x.Action == "session_revoked");
+        Assert.Contains($"\"reason\":\"{reason}\"", audit.MetadataJson, StringComparison.Ordinal);
+        Assert.DoesNotContain(session.Id, audit.SubjectId ?? string.Empty, StringComparison.Ordinal);
+        Assert.DoesNotContain(session.Id, audit.MetadataJson ?? string.Empty, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task Validate_rejects_and_revokes_malformed_client_address()
     {

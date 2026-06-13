@@ -211,7 +211,7 @@ public sealed class AdminSessionService(
             return;
         }
 
-        await RevokeTrackedAsync(entity, reason, "session_revoked", null, cancellationToken);
+        await RevokeTrackedAsync(entity, reason, "session_revoked", new { reason }, cancellationToken);
     }
 
     public async Task<IReadOnlyList<AdminSessionEntity>> ListActiveAsync(CancellationToken cancellationToken = default)
@@ -240,7 +240,7 @@ public sealed class AdminSessionService(
             return false;
         }
 
-        await RevokeTrackedAsync(entity, reason, "session_revoked", null, cancellationToken);
+        await RevokeTrackedAsync(entity, reason, "session_revoked", new { reason }, cancellationToken);
         return true;
     }
 

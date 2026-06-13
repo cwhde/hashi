@@ -88,6 +88,11 @@ public sealed class ForwardedClientContextResolverTests
     [Theory]
     [InlineData(" ")]
     [InlineData("not-an-ip")]
+    [InlineData("203.0.113.44:")]
+    [InlineData("203.0.113.44:not-a-port")]
+    [InlineData("203.0.113.44:65536")]
+    [InlineData("[::ffff:203.0.113.44]junk")]
+    [InlineData("[::ffff:203.0.113.44]:not-a-port")]
     [InlineData("203.0.113.44, not-an-ip")]
     [InlineData("203.0.113.44, , 172.18.0.4")]
     public void Trusted_proxy_rejects_malformed_forwarded_chain(string forwardedFor)
@@ -97,6 +102,21 @@ public sealed class ForwardedClientContextResolverTests
         context.Request.Headers["X-Forwarded-For"] = forwardedFor;
 
         Assert.False(CreateResolver().TryResolve(context, out _));
+    }
+
+    [Theory]
+    [InlineData("203.0.113.44:443", "203.0.113.44")]
+    [InlineData("[2001:db8::44]", "2001:db8::44")]
+    [InlineData("[2001:db8::44]:443", "2001:db8::44")]
+    public void Trusted_proxy_accepts_valid_address_with_port(string forwardedFor, string expected)
+    {
+        var context = new DefaultHttpContext();
+        context.Connection.RemoteIpAddress = IPAddress.Parse("172.18.0.4");
+        context.Request.Headers["X-Forwarded-For"] = forwardedFor;
+
+        var resolved = CreateResolver().Resolve(context);
+
+        Assert.Equal(expected, resolved.ClientIp.ToString());
     }
 
     [Fact]
