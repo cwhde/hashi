@@ -23,6 +23,12 @@ cd web && pnpm install && pnpm dev
 docker compose -f deploy/compose/docker-compose.dev.yml up
 ```
 
+## Project documentation
+
+- [Implementation specifications](docs/implementation-spec/README.md) — current requirements and addenda.
+- [Audit index](docs/audits/README.md) — audit history and issue-series navigation.
+- [Current triage](docs/audits/TRIAGE-2026-10-17.md) — verified issue status, priorities, and next steps.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
