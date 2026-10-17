@@ -26,4 +26,12 @@ The newest dated triage is the status authority. A finding is closed only when t
 | [2026-06-05 G-series](hashi-v2-spec-compliance-audit-2026-06-05-g-series.md) | G-series findings |
 | [2026-06-09 H-series](hashi-v2-spec-compliance-audit-2026-06-09-h-series.md) | H-001 through H-100 |
 | [2026-06-12 independent H review](hashi-v2-h-series-independent-review-2026-06-12.md) | Independent verification and residual legacy dependency note |
-| [2026-10-17 current triage](TRIAGE-2026-10-17.md) | Current branch, issue, specification, and verification state |
+| [2026-10-17 current triage](TRIAGE-2026-10-17.md) | Current branch, prioritized open work, fresh review scope, and verification limits |
+
+## Current open findings
+
+- [SEC-001](issues/SEC-001-active-v2-dependency-advisories.md) — active dependency advisories (P1).
+- [AUD-001](issues/AUD-001-monitoring-allowed-http-codes-missing.md) — configurable accepted monitoring HTTP codes are missing (P2).
+- [UI-001](issues/UI-001-ui-design-foundation-not-implemented.md) — specified UI design foundation is not implemented (P2).
+
+The triage also tracks environment-bound deployment verification and archived V1 dependency hygiene, which are follow-up work rather than source-code findings.
