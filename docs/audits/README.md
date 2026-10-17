@@ -31,6 +31,7 @@ The newest dated triage is the status authority. A finding is closed only when t
 ## Current open findings
 
 - [SEC-001](issues/SEC-001-active-v2-dependency-advisories.md) — active dependency advisories (P1).
+- [AUD-003](issues/AUD-003-acme-secret-file-is-not-atomically-private.md) — ACME secret can be visible before mode `0600` is applied (P2).
 - [AUD-001](issues/AUD-001-monitoring-allowed-http-codes-missing.md) — configurable accepted monitoring HTTP codes are missing (P2).
 - [AUD-002](issues/AUD-002-udp-monitor-reports-up-on-send.md) — UDP checks report healthy without receiving a response (P2).
 - [UI-001](issues/UI-001-ui-design-foundation-not-implemented.md) — specified UI design foundation is not implemented (P2).
