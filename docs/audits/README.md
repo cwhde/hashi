@@ -1,39 +1,32 @@
-# Audit records
+# Hashi audit and implementation backlog
 
-Use [the current triage](TRIAGE-2026-10-17.md) for what is open and what to do next. It records the reviewed commit, evidence, priority, and verification boundary.
+[**Current review and ordered backlog — 2026-10-18**](TRIAGE-2026-10-18.md) is the status authority. Start there for the full manual review, specification gaps, security/correctness findings and the repair sequence.
 
-## How to read this folder
+## Working records
 
-- `issues/` keeps the full finding write-ups and their original evidence. Findings are historical records; do not infer that an issue is still open from an old acceptance checklist alone.
-- `hashi-v2-spec-compliance-audit-*.md` records successive audit passes and their issue-series scope.
-- `hashi-v2-h-series-independent-review-2026-06-12.md` records the independent H-series review and its residual observation.
-- Series A through G are in `issues/` as `Axx` through `Gxx`; H-001 through H-100 are in the same directory with `hashi-v2-audit-h-` filenames.
+- [Specification matrix](full-review/SPEC-MATRIX.md), [all section dispositions](full-review/spec-sections.csv) and [preserved candidate passages](full-review/requirements.csv).
+- [Historical issue reconciliation](full-review/HISTORICAL-RECONCILIATION.md) and [CSV](full-review/historical-issues.csv).
+- [Current backlog CSV](full-review/backlog.csv) / [JSON](full-review/backlog.json). Each stable ID links to its detailed finding, evidence and acceptance criteria under `issues/`.
+- [Complete baseline file ledger](full-review/coverage.csv) / [JSON with read ranges](full-review/coverage.json).
+- [Independent verification and scanner dispositions](full-review/SUPPLEMENTAL-VERIFICATION.md).
+- [Branches and PRs](full-review/BRANCH-STATE.md).
 
 ## Status rules
 
-The newest dated triage is the status authority. A finding is closed only when the current code or a later audit explicitly verifies the fix; branch ancestry by itself establishes integration, not correctness. A false positive stays recorded as a false positive. New findings should include a stable ID, category, priority, specification reference, concise impact, evidence, expected behavior, and acceptance criteria. Update the triage and this index when adding an issue series.
+Current source evidence controls status. A merged branch proves integration, not correctness. A fixed narrow mechanism can leave a product feature incomplete; use the linked residual finding. False positives remain documented with the rejected premise. Existing tests written alongside the implementation are context, not independent acceptance proof. Do not create duplicate tasks from old unchecked lists or blanket completion summaries.
 
-## Audit history
+Original A–H issue write-ups and audit narratives are retained with their detailed evidence. The current historical register supersedes their blanket closed/fixed claims. The 2026-10-17 triage is a historical snapshot superseded by the October18 review.
 
-| Record | Scope |
-| --- | --- |
-| [2026-05-26](hashi-v2-spec-compliance-audit-2026-05-26.md) | Initial A-series compliance findings |
-| [2026-05-28](hashi-v2-spec-compliance-audit-2026-05-28.md) | B-series follow-up |
-| [2026-06-01](hashi-v2-spec-compliance-audit-2026-06-01.md) | C-series findings |
-| [2026-06-02](hashi-v2-spec-compliance-audit-2026-06-02.md) | D-series findings |
-| [2026-06-02 E-series](hashi-v2-spec-compliance-audit-2026-06-02-e-series.md) | E-series findings |
-| [2026-06-04 F-series](hashi-v2-spec-compliance-audit-2026-06-04-f-series.md) | F-series findings |
-| [2026-06-05 G-series](hashi-v2-spec-compliance-audit-2026-06-05-g-series.md) | G-series findings |
-| [2026-06-09 H-series](hashi-v2-spec-compliance-audit-2026-06-09-h-series.md) | H-001 through H-100 |
-| [2026-06-12 independent H review](hashi-v2-h-series-independent-review-2026-06-12.md) | Independent verification and residual legacy dependency note |
-| [2026-10-17 current triage](TRIAGE-2026-10-17.md) | Current branch, prioritized open work, fresh review scope, and verification limits |
+## Historical audit narratives
 
-## Current open findings
+- [hashi-v2-h-series-independent-review-2026-06-12](hashi-v2-h-series-independent-review-2026-06-12.md)
+- [hashi-v2-spec-compliance-audit-2026-05-26](hashi-v2-spec-compliance-audit-2026-05-26.md)
+- [hashi-v2-spec-compliance-audit-2026-05-28](hashi-v2-spec-compliance-audit-2026-05-28.md)
+- [hashi-v2-spec-compliance-audit-2026-06-01](hashi-v2-spec-compliance-audit-2026-06-01.md)
+- [hashi-v2-spec-compliance-audit-2026-06-02-e-series](hashi-v2-spec-compliance-audit-2026-06-02-e-series.md)
+- [hashi-v2-spec-compliance-audit-2026-06-02](hashi-v2-spec-compliance-audit-2026-06-02.md)
+- [hashi-v2-spec-compliance-audit-2026-06-04-f-series](hashi-v2-spec-compliance-audit-2026-06-04-f-series.md)
+- [hashi-v2-spec-compliance-audit-2026-06-05-g-series](hashi-v2-spec-compliance-audit-2026-06-05-g-series.md)
+- [hashi-v2-spec-compliance-audit-2026-06-09-h-series](hashi-v2-spec-compliance-audit-2026-06-09-h-series.md)
 
-- [SEC-001](issues/SEC-001-active-v2-dependency-advisories.md) — active dependency advisories (P1).
-- [AUD-003](issues/AUD-003-acme-secret-file-is-not-atomically-private.md) — ACME secret can be visible before mode `0600` is applied (P2).
-- [AUD-001](issues/AUD-001-monitoring-allowed-http-codes-missing.md) — configurable accepted monitoring HTTP codes are missing (P2).
-- [AUD-002](issues/AUD-002-udp-monitor-reports-up-on-send.md) — UDP checks report healthy without receiving a response (P2).
-- [UI-001](issues/UI-001-ui-design-foundation-not-implemented.md) — specified UI design foundation is not implemented (P2).
-
-The triage also tracks environment-bound deployment verification and archived V1 dependency hygiene, which are follow-up work rather than source-code findings.
+Original normative specifications remain under [implementation-spec](../implementation-spec/README.md); implementation plans and audit suggestions do not override them.
