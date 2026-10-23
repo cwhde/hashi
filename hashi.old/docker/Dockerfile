@@ -21,7 +21,9 @@ RUN --mount=type=cache,target=/root/.npm \
 # -----------------------------------------------------------------------------
 # Stage 2: Minimal production image
 # -----------------------------------------------------------------------------
-FROM node:20-alpine
+FROM node:22-alpine
+
+RUN apk update && apk upgrade --no-cache && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx && rm -f /etc/ssl/certs/emSign* /usr/share/ca-certificates/mozilla/emSign* && (update-ca-certificates --fresh 2>/dev/null || true)
 
 LABEL org.opencontainers.image.source="https://git.juzo.io/juzo/hashi"
 LABEL org.opencontainers.image.description="Hashi - Homelab orchestration"
