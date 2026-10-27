@@ -1,9 +1,20 @@
 name: CI
 
+# Skips docs-only and V1-only changes; those cannot affect `make check`.
 on:
   pull_request:
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - "legacy/**"
+      - ".gitea/workflows/v1-docker-build.yml"
   push:
     branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - "legacy/**"
+      - ".gitea/workflows/v1-docker-build.yml"
   workflow_dispatch:
 
 concurrency:

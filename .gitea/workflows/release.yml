@@ -10,6 +10,8 @@ on:
       - "docs/**"
       - "legacy/**"
       - "**/*.md"
+      - ".gitea/workflows/ci.yml"
+      - ".gitea/workflows/v1-docker-build.yml"
   workflow_dispatch:
 
 env:
