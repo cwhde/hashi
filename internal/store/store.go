@@ -75,6 +75,24 @@ func Open(ctx context.Context, path string) (*Store, error) {
 	return s, nil
 }
 
+// Tx runs fn in one write transaction; fn's error rolls it back.
+func (s *Store) Tx(ctx context.Context, fn func(q *db.Queries) error) error {
+	tx, err := s.Writer.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin: %w", err)
+	}
+	if err := fn(s.Q.WithTx(tx)); err != nil {
+		return errors.Join(err, tx.Rollback())
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit: %w", err)
+	}
+	return nil
+}
+
+// Path is the database file.
+func (s *Store) Path() string { return s.path }
+
 // Close closes both pools.
 func (s *Store) Close() error {
 	return errors.Join(s.Reader.Close(), s.Writer.Close())

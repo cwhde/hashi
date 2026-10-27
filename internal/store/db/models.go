@@ -8,10 +8,50 @@ import (
 	"database/sql"
 )
 
+type AdminSession struct {
+	IDHash            []byte
+	AuthMethod        string
+	CredentialID      sql.NullString
+	BoundIp           string
+	ScopesJson        string
+	CreatedAt         int64
+	LastSeenAt        int64
+	IdleExpiresAt     int64
+	AbsoluteExpiresAt int64
+	ReauthAt          sql.NullInt64
+	RevokedAt         sql.NullInt64
+	RevocationReason  sql.NullString
+	UserAgentHash     string
+}
+
+type AdminUser struct {
+	ID         int64
+	UserHandle []byte
+	CreatedAt  int64
+}
+
 type AppSetting struct {
 	Key       string
 	ValueJson string
 	UpdatedAt int64
+}
+
+type AuditEvent struct {
+	ID         string
+	At         int64
+	Actor      string
+	Action     string
+	Target     string
+	Outcome    string
+	Ip         string
+	DetailJson string
+}
+
+type BootstrapCredential struct {
+	ID           int64
+	Username     string
+	PasswordHash string
+	CreatedAt    int64
 }
 
 type Job struct {
@@ -31,4 +71,45 @@ type JobRun struct {
 	DurationMs sql.NullInt64
 	Summary    string
 	Error      string
+}
+
+type PasskeyCredential struct {
+	ID             string
+	CredentialID   []byte
+	CredentialJson string
+	Name           string
+	AaguidLabel    string
+	CreatedAt      int64
+	LastUsedAt     sql.NullInt64
+}
+
+type RecoveryKey struct {
+	ID            int64
+	KeyVersion    int64
+	Verifier      []byte
+	Nonce         []byte
+	WrappedMaster []byte
+	CreatedAt     int64
+	ConfirmedAt   sql.NullInt64
+}
+
+type SecretRecord struct {
+	ID         string
+	Class      string
+	Purpose    string
+	KeyVersion int64
+	Nonce      []byte
+	Ciphertext []byte
+	DekNonce   []byte
+	WrappedDek []byte
+	CreatedAt  int64
+	UpdatedAt  int64
+}
+
+type SetupState struct {
+	Step       int64
+	Status     string
+	InputsJson string
+	LastError  string
+	UpdatedAt  int64
 }
