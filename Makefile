@@ -29,8 +29,9 @@ test: ## unit + contract tests
 
 generate: ## regenerate sqlc and OpenAPI code
 	@if [ -f sqlc.yaml ]; then $(TOOL) sqlc generate; fi
+	$(TOOL) oapi-codegen -config internal/httpapi/gen/oapi.yaml api/openapi.yaml
 
-GENERATED := $(wildcard internal/store/db)
+GENERATED := $(wildcard internal/store/db internal/httpapi/gen/server.gen.go)
 
 generate-check: ## fail if generated code is stale (compares checksums before/after regenerating)
 	@[ -n "$(GENERATED)" ] || exit 0; \

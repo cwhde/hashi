@@ -1,0 +1,73 @@
+openapi: 3.1.0
+info:
+  title: Hashi API
+  version: 0.0.0
+  description: |
+    Source of truth for Hashi's HTTP API (01-platform.md §7). Go server code and the TypeScript client are
+    generated from this file; CI fails when they are stale.
+
+    Every operation declares `x-hashi-scopes`. An empty list means the endpoint needs no admin session
+    (health, version); CI fails on an operation without the key.
+servers:
+  - url: /
+paths:
+  /healthz:
+    get:
+      operationId: getHealthz
+      summary: Process is alive
+      tags: [system]
+      x-hashi-scopes: []
+      responses:
+        "200":
+          description: Alive
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+  /readyz:
+    get:
+      operationId: getReadyz
+      summary: Dependencies are ready (database reachable, schema at head, not shutting down)
+      tags: [system]
+      x-hashi-scopes: []
+      responses:
+        "200":
+          description: Ready
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+        "503":
+          description: Not ready; `checks` names the failing dependency
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+  /api/version:
+    get:
+      operationId: getVersion
+      summary: Build version of the running binary
+      tags: [system]
+      x-hashi-scopes: []
+      responses:
+        "200":
+          description: Version
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Version" }
+components:
+  schemas:
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok, unavailable]
+        checks:
+          type: object
+          additionalProperties: { type: string }
+          description: Per dependency `ok` or the failure reason.
+    Version:
+      type: object
+      required: [version, commit]
+      properties:
+        version: { type: string, examples: ["v0.1.0", "8b4bf95"] }
+        commit: { type: string }
