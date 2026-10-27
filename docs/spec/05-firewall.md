@@ -69,12 +69,11 @@ Debian/Ubuntu `iptables ipset iptables-persistent netfilter-persistent`; Alpine 
 
 IPv6: same structure with `ip6tables` when the host has public IPv6; DNAT for IPv6 only if configured.
 
-### 3.2 Behaviours carried over from the current host script
+### 3.2 Taking over from an existing firewall script
 
-- Loopback DNAT: public ports are also DNATed for `127.0.0.1` destinations (local clients on the host).
-- Proxmox cluster peer MTU routes: for each corosync `ring0_addr` peer, `ip route replace <peer>/32 via <gw> dev <wan> src <public> mtu <n>` (setting, default 1280; skipped when not clustered).
-- Optional `/etc/hosts` pins: hostnames resolved via a chosen resolver and pinned (e.g. the NetBird management host).
-- Cleanup of the previous script's chains (`CUSTOM_DNAT`, `CUSTOM_FWD`, `CUSTOM_INPUT`, their jumps and its cron entries) is part of the **first apply plan**, shown explicitly, executed under the rescue timer.
+If the host already runs its own firewall script, removing it is part of Hashi's **first apply plan** (shown explicitly,
+executed under the rescue timer): its chains (e.g. `CUSTOM_DNAT`, `CUSTOM_FWD`, `CUSTOM_INPUT`), their jump rules, its
+ipsets and its cron/systemd entries. Rules owned by NetBird, Docker or Proxmox are never part of this cleanup.
 
 ## 4. NetBird compatibility
 

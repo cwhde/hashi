@@ -45,7 +45,7 @@ Part 4 lists the production setup today vs after Hashi. Part 5 answers "are the 
 | 12 | WAF | Same | Coraza + full OWASP CRS, modes, exclusions, events. |
 | 13 | Abuse detection | Same + **Changed** storage | Signals, dimensions, states, default path, block types kept. PostgreSQL partitioning → minute buckets in SQLite with batched retention. Added how Traefik access logs are collected: SSH incremental tail with inode/offset cursor every 60 s (old spec never said how). |
 | 14.1–14.2 | Firewall host model, host DNS | Same + Added | Same fields and `host` / `via.` / `on.` records. **Added:** `external_nat` edge mode for hosts behind a router (your home server). |
-| 14.3 | Firewall script | Same + Added | Same paths, ipsets, chains, behaviours. Added: atomic build via temporary ipsets + `ipset swap` and `iptables-restore --noflush`; explicit table per chain; IPv6 set `hashi_blocked6`; rollback script; packages are installed by the plan. **Pending your decision:** four items I took from your *current* firewall script (not from the old spec) — loopback DNAT, corosync MTU routes, `/etc/hosts` pins, cleanup of the old script's chains. |
+| 14.3 | Firewall script | Same + Added | Same paths, ipsets, chains, behaviours. Added: atomic build via temporary ipsets + `ipset swap` and `iptables-restore --noflush`; explicit table per chain; IPv6 set `hashi_blocked6`; rollback script; packages are installed by the plan. Added: Hashi's first apply removes an existing firewall script (its chains, ipsets, cron). Loopback DNAT, corosync MTU routes and `/etc/hosts` pins from your current script were considered and **not** adopted. |
 | 14.4–14.5 | NetBird, safety | Same + Added | Same modes, detection, preserve-list and safety rules. Rescue rollback made concrete (save → write executable rollback → arm timer → apply → verify via a **new** SSH connection + NetBird status → disarm). |
 | 15 | DNS provider | **Changed** provider, Same model | Interface kept (+ Verify; RRSet is the unit). Hetzner legacy DNS API → Hetzner Cloud API (the old one is shut down). Adapter must be built from recorded real responses. One zone only. Ownership: DB authoritative (same); old optional "ownership marker TXT records" became an optional provider capability (Hetzner implements it with RRSet labels; other providers use comments/tags or skip it) — provider stays a swappable module. Added: provider-protected RRSets are read-only; conflict items instead of overwrites; CNAME exclusivity; **apex flattening** for root-domain resources (CNAME at apex is impossible). |
 | 16 | AdGuard | Same + Added | Same rules. Added: every AdGuard instance is written directly (replaces adguardhome-sync); disabled connections untouched; duplicate cleanup only when previewed. |
@@ -145,4 +145,4 @@ occur in the new stack, so they are not in the spec.
 
 ## 6. Open questions
 
-1. The four current-script firewall items in B §14.3 — keep or remove (see chat).
+None.
