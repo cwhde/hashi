@@ -151,7 +151,7 @@ Services: `services`, `service_routes`, `service_targets` (address sets), `servi
 `service_waf_modes`.
 
 IP sets and rule sets (shared primitives, object model in 06a §0): `ip_sets`, `ip_set_elements`, `ip_set_feeds`,
-`ip_set_feed_runs`, `dynamic_entry_state`, `dynamic_entry_hosts`, `ban_counters`, `rule_sets`, `rule_entries`; view
+`ip_set_feed_runs`, `dynamic_entry_state`, `dynamic_entry_hosts`, `address_counters`, `rule_sets`, `rule_entries`; view
 `ip_set_consumers`.
 
 DNS: `dns_zones`, `dns_records` (desired), `dns_observed_rrsets`, `dns_ownership`, `dns_import_decisions`.

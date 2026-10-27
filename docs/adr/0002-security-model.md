@@ -72,6 +72,8 @@ Decided with the user while turning the draft into spec:
 - `Pass CAPTCHA` clearance cookie lifetime: setting `captcha.clearance_ttl`, default 24 h.
 - Forward-auth outage: services whose flattened rules can deny or require authentication fail closed; the rest fail open.
 - Target resolution that yields no address never empties applied state (DNS value, upstream, SSH target).
+- Two persistent per-address counters: the ban counter (drives `T_ban`) and an informational challenge counter, both
+  decaying, both visible, filterable, editable and resettable (Security → Counters, address page).
 - WAF rule exclusions per service/path are kept (CRS false positives would otherwise force `Disabled`).
 
 ## Rejected alternatives

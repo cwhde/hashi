@@ -81,7 +81,8 @@ Hashi learns of every match from the continuously tailed access log (§6.2) and 
 **Rate:** forward auth counts every request per address in a sliding window.
 
 **Trigger:** when an address exceeds `waf.violation_threshold` (N matches within Δt) **or** `l7.rate_limit_threshold`
-(R requests within Δt), Hashi adds it to `dynamic-challenge` with `expires_at = now + T_exp` and failure count `f = 0`.
+(R requests within Δt), Hashi adds it to `dynamic-challenge` with `expires_at = now + T_exp` and failure count `f = 0`, and increments the
+address's challenge counter (§5.1).
 
 **Exempt from the trigger:**
 - addresses in the folded `allow` ranges — never added to any dynamic set (invariant 20);
@@ -112,15 +113,16 @@ Sources: A3 reaching `F_max`; an L4 meter (address drained from a host's staging
 1. Skip if the address is in the folded `allow` ranges (record an event; no ban).
 2. Remove it from `dynamic-challenge` if present.
 3. Ban counter `c ← c + 1`.
-4. `T = T_ban(c)` (§5).
+4. `T = T_ban(c)` (§5.2).
 5. Add to `dynamic-blocked` with `expires_at = now + T` (none when permanent), source and reason.
 6. The host link pushes it to `dyn` on every `managed` host (05 §6); A1 enforces it immediately.
 
 ### 3.5 Dynamic sets
 
 `dynamic-challenge` and `dynamic-blocked` are IP sets of kind `dynamic` (05a §3): visible on the IP sets page with every
-entry, its source, reason, expiry, failure count and ban counter; manual actions remove, add with a duration, reset the
-counter. They may be used in rule `Applies To` like any set.
+entry, its source, reason, expiry, failure count and the address's counters; manual actions remove, add with a duration,
+edit counters (§5.1). The Counters view (§13.1) lists every address with counters, active or not.
+Both dynamic sets may be used in rule `Applies To` like any set.
 
 ## 4. Stage B — rule sets
 
@@ -198,9 +200,23 @@ Save-time warnings (not errors): an item after an earlier `applies_to all` + pre
 
 ## 5. Ban function and counters
 
-Each address (IPv6: /64) has a persistent **ban counter** `c`. It increments before every ban (§3.4), is never reset by a
-CAPTCHA solve, resets to 0 after `ban.counter_decay_ttl` has passed since the end of the last ban with no new ban, and can
-be reset manually.
+### 5.1 Counters
+
+Each address (IPv6: /64) has one persistent counter record with two counters:
+
+| Counter | Increments | Decays to 0 | Effect |
+| --- | --- | --- | --- |
+| **Ban counter** `c` | before every ban (§3.4), any source | `ban.counter_decay_ttl` after the end of the last ban, with no new ban | drives `T_ban(c)` |
+| **Challenge counter** | each time the address enters `dynamic-challenge` (§3.2, or "challenge now") | `ban.counter_decay_ttl` after the last challenge, with no new challenge | informational (stats, sorting, filters); `T_exp` stays fixed |
+
+Neither is reset by a CAPTCHA solve. The live failure count `f` belongs to the current challenge entry (§3.3), not to the
+counter record. A record without counters, active entries or events for 30 days is deleted.
+
+Manual actions (reauth, audited): set either counter to a value (setting `c` changes the next ban's duration, not a
+running ban), reset one or both, reset `f` of a running challenge. Bulk reset applies to a selection or to every row
+matching the current filter (the confirmation names the count).
+
+### 5.2 Ban duration
 
 ```
 T_ban(c) = ∞                                        if C_perm > 0 and c ≥ C_perm
@@ -302,8 +318,8 @@ All in Settings → Security (09-scripts-settings.md §2).
 | `l4.udp_pps_rate` | 5000/s, burst 1000 | kernel meter (L4 UDP stream ports) |
 | `l4.staging_timeout` | 5 m | kernel drop time before Hashi drains an entry |
 | `l4.poll_interval` | 3 s | host link drain/push interval |
-| `ban.function`, `ban.base`, `ban.k`, `ban.max`, `ban.permanent_after` | exponential, 15 m, 2.0, 30 d, 0 | §5 |
-| `ban.counter_decay_ttl` | 7 d | ban counter reset |
+| `ban.function`, `ban.base`, `ban.k`, `ban.max`, `ban.permanent_after` | exponential, 15 m, 2.0, 30 d, 0 | §5.2 |
+| `ban.counter_decay_ttl` | 7 d | decay of the ban and challenge counters (§5.1) |
 | `feeds.refresh_interval` | 6 h | feed refresh |
 | `feeds.stale_expiry_ttl` | 72 h | last-known-good retention |
 | `geoip.update` | weekly | MaxMind download |
@@ -340,9 +356,18 @@ Download job with checksum, atomic swap of the reader, staleness warning after 1
 
 - **Security** (`/security`): Dashboard (allowed / challenged / banned / WAF tiles with sparklines; L4 meter trips per
   host; top addresses, countries, ASNs, targeted services; challenge → solve → ban funnel; recent events; stale feeds and
-  GeoIP), Challenge (Cap), Sign-in providers, Engine (§10 settings, `T_ban` curve).
+  GeoIP), Counters (§13.1), Challenge (Cap), Sign-in providers, Engine (§10 settings, `T_ban` curve).
   Filters: 1 h / 24 h / 7 d / 30 d; service; Traefik host; firewall host; action.
-- **IP sets**, **IP set detail**, **address page**: 05a §6.
+- **IP sets**, **IP set detail**, **address page**: 05a §6 (the address page shows both counters with edit/reset).
+
+### 13.1 Counters view
+
+Security → Counters: one row per counter record — address (link to the address page), country/ASN, ban counter,
+challenge counter, current state (banned until … / challenged, `f` of `F_max`, expires … / none), last ban, last challenge,
+decays at, last source. Filters: state (banned now, challenged now, any active, all with counters), minimum ban or
+challenge counter, last source (L7 rate, WAF, challenge failed, L4 meter, manual), country/ASN, last offence within a
+range. Search by address or CIDR (rows inside it). Sort by any counter or time. Row actions: edit counters, reset,
+ban now, challenge now, remove from dynamic sets. Selection and "all matching filter" for bulk reset. Paginated.
 - **Rule sets** (`/rule-sets`, `/rule-sets/{id}`): entries ordered by drag (priorities renumbered), item editor (IP set
   picker, condition, action, auth options), attach a rule set, used-by list, warnings.
 - **Service → Access tab**: root rule set editor, attached rule sets, default fallback, the flattened list with the
@@ -356,6 +381,9 @@ Rule sets: `/api/rule-sets` CRUD, `GET|PUT /api/rule-sets/{id}/entries`, `GET /a
 Services: `GET|PUT /api/services/{id}/access` (root entries + fallback), `GET /api/services/{id}/access/flattened`,
 `GET|PUT /api/services/{id}/waf`. Global rule set: `/api/rule-sets/global/entries`.
 Trace: `POST /api/addresses/{address}/trace` (05a §8). Dynamic sets and addresses: 05a §8.
+Counters: `GET /api/security/counters?state=&min_ban=&min_challenge=&source=&country=&asn=&since=&q=&sort=&cursor=`,
+`PATCH /api/addresses/{address}/counters` (`ban_count`, `challenge_count`, `reset_failures`),
+`POST /api/security/counters/reset` (addresses or a filter; returns the count).
 Feeds: `POST /api/ip-sets` with `kind=feed` + feed settings, `POST /api/ip-sets/{id}/feed/preview|refresh`,
 `GET /api/ip-sets/{id}/feed/runs`.
 CAPTCHA: `GET|PUT /api/security/captcha/settings`, `POST /api/security/captcha/test`, `GET /api/edge-challenge/start`,
@@ -366,11 +394,12 @@ Dashboard: `GET /api/security/dashboard?range=&service=&traefik=&host=&action=`.
 
 Feed refresh; access-log tail (per Traefik host, continuous); host link (per firewall host, continuous, 05 §6); bucket
 aggregation and dashboard snapshot; challenge expiry; ban expiry (database side; kernel entries expire by their own
-timeout) and ban counter decay; dynamic set reconciliation (every 5 min); GeoIP update; IP set recompile on source changes.
+timeout) and counter decay (both counters, record cleanup); dynamic set reconciliation (every 5 min); GeoIP update; IP set recompile on source changes.
 
 ## 16. Audit
 
-Rule set and service access changes; IP set and binding changes (05a §9); manual dynamic actions; feed add/remove/
+Rule set and service access changes; IP set and binding changes (05a §9); manual dynamic actions; counter edits and
+resets (single and bulk, with before/after values); feed add/remove/
 enable; CAPTCHA settings and Cap secret rotation; SSO provider changes; engine settings changes.
 
 ## 17. Acceptance scenarios (each is an automated test, most also part of the S9/S10 gates)
@@ -392,7 +421,8 @@ enable; CAPTCHA settings and Cap secret rotation; SSO provider changes; engine s
 Unit: path normalization; flattening (nesting, priorities, disabled items, global set position, fallback); first-match
 evaluation table-driven over §4.4; ban function per type incl. cap and permanent; counter decay; A2 windows and
 exemptions; A3 transitions (solve, expiry, failures, escalation); escalation skip for allowed addresses; feed parsers per
-format, dedupe, SSRF validation incl. redirects and final dial; clearance cookie signing and expiry.
+format, dedupe, SSRF validation incl. redirects and final dial; clearance cookie signing and expiry; both counters'
+increment and decay; manual counter edits (next ban uses the edited `c`, running ban unchanged); bulk reset by filter.
 `TestInvariant_20_ManualAllowBeatsDynamic` (L7 side), `TestInvariant_22_SetGraphsAcyclic` (rule sets),
 `TestInvariant_StageOrder_*` (Stage A always before Stage B; A1 before A2 before A3).
 Integration: forward auth through a real Traefik container for every action; fail-closed vs fail-open by rule content

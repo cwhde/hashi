@@ -42,7 +42,7 @@ of it. Differences between "kinds" of the same thing are data (`kind`, `origin`,
 | Kernel sets (`allow`, `block`, `dyn`, `staging`, meter sets) | "the firewall's IP sets" | Compiled artifacts, not `ip_sets` rows | They are outputs of folding; `staging` and meter state exist only in the kernel |
 | "Used by" an IP set | one relation "consumer uses set" | A typed `ip_set_id` FK column per consumer (`ON DELETE RESTRICT`) + one `ip_set_consumers` view (UNION) | A polymorphic `(consumer_type, consumer_id)` table loses referential integrity |
 | Engine data on dynamic entries | an IP in a set | `ip_set_elements` row + `dynamic_entry_state` 1:1 + `dynamic_entry_hosts` | failure count, source, per-host apply state are engine-only and churn often |
-| Ban counter | property of an address | `ban_counters` keyed by address (/64 for IPv6), not an element | it outlives set membership (persists after the ban ends, decays) |
+| Ban and challenge counters | properties of an address | `address_counters` keyed by address (/64 for IPv6), not an element | they outlive set membership (persist after the entry ends, decay) |
 | Thresholds, timers, `T_ban` | "settings" | typed `settings.Security` category (S1 framework) | rules vs settings is a principle of the model (06 §1) |
 | Pulse agents, hosts, DNS names | sources of addresses | own entities, referenced by items | they have lifecycles of their own; items never copy their addresses |
 | Telemetry | — | buckets/events tables | append-only facts, not domain objects |
@@ -90,7 +90,9 @@ Feed refreshes update a feed set's elements by diff (insert new, delete gone) in
 `dynamic_entry_hosts`: `element_id`, `firewall_host_id`, `state` (`pending` | `applied` | `removed` | `failed`),
 `applied_at`, `error`.
 
-`ban_counters`: `address` (IPv4 or IPv6 /64, unique), `count`, `last_ban_at`, `last_ban_ends_at`.
+`address_counters` (06 §5.1): `address` (IPv4 or IPv6 /64, unique), `ban_count`, `challenge_count`, `last_ban_at`,
+`last_ban_ends_at`, `last_challenge_at`, `last_source`, `country`, `asn` (at last offence), `ban_decays_at`,
+`challenge_decays_at`. Indexes: (`ban_count`), (`challenge_count`), (`last_ban_at`), (`last_challenge_at`).
 
 ### 2.4 Feeds
 

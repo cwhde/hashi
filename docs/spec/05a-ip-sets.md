@@ -45,7 +45,7 @@ referenced (the error lists the referencing sets).
 | `user` | `trusted-devices`, `switzerland`, `office` | editable | editable | when unused |
 | `system` | `all` (`0.0.0.0/0`, `::/0`); `hashi-hosts` (a `host` item, scope `public`, for every registered firewall/edge host, maintained automatically); `private-networks` (RFC 1918, RFC 6598, loopback, link-local, ULA) | read-only | name/description read-only | never |
 | `feed` | `feed-spamhaus-drop`, custom URL feeds (06-edge-security.md §8) | read-only (owned by the fetcher) | feed settings editable | when unused |
-| `dynamic` | `dynamic-challenge`, `dynamic-blocked` (06-edge-security.md §3) | entries owned by the engine; manual actions: remove entry, add entry with a duration ("challenge now", "ban now"), reset an address's ban counter | read-only | never |
+| `dynamic` | `dynamic-challenge`, `dynamic-blocked` (06-edge-security.md §3) | entries owned by the engine; manual actions: remove entry, add entry with a duration ("challenge now", "ban now"); counters are per address (06 §5.1) | read-only | never |
 
 All kinds are the same object (one table, one type); `kind`, `origin` and `locked` flags decide what the user may edit
 (06a §0). User and system sets may contain any other kind (a user set can include a feed set or `hashi-hosts`). Dynamic sets
@@ -122,9 +122,10 @@ is deleted or emptied because a resolution failed (invariant 21).
   (overlapping items) and by note text. Paginated; feed and dynamic sets can be large.
 - **Address lookup** (`/ip-sets/address?ip=`, also from ⌘K): every set that contains the address with the path through
   nesting (`trusted-devices → phone (pulse, public)`), the folded firewall verdict per firewall host with the deciding
-  prefix and set (05 §4), dynamic state (challenge with failure count, ban with expiry, ban counter), a "try a request"
+  prefix and set (05 §4), dynamic state (challenge with failure count, ban with expiry), ban and challenge counters with
+  edit/reset (06 §5.1), a "try a request"
   trace through a chosen service's rules (06 §4.3), recent events, and actions (add to a set, challenge now, ban now,
-  remove from dynamic sets, reset ban counter).
+  remove from dynamic sets, edit/reset counters).
 
 ## 7. Implementation shape
 
@@ -147,15 +148,15 @@ convention:
 · `PATCH|DELETE /api/ip-sets/{id}/elements/{elementId}` · `GET /api/ip-sets/{id}/resolved?family=&cursor=` ·
 `GET /api/ip-sets/{id}/consumers` · `POST /api/ip-sets/{id}/entries` (dynamic: challenge/ban now, duration) ·
 `DELETE /api/ip-sets/{id}/entries/{address}` · `GET /api/addresses/{address}` (lookup) ·
-`POST /api/addresses/{address}/reset-ban-counter` · `POST /api/addresses/{address}/trace` (service + path → Stage A/B trace).
+`PATCH /api/addresses/{address}/counters` (06 §5.1, §14) · `POST /api/addresses/{address}/trace` (service + path → Stage A/B trace).
 
 Scopes: read with any admin session; edits need `security.manage`; edits to sets bound to firewall positions also create
 a firewall plan (05 §4.4).
 
 ## 9. Audit
 
-Set create/update/delete; element add/edit/remove; manual dynamic actions (challenge now, ban now, remove, reset
-counter); binding changes in any position.
+Set create/update/delete; element add/edit/remove; manual dynamic actions (challenge now, ban now, remove); counter
+edits and resets; binding changes in any position.
 
 ## 10. Tests that must exist
 
