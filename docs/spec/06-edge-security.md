@@ -33,9 +33,25 @@ match".
 | Observe | Decisions recorded, never enforced |
 
 Unreachable-Hashi behaviour: Traefik cannot "fail open" natively, so every Traefik host gets a tiny **local fallback**:
-forward auth targets Hashi via a Traefik service with a health check and a failover to a static `204` responder
-**only** for resources in Adaptive/Observe mode with no active challenge/block policy. SSO-required resources have no
-fallback (fail closed). Verify this construct against the pinned Traefik version before implementation.
+forward auth targets a local route on the Traefik host whose service has a health check on Hashi and a failover to a
+static `204` responder. That route is attached **only** to resources in Adaptive/Observe mode; SSO-required resources
+point straight at Hashi with no fallback (fail closed). Verify this construct against the pinned Traefik version before
+implementation, and prove the outage path with a real Traefik in S4 (stop Hashi → observe), not first in S9.
+
+What the fallback guarantees while Hashi is unreachable (Traefik cannot know Hashi's in-memory state, so nothing more):
+
+| Protection | During a Hashi outage |
+| --- | --- |
+| Firewall blocks (ipsets on hosts) | Keep working |
+| SSO required | Fail closed |
+| Adaptive / Observe | Fail open: challenges and soft blocks pause |
+| Recording | Hashi records the outage window as an event when it is back; Traefik access logs are ingested afterwards |
+
+Hashi does not copy soft blocks or challenge state to Traefik hosts — one more synced object is not worth the gain.
+
+**Home resources depend on the link to Hashi.** Forward auth for resources on a remote Traefik host (e.g. at home)
+crosses the overlay network to Hashi. If that link drops, SSO-required resources there fail closed and Adaptive ones
+fail open, exactly as in an outage. This is accepted; S9 records the forward-auth latency over that link in its gate.
 
 ### 2.2 Performance budget
 
@@ -47,17 +63,24 @@ bounded channel; on overflow, events are sampled and a counter records drops —
 
 ### 3.1 Effective decision order
 
-1. Invalid/untrusted request metadata → deny.
-2. Manual block.
-3. Firewall block (subject is in an active firewall block).
-4. High-confidence blocklist entry with firewall enforcement.
-5. Soft block.
-6. Active challenge required.
-7. Resource-specific rule (priority order).
-8. Manual allow.
-9. Default resource behaviour (policy mode, rate thresholds).
+| # | Step | Skipped by a matching manual allow? |
+| --- | --- | --- |
+| 1 | Invalid/untrusted request metadata → deny | Never |
+| 2 | Manual block | Never (see overlap rule) |
+| 3 | Manual allow with `bypassBlocking` → skip steps 4–6 | — |
+| 4 | Firewall block (subject is in an active firewall block) | Yes, with `bypassBlocking` |
+| 5 | High-confidence blocklist entry with firewall enforcement | Yes, with `bypassBlocking` |
+| 6 | Soft block | Yes, with `bypassBlocking` |
+| 7 | Active challenge required | Only with `bypassChallenge` |
+| 8 | Resource-specific rule (priority order) | Never; never skips SSO |
+| 9 | Default resource behaviour (policy mode, rate thresholds) | Rate limits only with `bypassRateLimit` |
 
-Manual allow prevents Hashi-controlled blocking and escalation but **does not bypass SSO or CAPTCHA** in this version.
+**Overlap rule:** when a manual allow and a manual block both match, the more specific one (longer prefix; IP beats CIDR
+beats ASN beats country) wins; on a tie the block wins. The escalation engine never creates soft or firewall blocks for
+a subject covered by a manual allow with `bypassAdaptiveEscalation`. The UI warns when an allow covers more than a /24
+(IPv4) or a whole ASN/country. Each row of this table has a `TestInvariant_DecisionOrder_*` case.
+
+Manual allow **does not bypass SSO or CAPTCHA** by default in this version.
 Manual allow entries carry explicit flags: `bypassBlocking` (default true), `bypassAdaptiveEscalation` (true),
 `bypassRateLimit` (false), `bypassChallenge` (false), `bypassSso` (false). Only the first two are editable initially;
 the UI shows all five with their meaning. Block entries must have all bypass flags false.
