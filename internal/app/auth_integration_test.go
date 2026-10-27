@@ -260,6 +260,13 @@ func TestSetupBaseSettingsPasskeyAndRecoveryKey(t *testing.T) {
 	if strings.Contains(in.logs.String(), key) {
 		t.Fatal("recovery key in log")
 	}
+	// Changing the root domain now would strand the passkey (RP ID): it is removed and step 9 starts over.
+	moved := good
+	moved["root_domain"], moved["admin_domain"] = "example.org", "hashi.example.org"
+	r = c.mustStatus(c.do(http.MethodPut, "/api/setup/base-settings", moved), 200)
+	if r.body["passkeys"] != float64(0) || r.body["steps"].([]any)[8].(map[string]any)["status"] != "pending" {
+		t.Fatalf("after root domain change: passkeys %v, step 9 %v", r.body["passkeys"], r.body["steps"].([]any)[8])
+	}
 	// Public status was switched off in step 2 and answers 404 now (the setting's consumer).
 	res, err := http.Get("http://" + cfg.PublicStatusAddr + "/")
 	if err != nil {

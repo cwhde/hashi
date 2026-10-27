@@ -208,6 +208,10 @@ func (p *Passkeys) FinishRegistration(ctx context.Context, q *db.Queries, owner 
 	if err != nil {
 		return Passkey{}, err
 	}
+	rp, err := p.rp(ctx)
+	if err != nil {
+		return Passkey{}, err
+	}
 	wa, err := p.webauthn(ctx)
 	if err != nil {
 		return Passkey{}, err
@@ -234,7 +238,7 @@ func (p *Passkeys) FinishRegistration(ctx context.Context, q *db.Queries, owner 
 	}
 	pk := Passkey{ID: ulid.Make().String(), Name: name, Label: aaguidLabel(cred.Authenticator.AAGUID), CreatedAt: p.now()}
 	if err := q.InsertPasskey(ctx, db.InsertPasskeyParams{
-		ID: pk.ID, CredentialID: cred.ID, CredentialJson: string(raw), Name: pk.Name, AaguidLabel: pk.Label,
+		ID: pk.ID, CredentialID: cred.ID, CredentialJson: string(raw), Name: pk.Name, RpID: rp.ID, AaguidLabel: pk.Label,
 		CreatedAt: pk.CreatedAt.UnixMilli(),
 	}); err != nil {
 		return Passkey{}, fmt.Errorf("store passkey: %w", err)

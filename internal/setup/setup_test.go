@@ -24,13 +24,15 @@ func newService(t *testing.T, st *store.Store) *Service {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return New(st, v, audit.New([]byte("salt")))
+	s := New(st, v, audit.New([]byte("salt")))
+	s.RPID = func(context.Context) (string, error) { return "example.com", nil }
+	return s
 }
 
 func addPasskey(t *testing.T, st *store.Store) {
 	t.Helper()
 	if err := st.Q.InsertPasskey(context.Background(), db.InsertPasskeyParams{
-		ID: "pk1", CredentialID: []byte("cred"), CredentialJson: "{}", Name: "Laptop", CreatedAt: 1,
+		ID: "pk1", CredentialID: []byte("cred"), CredentialJson: "{}", Name: "Laptop", RpID: "example.com", CreatedAt: 1,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -210,5 +212,41 @@ func TestCompleteDestroysBootstrapAndRevokesBootstrapSessions(t *testing.T) {
 	}
 	if _, err := s.GenerateRecoveryKey(ctx, owner); !errors.Is(err, ErrCompleted) {
 		t.Fatalf("recovery key after completion: %v", err)
+	}
+}
+
+// Review finding: passkeys are bound to the root domain; completion needs one for the current root domain.
+func TestCompleteNeedsPasskeyForCurrentRPID(t *testing.T) {
+	ctx := context.Background()
+	st := storetest.New(t)
+	s := newService(t, st)
+	s.SkipUnbuilt = true
+	addPasskey(t, st) // registered for example.com
+	markDone(t, s, st, StepBootstrap, StepBase)
+	d, _ := s.GenerateRecoveryKey(ctx, owner)
+	if err := s.ConfirmRecoveryKey(ctx, owner, lastGroup(d.Reveal())); err != nil {
+		t.Fatal(err)
+	}
+	s.RPID = func(context.Context) (string, error) { return "example.org", nil }
+	if err := s.Complete(ctx, "test", ""); !errors.Is(err, ErrNotReady) {
+		t.Fatalf("passkey for another RP ID accepted: %v", err)
+	}
+}
+
+func TestRootDomainChangeResetsPasskeyStep(t *testing.T) {
+	ctx := context.Background()
+	st := storetest.New(t)
+	s := newService(t, st)
+	addPasskey(t, st)
+	markDone(t, s, st, StepBootstrap, StepBase, StepPasskey)
+	if err := st.Tx(ctx, func(q *db.Queries) error { return s.RootDomainChanged(ctx, q, "example.org") }); err != nil {
+		t.Fatal(err)
+	}
+	if n, _ := st.Q.CountPasskeys(ctx); n != 0 {
+		t.Fatalf("%d passkeys left for the old root domain", n)
+	}
+	state, _ := s.Load(ctx, st.Q)
+	if state.Steps[StepPasskey-1].Status != Pending {
+		t.Fatalf("step 9 %s, want pending", state.Steps[StepPasskey-1].Status)
 	}
 }

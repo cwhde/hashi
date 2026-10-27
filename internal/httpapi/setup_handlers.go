@@ -94,6 +94,11 @@ func (s *Server) PutSetupBaseSettings(ctx context.Context, req gen.PutSetupBaseS
 				return err
 			}
 		}
+		if cur.Configured() && cur.RootDomain != g.RootDomain {
+			if err := s.Setup.RootDomainChanged(ctx, q, g.RootDomain); err != nil {
+				return err
+			}
+		}
 		if err := s.Setup.MarkDone(ctx, q, setup.StepBase, nil); err != nil {
 			return err
 		}

@@ -285,3 +285,48 @@ func decode(t *testing.T, tok string) []byte {
 	}
 	return b
 }
+
+// Review finding: with the minimum idle timeout (5 min), steady activity must keep the session alive.
+func TestMinimumIdleWithContinuousActivity(t *testing.T) {
+	st, c := storetest.New(t), &clock{t0}
+	m := newManager(t, st, c)
+	m.SetIdle(5 * time.Minute)
+	tok, _ := issue(t, m, st, ipA)
+	for i := range 20 {
+		c.advance(time.Minute)
+		if _, err := m.Validate(context.Background(), tok, ipA); err != nil {
+			t.Fatalf("active every minute, rejected after %d min: %v", i+1, err)
+		}
+	}
+}
+
+func TestRevokeByCredential(t *testing.T) {
+	ctx := context.Background()
+	st, c := storetest.New(t), &clock{t0}
+	m := newManager(t, st, c)
+	for _, id := range []string{"pk1", "pk2"} {
+		if err := st.Q.InsertPasskey(ctx, db.InsertPasskeyParams{ID: id, CredentialID: []byte(id), CredentialJson: "{}", Name: id, RpID: "example.com", CreatedAt: 1}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	issueWith := func(cred string) string {
+		var tok string
+		if err := st.Tx(ctx, func(q *db.Queries) error {
+			var err error
+			tok, _, err = m.Issue(ctx, q, MethodPasskey, cred, ipA, PasskeyScopes, "")
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return tok
+	}
+	a, b := issueWith("pk1"), issueWith("pk2")
+	if err := st.Tx(ctx, func(q *db.Queries) error {
+		_, err := m.RevokeByCredential(ctx, q, "pk1", "test", ipA)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	mustReject(t, m, a, ipA)
+	mustValidate(t, m, b, ipA)
+}

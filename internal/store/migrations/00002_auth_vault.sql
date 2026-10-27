@@ -45,6 +45,8 @@ CREATE TABLE passkey_credentials (
     -- go-webauthn Credential as JSON (public key, sign count, flags, transports, AAGUID). No secret material.
     credential_json TEXT NOT NULL,
     name            TEXT NOT NULL,
+    -- RP ID (root domain) the credential is bound to; a root-domain change makes it unusable (02 §2).
+    rp_id           TEXT NOT NULL,
     aaguid_label    TEXT NOT NULL DEFAULT '',
     created_at      INTEGER NOT NULL,
     last_used_at    INTEGER

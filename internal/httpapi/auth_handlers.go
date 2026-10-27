@@ -416,11 +416,16 @@ func (s *Server) RenamePasskey(ctx context.Context, req gen.RenamePasskeyRequest
 
 func (s *Server) DeletePasskey(ctx context.Context, req gen.DeletePasskeyRequestObject) (gen.DeletePasskeyResponseObject, error) {
 	ri := info(ctx)
-	var revoked [][]byte
+	var revoked int64
 	err := s.Store.Tx(ctx, func(q *db.Queries) error {
 		if _, err := q.GetPasskey(ctx, req.Id); errors.Is(err, sql.ErrNoRows) {
 			return notFound("No passkey with that ID.")
 		} else if err != nil {
+			return err
+		}
+		// Sessions signed in with this passkey end now (02 §2). Revoke before deleting: the FK is cleared on delete.
+		var err error
+		if revoked, err = s.Sessions.RevokeByCredential(ctx, q, req.Id, s.actor(ri), ri.ip); err != nil {
 			return err
 		}
 		if err := auth.Delete(ctx, q, req.Id); err != nil {
@@ -429,21 +434,8 @@ func (s *Server) DeletePasskey(ctx context.Context, req gen.DeletePasskeyRequest
 			}
 			return err
 		}
-		// Sessions signed in with this passkey end now (02 §2). Their FK is set NULL on delete, so revoke first.
-		list, err := s.Sessions.Active(ctx)
-		if err != nil {
-			return err
-		}
-		for _, x := range list {
-			if x.CredentialID == req.Id {
-				if _, err := s.Sessions.Revoke(ctx, q, x.IDHash, auth.ReasonPasskeyGone, s.actor(ri), ri.ip); err != nil {
-					return err
-				}
-				revoked = append(revoked, x.IDHash)
-			}
-		}
 		return s.Audit.Record(ctx, q, audit.Event{Actor: s.actor(ri), Action: "auth.passkey.deleted", Target: "passkey:" + req.Id,
-			IP: ri.ipString(), Detail: map[string]any{"sessions_revoked": len(revoked)}})
+			IP: ri.ipString(), Detail: map[string]any{"sessions_revoked": revoked}})
 	})
 	if err != nil {
 		return nil, err

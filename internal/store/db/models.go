@@ -78,6 +78,7 @@ type PasskeyCredential struct {
 	CredentialID   []byte
 	CredentialJson string
 	Name           string
+	RpID           string
 	AaguidLabel    string
 	CreatedAt      int64
 	LastUsedAt     sql.NullInt64

@@ -16,8 +16,8 @@ ON CONFLICT (id) DO UPDATE SET username = excluded.username, password_hash = exc
 DELETE FROM bootstrap_credentials WHERE id = 1;
 
 -- name: InsertPasskey :exec
-INSERT INTO passkey_credentials (id, credential_id, credential_json, name, aaguid_label, created_at)
-VALUES (?, ?, ?, ?, ?, ?);
+INSERT INTO passkey_credentials (id, credential_id, credential_json, name, rp_id, aaguid_label, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?);
 
 -- name: ListPasskeys :many
 SELECT * FROM passkey_credentials ORDER BY created_at, id;
@@ -30,6 +30,12 @@ SELECT * FROM passkey_credentials WHERE credential_id = ?;
 
 -- name: CountPasskeys :one
 SELECT COUNT(*) FROM passkey_credentials;
+
+-- name: CountPasskeysForRP :one
+SELECT COUNT(*) FROM passkey_credentials WHERE rp_id = ?;
+
+-- name: DeleteAllPasskeys :execrows
+DELETE FROM passkey_credentials;
 
 -- name: UpdatePasskeyUse :exec
 UPDATE passkey_credentials SET credential_json = ?, last_used_at = ? WHERE id = ?;

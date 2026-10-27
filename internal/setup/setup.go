@@ -104,6 +104,8 @@ type Service struct {
 	vault *vault.Vault
 	audit *audit.Log
 	now   func() time.Time
+	// RPID returns the relying-party ID passkeys must be bound to now (the root domain, or localhost in dev builds).
+	RPID func(ctx context.Context) (string, error)
 	// SkipUnbuilt treats steps from later slices as done. Only `-tags dev` builds set it (local dev and E2E).
 	SkipUnbuilt bool
 
@@ -279,6 +281,20 @@ func (s *Service) ConfirmRecoveryKey(ctx context.Context, owner []byte, checksum
 	return nil
 }
 
+// RootDomainChanged runs with q when step 2 changes the root domain: passkeys bound to the old one can never sign in,
+// so they are removed and step 9 starts over (setup is not complete, so nobody depends on them yet).
+func (s *Service) RootDomainChanged(ctx context.Context, q *db.Queries, newRoot string) error {
+	n, err := q.DeleteAllPasskeys(ctx)
+	if err != nil {
+		return err
+	}
+	if err := s.mark(ctx, q, StepPasskey, Pending, nil, ""); err != nil {
+		return err
+	}
+	return s.audit.Record(ctx, q, audit.Event{Actor: audit.System, Action: "setup.passkeys_reset",
+		Detail: map[string]any{"reason": "root domain changed", "root_domain": newRoot, "passkeys_removed": n}})
+}
+
 // Complete finishes setup (step 11): every required step done, passkey + confirmed recovery key present, then the
 // bootstrap credentials are destroyed and bootstrap sessions revoked in the same transaction.
 func (s *Service) Complete(ctx context.Context, actor, ip string) error {
@@ -292,8 +308,12 @@ func (s *Service) Complete(ctx context.Context, actor, ip string) error {
 				return fmt.Errorf("%w: step %d (%s)", ErrNotReady, d.N, d.Title)
 			}
 		}
-		// Invariant 14, checked against the data rather than the step flag.
-		n, err := q.CountPasskeys(ctx)
+		// Invariant 14, checked against the data rather than the step flag: a passkey usable for the current RP ID.
+		rpID, err := s.RPID(ctx)
+		if err != nil {
+			return err
+		}
+		n, err := q.CountPasskeysForRP(ctx, rpID)
 		if err != nil {
 			return err
 		}

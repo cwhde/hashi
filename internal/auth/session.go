@@ -194,7 +194,9 @@ func (m *Manager) Validate(ctx context.Context, token string, ip netip.Addr) (*S
 		m.revoke(ctx, s, ReasonIPMismatch, audit.System, ip)
 		return nil, ErrNoSession
 	}
-	if now.Sub(s.LastSeenAt) >= touchCadence {
+	// Persist activity every five minutes, or more often when the idle limit is short, so steady activity always
+	// lands before the stored deadline.
+	if now.Sub(s.LastSeenAt) >= min(touchCadence, time.Duration(m.idle.Load())/4) {
 		s.LastSeenAt = now
 		s.IdleExpiresAt = minTime(now.Add(time.Duration(m.idle.Load())), s.AbsoluteAt)
 		err := m.st.Tx(ctx, func(q *db.Queries) error {
@@ -277,6 +279,24 @@ func (m *Manager) Revoke(ctx context.Context, q *db.Queries, idHash []byte, reas
 	}
 	m.dropMaterial(idHash)
 	return true, nil
+}
+
+// RevokeByCredential ends every session signed in with a passkey (it is being deleted, 02 §2). Call it before the
+// passkey row is deleted: the foreign key is cleared on delete.
+func (m *Manager) RevokeByCredential(ctx context.Context, q *db.Queries, credentialID, actor string, ip netip.Addr) (int64, error) {
+	n, err := q.RevokeSessionsByCredential(ctx, db.RevokeSessionsByCredentialParams{
+		RevokedAt: sqlInt(m.now().UnixMilli()), RevocationReason: nullString(ReasonPasskeyGone), CredentialID: nullString(credentialID),
+	})
+	if err != nil {
+		return 0, fmt.Errorf("revoke sessions of passkey: %w", err)
+	}
+	if n > 0 {
+		if err := m.audit.Record(ctx, q, audit.Event{Actor: actor, Action: "session.revoked", Target: "passkey:" + credentialID,
+			IP: ip.String(), Detail: map[string]any{"reason": ReasonPasskeyGone, "count": n}}); err != nil {
+			return 0, err
+		}
+	}
+	return n, nil
 }
 
 // MarkReauth records a fresh passkey assertion on the session. It changes neither bound IP nor absolute expiry.

@@ -21,6 +21,29 @@ func (q *Queries) CountPasskeys(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const countPasskeysForRP = `-- name: CountPasskeysForRP :one
+SELECT COUNT(*) FROM passkey_credentials WHERE rp_id = ?
+`
+
+func (q *Queries) CountPasskeysForRP(ctx context.Context, rpID string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countPasskeysForRP, rpID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const deleteAllPasskeys = `-- name: DeleteAllPasskeys :execrows
+DELETE FROM passkey_credentials
+`
+
+func (q *Queries) DeleteAllPasskeys(ctx context.Context) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteAllPasskeys)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const deleteBootstrapCredentials = `-- name: DeleteBootstrapCredentials :exec
 DELETE FROM bootstrap_credentials WHERE id = 1
 `
@@ -90,7 +113,7 @@ func (q *Queries) GetBootstrapCredentials(ctx context.Context) (BootstrapCredent
 }
 
 const getPasskey = `-- name: GetPasskey :one
-SELECT id, credential_id, credential_json, name, aaguid_label, created_at, last_used_at FROM passkey_credentials WHERE id = ?
+SELECT id, credential_id, credential_json, name, rp_id, aaguid_label, created_at, last_used_at FROM passkey_credentials WHERE id = ?
 `
 
 func (q *Queries) GetPasskey(ctx context.Context, id string) (PasskeyCredential, error) {
@@ -101,6 +124,7 @@ func (q *Queries) GetPasskey(ctx context.Context, id string) (PasskeyCredential,
 		&i.CredentialID,
 		&i.CredentialJson,
 		&i.Name,
+		&i.RpID,
 		&i.AaguidLabel,
 		&i.CreatedAt,
 		&i.LastUsedAt,
@@ -109,7 +133,7 @@ func (q *Queries) GetPasskey(ctx context.Context, id string) (PasskeyCredential,
 }
 
 const getPasskeyByCredentialID = `-- name: GetPasskeyByCredentialID :one
-SELECT id, credential_id, credential_json, name, aaguid_label, created_at, last_used_at FROM passkey_credentials WHERE credential_id = ?
+SELECT id, credential_id, credential_json, name, rp_id, aaguid_label, created_at, last_used_at FROM passkey_credentials WHERE credential_id = ?
 `
 
 func (q *Queries) GetPasskeyByCredentialID(ctx context.Context, credentialID []byte) (PasskeyCredential, error) {
@@ -120,6 +144,7 @@ func (q *Queries) GetPasskeyByCredentialID(ctx context.Context, credentialID []b
 		&i.CredentialID,
 		&i.CredentialJson,
 		&i.Name,
+		&i.RpID,
 		&i.AaguidLabel,
 		&i.CreatedAt,
 		&i.LastUsedAt,
@@ -167,8 +192,8 @@ func (q *Queries) InsertAdminUser(ctx context.Context, arg InsertAdminUserParams
 }
 
 const insertPasskey = `-- name: InsertPasskey :exec
-INSERT INTO passkey_credentials (id, credential_id, credential_json, name, aaguid_label, created_at)
-VALUES (?, ?, ?, ?, ?, ?)
+INSERT INTO passkey_credentials (id, credential_id, credential_json, name, rp_id, aaguid_label, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertPasskeyParams struct {
@@ -176,6 +201,7 @@ type InsertPasskeyParams struct {
 	CredentialID   []byte
 	CredentialJson string
 	Name           string
+	RpID           string
 	AaguidLabel    string
 	CreatedAt      int64
 }
@@ -186,6 +212,7 @@ func (q *Queries) InsertPasskey(ctx context.Context, arg InsertPasskeyParams) er
 		arg.CredentialID,
 		arg.CredentialJson,
 		arg.Name,
+		arg.RpID,
 		arg.AaguidLabel,
 		arg.CreatedAt,
 	)
@@ -271,7 +298,7 @@ func (q *Queries) ListActiveSessions(ctx context.Context, now int64) ([]AdminSes
 }
 
 const listPasskeys = `-- name: ListPasskeys :many
-SELECT id, credential_id, credential_json, name, aaguid_label, created_at, last_used_at FROM passkey_credentials ORDER BY created_at, id
+SELECT id, credential_id, credential_json, name, rp_id, aaguid_label, created_at, last_used_at FROM passkey_credentials ORDER BY created_at, id
 `
 
 func (q *Queries) ListPasskeys(ctx context.Context) ([]PasskeyCredential, error) {
@@ -288,6 +315,7 @@ func (q *Queries) ListPasskeys(ctx context.Context) ([]PasskeyCredential, error)
 			&i.CredentialID,
 			&i.CredentialJson,
 			&i.Name,
+			&i.RpID,
 			&i.AaguidLabel,
 			&i.CreatedAt,
 			&i.LastUsedAt,

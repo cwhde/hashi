@@ -110,6 +110,11 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	passkeys := auth.NewPasskeys(st, relyingParty(st, cfg))
 	setupSvc := setup.New(st, v, al)
 	setupSvc.SkipUnbuilt = devBuild
+	rp := relyingParty(st, cfg)
+	setupSvc.RPID = func(ctx context.Context) (string, error) {
+		r, err := rp(ctx)
+		return r.ID, err
+	}
 	sessions.OnRevoke(passkeys.DropSession)
 	sessions.OnRevoke(setupSvc.DropSession)
 
