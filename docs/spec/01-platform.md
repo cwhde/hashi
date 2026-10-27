@@ -187,6 +187,15 @@ logging in addition to stdout.
 | Pulse heartbeats | per heartbeat | 7 days |
 
 Retention runs as a job deleting in batches of ≤ 5,000 rows per transaction so it never blocks the writer.
+
+Security telemetry is also bounded by **volume**, not only by age, because one scan can produce millions of distinct
+IP × path combinations (details in 06-edge-security.md §5.3–5.4):
+
+- Stored security buckets have no IP and no full path; per-IP counters live only in memory for decisions.
+- Events are stored only for non-allow decisions, capped per subject per minute; the rest is a counter.
+- Writes are batched (at most one flush per second).
+- Database size budget (setting, default 2 GB): a warning at 80 %; above 100 % retention deletes the oldest security
+  buckets and events first, regardless of age. Audit events are never deleted by the size budget.
 Rollups are computed from **closed** buckets only.
 
 ## 5. Sync engine

@@ -127,15 +127,13 @@ Fields:
 * `id`.
 * `bucket_start_utc`.
 * `bucket_size_seconds`.
-* `subject_type`.
-* `normalized_subject_value`.
 * `resource_id`.
 * `root_domain`.
+* `traefik_connection_id`.
 * `country`.
-* `region`.
 * `asn`.
-* `method`.
-* `path_prefix`.
+* `decision`.
+* `path_prefix` (first segment, ≤ 50 per resource per minute, else `other`).
 * `status_class`.
 * `request_count`.
 * `blocked_count`.
@@ -143,7 +141,10 @@ Fields:
 * `challenge_ignored_count`.
 * `failed_challenge_count`.
 
-Indexes must support quick lookup by subject and recent time window.
+No IP or other subject column (volume bound, 01-platform.md §4.3). Per-IP history comes from `security_ip_top_1m`
+(bucket start, IP, resource, request/blocked/challenged counts; top 500 IPs per minute) and `security_events`.
+
+Indexes must support quick lookup by resource and recent time window; `security_ip_top_1m` by (IP, time).
 
 ## Blocklists
 

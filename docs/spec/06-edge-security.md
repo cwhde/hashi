@@ -138,15 +138,24 @@ Coraza plugin's log lines in the same stream.
 
 ### 5.3 Buckets
 
-`security_buckets_1m`: bucket start, subject type + normalized value, resource, root domain, Traefik connection,
-country, region, ASN, method, path prefix, status class, request/blocked/challenged/challenge-ignored/failed-challenge counts.
-Indexed for subject + recent window lookups. Aggregation happens in memory and flushes closed minutes.
+`security_buckets_1m`: bucket start, resource, root domain, Traefik connection, country, ASN, decision/action,
+status class, path prefix, request/blocked/challenged/challenge-ignored/failed-challenge counts. **No IP.** Path prefix is
+the first path segment only, at most 50 distinct prefixes per resource per minute; the rest is counted as `other`.
+Aggregation happens in memory and flushes closed minutes.
+
+Per-IP counters (for rate thresholds and escalation) live only in memory for the decision window. Each closed minute
+additionally stores the top 500 IPs by request count in `security_ip_top_1m` (IP, resource, counts) so the dashboard and
+subject search can show recent heavy hitters. An IP that was only ever allowed and never in a top list has no stored
+per-minute history — accepted.
 
 ### 5.4 Events
 
 `security_events`: occurred_at, subject type/value/normalized, resource, connection, event_type, severity, decision,
 source, reason, method, path, status, user_agent_hash, request_id, metadata. Indexes on (normalized subject, time),
 (resource, time), (event_type, time), (severity, time).
+
+Only non-allow decisions (deny, challenge, soft/firewall block, WAF detect, escalation) and state changes are stored.
+At most 10 events per subject per minute; further ones increment a `suppressed` counter on the last stored event.
 
 ## 6. Adaptive path and escalation
 

@@ -99,10 +99,19 @@ NetBird; warn before any change that could remove NetBird access; rescue protect
 3. Arm a transient timer: `systemd-run --on-active=180 --unit=hashi-fw-rescue /opt/hashi/firewall/rollback.sh`
    (Alpine: `at` or a backgrounded `sleep 180 && rollback` with a PID file).
 4. Apply the new rules.
-5. Hashi opens a **new** SSH connection (not the existing one), verifies it can log in and run a command, and — if NetBird is
-   enabled — verifies NetBird status is still connected. Only then disarm the timer.
+5. Hashi opens a **new** SSH connection (not the existing one) over the same address it uses as the host's rescue path,
+   verifies it can log in and run a command, and — if NetBird is enabled — verifies NetBird status is still connected.
+   Only then disarm the timer.
 6. If verification fails or times out, do nothing: the timer restores the previous state. Hashi reconnects after the
    window, reads the actual ruleset and reports the rollback by checking the remote result, not assuming it.
+7. After a rollback, Hashi compares the non-Hashi rules (NetBird, Docker, others) with the snapshot from step 1 and the
+   state read just before the rollback. If a foreign rule changed during the window, the rollback restored the old
+   version; Hashi shows a warning naming those rules and does nothing else.
+
+The full restore in rollback is the one deliberate exception to "owned objects only" (invariant 12): it only runs when an
+apply locked Hashi out, foreign rules on these hosts change rarely (NetBird on peer/policy changes; Docker runs in
+guests, not on the hosts), so a collision inside the 180 s window is very unlikely and is surfaced by step 7 rather than
+prevented by a more complex partial restore.
 
 ## 6. Desired ports and allowlists
 
