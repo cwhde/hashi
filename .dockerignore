@@ -1,0 +1,11 @@
+*
+!go.mod
+!go.sum
+!cmd/
+!internal/
+!api/openapi.yaml
+!web/
+web/node_modules/
+web/.svelte-kit/
+web/build/
+internal/web/dist/*
