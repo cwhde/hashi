@@ -6,8 +6,11 @@ info:
     Source of truth for Hashi's HTTP API (01-platform.md §7). Go server code and the TypeScript client are
     generated from this file; CI fails when they are stale.
 
-    Every operation declares `x-hashi-scopes`. An empty list means the endpoint needs no admin session
-    (health, version); CI fails on an operation without the key.
+    Every operation declares `x-hashi-scopes` (all listed scopes are required). An empty list means no scope;
+    `x-hashi-session: true` then still requires a valid session. `x-hashi-reauth: true` additionally requires a
+    passkey reauthentication within the last five minutes. Unsafe methods on session endpoints need the
+    `X-Hashi-CSRF` header from `GET /api/auth/session`. CI fails on an operation without `x-hashi-scopes`.
+    Errors are RFC 9457 problem details. Timestamps are UTC (RFC 3339).
 servers:
   - url: /
 paths:
@@ -52,8 +55,743 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Version" }
+
+  # ---- auth (02-setup-auth.md §2–4) ----
+  /api/auth/session:
+    get:
+      operationId: getAuthSession
+      summary: Current session (or none), setup state flag and the CSRF token
+      tags: [auth]
+      x-hashi-scopes: []
+      responses:
+        "200":
+          description: Session status
+          content: { application/json: { schema: { $ref: "#/components/schemas/AuthSession" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/auth/bootstrap/login:
+    post:
+      operationId: bootstrapLogin
+      summary: Sign in with the one-time bootstrap credentials (private networks only, before setup completes)
+      tags: [auth]
+      x-hashi-scopes: []
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/BootstrapLogin" } } }
+      responses:
+        "200":
+          description: Signed in
+          headers: { Set-Cookie: { $ref: "#/components/headers/SetCookie" } }
+          content: { application/json: { schema: { $ref: "#/components/schemas/AuthSession" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/auth/logout:
+    post:
+      operationId: logout
+      summary: Revoke the current session, then clear the cookie
+      tags: [auth]
+      x-hashi-scopes: []
+      x-hashi-session: true
+      responses:
+        "204":
+          description: Signed out
+          headers: { Set-Cookie: { $ref: "#/components/headers/SetCookie" } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/auth/sessions:
+    get:
+      operationId: listSessions
+      summary: Active admin sessions
+      tags: [auth]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Sessions, newest first
+          content: { application/json: { schema: { $ref: "#/components/schemas/SessionList" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/auth/sessions/{id}:
+    delete:
+      operationId: revokeSession
+      summary: Revoke one session by its correlation ID
+      tags: [auth]
+      x-hashi-scopes: [security.manage]
+      x-hashi-reauth: true
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "204": { description: Revoked }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/auth/sessions/revoke-others:
+    post:
+      operationId: revokeOtherSessions
+      summary: Revoke every session except the current one
+      tags: [auth]
+      x-hashi-scopes: [security.manage]
+      x-hashi-reauth: true
+      responses:
+        "200":
+          description: Number revoked
+          content: { application/json: { schema: { $ref: "#/components/schemas/RevokedCount" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/auth/reauth/options:
+    post:
+      operationId: reauthOptions
+      summary: Start a passkey reauthentication
+      tags: [auth]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: WebAuthn request options
+          content: { application/json: { schema: { $ref: "#/components/schemas/CeremonyOptions" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/auth/reauth:
+    post:
+      operationId: reauth
+      summary: Finish a passkey reauthentication (valid five minutes)
+      tags: [auth]
+      x-hashi-scopes: [admin.read]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CeremonyResponse" } } }
+      responses:
+        "200":
+          description: Reauthenticated
+          content: { application/json: { schema: { $ref: "#/components/schemas/AuthSession" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/auth/passkeys:
+    get:
+      operationId: listPasskeys
+      summary: Registered passkeys
+      tags: [auth]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Passkeys
+          content: { application/json: { schema: { $ref: "#/components/schemas/PasskeyList" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/auth/passkeys/register/options:
+    post:
+      operationId: passkeyRegisterOptions
+      summary: Start adding another passkey
+      tags: [auth]
+      x-hashi-scopes: [admin.write]
+      x-hashi-reauth: true
+      responses:
+        "200":
+          description: WebAuthn creation options
+          content: { application/json: { schema: { $ref: "#/components/schemas/CeremonyOptions" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/auth/passkeys/register/verify:
+    post:
+      operationId: passkeyRegisterVerify
+      summary: Finish adding another passkey
+      tags: [auth]
+      x-hashi-scopes: [admin.write]
+      x-hashi-reauth: true
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CeremonyResponse" } } }
+      responses:
+        "200":
+          description: Stored passkey
+          content: { application/json: { schema: { $ref: "#/components/schemas/Passkey" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/auth/passkeys/login/options:
+    post:
+      operationId: passkeyLoginOptions
+      summary: Start a passkey sign-in
+      tags: [auth]
+      x-hashi-scopes: []
+      responses:
+        "200":
+          description: WebAuthn request options
+          content: { application/json: { schema: { $ref: "#/components/schemas/CeremonyOptions" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/auth/passkeys/login/verify:
+    post:
+      operationId: passkeyLoginVerify
+      summary: Finish a passkey sign-in; issues a session bound to this IP
+      tags: [auth]
+      x-hashi-scopes: []
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CeremonyResponse" } } }
+      responses:
+        "200":
+          description: Signed in
+          headers: { Set-Cookie: { $ref: "#/components/headers/SetCookie" } }
+          content: { application/json: { schema: { $ref: "#/components/schemas/AuthSession" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/auth/passkeys/{id}:
+    patch:
+      operationId: renamePasskey
+      summary: Rename a passkey
+      tags: [auth]
+      x-hashi-scopes: [admin.write]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/PasskeyRename" } } }
+      responses:
+        "200":
+          description: Renamed
+          content: { application/json: { schema: { $ref: "#/components/schemas/Passkey" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    delete:
+      operationId: deletePasskey
+      summary: Delete a passkey (never the last one); revokes sessions signed in with it
+      tags: [auth]
+      x-hashi-scopes: [admin.write]
+      x-hashi-reauth: true
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "204": { description: Deleted }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/auth/recover:
+    post:
+      operationId: recoverLogin
+      summary: Open a recovery session from a `hashi admin recover` link (private networks, once, 15 minutes)
+      tags: [auth]
+      x-hashi-scopes: []
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/RecoverLogin" } } }
+      responses:
+        "200":
+          description: Recovery session; it can only register one new passkey
+          headers: { Set-Cookie: { $ref: "#/components/headers/SetCookie" } }
+          content: { application/json: { schema: { $ref: "#/components/schemas/AuthSession" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/auth/recover/passkey/options:
+    post:
+      operationId: recoverPasskeyOptions
+      summary: Start registering a replacement passkey
+      tags: [auth]
+      x-hashi-scopes: [recovery.passkey]
+      responses:
+        "200":
+          description: WebAuthn creation options
+          content: { application/json: { schema: { $ref: "#/components/schemas/CeremonyOptions" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/auth/recover/passkey/verify:
+    post:
+      operationId: recoverPasskeyVerify
+      summary: Finish registering the replacement passkey; ends the recovery session
+      tags: [auth]
+      x-hashi-scopes: [recovery.passkey]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CeremonyResponse" } } }
+      responses:
+        "200":
+          description: Stored passkey; sign in with it next
+          headers: { Set-Cookie: { $ref: "#/components/headers/SetCookie" } }
+          content: { application/json: { schema: { $ref: "#/components/schemas/Passkey" } } }
+        default: { $ref: "#/components/responses/Problem" }
+
+  # ---- setup (02 §1) ----
+  /api/setup:
+    get:
+      operationId: getSetup
+      summary: Setup steps and their state
+      tags: [setup]
+      x-hashi-scopes: []
+      responses:
+        "200":
+          description: Setup state
+          content: { application/json: { schema: { $ref: "#/components/schemas/SetupState" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/setup/base-settings:
+    put:
+      operationId: putSetupBaseSettings
+      summary: Step 2 — save and validate the base settings
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/BaseSettings" } } }
+      responses:
+        "200":
+          description: Saved
+          content: { application/json: { schema: { $ref: "#/components/schemas/SetupState" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/setup/passkey/options:
+    post:
+      operationId: setupPasskeyOptions
+      summary: Step 9 — start registering the first passkey
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      responses:
+        "200":
+          description: WebAuthn creation options
+          content: { application/json: { schema: { $ref: "#/components/schemas/CeremonyOptions" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/setup/passkey/verify:
+    post:
+      operationId: setupPasskeyVerify
+      summary: Step 9 — finish registering the first passkey
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CeremonyResponse" } } }
+      responses:
+        "200":
+          description: Stored passkey
+          content: { application/json: { schema: { $ref: "#/components/schemas/Passkey" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/setup/recovery-key:
+    post:
+      operationId: setupRecoveryKey
+      summary: Step 9 — generate the recovery key (shown once)
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      responses:
+        "200":
+          description: The recovery key; never returned again
+          content: { application/json: { schema: { $ref: "#/components/schemas/RecoveryKey" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/setup/recovery-key/confirm:
+    post:
+      operationId: confirmRecoveryKey
+      summary: Step 9 — confirm the recovery key by re-entering its last group; runs a test unlock
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/RecoveryKeyConfirm" } } }
+      responses:
+        "200":
+          description: Confirmed
+          content: { application/json: { schema: { $ref: "#/components/schemas/SetupState" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/setup/complete:
+    post:
+      operationId: completeSetup
+      summary: Step 11 — finish setup; destroys the bootstrap credentials and signs out bootstrap sessions
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      responses:
+        "200":
+          description: Completed
+          content: { application/json: { schema: { $ref: "#/components/schemas/SetupState" } } }
+        default: { $ref: "#/components/responses/Problem" }
+
+  # ---- settings (09 §2) ----
+  /api/settings:
+    get:
+      operationId: getSettings
+      summary: All settings categories
+      tags: [settings]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Settings
+          content: { application/json: { schema: { $ref: "#/components/schemas/AllSettings" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/settings/general:
+    get:
+      operationId: getGeneralSettings
+      tags: [settings]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: General settings
+          content: { application/json: { schema: { $ref: "#/components/schemas/GeneralSettings" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      operationId: putGeneralSettings
+      summary: Save general settings; changing trusted proxies needs a recent passkey reauthentication
+      tags: [settings]
+      x-hashi-scopes: [settings.manage]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/GeneralSettings" } } }
+      responses:
+        "200":
+          description: Saved
+          content: { application/json: { schema: { $ref: "#/components/schemas/GeneralSettings" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/settings/security:
+    get:
+      operationId: getSecuritySettings
+      tags: [settings]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Security settings
+          content: { application/json: { schema: { $ref: "#/components/schemas/SecuritySettings" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      operationId: putSecuritySettings
+      tags: [settings]
+      x-hashi-scopes: [settings.manage]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/SecuritySettings" } } }
+      responses:
+        "200":
+          description: Saved
+          content: { application/json: { schema: { $ref: "#/components/schemas/SecuritySettings" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/settings/appearance:
+    get:
+      operationId: getAppearanceSettings
+      tags: [settings]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Appearance settings
+          content: { application/json: { schema: { $ref: "#/components/schemas/AppearanceSettings" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      operationId: putAppearanceSettings
+      tags: [settings]
+      x-hashi-scopes: [settings.manage]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/AppearanceSettings" } } }
+      responses:
+        "200":
+          description: Saved
+          content: { application/json: { schema: { $ref: "#/components/schemas/AppearanceSettings" } } }
+        default: { $ref: "#/components/responses/Problem" }
+
+  # ---- vault (02 §5) ----
+  /api/vault:
+    get:
+      operationId: getVault
+      summary: Vault mode and state
+      tags: [vault]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Vault state
+          content: { application/json: { schema: { $ref: "#/components/schemas/VaultState" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/vault/secrets:
+    get:
+      operationId: listSecrets
+      summary: Stored secrets (metadata only, never values)
+      tags: [vault]
+      x-hashi-scopes: [secrets.manage]
+      responses:
+        "200":
+          description: Secrets
+          content: { application/json: { schema: { $ref: "#/components/schemas/SecretList" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/vault/secrets/{id}/reveal:
+    post:
+      operationId: revealSecret
+      summary: Reveal one secret value (audited)
+      tags: [vault]
+      x-hashi-scopes: [secrets.manage]
+      x-hashi-reauth: true
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The value
+          content: { application/json: { schema: { $ref: "#/components/schemas/RevealedSecret" } } }
+        default: { $ref: "#/components/responses/Problem" }
+
+  # ---- activity (10b §3) ----
+  /api/activity/audit:
+    get:
+      operationId: listAuditEvents
+      summary: Audit log, newest first
+      tags: [activity]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 500, default: 100 } }
+      responses:
+        "200":
+          description: Events
+          content: { application/json: { schema: { $ref: "#/components/schemas/AuditPage" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/activity/jobs:
+    get:
+      operationId: listJobs
+      summary: Background jobs with last and next run (invariant 15)
+      tags: [activity]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Jobs
+          content: { application/json: { schema: { $ref: "#/components/schemas/JobList" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/activity/logs:
+    get:
+      operationId: listLogLines
+      summary: Recent log lines (already redacted), after a sequence number
+      tags: [activity]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: after, in: query, schema: { type: integer, format: int64, minimum: 0 } }
+      responses:
+        "200":
+          description: Log lines
+          content: { application/json: { schema: { $ref: "#/components/schemas/LogPage" } } }
+        default: { $ref: "#/components/responses/Problem" }
 components:
+  headers:
+    SetCookie:
+      description: Session cookie (`__Host-hashi.session`, or `hashi.bootstrap` for bootstrap over plain HTTP)
+      schema: { type: string }
+  responses:
+    Problem:
+      description: RFC 9457 problem details
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
   schemas:
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, description: "Stable URI per error kind, e.g. `/problems/reauth-required`" }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+    AuthSession:
+      type: object
+      required: [authenticated, setup_completed]
+      properties:
+        authenticated: { type: boolean }
+        setup_completed: { type: boolean }
+        id: { type: string, description: Correlation ID (salted hash prefix), not the token }
+        method: { type: string, enum: [bootstrap, passkey, recovery] }
+        scopes: { type: array, items: { type: string } }
+        bound_ip: { type: string }
+        created_at: { type: string, format: date-time }
+        idle_expires_at: { type: string, format: date-time }
+        absolute_expires_at: { type: string, format: date-time }
+        reauth_valid_until: { type: string, format: date-time }
+        csrf_token: { type: string }
+    BootstrapLogin:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string, maxLength: 64 }
+        password: { type: string, maxLength: 256 }
+    RecoverLogin:
+      type: object
+      required: [token]
+      properties:
+        token: { type: string, maxLength: 128 }
+    SessionInfo:
+      type: object
+      required: [id, method, bound_ip, created_at, last_seen_at, absolute_expires_at, current]
+      properties:
+        id: { type: string }
+        method: { type: string }
+        bound_ip: { type: string }
+        created_at: { type: string, format: date-time }
+        last_seen_at: { type: string, format: date-time }
+        absolute_expires_at: { type: string, format: date-time }
+        current: { type: boolean }
+    SessionList:
+      type: object
+      required: [sessions]
+      properties:
+        sessions: { type: array, items: { $ref: "#/components/schemas/SessionInfo" } }
+    RevokedCount:
+      type: object
+      required: [revoked]
+      properties:
+        revoked: { type: integer }
+    CeremonyOptions:
+      type: object
+      required: [ceremony_id, options]
+      properties:
+        ceremony_id: { type: string }
+        options:
+          type: object
+          additionalProperties: true
+          description: "WebAuthn options as produced by the server library (`{publicKey: …}`)"
+    CeremonyResponse:
+      type: object
+      required: [ceremony_id, credential]
+      properties:
+        ceremony_id: { type: string }
+        name: { type: string, maxLength: 64, description: Passkey name (registration only) }
+        credential:
+          type: object
+          additionalProperties: true
+          description: The PublicKeyCredential serialized with `toJSON()`
+    Passkey:
+      type: object
+      required: [id, name, label, created_at]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        label: { type: string, description: Authenticator model (AAGUID-derived), may be empty }
+        created_at: { type: string, format: date-time }
+        last_used_at: { type: string, format: date-time }
+    PasskeyList:
+      type: object
+      required: [passkeys]
+      properties:
+        passkeys: { type: array, items: { $ref: "#/components/schemas/Passkey" } }
+    PasskeyRename:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 64 }
+    SetupStep:
+      type: object
+      required: [n, key, title, required, built, slice, status, last_error]
+      properties:
+        n: { type: integer }
+        key: { type: string }
+        title: { type: string }
+        required: { type: boolean }
+        built: { type: boolean, description: false = arrives in a later slice }
+        slice: { type: string }
+        status: { type: string, enum: [pending, in_progress, done, failed] }
+        last_error: { type: string }
+    SetupState:
+      type: object
+      required: [completed, steps]
+      properties:
+        completed: { type: boolean }
+        steps: { type: array, items: { $ref: "#/components/schemas/SetupStep" } }
+        base_settings: { $ref: "#/components/schemas/BaseSettings" }
+        passkeys: { type: integer, description: Registered passkeys (setup sessions only) }
+    BaseSettings:
+      type: object
+      required: [root_domain, admin_domain, internal_url, sync_interval_seconds, theme, public_dashboard_enabled, public_status_enabled]
+      properties:
+        root_domain: { type: string }
+        admin_domain: { type: string }
+        internal_url: { type: string }
+        sync_interval_seconds: { type: integer }
+        theme: { type: string }
+        public_dashboard_enabled: { type: boolean }
+        public_status_enabled: { type: boolean }
+    RecoveryKey:
+      type: object
+      required: [recovery_key]
+      properties:
+        recovery_key: { type: string, description: 14 groups of 4; the last group is the checksum }
+    RecoveryKeyConfirm:
+      type: object
+      required: [checksum]
+      properties:
+        checksum: { type: string, maxLength: 16 }
+    GeneralSettings:
+      type: object
+      required: [root_domain, admin_domain, internal_url, sync_interval_seconds, trusted_proxies]
+      properties:
+        root_domain: { type: string }
+        admin_domain: { type: string }
+        internal_url: { type: string }
+        sync_interval_seconds: { type: integer }
+        trusted_proxies: { type: array, items: { type: string } }
+    SecuritySettings:
+      type: object
+      required: [admin_idle_timeout_minutes, bootstrap_allowed_cidrs]
+      properties:
+        admin_idle_timeout_minutes: { type: integer }
+        bootstrap_allowed_cidrs: { type: array, items: { type: string } }
+    AppearanceSettings:
+      type: object
+      required: [theme, public_dashboard_enabled, public_status_enabled]
+      properties:
+        theme: { type: string }
+        public_dashboard_enabled: { type: boolean }
+        public_status_enabled: { type: boolean }
+    AllSettings:
+      type: object
+      required: [general, security, appearance]
+      properties:
+        general: { $ref: "#/components/schemas/GeneralSettings" }
+        security: { $ref: "#/components/schemas/SecuritySettings" }
+        appearance: { $ref: "#/components/schemas/AppearanceSettings" }
+    VaultState:
+      type: object
+      required: [mode, locked, key_version, recovery_key_confirmed, secrets]
+      properties:
+        mode: { type: string, enum: [service, strict] }
+        locked: { type: boolean }
+        key_version: { type: integer }
+        recovery_key_confirmed: { type: boolean }
+        secrets: { type: integer }
+    SecretMeta:
+      type: object
+      required: [id, class, purpose, created_at, updated_at]
+      properties:
+        id: { type: string }
+        class: { type: string, enum: [service, admin] }
+        purpose: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    SecretList:
+      type: object
+      required: [secrets]
+      properties:
+        secrets: { type: array, items: { $ref: "#/components/schemas/SecretMeta" } }
+    RevealedSecret:
+      type: object
+      required: [id, value]
+      properties:
+        id: { type: string }
+        value: { type: string }
+    AuditEvent:
+      type: object
+      required: [id, at, actor, action, target, outcome, ip, detail]
+      properties:
+        id: { type: string }
+        at: { type: string, format: date-time }
+        actor: { type: string }
+        action: { type: string }
+        target: { type: string }
+        outcome: { type: string, enum: [success, failure, denied] }
+        ip: { type: string }
+        detail: { type: object, additionalProperties: true }
+    AuditPage:
+      type: object
+      required: [events]
+      properties:
+        events: { type: array, items: { $ref: "#/components/schemas/AuditEvent" } }
+        next_cursor: { type: string }
+    JobRun:
+      type: object
+      required: [id, started_at, status, summary, error]
+      properties:
+        id: { type: string }
+        started_at: { type: string, format: date-time }
+        finished_at: { type: string, format: date-time }
+        status: { type: string, enum: [running, succeeded, failed, interrupted] }
+        duration_ms: { type: integer, format: int64 }
+        summary: { type: string }
+        error: { type: string }
+    Job:
+      type: object
+      required: [kind, interval_seconds, enabled, next_run_at]
+      properties:
+        kind: { type: string }
+        interval_seconds: { type: integer, format: int64 }
+        enabled: { type: boolean }
+        next_run_at: { type: string, format: date-time }
+        last_run: { $ref: "#/components/schemas/JobRun" }
+    JobList:
+      type: object
+      required: [jobs]
+      properties:
+        jobs: { type: array, items: { $ref: "#/components/schemas/Job" } }
+    LogLine:
+      type: object
+      required: [seq, line]
+      properties:
+        seq: { type: integer, format: int64 }
+        line: { type: object, additionalProperties: true, description: One JSON log record (time, level, msg, attributes) }
+    LogPage:
+      type: object
+      required: [lines, last_seq]
+      properties:
+        lines: { type: array, items: { $ref: "#/components/schemas/LogLine" } }
+        last_seq: { type: integer, format: int64 }
     Health:
       type: object
       required: [status]

@@ -9,9 +9,55 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"time"
+
+	"github.com/oapi-codegen/runtime"
 )
+
+// Defines values for AuditEventOutcome.
+const (
+	Denied  AuditEventOutcome = "denied"
+	Failure AuditEventOutcome = "failure"
+	Success AuditEventOutcome = "success"
+)
+
+// Valid indicates whether the value is a known member of the AuditEventOutcome enum.
+func (e AuditEventOutcome) Valid() bool {
+	switch e {
+	case Denied:
+		return true
+	case Failure:
+		return true
+	case Success:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AuthSessionMethod.
+const (
+	AuthSessionMethodBootstrap AuthSessionMethod = "bootstrap"
+	AuthSessionMethodPasskey   AuthSessionMethod = "passkey"
+	AuthSessionMethodRecovery  AuthSessionMethod = "recovery"
+)
+
+// Valid indicates whether the value is a known member of the AuthSessionMethod enum.
+func (e AuthSessionMethod) Valid() bool {
+	switch e {
+	case AuthSessionMethodBootstrap:
+		return true
+	case AuthSessionMethodPasskey:
+		return true
+	case AuthSessionMethodRecovery:
+		return true
+	default:
+		return false
+	}
+}
 
 // Defines values for HealthStatus.
 const (
@@ -31,6 +77,190 @@ func (e HealthStatus) Valid() bool {
 	}
 }
 
+// Defines values for JobRunStatus.
+const (
+	JobRunStatusFailed      JobRunStatus = "failed"
+	JobRunStatusInterrupted JobRunStatus = "interrupted"
+	JobRunStatusRunning     JobRunStatus = "running"
+	JobRunStatusSucceeded   JobRunStatus = "succeeded"
+)
+
+// Valid indicates whether the value is a known member of the JobRunStatus enum.
+func (e JobRunStatus) Valid() bool {
+	switch e {
+	case JobRunStatusFailed:
+		return true
+	case JobRunStatusInterrupted:
+		return true
+	case JobRunStatusRunning:
+		return true
+	case JobRunStatusSucceeded:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SecretMetaClass.
+const (
+	SecretMetaClassAdmin   SecretMetaClass = "admin"
+	SecretMetaClassService SecretMetaClass = "service"
+)
+
+// Valid indicates whether the value is a known member of the SecretMetaClass enum.
+func (e SecretMetaClass) Valid() bool {
+	switch e {
+	case SecretMetaClassAdmin:
+		return true
+	case SecretMetaClassService:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SetupStepStatus.
+const (
+	SetupStepStatusDone       SetupStepStatus = "done"
+	SetupStepStatusFailed     SetupStepStatus = "failed"
+	SetupStepStatusInProgress SetupStepStatus = "in_progress"
+	SetupStepStatusPending    SetupStepStatus = "pending"
+)
+
+// Valid indicates whether the value is a known member of the SetupStepStatus enum.
+func (e SetupStepStatus) Valid() bool {
+	switch e {
+	case SetupStepStatusDone:
+		return true
+	case SetupStepStatusFailed:
+		return true
+	case SetupStepStatusInProgress:
+		return true
+	case SetupStepStatusPending:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for VaultStateMode.
+const (
+	VaultStateModeService VaultStateMode = "service"
+	VaultStateModeStrict  VaultStateMode = "strict"
+)
+
+// Valid indicates whether the value is a known member of the VaultStateMode enum.
+func (e VaultStateMode) Valid() bool {
+	switch e {
+	case VaultStateModeService:
+		return true
+	case VaultStateModeStrict:
+		return true
+	default:
+		return false
+	}
+}
+
+// AllSettings defines model for AllSettings.
+type AllSettings struct {
+	Appearance AppearanceSettings `json:"appearance"`
+	General    GeneralSettings    `json:"general"`
+	Security   SecuritySettings   `json:"security"`
+}
+
+// AppearanceSettings defines model for AppearanceSettings.
+type AppearanceSettings struct {
+	PublicDashboardEnabled bool   `json:"public_dashboard_enabled"`
+	PublicStatusEnabled    bool   `json:"public_status_enabled"`
+	Theme                  string `json:"theme"`
+}
+
+// AuditEvent defines model for AuditEvent.
+type AuditEvent struct {
+	Action  string                 `json:"action"`
+	Actor   string                 `json:"actor"`
+	At      time.Time              `json:"at"`
+	Detail  map[string]interface{} `json:"detail"`
+	Id      string                 `json:"id"`
+	Ip      string                 `json:"ip"`
+	Outcome AuditEventOutcome      `json:"outcome"`
+	Target  string                 `json:"target"`
+}
+
+// AuditEventOutcome defines model for AuditEvent.Outcome.
+type AuditEventOutcome string
+
+// AuditPage defines model for AuditPage.
+type AuditPage struct {
+	Events     []AuditEvent `json:"events"`
+	NextCursor *string      `json:"next_cursor,omitempty"`
+}
+
+// AuthSession defines model for AuthSession.
+type AuthSession struct {
+	AbsoluteExpiresAt *time.Time `json:"absolute_expires_at,omitempty"`
+	Authenticated     bool       `json:"authenticated"`
+	BoundIp           *string    `json:"bound_ip,omitempty"`
+	CreatedAt         *time.Time `json:"created_at,omitempty"`
+	CsrfToken         *string    `json:"csrf_token,omitempty"`
+
+	// Id Correlation ID (salted hash prefix)
+	Id               *string            `json:"id,omitempty"`
+	IdleExpiresAt    *time.Time         `json:"idle_expires_at,omitempty"`
+	Method           *AuthSessionMethod `json:"method,omitempty"`
+	ReauthValidUntil *time.Time         `json:"reauth_valid_until,omitempty"`
+	Scopes           *[]string          `json:"scopes,omitempty"`
+	SetupCompleted   bool               `json:"setup_completed"`
+}
+
+// AuthSessionMethod defines model for AuthSession.Method.
+type AuthSessionMethod string
+
+// BaseSettings defines model for BaseSettings.
+type BaseSettings struct {
+	AdminDomain            string `json:"admin_domain"`
+	InternalUrl            string `json:"internal_url"`
+	PublicDashboardEnabled bool   `json:"public_dashboard_enabled"`
+	PublicStatusEnabled    bool   `json:"public_status_enabled"`
+	RootDomain             string `json:"root_domain"`
+	SyncIntervalSeconds    int    `json:"sync_interval_seconds"`
+	Theme                  string `json:"theme"`
+}
+
+// BootstrapLogin defines model for BootstrapLogin.
+type BootstrapLogin struct {
+	Password string `json:"password"`
+	Username string `json:"username"`
+}
+
+// CeremonyOptions defines model for CeremonyOptions.
+type CeremonyOptions struct {
+	CeremonyId string `json:"ceremony_id"`
+
+	// Options WebAuthn options as produced by the server library (`{publicKey: …}`)
+	Options map[string]interface{} `json:"options"`
+}
+
+// CeremonyResponse defines model for CeremonyResponse.
+type CeremonyResponse struct {
+	CeremonyId string `json:"ceremony_id"`
+
+	// Credential The PublicKeyCredential serialized with `toJSON()`
+	Credential map[string]interface{} `json:"credential"`
+
+	// Name Passkey name (registration only)
+	Name *string `json:"name,omitempty"`
+}
+
+// GeneralSettings defines model for GeneralSettings.
+type GeneralSettings struct {
+	AdminDomain         string   `json:"admin_domain"`
+	InternalUrl         string   `json:"internal_url"`
+	RootDomain          string   `json:"root_domain"`
+	SyncIntervalSeconds int      `json:"sync_interval_seconds"`
+	TrustedProxies      []string `json:"trusted_proxies"`
+}
+
 // Health defines model for Health.
 type Health struct {
 	// Checks Per dependency `ok` or the failure reason.
@@ -41,6 +271,182 @@ type Health struct {
 // HealthStatus defines model for Health.Status.
 type HealthStatus string
 
+// Job defines model for Job.
+type Job struct {
+	Enabled         bool      `json:"enabled"`
+	IntervalSeconds int64     `json:"interval_seconds"`
+	Kind            string    `json:"kind"`
+	LastRun         *JobRun   `json:"last_run,omitempty"`
+	NextRunAt       time.Time `json:"next_run_at"`
+}
+
+// JobList defines model for JobList.
+type JobList struct {
+	Jobs []Job `json:"jobs"`
+}
+
+// JobRun defines model for JobRun.
+type JobRun struct {
+	DurationMs *int64       `json:"duration_ms,omitempty"`
+	Error      string       `json:"error"`
+	FinishedAt *time.Time   `json:"finished_at,omitempty"`
+	Id         string       `json:"id"`
+	StartedAt  time.Time    `json:"started_at"`
+	Status     JobRunStatus `json:"status"`
+	Summary    string       `json:"summary"`
+}
+
+// JobRunStatus defines model for JobRun.Status.
+type JobRunStatus string
+
+// LogLine defines model for LogLine.
+type LogLine struct {
+	// Line One JSON log record (time
+	Line map[string]interface{} `json:"line"`
+	Seq  int64                  `json:"seq"`
+}
+
+// LogPage defines model for LogPage.
+type LogPage struct {
+	LastSeq int64     `json:"last_seq"`
+	Lines   []LogLine `json:"lines"`
+}
+
+// Passkey defines model for Passkey.
+type Passkey struct {
+	CreatedAt time.Time `json:"created_at"`
+	Id        string    `json:"id"`
+
+	// Label Authenticator model (AAGUID-derived)
+	Label      string     `json:"label"`
+	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
+	Name       string     `json:"name"`
+}
+
+// PasskeyList defines model for PasskeyList.
+type PasskeyList struct {
+	Passkeys []Passkey `json:"passkeys"`
+}
+
+// PasskeyRename defines model for PasskeyRename.
+type PasskeyRename struct {
+	Name string `json:"name"`
+}
+
+// Problem defines model for Problem.
+type Problem struct {
+	Detail *string `json:"detail,omitempty"`
+	Status int     `json:"status"`
+	Title  string  `json:"title"`
+
+	// Type Stable URI per error kind, e.g. `/problems/reauth-required`
+	Type string `json:"type"`
+}
+
+// RecoverLogin defines model for RecoverLogin.
+type RecoverLogin struct {
+	Token string `json:"token"`
+}
+
+// RecoveryKey defines model for RecoveryKey.
+type RecoveryKey struct {
+	// RecoveryKey 14 groups of 4; the last group is the checksum
+	RecoveryKey string `json:"recovery_key"`
+}
+
+// RecoveryKeyConfirm defines model for RecoveryKeyConfirm.
+type RecoveryKeyConfirm struct {
+	Checksum string `json:"checksum"`
+}
+
+// RevealedSecret defines model for RevealedSecret.
+type RevealedSecret struct {
+	Id    string `json:"id"`
+	Value string `json:"value"`
+}
+
+// RevokedCount defines model for RevokedCount.
+type RevokedCount struct {
+	Revoked int `json:"revoked"`
+}
+
+// SecretList defines model for SecretList.
+type SecretList struct {
+	Secrets []SecretMeta `json:"secrets"`
+}
+
+// SecretMeta defines model for SecretMeta.
+type SecretMeta struct {
+	Class     SecretMetaClass `json:"class"`
+	CreatedAt time.Time       `json:"created_at"`
+	Id        string          `json:"id"`
+	Purpose   string          `json:"purpose"`
+	UpdatedAt time.Time       `json:"updated_at"`
+}
+
+// SecretMetaClass defines model for SecretMeta.Class.
+type SecretMetaClass string
+
+// SecuritySettings defines model for SecuritySettings.
+type SecuritySettings struct {
+	AdminIdleTimeoutMinutes int      `json:"admin_idle_timeout_minutes"`
+	BootstrapAllowedCidrs   []string `json:"bootstrap_allowed_cidrs"`
+}
+
+// SessionInfo defines model for SessionInfo.
+type SessionInfo struct {
+	AbsoluteExpiresAt time.Time `json:"absolute_expires_at"`
+	BoundIp           string    `json:"bound_ip"`
+	CreatedAt         time.Time `json:"created_at"`
+	Current           bool      `json:"current"`
+	Id                string    `json:"id"`
+	LastSeenAt        time.Time `json:"last_seen_at"`
+	Method            string    `json:"method"`
+}
+
+// SessionList defines model for SessionList.
+type SessionList struct {
+	Sessions []SessionInfo `json:"sessions"`
+}
+
+// SetupState defines model for SetupState.
+type SetupState struct {
+	BaseSettings *BaseSettings `json:"base_settings,omitempty"`
+	Completed    bool          `json:"completed"`
+
+	// Passkeys Registered passkeys (setup sessions only)
+	Passkeys *int        `json:"passkeys,omitempty"`
+	Steps    []SetupStep `json:"steps"`
+}
+
+// SetupStep defines model for SetupStep.
+type SetupStep struct {
+	// Built false = arrives in a later slice
+	Built     bool            `json:"built"`
+	Key       string          `json:"key"`
+	LastError string          `json:"last_error"`
+	N         int             `json:"n"`
+	Required  bool            `json:"required"`
+	Slice     string          `json:"slice"`
+	Status    SetupStepStatus `json:"status"`
+	Title     string          `json:"title"`
+}
+
+// SetupStepStatus defines model for SetupStep.Status.
+type SetupStepStatus string
+
+// VaultState defines model for VaultState.
+type VaultState struct {
+	KeyVersion           int            `json:"key_version"`
+	Locked               bool           `json:"locked"`
+	Mode                 VaultStateMode `json:"mode"`
+	RecoveryKeyConfirmed bool           `json:"recovery_key_confirmed"`
+	Secrets              int            `json:"secrets"`
+}
+
+// VaultStateMode defines model for VaultState.Mode.
+type VaultStateMode string
+
 // Version defines model for Version.
 type Version struct {
 	Commit string `json:"commit"`
@@ -49,8 +455,172 @@ type Version struct {
 	Version string `json:"version"`
 }
 
+// ListAuditEventsParams defines parameters for ListAuditEvents.
+type ListAuditEventsParams struct {
+	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Limit  *int    `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ListLogLinesParams defines parameters for ListLogLines.
+type ListLogLinesParams struct {
+	After *int64 `form:"after,omitempty" json:"after,omitempty"`
+}
+
+// BootstrapLoginJSONRequestBody defines body for BootstrapLogin for application/json ContentType.
+type BootstrapLoginJSONRequestBody = BootstrapLogin
+
+// PasskeyLoginVerifyJSONRequestBody defines body for PasskeyLoginVerify for application/json ContentType.
+type PasskeyLoginVerifyJSONRequestBody = CeremonyResponse
+
+// PasskeyRegisterVerifyJSONRequestBody defines body for PasskeyRegisterVerify for application/json ContentType.
+type PasskeyRegisterVerifyJSONRequestBody = CeremonyResponse
+
+// RenamePasskeyJSONRequestBody defines body for RenamePasskey for application/json ContentType.
+type RenamePasskeyJSONRequestBody = PasskeyRename
+
+// ReauthJSONRequestBody defines body for Reauth for application/json ContentType.
+type ReauthJSONRequestBody = CeremonyResponse
+
+// RecoverLoginJSONRequestBody defines body for RecoverLogin for application/json ContentType.
+type RecoverLoginJSONRequestBody = RecoverLogin
+
+// RecoverPasskeyVerifyJSONRequestBody defines body for RecoverPasskeyVerify for application/json ContentType.
+type RecoverPasskeyVerifyJSONRequestBody = CeremonyResponse
+
+// PutAppearanceSettingsJSONRequestBody defines body for PutAppearanceSettings for application/json ContentType.
+type PutAppearanceSettingsJSONRequestBody = AppearanceSettings
+
+// PutGeneralSettingsJSONRequestBody defines body for PutGeneralSettings for application/json ContentType.
+type PutGeneralSettingsJSONRequestBody = GeneralSettings
+
+// PutSecuritySettingsJSONRequestBody defines body for PutSecuritySettings for application/json ContentType.
+type PutSecuritySettingsJSONRequestBody = SecuritySettings
+
+// PutSetupBaseSettingsJSONRequestBody defines body for PutSetupBaseSettings for application/json ContentType.
+type PutSetupBaseSettingsJSONRequestBody = BaseSettings
+
+// SetupPasskeyVerifyJSONRequestBody defines body for SetupPasskeyVerify for application/json ContentType.
+type SetupPasskeyVerifyJSONRequestBody = CeremonyResponse
+
+// ConfirmRecoveryKeyJSONRequestBody defines body for ConfirmRecoveryKey for application/json ContentType.
+type ConfirmRecoveryKeyJSONRequestBody = RecoveryKeyConfirm
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// ListAuditEvents Audit log, newest first
+	// (GET /api/activity/audit)
+	ListAuditEvents(w http.ResponseWriter, r *http.Request, params ListAuditEventsParams)
+	// ListJobs Background jobs with last and next run (invariant 15)
+	// (GET /api/activity/jobs)
+	ListJobs(w http.ResponseWriter, r *http.Request)
+	// ListLogLines Recent log lines (already redacted), after a sequence number
+	// (GET /api/activity/logs)
+	ListLogLines(w http.ResponseWriter, r *http.Request, params ListLogLinesParams)
+	// BootstrapLogin Sign in with the one-time bootstrap credentials (private networks only, before setup completes)
+	// (POST /api/auth/bootstrap/login)
+	BootstrapLogin(w http.ResponseWriter, r *http.Request)
+	// Logout Revoke the current session, then clear the cookie
+	// (POST /api/auth/logout)
+	Logout(w http.ResponseWriter, r *http.Request)
+	// ListPasskeys Registered passkeys
+	// (GET /api/auth/passkeys)
+	ListPasskeys(w http.ResponseWriter, r *http.Request)
+	// PasskeyLoginOptions Start a passkey sign-in
+	// (POST /api/auth/passkeys/login/options)
+	PasskeyLoginOptions(w http.ResponseWriter, r *http.Request)
+	// PasskeyLoginVerify Finish a passkey sign-in; issues a session bound to this IP
+	// (POST /api/auth/passkeys/login/verify)
+	PasskeyLoginVerify(w http.ResponseWriter, r *http.Request)
+	// PasskeyRegisterOptions Start adding another passkey
+	// (POST /api/auth/passkeys/register/options)
+	PasskeyRegisterOptions(w http.ResponseWriter, r *http.Request)
+	// PasskeyRegisterVerify Finish adding another passkey
+	// (POST /api/auth/passkeys/register/verify)
+	PasskeyRegisterVerify(w http.ResponseWriter, r *http.Request)
+	// DeletePasskey Delete a passkey (never the last one); revokes sessions signed in with it
+	// (DELETE /api/auth/passkeys/{id})
+	DeletePasskey(w http.ResponseWriter, r *http.Request, id string)
+	// RenamePasskey Rename a passkey
+	// (PATCH /api/auth/passkeys/{id})
+	RenamePasskey(w http.ResponseWriter, r *http.Request, id string)
+	// Reauth Finish a passkey reauthentication (valid five minutes)
+	// (POST /api/auth/reauth)
+	Reauth(w http.ResponseWriter, r *http.Request)
+	// ReauthOptions Start a passkey reauthentication
+	// (POST /api/auth/reauth/options)
+	ReauthOptions(w http.ResponseWriter, r *http.Request)
+	// RecoverLogin Open a recovery session from a `hashi admin recover` link (private networks, once, 15 minutes)
+	// (POST /api/auth/recover)
+	RecoverLogin(w http.ResponseWriter, r *http.Request)
+	// RecoverPasskeyOptions Start registering a replacement passkey
+	// (POST /api/auth/recover/passkey/options)
+	RecoverPasskeyOptions(w http.ResponseWriter, r *http.Request)
+	// RecoverPasskeyVerify Finish registering the replacement passkey; ends the recovery session
+	// (POST /api/auth/recover/passkey/verify)
+	RecoverPasskeyVerify(w http.ResponseWriter, r *http.Request)
+	// GetAuthSession Current session (or none), setup state flag and the CSRF token
+	// (GET /api/auth/session)
+	GetAuthSession(w http.ResponseWriter, r *http.Request)
+	// ListSessions Active admin sessions
+	// (GET /api/auth/sessions)
+	ListSessions(w http.ResponseWriter, r *http.Request)
+	// RevokeOtherSessions Revoke every session except the current one
+	// (POST /api/auth/sessions/revoke-others)
+	RevokeOtherSessions(w http.ResponseWriter, r *http.Request)
+	// RevokeSession Revoke one session by its correlation ID
+	// (DELETE /api/auth/sessions/{id})
+	RevokeSession(w http.ResponseWriter, r *http.Request, id string)
+	// GetSettings All settings categories
+	// (GET /api/settings)
+	GetSettings(w http.ResponseWriter, r *http.Request)
+
+	// (GET /api/settings/appearance)
+	GetAppearanceSettings(w http.ResponseWriter, r *http.Request)
+
+	// (PUT /api/settings/appearance)
+	PutAppearanceSettings(w http.ResponseWriter, r *http.Request)
+
+	// (GET /api/settings/general)
+	GetGeneralSettings(w http.ResponseWriter, r *http.Request)
+	// PutGeneralSettings Save general settings; changing trusted proxies needs a recent passkey reauthentication
+	// (PUT /api/settings/general)
+	PutGeneralSettings(w http.ResponseWriter, r *http.Request)
+
+	// (GET /api/settings/security)
+	GetSecuritySettings(w http.ResponseWriter, r *http.Request)
+
+	// (PUT /api/settings/security)
+	PutSecuritySettings(w http.ResponseWriter, r *http.Request)
+	// GetSetup Setup steps and their state
+	// (GET /api/setup)
+	GetSetup(w http.ResponseWriter, r *http.Request)
+	// PutSetupBaseSettings Step 2 — save and validate the base settings
+	// (PUT /api/setup/base-settings)
+	PutSetupBaseSettings(w http.ResponseWriter, r *http.Request)
+	// CompleteSetup Step 11 — finish setup; destroys the bootstrap credentials and signs out bootstrap sessions
+	// (POST /api/setup/complete)
+	CompleteSetup(w http.ResponseWriter, r *http.Request)
+	// SetupPasskeyOptions Step 9 — start registering the first passkey
+	// (POST /api/setup/passkey/options)
+	SetupPasskeyOptions(w http.ResponseWriter, r *http.Request)
+	// SetupPasskeyVerify Step 9 — finish registering the first passkey
+	// (POST /api/setup/passkey/verify)
+	SetupPasskeyVerify(w http.ResponseWriter, r *http.Request)
+	// SetupRecoveryKey Step 9 — generate the recovery key (shown once)
+	// (POST /api/setup/recovery-key)
+	SetupRecoveryKey(w http.ResponseWriter, r *http.Request)
+	// ConfirmRecoveryKey Step 9 — confirm the recovery key by re-entering its last group; runs a test unlock
+	// (POST /api/setup/recovery-key/confirm)
+	ConfirmRecoveryKey(w http.ResponseWriter, r *http.Request)
+	// GetVault Vault mode and state
+	// (GET /api/vault)
+	GetVault(w http.ResponseWriter, r *http.Request)
+	// ListSecrets Stored secrets (metadata only, never values)
+	// (GET /api/vault/secrets)
+	ListSecrets(w http.ResponseWriter, r *http.Request)
+	// RevealSecret Reveal one secret value (audited)
+	// (POST /api/vault/secrets/{id}/reveal)
+	RevealSecret(w http.ResponseWriter, r *http.Request, id string)
 	// GetVersion Build version of the running binary
 	// (GET /api/version)
 	GetVersion(w http.ResponseWriter, r *http.Request)
@@ -70,6 +640,637 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// ListAuditEvents operation middleware
+func (siw *ServerInterfaceWrapper) ListAuditEvents(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAuditEventsParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAuditEvents(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListJobs operation middleware
+func (siw *ServerInterfaceWrapper) ListJobs(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListJobs(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListLogLines operation middleware
+func (siw *ServerInterfaceWrapper) ListLogLines(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListLogLinesParams
+
+	// ------------- Optional query parameter "after" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "after", r.URL.Query(), &params.After, runtime.BindQueryParameterOptions{Type: "integer", Format: "int64"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "after"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "after", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListLogLines(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// BootstrapLogin operation middleware
+func (siw *ServerInterfaceWrapper) BootstrapLogin(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.BootstrapLogin(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// Logout operation middleware
+func (siw *ServerInterfaceWrapper) Logout(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Logout(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListPasskeys operation middleware
+func (siw *ServerInterfaceWrapper) ListPasskeys(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPasskeys(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PasskeyLoginOptions operation middleware
+func (siw *ServerInterfaceWrapper) PasskeyLoginOptions(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PasskeyLoginOptions(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PasskeyLoginVerify operation middleware
+func (siw *ServerInterfaceWrapper) PasskeyLoginVerify(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PasskeyLoginVerify(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PasskeyRegisterOptions operation middleware
+func (siw *ServerInterfaceWrapper) PasskeyRegisterOptions(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PasskeyRegisterOptions(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PasskeyRegisterVerify operation middleware
+func (siw *ServerInterfaceWrapper) PasskeyRegisterVerify(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PasskeyRegisterVerify(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeletePasskey operation middleware
+func (siw *ServerInterfaceWrapper) DeletePasskey(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeletePasskey(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RenamePasskey operation middleware
+func (siw *ServerInterfaceWrapper) RenamePasskey(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RenamePasskey(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// Reauth operation middleware
+func (siw *ServerInterfaceWrapper) Reauth(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Reauth(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReauthOptions operation middleware
+func (siw *ServerInterfaceWrapper) ReauthOptions(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReauthOptions(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RecoverLogin operation middleware
+func (siw *ServerInterfaceWrapper) RecoverLogin(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RecoverLogin(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RecoverPasskeyOptions operation middleware
+func (siw *ServerInterfaceWrapper) RecoverPasskeyOptions(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RecoverPasskeyOptions(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RecoverPasskeyVerify operation middleware
+func (siw *ServerInterfaceWrapper) RecoverPasskeyVerify(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RecoverPasskeyVerify(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAuthSession operation middleware
+func (siw *ServerInterfaceWrapper) GetAuthSession(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAuthSession(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListSessions operation middleware
+func (siw *ServerInterfaceWrapper) ListSessions(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSessions(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RevokeOtherSessions operation middleware
+func (siw *ServerInterfaceWrapper) RevokeOtherSessions(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RevokeOtherSessions(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RevokeSession operation middleware
+func (siw *ServerInterfaceWrapper) RevokeSession(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RevokeSession(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSettings operation middleware
+func (siw *ServerInterfaceWrapper) GetSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAppearanceSettings operation middleware
+func (siw *ServerInterfaceWrapper) GetAppearanceSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAppearanceSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutAppearanceSettings operation middleware
+func (siw *ServerInterfaceWrapper) PutAppearanceSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutAppearanceSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetGeneralSettings operation middleware
+func (siw *ServerInterfaceWrapper) GetGeneralSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetGeneralSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutGeneralSettings operation middleware
+func (siw *ServerInterfaceWrapper) PutGeneralSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutGeneralSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSecuritySettings operation middleware
+func (siw *ServerInterfaceWrapper) GetSecuritySettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSecuritySettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutSecuritySettings operation middleware
+func (siw *ServerInterfaceWrapper) PutSecuritySettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutSecuritySettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSetup operation middleware
+func (siw *ServerInterfaceWrapper) GetSetup(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSetup(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutSetupBaseSettings operation middleware
+func (siw *ServerInterfaceWrapper) PutSetupBaseSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutSetupBaseSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CompleteSetup operation middleware
+func (siw *ServerInterfaceWrapper) CompleteSetup(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CompleteSetup(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetupPasskeyOptions operation middleware
+func (siw *ServerInterfaceWrapper) SetupPasskeyOptions(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetupPasskeyOptions(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetupPasskeyVerify operation middleware
+func (siw *ServerInterfaceWrapper) SetupPasskeyVerify(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetupPasskeyVerify(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetupRecoveryKey operation middleware
+func (siw *ServerInterfaceWrapper) SetupRecoveryKey(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetupRecoveryKey(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConfirmRecoveryKey operation middleware
+func (siw *ServerInterfaceWrapper) ConfirmRecoveryKey(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfirmRecoveryKey(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetVault operation middleware
+func (siw *ServerInterfaceWrapper) GetVault(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetVault(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListSecrets operation middleware
+func (siw *ServerInterfaceWrapper) ListSecrets(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSecrets(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RevealSecret operation middleware
+func (siw *ServerInterfaceWrapper) RevealSecret(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RevealSecret(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // GetVersion operation middleware
 func (siw *ServerInterfaceWrapper) GetVersion(w http.ResponseWriter, r *http.Request) {
@@ -236,8 +1437,1541 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/healthz", wrapper.GetHealthz)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/readyz", wrapper.GetReadyz)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/version", wrapper.GetVersion)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/auth/session", wrapper.GetAuthSession)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/auth/bootstrap/login", wrapper.BootstrapLogin)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/auth/logout", wrapper.Logout)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/auth/sessions", wrapper.ListSessions)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/auth/sessions/{id}", wrapper.RevokeSession)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/auth/sessions/revoke-others", wrapper.RevokeOtherSessions)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/auth/reauth/options", wrapper.ReauthOptions)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/auth/reauth", wrapper.Reauth)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/auth/passkeys", wrapper.ListPasskeys)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/auth/passkeys/register/options", wrapper.PasskeyRegisterOptions)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/auth/passkeys/register/verify", wrapper.PasskeyRegisterVerify)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/auth/passkeys/login/options", wrapper.PasskeyLoginOptions)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/auth/passkeys/login/verify", wrapper.PasskeyLoginVerify)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/auth/passkeys/{id}", wrapper.DeletePasskey)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/auth/passkeys/{id}", wrapper.RenamePasskey)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/auth/recover", wrapper.RecoverLogin)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/auth/recover/passkey/options", wrapper.RecoverPasskeyOptions)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/auth/recover/passkey/verify", wrapper.RecoverPasskeyVerify)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/setup", wrapper.GetSetup)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/setup/base-settings", wrapper.PutSetupBaseSettings)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/passkey/options", wrapper.SetupPasskeyOptions)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/passkey/verify", wrapper.SetupPasskeyVerify)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/recovery-key", wrapper.SetupRecoveryKey)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/recovery-key/confirm", wrapper.ConfirmRecoveryKey)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/complete", wrapper.CompleteSetup)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings", wrapper.GetSettings)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings/general", wrapper.GetGeneralSettings)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/settings/general", wrapper.PutGeneralSettings)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings/security", wrapper.GetSecuritySettings)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/settings/security", wrapper.PutSecuritySettings)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings/appearance", wrapper.GetAppearanceSettings)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/settings/appearance", wrapper.PutAppearanceSettings)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/vault", wrapper.GetVault)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/vault/secrets", wrapper.ListSecrets)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/vault/secrets/{id}/reveal", wrapper.RevealSecret)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/activity/audit", wrapper.ListAuditEvents)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/activity/jobs", wrapper.ListJobs)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/activity/logs", wrapper.ListLogLines)
 
 	return m
+}
+
+type ProblemApplicationProblemPlusJSONResponse Problem
+
+type ListAuditEventsRequestObject struct {
+	Params ListAuditEventsParams
+}
+
+type ListAuditEventsResponseObject interface {
+	VisitListAuditEventsResponse(w http.ResponseWriter) error
+}
+
+type ListAuditEvents200JSONResponse AuditPage
+
+func (response ListAuditEvents200JSONResponse) VisitListAuditEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAuditEventsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ListAuditEventsdefaultApplicationProblemPlusJSONResponse) VisitListAuditEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListJobsRequestObject struct {
+}
+
+type ListJobsResponseObject interface {
+	VisitListJobsResponse(w http.ResponseWriter) error
+}
+
+type ListJobs200JSONResponse JobList
+
+func (response ListJobs200JSONResponse) VisitListJobsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListJobsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ListJobsdefaultApplicationProblemPlusJSONResponse) VisitListJobsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListLogLinesRequestObject struct {
+	Params ListLogLinesParams
+}
+
+type ListLogLinesResponseObject interface {
+	VisitListLogLinesResponse(w http.ResponseWriter) error
+}
+
+type ListLogLines200JSONResponse LogPage
+
+func (response ListLogLines200JSONResponse) VisitListLogLinesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListLogLinesdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ListLogLinesdefaultApplicationProblemPlusJSONResponse) VisitListLogLinesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type BootstrapLoginRequestObject struct {
+	Body *BootstrapLoginJSONRequestBody
+}
+
+type BootstrapLoginResponseObject interface {
+	VisitBootstrapLoginResponse(w http.ResponseWriter) error
+}
+
+type BootstrapLogin200ResponseHeaders struct {
+	SetCookie *string
+}
+
+type BootstrapLogin200JSONResponse struct {
+	Body    AuthSession
+	Headers BootstrapLogin200ResponseHeaders
+}
+
+func (response BootstrapLogin200JSONResponse) VisitBootstrapLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type BootstrapLogindefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response BootstrapLogindefaultApplicationProblemPlusJSONResponse) VisitBootstrapLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LogoutRequestObject struct {
+}
+
+type LogoutResponseObject interface {
+	VisitLogoutResponse(w http.ResponseWriter) error
+}
+
+type Logout204ResponseHeaders struct {
+	SetCookie *string
+}
+
+type Logout204Response struct {
+	Headers Logout204ResponseHeaders
+}
+
+func (response Logout204Response) VisitLogoutResponse(w http.ResponseWriter) error {
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
+	w.WriteHeader(204)
+	return nil
+}
+
+type LogoutdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response LogoutdefaultApplicationProblemPlusJSONResponse) VisitLogoutResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPasskeysRequestObject struct {
+}
+
+type ListPasskeysResponseObject interface {
+	VisitListPasskeysResponse(w http.ResponseWriter) error
+}
+
+type ListPasskeys200JSONResponse PasskeyList
+
+func (response ListPasskeys200JSONResponse) VisitListPasskeysResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPasskeysdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ListPasskeysdefaultApplicationProblemPlusJSONResponse) VisitListPasskeysResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PasskeyLoginOptionsRequestObject struct {
+}
+
+type PasskeyLoginOptionsResponseObject interface {
+	VisitPasskeyLoginOptionsResponse(w http.ResponseWriter) error
+}
+
+type PasskeyLoginOptions200JSONResponse CeremonyOptions
+
+func (response PasskeyLoginOptions200JSONResponse) VisitPasskeyLoginOptionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PasskeyLoginOptionsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PasskeyLoginOptionsdefaultApplicationProblemPlusJSONResponse) VisitPasskeyLoginOptionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PasskeyLoginVerifyRequestObject struct {
+	Body *PasskeyLoginVerifyJSONRequestBody
+}
+
+type PasskeyLoginVerifyResponseObject interface {
+	VisitPasskeyLoginVerifyResponse(w http.ResponseWriter) error
+}
+
+type PasskeyLoginVerify200ResponseHeaders struct {
+	SetCookie *string
+}
+
+type PasskeyLoginVerify200JSONResponse struct {
+	Body    AuthSession
+	Headers PasskeyLoginVerify200ResponseHeaders
+}
+
+func (response PasskeyLoginVerify200JSONResponse) VisitPasskeyLoginVerifyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PasskeyLoginVerifydefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PasskeyLoginVerifydefaultApplicationProblemPlusJSONResponse) VisitPasskeyLoginVerifyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PasskeyRegisterOptionsRequestObject struct {
+}
+
+type PasskeyRegisterOptionsResponseObject interface {
+	VisitPasskeyRegisterOptionsResponse(w http.ResponseWriter) error
+}
+
+type PasskeyRegisterOptions200JSONResponse CeremonyOptions
+
+func (response PasskeyRegisterOptions200JSONResponse) VisitPasskeyRegisterOptionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PasskeyRegisterOptionsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PasskeyRegisterOptionsdefaultApplicationProblemPlusJSONResponse) VisitPasskeyRegisterOptionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PasskeyRegisterVerifyRequestObject struct {
+	Body *PasskeyRegisterVerifyJSONRequestBody
+}
+
+type PasskeyRegisterVerifyResponseObject interface {
+	VisitPasskeyRegisterVerifyResponse(w http.ResponseWriter) error
+}
+
+type PasskeyRegisterVerify200JSONResponse Passkey
+
+func (response PasskeyRegisterVerify200JSONResponse) VisitPasskeyRegisterVerifyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PasskeyRegisterVerifydefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PasskeyRegisterVerifydefaultApplicationProblemPlusJSONResponse) VisitPasskeyRegisterVerifyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeletePasskeyRequestObject struct {
+	Id string `json:"id"`
+}
+
+type DeletePasskeyResponseObject interface {
+	VisitDeletePasskeyResponse(w http.ResponseWriter) error
+}
+
+type DeletePasskey204Response struct {
+}
+
+func (response DeletePasskey204Response) VisitDeletePasskeyResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeletePasskeydefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response DeletePasskeydefaultApplicationProblemPlusJSONResponse) VisitDeletePasskeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RenamePasskeyRequestObject struct {
+	Id   string `json:"id"`
+	Body *RenamePasskeyJSONRequestBody
+}
+
+type RenamePasskeyResponseObject interface {
+	VisitRenamePasskeyResponse(w http.ResponseWriter) error
+}
+
+type RenamePasskey200JSONResponse Passkey
+
+func (response RenamePasskey200JSONResponse) VisitRenamePasskeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RenamePasskeydefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response RenamePasskeydefaultApplicationProblemPlusJSONResponse) VisitRenamePasskeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ReauthRequestObject struct {
+	Body *ReauthJSONRequestBody
+}
+
+type ReauthResponseObject interface {
+	VisitReauthResponse(w http.ResponseWriter) error
+}
+
+type Reauth200JSONResponse AuthSession
+
+func (response Reauth200JSONResponse) VisitReauthResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ReauthdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ReauthdefaultApplicationProblemPlusJSONResponse) VisitReauthResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ReauthOptionsRequestObject struct {
+}
+
+type ReauthOptionsResponseObject interface {
+	VisitReauthOptionsResponse(w http.ResponseWriter) error
+}
+
+type ReauthOptions200JSONResponse CeremonyOptions
+
+func (response ReauthOptions200JSONResponse) VisitReauthOptionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ReauthOptionsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ReauthOptionsdefaultApplicationProblemPlusJSONResponse) VisitReauthOptionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RecoverLoginRequestObject struct {
+	Body *RecoverLoginJSONRequestBody
+}
+
+type RecoverLoginResponseObject interface {
+	VisitRecoverLoginResponse(w http.ResponseWriter) error
+}
+
+type RecoverLogin200ResponseHeaders struct {
+	SetCookie *string
+}
+
+type RecoverLogin200JSONResponse struct {
+	Body    AuthSession
+	Headers RecoverLogin200ResponseHeaders
+}
+
+func (response RecoverLogin200JSONResponse) VisitRecoverLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RecoverLogindefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response RecoverLogindefaultApplicationProblemPlusJSONResponse) VisitRecoverLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RecoverPasskeyOptionsRequestObject struct {
+}
+
+type RecoverPasskeyOptionsResponseObject interface {
+	VisitRecoverPasskeyOptionsResponse(w http.ResponseWriter) error
+}
+
+type RecoverPasskeyOptions200JSONResponse CeremonyOptions
+
+func (response RecoverPasskeyOptions200JSONResponse) VisitRecoverPasskeyOptionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RecoverPasskeyOptionsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response RecoverPasskeyOptionsdefaultApplicationProblemPlusJSONResponse) VisitRecoverPasskeyOptionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RecoverPasskeyVerifyRequestObject struct {
+	Body *RecoverPasskeyVerifyJSONRequestBody
+}
+
+type RecoverPasskeyVerifyResponseObject interface {
+	VisitRecoverPasskeyVerifyResponse(w http.ResponseWriter) error
+}
+
+type RecoverPasskeyVerify200ResponseHeaders struct {
+	SetCookie *string
+}
+
+type RecoverPasskeyVerify200JSONResponse struct {
+	Body    Passkey
+	Headers RecoverPasskeyVerify200ResponseHeaders
+}
+
+func (response RecoverPasskeyVerify200JSONResponse) VisitRecoverPasskeyVerifyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RecoverPasskeyVerifydefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response RecoverPasskeyVerifydefaultApplicationProblemPlusJSONResponse) VisitRecoverPasskeyVerifyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuthSessionRequestObject struct {
+}
+
+type GetAuthSessionResponseObject interface {
+	VisitGetAuthSessionResponse(w http.ResponseWriter) error
+}
+
+type GetAuthSession200JSONResponse AuthSession
+
+func (response GetAuthSession200JSONResponse) VisitGetAuthSessionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAuthSessiondefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetAuthSessiondefaultApplicationProblemPlusJSONResponse) VisitGetAuthSessionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListSessionsRequestObject struct {
+}
+
+type ListSessionsResponseObject interface {
+	VisitListSessionsResponse(w http.ResponseWriter) error
+}
+
+type ListSessions200JSONResponse SessionList
+
+func (response ListSessions200JSONResponse) VisitListSessionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListSessionsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ListSessionsdefaultApplicationProblemPlusJSONResponse) VisitListSessionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RevokeOtherSessionsRequestObject struct {
+}
+
+type RevokeOtherSessionsResponseObject interface {
+	VisitRevokeOtherSessionsResponse(w http.ResponseWriter) error
+}
+
+type RevokeOtherSessions200JSONResponse RevokedCount
+
+func (response RevokeOtherSessions200JSONResponse) VisitRevokeOtherSessionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RevokeOtherSessionsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response RevokeOtherSessionsdefaultApplicationProblemPlusJSONResponse) VisitRevokeOtherSessionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RevokeSessionRequestObject struct {
+	Id string `json:"id"`
+}
+
+type RevokeSessionResponseObject interface {
+	VisitRevokeSessionResponse(w http.ResponseWriter) error
+}
+
+type RevokeSession204Response struct {
+}
+
+func (response RevokeSession204Response) VisitRevokeSessionResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RevokeSessiondefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response RevokeSessiondefaultApplicationProblemPlusJSONResponse) VisitRevokeSessionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetSettingsRequestObject struct {
+}
+
+type GetSettingsResponseObject interface {
+	VisitGetSettingsResponse(w http.ResponseWriter) error
+}
+
+type GetSettings200JSONResponse AllSettings
+
+func (response GetSettings200JSONResponse) VisitGetSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetSettingsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetSettingsdefaultApplicationProblemPlusJSONResponse) VisitGetSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAppearanceSettingsRequestObject struct {
+}
+
+type GetAppearanceSettingsResponseObject interface {
+	VisitGetAppearanceSettingsResponse(w http.ResponseWriter) error
+}
+
+type GetAppearanceSettings200JSONResponse AppearanceSettings
+
+func (response GetAppearanceSettings200JSONResponse) VisitGetAppearanceSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAppearanceSettingsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetAppearanceSettingsdefaultApplicationProblemPlusJSONResponse) VisitGetAppearanceSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAppearanceSettingsRequestObject struct {
+	Body *PutAppearanceSettingsJSONRequestBody
+}
+
+type PutAppearanceSettingsResponseObject interface {
+	VisitPutAppearanceSettingsResponse(w http.ResponseWriter) error
+}
+
+type PutAppearanceSettings200JSONResponse AppearanceSettings
+
+func (response PutAppearanceSettings200JSONResponse) VisitPutAppearanceSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAppearanceSettingsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutAppearanceSettingsdefaultApplicationProblemPlusJSONResponse) VisitPutAppearanceSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetGeneralSettingsRequestObject struct {
+}
+
+type GetGeneralSettingsResponseObject interface {
+	VisitGetGeneralSettingsResponse(w http.ResponseWriter) error
+}
+
+type GetGeneralSettings200JSONResponse GeneralSettings
+
+func (response GetGeneralSettings200JSONResponse) VisitGetGeneralSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetGeneralSettingsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetGeneralSettingsdefaultApplicationProblemPlusJSONResponse) VisitGetGeneralSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutGeneralSettingsRequestObject struct {
+	Body *PutGeneralSettingsJSONRequestBody
+}
+
+type PutGeneralSettingsResponseObject interface {
+	VisitPutGeneralSettingsResponse(w http.ResponseWriter) error
+}
+
+type PutGeneralSettings200JSONResponse GeneralSettings
+
+func (response PutGeneralSettings200JSONResponse) VisitPutGeneralSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutGeneralSettingsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutGeneralSettingsdefaultApplicationProblemPlusJSONResponse) VisitPutGeneralSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetSecuritySettingsRequestObject struct {
+}
+
+type GetSecuritySettingsResponseObject interface {
+	VisitGetSecuritySettingsResponse(w http.ResponseWriter) error
+}
+
+type GetSecuritySettings200JSONResponse SecuritySettings
+
+func (response GetSecuritySettings200JSONResponse) VisitGetSecuritySettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetSecuritySettingsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetSecuritySettingsdefaultApplicationProblemPlusJSONResponse) VisitGetSecuritySettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutSecuritySettingsRequestObject struct {
+	Body *PutSecuritySettingsJSONRequestBody
+}
+
+type PutSecuritySettingsResponseObject interface {
+	VisitPutSecuritySettingsResponse(w http.ResponseWriter) error
+}
+
+type PutSecuritySettings200JSONResponse SecuritySettings
+
+func (response PutSecuritySettings200JSONResponse) VisitPutSecuritySettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutSecuritySettingsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutSecuritySettingsdefaultApplicationProblemPlusJSONResponse) VisitPutSecuritySettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetSetupRequestObject struct {
+}
+
+type GetSetupResponseObject interface {
+	VisitGetSetupResponse(w http.ResponseWriter) error
+}
+
+type GetSetup200JSONResponse SetupState
+
+func (response GetSetup200JSONResponse) VisitGetSetupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetSetupdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetSetupdefaultApplicationProblemPlusJSONResponse) VisitGetSetupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutSetupBaseSettingsRequestObject struct {
+	Body *PutSetupBaseSettingsJSONRequestBody
+}
+
+type PutSetupBaseSettingsResponseObject interface {
+	VisitPutSetupBaseSettingsResponse(w http.ResponseWriter) error
+}
+
+type PutSetupBaseSettings200JSONResponse SetupState
+
+func (response PutSetupBaseSettings200JSONResponse) VisitPutSetupBaseSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutSetupBaseSettingsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutSetupBaseSettingsdefaultApplicationProblemPlusJSONResponse) VisitPutSetupBaseSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CompleteSetupRequestObject struct {
+}
+
+type CompleteSetupResponseObject interface {
+	VisitCompleteSetupResponse(w http.ResponseWriter) error
+}
+
+type CompleteSetup200JSONResponse SetupState
+
+func (response CompleteSetup200JSONResponse) VisitCompleteSetupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CompleteSetupdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response CompleteSetupdefaultApplicationProblemPlusJSONResponse) VisitCompleteSetupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetupPasskeyOptionsRequestObject struct {
+}
+
+type SetupPasskeyOptionsResponseObject interface {
+	VisitSetupPasskeyOptionsResponse(w http.ResponseWriter) error
+}
+
+type SetupPasskeyOptions200JSONResponse CeremonyOptions
+
+func (response SetupPasskeyOptions200JSONResponse) VisitSetupPasskeyOptionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetupPasskeyOptionsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response SetupPasskeyOptionsdefaultApplicationProblemPlusJSONResponse) VisitSetupPasskeyOptionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetupPasskeyVerifyRequestObject struct {
+	Body *SetupPasskeyVerifyJSONRequestBody
+}
+
+type SetupPasskeyVerifyResponseObject interface {
+	VisitSetupPasskeyVerifyResponse(w http.ResponseWriter) error
+}
+
+type SetupPasskeyVerify200JSONResponse Passkey
+
+func (response SetupPasskeyVerify200JSONResponse) VisitSetupPasskeyVerifyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetupPasskeyVerifydefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response SetupPasskeyVerifydefaultApplicationProblemPlusJSONResponse) VisitSetupPasskeyVerifyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetupRecoveryKeyRequestObject struct {
+}
+
+type SetupRecoveryKeyResponseObject interface {
+	VisitSetupRecoveryKeyResponse(w http.ResponseWriter) error
+}
+
+type SetupRecoveryKey200JSONResponse RecoveryKey
+
+func (response SetupRecoveryKey200JSONResponse) VisitSetupRecoveryKeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetupRecoveryKeydefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response SetupRecoveryKeydefaultApplicationProblemPlusJSONResponse) VisitSetupRecoveryKeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConfirmRecoveryKeyRequestObject struct {
+	Body *ConfirmRecoveryKeyJSONRequestBody
+}
+
+type ConfirmRecoveryKeyResponseObject interface {
+	VisitConfirmRecoveryKeyResponse(w http.ResponseWriter) error
+}
+
+type ConfirmRecoveryKey200JSONResponse SetupState
+
+func (response ConfirmRecoveryKey200JSONResponse) VisitConfirmRecoveryKeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConfirmRecoveryKeydefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ConfirmRecoveryKeydefaultApplicationProblemPlusJSONResponse) VisitConfirmRecoveryKeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVaultRequestObject struct {
+}
+
+type GetVaultResponseObject interface {
+	VisitGetVaultResponse(w http.ResponseWriter) error
+}
+
+type GetVault200JSONResponse VaultState
+
+func (response GetVault200JSONResponse) VisitGetVaultResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetVaultdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetVaultdefaultApplicationProblemPlusJSONResponse) VisitGetVaultResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListSecretsRequestObject struct {
+}
+
+type ListSecretsResponseObject interface {
+	VisitListSecretsResponse(w http.ResponseWriter) error
+}
+
+type ListSecrets200JSONResponse SecretList
+
+func (response ListSecrets200JSONResponse) VisitListSecretsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListSecretsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ListSecretsdefaultApplicationProblemPlusJSONResponse) VisitListSecretsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RevealSecretRequestObject struct {
+	Id string `json:"id"`
+}
+
+type RevealSecretResponseObject interface {
+	VisitRevealSecretResponse(w http.ResponseWriter) error
+}
+
+type RevealSecret200JSONResponse RevealedSecret
+
+func (response RevealSecret200JSONResponse) VisitRevealSecretResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RevealSecretdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response RevealSecretdefaultApplicationProblemPlusJSONResponse) VisitRevealSecretResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
 }
 
 type GetVersionRequestObject struct {
@@ -319,6 +3053,120 @@ func (response GetReadyz503JSONResponse) VisitGetReadyzResponse(w http.ResponseW
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// ListAuditEvents Audit log, newest first
+	// (GET /api/activity/audit)
+	ListAuditEvents(ctx context.Context, request ListAuditEventsRequestObject) (ListAuditEventsResponseObject, error)
+	// ListJobs Background jobs with last and next run (invariant 15)
+	// (GET /api/activity/jobs)
+	ListJobs(ctx context.Context, request ListJobsRequestObject) (ListJobsResponseObject, error)
+	// ListLogLines Recent log lines (already redacted), after a sequence number
+	// (GET /api/activity/logs)
+	ListLogLines(ctx context.Context, request ListLogLinesRequestObject) (ListLogLinesResponseObject, error)
+	// BootstrapLogin Sign in with the one-time bootstrap credentials (private networks only, before setup completes)
+	// (POST /api/auth/bootstrap/login)
+	BootstrapLogin(ctx context.Context, request BootstrapLoginRequestObject) (BootstrapLoginResponseObject, error)
+	// Logout Revoke the current session, then clear the cookie
+	// (POST /api/auth/logout)
+	Logout(ctx context.Context, request LogoutRequestObject) (LogoutResponseObject, error)
+	// ListPasskeys Registered passkeys
+	// (GET /api/auth/passkeys)
+	ListPasskeys(ctx context.Context, request ListPasskeysRequestObject) (ListPasskeysResponseObject, error)
+	// PasskeyLoginOptions Start a passkey sign-in
+	// (POST /api/auth/passkeys/login/options)
+	PasskeyLoginOptions(ctx context.Context, request PasskeyLoginOptionsRequestObject) (PasskeyLoginOptionsResponseObject, error)
+	// PasskeyLoginVerify Finish a passkey sign-in; issues a session bound to this IP
+	// (POST /api/auth/passkeys/login/verify)
+	PasskeyLoginVerify(ctx context.Context, request PasskeyLoginVerifyRequestObject) (PasskeyLoginVerifyResponseObject, error)
+	// PasskeyRegisterOptions Start adding another passkey
+	// (POST /api/auth/passkeys/register/options)
+	PasskeyRegisterOptions(ctx context.Context, request PasskeyRegisterOptionsRequestObject) (PasskeyRegisterOptionsResponseObject, error)
+	// PasskeyRegisterVerify Finish adding another passkey
+	// (POST /api/auth/passkeys/register/verify)
+	PasskeyRegisterVerify(ctx context.Context, request PasskeyRegisterVerifyRequestObject) (PasskeyRegisterVerifyResponseObject, error)
+	// DeletePasskey Delete a passkey (never the last one); revokes sessions signed in with it
+	// (DELETE /api/auth/passkeys/{id})
+	DeletePasskey(ctx context.Context, request DeletePasskeyRequestObject) (DeletePasskeyResponseObject, error)
+	// RenamePasskey Rename a passkey
+	// (PATCH /api/auth/passkeys/{id})
+	RenamePasskey(ctx context.Context, request RenamePasskeyRequestObject) (RenamePasskeyResponseObject, error)
+	// Reauth Finish a passkey reauthentication (valid five minutes)
+	// (POST /api/auth/reauth)
+	Reauth(ctx context.Context, request ReauthRequestObject) (ReauthResponseObject, error)
+	// ReauthOptions Start a passkey reauthentication
+	// (POST /api/auth/reauth/options)
+	ReauthOptions(ctx context.Context, request ReauthOptionsRequestObject) (ReauthOptionsResponseObject, error)
+	// RecoverLogin Open a recovery session from a `hashi admin recover` link (private networks, once, 15 minutes)
+	// (POST /api/auth/recover)
+	RecoverLogin(ctx context.Context, request RecoverLoginRequestObject) (RecoverLoginResponseObject, error)
+	// RecoverPasskeyOptions Start registering a replacement passkey
+	// (POST /api/auth/recover/passkey/options)
+	RecoverPasskeyOptions(ctx context.Context, request RecoverPasskeyOptionsRequestObject) (RecoverPasskeyOptionsResponseObject, error)
+	// RecoverPasskeyVerify Finish registering the replacement passkey; ends the recovery session
+	// (POST /api/auth/recover/passkey/verify)
+	RecoverPasskeyVerify(ctx context.Context, request RecoverPasskeyVerifyRequestObject) (RecoverPasskeyVerifyResponseObject, error)
+	// GetAuthSession Current session (or none), setup state flag and the CSRF token
+	// (GET /api/auth/session)
+	GetAuthSession(ctx context.Context, request GetAuthSessionRequestObject) (GetAuthSessionResponseObject, error)
+	// ListSessions Active admin sessions
+	// (GET /api/auth/sessions)
+	ListSessions(ctx context.Context, request ListSessionsRequestObject) (ListSessionsResponseObject, error)
+	// RevokeOtherSessions Revoke every session except the current one
+	// (POST /api/auth/sessions/revoke-others)
+	RevokeOtherSessions(ctx context.Context, request RevokeOtherSessionsRequestObject) (RevokeOtherSessionsResponseObject, error)
+	// RevokeSession Revoke one session by its correlation ID
+	// (DELETE /api/auth/sessions/{id})
+	RevokeSession(ctx context.Context, request RevokeSessionRequestObject) (RevokeSessionResponseObject, error)
+	// GetSettings All settings categories
+	// (GET /api/settings)
+	GetSettings(ctx context.Context, request GetSettingsRequestObject) (GetSettingsResponseObject, error)
+
+	// (GET /api/settings/appearance)
+	GetAppearanceSettings(ctx context.Context, request GetAppearanceSettingsRequestObject) (GetAppearanceSettingsResponseObject, error)
+
+	// (PUT /api/settings/appearance)
+	PutAppearanceSettings(ctx context.Context, request PutAppearanceSettingsRequestObject) (PutAppearanceSettingsResponseObject, error)
+
+	// (GET /api/settings/general)
+	GetGeneralSettings(ctx context.Context, request GetGeneralSettingsRequestObject) (GetGeneralSettingsResponseObject, error)
+	// PutGeneralSettings Save general settings; changing trusted proxies needs a recent passkey reauthentication
+	// (PUT /api/settings/general)
+	PutGeneralSettings(ctx context.Context, request PutGeneralSettingsRequestObject) (PutGeneralSettingsResponseObject, error)
+
+	// (GET /api/settings/security)
+	GetSecuritySettings(ctx context.Context, request GetSecuritySettingsRequestObject) (GetSecuritySettingsResponseObject, error)
+
+	// (PUT /api/settings/security)
+	PutSecuritySettings(ctx context.Context, request PutSecuritySettingsRequestObject) (PutSecuritySettingsResponseObject, error)
+	// GetSetup Setup steps and their state
+	// (GET /api/setup)
+	GetSetup(ctx context.Context, request GetSetupRequestObject) (GetSetupResponseObject, error)
+	// PutSetupBaseSettings Step 2 — save and validate the base settings
+	// (PUT /api/setup/base-settings)
+	PutSetupBaseSettings(ctx context.Context, request PutSetupBaseSettingsRequestObject) (PutSetupBaseSettingsResponseObject, error)
+	// CompleteSetup Step 11 — finish setup; destroys the bootstrap credentials and signs out bootstrap sessions
+	// (POST /api/setup/complete)
+	CompleteSetup(ctx context.Context, request CompleteSetupRequestObject) (CompleteSetupResponseObject, error)
+	// SetupPasskeyOptions Step 9 — start registering the first passkey
+	// (POST /api/setup/passkey/options)
+	SetupPasskeyOptions(ctx context.Context, request SetupPasskeyOptionsRequestObject) (SetupPasskeyOptionsResponseObject, error)
+	// SetupPasskeyVerify Step 9 — finish registering the first passkey
+	// (POST /api/setup/passkey/verify)
+	SetupPasskeyVerify(ctx context.Context, request SetupPasskeyVerifyRequestObject) (SetupPasskeyVerifyResponseObject, error)
+	// SetupRecoveryKey Step 9 — generate the recovery key (shown once)
+	// (POST /api/setup/recovery-key)
+	SetupRecoveryKey(ctx context.Context, request SetupRecoveryKeyRequestObject) (SetupRecoveryKeyResponseObject, error)
+	// ConfirmRecoveryKey Step 9 — confirm the recovery key by re-entering its last group; runs a test unlock
+	// (POST /api/setup/recovery-key/confirm)
+	ConfirmRecoveryKey(ctx context.Context, request ConfirmRecoveryKeyRequestObject) (ConfirmRecoveryKeyResponseObject, error)
+	// GetVault Vault mode and state
+	// (GET /api/vault)
+	GetVault(ctx context.Context, request GetVaultRequestObject) (GetVaultResponseObject, error)
+	// ListSecrets Stored secrets (metadata only, never values)
+	// (GET /api/vault/secrets)
+	ListSecrets(ctx context.Context, request ListSecretsRequestObject) (ListSecretsResponseObject, error)
+	// RevealSecret Reveal one secret value (audited)
+	// (POST /api/vault/secrets/{id}/reveal)
+	RevealSecret(ctx context.Context, request RevealSecretRequestObject) (RevealSecretResponseObject, error)
 	// GetVersion Build version of the running binary
 	// (GET /api/version)
 	GetVersion(ctx context.Context, request GetVersionRequestObject) (GetVersionResponseObject, error)
@@ -367,6 +3215,1021 @@ type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
 	options     StrictHTTPServerOptions
+}
+
+// ListAuditEvents operation middleware
+func (sh *strictHandler) ListAuditEvents(w http.ResponseWriter, r *http.Request, params ListAuditEventsParams) {
+	var request ListAuditEventsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAuditEvents(ctx, request.(ListAuditEventsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAuditEvents")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListAuditEventsResponseObject); ok {
+		if err := validResponse.VisitListAuditEventsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListJobs operation middleware
+func (sh *strictHandler) ListJobs(w http.ResponseWriter, r *http.Request) {
+	var request ListJobsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListJobs(ctx, request.(ListJobsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListJobs")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListJobsResponseObject); ok {
+		if err := validResponse.VisitListJobsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListLogLines operation middleware
+func (sh *strictHandler) ListLogLines(w http.ResponseWriter, r *http.Request, params ListLogLinesParams) {
+	var request ListLogLinesRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListLogLines(ctx, request.(ListLogLinesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListLogLines")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListLogLinesResponseObject); ok {
+		if err := validResponse.VisitListLogLinesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// BootstrapLogin operation middleware
+func (sh *strictHandler) BootstrapLogin(w http.ResponseWriter, r *http.Request) {
+	var request BootstrapLoginRequestObject
+
+	var body BootstrapLoginJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.BootstrapLogin(ctx, request.(BootstrapLoginRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "BootstrapLogin")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(BootstrapLoginResponseObject); ok {
+		if err := validResponse.VisitBootstrapLoginResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// Logout operation middleware
+func (sh *strictHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	var request LogoutRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.Logout(ctx, request.(LogoutRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "Logout")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(LogoutResponseObject); ok {
+		if err := validResponse.VisitLogoutResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListPasskeys operation middleware
+func (sh *strictHandler) ListPasskeys(w http.ResponseWriter, r *http.Request) {
+	var request ListPasskeysRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListPasskeys(ctx, request.(ListPasskeysRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListPasskeys")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListPasskeysResponseObject); ok {
+		if err := validResponse.VisitListPasskeysResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PasskeyLoginOptions operation middleware
+func (sh *strictHandler) PasskeyLoginOptions(w http.ResponseWriter, r *http.Request) {
+	var request PasskeyLoginOptionsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PasskeyLoginOptions(ctx, request.(PasskeyLoginOptionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PasskeyLoginOptions")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PasskeyLoginOptionsResponseObject); ok {
+		if err := validResponse.VisitPasskeyLoginOptionsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PasskeyLoginVerify operation middleware
+func (sh *strictHandler) PasskeyLoginVerify(w http.ResponseWriter, r *http.Request) {
+	var request PasskeyLoginVerifyRequestObject
+
+	var body PasskeyLoginVerifyJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PasskeyLoginVerify(ctx, request.(PasskeyLoginVerifyRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PasskeyLoginVerify")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PasskeyLoginVerifyResponseObject); ok {
+		if err := validResponse.VisitPasskeyLoginVerifyResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PasskeyRegisterOptions operation middleware
+func (sh *strictHandler) PasskeyRegisterOptions(w http.ResponseWriter, r *http.Request) {
+	var request PasskeyRegisterOptionsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PasskeyRegisterOptions(ctx, request.(PasskeyRegisterOptionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PasskeyRegisterOptions")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PasskeyRegisterOptionsResponseObject); ok {
+		if err := validResponse.VisitPasskeyRegisterOptionsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PasskeyRegisterVerify operation middleware
+func (sh *strictHandler) PasskeyRegisterVerify(w http.ResponseWriter, r *http.Request) {
+	var request PasskeyRegisterVerifyRequestObject
+
+	var body PasskeyRegisterVerifyJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PasskeyRegisterVerify(ctx, request.(PasskeyRegisterVerifyRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PasskeyRegisterVerify")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PasskeyRegisterVerifyResponseObject); ok {
+		if err := validResponse.VisitPasskeyRegisterVerifyResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeletePasskey operation middleware
+func (sh *strictHandler) DeletePasskey(w http.ResponseWriter, r *http.Request, id string) {
+	var request DeletePasskeyRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeletePasskey(ctx, request.(DeletePasskeyRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeletePasskey")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeletePasskeyResponseObject); ok {
+		if err := validResponse.VisitDeletePasskeyResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RenamePasskey operation middleware
+func (sh *strictHandler) RenamePasskey(w http.ResponseWriter, r *http.Request, id string) {
+	var request RenamePasskeyRequestObject
+
+	request.Id = id
+
+	var body RenamePasskeyJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RenamePasskey(ctx, request.(RenamePasskeyRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RenamePasskey")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RenamePasskeyResponseObject); ok {
+		if err := validResponse.VisitRenamePasskeyResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// Reauth operation middleware
+func (sh *strictHandler) Reauth(w http.ResponseWriter, r *http.Request) {
+	var request ReauthRequestObject
+
+	var body ReauthJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.Reauth(ctx, request.(ReauthRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "Reauth")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ReauthResponseObject); ok {
+		if err := validResponse.VisitReauthResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ReauthOptions operation middleware
+func (sh *strictHandler) ReauthOptions(w http.ResponseWriter, r *http.Request) {
+	var request ReauthOptionsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ReauthOptions(ctx, request.(ReauthOptionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ReauthOptions")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ReauthOptionsResponseObject); ok {
+		if err := validResponse.VisitReauthOptionsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RecoverLogin operation middleware
+func (sh *strictHandler) RecoverLogin(w http.ResponseWriter, r *http.Request) {
+	var request RecoverLoginRequestObject
+
+	var body RecoverLoginJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RecoverLogin(ctx, request.(RecoverLoginRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RecoverLogin")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RecoverLoginResponseObject); ok {
+		if err := validResponse.VisitRecoverLoginResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RecoverPasskeyOptions operation middleware
+func (sh *strictHandler) RecoverPasskeyOptions(w http.ResponseWriter, r *http.Request) {
+	var request RecoverPasskeyOptionsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RecoverPasskeyOptions(ctx, request.(RecoverPasskeyOptionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RecoverPasskeyOptions")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RecoverPasskeyOptionsResponseObject); ok {
+		if err := validResponse.VisitRecoverPasskeyOptionsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RecoverPasskeyVerify operation middleware
+func (sh *strictHandler) RecoverPasskeyVerify(w http.ResponseWriter, r *http.Request) {
+	var request RecoverPasskeyVerifyRequestObject
+
+	var body RecoverPasskeyVerifyJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RecoverPasskeyVerify(ctx, request.(RecoverPasskeyVerifyRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RecoverPasskeyVerify")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RecoverPasskeyVerifyResponseObject); ok {
+		if err := validResponse.VisitRecoverPasskeyVerifyResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAuthSession operation middleware
+func (sh *strictHandler) GetAuthSession(w http.ResponseWriter, r *http.Request) {
+	var request GetAuthSessionRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAuthSession(ctx, request.(GetAuthSessionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAuthSession")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAuthSessionResponseObject); ok {
+		if err := validResponse.VisitGetAuthSessionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListSessions operation middleware
+func (sh *strictHandler) ListSessions(w http.ResponseWriter, r *http.Request) {
+	var request ListSessionsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListSessions(ctx, request.(ListSessionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListSessions")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListSessionsResponseObject); ok {
+		if err := validResponse.VisitListSessionsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RevokeOtherSessions operation middleware
+func (sh *strictHandler) RevokeOtherSessions(w http.ResponseWriter, r *http.Request) {
+	var request RevokeOtherSessionsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RevokeOtherSessions(ctx, request.(RevokeOtherSessionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RevokeOtherSessions")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RevokeOtherSessionsResponseObject); ok {
+		if err := validResponse.VisitRevokeOtherSessionsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RevokeSession operation middleware
+func (sh *strictHandler) RevokeSession(w http.ResponseWriter, r *http.Request, id string) {
+	var request RevokeSessionRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RevokeSession(ctx, request.(RevokeSessionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RevokeSession")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RevokeSessionResponseObject); ok {
+		if err := validResponse.VisitRevokeSessionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetSettings operation middleware
+func (sh *strictHandler) GetSettings(w http.ResponseWriter, r *http.Request) {
+	var request GetSettingsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetSettings(ctx, request.(GetSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetSettingsResponseObject); ok {
+		if err := validResponse.VisitGetSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAppearanceSettings operation middleware
+func (sh *strictHandler) GetAppearanceSettings(w http.ResponseWriter, r *http.Request) {
+	var request GetAppearanceSettingsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAppearanceSettings(ctx, request.(GetAppearanceSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAppearanceSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAppearanceSettingsResponseObject); ok {
+		if err := validResponse.VisitGetAppearanceSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutAppearanceSettings operation middleware
+func (sh *strictHandler) PutAppearanceSettings(w http.ResponseWriter, r *http.Request) {
+	var request PutAppearanceSettingsRequestObject
+
+	var body PutAppearanceSettingsJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutAppearanceSettings(ctx, request.(PutAppearanceSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutAppearanceSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutAppearanceSettingsResponseObject); ok {
+		if err := validResponse.VisitPutAppearanceSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetGeneralSettings operation middleware
+func (sh *strictHandler) GetGeneralSettings(w http.ResponseWriter, r *http.Request) {
+	var request GetGeneralSettingsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetGeneralSettings(ctx, request.(GetGeneralSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetGeneralSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetGeneralSettingsResponseObject); ok {
+		if err := validResponse.VisitGetGeneralSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutGeneralSettings operation middleware
+func (sh *strictHandler) PutGeneralSettings(w http.ResponseWriter, r *http.Request) {
+	var request PutGeneralSettingsRequestObject
+
+	var body PutGeneralSettingsJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutGeneralSettings(ctx, request.(PutGeneralSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutGeneralSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutGeneralSettingsResponseObject); ok {
+		if err := validResponse.VisitPutGeneralSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetSecuritySettings operation middleware
+func (sh *strictHandler) GetSecuritySettings(w http.ResponseWriter, r *http.Request) {
+	var request GetSecuritySettingsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetSecuritySettings(ctx, request.(GetSecuritySettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetSecuritySettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetSecuritySettingsResponseObject); ok {
+		if err := validResponse.VisitGetSecuritySettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutSecuritySettings operation middleware
+func (sh *strictHandler) PutSecuritySettings(w http.ResponseWriter, r *http.Request) {
+	var request PutSecuritySettingsRequestObject
+
+	var body PutSecuritySettingsJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutSecuritySettings(ctx, request.(PutSecuritySettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutSecuritySettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutSecuritySettingsResponseObject); ok {
+		if err := validResponse.VisitPutSecuritySettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetSetup operation middleware
+func (sh *strictHandler) GetSetup(w http.ResponseWriter, r *http.Request) {
+	var request GetSetupRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetSetup(ctx, request.(GetSetupRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetSetup")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetSetupResponseObject); ok {
+		if err := validResponse.VisitGetSetupResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutSetupBaseSettings operation middleware
+func (sh *strictHandler) PutSetupBaseSettings(w http.ResponseWriter, r *http.Request) {
+	var request PutSetupBaseSettingsRequestObject
+
+	var body PutSetupBaseSettingsJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutSetupBaseSettings(ctx, request.(PutSetupBaseSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutSetupBaseSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutSetupBaseSettingsResponseObject); ok {
+		if err := validResponse.VisitPutSetupBaseSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CompleteSetup operation middleware
+func (sh *strictHandler) CompleteSetup(w http.ResponseWriter, r *http.Request) {
+	var request CompleteSetupRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CompleteSetup(ctx, request.(CompleteSetupRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CompleteSetup")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CompleteSetupResponseObject); ok {
+		if err := validResponse.VisitCompleteSetupResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetupPasskeyOptions operation middleware
+func (sh *strictHandler) SetupPasskeyOptions(w http.ResponseWriter, r *http.Request) {
+	var request SetupPasskeyOptionsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetupPasskeyOptions(ctx, request.(SetupPasskeyOptionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetupPasskeyOptions")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetupPasskeyOptionsResponseObject); ok {
+		if err := validResponse.VisitSetupPasskeyOptionsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetupPasskeyVerify operation middleware
+func (sh *strictHandler) SetupPasskeyVerify(w http.ResponseWriter, r *http.Request) {
+	var request SetupPasskeyVerifyRequestObject
+
+	var body SetupPasskeyVerifyJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetupPasskeyVerify(ctx, request.(SetupPasskeyVerifyRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetupPasskeyVerify")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetupPasskeyVerifyResponseObject); ok {
+		if err := validResponse.VisitSetupPasskeyVerifyResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetupRecoveryKey operation middleware
+func (sh *strictHandler) SetupRecoveryKey(w http.ResponseWriter, r *http.Request) {
+	var request SetupRecoveryKeyRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetupRecoveryKey(ctx, request.(SetupRecoveryKeyRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetupRecoveryKey")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetupRecoveryKeyResponseObject); ok {
+		if err := validResponse.VisitSetupRecoveryKeyResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ConfirmRecoveryKey operation middleware
+func (sh *strictHandler) ConfirmRecoveryKey(w http.ResponseWriter, r *http.Request) {
+	var request ConfirmRecoveryKeyRequestObject
+
+	var body ConfirmRecoveryKeyJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ConfirmRecoveryKey(ctx, request.(ConfirmRecoveryKeyRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ConfirmRecoveryKey")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ConfirmRecoveryKeyResponseObject); ok {
+		if err := validResponse.VisitConfirmRecoveryKeyResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetVault operation middleware
+func (sh *strictHandler) GetVault(w http.ResponseWriter, r *http.Request) {
+	var request GetVaultRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetVault(ctx, request.(GetVaultRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetVault")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetVaultResponseObject); ok {
+		if err := validResponse.VisitGetVaultResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListSecrets operation middleware
+func (sh *strictHandler) ListSecrets(w http.ResponseWriter, r *http.Request) {
+	var request ListSecretsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListSecrets(ctx, request.(ListSecretsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListSecrets")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListSecretsResponseObject); ok {
+		if err := validResponse.VisitListSecretsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RevealSecret operation middleware
+func (sh *strictHandler) RevealSecret(w http.ResponseWriter, r *http.Request, id string) {
+	var request RevealSecretRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RevealSecret(ctx, request.(RevealSecretRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RevealSecret")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RevealSecretResponseObject); ok {
+		if err := validResponse.VisitRevealSecretResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
 }
 
 // GetVersion operation middleware

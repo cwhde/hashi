@@ -54,7 +54,7 @@ func lastRuns(t *testing.T, s *store.Store) map[string]db.ListJobsWithLastRunRow
 func TestInvariant_15_JobRunsRecordOutcome(t *testing.T) {
 	r, s := newRunner(t)
 	ctx := context.Background()
-	must(t, r.Register(ctx, Noop()))
+	must(t, r.Register(ctx, Job{Kind: "noop", Interval: 5 * time.Minute, Run: func(context.Context) (string, error) { return "ok", nil }}))
 	must(t, r.Register(ctx, Job{Kind: "fails", Interval: time.Hour, Run: func(context.Context) (string, error) {
 		return "", errors.New("boom")
 	}}))

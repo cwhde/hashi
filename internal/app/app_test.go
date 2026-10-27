@@ -11,7 +11,8 @@ import (
 )
 
 func TestRunServesHealthAndShutsDownCleanly(t *testing.T) {
-	cfg := Config{DataDir: t.TempDir(), AdminAddr: "127.0.0.1:0", PublicStatusAddr: "127.0.0.1:0"}
+	dir := t.TempDir()
+	cfg := Config{DataDir: dir, AdminAddr: "127.0.0.1:0", PublicStatusAddr: "127.0.0.1:0", MasterKeyFile: writeMasterKey(t, dir), Stdout: io.Discard}
 	ctx, cancel := context.WithCancel(context.Background())
 	addrCh := make(chan string, 1)
 	done := make(chan error, 1)

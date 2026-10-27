@@ -29,8 +29,11 @@ type Store struct {
 	migrations fs.FS
 	Writer     *sql.DB
 	Reader     *sql.DB
-	// Q runs generated queries on the writer; use db.New(s.Reader) for read-only paths.
+	// Q runs generated queries on the writer. Inside a Tx use the transaction's queries instead: the writer has one
+	// connection, so a Q call inside a Tx waits forever.
 	Q *db.Queries
+	// R runs read-only queries on the read pool; use it for reads that are not part of a write transaction.
+	R *db.Queries
 }
 
 func dsn(path string, readOnly bool) string {
@@ -67,13 +70,31 @@ func Open(ctx context.Context, path string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &Store{path: path, migrations: sub, Writer: w, Reader: r, Q: db.New(w)}
+	s := &Store{path: path, migrations: sub, Writer: w, Reader: r, Q: db.New(w), R: db.New(r)}
 	if err := w.PingContext(ctx); err != nil {
 		_ = s.Close()
 		return nil, fmt.Errorf("ping %s: %w", path, err)
 	}
 	return s, nil
 }
+
+// Tx runs fn in one write transaction; fn's error rolls it back.
+func (s *Store) Tx(ctx context.Context, fn func(q *db.Queries) error) error {
+	tx, err := s.Writer.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin: %w", err)
+	}
+	if err := fn(s.Q.WithTx(tx)); err != nil {
+		return errors.Join(err, tx.Rollback())
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit: %w", err)
+	}
+	return nil
+}
+
+// Path is the database file.
+func (s *Store) Path() string { return s.path }
 
 // Close closes both pools.
 func (s *Store) Close() error {

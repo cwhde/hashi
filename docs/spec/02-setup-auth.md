@@ -88,6 +88,11 @@ Hashi has exactly one admin user.
 - Deleting the last passkey is forbidden. Deleting a passkey revokes sessions authenticated with it.
 - Recovery key (§5.3) is for vault recovery; a separate **recovery login** is possible only from the console:
   `hashi admin recover` prints a one-time, 15-minute, private-network-only login link that lets the admin register a new passkey.
+  The token sits in the URL fragment (never in server or proxy logs). The link opens a `recovery` session whose only scope is
+  `recovery.passkey`; it ends as soon as one passkey is registered.
+- The root domain is fixed after setup, because every passkey is bound to it. During setup, changing the root domain in
+  step 2 removes passkeys registered for the old one and step 9 starts over; completion requires a passkey for the current RP ID.
+- Adding another passkey (Settings → Account) requires reauthentication, like other privilege changes (§3.2).
 - Recent reauthentication = a fresh passkey assertion within the current session; valid 5 minutes.
 
 Reauthentication is required for: destructive operations, secret reveal/replace, script save/run, firewall/DNS prune,
@@ -99,7 +104,7 @@ domain change, trusted-proxy change, revoking other sessions, vault mode change.
 ### 3.1 Model (`admin_sessions`)
 
 - `id`: 256-bit random; the cookie carries it, the DB stores only `sha256(id)`.
-- `auth_method`: `bootstrap` | `passkey`; `credential_id` for passkey sessions.
+- `auth_method`: `bootstrap` | `passkey` | `recovery`; `credential_id` for passkey sessions.
 - `bound_ip`: canonical client IP at issuance.
 - `scopes`: explicit list.
 - `created_at`, `last_seen_at`, `idle_expires_at`, `absolute_expires_at`.
@@ -114,8 +119,9 @@ case in §1.1 which uses `hashi.bootstrap`.
 - Every login creates a new session. Logging in from another IP creates another, independently bound session.
 - **Strict IP binding:** every request compares the canonical request IP with `bound_ip` by exact equality. Mismatch →
   reject as unauthenticated, revoke the session, clear the cookie, drop its in-memory material, audit stored and observed IPs (never the token).
-- **Idle lifetime:** 4 h max (setting may lower it). Activity extends `idle_expires_at`, capped at `absolute_expires_at`.
-  Activity may be persisted at most every 5 minutes, but validation never grants more than the configured idle time.
+- **Idle lifetime:** 4 h max (setting may lower it, minimum 5 min). Activity extends `idle_expires_at`, capped at `absolute_expires_at`.
+  Activity is persisted every 5 minutes (every quarter of the idle time when that is shorter, so steady activity always
+  lands before the deadline), and validation never grants more than the configured idle time.
 - **Absolute lifetime:** 8 h max from issuance. Nothing extends it — not activity, not reauth, not vault unlock.
 - **Reauth:** stored on the session row (survives restarts), valid 5 min, never changes `bound_ip` or `absolute_expires_at`,
   never revives a revoked/expired session.
@@ -134,7 +140,8 @@ case in §1.1 which uses `hashi.bootstrap`.
 | `firewall.apply` | apply or roll back firewall state |
 | `scripts.manage` | create, modify, execute scripts |
 | `security.manage` | blocks, blocklists, CAPTCHA, security policy, session revocation |
-| `setup.*` | bootstrap-only setup scopes |
+| `setup.*` | bootstrap-only setup scopes (`setup.manage`) |
+| `recovery.passkey` | register one replacement passkey (console recovery sessions only) |
 
 Passkey sessions receive all non-setup scopes. Unknown scopes grant nothing. Scope and reauth checks are cumulative.
 

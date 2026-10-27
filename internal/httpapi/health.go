@@ -49,14 +49,6 @@ func (h *Health) ready(ctx context.Context) (gen.Health, bool) {
 	return gen.Health{Status: status, Checks: &checks}, ok
 }
 
-// Server implements gen.StrictServerInterface.
-type Server struct {
-	Health  *Health
-	Version gen.Version
-}
-
-var _ gen.StrictServerInterface = (*Server)(nil)
-
 func (s *Server) GetHealthz(context.Context, gen.GetHealthzRequestObject) (gen.GetHealthzResponseObject, error) {
 	return gen.GetHealthz200JSONResponse{Status: gen.Ok}, nil
 }
