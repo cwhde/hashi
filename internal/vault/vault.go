@@ -64,7 +64,7 @@ func Keygen() (string, error) {
 	if _, err := rand.Read(k); err != nil {
 		return "", err
 	}
-	return base64.StdEncoding.EncodeToString(k), nil
+	return EncodeMasterKey(k), nil
 }
 
 // LoadMasterKey reads a base64 master key file (as printed by `hashi keygen`).
@@ -194,3 +194,9 @@ func (v *Vault) CheckKey(ctx context.Context, q *db.Queries) error {
 	}
 	return nil
 }
+
+// KeyVersion is the master key version new secrets are sealed under.
+func (v *Vault) KeyVersion() int64 { return v.version }
+
+// EncodeMasterKey renders a master key in the file format LoadMasterKey reads.
+func EncodeMasterKey(k []byte) string { return base64.StdEncoding.EncodeToString(k) }

@@ -6,14 +6,18 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"git.juzo.io/juzo/hashi/internal/app"
+	"git.juzo.io/juzo/hashi/internal/logring"
+	"git.juzo.io/juzo/hashi/internal/vault"
 )
 
 func main() {
@@ -25,6 +29,16 @@ func main() {
 		case "healthcheck":
 			// For container HEALTHCHECK: the runtime image has no shell or curl.
 			os.Exit(healthcheck())
+		case "keygen":
+			k, err := vault.Keygen()
+			if err != nil {
+				fmt.Fprintln(os.Stderr, "keygen:", err)
+				os.Exit(1)
+			}
+			fmt.Println(k)
+			return
+		case "bootstrap", "vault":
+			os.Exit(console(os.Args[1:]))
 		}
 	}
 	cfg, err := app.LoadConfig(os.Args[1:], nil)
@@ -35,13 +49,39 @@ func main() {
 		fmt.Fprintln(os.Stderr, "hashi:", err)
 		os.Exit(2)
 	}
-	log := app.NewLogger(os.Stdout, cfg.LogLevel)
+	// The live log (Activity) sees exactly what stdout sees: lines after redaction.
+	cfg.Logs = logring.New(2000)
+	log := app.NewLogger(io.MultiWriter(os.Stdout, cfg.Logs), cfg.LogLevel)
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	if err := app.Run(ctx, cfg, log, nil); err != nil {
 		log.Error("exiting", "err", err)
 		os.Exit(1)
 	}
+}
+
+// console runs `hashi bootstrap reset` and `hashi vault recover` with the server's environment config.
+func console(args []string) int {
+	cfg, err := app.LoadConfig(nil, nil)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "hashi:", err)
+		return 2
+	}
+	ctx := context.Background()
+	switch strings.Join(args, " ") {
+	case "bootstrap reset":
+		err = app.BootstrapReset(ctx, cfg, os.Stdout)
+	case "vault recover":
+		err = app.VaultRecover(ctx, cfg, os.Stdin, os.Stdout)
+	default:
+		fmt.Fprintln(os.Stderr, "usage: hashi bootstrap reset | hashi vault recover")
+		return 2
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "hashi:", err)
+		return 1
+	}
+	return 0
 }
 
 // healthcheck asks this container's own admin listener (loopback, port from the same config) for /readyz.

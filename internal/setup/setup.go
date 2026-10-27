@@ -152,7 +152,7 @@ func (s *Service) Load(ctx context.Context, q *db.Queries) (State, error) {
 
 // Completed reports whether setup has finished.
 func (s *Service) Completed(ctx context.Context) (bool, error) {
-	st, err := s.Load(ctx, s.st.Q)
+	st, err := s.Load(ctx, s.st.R)
 	return st.Completed, err
 }
 

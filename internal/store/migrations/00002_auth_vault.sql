@@ -95,6 +95,9 @@ CREATE TABLE recovery_key (
     confirmed_at   INTEGER
 ) STRICT;
 
+-- The S0 proof job is replaced by real jobs.
+DELETE FROM jobs WHERE kind = 'noop';
+
 -- +goose Down
 DROP TABLE recovery_key;
 DROP TABLE secret_records;

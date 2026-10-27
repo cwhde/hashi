@@ -4,21 +4,32 @@ package app
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net"
 	"net/http"
+	"os"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/sync/errgroup"
 
+	"git.juzo.io/juzo/hashi/internal/audit"
+	"git.juzo.io/juzo/hashi/internal/auth"
+	"git.juzo.io/juzo/hashi/internal/clientip"
 	"git.juzo.io/juzo/hashi/internal/httpapi"
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
 	"git.juzo.io/juzo/hashi/internal/jobs"
+	"git.juzo.io/juzo/hashi/internal/logring"
 	"git.juzo.io/juzo/hashi/internal/secrets"
+	"git.juzo.io/juzo/hashi/internal/settings"
+	"git.juzo.io/juzo/hashi/internal/setup"
 	"git.juzo.io/juzo/hashi/internal/store"
+	"git.juzo.io/juzo/hashi/internal/store/db"
+	"git.juzo.io/juzo/hashi/internal/vault"
 	"git.juzo.io/juzo/hashi/internal/web"
 )
 
@@ -47,6 +58,12 @@ func NewLogger(w io.Writer, level slog.Level) *slog.Logger {
 // ready, when non-nil, receives the bound admin address once all listeners accept connections.
 func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr string)) error {
 	log.Info("starting", "version", Version, "commit", Commit, "db_path", cfg.DBPath())
+	if cfg.Stdout == nil {
+		cfg.Stdout = os.Stdout
+	}
+	if cfg.Logs == nil {
+		cfg.Logs = logring.New(1)
+	}
 
 	st, err := store.Open(ctx, cfg.DBPath())
 	if err != nil {
@@ -57,19 +74,66 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 		return err
 	}
 
+	// Service mode: no master key, no start (02 §5.2).
+	master, err := vault.LoadMasterKey(cfg.MasterKeyFile)
+	if err != nil {
+		return err
+	}
+	v, err := vault.New(master, 1)
+	if err != nil {
+		return err
+	}
+	if err := v.CheckKey(ctx, st.Q); err != nil {
+		return err
+	}
+
+	al := audit.New(v.Operational("audit-correlation"))
+	ip := clientip.New(nil)
+	sessions := auth.NewManager(st, al, v.Operational("csrf"))
+	cfgSettings := settings.New(st)
+	cfgSettings.Subscribe(func(c settings.Category) {
+		switch c := c.(type) {
+		case settings.General:
+			p, err := clientip.ParsePrefixes(c.TrustedProxies)
+			if err == nil { // stored values were validated; a parse error here keeps the previous list
+				ip.SetTrusted(p)
+			}
+		case settings.Security:
+			sessions.SetIdle(c.AdminIdle())
+		}
+	})
+	public := newPublicToggles()
+	cfgSettings.Subscribe(public.update)
+	if err := cfgSettings.Load(ctx); err != nil {
+		return err
+	}
+	passkeys := auth.NewPasskeys(st, relyingParty(st, cfg))
+	setupSvc := setup.New(st, v, al)
+	setupSvc.SkipUnbuilt = devBuild
+	sessions.OnRevoke(passkeys.DropSession)
+	sessions.OnRevoke(setupSvc.DropSession)
+
+	if err := ensureBootstrap(ctx, st, setupSvc, al, cfg.Stdout, log); err != nil {
+		return err
+	}
+
 	runner := jobs.New(st.Q, log)
-	if err := runner.Register(ctx, jobs.Noop()); err != nil {
+	if err := runner.Register(ctx, jobs.Job{Kind: "session_cleanup", Interval: time.Hour, Run: sessions.Cleanup}); err != nil {
 		return err
 	}
 
 	health := httpapi.NewHealth(map[string]httpapi.Check{"database": st.Ready})
-	api := &httpapi.Server{Health: health, Version: gen.Version{Version: Version, Commit: Commit}}
+	api := &httpapi.Server{
+		Health: health, Version: gen.Version{Version: Version, Commit: Commit}, Store: st, Sessions: sessions,
+		Passkeys: passkeys, Setup: setupSvc, Settings: cfgSettings, Vault: v, Audit: al, IP: ip, Logs: cfg.Logs,
+		Log: log.With("component", "api"),
+	}
 	servers := []*server{{name: "admin", addr: cfg.AdminAddr, handler: adminMux(api)}}
 	if cfg.PublicAppsAddr != "" {
-		servers = append(servers, &server{name: "public-apps", addr: cfg.PublicAppsAddr, handler: publicMux(api, "Hashi apps")})
+		servers = append(servers, &server{name: "public-apps", addr: cfg.PublicAppsAddr, handler: publicMux(api, "Hashi apps", &public.apps)})
 	}
 	if cfg.PublicStatusAddr != "" {
-		servers = append(servers, &server{name: "public-status", addr: cfg.PublicStatusAddr, handler: publicMux(api, "Hashi status")})
+		servers = append(servers, &server{name: "public-status", addr: cfg.PublicStatusAddr, handler: publicMux(api, "Hashi status", &public.status)})
 	}
 	for _, s := range servers {
 		if err := s.listen(ctx); err != nil {
@@ -99,6 +163,48 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 		return errors.Join(errs...)
 	})
 	return g.Wait()
+}
+
+// relyingParty resolves where passkeys are bound: the base settings, or a localhost origin in dev builds.
+func relyingParty(st *store.Store, cfg Config) func(context.Context) (auth.RelyingParty, error) {
+	return func(ctx context.Context) (auth.RelyingParty, error) {
+		if devBuild && cfg.DevWebAuthnOrigin != "" {
+			return auth.RelyingParty{ID: "localhost", Origin: cfg.DevWebAuthnOrigin}, nil
+		}
+		g, err := settings.Get[settings.General](ctx, st.R) // read pool: this runs inside ceremony transactions
+		if err != nil || !g.Configured() {
+			return auth.RelyingParty{}, err
+		}
+		return auth.RPFromDomains(g.RootDomain, g.AdminDomain), nil
+	}
+}
+
+// ensureBootstrap creates and prints bootstrap credentials once, on the first start before setup completes
+// (02 §1.1). Later starts keep the stored hash and print nothing.
+func ensureBootstrap(ctx context.Context, st *store.Store, s *setup.Service, al *audit.Log, out io.Writer, log *slog.Logger) error {
+	done, err := s.Completed(ctx)
+	if err != nil || done {
+		return err
+	}
+	if _, err := st.Q.GetBootstrapCredentials(ctx); err == nil {
+		log.Info("setup not complete; bootstrap credentials were printed on first start (hashi bootstrap reset prints new ones)")
+		return nil
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	var c auth.BootstrapCredentials
+	err = st.Tx(ctx, func(q *db.Queries) error {
+		var err error
+		if c, err = auth.NewBootstrapCredentials(ctx, q, time.Now()); err != nil {
+			return err
+		}
+		return al.Record(ctx, q, audit.Event{Actor: audit.System, Action: "setup.bootstrap_credentials.created"})
+	})
+	if err != nil {
+		return err
+	}
+	auth.PrintBootstrap(out, c)
+	return nil
 }
 
 type server struct {
@@ -133,17 +239,40 @@ func (s *server) serve(log *slog.Logger) error {
 
 func adminMux(api *httpapi.Server) http.Handler {
 	mux := http.NewServeMux()
-	gen.HandlerFromMux(gen.NewStrictHandler(api, nil), mux)
 	mux.Handle("GET /", web.Handler())
-	return mux
+	return api.Handler(mux)
 }
 
-// publicMux is the S0 placeholder for the public dashboard and status listeners (07-monitoring-public.md, S7).
-func publicMux(api *httpapi.Server, title string) http.Handler {
+// publicToggles mirrors the Appearance settings that switch the public pages on and off.
+type publicToggles struct {
+	apps, status atomic.Bool
+}
+
+func newPublicToggles() *publicToggles {
+	p := &publicToggles{}
+	p.apps.Store(true)
+	p.status.Store(true)
+	return p
+}
+
+func (p *publicToggles) update(c settings.Category) {
+	if a, ok := c.(settings.Appearance); ok {
+		p.apps.Store(a.PublicDashboardEnabled)
+		p.status.Store(a.PublicStatusEnabled)
+	}
+}
+
+// publicMux is the placeholder for the public dashboard and status listeners (07-monitoring-public.md, S7).
+// The enabled toggle already applies: a disabled page answers 404.
+func publicMux(api *httpapi.Server, title string, enabled *atomic.Bool) http.Handler {
 	mux := http.NewServeMux()
 	h := gen.NewStrictHandler(api, nil)
 	mux.HandleFunc("GET /healthz", h.GetHealthz)
-	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
+		if !enabled.Load() {
+			http.NotFound(w, r)
+			return
+		}
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		_, _ = io.WriteString(w, title+": not configured yet\n")
 	})

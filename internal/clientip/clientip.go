@@ -93,6 +93,16 @@ func (r *Resolver) Resolve(req *http.Request) (netip.Addr, error) {
 	return peer, nil
 }
 
+// IsTLS reports whether the client reached Hashi over HTTPS: directly, or through a trusted proxy that says so in
+// X-Forwarded-Proto. An untrusted peer cannot claim HTTPS.
+func (r *Resolver) IsTLS(req *http.Request) bool {
+	if req.TLS != nil {
+		return true
+	}
+	peer, ok := Canonical(req.RemoteAddr)
+	return ok && r.isTrusted(peer) && strings.EqualFold(req.Header.Get("X-Forwarded-Proto"), "https")
+}
+
 // forwardedChain returns the hops a trusted proxy reported, oldest first.
 func forwardedChain(h http.Header) ([]string, error) {
 	if v := h.Values("X-Forwarded-For"); len(v) > 0 {

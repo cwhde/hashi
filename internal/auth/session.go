@@ -167,7 +167,7 @@ func (m *Manager) Validate(ctx context.Context, token string, ip netip.Addr) (*S
 		return nil, ErrNoSession
 	}
 	idHash := hashToken(raw)
-	row, err := m.st.Q.GetSession(ctx, idHash)
+	row, err := m.st.R.GetSession(ctx, idHash)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNoSession
 	}
@@ -303,7 +303,7 @@ func (m *Manager) CheckCSRF(s *Session, presented string) bool {
 
 // Active lists sessions that are neither revoked nor expired.
 func (m *Manager) Active(ctx context.Context) ([]*Session, error) {
-	rows, err := m.st.Q.ListActiveSessions(ctx, m.now().UnixMilli())
+	rows, err := m.st.R.ListActiveSessions(ctx, m.now().UnixMilli())
 	if err != nil {
 		return nil, err
 	}
@@ -314,6 +314,22 @@ func (m *Manager) Active(ctx context.Context) ([]*Session, error) {
 		}
 	}
 	return out, nil
+}
+
+// AuditRetention is how long audit events (and revoked session rows referenced by them) are kept (01 §4.3).
+const AuditRetention = 2 * 365 * 24 * time.Hour
+
+// Cleanup deletes expired sessions and revoked ones older than the audit retention (02 §3.6). Validity never depends
+// on this: an expired row that survives a failed cleanup is still rejected by Validate.
+func (m *Manager) Cleanup(ctx context.Context) (string, error) {
+	now := m.now()
+	n, err := m.st.Q.DeleteDeadSessions(ctx, db.DeleteDeadSessionsParams{
+		Now: now.UnixMilli(), RevokedBefore: now.Add(-AuditRetention).UnixMilli(),
+	})
+	if err != nil {
+		return "", fmt.Errorf("delete dead sessions: %w", err)
+	}
+	return fmt.Sprintf("%d sessions removed", n), nil
 }
 
 // Now is the manager's clock (tests replace it).

@@ -1,4 +1,5 @@
-package auth
+// Package authtest provides a software WebAuthn authenticator for tests.
+package authtest
 
 import (
 	"crypto/ecdsa"
@@ -13,17 +14,18 @@ import (
 	"github.com/fxamacker/cbor/v2"
 )
 
-// softAuthenticator is a minimal WebAuthn authenticator for tests: one ES256 key, "none" attestation,
+// Authenticator is a minimal WebAuthn authenticator for tests: one ES256 key, "none" attestation,
 // user presence + verification always set. go-webauthn verifies everything it produces.
-type softAuthenticator struct {
-	t      *testing.T
+type Authenticator struct {
+	t      testing.TB
 	key    *ecdsa.PrivateKey
 	credID []byte
 	handle []byte
 	count  uint32
 }
 
-func newSoftAuthenticator(t *testing.T) *softAuthenticator {
+// New returns an authenticator with a fresh P-256 key.
+func New(t testing.TB) *Authenticator {
 	t.Helper()
 	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
@@ -31,7 +33,7 @@ func newSoftAuthenticator(t *testing.T) *softAuthenticator {
 	}
 	id := make([]byte, 16)
 	_, _ = rand.Read(id)
-	return &softAuthenticator{t: t, key: k, credID: id}
+	return &Authenticator{t: t, key: k, credID: id}
 }
 
 var b64 = base64.RawURLEncoding
@@ -42,12 +44,12 @@ const (
 	flagAT = 0x40
 )
 
-func (a *softAuthenticator) clientData(typ string, challenge []byte, origin string) []byte {
+func (a *Authenticator) clientData(typ string, challenge []byte, origin string) []byte {
 	b, _ := json.Marshal(map[string]any{"type": typ, "challenge": b64.EncodeToString(challenge), "origin": origin, "crossOrigin": false})
 	return b
 }
 
-func (a *softAuthenticator) authData(rpID string, flags byte, attested []byte) []byte {
+func (a *Authenticator) authData(rpID string, flags byte, attested []byte) []byte {
 	h := sha256.Sum256([]byte(rpID))
 	a.count++
 	out := append(h[:], flags)
@@ -55,7 +57,7 @@ func (a *softAuthenticator) authData(rpID string, flags byte, attested []byte) [
 	return append(out, attested...)
 }
 
-func (a *softAuthenticator) coseKey() []byte {
+func (a *Authenticator) coseKey() []byte {
 	enc, _ := cbor.CoreDetEncOptions().EncMode()
 	pub := a.key.PublicKey
 	x, y := make([]byte, 32), make([]byte, 32)
@@ -68,11 +70,11 @@ func (a *softAuthenticator) coseKey() []byte {
 	return b
 }
 
-// register answers navigator.credentials.create for userHandle at rpID from origin.
-func (a *softAuthenticator) register(rpID, origin string, challenge, userHandle []byte) []byte {
+// Register answers navigator.credentials.create for userHandle at rpID from origin.
+func (a *Authenticator) Register(rpID, origin string, challenge, userHandle []byte) []byte {
 	a.handle = userHandle
-	attested := make([]byte, 16) // zero AAGUID
-	attested = binary.BigEndian.AppendUint16(attested, uint16(len(a.credID)))
+	attested := make([]byte, 16)                                              // zero AAGUID
+	attested = binary.BigEndian.AppendUint16(attested, uint16(len(a.credID))) //nolint:gosec // 16-byte credential id
 	attested = append(attested, a.credID...)
 	attested = append(attested, a.coseKey()...)
 	enc, _ := cbor.CoreDetEncOptions().EncMode()
@@ -91,8 +93,8 @@ func (a *softAuthenticator) register(rpID, origin string, challenge, userHandle 
 	return b
 }
 
-// assert answers navigator.credentials.get.
-func (a *softAuthenticator) assert(rpID, origin string, challenge []byte) []byte {
+// Assert answers navigator.credentials.get.
+func (a *Authenticator) Assert(rpID, origin string, challenge []byte) []byte {
 	ad := a.authData(rpID, flagUP|flagUV, nil)
 	cd := a.clientData("webauthn.get", challenge, origin)
 	cdh := sha256.Sum256(cd)

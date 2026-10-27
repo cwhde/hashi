@@ -351,7 +351,7 @@ func (p *Passkeys) finishAssertion(ctx context.Context, q *db.Queries, sd webaut
 
 // List returns all passkeys.
 func (p *Passkeys) List(ctx context.Context) ([]Passkey, error) {
-	rows, err := p.st.Q.ListPasskeys(ctx)
+	rows, err := p.st.R.ListPasskeys(ctx)
 	if err != nil {
 		return nil, err
 	}
