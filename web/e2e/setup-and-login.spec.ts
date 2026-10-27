@@ -1,11 +1,15 @@
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { statePath } from './global-setup';
 
 // S1 gate (11-delivery.md §3): passkey registration and login pass with a virtual authenticator, end to end through
 // the real binary: bootstrap → base settings → passkey → recovery key → finish → passkey sign-in → account pages.
 const state = JSON.parse(readFileSync(statePath, 'utf8')) as {
 	baseURL: string;
+	bin: string;
+	dir: string;
+	keyFile: string;
 	username: string;
 	password: string;
 };
@@ -13,7 +17,7 @@ const state = JSON.parse(readFileSync(statePath, 'utf8')) as {
 async function virtualAuthenticator(page: Page, transport: 'internal' | 'usb' = 'internal') {
 	const cdp = await page.context().newCDPSession(page);
 	await cdp.send('WebAuthn.enable');
-	await cdp.send('WebAuthn.addVirtualAuthenticator', {
+	const { authenticatorId } = await cdp.send('WebAuthn.addVirtualAuthenticator', {
 		options: {
 			protocol: 'ctap2',
 			transport,
@@ -23,6 +27,8 @@ async function virtualAuthenticator(page: Page, transport: 'internal' | 'usb' = 
 			automaticPresenceSimulation: true
 		}
 	});
+	// Detaches this authenticator (and its passkeys) from the browser.
+	return () => cdp.send('WebAuthn.removeVirtualAuthenticator', { authenticatorId });
 }
 
 test('setup with a passkey, then sign in with it', async ({ page }) => {
@@ -79,7 +85,7 @@ test('setup with a passkey, then sign in with it', async ({ page }) => {
 	await page.getByLabel('New passkey name').fill('Second key');
 	await page.getByRole('button', { name: 'Add passkey' }).click();
 	await expect(page.getByRole('alert')).toContainText('already holds a passkey');
-	await virtualAuthenticator(page, 'usb');
+	const removeUsb = await virtualAuthenticator(page, 'usb');
 	await page.getByRole('button', { name: 'Add passkey' }).click();
 	await expect(page.getByText('Passkey added.')).toBeVisible();
 	await expect(page.getByText('Second key')).toBeVisible();
@@ -90,10 +96,41 @@ test('setup with a passkey, then sign in with it', async ({ page }) => {
 	});
 	expect(res.status()).toBe(403);
 
-	// Sign out ends the session server-side.
+	// Sign out ends the session server-side; signing in again works.
 	await page.getByRole('button', { name: 'Account', exact: true }).first().click();
 	await page.getByRole('menuitem', { name: 'Sign out' }).click();
 	await expect(page).toHaveURL(/\/login$/);
 	const s = await (await page.request.get(`${state.baseURL}/api/auth/session`)).json();
 	expect(s.authenticated).toBe(false);
+	await removeUsb(); // sign in with the first passkey for sure
+	await page.getByRole('button', { name: 'Sign in with a passkey' }).click();
+	await expect(page).toHaveURL(/\/activity$/);
+
+	// Deleting the passkey this session signed in with ends the session: the page goes to sign-in.
+	await page.goto(`${state.baseURL}/settings?category=account`);
+	await page.getByRole('button', { name: 'Delete passkey E2E authenticator' }).click();
+	await page.getByRole('button', { name: 'Delete passkey', exact: true }).click();
+	await expect(page).toHaveURL(/\/login/);
+	await expect(page.getByText('Your session ended')).toBeVisible();
+});
+
+test('console recovery link registers a replacement passkey', async ({ browser }) => {
+	const out = execFileSync(state.bin, ['admin', 'recover'], {
+		env: { ...process.env, HASHI_DATA_DIR: state.dir, HASHI_MASTER_KEY_FILE: state.keyFile }
+	}).toString();
+	const token = /#(\S+)/.exec(out)?.[1];
+	expect(token).toBeTruthy();
+	const page = await (await browser.newContext()).newPage();
+	await virtualAuthenticator(page);
+	await page.goto(`${state.baseURL}/login/recover#${token}`);
+	await expect(page).toHaveURL(/\/login\/recover$/); // token removed from the address bar
+	await page.getByLabel('Passkey name').fill('Recovered');
+	await page.getByRole('button', { name: 'Create passkey' }).click();
+	await expect(page.getByText('The new passkey is saved')).toBeVisible();
+	await page.getByRole('button', { name: 'Go to sign-in' }).click();
+	await page.getByRole('button', { name: 'Sign in with a passkey' }).click();
+	await expect(page).toHaveURL(/\/activity$/);
+	// The link works once.
+	const again = await page.request.post(`${state.baseURL}/api/auth/recover`, { data: { token } });
+	expect(again.status()).toBe(403);
 });

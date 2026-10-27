@@ -65,6 +65,12 @@
 		>
 		<h1 class="mt-5 text-[20px] font-semibold">Sign in to Hashi</h1>
 		<p class="mt-1 text-[13.5px] text-muted-foreground">{page.url.host}</p>
+		{#if page.url.searchParams.has('ended') && !failed}
+			<p role="status" class="mt-5 rounded-xl border p-3 text-[13px] text-muted-foreground">
+				Your session ended (signed out elsewhere, idle too long, or your address changed). Sign in
+				again to continue.
+			</p>
+		{/if}
 		{#if !supported}
 			<p class="mt-5 rounded-xl border border-warn/30 bg-warn/10 p-3 text-[13px] text-warn-text">
 				Passkeys need HTTPS and a current browser. Open Hashi at its admin domain.

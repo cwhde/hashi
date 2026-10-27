@@ -59,7 +59,7 @@ export default async function globalSetup() {
 		if ((await fetch(`${baseURL}/readyz`).catch(() => null))?.ok) break;
 		await new Promise((r) => setTimeout(r, 100));
 	}
-	writeFileSync(statePath, JSON.stringify({ baseURL, ...creds }));
+	writeFileSync(statePath, JSON.stringify({ baseURL, bin, dir, keyFile, ...creds }));
 	return async () => {
 		proc.kill('SIGTERM');
 	};

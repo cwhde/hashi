@@ -21,7 +21,19 @@ export const csrfMiddleware: Middleware = {
 		return request;
 	}
 };
-api.use(csrfMiddleware);
+// A session can end at any time (idle, IP change, revoked, its passkey deleted). Admin pages then go to sign-in
+// instead of showing a dead error; pages that work without a session handle 401 themselves.
+const publicPaths = ['/login', '/setup'];
+export const sessionEndedMiddleware: Middleware = {
+	onResponse({ response }) {
+		if (response.status !== 401 || typeof location === 'undefined') return;
+		if (publicPaths.some((p) => location.pathname.startsWith(p))) return;
+		const next = encodeURIComponent(location.pathname + location.search);
+		location.assign(`/login?ended=1&next=${next}`);
+	}
+};
+
+api.use(csrfMiddleware, sessionEndedMiddleware);
 
 /** The problem's own message, or a plain fallback that still says nothing changed. */
 export function problemText(e: unknown): string {

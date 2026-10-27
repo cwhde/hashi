@@ -322,9 +322,9 @@
 						{#each sessions as s (s.id)}
 							<li class="flex items-center gap-3 px-4 py-3">
 								<span class="flex-1"
-									><Mono>{s.bound_ip}</Mono> · started {dateTime(s.created_at)} · ends {time(
-										s.absolute_expires_at
-									)}</span
+									><Mono>{s.bound_ip}</Mono> · started {dateTime(s.created_at)} · active {dateTime(
+										s.last_seen_at
+									)} · ends {time(s.absolute_expires_at)}</span
 								>
 								{#if s.current}<Tag tone="accent">this session</Tag>{:else}<Button
 										size="xs"
