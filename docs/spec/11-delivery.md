@@ -34,7 +34,10 @@ Known pitfalls worth remembering (the rest of V2's findings don't apply to a fre
 6. **Review discipline.** One review per change, against the spec section's acceptance criteria, maximum 10 findings,
    style skipped. A finding is only "must fix" when it is reproduced or violates an invariant. Unreproduced findings go to
    `docs/progress.md` → "Unverified" and are not worked on unless the human promotes them. No standalone audit series.
-7. **Small changes.** A PR changes ≤ ~500 lines excluding generated code and fixtures. Larger work is split.
+7. **Reviewable changes, not tiny ones.** One PR per coherent piece of a slice — usually one or two per slice, split
+   along natural seams (backend, UI, deploy) only when a single PR would be too big to read in one sitting (rough guide:
+   ~1,500 hand-written lines, excluding generated code, lockfiles and fixtures). No stacked micro-PRs: every PR costs a
+   full CI run. Docs and small fixes go straight to `main`.
 8. **Spec changes are explicit.** If implementation reveals the spec is wrong, update the spec in a separate commit
    (`docs(spec): …`) with the reason; never silently diverge.
 9. **The repository is public.** Real hostnames, IPs, tokens and production configs live outside the repo
@@ -63,7 +66,7 @@ happen at the end of every slice.
 | S11 | Scripts, custom themes, settings completeness | 09-scripts-settings.md, 10-ui.md §2 | Scheduled script runs on real hosts with history; custom theme editor works; visual tests pass in all four themes; every setting has a consumer test |
 | S12 | Hardening + 1.0 | strict vault mode (02 §5.4), backup/restore drill, threat model, docs | Restore from backup onto a fresh container works; strict mode unlock with PRF passkey or recovery key; security scans clean or accepted; tag `v1.0.0` |
 
-Slices may be split further when a PR would exceed the size rule; the gate stays at the slice level.
+A slice may span several PRs (rule 7); the gate stays at the slice level.
 
 ## 4. Testing
 
