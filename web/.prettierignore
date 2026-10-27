@@ -10,3 +10,6 @@ bun.lockb
 
 # Generated
 src/lib/api/schema.gen.ts
+
+# Vendored
+src/lib/styles/shadcn-svelte.css

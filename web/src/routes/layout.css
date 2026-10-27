@@ -1,1 +1,220 @@
 @import 'tailwindcss';
+@import 'tw-animate-css';
+@import '../lib/styles/shadcn-svelte.css';
+@import '@fontsource-variable/instrument-sans';
+@import '@fontsource-variable/geist-mono';
+
+/*
+ * Hashi design tokens (docs/spec/10b-ui-system.md).
+ * Layer 1: each theme sets the palette roles from 10-ui.md §2 (--h-*).
+ * Layer 2: shadcn/Tailwind semantic names are derived from those roles once, below.
+ * Components use only layer-2 names; a custom theme only has to provide layer 1.
+ */
+
+@custom-variant dark (&:where([data-mode='dark'], [data-mode='dark'] *));
+
+:root,
+[data-theme='graphite'] {
+	--h-canvas: #08090b;
+	--h-shell: #0d0f12;
+	--h-surface: #13161a;
+	--h-surface-2: #191d23;
+	--h-elevated: #20252c;
+	--h-border: #2b323b;
+	--h-text: #f2f5f7;
+	--h-muted: #9da6b2;
+	--h-accent: #2563eb;
+	--h-accent-text: #ffffff;
+	--h-accent-hover: #3b82f6;
+	--h-focus: #60a5fa;
+	color-scheme: dark;
+}
+
+[data-theme='linen'] {
+	--h-canvas: #f3eee5;
+	--h-shell: #eae1d4;
+	--h-surface: #faf7f1;
+	--h-surface-2: #f0e7da;
+	--h-elevated: #fffdfc;
+	--h-border: #d4c7b6;
+	--h-text: #2b251f;
+	--h-muted: #74695d;
+	--h-accent: #b6533a;
+	--h-accent-text: #ffffff;
+	--h-accent-hover: #98432f;
+	--h-focus: #d97757;
+	color-scheme: light;
+}
+
+[data-theme='verdant'] {
+	--h-canvas: #030a07;
+	--h-shell: #06120d;
+	--h-surface: #0a1a12;
+	--h-surface-2: #10251a;
+	--h-elevated: #173223;
+	--h-border: #27513b;
+	--h-text: #edf7f0;
+	--h-muted: #94aa9b;
+	--h-accent: #e8ce55;
+	--h-accent-text: #08110c;
+	--h-accent-hover: #f5de74;
+	--h-focus: #ffe99a;
+	color-scheme: dark;
+}
+
+[data-theme='violet'] {
+	--h-canvas: #05030a;
+	--h-shell: #0a0712;
+	--h-surface: #110c1d;
+	--h-surface-2: #191128;
+	--h-elevated: #221638;
+	--h-border: #382653;
+	--h-text: #f4f0fa;
+	--h-muted: #aa9fbc;
+	--h-accent: #e6cf62;
+	--h-accent-text: #120c1e;
+	--h-accent-hover: #f3df82;
+	--h-focus: #fff0a8;
+	color-scheme: dark;
+}
+
+/* Status colours are theme-independent (10-ui.md §2); only the text shade adapts to light vs dark canvases. */
+:root {
+	--h-ok: #22c55e;
+	--h-warn: #f59e0b;
+	--h-bad: #ef4444;
+	--h-info: #3b82f6;
+	--h-idle: color-mix(in oklab, var(--h-muted) 45%, var(--h-surface-2));
+	--h-ok-text: #4ade80;
+	--h-warn-text: #fbbf24;
+	--h-bad-text: #f87171;
+	--h-info-text: #60a5fa;
+}
+[data-mode='light'] {
+	--h-ok-text: #15803d;
+	--h-warn-text: #a16207;
+	--h-bad-text: #b91c1c;
+	--h-info-text: #1d4ed8;
+}
+
+/* Layer 2: semantic names used by components. Declared on every [data-theme] element as well, so a scoped theme
+ * (theme picker previews, custom-theme drafts) re-derives them instead of inheriting :root's resolved values. */
+:root,
+[data-theme] {
+	--radius: 0.75rem;
+
+	--background: var(--h-canvas);
+	--foreground: var(--h-text);
+	--card: var(--h-surface);
+	--card-foreground: var(--h-text);
+	--popover: var(--h-elevated);
+	--popover-foreground: var(--h-text);
+	--primary: var(--h-accent);
+	--primary-foreground: var(--h-accent-text);
+	--secondary: var(--h-surface-2);
+	--secondary-foreground: var(--h-text);
+	--muted: var(--h-surface-2);
+	--muted-foreground: var(--h-muted);
+	--accent: var(--h-surface-2);
+	--accent-foreground: var(--h-text);
+	--destructive: var(--h-bad);
+	--border: var(--h-border);
+	--input: var(--h-border);
+	--ring: var(--h-focus);
+	--sidebar: var(--h-shell);
+	--sidebar-foreground: var(--h-text);
+	--sidebar-border: var(--h-border);
+	--chart-1: var(--h-accent);
+	--chart-2: var(--h-info);
+	--chart-3: var(--h-ok);
+	--chart-4: var(--h-warn);
+	--chart-5: var(--h-bad);
+}
+
+@theme inline {
+	--font-sans: 'Instrument Sans Variable', ui-sans-serif, system-ui, sans-serif;
+	--font-mono: 'Geist Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
+
+	--radius-sm: calc(var(--radius) - 6px);
+	--radius-md: calc(var(--radius) - 4px);
+	--radius-lg: calc(var(--radius) - 2px);
+	--radius-xl: var(--radius);
+	--radius-2xl: calc(var(--radius) + 4px);
+	--radius-3xl: calc(var(--radius) + 10px);
+
+	--color-background: var(--background);
+	--color-foreground: var(--foreground);
+	--color-card: var(--card);
+	--color-card-foreground: var(--card-foreground);
+	--color-popover: var(--popover);
+	--color-popover-foreground: var(--popover-foreground);
+	--color-primary: var(--primary);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-secondary: var(--secondary);
+	--color-secondary-foreground: var(--secondary-foreground);
+	--color-muted: var(--muted);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-accent: var(--accent);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-destructive: var(--destructive);
+	--color-border: var(--border);
+	--color-input: var(--input);
+	--color-ring: var(--ring);
+	--color-sidebar: var(--sidebar);
+	--color-sidebar-foreground: var(--sidebar-foreground);
+	--color-sidebar-border: var(--sidebar-border);
+	--color-chart-1: var(--chart-1);
+	--color-chart-2: var(--chart-2);
+	--color-chart-3: var(--chart-3);
+	--color-chart-4: var(--chart-4);
+	--color-chart-5: var(--chart-5);
+
+	/* Hashi-specific roles */
+	--color-canvas: var(--h-canvas);
+	--color-shell: var(--h-shell);
+	--color-surface: var(--h-surface);
+	--color-surface-2: var(--h-surface-2);
+	--color-elevated: var(--h-elevated);
+	--color-accent-hover: var(--h-accent-hover);
+	--color-ok: var(--h-ok);
+	--color-warn: var(--h-warn);
+	--color-bad: var(--h-bad);
+	--color-info: var(--h-info);
+	--color-idle: var(--h-idle);
+	--color-ok-text: var(--h-ok-text);
+	--color-warn-text: var(--h-warn-text);
+	--color-bad-text: var(--h-bad-text);
+	--color-info-text: var(--h-info-text);
+}
+
+@layer base {
+	* {
+		@apply border-border outline-ring/50;
+	}
+	html {
+		font-size: 14px;
+	}
+	body {
+		@apply bg-background font-sans text-foreground antialiased;
+		font-feature-settings:
+			'cv11' 1,
+			'ss01' 1;
+	}
+	:focus-visible {
+		outline: 2px solid var(--ring);
+		outline-offset: 2px;
+	}
+	/* Tabular figures wherever numbers line up in columns. */
+	.tnum {
+		font-variant-numeric: tabular-nums;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		transition-duration: 0.01ms !important;
+	}
+}

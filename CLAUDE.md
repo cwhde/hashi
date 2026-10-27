@@ -6,7 +6,8 @@ Go backend + embedded SvelteKit SPA + SQLite, one container. Pulse agent in `age
 
 ## Where things are
 
-- Spec: `docs/spec/README.md` (index + invariants). Read only the area file you work on.
+- Spec: `docs/spec/README.md` (index + invariants). Read only the area file you work on. UI pages follow
+  `docs/spec/10b-ui-system.md`; each page's approved mock is under `web/src/routes/design/`.
 - Where we are: `docs/progress.md` — read it first in every session, update it last.
 - Decisions: `docs/adr/`. Real infrastructure facts: `CLAUDE.local.md` (gitignored, not in the public repo).
 - `legacy/v1/` is the old Node app still running production until cutover. Don't copy its patterns.
