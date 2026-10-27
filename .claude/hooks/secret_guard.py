@@ -32,6 +32,8 @@ def diff_for(command, project):
     if re.search(r"\bgit\s+push\b", command):
         upstream = run(["git", "rev-parse", "--abbrev-ref", "@{u}"], project)
         base = upstream.stdout.strip() if upstream.returncode == 0 else ""
+        if not base and run(["git", "rev-parse", "--verify", "-q", "origin/main"], project).returncode == 0:
+            base = "origin/main"
         rng = "%s..HEAD" % base if base else "HEAD~20..HEAD"
         return run(["git", "log", "-p", "--no-color", rng] + EXCLUDES, project).stdout
     return run(["git", "diff", "--cached", "--no-color"] + EXCLUDES, project).stdout
