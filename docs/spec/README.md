@@ -28,6 +28,7 @@ Read only the file for the area you are working on, plus this index.
 | [11-delivery.md](11-delivery.md) | Delivery slices, prod-proof gates, testing, CI/CD, V1 cutover, operations |
 | [06a-security-data-model.md](06a-security-data-model.md) | Security tables in full (verbatim from V2) |
 | [10a-ui-references.md](10a-ui-references.md) | Descriptions of the UI reference screenshots |
+| [10b-ui-system.md](10b-ui-system.md) | UI system from S0b: tokens, shell, page inventory, component rules (mocks at `/design`) |
 | [environment.md](environment.md) | Real infrastructure facts (generic); host inventory lives outside the repo |
 
 ## Product principles
