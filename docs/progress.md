@@ -5,7 +5,30 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
-**S0 — Walking skeleton** · status: not started
+**S0 — Walking skeleton** · status: in progress
+
+Gate: container runs on the Docker LXC next to V1; `/readyz` OK from LAN; CI green on Gitea runners; image published.
+
+PR A — backend skeleton (`feat/s0-backend`)
+- [ ] `go.mod` (toolchain pinned, codegen/lint tools via `tool` directives), `cmd/hashi`, `internal/app` config from env + flags
+- [ ] Three listeners (admin 8080, public apps 8081, public status 8082; each configurable, public ones disableable)
+- [ ] `log/slog` JSON + redacting handler, `secrets.Value` type (invariant 5 test)
+- [ ] SQLite (WAL, foreign_keys, busy_timeout; one writer + read pool), goose embedded migrations, pre-migration backup
+- [ ] Job runner skeleton: `jobs` / `job_runs`, no self-overlap, one `noop` kind (invariant 15 fields)
+- [ ] `/healthz` (process up) and `/readyz` (DB ping + migrations at head)
+- [ ] `Makefile`: `check`, `generate`, `build`, `test`
+
+PR B — API + SPA
+- [ ] `api/openapi.yaml` (3.1) with `GET /api/version`; oapi-codegen strict server; `x-hashi-scopes` declared check
+- [ ] `web/` SvelteKit 2 + Svelte 5 + adapter-static + Tailwind 4 + shadcn-svelte init; shell page calls `/api/version` via generated client
+- [ ] SPA embedded in the binary with SPA fallback; `make dev`; web check/lint/unit in `make check`
+
+PR C — image, CI, deploy
+- [ ] `deploy/docker/Dockerfile` (BuildKit, `$BUILDPLATFORM`, cross-compile, distroless), `deploy/compose/` + `.env.example`
+- [ ] `.gitea/workflows/ci.yml` (make check) and `release.yml` (amd64+arm64 → `git.juzo.io/juzo/hashi`, `latest` + short SHA)
+- [ ] CI check asserting Dockerfile uses `$BUILDPLATFORM`/`TARGETARCH` and workflow keeps both platforms
+- [ ] `make deploy ENV=prod TAG=…`, `make rollback`, `make smoke`
+- [ ] Deploy to CT 106 `hashi-v3` on 3340–3342 (needs user OK: writes files + pulls image on a prod host) → gate evidence
 
 ## Slices
 
