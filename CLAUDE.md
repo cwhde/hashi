@@ -28,7 +28,8 @@ Go backend + embedded SvelteKit SPA + SQLite, one container. Pulse agent in `age
   write hypothesis + evidence under "Blocked" in progress.md, ask.
 - Reviews check the diff against the spec section's acceptance criteria, skip style, max 10 findings. Unreproduced
   findings go to "Unverified", not into code. Never start an audit series.
-- PRs ≤ ~500 changed lines excluding generated code and fixtures.
+- PRs are coherent and reviewable: usually one or two per slice, split along natural seams, rough guide ~1,500
+  hand-written lines. No stacked micro-PRs (each one costs a CI run). Docs and small fixes go straight to `main`.
 - If the spec is wrong, fix the spec in its own `docs(spec):` commit with the reason. Don't silently diverge.
 - Conventional commits; migrations ship with the model change; OpenAPI and generated clients ship together.
 
