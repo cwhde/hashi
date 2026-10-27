@@ -14,10 +14,10 @@ done / failed), its validated inputs, and the last error. A step can only be mar
 | 4 | Certificate provider | yes | ACME email + EAB stored, ACME account registered, DNS provider bound |
 | 5 | Traefik connection | yes | SSH validated + host key pinned, OS detected, paths confirmed, ownership confirmed |
 | 6 | Linux firewall host | yes | SSH validated, tools detected, subnets valid, linked to a Traefik connection |
-| 7 | Hashi system resource | yes | DNS + Traefik + firewall plans applied and verified for the admin domain |
+| 7 | Hashi system service | yes | DNS + Traefik + firewall plans applied and verified for the admin domain |
 | 8 | HTTPS reachability | yes | Browser reaches Hashi via `https://<admin domain>`; verified server-side (below) |
 | 9 | Passkey + recovery key | yes | Passkey registered, recovery key shown and confirmed by re-entry of a checksum segment, test unlock succeeded |
-| 10 | Optional integrations | no | Any of: OIDC SSO, AdGuard, notifications, MaxMind, Cap CAPTCHA, blocklists, internal agent DNS, dashboard widgets |
+| 10 | Optional integrations | no | Any of: OIDC SSO, AdGuard, notifications, MaxMind, Cap CAPTCHA, blocklist feeds, internal agent DNS, dashboard widgets |
 | 11 | Complete | — | Bootstrap credentials destroyed; bootstrap sessions revoked |
 
 Steps are built by the slice that owns their subsystem (11-delivery.md §3): S1 builds steps 1, 2, 9 and 11; steps 3–8 and
@@ -68,12 +68,12 @@ Encrypt is offered as a second ACME directory option (no EAB) because it costs n
 
 ### 1.5 Traefik and firewall steps
 
-See 04-traefik-resources.md §5 and 05-firewall.md §2. Both collect SSH host, port, username, password or private key
+See 04-traefik-services.md §5 and 05-firewall.md §2. Both collect SSH host, port, username, password or private key
 (+ passphrase); both pin the SSH host key on first contact after showing the fingerprint to the user.
 
-### 1.6 System resource
+### 1.6 System service
 
-Setup creates the Hashi system resource: admin domain → internal Hashi URL, TLS on, admin security profile, origin
+Setup creates the Hashi system service: admin domain → internal Hashi URL, TLS on, forward auth with Stage A and default fallback `none` (06-edge-security.md §4.5), origin
 `system`, delete forbidden, editable only via Settings → General.
 
 ## 2. Admin authentication
@@ -96,7 +96,7 @@ Hashi has exactly one admin user.
 - Recent reauthentication = a fresh passkey assertion within the current session; valid 5 minutes.
 
 Reauthentication is required for: destructive operations, secret reveal/replace, script save/run, firewall/DNS prune,
-manual permanent blocks, firewall blocks, blocklists with firewall enforcement, Cap settings, internal agent DNS
+permanent bans, changes to IP sets bound to firewall positions, global firewall allow/block bindings, Cap settings, internal agent DNS
 domain change, trusted-proxy change, revoking other sessions, vault mode change.
 
 ## 3. Admin sessions
@@ -139,7 +139,7 @@ case in §1.1 which uses `hashi.bootstrap`.
 | `sync.apply` | apply sync plans |
 | `firewall.apply` | apply or roll back firewall state |
 | `scripts.manage` | create, modify, execute scripts |
-| `security.manage` | blocks, blocklists, CAPTCHA, security policy, session revocation |
+| `security.manage` | IP sets, rule sets, dynamic entries (ban/challenge/remove), feeds, CAPTCHA, engine settings, session revocation |
 | `setup.*` | bootstrap-only setup scopes (`setup.manage`) |
 | `recovery.passkey` | register one replacement passkey (console recovery sessions only) |
 

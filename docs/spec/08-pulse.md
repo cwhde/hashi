@@ -24,41 +24,47 @@ configured port, so the UI can show "Hashi can reach this address" vs "agent rep
 ## 3. Tokens
 
 256-bit random, shown once, stored as `HMAC-SHA256(pepper, token)`; identifies exactly one agent; can only submit that
-agent's heartbeat (cannot read config, list resources or trigger syncs); revocable and rotatable. Revoked tokens get `401`.
+agent's heartbeat (cannot read config, list services or trigger syncs); revocable and rotatable. Revoked tokens get `401`.
 
 `POST /api/pulse/{agentId}/heartbeat` — rate limited per agent; validates payload size and IP formats; records reachability
 check results (Hashi probes the selected private IP on a configured port, optional).
 
-## 4. Resource and DNS use
+## 4. Pulse in IP sets
 
-Resources and manual DNS entries can target: manual IP, detected firewall host, or a Pulse agent. On an agent IP change:
+A Pulse agent is used everywhere through a `pulse` IP item (05a-ip-sets.md §2) — scope `public` (heartbeat source
+address), `internal` (private candidates, selected one first, optional interface/CIDR selector) or `all`. That one item
+type makes an agent usable in every position: firewall allow/block and host access, rule `Applies To`, DNS record values,
+service upstreams and connection targets. There is no separate agent-bound target model.
 
-1. Match internal or public IP against firewall hosts, managed subnets, NetBird-routed subnets, host FQDNs.
-2. Match → desired DNS becomes `CNAME → on.<host>`; no match → A with the agent's public IPv4 (no automatic AAAA, 03 §5).
-3. Queue DNS sync. If a resource's *target* (where Traefik forwards traffic to) is "the IP of agent X", also queue a
-   Traefik sync so Traefik forwards to the new address — updating DNS alone would leave Traefik pointing at the old one.
-4. Status page marks affected endpoints "pending DNS propagation" until the next successful check.
+On an address change (heartbeat with new public address or new private candidates):
 
-## 5. Agent-bound connection targets
+1. Recompile every IP set that contains the agent (directly or nested) and notify their consumers (05a §4.2).
+2. Firewall consumers: the folded `allow`/`block` and host access are re-planned (05-firewall.md §4.4).
+3. DNS consumers: services whose target set contains the agent re-evaluate host matching (03-dns.md §5.2: match →
+   `CNAME → on.<host>`, no match → A with the public IPv4); manual records with set values follow the new addresses.
+4. Traefik consumers: services whose upstream set contains the agent get a Traefik sync, so Traefik forwards to the new
+   address — updating DNS alone would leave Traefik pointing at the old one.
+5. Connection consumers: connections whose target set contains the agent mark health pending and reconnect.
+6. Status page marks affected endpoints "pending DNS propagation" until the next successful check.
 
-Every connection that needs a host/IP (AdGuard, Traefik host, firewall host where meaningful, future connections) uses a
-reusable target model (`connection_targets`):
+Nothing unrelated is touched; Activity logs the dependency impact (which sets, which consumers).
 
-`target_mode` (static_host / static_ip / pulse_agent), static_host, static_ip, pulse_agent_id, pulse_ip_mode
-(`selected` default / `public` / `private_selected` / `private_candidate`), private_candidate_selector (interface name,
-CIDR or explicit address), port, scheme, path_prefix, tls_validation_mode, expected_hostname, resolved_ip_snapshot,
-last_resolved_at, resolution_status, resolution_error.
+## 5. Connection targets
 
-UI shows last seen, public IP, private candidates, selected IP, stale status, reachability from Hashi.
+Every connection that needs a host/IP (Traefik host SSH, firewall host SSH, AdGuard, future connections) takes an
+**address set** plus port, scheme, path prefix, TLS validation mode and expected hostname. Addresses are tried in item
+order. The UI shows, per resolved address, its source (e.g. Pulse agent: last seen, public address, private candidates,
+selected address, stale status, reachability from Hashi).
 
-Validation before save: agent exists; has a heartbeat (or explicit "save inactive"); IP mode valid; port valid; optional
-connectivity test without leaking secrets; unreachable/inactive saves require confirmation.
+Validation before save: the set is an address set; Pulse agents in it exist and have a heartbeat (or explicit "save
+inactive"); port valid; optional connectivity test without leaking secrets; unreachable/inactive saves require
+confirmation. A target that resolves to nothing keeps the last working address (invariant 21).
 
-On resolved-IP change: record the new target, mark dependent connection health pending, queue relevant syncs, touch no
-unrelated resources, log dependency impact in Activity.
+Former `pulse_ip_mode` values map to item scopes: `selected` / `private_selected` → `internal` (selected first),
+`public` → `public`, `private_candidate` → `internal` with a selector.
 
-API: `/api/pulse/agents` CRUD, `POST /api/pulse/agents/{id}/rotate-token|revoke`, `GET /api/pulse/agents/{id}/resolved-targets`,
-`GET /api/pulse/agents/{id}/install` (one-liner + compose snippet).
+API: `/api/pulse/agents` CRUD, `POST /api/pulse/agents/{id}/rotate-token|revoke`, `GET /api/pulse/agents/{id}/consumers`
+(IP sets containing the agent and their consumers), `GET /api/pulse/agents/{id}/install` (one-liner + compose snippet).
 
 ## 6. Releases
 
@@ -67,5 +73,6 @@ Pulse binaries (amd64/arm64) with SHA-256 checksums attached to Gitea releases o
 
 ## 7. Tests that must exist
 
-Token hashing and revocation; heartbeat validation; IP matching → CNAME vs A; agent-bound resolution for each IP mode;
+Token hashing and revocation; heartbeat validation; IP matching → CNAME vs A; `pulse` item resolution for each scope and
+selector; a heartbeat change reaches every consumer type (firewall, DNS, Traefik, connection);
 stale handling; installer script shellcheck; image size check in CI.

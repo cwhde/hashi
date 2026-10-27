@@ -12,7 +12,9 @@ Known pitfalls worth remembering (the rest of V2's findings don't apply to a fre
 
 - Hetzner DNS is only the Cloud API now; the legacy DNS API is gone.
 - Traefik has no config-check command; verify through its own API after loading.
-- NAT rules belong in the `nat` table, and DNAT targets the Traefik entry-point port.
+- NAT rules belong in a `nat`-type chain, and DNAT targets the Traefik entry-point port.
+- nftables: conntrack (`ct state`, `ct count`) is only available after priority −200, so meters cannot run at `raw`;
+  Debian's `nftables.service` starts with `flush ruleset` and must never be enabled by Hashi.
 - A firewall rescue timer is disarmed only after a *new* connection succeeds.
 - Config and scripts are rendered from structs, never string-templated from user input.
 
@@ -55,14 +57,14 @@ happen at the end of every slice.
 | S1 | Setup, auth, vault | 02-setup-auth.md §1.1–1.2, §2–5 (service mode), audit log, settings framework, Activity page | Bootstrap login from LAN, session IP binding observed, restart keeps sessions, secrets encrypted in a DB dump; passkey registration and login pass with a virtual authenticator in tests (no HTTPS before S5, see 02 §1) |
 | S2 | DNS read + import | 03-dns.md §1–4 (read side), contract capture for Hetzner | Real zone listed; import table shows real RRSets; decisions persist; fixtures committed (sanitized) |
 | S3 | DNS write | 03-dns.md §5–7, sync engine 01-platform.md §5, approval UI | Probe TXT created + deleted via approved plan; a Hashi-owned test record applied and verified; NS/SOA untouched |
-| S4 | SSH + Traefik | 04-traefik-resources.md §2–6, sshx with host-key pinning, Hashi-issued certificates (03 §5.3) | Hashi-installed Traefik running on a fresh edge LXC; rendered files applied; Verify reads routers from the real Traefik API; Hashi issues the root + wildcard certificate via DNS-01, distributes it, and the edge serves it (fingerprint checked); forward-auth fallback observed with Hashi stopped, using a stub forward-auth endpoint (06 §2.1) |
-| S5 | HTTP resources | 04 §1, §7–8, DNS resource records, system resource (setup steps 7–8) | Hashi admin reachable at its HTTPS domain through Hashi-managed Traefik; one real service migrated and reachable; setup completes end-to-end on the real install, including the first real passkey from a real browser on a temporary admin domain (V1 keeps its domain until cutover) |
-| S6 | Firewall + streams | 05-firewall.md, TCP/UDP resources | First apply with rescue timer on a real host; foreign + NetBird rules unchanged (diff of `iptables-save` before/after); public TCP/UDP port reaches its upstream; NetBird access verified |
-| S7 | Monitoring + public pages | 07-monitoring-public.md | All migrated resources monitored; public status + dashboard served on their ports; a real outage produces a notification and recovery |
+| S4 | SSH + Traefik | 04-traefik-services.md §2–6, sshx with host-key pinning, Hashi-issued certificates (03 §5.3) | Hashi-installed Traefik running on a fresh edge LXC; rendered files applied; Verify reads routers from the real Traefik API; Hashi issues the root + wildcard certificate via DNS-01, distributes it, and the edge serves it (fingerprint checked); forward-auth fallback observed with Hashi stopped, using a stub forward-auth endpoint (06 §2.1) |
+| S5 | HTTP services | 04 §1, §7–8, DNS service records, system service (setup steps 7–8) | Hashi admin reachable at its HTTPS domain through Hashi-managed Traefik; one real service migrated and reachable; setup completes end-to-end on the real install, including the first real passkey from a real browser on a temporary admin domain (V1 keeps its domain until cutover) |
+| S6 | IP sets + firewall + streams | 05a-ip-sets.md (`ip`, `cidr`, `host`, `dns`, set references, system sets, compiler, IP sets pages, address page without dynamic state), 05-firewall.md (nftables table, folding, bindings, host access, rescue; meters rendered but off), TCP/UDP services; **entry gate first**: nft/NetBird coexistence capture (05 §10) | First apply with rescue timer on a real host; foreign + NetBird rules unchanged (diff of `nft list ruleset` minus Hashi's table and of `iptables-legacy-save` before/after); NetBird connected after apply and after a NetBird restart; an address in a block set is dropped, an allowed /32 inside it passes (observed with real test sources); public TCP/UDP port reaches its upstream; Hashi's table survives `hashi-firewall` unit restart; a DNS record whose value is an address set applied |
+| S7 | Monitoring + public pages | 07-monitoring-public.md | All migrated services monitored; public status + dashboard served on their ports; a real outage produces a notification and recovery |
 | — | **V1 cutover** | §7 | V1 container stopped; Hashi owns DNS/monitoring for everything V1 handled |
-| S8 | AdGuard, Pulse, agent DNS | 03 §8–9, 08-pulse.md | Real AdGuard rewrites synced without touching manual ones; Pulse agent on a real host; IP change propagates; `<agent>.hashi.home.arpa` resolves |
-| S9 | Edge SSO + rules | 06 §2–4, §12, resource rules | SSO login covers two subdomains; rule by CIDR and by country observed; fail-closed behaviour observed with Hashi stopped; forward-auth latency from the remote (home) Traefik host recorded |
-| S10 | Security engine, WAF, CAPTCHA, blocklists | 06 §5–11, §13–15 | Access logs ingested from real Traefik; synthetic load triggers challenge → Cap solve → clear; escalation to firewall block reaches all hosts; a blocklist fetched and enforced; WAF detect events visible |
+| S8 | AdGuard, Pulse, agent DNS | 03 §8–9, 08-pulse.md, `pulse` IP items | Real AdGuard rewrites synced without touching manual ones; Pulse agent on a real host; an address change propagates through its IP sets to a DNS record, a service upstream and the folded firewall `allow` without a manual step; `<agent>.hashi.home.arpa` resolves |
+| S9 | Forward auth, rule sets, edge SSO | 06 §2, §4, §7, §12, §13 (rule set pages, service Access tab), `geo` items (L7 and firewall expansion) | SSO login covers two subdomains; a shared rule set attached to two services decides on both (trace observed); rules by IP set, by Pulse-backed set and by country observed; `deny` fallback service observed; fail-closed vs fail-open by rule content observed with Hashi stopped; forward-auth latency from the remote (home) Traefik host recorded |
+| S10 | Abuse engine, WAF, CAPTCHA, feeds | 06 §3, §5–6, §8–11, §13 (Security dashboard, Engine), dynamic sets, host link, kernel meters on | Access log tailed live from real Traefik; synthetic L7 load → challenge → Cap solve → clear; ignored challenge → ban in `dyn` on every managed host within one poll interval; a test source tripping an L4 meter is staged, drained and banned with `T_ban(c)`; an allowed address tripping both is never banned; a feed fetched and enforced via the firewall block binding; WAF match counted; `headers_only` path accepts a large upload |
 | S11 | Scripts, custom themes, settings completeness | 09-scripts-settings.md, 10-ui.md §2 | Scheduled script runs on real hosts with history; custom theme editor works; visual tests pass in all four themes; every setting has a consumer test |
 | S12 | Hardening + 1.0 | strict vault mode (02 §5.4), backup/restore drill, threat model, docs | Restore from backup onto a fresh container works; strict mode unlock with PRF passkey or recovery key; security scans clean or accepted; tag `v1.0.0` |
 
@@ -80,8 +82,8 @@ A slice may span several PRs (rule 7); the gate stays at the slice level.
 | Prod-proof | manual/semi-automated checklist on the real deployment | `docs/progress.md` |
 
 Invariant tests (`TestInvariant_*`) run in every CI run. Safety tests from V2 are kept: NS/SOA deletion impossible;
-unowned records untouched; identical Traefik file not rewritten; firewall does not flush unrelated rules; NetBird rules
-preserved and access survives apply; Pulse IPs matching hosts produce CNAMEs; secrets redacted in logs and API responses;
+unowned records untouched; identical Traefik file not rewritten; firewall does not flush unrelated rules (any backend); NetBird rules
+preserved and access survives apply; manual allow beats dynamic bans; unresolved targets keep applied state; Pulse IPs matching hosts produce CNAMEs; secrets redacted in logs and API responses;
 passive sync runs without a session; high-risk passive plans wait for approval.
 
 `make check` = format check + lint + unit + contract + generate-diff + web check/lint/unit. It must run in < 3 minutes
@@ -135,11 +137,11 @@ Hashi takes over in this order, each step reversible:
 1. **S2–S3 (DNS):** import every RRSet V1 created as `imported`; Hashi's DNS plan for that set must show **no changes**
    while V1 still runs (proves equivalence). V1 keeps writing until step 4.
 2. **S4–S5 (Traefik):** the current reverse proxies are **replaced, not adopted**. Hashi installs its own Traefik
-   (04-traefik-resources.md §2–3, Hashi static config, Hashi paths, certificates issued by Hashi) on a fresh edge LXC per
+   (04-traefik-services.md §2–3, Hashi static config, Hashi paths, certificates issued by Hashi) on a fresh edge LXC per
    host; nothing of the Pangolin-generated or hand-written Traefik config is reused. Every Pangolin resource is recreated as a
-   Hashi resource; once the new instance serves them all (verified via its API and real requests), the firewall DNAT target /
-   router forward moves to the new LXC. Resources that relied on Pangolin's badger auth stay restricted by IP allowlist rules
-   until Hashi forward auth lands in S9. The old Traefik instances and Pangolin are stopped here and deleted at cutover.
+   Hashi service; once the new instance serves them all (verified via its API and real requests), the firewall DNAT target /
+   router forward moves to the new LXC. Services that relied on Pangolin's badger auth move only in S6, restricted by a Traefik `ipAllowList` rendered from
+   an IP set's compiled prefixes until Hashi's rule sets replace it in S9. The old Traefik instances and Pangolin are stopped here and deleted at cutover.
 3. **S6 (firewall):** Hashi's first firewall apply on host A removes the old script's chains, jumps and cron entries under the
    rescue timer. The topology TXT record is no longer needed afterwards.
 4. **S7 → cutover:** monitoring covers all former Gatus endpoints. Stop V1, Gatus, Pangolin (+ its Traefik) and the old

@@ -4,7 +4,7 @@ Hashi has built-in, Gatus-inspired monitoring. It replaces V1's generated Gatus 
 
 ## 1. Endpoints
 
-Sources: resources, manual DNS entries with monitoring enabled (display name required), Linux firewall hosts, Traefik
+Sources: services, manual DNS entries with monitoring enabled (display name required), Linux firewall hosts, Traefik
 connections, AdGuard connections, Hashi itself, Pulse agents (push health), user-created monitors.
 
 Fields: name, group, source link, enabled/paused, interval (default 60 s; setting), timeout, checks, required-check set,
@@ -17,7 +17,7 @@ HTTP, HTTPS, H2C (where practical), TCP connect, UDP (only with a configured pro
 container has `CAP_NET_RAW`; otherwise disabled with an explanation), TLS certificate expiry (warn at 21 d, critical at 7 d),
 Pulse push health (heartbeat freshness).
 
-Auto-detection: explicit resource protocol first; for DNS entries, probe common ports in a safe fixed order (443, 80,
+Auto-detection: explicit service protocol first; for DNS entries, probe common ports in a safe fixed order (443, 80,
 then the entry's configured port) once at creation, then use the chosen check; per-endpoint override; no scanning.
 
 HTTP checks may target the public URL (through DNS + Traefik) and/or the internal upstream; both together distinguish
@@ -37,7 +37,7 @@ closed buckets. History strips keep per-sample timestamps.
 ## 5. Admin UI
 
 Status list: compact row/card per endpoint, last-60-minutes strip, state, last check, response time, group; search; group
-by host / firewall host / status / resource type; sort by name / state / latency / uptime / last event.
+by host / firewall host / status / service type; sort by name / state / latency / uptime / last event.
 
 Detail: current status, last check, response min/max/avg, uptime (1 h, 24 h, 7 d, 30 d), latency chart (1 h, 24 h, 7 d,
 30 d), incident/event timeline, endpoint settings.
@@ -64,7 +64,7 @@ high-risk sync plans and vault-lock events can also notify. Deliveries recorded 
 
 Heimdall-style launcher of selected entries.
 
-- Sources: resources with dashboard enabled (display name defaults to resource name); manual DNS entries with dashboard
+- Sources: services with dashboard enabled (display name defaults to service name); manual DNS entries with dashboard
   enabled (display name required).
 - Cards link to the public URL; icon from the asset set or per-entry upload.
 - Search collapsed by default; sort selector (name, group, status; default from settings).

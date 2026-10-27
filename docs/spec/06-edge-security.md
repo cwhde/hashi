@@ -1,325 +1,402 @@
-# 06 — Edge security: forward auth, SSO, rules, WAF, abuse engine, CAPTCHA, blocklists
+# 06 — Edge security: two-stage engine, rule sets, SSO, CAPTCHA, WAF, feeds
 
-Full table definitions (subjects, states, manual entries incl. scope types `global` / `resource` / `root_domain` /
-`traefik_connection` / `firewall_host`, events, buckets, blocklist tables, firewall block tracking): [06a-security-data-model.md](06a-security-data-model.md).
+Every HTTP-family request to a service passes Hashi's forward auth: **Stage A**, the global abuse engine, then
+**Stage B**, the service's rule set. L4 services are protected at the firewall (kernel meters, folded sets,
+[05-firewall.md](05-firewall.md)). Addresses always come from IP sets ([05a-ip-sets.md](05a-ip-sets.md)). Tables:
+[06a-security-data-model.md](06a-security-data-model.md). Decision record: [ADR 0002](../adr/0002-security-model.md).
 
-## 1. Overview
+**Changed from the first spec:** manual entries with scopes and bypass flags, security subjects and their eight states,
+soft blocks, blocklist enforcement modes, per-resource policy modes (Off / SSO required / Adaptive / Observe), WAF
+detect mode and resource rules are gone. They are replaced by IP sets, rule sets, two dynamic IP sets and one ban
+function.
 
-Traefik calls Hashi's forward-auth endpoint for every HTTP-family request on resources with a forward-auth policy.
-Hashi decides allow / SSO / challenge / deny from one deterministic decision engine fed by manual entries, blocks,
-blocklists, resource rules, GeoIP and rate buckets. Streams (TCP/UDP) are protected only at the firewall.
+## 1. Principles
 
-## 2. Forward-auth endpoint
+1. **Rules vs settings.** Rules are deterministic mappings (who · what condition → action), edited per service and in
+   reusable rule sets. Settings are global numbers, timers and the ban function. Per service, only the rule set, the
+   default fallback and the WAF mode per path are configurable.
+2. **Two recursive primitives.** *Who* is an IP set (05a). *L7 access policy* is a rule set; a service owns a root rule set.
+3. **No ambiguity.** Firewall: longest prefix match, tie → block, manual beats dynamic (05 §4). L7: Stage A before
+   Stage B; inside Stage B one flattened list, first match wins.
+4. **Scoped vs global state.** Service rules (`Pass CAPTCHA`, `Pass Authentication`, `Deny`) only gate that service and
+   never touch the dynamic sets. Abuse (WAF hits, request floods, ignored challenges, L4 floods) is tracked globally and
+   escalates to a ban on every firewall host.
+
+## 2. Forward auth
 
 `GET /api/edge-auth/forward` (Traefik `forwardAuth`, `trustForwardHeader: true` only because Traefik hosts are trusted proxies).
 
 Input from Traefik: `X-Forwarded-Host`, `X-Forwarded-Uri`, `X-Forwarded-Method`, `X-Forwarded-Proto`, `X-Forwarded-For`,
-plus `Cookie`, `Accept`, `User-Agent`.
+plus `Cookie`, `Accept`, `User-Agent`. The client address comes from the client-IP resolver (01-platform.md §8).
 
 Responses: `204` allow (with `X-Hashi-User` when SSO-authenticated, configurable auth response headers); `302` to login
-or challenge for browsers; `401` auth required (API clients); `403` blocked; `429` rate-limited or challenge required
+or challenge for browsers; `401` authentication required (API clients); `403` denied or banned; `429` challenge required
 for API clients (`{"error":"challenge_required","challengeUrl":…}`).
 
-Resource resolution uses host **and** path routing exactly as Traefik does (most specific route wins), not "first host
-match".
+Service resolution uses host **and** path routing exactly as Traefik does (most specific route wins). The request path
+is normalized once (percent-decoding of unreserved characters, dot-segment removal, duplicate slashes collapsed) and every
+path condition and WAF path mode is matched against the normalized path.
 
-### 2.1 Policy modes per resource
+Forward auth is attached to **every** HTTP-family service, system services included (admin, challenge). There is no "off"
+mode: Stage A protects everything.
 
-| Mode | Behaviour |
+### 2.1 When Hashi is unreachable
+
+Traefik cannot "fail open" natively, so every Traefik host gets a tiny **local fallback**: forward auth targets a local
+route whose service has a health check on Hashi and a failover to a static `204` responder.
+
+| Service | During a Hashi outage |
 | --- | --- |
-| Off | No forward-auth middleware attached |
-| SSO required | Fail **closed** if Hashi cannot evaluate |
-| Adaptive (default for HTTP resources) | Anonymous allowed normally; SSO and/or challenge required during elevated abuse state or by rules |
-| Observe | Decisions recorded, never enforced |
+| Flattened rules contain a `Deny` or `Pass Authentication` item, or the fallback is `Deny` | Fail **closed**: points straight at Hashi, no fallback |
+| Only `None` / `Pass CAPTCHA` | Fail **open** through the local fallback: Stage A and CAPTCHA pause |
+| Firewall sets (`block`, `dyn`, `staging`) and meters | Keep working in the kernel |
+| Recording | The outage window is recorded as an event; access logs are ingested afterwards |
 
-Unreachable-Hashi behaviour: Traefik cannot "fail open" natively, so every Traefik host gets a tiny **local fallback**:
-forward auth targets a local route on the Traefik host whose service has a health check on Hashi and a failover to a
-static `204` responder. That route is attached **only** to resources in Adaptive/Observe mode; SSO-required resources
-point straight at Hashi with no fallback (fail closed). Verify this construct against the pinned Traefik version before
-implementation, and prove the outage path with a real Traefik in S4 (stop Hashi → observe), not first in S9.
-
-What the fallback guarantees while Hashi is unreachable (Traefik cannot know Hashi's in-memory state, so nothing more):
-
-| Protection | During a Hashi outage |
-| --- | --- |
-| Firewall blocks (ipsets on hosts) | Keep working |
-| SSO required | Fail closed |
-| Adaptive / Observe | Fail open: challenges and soft blocks pause |
-| Recording | Hashi records the outage window as an event when it is back; Traefik access logs are ingested afterwards |
-
-Hashi does not copy soft blocks or challenge state to Traefik hosts — one more synced object is not worth the gain.
-
-**Home resources depend on the link to Hashi.** Forward auth for resources on a remote Traefik host (e.g. at home)
-crosses the overlay network to Hashi. If that link drops, SSO-required resources there fail closed and Adaptive ones
-fail open, exactly as in an outage. This is accepted; S9 records the forward-auth latency over that link in its gate.
+Verify the fallback construct against the pinned Traefik version and prove the outage path with a real Traefik in S4.
+Forward auth for services on a remote Traefik host crosses the overlay network; if that link drops, the same table applies.
+S9 records the forward-auth latency over that link.
 
 ### 2.2 Performance budget
 
-p99 ≤ 5 ms in-process for cache hits. Decision inputs (manual entries, blocks, blocklist entries as a radix tree, rules,
-GeoIP reader) live in memory, refreshed on change notifications and every 30 s. Event recording is async through a
-bounded channel; on overflow, events are sampled and a counter records drops — the decision is never delayed by logging.
+p99 ≤ 5 ms in-process. All inputs live in memory: compiled IP sets (interval lists), flattened rule lists per service,
+dynamic set state, per-address counters, GeoIP reader. Refreshed on change notifications and every 30 s. Event recording
+is async through a bounded channel; on overflow, events are sampled and a counter records drops — the decision is never
+delayed by logging.
 
-## 3. Decision engine
+## 3. Stage A — global abuse engine
 
-### 3.1 Effective decision order
+Runs first for every request on every service, including SSO login flows and the CAPTCHA challenge service.
 
-| # | Step | Skipped by a matching manual allow? |
+### 3.1 A1 — block guard
+
+If the client address is in the folded `block` ranges or in `dynamic-blocked` (and not in the folded `allow` ranges —
+05 §4.2, the same compiled partition the firewall uses): `403`, stop. This closes the seconds-long window before a new
+ban reaches every firewall host.
+
+### 3.2 A2 — WAF and request rate
+
+**WAF** (§9) runs in Traefik before the request reaches the upstream. A blocking match rejects that request at the proxy.
+Hashi learns of every match from the continuously tailed access log (§6.2) and counts it for the address.
+
+**Rate:** forward auth counts every request per address in a sliding window.
+
+**Trigger:** when an address exceeds `waf.violation_threshold` (N matches within Δt) **or** `l7.rate_limit_threshold`
+(R requests within Δt), Hashi adds it to `dynamic-challenge` with `expires_at = now + T_exp` and failure count `f = 0`.
+
+**Exempt from the trigger:**
+- addresses in the folded `allow` ranges — never added to any dynamic set (invariant 20);
+- requests carrying a valid edge SSO session — not counted towards the rate trigger. Their WAF matches still count.
+
+IPv6 addresses are tracked, challenged and banned per /64.
+
+### 3.3 A3 — challenge enforcement
+
+If the address is in `dynamic-challenge`:
+
+| Case | Effect |
+| --- | --- |
+| Valid CAPTCHA solution submitted (`POST /api/edge-challenge/verify`, scope `global`) | Remove from `dynamic-challenge`, `f ← 0`; the request continues to Stage B. The ban counter is **not** reset |
+| `now ≥ expires_at` | Entry removed (lazy check + cleanup job). `T_exp = 0` means no expiry |
+| Any other request | `f ← f + 1`. If `f < F_max`: browser → `302` to the challenge page; API → `429 challenge_required`. If `f ≥ F_max`: escalate (§3.4), `403` |
+
+Requests to the challenge flow itself (challenge page, its assets, verify) never count as failures and stay reachable.
+A3 runs before authentication: someone flooding an SSO login is stopped by a CAPTCHA before reaching the IdP.
+
+Browser vs API: `Accept` contains `text/html` and method is GET/HEAD → browser redirect to
+`/api/edge-challenge/start?scope=global&rd=…` preserving the original URL (unsafe/cross-origin `rd` → service root).
+
+### 3.4 Escalation to a ban
+
+Sources: A3 reaching `F_max`; an L4 meter (address drained from a host's staging set, 05 §6); "ban now" by the admin.
+
+1. Skip if the address is in the folded `allow` ranges (record an event; no ban).
+2. Remove it from `dynamic-challenge` if present.
+3. Ban counter `c ← c + 1`.
+4. `T = T_ban(c)` (§5).
+5. Add to `dynamic-blocked` with `expires_at = now + T` (none when permanent), source and reason.
+6. The host link pushes it to `dyn` on every `managed` host (05 §6); A1 enforces it immediately.
+
+### 3.5 Dynamic sets
+
+`dynamic-challenge` and `dynamic-blocked` are IP sets of kind `dynamic` (05a §3): visible on the IP sets page with every
+entry, its source, reason, expiry, failure count and ban counter; manual actions remove, add with a duration, reset the
+counter. They may be used in rule `Applies To` like any set.
+
+## 4. Stage B — rule sets
+
+### 4.1 Rule item
+
+| Field | Values |
+| --- | --- |
+| `priority` | integer, unique within its container, `1` first |
+| `applies_to` | an IP set (any kind: `all`, user, feed, `hashi-hosts`, Pulse-backed …) |
+| `condition` | optional path match: `exact` \| `prefix` \| `regex` (RE2, compiled at save) + pattern starting with `/`; omitted = prefix `/` |
+| `action` | `none` \| `deny` \| `pass_captcha` \| `pass_authentication` |
+| `auth` | for `pass_authentication` only: optional provider (default provider when empty), optional allowed groups |
+| `enabled`, `note` | |
+
+Actions:
+
+- **`none`** — allow; Stage B ends; the request goes to the upstream. Skips every lower-priority `pass_captcha` and
+  `pass_authentication`.
+- **`deny`** — `403`. Never touches dynamic sets.
+- **`pass_captcha`** — requires a valid clearance cookie for this service: HMAC-signed `{service, issued, expiry}`,
+  lifetime `captcha.clearance_ttl`, not bound to the address (mobile clients change addresses). Missing → challenge with
+  `scope=service`. Never adds the address to `dynamic-challenge`; a bot hammering the challenge is still counted by A2.
+- **`pass_authentication`** — requires a valid edge SSO session (§7); with allowed groups, a session outside them gets
+  `403`. Missing → login redirect (browser) or `401` (API). Floods of the login flow are counted by A2.
+
+### 4.2 Rule set and service root
+
+A rule set is a named, reusable container of entries; each entry is a rule item or a reference to another rule set, with
+a priority unique in that container. Rule set references are acyclic (DFS on save, `400` with the path). A rule set
+attached anywhere cannot be deleted (the error lists where).
+
+Global, service-root and reusable rule sets are **one type** (`kind`: `user` | `global` | `service_root`, plus `origin`,
+06a §0). Every HTTP-family service owns a **root rule set** (not attachable elsewhere, deleted with the service) whose last
+entry is the **default fallback**: a real rule item with origin `system`, locked to `applies_to all`, prefix `/` and the
+last position; only its action is editable — `none` (open service) or `deny` (closed service). The one rule set of kind
+**`global`** holds rules that apply to every service after its own rules; it cannot be deleted.
+
+### 4.3 Flattening and evaluation
+
+```
+Flatten(service root without its fallback) + Flatten(global) + [the service root's fallback item]
+```
+
+Stage A appears at the top of every trace and flattened view as locked, read-only entries in the same shape (A1 block
+guard, A2 trigger, A3 challenge) so the whole path reads as one list; it is implemented as engine code, not as rule items,
+because A2 is a windowed counter rather than a match → action rule and Stage A must not be removable.
+
+`Flatten` is a pre-order depth-first traversal sorted by priority at every level: a rule set at priority 1 is traversed
+completely before the entry at priority 2. Disabled items are skipped. The flattened list is recomputed on every change
+of a rule set, an attachment or the global set, and cached per service.
+
+For each item in order: the address is in `applies_to` (05a §4.1, including geo predicates) **and** the path matches the
+condition → execute the action and stop. Every decision returns the trace: Stage A steps, the flattened list with the
+deciding item and the rule-set path it came from (`service root → shared/admin-protect → item 2`).
+
+Save-time warnings (not errors): an item after an earlier `applies_to all` + prefix `/` item is unreachable;
+`none` for `all` at priority 1 disables all later protection on that service; a `geo` set used while GeoIP is missing.
+
+### 4.4 Patterns
+
+| Goal | Rules |
+| --- | --- |
+| Open service with protected `/admin` | fallback `none`; 1: `all` · prefix `/admin` → `pass_authentication` |
+| Only `/public` reachable | fallback `deny`; 1: `all` · prefix `/public` → `none` |
+| Switzerland skips CAPTCHA, everyone else solves it | 1: `switzerland` → `none`; 2: `all` → `pass_captcha` |
+| Only `/api/public` for the world, everything for my devices | fallback `deny`; 1: `trusted-devices` → `none`; 2: `all` · prefix `/api/public` → `none` |
+| Conflicting `/admin` rules in two attached rule sets | the set at the lower priority number wins, completely traversed first |
+
+### 4.5 System services
+
+| Service | Stage A | Stage B |
 | --- | --- | --- |
-| 1 | Invalid/untrusted request metadata → deny | Never |
-| 2 | Manual block | Never (see overlap rule) |
-| 3 | Manual allow with `bypassBlocking` → skip steps 4–6 | — |
-| 4 | Firewall block (subject is in an active firewall block) | Yes, with `bypassBlocking` |
-| 5 | High-confidence blocklist entry with firewall enforcement | Yes, with `bypassBlocking` |
-| 6 | Soft block | Yes, with `bypassBlocking` |
-| 7 | Active challenge required | Only with `bypassChallenge` |
-| 8 | Resource-specific rule (priority order) | Never; never skips SSO |
-| 9 | Default resource behaviour (policy mode, rate thresholds) | Rate limits only with `bypassRateLimit` |
+| Hashi admin | A1–A3 | fallback `none` (admin auth is Hashi's own passkey session) |
+| CAPTCHA challenge (when Cap is enabled) | A1 only (challenged addresses must reach it; its requests never count as failures) | none |
 
-**Overlap rule:** when a manual allow and a manual block both match, the more specific one (longer prefix; IP beats CIDR
-beats ASN beats country) wins; on a tie the block wins. The escalation engine never creates soft or firewall blocks for
-a subject covered by a manual allow with `bypassAdaptiveEscalation`. The UI warns when an allow covers more than a /24
-(IPv4) or a whole ASN/country. Each row of this table has a `TestInvariant_DecisionOrder_*` case.
+## 5. Ban function and counters
 
-Manual allow **does not bypass SSO or CAPTCHA** by default in this version.
-Manual allow entries carry explicit flags: `bypassBlocking` (default true), `bypassAdaptiveEscalation` (true),
-`bypassRateLimit` (false), `bypassChallenge` (false), `bypassSso` (false). Only the first two are editable initially;
-the UI shows all five with their meaning. Block entries must have all bypass flags false.
+Each address (IPv6: /64) has a persistent **ban counter** `c`. It increments before every ban (§3.4), is never reset by a
+CAPTCHA solve, resets to 0 after `ban.counter_decay_ttl` has passed since the end of the last ban with no new ban, and can
+be reset manually.
 
-### 3.2 Rule actions and inputs
+```
+T_ban(c) = ∞                                        if C_perm > 0 and c ≥ C_perm
+         = min(T_max, T_base)                       if type = constant
+         = min(T_max, T_base × (1 + k·(c − 1)))     if type = linear
+         = min(T_max, T_base × k^(c − 1))           if type = exponential
+```
 
-Actions: allow, deny, require SSO, require challenge, soft block, firewall block, bypass blocking (via manual allow).
-Inputs: subject state, resource security profile, request bucket state, manual entries, blocklist matches, GeoIP/ASN,
-challenge state, requests-while-challenged, failed challenges, previous escalations.
+Parameters (settings): `ban.function` (`constant` | `linear` | `exponential`), `ban.base` (`T_base`, 15 m), `ban.k`
+(2.0), `ban.max` (`T_max`, 30 d), `ban.permanent_after` (`C_perm`, 0 = never). The settings page plots `T_ban(1…12)`.
 
-Every decision is explainable: the engine returns the decision plus the ordered list of evaluated steps and the one that
-decided. The subject detail page shows this trace.
+## 6. Telemetry
 
-### 3.3 Forward-auth evaluation order
+### 6.1 Events and buckets
 
-Parse metadata → resolve resource → resolve subject(s) (IP, CIDR matches, ASN, country, region, session) → load manual
-entries → load block/challenge state → blocklist matches → resource rules → rate buckets → decide → record event → respond.
-Upstreams never receive requests while the subject is challenged or blocked.
+Kept from the first spec, with the address as the subject:
 
-## 4. Edge SSO
+- `security_buckets_1m`: bucket start, service, root domain, Traefik connection, country, ASN, decision/action, status
+  class, path prefix (first segment, ≤ 50 per service per minute, else `other`), request/denied/challenged/
+  challenge-failed/banned counts. **No address.**
+- `security_ip_top_1m`: top 500 addresses per closed minute (address, service, counts).
+- `security_events`: only non-allow decisions and state changes (challenge entered/solved/expired/escalated, ban
+  created/applied per host/expired/removed, WAF match, meter trip, manual actions). At most 10 events per address per
+  minute; further ones increment `suppressed` on the last stored event.
 
-- One or more OIDC providers (issuer discovery, client ID, client secret in vault, scopes, claim mapping for username/email/groups).
-- Per resource: default provider or explicit provider; optional allowed users/groups.
-- With a default provider Hashi redirects straight to it (no chooser page).
-- Edge session cookie on the root domain (e.g. `.example.com`) so one login covers all subdomains; HMAC-signed session ID,
-  server-side `edge_sessions` row; settings: max session length, idle timeout, remember-device.
+Per-address counters (rate window, WAF window, `f`) live in memory; `c` and dynamic entries are persisted.
+
+### 6.2 Access-log tail
+
+Hashi follows `/var/log/hashi/traefik/access.log` on every Traefik host over a persistent SSH session (cursor = inode +
+byte offset; rotation handled by finishing the old inode from `.1`), parsing JSON lines as they arrive (target lag: a
+few seconds). WAF matches come from the Coraza plugin's fields in the same stream. On reconnect it resumes from the
+cursor, bounded per read (8 MB).
+
+## 7. Edge SSO
+
+- One or more OIDC providers (issuer discovery, client ID, client secret in vault, scopes, claim mapping for
+  username/email/groups). One is the default.
+- `pass_authentication` uses its item's provider, else the default; with a default provider Hashi redirects straight to it.
+- Edge session cookie on the root domain so one login covers all subdomains; HMAC-signed session ID, server-side
+  `edge_sessions` row; settings: max session length, idle timeout, remember-device.
 - Flow: `/api/edge-auth/login?rd=<url>` → IdP (PKCE + state + nonce) → `/api/edge-auth/callback` → validate `rd` is a
-  managed domain (no open redirect) → set cookie → redirect. `/api/edge-auth/logout` clears and optionally calls IdP end-session.
-- Authenticated SSO sessions get higher rate thresholds and skip adaptive challenge for that session, but never bypass
-  WAF, explicit blocks or impossible-volume protection.
+  managed domain (no open redirect) → set cookie → redirect. `/api/edge-auth/logout` clears and optionally calls IdP
+  end-session. These endpoints run Stage A in-process.
+- A valid edge session exempts its requests from the A2 rate trigger only (§3.2); never from A1, A3, WAF or rules.
 
-## 5. Security subjects and telemetry
+## 8. Feeds (external blocklists)
 
-### 5.1 Subjects
+A feed is an IP set of kind `feed` (05a §3). What it does depends only on where it is used: bound to *Global firewall
+block* → kernel + A1; used in a rule's `applies_to` → that rule only.
 
-Types: `ip`, `cidr`, `asn`, `country`, `region`, `session`, `composite` (e.g. IP+resource, IP+root domain for buckets).
-`security_subjects`: type, value, normalized value (unique with type), first/last seen, last country/region/ASN/AS org,
-current state, metadata.
+- Offered individually in setup and on the IP sets page; **all disabled until explicitly added**; warning about false positives.
+- Recommended: Feodo Tracker botnet C2 IPs, Spamhaus DROP, Spamhaus DROPv6, DShield recommended block list, FireHOL
+  Level 1. Plus custom URL.
+- Each shows: name, URL, description, false-positive risk, refresh interval, format, licence/user-responsibility note,
+  last success, entry count, where it is used.
+- Formats: plain IP/CIDR lines, with comments, FireHOL `.ipset`/`.netset`, CSV/TSV (configurable column), JSON array of
+  strings, JSON object with a configured array field. Out of scope: Suricata/Snort rules, domain/URL lists.
+- Parsing: normalize IPv4/IPv6/CIDR, reject invalid, dedupe, keep line numbers, record errors and ignored lines, preview
+  before adding, never partially apply a failed update.
+- Fetcher (SSRF-safe): HTTPS only by default (HTTP only with explicit warning), TLS verification, max redirects, max size,
+  timeout, Hashi user agent, ETag/Last-Modified. Validate the URL, every DNS answer, every redirect target **and the
+  final dialed IP** (custom `net.Dialer.Control` hook) against denied ranges: loopback, RFC 1918, link-local, multicast,
+  ULA, IPv6 link-local, cloud metadata ranges, Docker bridge ranges (unless dev mode).
+- Refresh every `feeds.refresh_interval`. A failed refresh keeps the last-known-good entries and marks the set `partial`;
+  after `feeds.stale_expiry_ttl` without success the set resolves empty and Overview shows the stale feed. Fetch runs are
+  kept (counts parsed/added/removed/unchanged/rejected, content hash).
 
-States: observed, warm, suspect, challenged, soft blocked, firewall blocked, manually allowed, manually blocked.
+## 9. WAF
 
-`security_subject_states`: challenge_required (+since, reason, resource, attempts), requests_while_challenged,
-failed/successful challenge counts, last solve, soft_blocked_until, firewall_blocked_until, manual allow/block active,
-last escalation reason/time.
+Coraza Traefik plugin with OWASP CRS, free, local, pinned version (verified to exist in the plugin catalog), full CRS.
 
-### 5.2 Signals and ingestion
+| Mode | Coraza | Use |
+| --- | --- | --- |
+| `enabled` (default) | `SecRuleEngine On`, `SecRequestBodyAccess On` | URI, headers, cookies and bodies inspected |
+| `headers_only` | `SecRuleEngine On`, `SecRequestBodyAccess Off` | WebDAV, git pushes, uploads, rich JSON APIs |
+| `disabled` | no WAF middleware | |
 
-Signals: forward-auth decisions (primary, in-process), Traefik access logs, Traefik service logs, firewall counters and
-sampled drop logs, WAF events, manual entries.
+Resolution per request: most specific path mode of the service → the service's root mode → `waf.default_mode`. Per-path
+modes are rendered as additional Traefik routers with the path match and a higher priority, each with its own WAF
+middleware instance. Per service/path rule exclusions (CRS rule IDs) handle false positives without disabling the WAF.
+Hashi never implements a WAF engine.
 
-Access-log ingestion: a job tails `/var/log/hashi/traefik/access.log` on every Traefik host over SSH every 60 s using a
-stored (inode, byte offset) cursor (`tail -c +<offset>`), handles rotation (inode change → read rest of old file from
-`.1`, then new file), bounded per read (e.g. 8 MB), parses JSON lines, and aggregates. WAF events are taken from the
-Coraza plugin's log lines in the same stream.
+## 10. Settings
 
-### 5.3 Buckets
+All in Settings → Security (09-scripts-settings.md §2).
 
-`security_buckets_1m`: bucket start, resource, root domain, Traefik connection, country, ASN, decision/action,
-status class, path prefix, request/blocked/challenged/challenge-ignored/failed-challenge counts. **No IP.** Path prefix is
-the first path segment only, at most 50 distinct prefixes per resource per minute; the rest is counted as `other`.
-Aggregation happens in memory and flushes closed minutes.
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `waf.default_mode` | `enabled` | baseline WAF mode |
+| `waf.violation_threshold` | 5 within 60 s | WAF matches per address → challenge |
+| `l7.rate_limit_threshold` | 300 within 10 s | requests per address → challenge (exempt: allowed addresses, SSO sessions) |
+| `challenge.expiry` (`T_exp`) | 30 m (0 = never) | fixed lifetime of a challenge entry |
+| `challenge.max_failed` (`F_max`) | 15 | unsolved requests while challenged → ban |
+| `captcha.clearance_ttl` | 24 h | `pass_captcha` cookie lifetime |
+| `l4.tcp_new_conn_rate` | 150/min, burst 30 | kernel meter |
+| `l4.tcp_max_concurrent` | 250 | kernel meter (per source) |
+| `l4.udp_new_flow_rate` | 200/min, burst 50 | kernel meter (L4 UDP stream ports) |
+| `l4.udp_pps_rate` | 5000/s, burst 1000 | kernel meter (L4 UDP stream ports) |
+| `l4.staging_timeout` | 5 m | kernel drop time before Hashi drains an entry |
+| `l4.poll_interval` | 3 s | host link drain/push interval |
+| `ban.function`, `ban.base`, `ban.k`, `ban.max`, `ban.permanent_after` | exponential, 15 m, 2.0, 30 d, 0 | §5 |
+| `ban.counter_decay_ttl` | 7 d | ban counter reset |
+| `feeds.refresh_interval` | 6 h | feed refresh |
+| `feeds.stale_expiry_ttl` | 72 h | last-known-good retention |
+| `geoip.update` | weekly | MaxMind download |
 
-Per-IP counters (for rate thresholds and escalation) live only in memory for the decision window. Each closed minute
-additionally stores the top 500 IPs by request count in `security_ip_top_1m` (IP, resource, counts) so the dashboard and
-subject search can show recent heavy hitters. An IP that was only ever allowed and never in a top list has no stored
-per-minute history — accepted.
+Known risk, accepted: `F_max` counts every request while challenged, so apps that poll in the background can reach it
+quickly; challenges are per address, so people behind one shared address (CGNAT) share a challenge. The defaults are a
+starting point; the dashboard shows challenge → ban conversions so they can be tuned.
 
-### 5.4 Events
-
-`security_events`: occurred_at, subject type/value/normalized, resource, connection, event_type, severity, decision,
-source, reason, method, path, status, user_agent_hash, request_id, metadata. Indexes on (normalized subject, time),
-(resource, time), (event_type, time), (severity, time).
-
-Only non-allow decisions (deny, challenge, soft/firewall block, WAF detect, escalation) and state changes are stored.
-At most 10 events per subject per minute; further ones increment a `suppressed` counter on the last stored event.
-
-## 6. Adaptive path and escalation
-
-Default path:
-
-1. High traffic → `suspect`.
-2. If the resource supports adaptive auth → require SSO or challenge (resource profile decides).
-3. Successful SSO → higher thresholds for that session; WAF stays active.
-4. Continued anonymous excess or WAF/rate violations → soft block at the edge.
-5. Clearly malicious IPs → firewall block set.
-
-### 6.1 Ban duration policies
-
-Types (no executable expressions): constant, linear (`base × n`), exponential (`base × m^(n−1)`), capped exponential,
-permanent after N. Fields: base_duration_seconds, linear_multiplier, exponential_multiplier, max_duration_seconds,
-permanent_after_count, count_window_seconds, reset_count_after_seconds.
-
-Offense counts are tracked separately from active state and **never** reset by a CAPTCHA solve (soft/firewall block
-counts, manual block history, events and repeat-offender counters persist).
-
-### 6.2 Configurable defaults (Settings → Security; resource profiles may override)
-
-Challenge trigger thresholds, challenge-ignored thresholds, soft block policy, firewall block policy, repeat-offender
-policy, CAPTCHA success resets or decays the triggering bucket (+ decay %), minimum time between repeated challenges,
-max challenge failures before escalation, max requests while challenged before escalation.
-
-Suggested initial values: challenge-ignored = 30 protected hits within 5 min → soft block 10 min; firewall block at 100
-hits within 5 min while challenged or repeated ignored violations; 5 failed verifies in 10 min → soft block; repeated
-challenge/solve/abuse cycles use the ban multiplier.
-
-## 7. CAPTCHA (Cap)
+## 11. CAPTCHA (Cap)
 
 Hashi integrates with an **existing** Cap Standalone instance; it does not deploy Cap.
 
 Setup/settings: enable, Cap public challenge base URL, site key (visible), secret key (service secret), verification
-timeout, instrumentation/headless detection expectation, public challenge resource domain, optional Cap admin resource
-domain (+ recommend SSO), test verification.
+timeout, public challenge service domain, optional Cap admin service domain (recommend `pass_authentication`), test
+verification.
 
-### 7.1 Resources
+- **Challenge service** (system, required while CAPTCHA is enabled; edit only via CAPTCHA settings): §4.5; exposes only
+  the paths the challenge flow needs; never the Cap admin dashboard or management API; a real reverse-proxy domain.
+- **Cap admin service** (optional, normal, user-deletable): no `pass_captcha` (dependency loop).
 
-- **Public challenge resource** (system, required while CAPTCHA is enabled; edit only via CAPTCHA settings): no SSO, no
-  CAPTCHA, not subject to adaptive rules, still subject to hard firewall blocks; exposes only the paths the challenge
-  flow needs; never the Cap admin dashboard or management API; uses a real reverse-proxy domain (never `hashi.home.arpa`).
-- **Cap admin resource** (optional, normal, user-deletable): strongly recommend SSO + admin-only; no CAPTCHA by default
-  (dependency loop); normal rate limiting allowed.
-
-### 7.2 Challenge semantics
-
-CAPTCHA is a middle state, not a whitelist. On trigger: set `challenge_required`, record reason + triggering buckets;
-protected resources redirect (browser) or return `429 challenge_required` (API); upstreams not contacted;
-requests-while-challenged counted; challenge resource stays reachable; firewall blocks still win.
-
-On solve: verify token with Cap server-side; record success; clear `challenge_required`, `requests_while_challenged`,
-`failed_challenge_count`; reset or decay only the triggering buckets; do **not** clear offense history, bypass SSO, or
-grant a clearance window (no default "free pass").
-
-Tracked while challenged: requests_while_challenged, resources_hit_while_challenged, captcha_page_requests,
-captcha_verify_attempts, failed_challenge_count, challenge_ignored_count. Escalation per §6.2.
-
-Browser vs API detection: `Accept` contains `text/html` and method is GET/HEAD → browser redirect to
-`/api/edge-challenge/start?rd=…` preserving the original URL (unsafe/cross-origin `rd` → resource root); otherwise API response.
-
-Challenge page: minimal, only required assets, no SSO, no protected API calls, shows the domain being accessed, submits
-the Cap token to Hashi (`POST /api/edge-challenge/verify`), handles failure without leaking details, never exposes the
-Cap secret.
-
-## 8. Blocks
-
-| Block type | Enforcement |
-| --- | --- |
-| IP / CIDR | forward auth + Traefik where practical + firewall `hashi_blocked[6]` (if firewall-enforced) |
-| ASN | forward auth only (never expanded to firewall ranges by default) |
-| Country / region | forward auth only |
-
-Block entry: scope, reason, source (manual / engine / blocklist), created by, created at, expiry or permanent, last hit,
-applied-to host list with per-host state, last apply result/error.
-
-Firewall-affecting changes always go through a firewall sync plan with preview — never applied directly from a button.
-
-## 9. Blocklists
-
-- Offered individually in setup and in Security settings; **all disabled until explicitly selected**; warning about false positives.
-- Recommended feeds: Feodo Tracker botnet C2 IPs, Spamhaus DROP, Spamhaus DROPv6, DShield recommended block list, FireHOL Level 1. Plus custom URL.
-- Each shows: name, URL, description, false-positive risk, update frequency, format, enforcement mode, firewall-capable,
-  licence/user-responsibility note.
-- Formats: plain IP/CIDR lines, with comments, FireHOL `.ipset`/`.netset`, CSV/TSV (configurable column), JSON array of
-  strings, JSON object with configured array field. Out of scope: Suricata/Snort rules, domain/URL lists, complex threat-intel schemas.
-- Parsing: normalize IPv4/IPv6/CIDR, reject invalid, dedupe, keep source attribution and line numbers, record errors and
-  ignored entries, preview before enabling, never partially apply a failed update.
-- Fetcher (SSRF-safe): HTTPS only by default (HTTP only with explicit warning), TLS verification, max redirects, max size,
-  timeout, Hashi user agent, ETag/Last-Modified. Validate the URL, every DNS answer, every redirect target **and the final
-  dialed IP** (custom `net.Dialer.Control` hook) against denied ranges: loopback, RFC1918, link-local, multicast, ULA,
-  IPv6 link-local, cloud metadata ranges, Docker bridge ranges (unless dev mode).
-- Storage: `blocklist_sources`, `blocklist_entries` (enforcement mode: middleware / firewall / both), `blocklist_fetch_runs`
-  (counts parsed/added/removed/unchanged/rejected, content hash).
-- Failure keeps last-known-good entries, marks the source degraded, shows last success and error. Disabling a source
-  removes its entries from decisions and queues a firewall plan if needed; history is kept.
-
-## 10. WAF
-
-Coraza-based Traefik WAF plugin with OWASP CRS, free, local, pinned version (verified to exist), loading the full CRS
-rule set. Per-resource mode: off / detect / block. Global default: detect
-during setup validation; block for new internet-exposed resources after the user accepts the default security profile.
-Per-resource exclusions (rule IDs, paths) for false positives. WAF matches become security events. Hashi never implements a WAF engine.
-
-## 11. Security UI
-
-### 11.1 Dashboard (Security tab)
-
-Widgets: allowed / blocked / challenged requests; WAF detections and blocks; active firewall blocks; top 10 blocked IPs
-(count, last seen, country, ASN, reason, expiry); top 10 blocked countries; top 10 blocked ASNs; top 10 resources
-receiving blocked/challenged traffic; top challenged IPs; recent manual actions; blocklist matches over time; CAPTCHA
-solved/failed/ignored; active soft blocks; stale blocklist sources; stale GeoIP database; recent security events.
-
-Filters: 1 h / 24 h / 7 d / 30 d; resource; Traefik instance; firewall host; action (allowed, challenged, blocked, WAF-detected).
-Reads the same buckets and tables as the engine — no separate analytics store.
-
-### 11.2 Search and subject detail
-
-Global search accepts IP, CIDR, ASN number, country code, region, and text over recent events. Result rows: subject,
-state, last seen, country/ASN, active manual entries, blocklist hits, active challenge/block, last action.
-
-Subject detail shows: effective decision + trace, matching manual entries, blocklist entries, resource rules, adaptive /
-challenge / soft-block / firewall-block state, ban and challenge history, recent events, bucket summary, firewall
-application state, and actions: add/remove manual allow/block, make permanent, shorten/extend/expire, escalate soft →
-firewall (IP/CIDR only), de-escalate, preview firewall sync, view affected resources, audit trail. Timeline filterable by
-event type and resource, including forward-auth decisions, request summaries, WAF, rate triggers, challenge
-required/solved/failed/ignored, soft/firewall block created/applied/expired, manual changes, blocklist hits, GeoIP/ASN changes.
+One challenge page serves both scopes: `scope=global` (A3: a solve removes the address from `dynamic-challenge`) and
+`scope=service` (`pass_captcha`: a solve sets the clearance cookie for that service). The page is minimal, loads only
+required assets, shows the domain being accessed, submits the Cap token to `POST /api/edge-challenge/verify`, handles
+failure without leaking details and never exposes the Cap secret. Hashi verifies the token with Cap server-side.
 
 ## 12. GeoIP
 
-MaxMind GeoLite2 Country + ASN (account ID + licence key in vault; optional City/region if the user's licence allows).
-Download job with checksum, atomic swap of the reader, staleness warning after 14 days. Without databases,
-country/region/ASN rules are invalid and widgets show "GeoIP unavailable".
+MaxMind GeoLite2 Country + ASN (account ID + licence key in vault; optional City for regions if the licence allows).
+Download job with checksum, atomic swap of the reader, staleness warning after 14 days. Used for `geo` items at L7
+(lookup) and at the firewall (prefix expansion, 05a §4.3), and for country/ASN columns in telemetry. Without databases
+`geo` items resolve to nothing and widgets show "GeoIP unavailable".
 
-## 13. API
+## 13. Security UI
 
-Subjects: `GET /api/security/subjects/search?q=`, `GET /api/security/subjects/{id}`, `/events`, `/buckets`, `/effective-decision`.
-Manual entries: `POST /api/security/manual-entries`, `PATCH|DELETE /api/security/manual-entries/{id}`, `POST …/{id}/expire`.
-Blocks: `POST /api/security/blocks`, `PATCH /api/security/blocks/{id}`, `POST …/{id}/extend|shorten|make-permanent|expire|preview-firewall-sync`.
-Blocklists: `GET|POST /api/security/blocklists`, `GET|PATCH|DELETE /api/security/blocklists/{id}`,
-`POST …/{id}/fetch-preview|enable|disable|refresh`, `GET …/{id}/runs|entries`.
+- **Security** (`/security`): Dashboard (allowed / challenged / banned / WAF tiles with sparklines; L4 meter trips per
+  host; top addresses, countries, ASNs, targeted services; challenge → solve → ban funnel; recent events; stale feeds and
+  GeoIP), Challenge (Cap), Sign-in providers, Engine (§10 settings, `T_ban` curve).
+  Filters: 1 h / 24 h / 7 d / 30 d; service; Traefik host; firewall host; action.
+- **IP sets**, **IP set detail**, **address page**: 05a §6.
+- **Rule sets** (`/rule-sets`, `/rule-sets/{id}`): entries ordered by drag (priorities renumbered), item editor (IP set
+  picker, condition, action, auth options), attach a rule set, used-by list, warnings.
+- **Service → Access tab**: root rule set editor, attached rule sets, default fallback, the flattened list with the
+  origin of every item, "try a request" (address + path → trace).
+- **Service → WAF tab**: mode per path, exclusions.
+- **Firewall** page: global allow/block bindings (05 §4).
+
+## 14. API
+
+Rule sets: `/api/rule-sets` CRUD, `GET|PUT /api/rule-sets/{id}/entries`, `GET /api/rule-sets/{id}/consumers`.
+Services: `GET|PUT /api/services/{id}/access` (root entries + fallback), `GET /api/services/{id}/access/flattened`,
+`GET|PUT /api/services/{id}/waf`. Global rule set: `/api/rule-sets/global/entries`.
+Trace: `POST /api/addresses/{address}/trace` (05a §8). Dynamic sets and addresses: 05a §8.
+Feeds: `POST /api/ip-sets` with `kind=feed` + feed settings, `POST /api/ip-sets/{id}/feed/preview|refresh`,
+`GET /api/ip-sets/{id}/feed/runs`.
 CAPTCHA: `GET|PUT /api/security/captcha/settings`, `POST /api/security/captcha/test`, `GET /api/edge-challenge/start`,
 `POST /api/edge-challenge/verify`, `GET /api/edge-challenge/status`.
-Dashboard: `GET /api/security/dashboard?range=&resource=&traefik=&host=&action=`.
-Policies: `GET|PUT /api/security/policies`.
+Dashboard: `GET /api/security/dashboard?range=&service=&traefik=&host=&action=`. Engine settings: `/api/settings/security`.
 
-## 14. Jobs
+## 15. Jobs
 
-Blocklist fetch; security bucket aggregation (+ dashboard snapshot, partition expiry); block expiry (soft and firewall,
-queue firewall plan, expiry events); challenge cleanup (expire stale challenges, abandoned attempts, max-duration reset,
-history preserved); GeoIP update; access-log ingestion.
+Feed refresh; access-log tail (per Traefik host, continuous); host link (per firewall host, continuous, 05 §6); bucket
+aggregation and dashboard snapshot; challenge expiry; ban expiry (database side; kernel entries expire by their own
+timeout) and ban counter decay; dynamic set reconciliation (every 5 min); GeoIP update; IP set recompile on source changes.
 
-## 15. Audit (in addition to global rules)
+## 16. Audit
 
-Manual allow/block create/update/delete; firewall block apply/remove; blocklist source create/update/delete/enable/
-disable; CAPTCHA settings; Cap secret rotation; internal DNS domain change; agent-bound target change; any high-risk apply.
+Rule set and service access changes; IP set and binding changes (05a §9); manual dynamic actions; feed add/remove/
+enable; CAPTCHA settings and Cap secret rotation; SSO provider changes; engine settings changes.
 
-## 16. Tests that must exist
+## 17. Acceptance scenarios (each is an automated test, most also part of the S9/S10 gates)
 
-Unit: IP/CIDR normalization (incl. mapped/special), ASN/country/region matching, decision order (table-driven, every
-step), manual allow defaults and limits, ban policy math, blocklist parsers per format, dedupe, SSRF validation incl.
-redirects and final-dial checks, challenge state transitions, requests-while-challenged escalation, solve reset/decay.
-Integration: forward-auth allow/SSO/challenge/block through a real Traefik container; Cap verify success/failure/unavailable
-(Cap stub from recorded contract); blocklist fetch → store → firewall plan; edge SSO against a local OIDC test provider.
-E2E: search IP → timeline; manual block/allow; extend/shorten; enable blocklist in setup; custom URL; configure Cap;
-trigger and solve challenge.
+1. Own address trips an L4 meter or the L7 rate trigger while it is in *Global firewall allow* → no drop in the kernel,
+   no challenge, no ban, an event records the skip. Not allowed but banned → address page "remove / reset counter" lifts
+   it on every host within one poll interval.
+2. Large upload / WebDAV on a path with `headers_only` passes; the same body on an `enabled` path is inspected.
+3. Flood on an SSO-protected `/admin` → challenged by A3 before the IdP is contacted; after `F_max` ignored requests
+   banned in the kernel on every managed host.
+4. Fallback `deny` + `trusted-devices` → `none` + `all` · `/api/public` → `none`: devices reach everything, others only
+   `/api/public`, other paths `403`.
+5. Two attached rule sets conflicting on `/admin` → the one with the lower priority number decides; the trace names it.
+6. Home WAN address changes → the Pulse item's sets recompile; the folded `allow` on every managed host and the DNS
+   records using it update without a manual step.
+
+## 18. Tests that must exist
+
+Unit: path normalization; flattening (nesting, priorities, disabled items, global set position, fallback); first-match
+evaluation table-driven over §4.4; ban function per type incl. cap and permanent; counter decay; A2 windows and
+exemptions; A3 transitions (solve, expiry, failures, escalation); escalation skip for allowed addresses; feed parsers per
+format, dedupe, SSRF validation incl. redirects and final dial; clearance cookie signing and expiry.
+`TestInvariant_20_ManualAllowBeatsDynamic` (L7 side), `TestInvariant_22_SetGraphsAcyclic` (rule sets),
+`TestInvariant_StageOrder_*` (Stage A always before Stage B; A1 before A2 before A3).
+Integration: forward auth through a real Traefik container for every action; fail-closed vs fail-open by rule content
+with Hashi stopped; Cap verify success/failure/unavailable (stub from recorded contract); WAF modes per path through the
+pinned plugin; access-log tail across rotation; edge SSO against a local OIDC test provider.
+E2E: build a rule set and attach it; IP set with a Pulse item used in a rule; ban now / remove; feed add with preview;
+trigger and solve a challenge.

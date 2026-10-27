@@ -26,7 +26,7 @@
 **Changed from V2:** .NET 10 + EF Core + PostgreSQL 18 → Go + sqlc + SQLite. Reasons: one backend language shared with
 the Pulse agent (2 languages instead of 3), one static binary and one container instead of two, no DB server to
 operate or upgrade (V2's first install blocker was a Postgres 18 volume path), and homelab scale (single user,
-< 1k resources, minute-bucketed telemetry) is far inside SQLite's comfort zone. PostgreSQL partitioning is replaced by
+< 1k services, minute-bucketed telemetry) is far inside SQLite's comfort zone. PostgreSQL partitioning is replaced by
 time-bucketed tables with batched retention deletes (§4.3).
 
 ### Frontend — SvelteKit SPA
@@ -108,10 +108,12 @@ hashi/
     dns/                    provider interface, hetzner/, planner
     adguard/
     traefik/                renderer, installer, validator
-    resources/
-    firewall/               script renderer, applier, netbird
-    edge/                   forward-auth, decision engine, sso, captcha
-    security/               subjects, buckets, bans, blocklists, geoip, ingestion
+    services/
+    ipsets/                 IP set + item types, cycle check, the one compiler, reactivity (05a)
+    rules/                  rule sets, flatten, evaluate, trace (06 §4)
+    firewall/               folding, nftables renderer, host link, rescue, netbird
+    edge/                   forward auth: Stage A engine, Stage B via rules, sso, captcha
+    security/               dynamic entries, ban counters, feeds, telemetry, geoip, log tail
     monitor/                checks, rollups, events
     notify/                 smtp, telegram, discord, routing
     pulse/                  server-side agent model
@@ -140,12 +142,17 @@ hashi/
 
 ### 4.2 Tables (outline)
 
-Core: `app_settings`, `setup_state`, `audit_events`, `connections`, `connection_targets`, `connection_health`,
+Core: `app_settings`, `setup_state`, `audit_events`, `connections` (target = address set), `connection_health`,
 `secret_records`, `sync_plans`, `sync_plan_items`, `sync_runs`, `jobs`, `job_runs`.
 
 Auth: `admin_users` (exactly one), `passkey_credentials`, `admin_sessions`, `recovery_key` (hash + wrapped material).
 
-Resources: `resources`, `resource_routes`, `resource_targets`, `resource_rules`, `resource_middlewares`, `resource_ports`.
+Services: `services`, `service_routes`, `service_targets` (address sets), `service_middlewares`, `service_ports`,
+`service_waf_modes`.
+
+IP sets and rule sets (shared primitives, object model in 06a §0): `ip_sets`, `ip_set_elements`, `ip_set_feeds`,
+`ip_set_feed_runs`, `dynamic_entry_state`, `dynamic_entry_hosts`, `ban_counters`, `rule_sets`, `rule_entries`; view
+`ip_set_consumers`.
 
 DNS: `dns_zones`, `dns_records` (desired), `dns_observed_rrsets`, `dns_ownership`, `dns_import_decisions`.
 
@@ -153,11 +160,11 @@ AdGuard: `adguard_rewrites_owned`.
 
 Traefik: `traefik_hosts`, `traefik_files` (path, last hash, last applied), `traefik_user_middlewares`, `traefik_entrypoints`.
 
-Firewall: `firewall_hosts`, `firewall_subnets`, `firewall_netbird`, `firewall_ports`, `firewall_allow_subjects`, `firewall_block_applied`, `firewall_scripts`.
+Firewall: `firewall_hosts`, `firewall_subnets`, `firewall_netbird`, `firewall_ports`, `firewall_bindings`,
+`firewall_host_access`, `firewall_host_sets`, `firewall_host_link`.
 
-Edge/security: `oidc_providers`, `edge_sessions`, `security_subjects`, `security_subject_states`, `manual_security_entries`,
-`security_events`, `security_buckets_1m`, `ban_policies`, `offense_counters`, `blocklist_sources`, `blocklist_entries`,
-`blocklist_fetch_runs`, `geoip_databases`, `captcha_settings`, `challenge_attempts`.
+Edge/security: `oidc_providers`, `edge_sessions`, `security_events`, `security_buckets_1m`, `security_ip_top_1m`,
+`geoip_databases`, `captcha_settings`, `challenge_attempts`.
 
 Monitoring: `monitor_endpoints`, `monitor_checks`, `monitor_samples` (raw), `monitor_rollups` (bucket_size ∈ 60/300/3600),
 `monitor_events`, `notification_providers`, `notification_routes`, `notification_deliveries`.
@@ -189,10 +196,10 @@ logging in addition to stdout.
 Retention runs as a job deleting in batches of ≤ 5,000 rows per transaction so it never blocks the writer.
 
 Security telemetry is also bounded by **volume**, not only by age, because one scan can produce millions of distinct
-IP × path combinations (details in 06-edge-security.md §5.3–5.4):
+IP × path combinations (details in 06-edge-security.md §6.1):
 
 - Stored security buckets have no IP and no full path; per-IP counters live only in memory for decisions.
-- Events are stored only for non-allow decisions, capped per subject per minute; the rest is a counter.
+- Events are stored only for non-allow decisions, capped per address per minute; the rest is a counter.
 - Writes are batched (at most one flush per second).
 - Database size budget (setting, default 2 GB): a warning at 80 %; above 100 % retention deletes the oldest security
   buckets and events first, regardless of age. Audit events are never deleted by the size budget.
@@ -219,8 +226,9 @@ All external state changes flow through one engine.
 
 | Risk | Examples | Default |
 | --- | --- | --- |
-| Low | create/update Hashi-owned record, rewrite Hashi Traefik dynamic file, update Hashi ipset members for allowlists | auto-apply |
-| High | delete any record, prune imported records, open a new public port, close a port, change static Traefik config, first firewall apply, firewall block for CIDR ≥ /16, any change on a host whose rescue path is NetBird | approval |
+| Low | create/update Hashi-owned record, rewrite Hashi Traefik dynamic file, update folded `allow`/`block`/`host_access` elements | auto-apply |
+| High | delete any record, prune imported records, open a new public port, close a port, change static Traefik config, first firewall apply, a new block of /16 (IPv6 /32) or larger, removing an allowed range that contains the admin's session address or a rescue source, structural firewall change on a host whose rescue path is NetBird (05-firewall.md §4.4) | approval |
+| Not a plan | engine-made dynamic set entries (bans, unbans, staging drain) — security events via the host link (invariant 7) | immediate |
 | Forbidden | NS/SOA change, touching unowned objects, flushing foreign chains | never planned |
 
 ### 5.3 Subsystem order for a global sync
@@ -234,7 +242,8 @@ item are skipped with reason `dependency_failed`.
 - Immediate plan after a save that affects a subsystem (debounced 2 s).
 - Periodic global reconcile, default every hour (setting).
 - Manual "Sync now" per subsystem and global.
-- Pulse IP change, blocklist update, block expiry, monitor configuration change.
+- IP set recompile (Pulse address change, host IP change, DNS item refresh, feed update, GeoIP update, item expiry,
+  set edit) → the consumers' syncs (05a §4.2); monitor configuration change.
 
 ## 6. Job runner
 
@@ -258,7 +267,7 @@ item are skipped with reason `dependency_failed`.
 ### Endpoint groups
 
 Admin: `/api/setup/*`, `/api/auth/*` (passkeys, session, sessions, reauth), `/api/vault/*`, `/api/connections/*`,
-`/api/resources/*`, `/api/dns/*`, `/api/traefik/*`, `/api/firewall/*`, `/api/adguard/*`, `/api/pulse/*`, `/api/status/*`,
+`/api/services/*`, `/api/dns/*`, `/api/traefik/*`, `/api/firewall/*`, `/api/adguard/*`, `/api/pulse/*`, `/api/status/*`,
 `/api/dashboard/*`, `/api/security/*`, `/api/scripts/*`, `/api/settings/*`, `/api/sync/*`, `/api/activity/*`, `/api/events`.
 
 Edge: `/api/edge-auth/forward`, `/api/edge-auth/login`, `/api/edge-auth/callback`, `/api/edge-auth/logout`,

@@ -1,50 +1,56 @@
-# 04 — Resources and Traefik
+# 04 — Services and Traefik
 
-## 1. Resource model
+## 1. Service model
+
+A **service** is something Hashi exposes: HTTP-family kinds are L7 services (forward auth, rule set, WAF), TCP/UDP
+kinds are L4 services (protected at the firewall). Formerly called "resource".
 
 Common fields: name, slug (unique, DNS-safe), kind (`http` | `https` | `h2c` | `tcp` | `udp`), domain mode (root /
-subdomain / full custom), enabled, origin, owning feature (for generated resources), detected firewall host, explicit
+subdomain / full custom), enabled, origin, owning feature (for generated services), detected firewall host, explicit
 routing override, dashboard visible, monitoring visible, AdGuard rewrite enabled, extra middlewares (from the user
-middleware file), security profile (06-edge-security.md), sync state + last applied hash.
+middleware file), root rule set + default fallback and WAF modes (HTTP kinds, 06-edge-security.md §4, §9), sync state + last applied hash.
 
-Kind semantics: `http` = upstream speaks HTTP; `https` = upstream speaks TLS (with per-resource `insecureSkipVerify`
+Kind semantics: `http` = upstream speaks HTTP; `https` = upstream speaks TLS (with per-service `insecureSkipVerify`
 and `serverName` options); `h2c` = upstream speaks cleartext HTTP/2. All three are served publicly on `websecure` (443)
 with Hashi-managed TLS and an HTTP→HTTPS redirect on `web` (80).
 
 ### 1.1 HTTP-family targets
 
-- **Simple target:** scheme, host, port.
-- **Advanced routes** (when enabled), each with: enabled, target list (load-balanced; weights optional), path match type
+- **Simple target:** scheme, address (an address set, [05a-ip-sets.md](05a-ip-sets.md) §5.2 — a single IP, a Pulse agent, a
+  host or a DNS name; several resolved addresses are load-balanced), port.
+- **Advanced routes** (when enabled), each with: enabled, target list (address sets, load-balanced; weights optional), path match type
   (prefix / exact / regex), path value, priority, rewrite, route-specific middleware list.
 - **Rewrite modes:** replace prefix, rewrite exact path, regex replacement with capture groups, strip prefix.
-- TLS options (min version, client-auth off by default), forward-auth policy (06-edge-security.md §2), rule list.
+- TLS options (min version, client-auth off by default). Access control is the service's rule set (06-edge-security.md §4),
+  not a per-service policy mode.
 
 Route identity is the route's ULID, never its priority.
 Every middleware a route references is emitted in the same render.
 
 ### 1.2 Stream targets (TCP/UDP)
 
-Protocol, public port, target host, target port, PROXY protocol option (TCP), monitoring protocol hint.
+Protocol, public port, target address (address set), target port, PROXY protocol option (TCP), monitoring protocol hint.
 TCP with TLS may use `HostSNI`; raw TCP and all UDP are port-based, one entry point per public port.
-TCP/UDP cannot use HTTP forward auth; abuse handling for streams is firewall-level (06-edge-security.md §8).
+TCP/UDP cannot use HTTP forward auth; they are protected by the firewall's folded sets and kernel meters (05-firewall.md §3.2).
 
-### 1.3 Resource rules
+### 1.3 Access rules
 
-Ordered by priority (higher first). Actions: allow (bypass auth), deny, require SSO, require challenge, soft block,
-firewall block. Match types: IP, CIDR, path, country, region, ASN. Country/region/ASN rules require a GeoIP database;
-without one they are invalid and cannot be enabled (clear validation error). Full rule engine: 06-edge-security.md §3.
+Every HTTP-family service owns a root rule set ending in its default fallback; reusable rule sets attach to it at a
+priority. Rule items reference IP sets (`all`, user, Pulse-backed, `geo` …). Model, flattening and evaluation:
+06-edge-security.md §4. `geo` sets need a GeoIP database; without one the rule set shows a warning and the set resolves
+to nothing.
 
-### 1.4 System resources
+### 1.4 System services
 
-Origin `system`, created by owning features: Hashi admin (setup), CAPTCHA public challenge (when Cap enabled), optionally
-the Traefik dashboard as a protected resource. Cannot be deleted while required; editable only via the owning workflow.
+Origin `system`, created by owning features: Hashi admin (setup), CAPTCHA challenge service (when Cap enabled, 06 §4.5), optionally
+the Traefik dashboard as a protected service. Cannot be deleted while required; editable only via the owning workflow.
 
 ### 1.5 Validation
 
-Hostnames are validated as FQDNs; target hosts as IP or hostname; ports 1–65535; regexes compiled (RE2) at save; paths
+Hostnames are validated as FQDNs; targets must be address sets (05a §5.2); ports 1–65535; regexes compiled (RE2) at save; paths
 must start with `/`. Values are never string-interpolated into config — renderers build Go structs and marshal them. IPv6 upstreams are bracketed in URLs.
 
-An invalid resource marks itself `invalid` with a reason and is excluded from rendering; it never stops other resources
+An invalid service marks itself `invalid` with a reason and is excluded from rendering; it never stops other services
 from rendering.
 
 ## 2. Traefik installation
@@ -76,13 +82,14 @@ Because Traefik is not installed through the OS package manager, Hashi owns its 
 ## 3. Static configuration (fully Hashi-managed)
 
 - Entry points: `web` :80/tcp (redirect to websecure), `websecure` :443/tcp (+ HTTP/3 on 443/udp optional), and one
-  entry point per public TCP/UDP resource port, named `tcp-<port>` / `udp-<port>`.
+  entry point per public TCP/UDP service port, named `tcp-<port>` / `udp-<port>`.
 - Providers: file provider, directory `/etc/hashi/traefik/dynamic`, `watch: true`.
 - No certificate resolvers: certificates are files issued and distributed by Hashi (03-dns.md §5.3), loaded via the file provider's `tls.certificates`.
-- Access log: JSON, `/var/log/hashi/traefik/access.log`, fields limited to what ingestion needs, `Authorization`/`Cookie`/`Set-Cookie` and
+- Access log: JSON, `/var/log/hashi/traefik/access.log`, fields limited to what the continuous tail needs (incl. the WAF
+  plugin's match fields, 06 §6.2), `Authorization`/`Cookie`/`Set-Cookie` and
   any configured header dropped; rotation via logrotate (Hashi-installed config).
 - General log: JSON, `/var/log/hashi/traefik/traefik.log`.
-- `ping` enabled on an internal entry point; API/dashboard enabled on `127.0.0.1` only (used for Verify), never public unless exposed as a protected system resource.
+- `ping` enabled on an internal entry point; API/dashboard enabled on `127.0.0.1` only (used for Verify), never public unless exposed as a protected system service.
 - Plugins (Coraza WAF etc.) pinned by version; the pinned version must exist in the Traefik plugin catalog (checked by `make contract-capture PROVIDER=traefik-plugins`).
 - `serversTransport` defaults; `forwardedHeaders.trustedIPs` = firewall-host internal IPs so client IPs survive DNAT.
 
@@ -93,23 +100,24 @@ Static changes require a Traefik restart and are high-risk.
 | File | Content | Editable |
 | --- | --- | --- |
 | `00-hashi-core.yml` | Generated default middlewares | no |
-| `10-hashi-http-resources.yml` | HTTP/H2C/HTTPS routers and services | no |
-| `20-hashi-stream-resources.yml` | TCP/UDP routers and services | no |
+| `10-hashi-http-services.yml` | HTTP/H2C/HTTPS routers and services | no |
+| `20-hashi-stream-services.yml` | TCP/UDP routers and services | no |
 | `30-user-middlewares.yml` | User-defined extra middlewares | **yes**, via UI editor |
-| `40-hashi-security.yml` | WAF / rate-limit / security middlewares | no |
+| `40-hashi-security.yml` | Forward-auth and WAF middlewares (one WAF instance per mode/exclusion set) | no |
 | `90-hashi-health.yml` | Health routers for monitoring | no |
 
 The user middleware editor (CodeMirror YAML) parses strictly, extracts middleware names, and offers valid names as
-toggles on resources. Parse/validation errors keep the previously applied file and show the error inline.
+toggles on services. Parse/validation errors keep the previously applied file and show the error inline.
 
-### 4.1 Default middlewares (per resource chain)
+### 4.1 Default middlewares (per service chain)
 
-HTTP→HTTPS redirect, security headers, compression, Hashi forward auth (per policy), WAF (per mode), baseline rate limit,
-optional error pages. The chain is generated per resource because SSO, WAF and adaptive modes differ per resource.
+HTTP→HTTPS redirect, security headers, compression, Hashi forward auth (always; fail-open fallback only for services
+whose rules cannot deny or require authentication, 06 §2.1), WAF (per mode; per-path modes become extra routers with a
+higher priority, 06 §9), optional error pages. No Traefik rate-limit middleware: request rates are Stage A's job (06 §3.2).
 
 ## 5. Traefik connection
 
-Fields: name, SSH target (static host/IP or Pulse agent, 08-pulse.md §5), SSH port, username, password or private key
+Fields: name, SSH target (address set, 05a §5.2: static IP, host, DNS name or Pulse agent), SSH port, username, password or private key
 (+ passphrase), pinned host key, internal Traefik IP (used for DNAT and AdGuard), config paths (detected defaults,
 overridable).
 
@@ -130,22 +138,23 @@ Per Traefik host:
 
 ## 7. Sync rules
 
-- Every Traefik connection receives every enabled resource; DNS decides which instance receives traffic, so routing can
-  move by DNS without re-rendering resources.
+- Every Traefik connection receives every enabled service; DNS decides which instance receives traffic, so routing can
+  move by DNS without re-rendering services.
 - A new public port requires confirmation (high-risk; also opens the firewall, 05-firewall.md).
-- Removing the last resource on a port removes its entry point and firewall opening after confirmation.
-- Disabled resources stay in the DB but are absent from generated files.
-- Reused ports pending removal are cancelled, not deleted, when a resource claims them again.
+- Removing the last service on a port removes its entry point and firewall opening after confirmation.
+- Disabled services stay in the DB but are absent from generated files.
+- Reused ports pending removal are cancelled, not deleted, when a service claims them again.
 
 ## 8. API
 
-`/api/resources` CRUD + `POST /api/resources/{id}/enable|disable`, `GET /api/resources/{id}/effective` (rendered config
+`/api/services` CRUD + `POST /api/services/{id}/enable|disable`, `GET /api/services/{id}/effective`; access and WAF:
+06 §14; (rendered config
 preview), `/api/traefik/connections/*` (CRUD, validate, install, discover, adopt), `GET|PUT /api/traefik/user-middlewares`,
 `POST /api/traefik/plan`.
 
 ## 9. Tests that must exist
 
-- Golden-file render tests for every resource kind, route option, rewrite mode and middleware combination.
+- Golden-file render tests for every service kind, route option, rewrite mode and middleware combination.
 - Rendered YAML parsed back and validated against the Traefik dynamic-config JSON schema (pinned copy in `testdata/`).
 - Identical render → zero file writes (invariant 8).
 - Integration: real Traefik binary (pinned version) in a test container loads the rendered files and its API reports no errors;

@@ -1,7 +1,7 @@
 # Hashi
 
-Single-user homelab edge control plane: Hetzner DNS, Traefik, Linux firewall hosts (iptables/ipset + NetBird),
-AdGuard rewrites, monitoring, public status/app pages, edge SSO, abuse engine, Pulse agent.
+Single-user homelab edge control plane: Hetzner DNS, Traefik, Linux firewall hosts (nftables + NetBird),
+AdGuard rewrites, monitoring, public status/app pages, edge SSO, IP sets + rule sets, abuse engine, Pulse agent.
 Go backend + embedded SvelteKit SPA + SQLite, one container. Pulse agent in `agents/pulse` (Go).
 
 ## Where things are
@@ -9,7 +9,9 @@ Go backend + embedded SvelteKit SPA + SQLite, one container. Pulse agent in `age
 - Spec: `docs/spec/README.md` (index + invariants). Read only the area file you work on. UI pages follow
   `docs/spec/10b-ui-system.md`; each page's approved mock is under `web/src/routes/design/`.
 - Where we are: `docs/progress.md` — read it first in every session, update it last.
-- Decisions: `docs/adr/`. Real infrastructure facts: `CLAUDE.local.md` (gitignored, not in the public repo).
+- Decisions: `docs/adr/`. `docs/archive/` holds raw historical input (e.g. the user's security-model draft): never read
+  it for implementation; the spec and ADRs are the only source.
+- Real infrastructure facts: `CLAUDE.local.md` (gitignored, not in the public repo).
 - `legacy/v1/` is the old Node app still running production until cutover. Don't copy its patterns.
 
 ## Commands

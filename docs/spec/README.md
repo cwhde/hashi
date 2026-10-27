@@ -2,7 +2,7 @@
 
 Hashi (橋, "bridge") is a single-user control plane for a distributed homelab edge. One interface manages
 public DNS, reverse-proxy (Traefik) configuration, Linux firewall forwarding, internal DNS rewrites,
-service monitoring, public app/status pages, edge SSO, abuse response, host scripts and dynamic
+service monitoring, public app/status pages, edge SSO, IP sets and rule sets, abuse response, host scripts and dynamic
 endpoint discovery — without hand-editing DNS zones, Traefik files, firewall scripts or monitor configs.
 
 This specification replaces the V2 specification and its three addenda (2025-12 → 2026-06). Every
@@ -18,15 +18,16 @@ Read only the file for the area you are working on, plus this index.
 | [01-platform.md](01-platform.md) | Stack, architecture, repo layout, data store, sync engine, jobs, API conventions |
 | [02-setup-auth.md](02-setup-auth.md) | Setup wizard, bootstrap, passkeys, admin sessions, secrets vault |
 | [03-dns.md](03-dns.md) | DNS provider (Hetzner Cloud), managed records, AdGuard Home, internal agent DNS |
-| [04-traefik-resources.md](04-traefik-resources.md) | Resources, routes, Traefik install/static/dynamic config, ACME |
-| [05-firewall.md](05-firewall.md) | Linux firewall hosts, generated script, NetBird compatibility, rescue rollback |
-| [06-edge-security.md](06-edge-security.md) | Forward auth, edge SSO, rules, GeoIP, WAF, abuse engine, CAPTCHA, blocklists, security UI |
+| [04-traefik-services.md](04-traefik-services.md) | Services (L7/L4), routes, Traefik install/static/dynamic config, certificates |
+| [05-firewall.md](05-firewall.md) | Linux firewall hosts, nftables table, folding, kernel meters, host link, NetBird, rescue rollback |
+| [05a-ip-sets.md](05a-ip-sets.md) | IP sets and items: the one address primitive (match and target positions), compiler, address page |
+| [06-edge-security.md](06-edge-security.md) | Forward auth, Stage A abuse engine, Stage B rule sets, ban function, SSO, CAPTCHA, WAF, feeds, GeoIP, security UI |
 | [07-monitoring-public.md](07-monitoring-public.md) | Status monitoring, notifications, public status page, public app dashboard |
 | [08-pulse.md](08-pulse.md) | Hashi Pulse agent, agent-bound connection targets |
 | [09-scripts-settings.md](09-scripts-settings.md) | Custom host scripts, settings catalogue |
 | [10-ui.md](10-ui.md) | Design intent, four themes, custom themes, navigation, quality bar |
 | [11-delivery.md](11-delivery.md) | Delivery slices, prod-proof gates, testing, CI/CD, V1 cutover, operations |
-| [06a-security-data-model.md](06a-security-data-model.md) | Security tables in full (verbatim from V2) |
+| [06a-security-data-model.md](06a-security-data-model.md) | Object model (shared primitives vs layer-specific compilation), security tables, Go packages |
 | [10a-ui-references.md](10a-ui-references.md) | Descriptions of the UI reference screenshots |
 | [10b-ui-system.md](10b-ui-system.md) | UI system from S0b: tokens, shell, page inventory, component rules (mocks at `/design`) |
 | [environment.md](environment.md) | Real infrastructure facts (generic); host inventory lives outside the repo |
@@ -36,7 +37,7 @@ Read only the file for the area you are working on, plus this index.
 1. **Secure by default.** Passkey admin auth, encrypted secrets, audited privileged actions, conservative destructive operations.
 2. **Lightweight.** One container, one binary, one embedded database. Mainstream, maintained libraries.
 3. **Idempotent.** Every sync builds desired state, diffs it against observed state, applies only real changes.
-4. **Extensible.** Providers sit behind interfaces; resource logic never depends on a specific provider.
+4. **Extensible.** Providers sit behind interfaces; service logic never depends on a specific provider.
 5. **An operations tool, not a demo.** Dense, scannable, predictable, recoverable workflows.
 6. **Honest about risk.** Anything that can replace configs, open ports, delete records or block traffic is previewed with its exact effect before apply.
 7. **Proven against reality.** A feature is not done until it has worked against the real system it manages (see 11-delivery.md).
@@ -52,11 +53,15 @@ These hold in every slice. Each has at least one automated test named `TestInvar
 5. Hashi never logs or returns secrets: tokens, private keys, passphrases, recovery keys, session IDs, decrypted provider config, Cap/OIDC/AdGuard/SSH/DNS credentials.
 6. All timestamps are stored in UTC; the browser renders them in its locale.
 7. Traefik, firewall, DNS and AdGuard state change only through a sync plan with preview → apply → result → audit entry.
+   Single exception: entries the abuse engine adds to or removes from the kernel's dynamic sets (bans, unbans, staging
+   drain, 05-firewall.md §6) are applied immediately over the host link and recorded as security events.
 8. Files are written atomically: render → validate → hash-compare → write to unique temp path → rename, only when content changed. Identical Traefik files are never rewritten (no hot-reload churn).
 9. Every generated object carries an origin: `system`, `managed`, `imported` or `user`.
-10. System resources are edited only through their owning workflow and cannot be deleted while required.
+10. System objects (system services, system IP sets, the `global` rule set, default fallbacks) are edited only through their owning workflow and cannot be deleted while required.
 11. After setup, minimums are enforced: ≥1 DNS provider, ≥1 Traefik connection, ≥1 Linux firewall host. AdGuard, notification providers, SSO providers, CAPTCHA and Pulse agents are optional.
-12. Firewall rules live only in Hashi-owned chains and sets. Hashi never flushes global or foreign state (including NetBird's).
+12. Firewall rules live only in Hashi's own nftables table (`table inet hashi`). Hashi never flushes global or foreign
+    state in any backend (including NetBird's, Proxmox's and Docker's), never runs `flush ruleset`, and never enables a
+    unit that does.
 13. Every external write adapter implements `Plan`, `Apply`, `Verify`.
 14. Setup is resumable after restart and never reports "configured" before passkey + recovery key are confirmed.
 15. Every background job exposes last run, next run, status, duration, diff summary and error.
@@ -64,26 +69,42 @@ These hold in every slice. Each has at least one automated test named `TestInvar
 17. Custom scripts are root-capable operations: passkey reauthentication to save or run, full audit.
 18. Critical security, crypto, SSH, DNS, OIDC, WebAuthn and YAML handling use proven libraries or the standard library — never hand-rolled.
 19. The repository is public: no secret, real token, private host inventory or production config is ever committed.
+20. A manual allow outranks every dynamic decision: an address in the folded allow ranges is never challenged, never
+    banned, never staged-dropped by Hashi's kernel rules, and never added to a dynamic set.
+21. A target position (DNS value, upstream, connection) whose IP set resolves to no address keeps its last applied state;
+    a failed resolution never deletes or empties anything.
+22. IP set and rule set references form acyclic graphs; every evaluation is deterministic (flattened priority order,
+    first match wins; longest prefix, tie → block).
 
 ## Glossary
 
 | Term | Meaning |
 | --- | --- |
-| Resource | An externally exposed service (HTTP/HTTPS/H2C/TCP/UDP) Hashi routes to. |
+| Service | Something Hashi exposes: L7 (HTTP/HTTPS/H2C, forward auth + rule set + WAF) or L4 (TCP/UDP, firewall-protected). Formerly "resource". |
 | Connection | A configured external system: DNS provider, Traefik host, firewall host, AdGuard, OIDC provider, notification provider, Cap, NetBird API. |
 | Firewall host | A Linux machine with a public IP that forwards traffic into managed subnets (typically a Proxmox host). |
-| Traefik host | A machine running a Hashi-managed Traefik instance. Every Traefik host receives every enabled resource. |
+| Traefik host | A machine running a Hashi-managed Traefik instance. Every Traefik host receives every enabled service. |
 | Sync plan | A persisted diff between desired and observed state for one subsystem/connection, with a risk level. |
 | Origin | `system` / `managed` / `imported` / `user` marker on generated objects. |
 | Pulse agent | Small Go agent reporting a host's current public/private IPs. |
-| Security subject | IP, CIDR, ASN, country, region, session or composite key that Hashi can observe/challenge/block. |
+| IP item | Leaf of an IP set: `ip`, `cidr`, `pulse` (agent ref), `host` (host ref), `dns` (name), `geo` (country/region/ASN). |
+| IP set | Named set of IP items and nested IP sets. Kinds: user, system (`all`, `hashi-hosts`, `private-networks`), feed, dynamic. Used for matching (who) and as targets (where). |
+| Address set | An IP set valid as a target: only `ip`, `pulse`, `host`, `dns` leaves. |
+| Rule item | `Applies To` IP set + optional path condition → action `none` / `deny` / `pass_captcha` / `pass_authentication`. |
+| Rule set | Ordered rule items and nested rule sets with unique priorities. Kinds: user (reusable), `global`, service root (ends in the default fallback). |
+| Stage A / Stage B | Forward auth's global abuse engine (block guard, WAF + rate trigger, challenge) / the service's flattened rule set. |
+| Dynamic sets | `dynamic-challenge` and `dynamic-blocked`: IP sets owned by the abuse engine. |
+| Folding | Resolving combined manual allow vs block by longest prefix match (tie → block) into the kernel's `allow`/`block` sets. |
+| Ban counter | Per-address offence count `c` feeding `T_ban(c)`; decays, never reset by a CAPTCHA solve. |
+| Host link | Hashi's persistent SSH session per firewall host that drains the kernel staging set and pushes bans. |
 | Prod-proof | The recorded evidence that a slice worked against the real system (11-delivery.md). |
 
 ## Open questions
 
 Tracked here until answered; answers move into the relevant area file.
 
-None right now.
+- Does NetBird (v0.81, iptables-legacy backend on the first firewall host) switch its firewall backend after a restart
+  when a foreign nftables table exists? Answered by the S6 entry gate (05-firewall.md §10); plan B in ADR 0002.
 
 Answered by the 2026-10-27 survey: Hashi replaces Pangolin, both current Traefik instances, Gatus, adguardhome-sync and the
 host firewall script with its own installs (11-delivery.md §7); the home host is an `external_nat` edge host (05-firewall.md §1.1).

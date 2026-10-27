@@ -2,7 +2,9 @@
 
 The rules every page follows. The clickable mocks for every page live in the SPA under `/design` (index at `/design`);
 feature slices build the real page at the same path without `/design` and replace the mock data with the generated API
-client. Where this file and a mock disagree, this file wins and the mock gets fixed. Intent and palettes: [10-ui.md](10-ui.md).
+client. Where this file and a mock disagree, this file wins and the mock gets fixed. The mocks for Resources, Security, Subject,
+Firewall and the resource Rules tab predate the security model (ADR 0002); they and the new IP set, rule set and address
+pages are redone after the user signs off the model. Intent and palettes: [10-ui.md](10-ui.md).
 
 ## 1. Tokens
 
@@ -37,9 +39,10 @@ first paint. `dark:` variants follow `data-mode`, not the OS.
 
 - Left navigation: 64 px icon rail; expands to 240 px on hover or keyboard focus (overlaying content), or stays open when
   pinned (preference stored per browser). Below 768 px it becomes a drawer opened from the top bar.
-- Groups (sentence case, no caps labels): **Overview** · **Routing**: Resources, DNS, Traefik, Firewall hosts, Pulse ·
-  **Watch**: Status, App display, Security · **Operate**: Scripts, Activity · **Configure**: Connections, Settings.
-- Top bar (sticky): page title · search (⌘K: IPs, CIDRs, ASNs, domains, pages) · **pending changes** count (always visible,
+- Groups (sentence case, no caps labels): **Overview** · **Routing**: Services, DNS, Traefik, Firewall hosts, Pulse ·
+  **Protect**: Security, IP sets, Rule sets · **Watch**: Status, App display · **Operate**: Scripts, Activity ·
+  **Configure**: Connections, Settings.
+- Top bar (sticky): page title · search (⌘K: addresses → address page, CIDRs, IP sets, rule sets, services, domains, pages) · **pending changes** count (always visible,
   amber when anything waits) · vault state · theme · account (session expiry and bound IP).
 - Vault locked: an amber banner under the top bar on every page, with Unlock.
 
@@ -47,25 +50,33 @@ first paint. `dark:` variants follow `data-mode`, not the OS.
 
 | Path | Page | Contents |
 | --- | --- | --- |
-| `/overview` | Overview | Pending high-risk plan first, needs-attention list, resource health strips, edge hosts, sync state, security 24 h, certificates, recent audit. Widgets reorderable in Settings → Appearance |
+| `/overview` | Overview | Pending high-risk plan first, needs-attention list (incl. unresolved targets, stale feeds, host link down), service health strips, edge hosts, sync state, security 24 h, certificates, recent audit. Widgets reorderable in Settings → Appearance |
 | `/changes` | Pending changes | Every waiting plan with exact before/after per item, risk per row, passkey approval; recent runs |
-| `/resources` | Resources | Filterable dense table (resource, target, access, 60-min strip, status, row menu); add-resource drawer |
-| `/resources/{id}` | Resource | Summary strip + tabs: Routing (domain, upstream, advanced routes), Access (sign-in policy, IdP, WAF), Rules (ordered, drag), Monitoring, Rendered config |
+| `/services` | Services | Filterable dense table (service, kind, target, access summary, 60-min strip, status, row menu); add-service drawer |
+| `/services/{id}` | Service | Summary strip + tabs: Routing (domain, upstream address set, advanced routes), Access (root rule set editor, attached rule sets, default fallback, flattened list with Stage A on top, "try a request"), WAF (mode per path, exclusions), Monitoring, Rendered config. L4 services: Routing, Monitoring, Rendered config |
 | `/dns` | DNS | Tabs: Records (inline row editor, show generated, protected NS/SOA), Import (leave/import/remove per RRSet), AdGuard rewrites per instance, Internal agent names |
 | `/traefik` | Traefik | Tabs: Hosts (version, update available, generated files and drift), Your middlewares (YAML editor + found names), Certificates |
-| `/firewall` | Firewall hosts | Host panels (mode, subnets, ports, NetBird, last apply, strip); external-NAT hosts show router port-forward instructions; Allowlist tab |
-| `/firewall/{id}` | Firewall host | Rescue path, NetBird, blocks enforced; tabs: Ports (with conflicts), Live ruleset (Hashi chains highlighted), Generated script |
+| `/firewall` | Firewall hosts | Global policy panel (IP sets bound to allow and to block, folded range counts, carve-out warnings); host panels (mode, subnets, ports, NetBird, host link, last apply, strip); external-NAT hosts show router port-forward instructions |
+| `/firewall/{id}` | Firewall host | Rescue path, NetBird, host link state; tabs: Ports (with conflicts), Host access (IP sets), Kernel sets (sizes, staging now, meter thresholds), Live ruleset (all tables, Hashi's highlighted), Generated (rendered nft JSON) |
 | `/pulse` | Pulse | Agents table (selected/public IP, candidates, reachability, freshness); add-agent drawer with Linux/Docker install |
 | `/status` | Status | Endpoint cards grouped by group or status with history strips; Notifications tab (routes, recent deliveries) |
 | `/status/{id}` | Endpoint | Summary metrics + strip, range switch, three equal charts, events |
 | `/app-display` | App display | What the public dashboard (8081) and status page (8082) show, order and visibility |
-| `/security` | Security | Tabs: Dashboard (tiles with sparklines, top blocked, countries, targeted resources, events, stale warnings), Blocks and allows, Blocklists, Challenge (Cap), Sign-in providers, Policies + GeoIP |
-| `/security/subject` | Subject | Decision trace (every step, the one that decided), where enforced, timeline, history, actions |
+| `/security` | Security | Tabs: Dashboard (allowed/challenged/banned/WAF tiles with sparklines, L4 meter trips per host, top addresses, countries, targeted services, challenge → ban funnel, events, stale feeds/GeoIP), Challenge (Cap), Sign-in providers, Engine (thresholds, ban function with curve, GeoIP) |
+| `/ip-sets` | IP sets | Every set in one table: name, kind (yours / system / feed / dynamic) with lock marker, size (items, resolved v4/v6), used by, status; search across all sets by address; add set / add feed |
+| `/ip-sets/{id}` | IP set | Summary strip (kind, resolved size, used by, status); tabs: Items (search, add/edit/remove with the shared item editor, note, expiry; dynamic sets: entries with source, expiry, failures, ban counter, remove / add with duration / reset counter), Resolved (compiled prefixes with origin path), Used by, Feed (feed sets: source, format, runs), History |
+| `/ip-sets/address` | Address | Member of (sets with nesting path), firewall verdict per host with deciding prefix, dynamic state and ban counter, "try a request" trace for a service + path, timeline, actions |
+| `/rule-sets` | Rule sets | `global` first, then reusable sets: entries count, used by, warnings |
+| `/rule-sets/{id}` | Rule set | Ordered entries (drag), item editor (IP set picker, condition, action, auth options), attach a rule set, used by, warnings |
 | `/scripts` | Scripts | Script list with run history ticks; editor, schedule, timeout, env, targets; runs with output |
 | `/activity` | Activity | Tabs: Audit log, Jobs (last/next run, result), Live log |
 | `/connections` | Connections | All external systems grouped by type, health, last check, required marker |
 | `/settings` | Settings | Category list; Appearance (themes, custom theme editor with contrast guard, widgets), Account (passkeys, sessions, vault mode), General, and every category in 09 §2 |
 | `/states` | (reference) | Vault locked, empty, loading, error, confirmations |
+
+Shared security components (05a §7): IP set picker (filters to address sets in target positions), IP item editor (type
+switch), set badge (kind + lock), address link, rule item editor, flattened rule list. Every page that takes an address or
+a rule uses them.
 | `/login` | Sign in | Passkey only; recovery hint |
 | `/setup` | Setup | 11 resumable steps (02 §1); host-key pinning shown at step 5 |
 | public `:8081/` | App dashboard | Grouped launcher cards with state, online counts, collapsed search |
@@ -77,7 +88,7 @@ first paint. `dark:` variants follow `data-mode`, not the OS.
 - **Panel** (`Panel.svelte`) is the only container: 1 px border, `bg-card`, 16 px radius, no shadow, optional header row
   (title, one muted line, actions right). No card per number; numbers sit inside the panel that explains them.
 - **Page header**: 22 px title, one muted sentence, actions right. Never a hero.
-- **Tables** for sets that are compared or scanned (resources, records, agents, audit). **Cards** only where side-by-side
+- **Tables** for sets that are compared or scanned (services, records, IP sets, agents, audit). **Cards** only where side-by-side
   comparison of state matters (status endpoints, app launcher, firewall hosts).
 - **Inline editing** for short records (DNS): editor opens under the row, full width, Save/Cancel/Delete in one row,
   secondary fields behind a disclosure. **Drawers** (right `Sheet`) for larger creates. **Tabs** split a detail page into one

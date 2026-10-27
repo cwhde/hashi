@@ -21,11 +21,11 @@ provider stays a new module and nothing else.
 
 Hashi manages a single zone (the root domain's zone, chosen in setup). The interface stays zone-aware so a
 provider module doesn't need to change if multi-zone support is ever added, but multi-zone is not a requirement.
-"Full custom domain" resources must lie inside that zone.
+"Full custom domain" services must lie inside that zone.
 
 The unit of ownership and change is the **RRSet** (name + type → TTL + values). Hashi's UI shows records, but plans are
 RRSet operations. Future providers (Cloudflare, Route53, PowerDNS, …) implement the same interface without changes to
-resource logic.
+service logic.
 
 ## 2. Hetzner (first provider)
 
@@ -75,7 +75,7 @@ During setup and later (DNS → Import):
 - Truncating table of existing RRSets: name, type, TTL, values (truncated, expandable). Tokens never shown.
 - Per row: **import as managed manual entry** / **leave unmanaged** (default) / **mark for prune**.
 - Prune is a separate high-risk plan with explicit confirmation listing every RRSet; `NS`/`SOA` are not selectable.
-- Imported entries become `imported` origin; the user may later convert them to resources or link them to monitoring/dashboard.
+- Imported entries become `imported` origin; the user may later convert them to services or link them to monitoring/dashboard.
 - Decisions persist in `dns_import_decisions` so a re-import shows only new RRSets.
 
 **IPv4 only for generated records.** Hashi never creates AAAA records on its own; AAAA exists only when the admin adds
@@ -94,16 +94,17 @@ For each Linux firewall host named `machine1` under root `example.com`:
 | `via.machine1.example.com` | CNAME | `machine1.example.com` |
 | `on.machine1.example.com` | CNAME | `via.machine1.example.com` (default) |
 
-Routing override: `on.machine1` may point to `via.machine2` so traffic for resources on machine1 enters through machine2.
+Routing override: `on.machine1` may point to `via.machine2` so traffic for services on machine1 enters through machine2.
 AdGuard rewrites never use this override.
 
-### 5.2 Resource records
+### 5.2 Service records
 
 | Situation | Public record |
 | --- | --- |
-| Resource maps to a detected firewall host (target IP in its managed subnets / NetBird-routed CIDRs / host FQDN) | `CNAME resource.example.com → on.<host>.example.com` |
-| No host detected: manual IP | First try to match the IP to a host (as above). Only if no match: A to that IP (IPv4 only) |
-| No host detected: Pulse agent | Evaluate the agent's current internal **and** public IPs against hosts; match → CNAME to `on.<host>`; no match → A with the agent's public IPv4 |
+| Service maps to a detected firewall host (target IP in its managed subnets / NetBird-routed CIDRs / host FQDN) | `CNAME service.example.com → on.<host>.example.com` |
+| No host detected | Resolve the service's target address set (05a-ip-sets.md §5.2) — single IP, Pulse agent (internal **and** public addresses), host, DNS name — and match every address against hosts; match → CNAME to `on.<host>`; no match → A with the resolved public IPv4 addresses |
+
+A target that resolves to nothing keeps the last applied record (invariant 21).
 
 Domain modes: root (apex — only A, no CNAME; Hashi flattens by resolving `on.<host>` to the host IP), subdomain, full custom domain (must be in a managed zone).
 
@@ -116,7 +117,7 @@ see the DNS token.
 **Which certificates:** Hashi manages one zone, so it derives the certificate set from the names it serves:
 
 - One certificate for the root domain and `*.<root>` (covers every first-level name, e.g. `app.example.com`).
-- For every deeper parent that has served names, one more wildcard: a resource `fra1.ns.example.com` makes Hashi add
+- For every deeper parent that has served names, one more wildcard: a service `fra1.ns.example.com` makes Hashi add
   `*.ns.example.com`. Wildcards cover exactly one level, so the rule is "one wildcard per parent name in use".
 - These are SANs of as few certificates as the CA allows (GTS/LE limit 100 names per certificate); a wildcard that is no
   longer needed is dropped at the next renewal, never mid-term.
@@ -141,7 +142,7 @@ pointed at Hashi. With several Traefik hosts each requesting the same names, one
 other's TXT value (random renewal failures), and every host held an ACME account. Central issuance removes the race,
 the `httpreq` endpoint and per-host ACME storage, uses one ACME account (fewer rate-limit hits), and wildcards keep
 subdomain names out of public certificate-transparency logs. Cost: certificates expire if Hashi is down for weeks
-(warned from 21 days), and every edge host holds the wildcard keys — they already serve every resource.
+(warned from 21 days), and every edge host holds the wildcard keys — they already serve every service.
 
 ## 6. Sync rules
 
@@ -160,7 +161,10 @@ subdomain names out of public certificate-transparency logs. Cost: certificates 
 `GET /api/certificates` · `POST /api/certificates/{id}/renew` (creates a plan).
 
 Manual entry fields: name, type, TTL, values, display name (required when dashboard or monitoring is enabled),
-dashboard visible, monitoring enabled, target source (manual / firewall host / Pulse agent).
+dashboard visible, monitoring enabled. A and AAAA values are either literal addresses or an **address set**
+(05a-ip-sets.md §5.2: a Pulse agent, a host, a DNS name, single IPs — e.g. `home.example.com` A → Pulse agent `home`,
+scope `public`); the record follows the set's resolution for its family and is re-planned when it changes. An empty
+resolution keeps the last applied values (invariant 21).
 
 ## 8. AdGuard Home (optional)
 
@@ -171,11 +175,11 @@ Rules:
 
 - Ownership is Hashi-side (`adguard_rewrites_owned`: domain + answer + origin + hash). AdGuard has no comments; Hashi
   never touches a rewrite it does not own.
-- Desired rewrites: for each resource with a detected firewall host, `resource.example.com → <true internal Traefik IP of
+- Desired rewrites: for each service with a detected firewall host, `service.example.com → <true internal Traefik IP of
   that host>`. The routing override is never applied internally.
 - Duplicate cleanup: only duplicates of **owned** entries, and only ones shown in the preview.
 - Disabled AdGuard connections are neither planned nor applied.
-- AdGuard connections support agent-bound targets (08-pulse.md §5).
+- AdGuard connection targets are address sets (05a §5.2), so an instance can be reached through its Pulse agent.
 - Credentials: username + password (basic auth) or none; TLS verify on by default; optional path prefix.
 - Multiple AdGuard instances are independent connections; Hashi writes its owned rewrites to every enabled instance
   itself, so no external sync tool is needed. (Migration only: while an existing sync tool still runs, connections it
@@ -190,7 +194,7 @@ Example: `kanae.hashi.home.arpa → 10.0.0.42`.
 - Name normalization: lowercase ASCII slug, invalid chars → `-`, collapse repeats, trim, reject empty, prevent collisions
   (collision requires a manual per-agent override).
 - Per-agent: DNS enabled, name override.
-- Never creates Traefik routers for this domain and never implies HTTP resources exist there; the UI says "DNS only, not reverse proxy".
+- Never creates Traefik routers for this domain and never implies HTTP services exist there; the UI says "DNS only, not reverse proxy".
 - Coexists with real-domain internal rewrites; never replaces them; never touches manual rewrites.
 - Stale agent default: keep last rewrite, mark stale in UI. Optional (off by default): remove after configured stale duration.
 - Sync through the normal plan/apply with audit; deletions of owned agent rewrites are high-risk unless caused by explicit
