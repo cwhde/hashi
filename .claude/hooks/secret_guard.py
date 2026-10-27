@@ -48,7 +48,7 @@ def main():
     command = data.get("tool_input", {}).get("command", "")
     if not re.search(r"\bgit\s+(commit|push)\b", command):
         return 0
-    project = os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd())
+    project = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
     findings = []
     if run(["which", "gitleaks"], project).returncode == 0:

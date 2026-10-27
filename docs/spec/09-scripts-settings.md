@@ -5,8 +5,7 @@
 Privileged shell scripts managed for Linux firewall hosts.
 
 Fields: name, description, body (CodeMirror shell editor), enabled, optional cron expression, target hosts (default: all
-firewall hosts; an explicit set where every target is disabled means **no** hosts, never "fall back to all" — V2 bug
-AUD-166), run timeout (honoured end-to-end for manual and scheduled runs — V2 bug AUD-110), environment variables
+firewall hosts; an explicit set where every target is disabled means **no** hosts, never "fall back to all"), run timeout (honoured end-to-end for manual and scheduled runs), environment variables
 (secret ones in the vault), manual trigger.
 
 Sync:
@@ -14,10 +13,10 @@ Sync:
 - Scripts written to `/opt/hashi/scripts/<slug>.sh`, root-owned, mode 0750, never world-writable; manifest
   `/opt/hashi/scripts/manifest.json` with SHA-256 per script.
 - Schedules: systemd timers (preferred; `OnCalendar` converted from cron with a round-trip test that proves equivalent
-  firing times — V2 bug AUD-080 changed timing) or `/etc/cron.d/hashi-scripts`.
+  firing times) or `/etc/cron.d/hashi-scripts`.
 - Scheduled runs use a Hashi wrapper (`/opt/hashi/scripts/run.sh <slug>`) that loads the env file (0600), enforces the
   timeout, and writes output to a spool that Hashi collects — so scheduled runs get the same env, redaction and history as
-  manual runs (V2 bugs AUD-010, AUD-111).
+  manual runs.
 - Manual runs execute over SSH; stdout/stderr captured (capped, e.g. 1 MB), redacted (known secret values replaced), stored.
 
 Safety: saving or running requires reauth + `scripts.manage`; UI shows target hosts and diff before applying; scripts
@@ -27,8 +26,7 @@ API: `/api/scripts` CRUD, `POST /api/scripts/{id}/plan|apply|run`, `GET /api/scr
 
 ## 2. Settings catalogue
 
-Every setting has a runtime consumer and a test proving it changes behaviour (V2 bug AUD-141: settings persisted that no
-code read). The settings UI never saves values it failed to load (V2 bug AUD-142).
+Every setting has a runtime consumer and a test proving it changes behaviour. The settings UI never saves values it failed to load.
 
 | Category | Settings |
 | --- | --- |

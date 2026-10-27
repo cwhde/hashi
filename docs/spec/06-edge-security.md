@@ -18,7 +18,7 @@ or challenge for browsers; `401` auth required (API clients); `403` blocked; `42
 for API clients (`{"error":"challenge_required","challengeUrl":â€¦}`).
 
 Resource resolution uses host **and** path routing exactly as Traefik does (most specific route wins), not "first host
-match" (V2 bug AUD-149).
+match".
 
 ### 2.1 Policy modes per resource
 
@@ -213,8 +213,7 @@ Firewall-affecting changes always go through a firewall sync plan with preview â
 - Fetcher (SSRF-safe): HTTPS only by default (HTTP only with explicit warning), TLS verification, max redirects, max size,
   timeout, Hashi user agent, ETag/Last-Modified. Validate the URL, every DNS answer, every redirect target **and the final
   dialed IP** (custom `net.Dialer.Control` hook) against denied ranges: loopback, RFC1918, link-local, multicast, ULA,
-  IPv6 link-local, cloud metadata ranges, Docker bridge ranges (unless dev mode). V2 bug AUD-164: IPv4-mapped/special
-  addresses slipped through â€” normalize before checking.
+  IPv6 link-local, cloud metadata ranges, Docker bridge ranges (unless dev mode).
 - Storage: `blocklist_sources`, `blocklist_entries` (enforcement mode: middleware / firewall / both), `blocklist_fetch_runs`
   (counts parsed/added/removed/unchanged/rejected, content hash).
 - Failure keeps last-known-good entries, marks the source degraded, shows last success and error. Disabling a source
@@ -223,7 +222,7 @@ Firewall-affecting changes always go through a firewall sync plan with preview â
 ## 10. WAF
 
 Coraza-based Traefik WAF plugin with OWASP CRS, free, local, pinned version (verified to exist), loading the full CRS
-rule set (V2 bug AUD-104 loaded only a fraction). Per-resource mode: off / detect / block. Global default: detect
+rule set. Per-resource mode: off / detect / block. Global default: detect
 during setup validation; block for new internet-exposed resources after the user accepts the default security profile.
 Per-resource exclusions (rule IDs, paths) for false positives. WAF matches become security events. Hashi never implements a WAF engine.
 

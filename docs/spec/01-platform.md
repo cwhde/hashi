@@ -180,7 +180,7 @@ Area files define the fields that matter for behaviour; the migration files are 
 | Pulse heartbeats | per heartbeat | 7 days |
 
 Retention runs as a job deleting in batches of ≤ 5,000 rows per transaction so it never blocks the writer.
-Rollups are computed from **closed** buckets only (V2 bug AUD-078: sliding windows overwrote complete buckets with partial data).
+Rollups are computed from **closed** buckets only.
 
 ## 5. Sync engine
 
@@ -192,9 +192,9 @@ All external state changes flow through one engine.
    render any files in memory, validate them (locally and, for Traefik, remotely in dry-run). Persist plan + items.
 2. **Approve** — low-risk plans auto-approve (on save and in background runs); high-risk plans wait for an admin with
    `sync.apply` (and `firewall.apply` where relevant) plus recent reauth. The approval screen shows exact values
-   (record values, TTLs, file diffs, rule diffs) — the applied plan must be byte-for-byte the previewed plan (V2 bug AUD-064).
+   (record values, TTLs, file diffs, rule diffs) — the applied plan must be byte-for-byte the previewed plan.
 3. **Apply** — acquire the per-connection lock (one global lock table, used by *every* apply path, including single-subsystem
-   applies; V2 bug AUD-034). Re-fetch observed state; if it changed since planning, re-plan and, if the new plan differs in
+   applies). Re-fetch observed state; if it changed since planning, re-plan and, if the new plan differs in
    any high-risk item, return to Approve. Apply items in dependency order.
 4. **Verify** — read back observed state, confirm it matches desired, store `last_applied_hash`, write the run result and
    audit entry, enqueue dependent syncs (e.g. DNS change → monitor endpoint refresh).
@@ -265,5 +265,3 @@ limiting, Pulse public IP):
 - Unparseable → fail closed.
 - For forward auth, Traefik passes the original client IP in `X-Forwarded-For`; Traefik hosts' internal IPs are
   automatically part of the trusted-proxy list.
-
-(V2 bugs AUD-022/AUD-029: setup and bootstrap checks trusted forwarded input / used the proxy peer.)

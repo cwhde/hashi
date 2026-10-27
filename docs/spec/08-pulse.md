@@ -32,7 +32,7 @@ Resources and manual DNS entries can target: manual IP, detected firewall host, 
 
 1. Match internal or public IP against firewall hosts, managed subnets, NetBird-routed subnets, host FQDNs.
 2. Match → desired DNS becomes `CNAME → on.<host>`; no match → A/AAAA with the agent's public IP.
-3. Queue DNS sync (and Traefik render if the resource's upstream is the agent IP — V2 bug AUD-108 never updated the upstream).
+3. Queue DNS sync (and Traefik render if the resource's upstream is the agent IP).
 4. Status page marks affected endpoints "pending DNS propagation" until the next successful check.
 
 ## 5. Agent-bound connection targets

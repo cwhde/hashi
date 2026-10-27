@@ -32,9 +32,18 @@ Go backend + embedded SvelteKit SPA + SQLite, one container. Pulse agent in `age
 - If the spec is wrong, fix the spec in its own `docs(spec):` commit with the reason. Don't silently diverge.
 - Conventional commits; migrations ship with the model change; OpenAPI and generated clients ship together.
 
+## Skills
+
+- Project skills in `.claude/skills/`: `slice` (drives the work), `contract-capture`, `review`, `debug`, `infra-safety`, `deploy`.
+- Plugins enabled for this repo: `frontend-design` (use for every UI page/component, within the tokens in
+  `docs/spec/10-ui.md`) and `superpowers` (brainstorming, plans, TDD, systematic debugging, verification). Superpowers
+  skills are tools inside the slice process; where they conflict, `docs/spec/11-delivery.md` wins (plans live in
+  `docs/progress.md`, not separate plan files).
+
 ## Safety
 
 - The repo is public. No tokens, real hostnames/IPs, production configs or unsanitized fixtures in commits.
+- These rules are for you, the coding agent. Deployed Hashi runs its remote commands unattended by design (plan → apply → verify).
 - Production hosts: read-only commands unless the user approved the exact change in this session. Never flush
   iptables/nft chains, never touch NetBird rules, never restart Proxmox, Traefik or DNS services without approval.
   Use the `infra-safety` skill before running anything on a remote host.

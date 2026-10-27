@@ -9,6 +9,7 @@ import os
 import subprocess
 import sys
 
+PROJECT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 MAX_BLOCKS = 3
 TIMEOUT_S = 300
 
@@ -37,7 +38,7 @@ def has_check_target(project):
 
 def main():
     data = json.load(sys.stdin)
-    project = os.environ.get("CLAUDE_PROJECT_DIR", os.getcwd())
+    project = PROJECT
     if not has_check_target(project) or not changed_code(project):
         return 0
 

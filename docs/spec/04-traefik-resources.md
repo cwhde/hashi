@@ -9,7 +9,7 @@ middleware file), security profile (06-edge-security.md), sync state + last appl
 
 Kind semantics: `http` = upstream speaks HTTP; `https` = upstream speaks TLS (with per-resource `insecureSkipVerify`
 and `serverName` options); `h2c` = upstream speaks cleartext HTTP/2. All three are served publicly on `websecure` (443)
-with Hashi-managed TLS and an HTTP→HTTPS redirect on `web` (80) (V2 bug AUD-127: HTTP resources had no usable listener).
+with Hashi-managed TLS and an HTTP→HTTPS redirect on `web` (80).
 
 ### 1.1 HTTP-family targets
 
@@ -19,8 +19,8 @@ with Hashi-managed TLS and an HTTP→HTTPS redirect on `web` (80) (V2 bug AUD-12
 - **Rewrite modes:** replace prefix, rewrite exact path, regex replacement with capture groups, strip prefix.
 - TLS options (min version, client-auth off by default), forward-auth policy (06-edge-security.md §2), rule list.
 
-Route identity is the route's ULID, never its priority (V2 bug AUD-129: equal priorities collided in generated names).
-Every middleware a route references is emitted in the same render (V2 bug AUD-128).
+Route identity is the route's ULID, never its priority.
+Every middleware a route references is emitted in the same render.
 
 ### 1.2 Stream targets (TCP/UDP)
 
@@ -42,11 +42,10 @@ the Traefik dashboard as a protected resource. Cannot be deleted while required;
 ### 1.5 Validation
 
 Hostnames are validated as FQDNs; target hosts as IP or hostname; ports 1–65535; regexes compiled (RE2) at save; paths
-must start with `/`. Values are never string-interpolated into config — renderers build Go structs and marshal them
-(V2 bug AUD-035: resource values were interpolated into Traefik YAML). IPv6 upstreams are bracketed in URLs (AUD-140).
+must start with `/`. Values are never string-interpolated into config — renderers build Go structs and marshal them. IPv6 upstreams are bracketed in URLs.
 
 An invalid resource marks itself `invalid` with a reason and is excluded from rendering; it never stops other resources
-from rendering (V2 bug AUD-105).
+from rendering.
 
 ## 2. Traefik installation
 
@@ -71,7 +70,7 @@ Pinned Traefik version lives in one place (`deploy/versions.env`) and is upgrade
   any configured header dropped; rotation via logrotate (Hashi-installed config).
 - General log: JSON, `/var/log/hashi/traefik/traefik.log`.
 - `ping` enabled on an internal entry point; API/dashboard enabled on `127.0.0.1` only (used for Verify), never public unless exposed as a protected system resource.
-- Plugins (Coraza WAF etc.) pinned by version; the pinned version must exist in the Traefik plugin catalog (checked by `make contract-capture PROVIDER=traefik-plugins`; V2 bug AUD-104 pinned an unpublished release).
+- Plugins (Coraza WAF etc.) pinned by version; the pinned version must exist in the Traefik plugin catalog (checked by `make contract-capture PROVIDER=traefik-plugins`).
 - `serversTransport` defaults; `forwardedHeaders.trustedIPs` = firewall-host internal IPs so client IPs survive DNAT.
 
 Static changes require a Traefik restart and are high-risk.
@@ -99,10 +98,10 @@ optional error pages. The chain is generated per resource because SSO, WAF and a
 
 Fields: name, SSH target (static host/IP or Pulse agent, 08-pulse.md §5), SSH port, username, password or private key
 (+ passphrase), pinned host key, internal Traefik IP (used for DNAT and AdGuard), config paths (detected defaults,
-overridable — V2 bug AUD-084 discarded these inputs).
+overridable).
 
 Validation: SSH login, host-key pin, OS + package manager detection, existing Traefik detection, config discovery,
-write-permission check via a uniquely named temp file in a Hashi-owned path (V2 bug AUD-050: fixed temp path shared by writers).
+write-permission check via a uniquely named temp file in a Hashi-owned path.
 
 ## 6. Apply and verify
 
@@ -111,9 +110,9 @@ Per Traefik host:
 1. Render all files; compute hashes; compare with the host's actual file hashes (read over SFTP), not just DB state.
 2. Write changed files atomically (unique temp + rename) — dynamic files trigger Traefik's watcher; unchanged files are never touched.
 3. If static config changed: write it, restart the service, wait for `ping` (timeout 30 s). On failure restore the previous
-   static file, restart again, mark the plan failed (V2 bug AUD-076: static config was written but never activated).
+   static file, restart again, mark the plan failed.
 4. **Verify** through the local Traefik API over SSH (`curl -s 127.0.0.1:<api>/api/rawdata`): every expected router/service/
-   middleware exists and none reports an error status. There is no `traefik check` command; do not invent one (V2 bug AUD-075).
+   middleware exists and none reports an error status. There is no `traefik check` command; do not invent one.
 5. Store per-file `last_applied_hash`.
 
 ## 7. Sync rules
@@ -123,7 +122,7 @@ Per Traefik host:
 - A new public port requires confirmation (high-risk; also opens the firewall, 05-firewall.md).
 - Removing the last resource on a port removes its entry point and firewall opening after confirmation.
 - Disabled resources stay in the DB but are absent from generated files.
-- Reused ports pending removal are cancelled, not deleted, when a resource claims them again (V2 bug AUD-121).
+- Reused ports pending removal are cancelled, not deleted, when a resource claims them again.
 
 ## 8. API
 

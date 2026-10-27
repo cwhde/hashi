@@ -41,14 +41,17 @@ Adapter requirements:
 - TXT values are normalized (quoting/chunking per the API's documented format, verified by the captured fixtures).
 - TTL preserved unless Hashi owns the RRSet or the user changes it.
 
-**Changed from V2:** V2's adapter targeted the shut-down API and was never run against a real token (AUD-013).
+**Changed from V2:** V2's adapter targeted the shut-down API and was never run against a real token.
 
 ## 3. Record types and ownership
 
 Manual DNS tab minimum: A, AAAA, CNAME, MX, TXT. More types (CAA, SRV, …) only if capability discovery reports them.
 
 Ownership (`dns_ownership`): per RRSet, origin ∈ `system` | `managed` | `imported` | `user`, plus `last_applied_hash`.
-Provider comments/labels are not relied upon.
+The database is authoritative. Where the provider supports it, Hashi also writes a marker (Hetzner: RRSet label
+`hashi.io/owner=<instance-id>`) so ownership survives a DB loss and is visible in the provider console; a label alone never
+grants ownership. RRSets with provider-side change protection (Hetzner `protection.change: true`) are read-only to Hashi.
+A `null` TTL means "zone default" and is preserved as such.
 
 Conflicts: if Hashi wants an RRSet whose name+type exists but is not owned, the plan contains a `conflict` item — never
 an overwrite. Resolving requires an explicit adopt (import) decision. CNAME exclusivity is validated before planning
@@ -125,7 +128,7 @@ dashboard visible, monitoring enabled, target source (manual / firewall host / P
 ## 8. AdGuard Home (optional)
 
 Hashi manages DNS rewrites through AdGuard Home's control API (list/add/update/delete rewrites). The exact request and
-response formats come from recorded fixtures (V2 bug AUD-074: client expected the wrong response formats).
+response formats come from recorded fixtures.
 
 Rules:
 
@@ -133,10 +136,13 @@ Rules:
   never touches a rewrite it does not own.
 - Desired rewrites: for each resource with a detected firewall host, `resource.example.com → <true internal Traefik IP of
   that host>`. The routing override is never applied internally.
-- Duplicate cleanup: only duplicates of **owned** entries, and only ones shown in the preview (V2 bug AUD-017).
-- Disabled AdGuard connections are neither planned nor applied (V2 bug AUD-135).
+- Duplicate cleanup: only duplicates of **owned** entries, and only ones shown in the preview.
+- Disabled AdGuard connections are neither planned nor applied.
 - AdGuard connections support agent-bound targets (08-pulse.md §5).
 - Credentials: username + password (basic auth) or none; TLS verify on by default; optional path prefix.
+- Multiple AdGuard instances are independent connections; Hashi writes its owned rewrites to every enabled instance
+  itself, so no external sync tool is needed. (Migration only: while an existing sync tool still runs, connections it
+  replicates to can be temporarily set to `read-only` to avoid two writers; see 11-delivery.md §7.)
 
 ## 9. Internal agent DNS (optional, requires AdGuard)
 
@@ -151,7 +157,7 @@ Example: `kanae.hashi.home.arpa → 10.0.0.42`.
 - Coexists with real-domain internal rewrites; never replaces them; never touches manual rewrites.
 - Stale agent default: keep last rewrite, mark stale in UI. Optional (off by default): remove after configured stale duration.
 - Sync through the normal plan/apply with audit; deletions of owned agent rewrites are high-risk unless caused by explicit
-  agent deletion (V2 bug AUD-073: background job auto-confirmed all deletions).
+  agent deletion.
 - Settings: enable, domain (reauth to change), default IP mode, stale behaviour.
 - API: `GET|PUT /api/settings/internal-agent-dns`, `POST /api/settings/internal-agent-dns/preview-sync|apply-sync`.
 

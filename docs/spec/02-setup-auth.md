@@ -4,7 +4,7 @@
 
 Setup is a persisted, resumable state machine (`setup_state`). Each step records `status` (pending / in_progress /
 done / failed), its validated inputs, and the last error. A step can only be marked done after its validation
-**succeeded** — a failed SSH check or failed provider apply never advances the wizard (V2 bug AUD-083).
+**succeeded** — a failed SSH check or failed provider apply never advances the wizard.
 
 | # | Step | Required | Completes when |
 | --- | --- | --- | --- |
@@ -22,7 +22,7 @@ done / failed), its validated inputs, and the last error. A step can only be mar
 
 Step 8 verification: Hashi issues a one-time nonce, the SPA fetches `https://<admin domain>/api/setup/https-proof?nonce=…`,
 and the server accepts only if the request arrived on the admin listener via a trusted Traefik peer with the
-expected `Host` and TLS-terminated scheme. Forwarded headers from untrusted peers are ignored (V2 bug AUD-022).
+expected `Host` and TLS-terminated scheme. Forwarded headers from untrusted peers are ignored.
 
 ### 1.1 Bootstrap access
 
@@ -34,7 +34,7 @@ On first boot with no completed setup:
 4. Allow bootstrap login only from: `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `127.0.0.0/8`, `::1/128`, `fc00::/7`
    (setting `bootstrap.allowed_cidrs`), resolved via the shared client-IP resolver (01-platform.md §8).
 5. Bootstrap over plain HTTP on a private address is allowed: the bootstrap session cookie is issued without `Secure`
-   only when the request is plain HTTP from an allowed range. After step 8 every cookie is `Secure` (V2 bug AUD-167).
+   only when the request is plain HTTP from an allowed range. After step 8 every cookie is `Secure`.
 6. After restart before completion, the same credentials remain valid (hash persisted); a CLI command
    `hashi bootstrap reset` regenerates them.
 
@@ -42,7 +42,7 @@ Bootstrap sessions carry only `setup.*` scopes and are revoked when setup comple
 
 ### 1.2 Base settings
 
-Root domain, admin public domain, internal Hashi URL/IP + port (no hardcoded `8080`; V2 bug AUD-021), default sync
+Root domain, admin public domain, internal Hashi URL/IP + port (no hardcoded `8080`), default sync
 interval (1 h), public dashboard enabled (on), public status enabled (on), theme, optional asset choices.
 Domains are validated as FQDNs under the root domain; the internal URL must be an absolute `http(s)` URL.
 
@@ -61,8 +61,7 @@ Encrypt is offered as a second ACME directory option (no EAB) because it costs n
 ### 1.5 Traefik and firewall steps
 
 See 04-traefik-resources.md §5 and 05-firewall.md §2. Both collect SSH host, port, username, password or private key
-(+ passphrase); both pin the SSH host key on first contact after showing the fingerprint to the user (V2 bug AUD-011:
-host keys were never verified).
+(+ passphrase); both pin the SSH host key on first contact after showing the fingerprint to the user.
 
 ### 1.6 System resource
 
@@ -196,7 +195,7 @@ Setup explains the trade-off: strict mode protects secrets against a stolen disk
 
 **Changed from V2:** V2 wrapped an "admin vault" with PRF output for every install while simultaneously requiring
 unattended decryption via a Docker secret — so PRF protected nothing the service key couldn't already decrypt, and the
-PRF path never worked (AUD-081, AUD-082, AUD-045). Now: one master key, one clear default, and the PRF/passkey-only
+PRF path never worked. Now: one master key, one clear default, and the PRF/passkey-only
 protection survives as the explicit opt-in strict mode (delivered in slice S12).
 
 ### 5.5 Locked behaviour

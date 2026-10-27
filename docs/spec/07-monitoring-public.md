@@ -13,7 +13,7 @@ latency thresholds (degraded), allowed HTTP codes (default 200–399), public vi
 ## 2. Check types
 
 HTTP, HTTPS, H2C (where practical), TCP connect, UDP (only with a configured probe payload and expected response —
-"no response" is never treated as healthy; V2 bug: UDP false positives), DNS (query + expected answer), ICMP (only if the
+"no response" is never treated as healthy), DNS (query + expected answer), ICMP (only if the
 container has `CAP_NET_RAW`; otherwise disabled with an explanation), TLS certificate expiry (warn at 21 d, critical at 7 d),
 Pulse push health (heartbeat freshness).
 
@@ -32,7 +32,7 @@ checks fail) · Paused · Unknown (not enough data). Transitions use thresholds 
 
 `monitor_endpoints`, `monitor_checks`, `monitor_samples` (raw), `monitor_rollups` (1 m / 5 m / 1 h; count, ok count, min/
 max/avg/p95 latency), `monitor_events` (state changes, incidents). Retention per 01-platform.md §4.3. Rollups only from
-closed buckets. History strips keep per-sample timestamps (V2 bug AUD-156 discarded them).
+closed buckets. History strips keep per-sample timestamps.
 
 ## 5. Admin UI
 
@@ -57,7 +57,7 @@ high-risk sync plans and vault-lock events can also notify. Deliveries recorded 
 
 - Enabled by default (setting). Shows only endpoints marked public: name, group, state, 60-minute strip, uptime summary.
 - Never shows internal hostnames, IPs, error bodies or admin links.
-- Failed refresh shows a visible "data may be stale since …" banner rather than silently showing empty/stale data (V2 bug AUD-160).
+- Failed refresh shows a visible "data may be stale since …" banner rather than silently showing empty/stale data.
 - `GET /api/public/status` (cached 15 s).
 
 ## 8. Public app dashboard (port 8081, root path)
@@ -67,7 +67,7 @@ Heimdall-style launcher of selected entries.
 - Sources: resources with dashboard enabled (display name defaults to resource name); manual DNS entries with dashboard
   enabled (display name required).
 - Cards link to the public URL; icon from the asset set or per-entry upload.
-- Search collapsed by default; sort selector (name, group, status; default from settings — V2 bug AUD-044 lacked sorting settings).
+- Search collapsed by default; sort selector (name, group, status; default from settings).
 - Header counts: `x / n hosts online`, `x / n Linux firewall hosts available`.
 - No admin controls. Enabled by default (setting).
 - `GET /api/public/apps` (cached 15 s).

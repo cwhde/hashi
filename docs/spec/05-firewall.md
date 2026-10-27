@@ -11,6 +11,13 @@ CIDRs), linked Traefik connection, internal Traefik target IP, route target over
 SSH target + credentials + pinned host key, OS family, WAN interface (detected or override), LXC bridge (detected or
 override), NetBird settings (§4), trusted allowlist entries, persistence mode.
 
+### 1.1 Edge modes
+
+| Mode | When | Hashi manages |
+| --- | --- | --- |
+| `managed` | Host owns its public IP (e.g. a VPS) | Everything in this file |
+| `external_nat` | Host sits behind a router/NAT it doesn't control (e.g. home) | No firewall artifacts. Host records still exist (public IP detected from the host's egress or set manually); the UI shows which ports must be forwarded on the router, and the typical setup routes its `on.` record via a `managed` host. |
+
 ## 2. Setup and validation
 
 Collect: name, SSH credentials (same flow as Traefik), managed subnets, linked Traefik connection, internal Traefik IP,
@@ -33,7 +40,7 @@ and shows them; Hashi's first plan is computed relative to this real state.
 | systemd timer `hashi-firewall.timer` / `/etc/cron.d/hashi-firewall` | Periodic refresh (trusted FQDN IPs) |
 | boot unit `hashi-firewall.service` / OpenRC service | Re-apply at boot after network-online |
 
-Packages are ensured by the apply plan, not assumed (V2 bug AUD-159):
+Packages are ensured by the apply plan, not assumed:
 Debian/Ubuntu `iptables ipset iptables-persistent netfilter-persistent`; Alpine `iptables ipset` + OpenRC persistence
 (`/etc/iptables/rules-save` via the `iptables` service).
 
@@ -41,26 +48,33 @@ Debian/Ubuntu `iptables ipset iptables-persistent netfilter-persistent`; Alpine 
 
 1. Detect WAN interface and public IP unless configured.
 2. Enable IPv4 forwarding (`net.ipv4.ip_forward=1`, persisted in `/etc/sysctl.d/90-hashi.conf`).
-3. Build ipsets **as temporary sets and `ipset swap` them in** — live sets are never flushed before replacements are ready (V2 bug AUD-134):
+3. Build ipsets **as temporary sets and `ipset swap` them in** — live sets are never flushed before replacements are ready:
    `hashi_trusted` (all firewall hosts' public IPs resolved from `name.<root>`, current host IP, user allowlist),
    `hashi_blocked` / `hashi_blocked6` (firewall-enforced blocks, 06-edge-security.md), `hashi_netbird` (overlay CIDRs).
 4. Build chains via `iptables-restore --noflush` with only Hashi chains in the input, so the swap is atomic per table:
    - `filter`: `HASHI_INPUT`, `HASHI_FWD`, `HASHI_NETBIRD`
-   - `nat`: `HASHI_DNAT` (PREROUTING), `HASHI_POSTROUTING` (POSTROUTING) — NAT chains live in the **nat** table (V2 bug AUD-052)
+   - `nat`: `HASHI_DNAT` (PREROUTING), `HASHI_POSTROUTING` (POSTROUTING) — NAT chains live in the **nat** table
    - Jump rules from built-in chains are inserted once, checked with `-C` before `-I`.
 5. INPUT policy inside `HASHI_INPUT`: allow loopback, established/related, managed subnets, `hashi_trusted`, NetBird
    overlay on the NetBird interface, configured public ports; drop `hashi_blocked` first; final drop for non-allowed new
    inbound traffic only after the user accepted the "block all other inbound" warning.
 6. DNAT each public TCP/UDP port to the linked internal Traefik IP **and the Traefik entry-point port** for that resource
-   (80/443 for HTTP family, the stream entry point port for TCP/UDP — not the upstream service port; V2 bug AUD-053).
-7. `HASHI_FWD`: drop `hashi_blocked` for **forwarded** traffic too (V2 bug AUD-054), allow DNATed flows, allow
+   (80/443 for HTTP family, the stream entry point port for TCP/UDP — not the upstream service port).
+7. `HASHI_FWD`: drop `hashi_blocked` for **forwarded** traffic too, allow DNATed flows, allow
    managed-subnet egress, established/related.
 8. `HASHI_POSTROUTING` (nat): masquerade managed subnets → WAN; hairpin NAT so internal clients can reach public endpoints;
-   NetBird masquerade rules for routing-peer mode in the nat table (V2 bug AUD-055).
+   NetBird masquerade rules for routing-peer mode in the nat table.
 9. TCP MSS clamping (`--clamp-mss-to-pmtu`) on NetBird-routed traffic (mangle table, Hashi chain).
 10. Persist with `netfilter-persistent save` where available (Debian/Ubuntu), OpenRC save on Alpine.
 
 IPv6: same structure with `ip6tables` when the host has public IPv6; DNAT for IPv6 only if configured.
+
+### 3.2 Behaviours carried over from the current host script
+
+- Loopback DNAT: public ports are also DNATed for `127.0.0.1` destinations (local clients on the host).
+- Proxmox cluster peer MTU routes: for each corosync `ring0_addr` peer, `ip route replace <peer>/32 via <gw> dev <wan> src <public> mtu <n>` (setting, default 1280; skipped when not clustered).
+- Optional `/etc/hosts` pins: hostnames resolved via a chosen resolver and pinned (e.g. the NetBird management host).
+- Cleanup of the previous script's chains (`CUSTOM_DNAT`, `CUSTOM_FWD`, `CUSTOM_INPUT`, their jumps and its cron entries) is part of the **first apply plan**, shown explicitly, executed under the rescue timer.
 
 ## 4. NetBird compatibility
 
@@ -82,14 +96,14 @@ NetBird; warn before any change that could remove NetBird access; rescue protect
 ## 5. Rescue rollback (first apply and every high-risk apply)
 
 1. Save current state (`iptables-save`, `ip6tables-save`, `ipset save`) to `previous.rules`.
-2. Write `rollback.sh` with mode 0700 **before** arming (V2 bug AUD-085: timer skipped a non-executable script).
+2. Write `rollback.sh` with mode 0700 **before** arming.
 3. Arm a transient timer: `systemd-run --on-active=180 --unit=hashi-fw-rescue /opt/hashi/firewall/rollback.sh`
    (Alpine: `at` or a backgrounded `sleep 180 && rollback` with a PID file).
 4. Apply the new rules.
 5. Hashi opens a **new** SSH connection (not the existing one), verifies it can log in and run a command, and — if NetBird is
-   enabled — verifies NetBird status is still connected. Only then disarm the timer (V2 bug AUD-133: disarmed before verification).
+   enabled — verifies NetBird status is still connected. Only then disarm the timer.
 6. If verification fails or times out, do nothing: the timer restores the previous state. Hashi reconnects after the
-   window, reads the actual ruleset and reports the rollback by checking the remote result, not assuming it (V2 bug AUD-057).
+   window, reads the actual ruleset and reports the rollback by checking the remote result, not assuming it.
 
 ## 6. Desired ports and allowlists
 

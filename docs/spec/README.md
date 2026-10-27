@@ -80,6 +80,8 @@ These hold in every slice. Each has at least one automated test named `TestInvar
 
 Tracked here until answered; answers move into the relevant area file.
 
-1. Production currently runs Pangolin (with its own Traefik) and V1 Hashi. Does Hashi-managed Traefik **replace** Pangolin's Traefik on each edge host, or run alongside on different ports during cutover? → answered by the server survey; see environment.md and 11-delivery.md § V1 cutover.
-2. Which zone(s) beyond the root domain does Hashi manage?
-3. Is the Cap instance already deployed, and where?
+1. CAPTCHA: the spec names Cap, but production runs **wicketkeeper**. Keep Cap (deploy it before S10), or make wicketkeeper the first provider behind a CAPTCHA provider interface?
+2. The second Hetzner zone: managed by Hashi from the start, or import-only?
+
+Answered by the 2026-10-27 survey: Hashi replaces Pangolin, both current Traefik instances, Gatus, adguardhome-sync and the
+host firewall script with its own installs (11-delivery.md §7); the home host is an `external_nat` edge host (05-firewall.md §1.1).

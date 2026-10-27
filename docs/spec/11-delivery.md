@@ -8,6 +8,14 @@ NAT chains were in the wrong table and setup could not complete. Eight AI audit 
 fixing findings created new findings. These rules exist so that cannot happen again. They are enforced partly by
 process (below) and partly by tooling (`.claude/` hooks, CI).
 
+Known pitfalls worth remembering (the rest of V2's findings don't apply to a fresh build):
+
+- Hetzner DNS is only the Cloud API now; the legacy DNS API is gone.
+- Traefik has no config-check command; verify through its own API after loading.
+- NAT rules belong in the `nat` table, and DNAT targets the Traefik entry-point port.
+- A firewall rescue timer is disarmed only after a *new* connection succeeds.
+- Config and scripts are rendered from structs, never string-templated from user input.
+
 ## 2. Delivery rules
 
 1. **One slice at a time (WIP = 1).** A slice is a vertical piece of user-visible behaviour, built end-to-end (DB → API →
@@ -43,7 +51,7 @@ happen at the end of every slice.
 | S1 | Setup, auth, vault | 02-setup-auth.md §1.1–1.2, §2–5 (service mode), audit log, settings framework, Activity page | Bootstrap login from LAN, passkey registered from a real browser, session IP binding observed, restart keeps sessions, secrets encrypted in a DB dump |
 | S2 | DNS read + import | 03-dns.md §1–4 (read side), contract capture for Hetzner | Real zone listed; import table shows real RRSets; decisions persist; fixtures committed (sanitized) |
 | S3 | DNS write | 03-dns.md §5–7, sync engine 01-platform.md §5, approval UI | Probe TXT created + deleted via approved plan; a Hashi-owned test record applied and verified; NS/SOA untouched |
-| S4 | SSH + Traefik | 04-traefik-resources.md §2–6, sshx with host-key pinning, httpreq ACME endpoint | Traefik installed/adopted on the first edge host (per environment.md); rendered files applied; Verify reads routers from the real Traefik API; certificate issued via DNS-01 through Hashi |
+| S4 | SSH + Traefik | 04-traefik-resources.md §2–6, sshx with host-key pinning, httpreq ACME endpoint | Hashi-installed Traefik running on a fresh edge LXC; rendered files applied; Verify reads routers from the real Traefik API; certificate issued via DNS-01 through Hashi |
 | S5 | HTTP resources | 04 §1, §7–8, DNS resource records, system resource (setup steps 7–8) | Hashi admin reachable at its HTTPS domain through Hashi-managed Traefik; one real service migrated and reachable; setup completes end-to-end on the real install |
 | S6 | Firewall + streams | 05-firewall.md, TCP/UDP resources | First apply with rescue timer on a real host; foreign + NetBird rules unchanged (diff of `iptables-save` before/after); public TCP/UDP port reaches its upstream; NetBird access verified |
 | S7 | Monitoring + public pages | 07-monitoring-public.md | All migrated resources monitored; public status + dashboard served on their ports; a real outage produces a notification and recovery |
@@ -116,15 +124,23 @@ previous image tag. Compose file and `.env.example` in `deploy/compose/`; the re
 
 ## 7. V1 cutover
 
-V1 (Node, `legacy/v1/`) currently discovers topology from DNS, reads Pangolin resources, writes Hetzner DNS records and
-generates Gatus endpoints. Cutover happens after S7:
+Today (environment.md): V1 writes `<sub> → on.<host>` CNAMEs from a topology TXT record and Pangolin's resource list and
+generates Gatus endpoints; Pangolin feeds both Traefik instances through its HTTP provider; a cron script runs host A's firewall.
+Hashi takes over in this order, each step reversible:
 
-1. Inventory everything V1 manages (its config + DNS records it created + Gatus endpoints) — from the server survey.
-2. Import those DNS RRSets into Hashi as `imported`, then convert to resources where they front a service.
-3. Recreate the Pangolin-routed services as Hashi resources (strategy per environment.md: Hashi-managed Traefik replaces
-   Pangolin's routing host by host, or coexists on the same host with distinct entry points during migration).
-4. Run Hashi's DNS plan; it must show **no changes** for the imported set before V1 is stopped (proves equivalence).
-5. Stop V1 and Gatus; keep their containers/images for one week; then delete `legacy/v1/` and its workflow.
+1. **S2–S3 (DNS):** import every RRSet V1 created as `imported`; Hashi's DNS plan for that set must show **no changes**
+   while V1 still runs (proves equivalence). V1 keeps writing until step 4.
+2. **S4–S5 (Traefik):** the current reverse proxies are **replaced, not adopted**. Hashi installs its own Traefik
+   (04-traefik-resources.md §2–3, Hashi static config, Hashi paths, new ACME account and certificates) on a fresh edge LXC per
+   host; nothing of the Pangolin-generated or hand-written Traefik config is reused. Every Pangolin resource is recreated as a
+   Hashi resource; once the new instance serves them all (verified via its API and real requests), the firewall DNAT target /
+   router forward moves to the new LXC. Resources that relied on Pangolin's badger auth stay restricted by IP allowlist rules
+   until Hashi forward auth lands in S9. The old Traefik instances and Pangolin are stopped here and deleted at cutover.
+3. **S6 (firewall):** Hashi's first firewall apply on host A removes the old script's chains, jumps and cron entries under the
+   rescue timer. The topology TXT record is no longer needed afterwards.
+4. **S7 → cutover:** monitoring covers all former Gatus endpoints. Stop V1, Gatus, Pangolin (+ its Traefik) and the old
+   Traefik LXC; keep their data for one week as rollback; then delete them, `legacy/v1/` and its workflow.
+5. **S8 (AdGuard):** Hashi writes rewrites to every AdGuard instance directly; adguardhome-sync is then retired.
 
 ## 8. Operations
 
