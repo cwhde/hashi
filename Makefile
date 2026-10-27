@@ -9,7 +9,7 @@ VERSION   ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo de
 COMMIT    ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 LDFLAGS   := -s -w -X git.juzo.io/juzo/hashi/internal/app.Version=$(VERSION) -X git.juzo.io/juzo/hashi/internal/app.Commit=$(COMMIT)
 
-.PHONY: help image deploy rollback smoke check fmt-check lint test generate generate-check web-install web-check build-web build dev clean
+.PHONY: help check fmt-check lint test generate generate-check web-install web-check build-web build dev clean
 
 help: ## list targets
 	@awk 'BEGIN{FS=":.*## "} /^[a-z-]+:.*## /{printf "  %-18s %s\n",$$1,$$2}' $(MAKEFILE_LIST)
@@ -53,22 +53,6 @@ build-web: web-install ## build the SPA into internal/web/dist (embedded by go b
 
 build: build-web ## build bin/hashi (with the SPA) for this machine
 	CGO_ENABLED=0 go build -trimpath -ldflags '$(LDFLAGS)' -o bin/hashi ./cmd/hashi
-
-ENV ?= prod
-TAG ?= $(COMMIT)
-
-image: ## build the multi-arch image locally (no push)
-	docker buildx build --platform linux/amd64,linux/arm64 -f deploy/docker/Dockerfile \
-	  --build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) -t hashi:$(COMMIT) .
-
-deploy: ## deploy TAG (default: short SHA of HEAD) to ENV (deploy/targets/$(ENV).env)
-	deploy/deploy.sh deploy $(ENV) $(TAG)
-
-rollback: ## return ENV to the tag that was running before the last deploy
-	deploy/deploy.sh rollback $(ENV)
-
-smoke: ## readyz, version, SPA and public listeners on ENV
-	deploy/deploy.sh smoke $(ENV) $(if $(filter command line,$(origin TAG)),$(TAG),)
 
 dev: web-install ## Go backend on :8080 with ./data + Vite dev server on :5173 (proxies /api)
 	@trap 'kill 0' EXIT; \
