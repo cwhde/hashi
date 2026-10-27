@@ -5,11 +5,45 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
-**S1 — Setup, auth, vault** · status: not started
+**S1 — Setup, auth, vault** · status: in progress (branch `s1-auth`)
 
 Scope and gate: 11-delivery.md §3 row S1. Build pages on the approved mocks (`/design/setup`, `/design/login`,
-`/design/settings` → Account, `/design/activity`) following `docs/spec/10b-ui-system.md`. First step: plan the slice as a
-checklist here (`slice` skill).
+`/design/settings` → Account, `/design/activity`) following `docs/spec/10b-ui-system.md`.
+
+External systems: none (WebAuthn via `go-webauthn`, tested with a Playwright virtual authenticator), so no contract capture.
+Deploy needs one new host file: the master key (`hashi keygen` → Docker secret). That is a production change → ask first.
+
+Plan (thinnest path to the gate: bootstrap login from LAN, IP binding observed, restart keeps sessions, secrets encrypted
+in a DB dump, passkey register + login with a virtual authenticator):
+
+PR A — backend
+- [ ] Migration 00002: `setup_state`, `audit_events`, `admin_users`, `passkey_credentials`, `admin_sessions`,
+      `secret_records`, `recovery_key`, bootstrap credential row; sqlc queries.
+- [ ] Vault (service mode, 02 §5.1–5.3): master key file (`HASHI_MASTER_KEY_FILE`, refuse to start without), HKDF KEKs,
+      AES-GCM DEK envelope, key-check canary record, `hashi keygen`; recovery key generate/wrap/verify; `TestInvariant_5_*`.
+- [ ] Client-IP resolver (01 §8): trusted proxies, right-to-left walk, IPv4-mapped normalization, fail closed.
+- [ ] Audit log writer (same transaction as the change, salted hash prefixes only) + `GET /api/activity/audit` (cursor).
+- [ ] Settings framework (09 §2): typed categories with validation; S1 categories General (root/admin domain, internal URL,
+      sync interval, trusted proxies) and Security (admin idle timeout, bootstrap allowed CIDRs); `GET /api/settings`,
+      `GET|PUT /api/settings/{category}`; each setting has a consumer test.
+- [ ] Sessions (02 §3): model, strict IP binding, idle/absolute expiry, reauth window, scopes, CSRF (§4), cookie names;
+      generated scope table from `x-hashi-scopes` + `x-hashi-reauth` enforced by middleware; cleanup job; §6 tests.
+- [ ] Bootstrap (02 §1.1): generate + print once, argon2id hash, allowed CIDRs, `hashi bootstrap reset`; login endpoint.
+- [ ] Setup state machine (02 §1): steps 1, 2, 9, 11 real; 3–8, 10 "arrives in a later slice"; resumable; invariant 14.
+- [ ] Passkeys (02 §2): register/login/list/rename/delete, reauth ceremony, RP ID = root domain, origin = admin domain
+      (dev/test override for `localhost`); `hashi admin recover`.
+- [ ] Jobs + live log API for Activity: `GET /api/activity/jobs`, in-memory ring of redacted log lines `GET /api/activity/logs`.
+
+PR B — UI + deploy
+- [ ] Auth-aware app shell: session fetch, CSRF header in the API client, redirect to `/login` or `/setup`, account menu
+      (expiry, bound IP), sign out.
+- [ ] `/setup` (steps 1, 2, 9, 11), `/login`, `/settings` (Account: passkeys, sessions; General; Security), `/activity`
+      (Audit log, Jobs, Live log) built on the mocks.
+- [ ] `make test-e2e`: Playwright against a real Hashi binary — bootstrap → base settings → passkey (virtual
+      authenticator) → recovery key → complete → logout → passkey login; CI job.
+- [ ] Compose: master key as a Docker secret; `make dev` creates a local dev key.
+- [ ] Deploy (user OK) and prod-proof: bootstrap login from the LAN, cookie replayed from another IP is rejected and
+      revoked, restart keeps the session, `sqlite3 .dump` shows no plaintext secret; review; progress + README bar.
 
 Spec changes before S1 (2026-10-27, from an external review, agreed with the user): S1 tests passkeys with a virtual
 authenticator only (no HTTPS before S5; first real passkey in S5, RP ID = root domain); setup steps arrive with their
@@ -41,7 +75,7 @@ Decisions made in S0:
 | --- | --- | --- |
 | S0 Walking skeleton | **done** | 2026-10-27 · `e7c0a30` · `make deploy ENV=prod TAG=e7c0a30` on the Docker LXC next to V1: smoke from the LAN → `/readyz` `{"checks":{"database":"ok"},"status":"ok"}`, `/api/version` `{"commit":"e7c0a30","version":"e7c0a30"}`, SPA 200, public apps 200, public status 200; container `healthy`, uid 65532, read-only rootfs; restart keeps the DB (no re-migration); V1 and Gatus still up. CI green on the Gitea runners (#17–#23 and main); release published `e7c0a30` = `latest`, amd64 + arm64. |
 | S0b UI design for all features | **done** | 2026-10-27 · `646888e` · approved by the user from screenshots and the local preview; not deployed (not part of this gate) · #24 |
-| S1 Setup, auth, vault | next | |
+| S1 Setup, auth, vault | in progress | |
 | S2 DNS read + import | — | |
 | S3 DNS write | — | |
 | S4 SSH + Traefik | — | |
