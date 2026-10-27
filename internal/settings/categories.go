@@ -113,7 +113,9 @@ func (s Security) Validate() error {
 }
 
 // AdminIdle is the configured idle lifetime.
-func (s Security) AdminIdle() time.Duration { return time.Duration(s.AdminIdleTimeoutMinutes) * time.Minute }
+func (s Security) AdminIdle() time.Duration {
+	return time.Duration(s.AdminIdleTimeoutMinutes) * time.Minute
+}
 
 // Validate checks Appearance.
 func (a Appearance) Validate() error {
