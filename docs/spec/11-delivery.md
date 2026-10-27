@@ -1,0 +1,140 @@
+# 11 — Delivery: slices, prod-proof gates, testing, CI/CD, cutover, operations
+
+## 1. Why this section exists
+
+V2 produced 450 commits in three weeks and was never deployed. Its first contact with reality (an audit, months later)
+found that the DNS adapter targeted a shut-down API, Traefik validation called a command that does not exist, firewall
+NAT chains were in the wrong table and setup could not complete. Eight AI audit series then produced 353 issue files;
+fixing findings created new findings. These rules exist so that cannot happen again. They are enforced partly by
+process (below) and partly by tooling (`.claude/` hooks, CI).
+
+## 2. Delivery rules
+
+1. **One slice at a time (WIP = 1).** A slice is a vertical piece of user-visible behaviour, built end-to-end (DB → API →
+   UI → real system). The next slice starts only after the current one has passed its prod-proof gate.
+2. **Prod-proof gate.** A slice is done only when its behaviour has been observed working against the **real** systems it
+   touches, on the real deployment, and the evidence is recorded in `docs/progress.md` (date, version, what was done,
+   what was observed — command output or screenshot references). Tests passing is necessary, not sufficient.
+3. **No invented interfaces.** Every external API, CLI or file format Hashi talks to is captured from the real system
+   first (`make contract-capture`), stored sanitized in `testdata/contracts/`, and tests replay it. If something cannot be
+   captured, it is listed as an open question — the agent stops and asks; it does not guess.
+4. **Deploy early.** Slice S0 ends with a running container on the real Docker host. Every later slice is deployed there
+   before it is called done.
+5. **Fix discipline.** A bug fix starts with a reproduction: a failing test or a recorded failing observation on the real
+   system. If two fix attempts for the same failure do not make the reproduction pass, stop, write the hypothesis and
+   evidence into `docs/progress.md` under "Blocked", and ask the human.
+6. **Review discipline.** One review per change, against the spec section's acceptance criteria, maximum 10 findings,
+   style skipped. A finding is only "must fix" when it is reproduced or violates an invariant. Unreproduced findings go to
+   `docs/progress.md` → "Unverified" and are not worked on unless the human promotes them. No standalone audit series.
+7. **Small changes.** A PR changes ≤ ~500 lines excluding generated code and fixtures. Larger work is split.
+8. **Spec changes are explicit.** If implementation reveals the spec is wrong, update the spec in a separate commit
+   (`docs(spec): …`) with the reason; never silently diverge.
+9. **The repository is public.** Real hostnames, IPs, tokens and production configs live outside the repo
+   (`CLAUDE.local.md`, `.env`, deployment host). Fixtures are sanitized before commit (see §5.2).
+
+## 3. Slices
+
+Each slice lists its scope (spec references) and its prod-proof gate. All slices are required for 1.0; test deploys
+happen at the end of every slice.
+
+| # | Slice | Scope | Prod-proof gate |
+| --- | --- | --- | --- |
+| S0 | Walking skeleton | Go binary, embedded SPA shell with tokens + Graphite + shared primitives skeleton, `/healthz` `/readyz`, SQLite + migrations, job runner skeleton, OpenAPI pipeline, CI (lint/test/generate check), multi-arch image, `make deploy` | Container runs on the Docker LXC next to V1; `/readyz` OK from LAN; CI green on Gitea runners; image published |
+| S1 | Setup, auth, vault | 02-setup-auth.md §1.1–1.2, §2–5 (service mode), audit log, settings framework, Activity page | Bootstrap login from LAN, passkey registered from a real browser, session IP binding observed, restart keeps sessions, secrets encrypted in a DB dump |
+| S2 | DNS read + import | 03-dns.md §1–4 (read side), contract capture for Hetzner | Real zone listed; import table shows real RRSets; decisions persist; fixtures committed (sanitized) |
+| S3 | DNS write | 03-dns.md §5–7, sync engine 01-platform.md §5, approval UI | Probe TXT created + deleted via approved plan; a Hashi-owned test record applied and verified; NS/SOA untouched |
+| S4 | SSH + Traefik | 04-traefik-resources.md §2–6, sshx with host-key pinning, httpreq ACME endpoint | Traefik installed/adopted on the first edge host (per environment.md); rendered files applied; Verify reads routers from the real Traefik API; certificate issued via DNS-01 through Hashi |
+| S5 | HTTP resources | 04 §1, §7–8, DNS resource records, system resource (setup steps 7–8) | Hashi admin reachable at its HTTPS domain through Hashi-managed Traefik; one real service migrated and reachable; setup completes end-to-end on the real install |
+| S6 | Firewall + streams | 05-firewall.md, TCP/UDP resources | First apply with rescue timer on a real host; foreign + NetBird rules unchanged (diff of `iptables-save` before/after); public TCP/UDP port reaches its upstream; NetBird access verified |
+| S7 | Monitoring + public pages | 07-monitoring-public.md | All migrated resources monitored; public status + dashboard served on their ports; a real outage produces a notification and recovery |
+| — | **V1 cutover** | §7 | V1 container stopped; Hashi owns DNS/monitoring for everything V1 handled |
+| S8 | AdGuard, Pulse, agent DNS | 03 §8–9, 08-pulse.md | Real AdGuard rewrites synced without touching manual ones; Pulse agent on a real host; IP change propagates; `<agent>.hashi.home.arpa` resolves |
+| S9 | Edge SSO + rules | 06 §2–4, §12, resource rules | SSO login covers two subdomains; rule by CIDR and by country observed; fail-closed behaviour observed with Hashi stopped |
+| S10 | Security engine, WAF, CAPTCHA, blocklists | 06 §5–11, §13–15 | Access logs ingested from real Traefik; synthetic load triggers challenge → Cap solve → clear; escalation to firewall block reaches all hosts; a blocklist fetched and enforced; WAF detect events visible |
+| S11 | Scripts, themes, settings completeness | 09-scripts-settings.md, 10-ui.md §5–5.1, §12 | Scheduled script runs on real hosts with history; all four themes + custom theme pass visual tests; every setting has a consumer test |
+| S12 | Hardening + 1.0 | strict vault mode (02 §5.4), backup/restore drill, threat model, docs | Restore from backup onto a fresh container works; strict mode unlock with PRF passkey or recovery key; security scans clean or accepted; tag `v1.0.0` |
+
+Slices may be split further when a PR would exceed the size rule; the gate stays at the slice level.
+
+## 4. Testing
+
+| Layer | What | Where |
+| --- | --- | --- |
+| Unit | pure logic: planners, renderers (golden files), decision engine, normalizers, policies | `go test ./...`, Vitest |
+| Contract | replay recorded real responses through adapters; drift job re-captures read-only shapes weekly | `make test-contract` |
+| Integration | real binaries in containers: Traefik (pinned), sshd, iptables/ipset in a privileged netns, AdGuard Home, OIDC test provider, SMTP sink | `make test-integration` (CI job with Docker) |
+| E2E | Playwright against a running Hashi with fake/contract-backed providers; WebAuthn via virtual authenticator | `make test-e2e` |
+| Visual | Playwright screenshots per 10-ui.md §12 | `make test-visual` |
+| Prod-proof | manual/semi-automated checklist on the real deployment | `docs/progress.md` |
+
+Invariant tests (`TestInvariant_*`) run in every CI run. Safety tests from V2 are kept: NS/SOA deletion impossible;
+unowned records untouched; identical Traefik file not rewritten; firewall does not flush unrelated rules; NetBird rules
+preserved and access survives apply; Pulse IPs matching hosts produce CNAMEs; secrets redacted in logs and API responses;
+passive sync runs without a session; high-risk passive plans wait for approval.
+
+`make check` = format check + lint + unit + contract + generate-diff + web check/lint/unit. It must run in < 3 minutes
+locally; it is what the agent's Stop hook runs.
+
+## 5. Contract capture
+
+### 5.1 Procedure
+
+`make contract-capture PROVIDER=<name>` runs read-only calls from `internal/<area>/contract/capture.go` using credentials
+from the local environment (never from the repo), writes raw responses to `.contracts-raw/` (gitignored), then sanitizes
+into `testdata/contracts/<provider>/<call>.json` with a header (`captured_at`, `docs_url`, `tool_version`).
+
+### 5.2 Sanitizing
+
+Tokens, IDs that embed account data, IPs and domains are replaced deterministically (`example.com`, `192.0.2.x`,
+`198.51.100.x`, `2001:db8::/32`). A test fails if a fixture contains anything matching the private-data patterns in
+`testdata/contracts/denylist.txt` (populated locally from `CLAUDE.local.md`, the list itself is gitignored; CI uses a generic pattern set).
+
+## 6. CI/CD (Gitea Actions, self-hosted runners)
+
+### 6.1 Workflows
+
+- `ci.yml` — on PR and push: path-filtered jobs; `make check`; integration tests (Docker); E2E only when `web/` or API changed; Pulse vet/test/build.
+- `security.yml` — on PR, push to main, weekly schedule, manual: gitleaks, govulncheck, osv-scanner (Go + pnpm lockfiles), Semgrep, Trivy filesystem; Trivy image scan of the **pushed digest** for main/tags (local single-platform build only for PRs). Docs-only changes skip heavy scans unless scheduled/dispatched.
+- `release.yml` — on main and `v*` tags: multi-arch images `git.juzo.io/juzo/hashi` and `git.juzo.io/juzo/hashi-pulse` (linux/amd64 + linux/arm64), tags `latest` (main), short SHA, semver; Pulse binaries + SHA-256 checksums attached to tag releases.
+- `v1-docker-build.yml` — legacy V1 image (paths `legacy/v1/**`), kept multi-arch until cutover, then removed with `legacy/`.
+
+### 6.2 Build performance (from V2 addendum, still required)
+
+- Dockerfiles use BuildKit syntax with cache mounts; build stages pinned to `$BUILDPLATFORM`; Go cross-compiles with
+  `GOOS=$TARGETOS GOARCH=$TARGETARCH CGO_ENABLED=0` (pure-Go SQLite makes this trivial) — no QEMU-emulated toolchains.
+- Node SPA build runs once on `$BUILDPLATFORM` (architecture-independent output).
+- Caches: Go build + module cache, pnpm store, Playwright browsers (only installed when E2E runs). Registry build cache on.
+- Cache misses never fail builds; logs state hit/miss.
+- Scan the release digest rather than rebuilding for scanning.
+- A CI check asserts Dockerfiles use `$BUILDPLATFORM`/`TARGETARCH` and workflows keep both platforms.
+
+### 6.3 Deploy
+
+`make deploy ENV=prod` (human-triggered skill `/deploy`): SSH to the Docker host from `CLAUDE.local.md`, `docker compose pull`,
+`up -d`, wait for `/readyz`, run smoke checks, record version in `docs/progress.md`. `make rollback` returns to the
+previous image tag. Compose file and `.env.example` in `deploy/compose/`; the real `.env` and master key live only on the host.
+
+## 7. V1 cutover
+
+V1 (Node, `legacy/v1/`) currently discovers topology from DNS, reads Pangolin resources, writes Hetzner DNS records and
+generates Gatus endpoints. Cutover happens after S7:
+
+1. Inventory everything V1 manages (its config + DNS records it created + Gatus endpoints) — from the server survey.
+2. Import those DNS RRSets into Hashi as `imported`, then convert to resources where they front a service.
+3. Recreate the Pangolin-routed services as Hashi resources (strategy per environment.md: Hashi-managed Traefik replaces
+   Pangolin's routing host by host, or coexists on the same host with distinct entry points during migration).
+4. Run Hashi's DNS plan; it must show **no changes** for the imported set before V1 is stopped (proves equivalence).
+5. Stop V1 and Gatus; keep their containers/images for one week; then delete `legacy/v1/` and its workflow.
+
+## 8. Operations
+
+- **Backups (mandatory):** nightly `VACUUM INTO /data/backups/hashi-<date>.db` (online, consistent), 14 kept; `/data`
+  (DB backups, GeoIP, assets, uploads) copied off-host by the host's backup system (Proxmox backup of the LXC is fine).
+  Master key and recovery key are stored outside Hashi (password manager).
+- **Disaster recovery:** restore `/data` → start Hashi with the master key (or recover it with the recovery key) → unlock
+  (strict mode) → run global reconcile → review plan before approving any high-risk item.
+- **When locked:** see 02-setup-auth.md §5.5.
+- **Upgrades:** migrations run at start inside a transaction after an automatic pre-migration backup; failure restores
+  the backup and exits non-zero.
+- **Observability:** JSON logs to stdout; `/metrics` (Prometheus) on the admin listener behind admin auth or a separate
+  bind address.

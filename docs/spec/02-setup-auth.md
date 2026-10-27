@@ -1,0 +1,205 @@
+# 02 — Setup, authentication, admin sessions, secrets vault
+
+## 1. Setup state machine
+
+Setup is a persisted, resumable state machine (`setup_state`). Each step records `status` (pending / in_progress /
+done / failed), its validated inputs, and the last error. A step can only be marked done after its validation
+**succeeded** — a failed SSH check or failed provider apply never advances the wizard (V2 bug AUD-083).
+
+| # | Step | Required | Completes when |
+| --- | --- | --- | --- |
+| 1 | Bootstrap login | yes | Valid bootstrap credentials from an allowed network |
+| 2 | Base settings | yes | Root domain, admin domain, internal Hashi URL, sync interval, public page toggles, theme saved and validated |
+| 3 | DNS provider | yes | Token validated read-only, zone resolved, import decisions saved |
+| 4 | Certificate provider | yes | ACME email + EAB stored, DNS provider bound |
+| 5 | Traefik connection | yes | SSH validated + host key pinned, OS detected, paths confirmed, ownership confirmed |
+| 6 | Linux firewall host | yes | SSH validated, tools detected, subnets valid, linked to a Traefik connection |
+| 7 | Hashi system resource | yes | DNS + Traefik + firewall plans applied and verified for the admin domain |
+| 8 | HTTPS reachability | yes | Browser reaches Hashi via `https://<admin domain>`; verified server-side (below) |
+| 9 | Passkey + recovery key | yes | Passkey registered, recovery key shown and confirmed by re-entry of a checksum segment, test unlock succeeded |
+| 10 | Optional integrations | no | Any of: OIDC SSO, AdGuard, notifications, MaxMind, Cap CAPTCHA, blocklists, internal agent DNS, dashboard widgets |
+| 11 | Complete | — | Bootstrap credentials destroyed; bootstrap sessions revoked |
+
+Step 8 verification: Hashi issues a one-time nonce, the SPA fetches `https://<admin domain>/api/setup/https-proof?nonce=…`,
+and the server accepts only if the request arrived on the admin listener via a trusted Traefik peer with the
+expected `Host` and TLS-terminated scheme. Forwarded headers from untrusted peers are ignored (V2 bug AUD-022).
+
+### 1.1 Bootstrap access
+
+On first boot with no completed setup:
+
+1. Generate a random username (8 chars) and password (24 chars, base58).
+2. Print them **once** to stdout (container logs) in a clearly delimited block.
+3. Store only an argon2id hash.
+4. Allow bootstrap login only from: `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `127.0.0.0/8`, `::1/128`, `fc00::/7`
+   (setting `bootstrap.allowed_cidrs`), resolved via the shared client-IP resolver (01-platform.md §8).
+5. Bootstrap over plain HTTP on a private address is allowed: the bootstrap session cookie is issued without `Secure`
+   only when the request is plain HTTP from an allowed range. After step 8 every cookie is `Secure` (V2 bug AUD-167).
+6. After restart before completion, the same credentials remain valid (hash persisted); a CLI command
+   `hashi bootstrap reset` regenerates them.
+
+Bootstrap sessions carry only `setup.*` scopes and are revoked when setup completes.
+
+### 1.2 Base settings
+
+Root domain, admin public domain, internal Hashi URL/IP + port (no hardcoded `8080`; V2 bug AUD-021), default sync
+interval (1 h), public dashboard enabled (on), public status enabled (on), theme, optional asset choices.
+Domains are validated as FQDNs under the root domain; the internal URL must be an absolute `http(s)` URL.
+
+### 1.3 DNS provider step
+
+See 03-dns.md §2–3. Collect provider type (Hetzner first), API token, zone, default TTL. Validate read-only (list
+zones, read RRSets). Write capability is only confirmed if the user explicitly approves a probe plan that creates and
+deletes `_hashi-test.<zone>` TXT. Import table: see 03-dns.md §4.
+
+### 1.4 Certificate provider step
+
+Initial support: Google Trust Services ACME with External Account Binding, DNS-01 via Hetzner. Collect ACME email, EAB
+key ID, EAB HMAC (secret), DNS provider binding, propagation delay, resolver list. Secrets go to the vault. Let's
+Encrypt is offered as a second ACME directory option (no EAB) because it costs nothing to support and is a useful fallback.
+
+### 1.5 Traefik and firewall steps
+
+See 04-traefik-resources.md §5 and 05-firewall.md §2. Both collect SSH host, port, username, password or private key
+(+ passphrase); both pin the SSH host key on first contact after showing the fingerprint to the user (V2 bug AUD-011:
+host keys were never verified).
+
+### 1.6 System resource
+
+Setup creates the Hashi system resource: admin domain → internal Hashi URL, TLS on, admin security profile, origin
+`system`, delete forbidden, editable only via Settings → General.
+
+## 2. Admin authentication
+
+Hashi has exactly one admin user.
+
+- After setup, login requires a passkey (WebAuthn, user verification `required`, resident key `preferred`).
+- Multiple passkeys may be registered; each has a name, created-at, last-used-at and AAGUID-derived label.
+- Deleting the last passkey is forbidden. Deleting a passkey revokes sessions authenticated with it.
+- Recovery key (§5.3) is for vault recovery; a separate **recovery login** is possible only from the console:
+  `hashi admin recover` prints a one-time, 15-minute, private-network-only login link that lets the admin register a new passkey.
+- Recent reauthentication = a fresh passkey assertion within the current session; valid 5 minutes.
+
+Reauthentication is required for: destructive operations, secret reveal/replace, script save/run, firewall/DNS prune,
+manual permanent blocks, firewall blocks, blocklists with firewall enforcement, Cap settings, internal agent DNS
+domain change, trusted-proxy change, revoking other sessions, vault mode change.
+
+## 3. Admin sessions
+
+### 3.1 Model (`admin_sessions`)
+
+- `id`: 256-bit random; the cookie carries it, the DB stores only `sha256(id)`.
+- `auth_method`: `bootstrap` | `passkey`; `credential_id` for passkey sessions.
+- `bound_ip`: canonical client IP at issuance.
+- `scopes`: explicit list.
+- `created_at`, `last_seen_at`, `idle_expires_at`, `absolute_expires_at`.
+- `reauth_at` (nullable), `revoked_at` (nullable), `revocation_reason` (nullable).
+- `user_agent_hash` (salted, for correlation only).
+
+Cookie: `__Host-hashi.session` (`Secure`, `HttpOnly`, `SameSite=Strict`, `Path=/`), except the bootstrap-over-HTTP
+case in §1.1 which uses `hashi.bootstrap`.
+
+### 3.2 Rules
+
+- Every login creates a new session. Logging in from another IP creates another, independently bound session.
+- **Strict IP binding:** every request compares the canonical request IP with `bound_ip` by exact equality. Mismatch →
+  reject as unauthenticated, revoke the session, clear the cookie, drop its in-memory material, audit stored and observed IPs (never the token).
+- **Idle lifetime:** 4 h max (setting may lower it). Activity extends `idle_expires_at`, capped at `absolute_expires_at`.
+  Activity may be persisted at most every 5 minutes, but validation never grants more than the configured idle time.
+- **Absolute lifetime:** 8 h max from issuance. Nothing extends it — not activity, not reauth, not vault unlock.
+- **Reauth:** stored on the session row (survives restarts), valid 5 min, never changes `bound_ip` or `absolute_expires_at`,
+  never revives a revoked/expired session.
+- Expired, revoked, malformed, unknown → fail closed.
+- Privilege changes rotate the session ID or update scopes only after successful reauth.
+
+### 3.3 Scopes
+
+| Scope | Grants |
+| --- | --- |
+| `admin.read` | read protected admin state |
+| `admin.write` | ordinary mutations |
+| `settings.manage` | application and security settings |
+| `secrets.manage` | reveal, add, replace, remove secrets; vault state |
+| `sync.apply` | apply sync plans |
+| `firewall.apply` | apply or roll back firewall state |
+| `scripts.manage` | create, modify, execute scripts |
+| `security.manage` | blocks, blocklists, CAPTCHA, security policy, session revocation |
+| `setup.*` | bootstrap-only setup scopes |
+
+Passkey sessions receive all non-setup scopes. Unknown scopes grant nothing. Scope and reauth checks are cumulative.
+
+### 3.4 API
+
+- `GET /api/auth/session` — current session status, scopes, expiries, reauth validity.
+- `GET /api/auth/sessions` — active sessions: masked correlation ID, bound IP, created, last activity, absolute expiry, current marker.
+- `DELETE /api/auth/sessions/{id}` — revoke one.
+- `POST /api/auth/sessions/revoke-others` — requires reauth + `security.manage`.
+- `POST /api/auth/reauth/options`, `POST /api/auth/reauth` — passkey reauth ceremony.
+- `POST /api/auth/logout` — revokes server-side first, then clears the cookie.
+- Passkey: `POST /api/auth/passkeys/register/options|verify`, `POST /api/auth/passkeys/login/options|verify`,
+  `GET /api/auth/passkeys`, `PATCH|DELETE /api/auth/passkeys/{id}`.
+
+### 3.5 Audit
+
+Session issued, renewed (at the persisted cadence), idle-expired, absolute-expired, IP-mismatch rejection, logout,
+manual revoke, bulk revoke, scope failure, reauth success/failure. Never log cookie values, raw session IDs, passkey
+assertions or vault material; correlate with a salted hash prefix.
+
+### 3.6 Cleanup
+
+A job removes expired sessions and revoked sessions older than the audit-retention interval. Cleanup failure can never
+make a session valid again (validity is computed from timestamps, not from row presence).
+
+## 4. CSRF
+
+Unsafe admin methods require header `X-Hashi-CSRF` equal to the session-bound CSRF token (delivered in
+`GET /api/auth/session`). `SameSite=Strict` is defence in depth, not the mechanism. Edge, challenge, public and Pulse
+endpoints are excluded and use their own protections.
+
+## 5. Secrets vault
+
+### 5.1 Secret classes
+
+| Class | Examples | Decryptable by |
+| --- | --- | --- |
+| Service | SSH credentials, DNS tokens, AdGuard credentials, notification tokens, ACME EAB, Cap secret, OIDC client secrets, MaxMind key, script secret env | the service key (unattended) |
+| Admin-only | none by default; reserved for secrets the user marks "never needed unattended" | the admin key (requires an unlocked admin session) |
+| Operational | cookie/CSRF HMAC keys, Pulse token pepper | derived from the master key |
+
+### 5.2 Envelope encryption
+
+- Master key: 32 random bytes supplied by the deployment as a file (Docker secret `hashi_master_key`, path setting
+  `HASHI_MASTER_KEY_FILE`). Hashi refuses to start in normal mode without it, and `hashi keygen` prints a fresh one.
+- KEKs: `HKDF-SHA256(master, info="hashi/kek/<class>/v1")`.
+- Each secret: random 256-bit DEK; payload sealed with AES-256-GCM (random 96-bit nonce, AAD = secret ID + class + version);
+  DEK wrapped with the class KEK (AES-256-GCM). Ciphertext, wrapped DEK, nonces, key version stored in `secret_records`.
+- Secrets are typed in Go (`secrets.Value`) — the type's `String`, `MarshalJSON` and `slog.LogValue` all render `[redacted]`,
+  so accidental logging or serialization cannot leak them.
+- API never returns secret values except `POST /api/vault/secrets/{id}/reveal` (reauth + `secrets.manage`, audited).
+- Key rotation: `hashi vault rotate` re-wraps all DEKs under a new master key version.
+
+### 5.3 Recovery key
+
+At setup step 9 Hashi generates a 256-bit recovery key, shows it once as grouped base32 with a checksum, and requires
+confirmation. It wraps a copy of the master key (stored in `recovery_key`). Use: after restoring a DB backup on a host
+without the original master key, the admin runs `hashi vault recover` (console), enters the recovery key, and Hashi
+writes the recovered master key to the configured secret path (or prints it for the operator to install).
+
+### 5.4 Vault modes
+
+| Mode | Behaviour |
+| --- | --- |
+| **Service mode** (default) | Master key from deployment secret; background sync runs after restart without anyone logged in. |
+| **Strict mode** (optional) | Master key is not stored on disk; after each restart Hashi stays locked until the admin unlocks it with a passkey that supports the WebAuthn **PRF** extension or with the recovery key. Background jobs that need secrets pause while locked (critical health warning; public pages keep serving last known state). |
+
+Setup explains the trade-off: strict mode protects secrets against a stolen disk/DB/backup but cannot reconcile unattended after a restart.
+
+**Changed from V2:** V2 wrapped an "admin vault" with PRF output for every install while simultaneously requiring
+unattended decryption via a Docker secret — so PRF protected nothing the service key couldn't already decrypt, and the
+PRF path never worked (AUD-081, AUD-082, AUD-045). Now: one master key, one clear default, and the PRF/passkey-only
+protection survives as the explicit opt-in strict mode (delivered in slice S12).
+
+### 5.5 Locked behaviour
+
+While secrets are unavailable: public pages render last known state; monitors needing no secrets continue; provider
+syncs pause; the last applied firewall state stays active on hosts; the UI shows the lock state on every page header.

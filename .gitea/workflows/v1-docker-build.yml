@@ -1,0 +1,13 @@
+name: V1 - Build and Publish Docker Image
+
+on:
+  # Manual trigger
+  workflow_dispatch:
+  
+  # Trigger on push to main branch, but only for relevant files
+  push:
+    branches:
+      - main
+    paths:
+      - 'legacy/v1/**'
+      - '.gitea/workflows/v1-docker-build.yml'
