@@ -37,6 +37,9 @@ export default defineConfig(
 	{
 		// Override or add rule settings here, such as:
 		// 'svelte/button-has-type': 'error'
-		rules: {}
+		rules: {
+			// The SPA is always served at / by the Go binary (no base path), so resolve() on every link adds nothing.
+			'svelte/no-navigation-without-resolve': 'off'
+		}
 	}
 );

@@ -1,9 +1,22 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="graphite" data-mode="dark">
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<meta name="text-scale" content="scale" />
+		<meta name="color-scheme" content="dark light" />
+		<script>
+			// Apply the stored theme before first paint (10-ui.md §4: no flash of the wrong theme).
+			(function () {
+				try {
+					var t = localStorage.getItem('hashi.theme');
+					var modes = { graphite: 'dark', linen: 'light', verdant: 'dark', violet: 'dark' };
+					if (t && modes[t]) {
+						document.documentElement.dataset.theme = t;
+						document.documentElement.dataset.mode = modes[t];
+					}
+				} catch (e) {}
+			})();
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
