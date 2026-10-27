@@ -298,3 +298,52 @@ func decodeB64(t *testing.T, s string) []byte {
 	}
 	return b
 }
+
+// 02 §2: `hashi admin recover` → one-time link → a session that can only register a passkey, then ends.
+func TestAdminRecoverLinkRegistersOnePasskey(t *testing.T) {
+	cfg := newConfig(t)
+	in := start(t, cfg)
+	c := in.client()
+	c.bootstrapLogin()
+	c.mustStatus(c.do(http.MethodPut, "/api/setup/base-settings", map[string]any{
+		"root_domain": "example.com", "admin_domain": "hashi.example.com", "internal_url": "http://192.0.2.10:3340",
+		"sync_interval_seconds": 3600, "theme": "graphite", "public_dashboard_enabled": true, "public_status_enabled": true,
+	}), 200)
+
+	var out strings.Builder
+	if err := AdminRecover(context.Background(), cfg, &out); err != nil {
+		t.Fatal(err)
+	}
+	link := strings.TrimSpace(out.String()[strings.Index(out.String(), "https://"):])
+	if !strings.HasPrefix(link, "https://hashi.example.com/login/recover#") {
+		t.Fatalf("link %q", link)
+	}
+	token := link[strings.Index(link, "#")+1:]
+
+	r := in.client()
+	got := r.mustStatus(r.do(http.MethodPost, "/api/auth/recover", map[string]string{"token": token}), 200)
+	if got.body["method"] != "recovery" || r.cookie == nil || r.cookie.Name != "__Host-hashi.session" {
+		t.Fatalf("recovery session %s %+v", got.raw, r.cookie)
+	}
+	r.mustStatus(r.do(http.MethodGet, "/api/settings", nil), 403)
+	r.mustStatus(r.do(http.MethodPost, "/api/setup/recovery-key", nil), 403)
+	again := in.client()
+	again.mustStatus(again.do(http.MethodPost, "/api/auth/recover", map[string]string{"token": token}), 403)
+
+	opts := r.mustStatus(r.do(http.MethodPost, "/api/auth/recover/passkey/options", nil), 200)
+	pub := opts.body["options"].(map[string]any)["publicKey"].(map[string]any)
+	a := authtest.New(t)
+	cred := mustJSONMap(t, a.Register("example.com", "https://hashi.example.com",
+		decodeB64(t, pub["challenge"].(string)), decodeB64(t, pub["user"].(map[string]any)["id"].(string))))
+	r.mustStatus(r.do(http.MethodPost, "/api/auth/recover/passkey/verify", map[string]any{
+		"ceremony_id": opts.body["ceremony_id"], "name": "Replacement", "credential": cred,
+	}), 200)
+	if r.cookie != nil {
+		t.Fatal("recovery cookie not cleared")
+	}
+	stale := in.client()
+	stale.cookie = got.header2cookie(t)
+	if res := stale.do(http.MethodGet, "/api/auth/session", nil); res.body["authenticated"] != false {
+		t.Fatal("recovery session survived passkey registration")
+	}
+}

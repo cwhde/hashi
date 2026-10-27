@@ -37,7 +37,7 @@ func main() {
 			}
 			fmt.Println(k)
 			return
-		case "bootstrap", "vault":
+		case "bootstrap", "vault", "admin":
 			os.Exit(console(os.Args[1:]))
 		}
 	}
@@ -71,10 +71,12 @@ func console(args []string) int {
 	switch strings.Join(args, " ") {
 	case "bootstrap reset":
 		err = app.BootstrapReset(ctx, cfg, os.Stdout)
+	case "admin recover":
+		err = app.AdminRecover(ctx, cfg, os.Stdout)
 	case "vault recover":
 		err = app.VaultRecover(ctx, cfg, os.Stdin, os.Stdout)
 	default:
-		fmt.Fprintln(os.Stderr, "usage: hashi bootstrap reset | hashi vault recover")
+		fmt.Fprintln(os.Stderr, "usage: hashi bootstrap reset | hashi admin recover | hashi vault recover")
 		return 2
 	}
 	if err != nil {

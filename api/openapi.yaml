@@ -246,6 +246,47 @@ paths:
       responses:
         "204": { description: Deleted }
         default: { $ref: "#/components/responses/Problem" }
+  /api/auth/recover:
+    post:
+      operationId: recoverLogin
+      summary: Open a recovery session from a `hashi admin recover` link (private networks, once, 15 minutes)
+      tags: [auth]
+      x-hashi-scopes: []
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/RecoverLogin" } } }
+      responses:
+        "200":
+          description: Recovery session; it can only register one new passkey
+          headers: { Set-Cookie: { $ref: "#/components/headers/SetCookie" } }
+          content: { application/json: { schema: { $ref: "#/components/schemas/AuthSession" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/auth/recover/passkey/options:
+    post:
+      operationId: recoverPasskeyOptions
+      summary: Start registering a replacement passkey
+      tags: [auth]
+      x-hashi-scopes: [recovery.passkey]
+      responses:
+        "200":
+          description: WebAuthn creation options
+          content: { application/json: { schema: { $ref: "#/components/schemas/CeremonyOptions" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/auth/recover/passkey/verify:
+    post:
+      operationId: recoverPasskeyVerify
+      summary: Finish registering the replacement passkey; ends the recovery session
+      tags: [auth]
+      x-hashi-scopes: [recovery.passkey]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CeremonyResponse" } } }
+      responses:
+        "200":
+          description: Stored passkey; sign in with it next
+          headers: { Set-Cookie: { $ref: "#/components/headers/SetCookie" } }
+          content: { application/json: { schema: { $ref: "#/components/schemas/Passkey" } } }
+        default: { $ref: "#/components/responses/Problem" }
 
   # ---- setup (02 §1) ----
   /api/setup:
@@ -533,6 +574,11 @@ components:
       properties:
         username: { type: string, maxLength: 64 }
         password: { type: string, maxLength: 256 }
+    RecoverLogin:
+      type: object
+      required: [token]
+      properties:
+        token: { type: string, maxLength: 128 }
     SessionInfo:
       type: object
       required: [id, method, bound_ip, created_at, last_seen_at, absolute_expires_at, current]

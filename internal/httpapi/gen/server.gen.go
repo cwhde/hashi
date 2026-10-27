@@ -343,6 +343,11 @@ type Problem struct {
 	Type string `json:"type"`
 }
 
+// RecoverLogin defines model for RecoverLogin.
+type RecoverLogin struct {
+	Token string `json:"token"`
+}
+
 // RecoveryKey defines model for RecoveryKey.
 type RecoveryKey struct {
 	// RecoveryKey 14 groups of 4; the last group is the checksum
@@ -476,6 +481,12 @@ type RenamePasskeyJSONRequestBody = PasskeyRename
 // ReauthJSONRequestBody defines body for Reauth for application/json ContentType.
 type ReauthJSONRequestBody = CeremonyResponse
 
+// RecoverLoginJSONRequestBody defines body for RecoverLogin for application/json ContentType.
+type RecoverLoginJSONRequestBody = RecoverLogin
+
+// RecoverPasskeyVerifyJSONRequestBody defines body for RecoverPasskeyVerify for application/json ContentType.
+type RecoverPasskeyVerifyJSONRequestBody = CeremonyResponse
+
 // PutAppearanceSettingsJSONRequestBody defines body for PutAppearanceSettings for application/json ContentType.
 type PutAppearanceSettingsJSONRequestBody = AppearanceSettings
 
@@ -538,6 +549,15 @@ type ServerInterface interface {
 	// ReauthOptions Start a passkey reauthentication
 	// (POST /api/auth/reauth/options)
 	ReauthOptions(w http.ResponseWriter, r *http.Request)
+	// RecoverLogin Open a recovery session from a `hashi admin recover` link (private networks, once, 15 minutes)
+	// (POST /api/auth/recover)
+	RecoverLogin(w http.ResponseWriter, r *http.Request)
+	// RecoverPasskeyOptions Start registering a replacement passkey
+	// (POST /api/auth/recover/passkey/options)
+	RecoverPasskeyOptions(w http.ResponseWriter, r *http.Request)
+	// RecoverPasskeyVerify Finish registering the replacement passkey; ends the recovery session
+	// (POST /api/auth/recover/passkey/verify)
+	RecoverPasskeyVerify(w http.ResponseWriter, r *http.Request)
 	// GetAuthSession Current session (or none), setup state flag and the CSRF token
 	// (GET /api/auth/session)
 	GetAuthSession(w http.ResponseWriter, r *http.Request)
@@ -883,6 +903,48 @@ func (siw *ServerInterfaceWrapper) ReauthOptions(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ReauthOptions(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RecoverLogin operation middleware
+func (siw *ServerInterfaceWrapper) RecoverLogin(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RecoverLogin(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RecoverPasskeyOptions operation middleware
+func (siw *ServerInterfaceWrapper) RecoverPasskeyOptions(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RecoverPasskeyOptions(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RecoverPasskeyVerify operation middleware
+func (siw *ServerInterfaceWrapper) RecoverPasskeyVerify(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RecoverPasskeyVerify(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1390,6 +1452,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/auth/passkeys/login/verify", wrapper.PasskeyLoginVerify)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/auth/passkeys/{id}", wrapper.DeletePasskey)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/auth/passkeys/{id}", wrapper.RenamePasskey)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/auth/recover", wrapper.RecoverLogin)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/auth/recover/passkey/options", wrapper.RecoverPasskeyOptions)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/auth/recover/passkey/verify", wrapper.RecoverPasskeyVerify)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/setup", wrapper.GetSetup)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/setup/base-settings", wrapper.PutSetupBaseSettings)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/passkey/options", wrapper.SetupPasskeyOptions)
@@ -1962,6 +2027,142 @@ type ReauthOptionsdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response ReauthOptionsdefaultApplicationProblemPlusJSONResponse) VisitReauthOptionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RecoverLoginRequestObject struct {
+	Body *RecoverLoginJSONRequestBody
+}
+
+type RecoverLoginResponseObject interface {
+	VisitRecoverLoginResponse(w http.ResponseWriter) error
+}
+
+type RecoverLogin200ResponseHeaders struct {
+	SetCookie *string
+}
+
+type RecoverLogin200JSONResponse struct {
+	Body    AuthSession
+	Headers RecoverLogin200ResponseHeaders
+}
+
+func (response RecoverLogin200JSONResponse) VisitRecoverLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RecoverLogindefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response RecoverLogindefaultApplicationProblemPlusJSONResponse) VisitRecoverLoginResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RecoverPasskeyOptionsRequestObject struct {
+}
+
+type RecoverPasskeyOptionsResponseObject interface {
+	VisitRecoverPasskeyOptionsResponse(w http.ResponseWriter) error
+}
+
+type RecoverPasskeyOptions200JSONResponse CeremonyOptions
+
+func (response RecoverPasskeyOptions200JSONResponse) VisitRecoverPasskeyOptionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RecoverPasskeyOptionsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response RecoverPasskeyOptionsdefaultApplicationProblemPlusJSONResponse) VisitRecoverPasskeyOptionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RecoverPasskeyVerifyRequestObject struct {
+	Body *RecoverPasskeyVerifyJSONRequestBody
+}
+
+type RecoverPasskeyVerifyResponseObject interface {
+	VisitRecoverPasskeyVerifyResponse(w http.ResponseWriter) error
+}
+
+type RecoverPasskeyVerify200ResponseHeaders struct {
+	SetCookie *string
+}
+
+type RecoverPasskeyVerify200JSONResponse struct {
+	Body    Passkey
+	Headers RecoverPasskeyVerify200ResponseHeaders
+}
+
+func (response RecoverPasskeyVerify200JSONResponse) VisitRecoverPasskeyVerifyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RecoverPasskeyVerifydefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response RecoverPasskeyVerifydefaultApplicationProblemPlusJSONResponse) VisitRecoverPasskeyVerifyResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -2894,6 +3095,15 @@ type StrictServerInterface interface {
 	// ReauthOptions Start a passkey reauthentication
 	// (POST /api/auth/reauth/options)
 	ReauthOptions(ctx context.Context, request ReauthOptionsRequestObject) (ReauthOptionsResponseObject, error)
+	// RecoverLogin Open a recovery session from a `hashi admin recover` link (private networks, once, 15 minutes)
+	// (POST /api/auth/recover)
+	RecoverLogin(ctx context.Context, request RecoverLoginRequestObject) (RecoverLoginResponseObject, error)
+	// RecoverPasskeyOptions Start registering a replacement passkey
+	// (POST /api/auth/recover/passkey/options)
+	RecoverPasskeyOptions(ctx context.Context, request RecoverPasskeyOptionsRequestObject) (RecoverPasskeyOptionsResponseObject, error)
+	// RecoverPasskeyVerify Finish registering the replacement passkey; ends the recovery session
+	// (POST /api/auth/recover/passkey/verify)
+	RecoverPasskeyVerify(ctx context.Context, request RecoverPasskeyVerifyRequestObject) (RecoverPasskeyVerifyResponseObject, error)
 	// GetAuthSession Current session (or none), setup state flag and the CSRF token
 	// (GET /api/auth/session)
 	GetAuthSession(ctx context.Context, request GetAuthSessionRequestObject) (GetAuthSessionResponseObject, error)
@@ -3379,6 +3589,92 @@ func (sh *strictHandler) ReauthOptions(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ReauthOptionsResponseObject); ok {
 		if err := validResponse.VisitReauthOptionsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RecoverLogin operation middleware
+func (sh *strictHandler) RecoverLogin(w http.ResponseWriter, r *http.Request) {
+	var request RecoverLoginRequestObject
+
+	var body RecoverLoginJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RecoverLogin(ctx, request.(RecoverLoginRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RecoverLogin")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RecoverLoginResponseObject); ok {
+		if err := validResponse.VisitRecoverLoginResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RecoverPasskeyOptions operation middleware
+func (sh *strictHandler) RecoverPasskeyOptions(w http.ResponseWriter, r *http.Request) {
+	var request RecoverPasskeyOptionsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RecoverPasskeyOptions(ctx, request.(RecoverPasskeyOptionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RecoverPasskeyOptions")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RecoverPasskeyOptionsResponseObject); ok {
+		if err := validResponse.VisitRecoverPasskeyOptionsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RecoverPasskeyVerify operation middleware
+func (sh *strictHandler) RecoverPasskeyVerify(w http.ResponseWriter, r *http.Request) {
+	var request RecoverPasskeyVerifyRequestObject
+
+	var body RecoverPasskeyVerifyJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RecoverPasskeyVerify(ctx, request.(RecoverPasskeyVerifyRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RecoverPasskeyVerify")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RecoverPasskeyVerifyResponseObject); ok {
+		if err := validResponse.VisitRecoverPasskeyVerifyResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

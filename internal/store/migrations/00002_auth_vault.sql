@@ -95,10 +95,19 @@ CREATE TABLE recovery_key (
     confirmed_at   INTEGER
 ) STRICT;
 
+-- One-time console recovery links (`hashi admin recover`, 02 §2): hash only, 15 minutes, single use.
+CREATE TABLE recovery_links (
+    token_hash BLOB PRIMARY KEY,
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    used_at    INTEGER
+) STRICT;
+
 -- The S0 proof job is replaced by real jobs.
 DELETE FROM jobs WHERE kind = 'noop';
 
 -- +goose Down
+DROP TABLE recovery_links;
 DROP TABLE recovery_key;
 DROP TABLE secret_records;
 DROP INDEX admin_sessions_expiry;

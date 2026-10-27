@@ -11,6 +11,7 @@ import (
 
 	"git.juzo.io/juzo/hashi/internal/audit"
 	"git.juzo.io/juzo/hashi/internal/auth"
+	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/setup"
 	"git.juzo.io/juzo/hashi/internal/store"
 	"git.juzo.io/juzo/hashi/internal/store/db"
@@ -54,7 +55,7 @@ func BootstrapReset(ctx context.Context, cfg Config, out io.Writer) error {
 	if done, err := setup.New(st, v, al).Completed(ctx); err != nil {
 		return err
 	} else if done {
-		return errors.New("setup is complete; bootstrap login no longer exists (use `hashi admin recover`, S12)")
+		return errors.New("setup is complete; bootstrap login no longer exists (use `hashi admin recover`)")
 	}
 	var c auth.BootstrapCredentials
 	err = st.Tx(ctx, func(q *db.Queries) error {
@@ -73,6 +74,36 @@ func BootstrapReset(ctx context.Context, cfg Config, out io.Writer) error {
 		return err
 	}
 	auth.PrintBootstrap(out, c)
+	return nil
+}
+
+// AdminRecover prints a one-time, 15-minute login link that lets the admin register a new passkey (02 §2).
+func AdminRecover(ctx context.Context, cfg Config, out io.Writer) error {
+	st, err := openForConsole(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = st.Close() }()
+	g, err := settings.Get[settings.General](ctx, st.R)
+	if err != nil {
+		return err
+	}
+	if !g.Configured() {
+		return errors.New("base settings are missing; finish setup with the bootstrap login instead")
+	}
+	var token string
+	err = st.Tx(ctx, func(q *db.Queries) error {
+		if token, err = auth.NewRecoveryLink(ctx, q, time.Now()); err != nil {
+			return err
+		}
+		return audit.New(nil).Record(ctx, q, audit.Event{Actor: audit.Console, Action: "auth.recover.link_created"})
+	})
+	if err != nil {
+		return err
+	}
+	// The token sits in the URL fragment, so it never reaches server or proxy logs.
+	_, _ = fmt.Fprintf(out, "One-time recovery link (valid %s, from a private network only):\n  https://%s/login/recover#%s\n",
+		auth.RecoveryLinkTTL, g.AdminDomain, token)
 	return nil
 }
 

@@ -294,6 +294,57 @@ export interface paths {
         patch: operations["renamePasskey"];
         trace?: never;
     };
+    "/api/auth/recover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Open a recovery session from a `hashi admin recover` link (private networks, once, 15 minutes) */
+        post: operations["recoverLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/recover/passkey/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start registering a replacement passkey */
+        post: operations["recoverPasskeyOptions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/recover/passkey/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Finish registering the replacement passkey; ends the recovery session */
+        post: operations["recoverPasskeyVerify"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/setup": {
         parameters: {
             query?: never;
@@ -614,6 +665,9 @@ export interface components {
         BootstrapLogin: {
             username: string;
             password: string;
+        };
+        RecoverLogin: {
+            token: string;
         };
         SessionInfo: {
             id: string;
@@ -1238,6 +1292,79 @@ export interface operations {
             /** @description Renamed */
             200: {
                 headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Passkey"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    recoverLogin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecoverLogin"];
+            };
+        };
+        responses: {
+            /** @description Recovery session; it can only register one new passkey */
+            200: {
+                headers: {
+                    "Set-Cookie": components["headers"]["SetCookie"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthSession"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    recoverPasskeyOptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description WebAuthn creation options */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CeremonyOptions"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    recoverPasskeyVerify: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CeremonyResponse"];
+            };
+        };
+        responses: {
+            /** @description Stored passkey; sign in with it next */
+            200: {
+                headers: {
+                    "Set-Cookie": components["headers"]["SetCookie"];
                     [name: string]: unknown;
                 };
                 content: {

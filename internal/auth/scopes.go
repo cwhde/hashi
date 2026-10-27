@@ -16,6 +16,8 @@ const (
 	ScriptsManage  Scope = "scripts.manage"
 	SecurityManage Scope = "security.manage"
 	SetupManage    Scope = "setup.manage" // the only setup.* scope; bootstrap sessions carry nothing else
+	// RecoveryPasskey lets a console-recovery session register one new passkey and nothing else (02 §2).
+	RecoveryPasskey Scope = "recovery.passkey"
 )
 
 // PasskeyScopes are granted to every passkey session: all non-setup scopes.
@@ -24,7 +26,10 @@ var PasskeyScopes = []Scope{AdminRead, AdminWrite, SettingsManage, SecretsManage
 // BootstrapScopes are granted to bootstrap sessions.
 var BootstrapScopes = []Scope{SetupManage}
 
-var known = append(slices.Clone(PasskeyScopes), BootstrapScopes...)
+// RecoveryScopes are granted to sessions opened with a `hashi admin recover` link.
+var RecoveryScopes = []Scope{RecoveryPasskey}
+
+var known = append(append(slices.Clone(PasskeyScopes), BootstrapScopes...), RecoveryScopes...)
 
 // Known reports whether s is a scope Hashi defines.
 func Known(s Scope) bool { return slices.Contains(known, s) }

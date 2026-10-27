@@ -93,6 +93,13 @@ type RecoveryKey struct {
 	ConfirmedAt   sql.NullInt64
 }
 
+type RecoveryLink struct {
+	TokenHash []byte
+	CreatedAt int64
+	ExpiresAt int64
+	UsedAt    sql.NullInt64
+}
+
 type SecretRecord struct {
 	ID         string
 	Class      string

@@ -172,6 +172,18 @@ func (c *client) do(method, path string, body any) response {
 	return out
 }
 
+// header2cookie returns the session cookie set by this response.
+func (r response) header2cookie(t *testing.T) *http.Cookie {
+	t.Helper()
+	for _, ck := range (&http.Response{Header: r.header}).Cookies() {
+		if ck.Value != "" {
+			return ck
+		}
+	}
+	t.Fatal("no cookie in response")
+	return nil
+}
+
 func (c *client) mustStatus(r response, want int) response {
 	c.in.t.Helper()
 	if r.status != want {
