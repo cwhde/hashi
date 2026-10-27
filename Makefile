@@ -9,7 +9,7 @@ VERSION   ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo de
 COMMIT    ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 LDFLAGS   := -s -w -X git.juzo.io/juzo/hashi/internal/app.Version=$(VERSION) -X git.juzo.io/juzo/hashi/internal/app.Commit=$(COMMIT)
 
-.PHONY: deploy-test build-config-check help image deploy rollback smoke check fmt-check lint test generate generate-check web-install web-check build-web build dev clean
+.PHONY: test-e2e deploy-test build-config-check help image deploy rollback smoke check fmt-check lint test generate generate-check web-install web-check build-web build dev clean
 
 help: ## list targets
 	@awk 'BEGIN{FS=":.*## "} /^[a-z-]+:.*## /{printf "  %-18s %s\n",$$1,$$2}' $(MAKEFILE_LIST)
@@ -65,6 +65,10 @@ build-web: web-install ## build the SPA into internal/web/dist (embedded by go b
 build: build-web ## build bin/hashi (with the SPA) for this machine
 	CGO_ENABLED=0 go build -trimpath -ldflags '$(LDFLAGS)' -o bin/hashi ./cmd/hashi
 
+test-e2e: build-web ## Playwright against a real -tags dev binary (virtual passkey authenticator)
+	CGO_ENABLED=0 go build -tags dev -o bin/hashi-e2e ./cmd/hashi
+	cd web && pnpm exec playwright test
+
 ENV ?= prod
 TAG ?= $(COMMIT)
 
@@ -81,9 +85,11 @@ rollback: ## return ENV to the tag that was running before the last deploy
 smoke: ## readyz, version, SPA and public listeners on ENV
 	deploy/deploy.sh smoke $(ENV) $(if $(filter command line,$(origin TAG)),$(TAG),)
 
-dev: web-install ## Go backend on :8080 with ./data + Vite dev server on :5173 (proxies /api)
+dev: web-install ## dev build (-tags dev) on :8080 with ./data + Vite on :5173; passkeys work on http://localhost:5173
+	@mkdir -p data && [ -s data/dev-master.key ] || go run ./cmd/hashi keygen > data/dev-master.key
 	@trap 'kill 0' EXIT; \
-	  go run ./cmd/hashi -data-dir ./data -admin-addr 127.0.0.1:8080 -public-apps-addr off -public-status-addr off & \
+	  HASHI_MASTER_KEY_FILE=data/dev-master.key HASHI_DEV_WEBAUTHN_ORIGIN=http://localhost:5173 \
+	  go run -tags dev ./cmd/hashi -data-dir ./data -admin-addr 127.0.0.1:8080 -public-apps-addr off -public-status-addr off & \
 	  cd web && pnpm run dev
 
 clean:

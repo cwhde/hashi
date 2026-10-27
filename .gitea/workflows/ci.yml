@@ -52,3 +52,55 @@ jobs:
 
       - name: make check
         run: make check
+
+  # 11-delivery.md §4: E2E only when the UI or the API behind it changed (always on main).
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Changed paths
+        id: paths
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          changed=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")
+          if grep -qE '^(web/|api/|internal/|cmd/|go\.mod|Makefile|\.gitea/workflows/ci\.yml)' <<<"$changed"; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"; echo "no UI/API change: E2E skipped"
+          fi
+
+      - uses: actions/setup-go@v5
+        if: steps.paths.outputs.run == 'true'
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - uses: pnpm/action-setup@v4
+        if: steps.paths.outputs.run == 'true'
+        with:
+          package_json_file: web/package.json
+
+      - uses: actions/setup-node@v4
+        if: steps.paths.outputs.run == 'true'
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Cache Playwright browsers
+        if: steps.paths.outputs.run == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml') }}
+
+      - name: Install Chromium for Playwright
+        if: steps.paths.outputs.run == 'true'
+        run: cd web && pnpm install --frozen-lockfile --silent && pnpm exec playwright install --with-deps chromium
+
+      - name: make test-e2e
+        if: steps.paths.outputs.run == 'true'
+        run: make test-e2e

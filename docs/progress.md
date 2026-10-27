@@ -5,45 +5,40 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
-**S1 — Setup, auth, vault** · status: in progress (branch `s1-auth`)
+**S1 — Setup, auth, vault** · status: code done (#25 backend merged, #26 UI + E2E + deploy), waiting for deploy + prod-proof
 
-Scope and gate: 11-delivery.md §3 row S1. Build pages on the approved mocks (`/design/setup`, `/design/login`,
-`/design/settings` → Account, `/design/activity`) following `docs/spec/10b-ui-system.md`.
+Scope and gate: 11-delivery.md §3 row S1. Pages built on the approved mocks (`/setup`, `/login`, `/settings`, `/activity`)
+following `docs/spec/10b-ui-system.md`.
 
 External systems: none (WebAuthn via `go-webauthn`, tested with a Playwright virtual authenticator), so no contract capture.
-Deploy needs one new host file: the master key (`hashi keygen` → Docker secret). That is a production change → ask first.
 
-Plan (thinnest path to the gate: bootstrap login from LAN, IP binding observed, restart keeps sessions, secrets encrypted
-in a DB dump, passkey register + login with a virtual authenticator):
+PR A — backend (#25, merged)
+- [x] Migration 00002: setup state, audit, admin user, bootstrap credentials, passkeys (with RP ID), sessions, secrets,
+      recovery key, recovery links; sqlc queries; S0 noop job removed.
+- [x] Vault (service mode): master key file required (`HASHI_MASTER_KEY_FILE`, `hashi keygen`), HKDF KEKs, per-secret DEK,
+      key-check canary; recovery key (grouped base32 + checksum) wraps the master key; `hashi vault recover`.
+- [x] Client-IP resolver (01 §8), audit log, settings framework (General, Security, Appearance), live-log ring.
+- [x] Sessions (02 §3): sha256-only storage, strict IP binding, 4 h idle / 8 h absolute, reauth on the row, CSRF, cleanup
+      job; scope table generated from `x-hashi-scopes/-session/-reauth`; 02 §6 tests over real HTTP.
+- [x] Bootstrap (argon2id, printed once, private networks, `hashi bootstrap reset`); passkeys (RP ID = root domain, origin
+      = admin domain); `hashi admin recover` link; setup steps 1, 2, 9, 11 with invariant 14.
 
-PR A — backend
-- [ ] Migration 00002: `setup_state`, `audit_events`, `admin_users`, `passkey_credentials`, `admin_sessions`,
-      `secret_records`, `recovery_key`, bootstrap credential row; sqlc queries.
-- [ ] Vault (service mode, 02 §5.1–5.3): master key file (`HASHI_MASTER_KEY_FILE`, refuse to start without), HKDF KEKs,
-      AES-GCM DEK envelope, key-check canary record, `hashi keygen`; recovery key generate/wrap/verify; `TestInvariant_5_*`.
-- [ ] Client-IP resolver (01 §8): trusted proxies, right-to-left walk, IPv4-mapped normalization, fail closed.
-- [ ] Audit log writer (same transaction as the change, salted hash prefixes only) + `GET /api/activity/audit` (cursor).
-- [ ] Settings framework (09 §2): typed categories with validation; S1 categories General (root/admin domain, internal URL,
-      sync interval, trusted proxies) and Security (admin idle timeout, bootstrap allowed CIDRs); `GET /api/settings`,
-      `GET|PUT /api/settings/{category}`; each setting has a consumer test.
-- [ ] Sessions (02 §3): model, strict IP binding, idle/absolute expiry, reauth window, scopes, CSRF (§4), cookie names;
-      generated scope table from `x-hashi-scopes` + `x-hashi-reauth` enforced by middleware; cleanup job; §6 tests.
-- [ ] Bootstrap (02 §1.1): generate + print once, argon2id hash, allowed CIDRs, `hashi bootstrap reset`; login endpoint.
-- [ ] Setup state machine (02 §1): steps 1, 2, 9, 11 real; 3–8, 10 "arrives in a later slice"; resumable; invariant 14.
-- [ ] Passkeys (02 §2): register/login/list/rename/delete, reauth ceremony, RP ID = root domain, origin = admin domain
-      (dev/test override for `localhost`); `hashi admin recover`.
-- [ ] Jobs + live log API for Activity: `GET /api/activity/jobs`, in-memory ring of redacted log lines `GET /api/activity/logs`.
+PR B — UI + deploy (#26)
+- [x] Live AppShell (session, sign-out, built pages only), CSRF in the client, reauth-and-retry, 401 → sign-in.
+- [x] `/setup`, `/login`, `/login/recover`, `/settings` (Account, General, Security, Appearance), `/activity`.
+- [x] `make test-e2e` + CI job: full setup with a virtual authenticator → passkey sign-in → account → reauth → sign-out →
+      sign-in again → deleting the session's passkey ends it; console recovery link.
+- [x] Compose: master key as a Docker secret; deploy.sh refuses to start without it; `make dev` uses a dev build + dev key.
+- [ ] Master key on the host + deploy (user OK), then prod-proof: bootstrap login from the LAN, cookie replayed from
+      another IP is rejected and revoked, restart keeps the session, DB dump shows no plaintext secret.
 
-PR B — UI + deploy
-- [ ] Auth-aware app shell: session fetch, CSRF header in the API client, redirect to `/login` or `/setup`, account menu
-      (expiry, bound IP), sign out.
-- [ ] `/setup` (steps 1, 2, 9, 11), `/login`, `/settings` (Account: passkeys, sessions; General; Security), `/activity`
-      (Audit log, Jobs, Live log) built on the mocks.
-- [ ] `make test-e2e`: Playwright against a real Hashi binary — bootstrap → base settings → passkey (virtual
-      authenticator) → recovery key → complete → logout → passkey login; CI job.
-- [ ] Compose: master key as a Docker secret; `make dev` creates a local dev key.
-- [ ] Deploy (user OK) and prod-proof: bootstrap login from the LAN, cookie replayed from another IP is rejected and
-      revoked, restart keeps the session, `sqlite3 .dump` shows no plaintext secret; review; progress + README bar.
+Decisions made in S1:
+- `-tags dev` builds (never in images) allow a `localhost` passkey origin and count later-slice setup steps as done, so
+  `make dev` and E2E can run the whole flow before S5 brings HTTPS.
+- Setup cannot finish in production builds until S2–S6 add steps 3–8; the deployed S1 only reaches step 9's prompt (no
+  HTTPS for passkeys yet). That is expected.
+- Deferred: `hashi vault rotate` (02 §5.2) → S12 with the backup drill; AAGUID → authenticator name (needs a metadata
+  source) → later; settings without a consumer yet (sync interval → S2, internal URL → S5, theme already applied by the UI).
 
 Spec changes before S1 (2026-10-27, from an external review, agreed with the user): S1 tests passkeys with a virtual
 authenticator only (no HTTPS before S5; first real passkey in S5, RP ID = root domain); setup steps arrive with their
@@ -97,11 +92,18 @@ Decisions made in S0:
 
 (Review findings that were not reproduced. Not worked on unless promoted.)
 
+- S1 review (#26): Activity → Live log keeps its last sequence number across a server restart (sequence restarts at 0),
+  so an open tab could skip the startup lines after a restart. Read from code, not observed.
 - S0 review: for a `v1.2.3` git tag the image tag is `1.2.3` (metadata-action `{{version}}`) but the binary reports
   `v1.2.3`, so `make deploy TAG=1.2.3` would fail its smoke version match (`deploy/deploy.sh` smoke). Not observed;
   only short-SHA deploys exist so far.
 
 ## Log
+
+- 2026-10-27 — S1 code: #25 (backend) merged, #26 (UI, E2E, deploy) open. Reviews reproduced and fixed: short idle
+  limits expired active sessions; changing the root domain during setup stranded passkeys; admin pages stayed on a dead
+  error after their session ended. The secret guard caught a real inventory IP used as a test fixture before any push;
+  history was rewritten locally (nothing published). Lesson: fixtures use RFC 5737 / neutral private ranges only.
 
 - 2026-10-27 — S0b approved by the user. Next: S1.
 - 2026-10-27 — S0b mocks merged (#24): `docs/spec/10b-ui-system.md` + every page under `/design`. One PR of ~5,500
