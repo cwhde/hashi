@@ -19,6 +19,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/jobs"
 	"git.juzo.io/juzo/hashi/internal/secrets"
 	"git.juzo.io/juzo/hashi/internal/store"
+	"git.juzo.io/juzo/hashi/internal/web"
 )
 
 // Build information, set with -ldflags "-X git.juzo.io/juzo/hashi/internal/app.Version=…".
@@ -133,10 +134,7 @@ func (s *server) serve(log *slog.Logger) error {
 func adminMux(api *httpapi.Server) http.Handler {
 	mux := http.NewServeMux()
 	gen.HandlerFromMux(gen.NewStrictHandler(api, nil), mux)
-	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		_, _ = io.WriteString(w, "Hashi "+Version+"\n")
-	})
+	mux.Handle("GET /", web.Handler())
 	return mux
 }
 
