@@ -11,6 +11,12 @@ Scope and gate: 11-delivery.md §3 row S1. Build pages on the approved mocks (`/
 `/design/settings` → Account, `/design/activity`) following `docs/spec/10b-ui-system.md`. First step: plan the slice as a
 checklist here (`slice` skill).
 
+Spec changes before S1 (2026-10-27, from an external review, agreed with the user): S1 tests passkeys with a virtual
+authenticator only (no HTTPS before S5; first real passkey in S5, RP ID = root domain); setup steps arrive with their
+slices; Hashi issues and distributes certificates itself (03 §5.3, no `httpreq`); generated DNS is IPv4-only; forward-auth
+fallback guarantees stated and proven in S4; decision-order table with overlap rule (06 §3.1); firewall rollback warns
+on reverted foreign rules; security telemetry bounded by volume (01 §4.3, 06 §5.3–5.4).
+
 ## Finished slices (detail)
 
 **S0b — UI design for all features** · done, approved by the user 2026-10-27 (not deployed; the user reviewed screenshots
