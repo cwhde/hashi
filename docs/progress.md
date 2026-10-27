@@ -45,6 +45,31 @@ slices; Hashi issues and distributes certificates itself (03 §5.3, no `httpreq`
 fallback guarantees stated and proven in S4; decision-order table with overlap rule (06 §3.1); firewall rollback warns
 on reverted foreign rules; security telemetry bounded by volume (01 §4.3, 06 §5.3–5.4).
 
+## Side step: security model (branch `security-model`)
+
+Status: **spec written, awaiting the user's sign-off.** S2 waits until this is done.
+
+The user replaced the security design with a model built on two shared primitives: IP sets (the one address primitive,
+also for DNS values, upstreams and connection targets, so anything can be "set via Pulse") and rule sets (global,
+reusable and service-root rule sets are one type), a two-stage edge engine (Stage A abuse engine before Stage B rules),
+one ban function, and nftables with folded allow/block sets and kernel meters. Original input archived in
+`docs/archive/` (not for implementation); decisions, corrections and rejected alternatives in ADR 0002.
+
+Done on the branch:
+- [x] ADR 0002; spec rewritten: 05-firewall, new 05a-ip-sets, 06-edge-security, 06a (object model §0: what is shared,
+      what is compiled per layer, deliberate deviations); updated 01, 02, 03, 04 (renamed `04-traefik-services.md`),
+      07, 08, 09, 10, 10b, 11, README (invariants 7, 10, 12 amended; 20–22 added), environment, CLAUDE.md.
+- [x] Read-only survey of the first firewall host: kernel 7.0, nft 1.1.3, iptables **legacy**; NetBird uses legacy
+      chains + ipsets; old script chains still present; Proxmox firewall disabled; no nftables tables;
+      `nftables.service` disabled with the stock `flush ruleset` config.
+
+After sign-off (phase 2):
+- [ ] Merge the spec branch (docs → `main`).
+- [ ] Redo the affected S0b mocks (Services, Security, address page, IP sets, rule sets, Firewall) and get them approved.
+- [ ] Check built code for the rename and the model: S1 code has no security engine; only the design mocks, nav and
+      mock data use "resources"/subjects.
+- [ ] Then continue with S2.
+
 ## Finished slices (detail)
 
 **S0b — UI design for all features** · done, approved by the user 2026-10-27 (not deployed; the user reviewed screenshots
@@ -98,6 +123,10 @@ Decisions made in S0:
   only short-SHA deploys exist so far.
 
 ## Log
+
+- 2026-10-27 — Security model side step: the user's new model turned into spec on branch `security-model` (ADR 0002,
+  05a new, 05/06/06a rewritten, Resource → Service). Kanae survey: everything on iptables-legacy, NetBird too → S6 starts
+  with an nft/NetBird coexistence gate, iptables+ipset as plan B. Awaiting sign-off.
 
 - 2026-10-27 — S1 signed off by the user. README bar 3/15. S2 not started on the user's request.
 
