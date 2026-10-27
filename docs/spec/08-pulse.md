@@ -34,7 +34,7 @@ check results (Hashi probes the selected private IP on a configured port, option
 Resources and manual DNS entries can target: manual IP, detected firewall host, or a Pulse agent. On an agent IP change:
 
 1. Match internal or public IP against firewall hosts, managed subnets, NetBird-routed subnets, host FQDNs.
-2. Match → desired DNS becomes `CNAME → on.<host>`; no match → A/AAAA with the agent's public IP.
+2. Match → desired DNS becomes `CNAME → on.<host>`; no match → A with the agent's public IPv4 (no automatic AAAA, 03 §5).
 3. Queue DNS sync. If a resource's *target* (where Traefik forwards traffic to) is "the IP of agent X", also queue a
    Traefik sync so Traefik forwards to the new address — updating DNS alone would leave Traefik pointing at the old one.
 4. Status page marks affected endpoints "pending DNS propagation" until the next successful check.

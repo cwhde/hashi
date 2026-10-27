@@ -20,6 +20,11 @@ done / failed), its validated inputs, and the last error. A step can only be mar
 | 10 | Optional integrations | no | Any of: OIDC SSO, AdGuard, notifications, MaxMind, Cap CAPTCHA, blocklists, internal agent DNS, dashboard widgets |
 | 11 | Complete | — | Bootstrap credentials destroyed; bootstrap sessions revoked |
 
+Steps are built by the slice that owns their subsystem (11-delivery.md §3): S1 builds steps 1, 2, 9 and 11; steps 3–8 and
+10 arrive with S2–S5 and later. Until a step exists the wizard shows it as "arrives in a later slice" and cannot complete.
+Passkeys need HTTPS (or `localhost`), which Hashi only has from S5, so S1 tests passkey registration and login with an
+automated virtual authenticator; the first real passkey is registered during the full setup run in S5.
+
 Step 8 verification: Hashi issues a one-time nonce, the SPA fetches `https://<admin domain>/api/setup/https-proof?nonce=…`,
 and the server accepts only if the request arrived on the admin listener via a trusted Traefik peer with the
 expected `Host` and TLS-terminated scheme. Forwarded headers from untrusted peers are ignored.
@@ -76,6 +81,9 @@ Setup creates the Hashi system resource: admin domain → internal Hashi URL, TL
 Hashi has exactly one admin user.
 
 - After setup, login requires a passkey (WebAuthn, user verification `required`, resident key `preferred`).
+- WebAuthn RP ID = the **root domain** (step 2), not the admin domain, so passkeys survive a change of the admin domain
+  (e.g. a temporary name before the V1 cutover, then the final one). Hashi still accepts assertions only when the
+  signed origin is exactly `https://<admin domain>`; assertions made on any other subdomain are rejected.
 - Multiple passkeys may be registered; each has a name, created-at, last-used-at and AAGUID-derived label.
 - Deleting the last passkey is forbidden. Deleting a passkey revokes sessions authenticated with it.
 - Recovery key (§5.3) is for vault recovery; a separate **recovery login** is possible only from the console:

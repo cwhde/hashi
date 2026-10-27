@@ -78,6 +78,10 @@ During setup and later (DNS → Import):
 - Imported entries become `imported` origin; the user may later convert them to resources or link them to monitoring/dashboard.
 - Decisions persist in `dns_import_decisions` so a re-import shows only new RRSets.
 
+**IPv4 only for generated records.** Hashi never creates AAAA records on its own; AAAA exists only when the admin adds
+one manually in the DNS tab. Reason: the hosts have no public IPv6, and a name with both A and AAAA lets browsers switch
+between IPv4 and IPv6, which changes the client IP and breaks strictly IP-bound admin sessions (02 §3.2).
+
 ## 5. Generated records
 
 ### 5.1 Host records
@@ -86,7 +90,7 @@ For each Linux firewall host named `machine1` under root `example.com`:
 
 | Name | Type | Target |
 | --- | --- | --- |
-| `machine1.example.com` | A (and AAAA if the host has public IPv6) | host public IP |
+| `machine1.example.com` | A | host public IPv4 |
 | `via.machine1.example.com` | CNAME | `machine1.example.com` |
 | `on.machine1.example.com` | CNAME | `via.machine1.example.com` (default) |
 
@@ -98,10 +102,10 @@ AdGuard rewrites never use this override.
 | Situation | Public record |
 | --- | --- |
 | Resource maps to a detected firewall host (target IP in its managed subnets / NetBird-routed CIDRs / host FQDN) | `CNAME resource.example.com → on.<host>.example.com` |
-| No host detected: manual IP | First try to match the IP to a host (as above). Only if no match: A/AAAA to that IP |
-| No host detected: Pulse agent | Evaluate the agent's current internal **and** public IPs against hosts; match → CNAME to `on.<host>`; no match → A/AAAA with the agent's public IP |
+| No host detected: manual IP | First try to match the IP to a host (as above). Only if no match: A to that IP (IPv4 only) |
+| No host detected: Pulse agent | Evaluate the agent's current internal **and** public IPs against hosts; match → CNAME to `on.<host>`; no match → A with the agent's public IPv4 |
 
-Domain modes: root (apex — only A/AAAA, no CNAME; Hashi flattens by resolving `on.<host>` to the host IP), subdomain, full custom domain (must be in a managed zone).
+Domain modes: root (apex — only A, no CNAME; Hashi flattens by resolving `on.<host>` to the host IP), subdomain, full custom domain (must be in a managed zone).
 
 ### 5.3 Certificates (Hashi-issued, distributed as files)
 
