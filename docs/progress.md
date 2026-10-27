@@ -9,8 +9,7 @@ Rules: docs/spec/11-delivery.md §2.
 
 Gate: container runs on the Docker LXC next to V1; `/readyz` OK from LAN; CI green on Gitea runners; image published.
 
-Code is complete and up for review as stacked PRs (each ≤ ~500 hand-written lines). CI on the Gitea runners runs
-`make check` on every PR.
+Code is merged (stacked PRs #17–#23, each ≤ ~500 hand-written lines). CI on the Gitea runners runs `make check` on every PR and on main.
 
 - [x] #17 tooling: `go.mod` (toolchain pin), tools in `tools/go.mod`, `make check`, golangci-lint, `ci.yml`, `secrets.Value` + allow-list redacting slog handler (invariant 5)
 - [x] #18 store: modernc SQLite (WAL, FKs, busy_timeout, one writer + read-only pool), embedded goose migrations, pre-migration `VACUUM INTO` backup restored on failure
@@ -19,10 +18,10 @@ Code is complete and up for review as stacked PRs (each ≤ ~500 hand-written li
 - [x] #21 OpenAPI 3.1 contract, oapi-codegen strict server, test that every operation declares `x-hashi-scopes`
 - [x] #22 SPA shell: Svelte 5 + SvelteKit 2 + Tailwind 4, generated TS client, embedded with index.html fallback; `make dev`; web checks in `make check`
 - [x] #23 image: multi-arch Dockerfile (no emulation, distroless nonroot, ~6 MB), `release.yml` (refuses to push V1's `:old` tag), compose, `make deploy/rollback/smoke`, build-config check
-- [ ] Merge stack → release workflow publishes `latest` + short SHA
+- [x] Merge stack → release workflow publishes `latest` + short SHA (`e7c0a30`, amd64 + arm64, `:old` untouched)
 - [ ] Deploy to the Docker LXC (`hashi-v3`, ports 3340–3342) — needs the user's OK (writes files + pulls an image on a prod host)
 - [ ] Gate evidence: `/readyz` from LAN, CI green, image published → record below
-- [ ] Spec review of the whole S0 diff; fix reproduced/invariant findings, park the rest under Unverified
+- [x] Spec review of the whole S0 diff: rollback lost its target on redeploy (reproduced → fixed with a stubbed-ssh test in `make check`); missing `TestInvariant_6_*` and `/readyz` 503 tests added; one unverified finding parked below
 
 Decisions made in S0:
 - SvelteKit **2** kept as specified; Kit 3.0 (2026-10-01) skipped for now — the component ecosystem still targets Kit 2.
@@ -57,6 +56,10 @@ Decisions made in S0:
 ## Unverified
 
 (Review findings that were not reproduced. Not worked on unless promoted.)
+
+- S0 review: for a `v1.2.3` git tag the image tag is `1.2.3` (metadata-action `{{version}}`) but the binary reports
+  `v1.2.3`, so `make deploy TAG=1.2.3` would fail its smoke version match (`deploy/deploy.sh` smoke). Not observed;
+  only short-SHA deploys exist so far.
 
 ## Log
 
