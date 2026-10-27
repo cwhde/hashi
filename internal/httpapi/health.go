@@ -1,18 +1,18 @@
-// Package httpapi holds the HTTP handlers. Feature handlers implement the generated OpenAPI server.
+// Package httpapi implements the generated OpenAPI strict server (api/openapi.yaml).
 package httpapi
 
 import (
 	"context"
-	"encoding/json"
-	"net/http"
 	"sync/atomic"
 	"time"
+
+	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
 )
 
 // Check is one readiness dependency. It returns nil when healthy.
 type Check func(ctx context.Context) error
 
-// Health serves /healthz (process alive) and /readyz (dependencies OK and not shutting down).
+// Health backs /healthz (process alive) and /readyz (dependencies OK and not shutting down).
 type Health struct {
 	checks   map[string]Check
 	draining atomic.Bool
@@ -24,39 +24,51 @@ func NewHealth(checks map[string]Check) *Health { return &Health{checks: checks}
 // Drain makes /readyz fail so load balancers stop sending traffic before shutdown.
 func (h *Health) Drain() { h.draining.Store(true) }
 
-type healthBody struct {
-	Status string            `json:"status"`
-	Checks map[string]string `json:"checks,omitempty"`
-}
-
-func (h *Health) Healthz(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, healthBody{Status: "ok"})
-}
-
-func (h *Health) Readyz(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+func (h *Health) ready(ctx context.Context) (gen.Health, bool) {
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	body := healthBody{Status: "ok", Checks: map[string]string{}}
-	code := http.StatusOK
+	checks := map[string]string{}
+	ok := true
 	if h.draining.Load() {
-		body.Checks["shutdown"] = "draining"
-		body.Status, code = "unavailable", http.StatusServiceUnavailable
+		checks["shutdown"] = "draining"
+		ok = false
 	}
 	for name, c := range h.checks {
 		// Check errors are our own messages (schema version, ping); they carry no secrets.
 		if err := c(ctx); err != nil {
-			body.Checks[name] = err.Error()
-			body.Status, code = "unavailable", http.StatusServiceUnavailable
+			checks[name] = err.Error()
+			ok = false
 		} else {
-			body.Checks[name] = "ok"
+			checks[name] = "ok"
 		}
 	}
-	writeJSON(w, code, body)
+	status := gen.Ok
+	if !ok {
+		status = gen.Unavailable
+	}
+	return gen.Health{Status: status, Checks: &checks}, ok
 }
 
-func writeJSON(w http.ResponseWriter, code int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "no-store")
-	w.WriteHeader(code)
-	_ = json.NewEncoder(w).Encode(v)
+// Server implements gen.StrictServerInterface.
+type Server struct {
+	Health  *Health
+	Version gen.Version
+}
+
+var _ gen.StrictServerInterface = (*Server)(nil)
+
+func (s *Server) GetHealthz(context.Context, gen.GetHealthzRequestObject) (gen.GetHealthzResponseObject, error) {
+	return gen.GetHealthz200JSONResponse{Status: gen.Ok}, nil
+}
+
+func (s *Server) GetReadyz(ctx context.Context, _ gen.GetReadyzRequestObject) (gen.GetReadyzResponseObject, error) {
+	body, ok := s.Health.ready(ctx)
+	if !ok {
+		return gen.GetReadyz503JSONResponse(body), nil
+	}
+	return gen.GetReadyz200JSONResponse(body), nil
+}
+
+func (s *Server) GetVersion(context.Context, gen.GetVersionRequestObject) (gen.GetVersionResponseObject, error) {
+	return gen.GetVersion200JSONResponse(s.Version), nil
 }

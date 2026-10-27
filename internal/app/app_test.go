@@ -27,7 +27,7 @@ func TestRunServesHealthAndShutsDownCleanly(t *testing.T) {
 		t.Fatal("not ready in time")
 	}
 
-	for path, want := range map[string]int{"/healthz": 200, "/readyz": 200, "/nope": 404} {
+	for path, want := range map[string]int{"/healthz": 200, "/readyz": 200, "/api/version": 200, "/nope": 404} {
 		res, err := http.Get("http://" + addr + path)
 		if err != nil {
 			t.Fatal(err)
