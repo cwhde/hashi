@@ -44,3 +44,6 @@ logs/
 # Built SPA (embedded by internal/web; make build-web)
 /internal/web/dist/*
 !/internal/web/dist/.gitkeep
+
+# Real deploy targets (hosts, IPs)
+/deploy/targets/
