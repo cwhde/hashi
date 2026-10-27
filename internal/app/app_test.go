@@ -27,8 +27,10 @@ func TestRunServesHealthAndShutsDownCleanly(t *testing.T) {
 		t.Fatal("not ready in time")
 	}
 
-	for path, want := range map[string]int{"/healthz": 200, "/readyz": 200, "/api/version": 200, "/nope": 404} {
-		res, err := http.Get("http://" + addr + path)
+	// No keep-alive: an unused spare connection would hold Shutdown for 5s (net/http treats StateNew as active).
+	client := &http.Client{Transport: &http.Transport{DisableKeepAlives: true}}
+	for path, want := range map[string]int{"/healthz": 200, "/readyz": 200, "/api/version": 200, "/some/spa/route": 200, "/api/nope": 404} {
+		res, err := client.Get("http://" + addr + path)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -36,8 +38,9 @@ func TestRunServesHealthAndShutsDownCleanly(t *testing.T) {
 			Status string            `json:"status"`
 			Checks map[string]string `json:"checks"`
 		}
-		_ = json.NewDecoder(res.Body).Decode(&body)
+		raw, _ := io.ReadAll(res.Body)
 		_ = res.Body.Close()
+		_ = json.Unmarshal(raw, &body)
 		if res.StatusCode != want {
 			t.Fatalf("%s: status %d, want %d", path, res.StatusCode, want)
 		}
