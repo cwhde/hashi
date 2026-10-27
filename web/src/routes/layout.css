@@ -97,8 +97,10 @@
 	--h-info-text: #1d4ed8;
 }
 
-/* Layer 2: semantic names used by components. */
-:root {
+/* Layer 2: semantic names used by components. Declared on every [data-theme] element as well, so a scoped theme
+ * (theme picker previews, custom-theme drafts) re-derives them instead of inheriting :root's resolved values. */
+:root,
+[data-theme] {
 	--radius: 0.75rem;
 
 	--background: var(--h-canvas);
