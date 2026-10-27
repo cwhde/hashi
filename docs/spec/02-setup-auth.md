@@ -202,3 +202,59 @@ protection survives as the explicit opt-in strict mode (delivered in slice S12).
 
 While secrets are unavailable: public pages render last known state; monitors needing no secrets continue; provider
 syncs pause; the last applied firewall state stays active on hosts; the UI shows the lock state on every page header.
+
+## 6. Session tests and acceptance (verbatim from the V2 session addendum)
+
+### 6.1 Unit Tests
+
+Add tests for:
+
+* Canonical IPv4 and IPv6 comparison.
+* IPv4-mapped IPv6 normalization.
+* Idle expiry calculation.
+* Absolute expiry enforcement.
+* Activity extension capped by absolute expiry.
+* Scope-to-endpoint mapping.
+* Unknown and missing scope rejection.
+* Five-minute reauthentication calculation.
+
+### 6.2 Integration Tests
+
+Add tests proving:
+
+* A token works from its issuance IP.
+* The same token is rejected and revoked from a different IP.
+* Two logins from different IPs create two independently valid tokens.
+* Activity extends idle expiry but never absolute expiry.
+* A token is rejected after four hours of inactivity.
+* A continuously active token is rejected after eight hours.
+* Recent reauthentication does not reset absolute expiry.
+* Revocation takes effect before cookie expiry.
+* Missing scopes reject otherwise authenticated requests.
+* Application restart does not lose session or recent-reauthentication state.
+
+### 6.3 Security Tests
+
+Add tests proving:
+
+* Untrusted forwarding headers cannot select the bound IP.
+* Trusted proxy forwarding produces the same canonical IP during issuance and validation.
+* Raw tokens are absent from audit events and application logs.
+* Expired, revoked, malformed, and unknown sessions fail closed.
+
+### 6.4 Acceptance criteria
+
+The feature is complete when:
+
+1. Every newly issued admin token has an authoritative server-side session record.
+2. Each token is strictly usable only from the exact canonical IP to which it was issued.
+3. Logging in from another IP creates a separate token rather than moving an existing token.
+4. Idle lifetime is no more than four hours.
+5. Absolute lifetime is no more than eight hours from original token issuance.
+6. Activity and recent reauthentication never extend the absolute deadline.
+7. Every protected admin endpoint requires an appropriate explicit session scope.
+8. High-risk endpoints still require five-minute recent passkey reauthentication.
+9. Logout and manual revocation invalidate server-side state immediately.
+10. Vault material is removed when its session is revoked, expires, or fails IP validation.
+11. Trusted-proxy handling cannot be bypassed with arbitrary forwarding headers.
+12. Session lifecycle events are auditable without exposing bearer credentials.

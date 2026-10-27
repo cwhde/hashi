@@ -76,8 +76,8 @@ Heimdall-style launcher of selected entries.
 
 Default assets from `https://static.juzo.io/`, downloaded once and cached under `/data/assets`: icons `/icon/default/`,
 `/icon/bloom/`; logos `/logo/2k/`, `/logo/4k/`; backgrounds `/background/2k/`, `/background/4k/`; media
-`/media/chillwave-mix.mp3`. Logos/icons on by default; backgrounds optional and only on public pages (never behind admin
-data); all replaceable in Settings → Appearance.
+`/media/chillwave-mix.mp3`. Logos/icons on by default; backgrounds optional and off by default (admin screens use the theme canvas; a
+user-selected background is a personalization option that must not reduce readability); all replaceable in Settings → Appearance.
 
 ## 10. Tests that must exist
 

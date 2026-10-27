@@ -168,6 +168,13 @@ Scripts: `host_scripts`, `host_script_targets`, `host_script_env`, `host_script_
 
 Area files define the fields that matter for behaviour; the migration files are the authoritative schema.
 
+Every connection has: ID, name, type, enabled flag, health state (`unknown` / `validating` / `healthy` / `degraded` /
+`failed`), last validation result + timestamp, encrypted secret references, typed provider settings, and a deletion
+policy (`required` / `optional` / `system_linked` / `safe_to_remove`) enforcing invariant 11.
+
+Volumes: `/data` (DB, backups, GeoIP, assets, uploads, rendered plans, cache) is required; `/logs` is optional for file
+logging in addition to stdout.
+
 ### 4.3 Telemetry volume and retention
 
 | Data | Granularity | Default retention |

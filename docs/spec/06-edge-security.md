@@ -1,5 +1,8 @@
 # 06 — Edge security: forward auth, SSO, rules, WAF, abuse engine, CAPTCHA, blocklists
 
+Full table definitions (subjects, states, manual entries incl. scope types `global` / `resource` / `root_domain` /
+`traefik_connection` / `firewall_host`, events, buckets, blocklist tables, firewall block tracking): [06a-security-data-model.md](06a-security-data-model.md).
+
 ## 1. Overview
 
 Traefik calls Hashi's forward-auth endpoint for every HTTP-family request on resources with a forward-auth policy.

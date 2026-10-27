@@ -80,8 +80,8 @@ Static changes require a Traefik restart and are high-risk.
 | File | Content | Editable |
 | --- | --- | --- |
 | `00-hashi-core.yml` | Generated default middlewares | no |
-| `10-hashi-http.yml` | HTTP/H2C/HTTPS routers and services | no |
-| `20-hashi-streams.yml` | TCP/UDP routers and services | no |
+| `10-hashi-http-resources.yml` | HTTP/H2C/HTTPS routers and services | no |
+| `20-hashi-stream-resources.yml` | TCP/UDP routers and services | no |
 | `30-user-middlewares.yml` | User-defined extra middlewares | **yes**, via UI editor |
 | `40-hashi-security.yml` | WAF / rate-limit / security middlewares | no |
 | `90-hashi-health.yml` | Health routers for monitoring | no |

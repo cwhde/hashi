@@ -26,6 +26,8 @@ Read only the file for the area you are working on, plus this index.
 | [09-scripts-settings.md](09-scripts-settings.md) | Custom host scripts, settings catalogue |
 | [10-ui.md](10-ui.md) | Admin IA, design tokens, four themes, custom themes, components, motion, a11y |
 | [11-delivery.md](11-delivery.md) | Delivery slices, prod-proof gates, testing, CI/CD, V1 cutover, operations |
+| [06a-security-data-model.md](06a-security-data-model.md) | Security tables in full (verbatim from V2) |
+| [10a-ui-references.md](10a-ui-references.md) | UI reference descriptions and shell anatomy (verbatim from V2) |
 | [environment.md](environment.md) | Real infrastructure facts (generic); host inventory lives outside the repo |
 
 ## Product principles
@@ -85,3 +87,29 @@ Tracked here until answered; answers move into the relevant area file.
 
 Answered by the 2026-10-27 survey: Hashi replaces Pangolin, both current Traefik instances, Gatus, adguardhome-sync and the
 host firewall script with its own installs (11-delivery.md §7); the home host is an `external_nat` edge host (05-firewall.md §1.1).
+
+## Reference links
+
+- [Svelte docs](https://svelte.dev/docs/svelte/overview)
+- [shadcn-svelte docs](https://www.shadcn-svelte.com/docs)
+- [Bits UI docs](https://www.bits-ui.com/docs)
+- [Lucide icons](https://lucide.dev/)
+- [Traefik file provider](https://doc.traefik.io/traefik/master/reference/install-configuration/providers/others/file/)
+- [Traefik forward auth](https://doc.traefik.io/traefik/v3.4/middlewares/http/forwardauth/)
+- [Traefik rate limit](https://doc.traefik.io/traefik/v3.4/middlewares/http/ratelimit/)
+- [Traefik Coraza WAF plugin](https://plugins.traefik.io/plugins/65f2aea146079255c9ffd1ec/coraza-waf)
+- [Hetzner Cloud API — DNS zones and RRSets](https://docs.hetzner.cloud/reference/cloud) (the legacy DNS API is shut down)
+- [AdGuard Home OpenAPI](https://github.com/AdguardTeam/AdGuardHome/blob/master/openapi/openapi.yaml)
+- [Gatus endpoint model](https://gatus.io/docs/endpoints)
+- [MDN WebAuthn](https://developer.mozilla.org/en-US/docs/Web/API/Web_Authentication_API)
+- [MDN WebAuthn extensions and PRF](https://developer.mozilla.org/docs/Web/API/Web_Authentication_API/WebAuthn_extensions)
+- [MaxMind GeoLite2 database docs](https://dev.maxmind.com/geoip/docs/databases/)
+- [MaxMind database update docs](https://dev.maxmind.com/geoip/updating-databases)
+- [NetBird routing peers](https://docs.netbird.io/manage/networks/how-routing-peers-work)
+- [NetBird ports and firewalls](https://docs.netbird.io/about-netbird/ports-and-firewalls)
+- [NetBird CLI](https://docs.netbird.io/get-started/cli)
+- [Hashi static asset host](https://static.juzo.io/)
+- [Go WebAuthn](https://github.com/go-webauthn/webauthn)
+- [sqlc](https://docs.sqlc.dev/)
+- [oapi-codegen](https://github.com/oapi-codegen/oapi-codegen)
+- [lego httpreq provider](https://go-acme.github.io/lego/dns/httpreq/)
