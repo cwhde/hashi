@@ -5,7 +5,9 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
-**S0 — Walking skeleton** · status: in progress
+**S0b — UI design for all features** · status: not started (needs the user's approval before any feature slice)
+
+S0 — Walking skeleton · **done** (gate passed 2026-10-27, see Slices)
 
 Gate: container runs on the Docker LXC next to V1; `/readyz` OK from LAN; CI green on Gitea runners; image published.
 
@@ -19,8 +21,8 @@ Code is merged (stacked PRs #17–#23, each ≤ ~500 hand-written lines). CI on 
 - [x] #22 SPA shell: Svelte 5 + SvelteKit 2 + Tailwind 4, generated TS client, embedded with index.html fallback; `make dev`; web checks in `make check`
 - [x] #23 image: multi-arch Dockerfile (no emulation, distroless nonroot, ~6 MB), `release.yml` (refuses to push V1's `:old` tag), compose, `make deploy/rollback/smoke`, build-config check
 - [x] Merge stack → release workflow publishes `latest` + short SHA (`e7c0a30`, amd64 + arm64, `:old` untouched)
-- [ ] Deploy to the Docker LXC (`hashi-v3`, ports 3340–3342) — needs the user's OK (writes files + pulls an image on a prod host)
-- [ ] Gate evidence: `/readyz` from LAN, CI green, image published → record below
+- [x] Deploy to the Docker LXC (`hashi-v3`, ports 3340–3342), approved by the user
+- [x] Gate evidence recorded in the Slices table
 - [x] Spec review of the whole S0 diff: rollback lost its target on redeploy (reproduced → fixed with a stubbed-ssh test in `make check`); missing `TestInvariant_6_*` and `/readyz` 503 tests added; one unverified finding parked below
 
 Decisions made in S0:
@@ -33,8 +35,8 @@ Decisions made in S0:
 
 | Slice | Status | Prod-proof (date · version · evidence) |
 | --- | --- | --- |
-| S0 Walking skeleton | not started | |
-| S0b UI design for all features | — | |
+| S0 Walking skeleton | **done** | 2026-10-27 · `e7c0a30` · `make deploy ENV=prod TAG=e7c0a30` on the Docker LXC next to V1: smoke from the LAN → `/readyz` `{"checks":{"database":"ok"},"status":"ok"}`, `/api/version` `{"commit":"e7c0a30","version":"e7c0a30"}`, SPA 200, public apps 200, public status 200; container `healthy`, uid 65532, read-only rootfs; restart keeps the DB (no re-migration); V1 and Gatus still up. CI green on the Gitea runners (#17–#23 and main); release published `e7c0a30` = `latest`, amd64 + arm64. |
+| S0b UI design for all features | next | |
 | S1 Setup, auth, vault | — | |
 | S2 DNS read + import | — | |
 | S3 DNS write | — | |
@@ -63,6 +65,9 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-10-27 — S0 gate passed (`e7c0a30` on the Docker LXC). PR sizing rule changed from ~500 lines to per-slice
+  reviewable PRs (spec 11-delivery §2.7). V1 image workflow restored for `legacy/v1` (V1 code changes only); CI and
+  release skip docs/V1-only changes. README progress bar added. Repo moved out of iCloud-synced `~/Documents`.
 - 2026-10-27 — S0 code done (PRs #17–#23). Found along the way: `.gitea/workflows/v1-docker-build.yml` on main has
   only a trigger, no jobs (cut off in the restart commit), so V1 images can't be rebuilt — left alone because a rebuild
   would push `:old`, which production runs. The repo sits in iCloud-synced `~/Documents`; iCloud once renamed a

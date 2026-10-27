@@ -18,7 +18,8 @@ Go backend + embedded SvelteKit SPA + SQLite, one container. Pulse agent in `age
 - `make test-integration` — container-based tests (Traefik, sshd, iptables netns, AdGuard).
 - `make contract-capture PROVIDER=x` — record real API responses (read-only) into `testdata/contracts/`.
 - `make dev` — backend + Vite dev server with fake providers.
-(The Makefile is created in slice S0; until then these don't exist.)
+(`make check`, `generate`, `dev`, `build`, `image`, `deploy`, `rollback`, `smoke` exist; `test-integration` and
+`contract-capture` arrive with the slices that first need them.)
 
 ## How we work (the reasons are in docs/spec/11-delivery.md)
 
@@ -32,6 +33,13 @@ Go backend + embedded SvelteKit SPA + SQLite, one container. Pulse agent in `age
   hand-written lines. No stacked micro-PRs (each one costs a CI run). Docs and small fixes go straight to `main`.
 - If the spec is wrong, fix the spec in its own `docs(spec):` commit with the reason. Don't silently diverge.
 - Conventional commits; migrations ship with the model change; OpenAPI and generated clients ship together.
+
+## Progress bar
+
+`README.md` has a rough progress bar between `<!-- progress:start -->` and `<!-- progress:end -->`. When a step passes
+its prod-proof gate (or the V1 cutover is done), update it in the same commit as `docs/progress.md`:
+15 steps total (S0, S0b, S1–S7, V1 cutover, S8–S12); bar = 30 cells, 2 `█` per finished step, rest `░`; count and
+percent rounded down; move the step from `next`/`then` to `done`. It's an overview, not a metric.
 
 ## Skills
 
