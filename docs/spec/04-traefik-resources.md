@@ -58,7 +58,20 @@ Supported OS: Debian, Ubuntu, Alpine. Install flow (over SSH, each step a plan i
 5. If found: back up to `/var/lib/hashi/traefik/backup/<timestamp>/` and require explicit confirmation before Hashi takes ownership.
 6. Write a systemd unit (Debian/Ubuntu) or OpenRC script (Alpine) running Traefik with Hashi's static config.
 
-Pinned Traefik version lives in one place (`deploy/versions.env`) and is upgraded deliberately (ADR per major).
+### 2.1 Traefik updates (Hashi-managed)
+
+Because Traefik is not installed through the OS package manager, Hashi owns its updates:
+
+- A daily job checks Traefik's official GitHub releases (stable only) and shows "update available" per Traefik host,
+  with the release notes link. Patch releases of the installed minor version can be set to auto-apply (setting, default off);
+  minor/major upgrades are always manual.
+- An upgrade is a high-risk sync plan per host: download the release archive, verify its checksum, keep the current binary
+  as `traefik.previous`, swap the binary atomically, restart, wait for `ping`, verify routers through the Traefik API.
+  Any failure restores `traefik.previous` and restarts.
+- Hosts are upgraded one at a time; the next host starts only after the previous one verified.
+- Before a major upgrade, Hashi validates its rendered static and dynamic config against the target version's config
+  schema and blocks the upgrade if anything Hashi generates is no longer valid.
+- Pinned plugin versions (e.g. Coraza) are checked the same way against the plugin catalog.
 
 ## 3. Static configuration (fully Hashi-managed)
 

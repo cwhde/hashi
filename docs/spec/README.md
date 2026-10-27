@@ -24,10 +24,10 @@ Read only the file for the area you are working on, plus this index.
 | [07-monitoring-public.md](07-monitoring-public.md) | Status monitoring, notifications, public status page, public app dashboard |
 | [08-pulse.md](08-pulse.md) | Hashi Pulse agent, agent-bound connection targets |
 | [09-scripts-settings.md](09-scripts-settings.md) | Custom host scripts, settings catalogue |
-| [10-ui.md](10-ui.md) | Admin IA, design tokens, four themes, custom themes, components, motion, a11y |
+| [10-ui.md](10-ui.md) | Design intent, four themes, custom themes, navigation, quality bar |
 | [11-delivery.md](11-delivery.md) | Delivery slices, prod-proof gates, testing, CI/CD, V1 cutover, operations |
 | [06a-security-data-model.md](06a-security-data-model.md) | Security tables in full (verbatim from V2) |
-| [10a-ui-references.md](10a-ui-references.md) | UI reference descriptions and shell anatomy (verbatim from V2) |
+| [10a-ui-references.md](10a-ui-references.md) | Descriptions of the UI reference screenshots |
 | [environment.md](environment.md) | Real infrastructure facts (generic); host inventory lives outside the repo |
 
 ## Product principles
@@ -82,8 +82,7 @@ These hold in every slice. Each has at least one automated test named `TestInvar
 
 Tracked here until answered; answers move into the relevant area file.
 
-1. CAPTCHA: the spec names Cap, but production runs **wicketkeeper**. Keep Cap (deploy it before S10), or make wicketkeeper the first provider behind a CAPTCHA provider interface?
-2. The second Hetzner zone: managed by Hashi from the start, or import-only?
+None right now.
 
 Answered by the 2026-10-27 survey: Hashi replaces Pangolin, both current Traefik instances, Gatus, adguardhome-sync and the
 host firewall script with its own installs (11-delivery.md §7); the home host is an `external_nat` edge host (05-firewall.md §1.1).

@@ -18,6 +18,9 @@ Name, ID, token hash, install type, allowed scopes (heartbeat only), heartbeat i
 heartbeat's source IP via the client-IP resolver), private IP candidates, selected IP, version, status (fresh / stale /
 revoked). Stale threshold setting (default 3× interval).
 
+Reachability check (optional, per agent): Hashi itself tries to open a TCP connection to the agent's selected IP on a
+configured port, so the UI can show "Hashi can reach this address" vs "agent reports it but Hashi can't reach it".
+
 ## 3. Tokens
 
 256-bit random, shown once, stored as `HMAC-SHA256(pepper, token)`; identifies exactly one agent; can only submit that
@@ -32,7 +35,8 @@ Resources and manual DNS entries can target: manual IP, detected firewall host, 
 
 1. Match internal or public IP against firewall hosts, managed subnets, NetBird-routed subnets, host FQDNs.
 2. Match → desired DNS becomes `CNAME → on.<host>`; no match → A/AAAA with the agent's public IP.
-3. Queue DNS sync (and Traefik render if the resource's upstream is the agent IP).
+3. Queue DNS sync. If a resource's *target* (where Traefik forwards traffic to) is "the IP of agent X", also queue a
+   Traefik sync so Traefik forwards to the new address — updating DNS alone would leave Traefik pointing at the old one.
 4. Status page marks affected endpoints "pending DNS propagation" until the next successful check.
 
 ## 5. Agent-bound connection targets

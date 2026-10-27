@@ -8,13 +8,12 @@ Concrete hostnames, addresses and paths are in `CLAUDE.local.md` (gitignored).
 | Role | Instance | Notes |
 | --- | --- | --- |
 | Edge host A (VPS) | Proxmox, public IP, NetBird | Managed firewall host. All public traffic enters here. Runs a cron-driven firewall script today. |
-| Edge host B (home) | Proxmox behind a home NAT router | No host firewall, no NetBird on the host. Public traffic for its services is routed via host A (`on.B → via.A`). Host A reaches B's LAN through a NetBird network route. |
+| Edge host B (home) | Proxmox behind a home NAT router | No host firewall. NetBird runs on the home **router** (routing peer for the home LAN), not on the host. Public traffic for its services is routed via host A (`on.B → via.A`); host A reaches B's LAN through that NetBird network route. |
 | Reverse proxy A | Traefik v3.7 in Docker on a dedicated LXC (host network) | Today configured by Pangolin's HTTP provider + Pangolin's badger auth plugin. |
 | Reverse proxy B | Traefik v3.7 native on an Alpine LXC (OpenRC) | Same static config as A, also pulls routes from Pangolin. |
 | Internal DNS | Two AdGuard Home instances | One is the adguardhome-sync **origin**, the other a replica (sync every 10 min). |
 | Docker host | LXC on host A, compose projects managed by Arcane | Runs V1 Hashi, Gatus, Pocket ID, NetBird server, Gitea + runners. Hashi deploys here. |
 | IdP | Pocket ID (OIDC) | Candidate default edge-SSO provider. |
-| CAPTCHA | wicketkeeper (not Cap) on its own domain/port | See open question in README. |
 
 ## What Hashi replaces
 
@@ -26,7 +25,7 @@ host-A firewall script. Their current configuration is reference material only, 
 
 | Service | Use | Contract captured |
 | --- | --- | --- |
-| Hetzner Cloud API (zones, RRSets) | public DNS, 2 zones | shape observed (zones, rrsets, pagination); fixtures pending |
+| Hetzner Cloud API (zones, RRSets) | public DNS, one zone managed | shape observed (zones, rrsets, pagination); fixtures pending |
 | Google Trust Services ACME (EAB) | certificates | — |
 | AdGuard Home ×2 (+ adguardhome-sync) | internal rewrites | — |
 | Pocket ID | edge SSO | — |

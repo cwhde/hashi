@@ -1,7 +1,7 @@
 # 10a — UI reference detail (detail for 10-ui.md)
 
-> Carried over verbatim from the V2 UI design-foundation addendum so an implementer can reproduce the visual language
-> without the original screenshots.
+> Written descriptions of the reference screenshots you gave the earlier agent (the images were never committed).
+> They describe the **intent**; size and percentage estimates in them are indicative, not rules.
 
 ## 5. Visual References
 
@@ -153,7 +153,7 @@ Visible characteristics:
 
 1. The canvas, sidebar, header, and panels are all extremely dark green-black.
 2. Surfaces are distinguished by one-pixel desaturated green borders and subtle changes in green-black fill.
-3. The expanded sidebar occupies roughly 22 percent of the 833px-wide screenshot because the screenshot is narrow; at normal desktop width it should use the fixed dimensions defined below.
+3. The expanded sidebar occupies roughly 22 percent of the 833px-wide screenshot because the screenshot is narrow.
 4. The active navigation row uses a translucent yellow-green fill and a small yellow icon.
 5. The primary Add action is yellow with near-black text. Secondary icon actions are dark with green borders.
 6. The content area uses a compact three-column dashboard. Panel corner radii are clearly rounded but not pill-shaped.
@@ -178,53 +178,3 @@ The redesign must therefore avoid:
 8. Large headings or empty hero-like areas that push operational content below the fold.
 9. Animation that exists to make the interface look futuristic.
 10. Theme colors applied to every border, label, icon, and surface.
-
-### 12.1 Application Shell Anatomy
-
-The desktop shell is constructed as follows:
-
-1. A fixed left navigation column.
-2. A compact top context bar spanning only the content region.
-3. One independently scrolling main content region.
-4. Optional drawers layered above the content; no permanent third rail unless a workflow explicitly requires an inspector.
-
-The expanded navigation contains, from top to bottom:
-
-1. Product or deployment identity in a 48 to 56px header.
-2. Optional global search or command trigger.
-3. Grouped primary destinations.
-4. Flexible empty space.
-5. Low-frequency destinations such as settings, documentation, or version information.
-
-Navigation rows use:
-
-* 16px icons.
-* 13 to 14px labels.
-* 36px height.
-* 8 to 10px row radius.
-* 8 to 12px horizontal gap between icon and label.
-* 12 to 16px horizontal inset from the sidebar edge.
-
-Group labels use 11 to 12px muted text and sit 16 to 20px above the first row in a group. Deep navigation trees are prohibited; one expandable child level is the routine maximum.
-
-The top context bar may contain breadcrumbs, the current environment or connection context, global pending state, theme control, and account menu. It must not duplicate the page title.
-
-### 12.2 Page Header Anatomy
-
-A routine page header contains:
-
-1. Optional breadcrumb or short eyebrow.
-2. Page title.
-3. One sentence of description when necessary.
-4. Contextual status or count when useful.
-5. One primary action and a small number of secondary actions aligned right.
-
-The title/action row should fit within 56 to 72px on desktop. Long explanations, onboarding banners, and filters appear below it.
-
-Filters and search belong in a toolbar attached visually to the data tool they control, not scattered through the global header.
-
-### 15.2 Detail Disclosure
-
-Summary information that the user may need to copy or inspect, but rarely edit, may appear in a top summary panel with a centered or right-aligned "Show more details" disclosure.
-
-Expanded details must remain inside the panel, use definition-list alignment, and avoid opening a modal for read-only metadata.

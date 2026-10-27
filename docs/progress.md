@@ -12,6 +12,7 @@ Rules: docs/spec/11-delivery.md §2.
 | Slice | Status | Prod-proof (date · version · evidence) |
 | --- | --- | --- |
 | S0 Walking skeleton | not started | |
+| S0b UI design for all features | — | |
 | S1 Setup, auth, vault | — | |
 | S2 DNS read + import | — | |
 | S3 DNS write | — | |

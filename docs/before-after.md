@@ -28,7 +28,7 @@ Part 4 lists the production setup today vs after Hashi. Part 5 answers "are the 
 | 6 | Resource rule model | Same (merged with A1) | Base actions (bypass auth, block, pass to auth, adaptive challenge) merged with A1's list (allow, deny, require SSO, require challenge, soft block, firewall block, bypass blocking). Match types unchanged. GeoIP-missing → rule invalid, unchanged. |
 | 7.1 | Bootstrap access | Same + Added | Same flow and CIDR list. Added: plain-HTTP bootstrap from a private IP gets a non-`Secure` bootstrap cookie (HTTPS cookies would not work there); CLI `hashi bootstrap reset`; credentials survive restart. |
 | 7.2 | Base settings | Same | Added validation rules (FQDN under root domain, absolute internal URL, no hardcoded port). |
-| 7.3 | DNS provider setup | Same | Same fields, read-only validation, `_hashi-test` probe only with approval, import table, NS/SOA never pruned. |
+| 7.3 | DNS provider setup | Same + clarified | Same fields, read-only validation, `_hashi-test` probe only with approval, import table, NS/SOA never pruned. Clarified: exactly one zone — the root domain's zone is picked automatically, or the user chooses from the zones the token sees. No multi-zone (never was). |
 | 7.4 | Certificate provider | Same + Added | Google Trust Services + EAB kept. Added Let's Encrypt as an optional second directory. DNS-01 mechanism changed: see B §10.2. |
 | 7.5–7.6 | Traefik / firewall setup | Same + Added | Same fields and validations. Added mandatory SSH host-key pinning (fingerprint shown on first contact). Firewall setup now first captures the existing ruleset. |
 | 7.7 | System resource | Same | — |
@@ -37,7 +37,7 @@ Part 4 lists the production setup today vs after Hashi. Part 5 answers "are the 
 | 8 | Secrets vault | **Changed** | Old: three classes (session-unlocked, service-sync, server-operational); admin vault wrapped by passkey PRF + recovery key; service vault wrapped by a Docker secret. New: one master key from a Docker secret; per-secret AES-256-GCM DEKs wrapped by class keys derived from it (service / admin-only / operational); recovery key wraps a copy of the master key for restore. "Passkey-only" protection survives as opt-in **strict mode**: no key on disk, unlock after restart with a PRF passkey or the recovery key. Same trade-off explained in setup. Added: secrets are a Go type that can never be logged or serialized. |
 | 9 | Admin auth | Same + Added | Passkeys, multiple passkeys, recovery key for vault, secure cookies, CSRF, reauth list kept. Session timeouts are now governed by A2 (4 h idle / 8 h absolute). Added: console-only recovery login (`hashi admin recover`) to register a new passkey if all are lost; cannot delete the last passkey. |
 | 9 | Edge SSO | Same + Added | Same. Added flow details (PKCE, state, nonce, open-redirect check on `rd`). |
-| 10.1 | Traefik install | **Changed** | Old: detect package manager, install Traefik if absent. New: install the official release binary with checksum verification (distro packages lag); pinned version in one file. Directories, backup and ownership confirmation unchanged. systemd/OpenRC unchanged. |
+| 10.1 | Traefik install + updates | **Changed** | Old: detect package manager, install Traefik if absent. New: install the official release binary with checksum verification. Because no package manager is involved, **Hashi now does the updating**: daily release check, optional auto-apply of patch releases, manual minor/major upgrades as a high-risk plan, one host at a time, automatic rollback to the previous binary on failure, config validated against the new version first. |
 | 10.2 | Static config | Same + **Changed** ACME | Entry points, file provider, access/general JSON logs, ping, dashboard not public, pinned plugins kept. **Changed:** DNS-01 now via lego's `httpreq` provider calling Hashi, which writes the TXT record through its own DNS module — Traefik hosts no longer hold the DNS token, and any DNS provider module works. Added: Traefik API bound to localhost for verification; `forwardedHeaders.trustedIPs` so client IPs survive DNAT; optional HTTP/3; access-log header dropping specified. |
 | 10.3 | Dynamic files | Same | Same six files, same names (**Restored** — I had renamed two without reason). |
 | 10.4–10.6 | Middlewares, sync rules, TCP/UDP limits | Same + Added | Same. Added: reused ports pending removal are cancelled, not deleted; apply verifies through Traefik's API and restores the previous static config if a restart fails. |
@@ -45,20 +45,20 @@ Part 4 lists the production setup today vs after Hashi. Part 5 answers "are the 
 | 12 | WAF | Same | Coraza + full OWASP CRS, modes, exclusions, events. |
 | 13 | Abuse detection | Same + **Changed** storage | Signals, dimensions, states, default path, block types kept. PostgreSQL partitioning → minute buckets in SQLite with batched retention. Added how Traefik access logs are collected: SSH incremental tail with inode/offset cursor every 60 s (old spec never said how). |
 | 14.1–14.2 | Firewall host model, host DNS | Same + Added | Same fields and `host` / `via.` / `on.` records. **Added:** `external_nat` edge mode for hosts behind a router (your home server). |
-| 14.3 | Firewall script | Same + Added | Same paths, ipsets, chains, behaviours. Added: atomic build via temporary ipsets + `ipset swap` and `iptables-restore --noflush`; explicit table per chain; IPv6 set `hashi_blocked6`; rollback script; packages are installed by the plan. **Added from your current script:** loopback DNAT, corosync peer MTU routes, `/etc/hosts` pins, removal of the old script's chains and cron in the first apply. |
+| 14.3 | Firewall script | Same + Added | Same paths, ipsets, chains, behaviours. Added: atomic build via temporary ipsets + `ipset swap` and `iptables-restore --noflush`; explicit table per chain; IPv6 set `hashi_blocked6`; rollback script; packages are installed by the plan. **Pending your decision:** four items I took from your *current* firewall script (not from the old spec) — loopback DNAT, corosync MTU routes, `/etc/hosts` pins, cleanup of the old script's chains. |
 | 14.4–14.5 | NetBird, safety | Same + Added | Same modes, detection, preserve-list and safety rules. Rescue rollback made concrete (save → write executable rollback → arm timer → apply → verify via a **new** SSH connection + NetBird status → disarm). |
-| 15 | DNS provider | **Changed** provider, Same model | Interface kept (+ Verify; RRSet is the unit). Hetzner legacy DNS API → Hetzner Cloud API (the old one is shut down). Adapter must be built from recorded real responses. Ownership: DB authoritative (same); old optional "ownership marker TXT records" became an optional provider capability (Hetzner implements it with RRSet labels; other providers use comments/tags or skip it) — provider stays a swappable module. Added: provider-protected RRSets are read-only; conflict items instead of overwrites; CNAME exclusivity; **apex flattening** for root-domain resources (CNAME at apex is impossible). |
+| 15 | DNS provider | **Changed** provider, Same model | Interface kept (+ Verify; RRSet is the unit). Hetzner legacy DNS API → Hetzner Cloud API (the old one is shut down). Adapter must be built from recorded real responses. One zone only. Ownership: DB authoritative (same); old optional "ownership marker TXT records" became an optional provider capability (Hetzner implements it with RRSet labels; other providers use comments/tags or skip it) — provider stays a swappable module. Added: provider-protected RRSets are read-only; conflict items instead of overwrites; CNAME exclusivity; **apex flattening** for root-domain resources (CNAME at apex is impossible). |
 | 16 | AdGuard | Same + Added | Same rules. Added: every AdGuard instance is written directly (replaces adguardhome-sync); disabled connections untouched; duplicate cleanup only when previewed. |
-| 17 | Pulse | Same + Added | Same model, token rules, heartbeat, resource use. Added: Traefik upstream re-rendered when a resource's upstream is the agent IP; optional reachability probe. |
+| 17 | Pulse | Same + Added | Same model, token rules, heartbeat, resource use. Added two small things: (1) if a service's *forwarding target* is "agent X's IP" and that IP changes, Hashi also updates the Traefik config, not only DNS; (2) optional reachability check — Hashi tries to connect to the agent's reported address so the UI shows whether Hashi can actually reach it. |
 | 18 | Monitoring | Same + Added | Sources (+ Pulse), check types, states, storage, retention, views, UI kept. Added: UDP check only with a configured probe/response (silence ≠ healthy); TLS expiry thresholds 21 d / 7 d; fixed safe probe order for DNS entries; public-path vs internal-path checks to tell "service down" from "edge down"; failure/recovery thresholds; rollups only from closed buckets. Tables `monitor_rollups_1m/5m/1h` merged into one table with a bucket-size column. |
 | 18.6 | Notifications | Same + Added | SMTP/Telegram/Discord, routing, pairing flows kept. Added delivery log with retries; pending high-risk plans and vault lock can notify. |
 | 19 | Security dashboard | Same (merged with A1) | All widgets and filters kept, merged with A1 §11.2. |
 | 20 | Public app dashboard | Same + Added | Same. Added: failed refresh shows a "stale since" banner. |
-| 21 | Admin IA | **Changed** (decided) | Same 13 navigation items, now grouped (Operate / Edge / Configure). A3 had deferred grouping to a later addendum that never existed, so I decided it. Rail behaviour and overview widgets unchanged. Added Activity live log view (**Restored** from V1 lessons, B §34). |
+| 21 | Admin IA | Same | Same 13 navigation items, rail behaviour and overview widgets. Grouping and page layouts are now designed in the UI design slice S0b (I had invented a grouping; removed). Activity live log view (**Restored** from V1 lessons, B §34). |
 | 22 | Visual design | Superseded (as before) | Shades of Purple was already superseded by A3. Assets from `static.juzo.io` kept; backgrounds optional and off by default (**Restored** — first draft limited them to public pages). |
 | 23 | Scripts | Same + Added | Same fields and safety. Added: systemd timers preferred with a cron-equivalence test; a run wrapper so scheduled runs get the same env, timeout, redaction and history as manual runs; an all-disabled target set means no hosts. |
 | 24 | Settings | Same + Added | Same categories + internal agent DNS, CAPTCHA, trusted proxies, vault mode. Added rule: every setting must have a runtime consumer and a test. |
-| 25 | Sync engine | Same + Added | Same plan/apply/reconcile flow. Added: explicit risk table (low / high / forbidden); every apply path uses the same lock; a stale plan is re-planned and re-approved if any high-risk item changed; applied plan must equal the previewed plan; fixed subsystem order for global sync. |
+| 25 | Sync engine | Same + Added | Same preview → apply → verify flow. Added, in plain words: (1) a table saying which changes are applied automatically (e.g. updating a Hashi-owned record), which need your approval (deletes, opening ports, firewall changes) and which are never allowed (NS/SOA, touching things Hashi doesn't own); (2) only one change runs against the same system at a time, whatever started it; (3) if the real state changed between preview and apply, Hashi previews again and asks again when something risky changed; (4) what gets applied is exactly what you saw in the preview; (5) a fixed order for a full sync (DNS → Traefik → firewall → AdGuard → monitoring). |
 | 26 | Database schema | **Changed** | Same domains; adapted to SQLite: ULID text IDs, Unix-ms timestamps (`_at` instead of `_at_utc`), JSON text instead of `jsonb`. Renamed/merged: `system_resources` → origin column; `vault_wrapped_keys` → inside `secret_records`; `sync_steps`/`sync_diffs` → `sync_plan_items`/`sync_runs`; `traefik_generated_files` → `traefik_files`; firewall tables renamed. Added `admin_sessions`, `connection_targets`, `pulse_heartbeats` retention. Full security tables: 06a (**Restored** verbatim). |
 | 27 | API surface | Same + Added | All groups kept. Added `/api/acme/httpreq/*`, `/api/events` (SSE), explicit reauth endpoints, RFC 9457 errors, cursor pagination, `202` + run ID for long operations. |
 | 28 | Repository structure | **Changed** | .NET solution layout → Go layout (`cmd/`, `internal/<area>/`, `api/`, `web/`, `agents/pulse/`, `testdata/contracts/`). V1 at `legacy/v1/` instead of `hashi.old/`. |
@@ -78,7 +78,7 @@ Part 4 lists the production setup today vs after Hashi. Part 5 answers "are the 
 | 5.1–5.4 | Subject search, decision order, detail actions, timeline | Same | Same 13 detail items, same 9-step order, same bypass flags and defaults, same actions and timeline events. Added: every decision returns its evaluation trace. |
 | 5.5 | Data model | Same (**Restored**) | First draft only named the tables; full field lists, constraints and indexes now in 06a verbatim. |
 | 6 | Ban policies, offense counting, settings | Same | All five policy types, fields, no-eval rule, offense history never reset by CAPTCHA, all settings and suggested defaults. |
-| 7 | CAPTCHA (Cap) | Same + open question | All semantics kept (no free pass, requests-while-challenged escalation, browser vs API, challenge page rules, rule-engine action). Added a concrete browser/API detection rule. **Open:** production runs wicketkeeper, not Cap. |
+| 7 | CAPTCHA (Cap) | Same | All semantics kept (no free pass, requests-while-challenged escalation, browser vs API, challenge page rules, rule-engine action). Cap stays the provider. Added a concrete browser/API detection rule. |
 | 8 | Blocklists | Same + Added | Feeds, formats, parsing, enforcement, staleness kept; storage fields in 06a (**Restored**). Added: SSRF check also on the actually dialed IP and after normalizing IPv4-mapped addresses. |
 | 9 | Agent-bound connections | Same | All fields, IP modes, validation, change behaviour. |
 | 10 | Internal agent DNS | Same | Same rules, normalization, settings, stale behaviour. Added: deleting owned agent rewrites is high-risk unless caused by deleting the agent. |
@@ -101,17 +101,13 @@ Part 4 lists the production setup today vs after Hashi. Part 5 answers "are the 
 | A2 13–15 | API, audit, cleanup | Same | — |
 | A2 16 | Migration | Removed (moot) | No old cookies exist. |
 | A2 17–18 | Tests, acceptance | Same (**Restored**) | Verbatim in 02 §6. |
-| A3 1–4 | Purpose, scope, philosophy | Same | — |
-| A3 5.1–5.10 | Reference descriptions | Same (**Restored**) | First draft reduced them to one line each; now verbatim in 10a. |
-| A3 5.11–5.13 | Synthesis, quantitative targets, density budget | Same | — |
-| A3 6–11 | Tokens, geometry, typography, colours, four themes, custom themes, surfaces | Same | Theme hex values identical; Graphite default. |
-| A3 12 | Navigation, shell and page-header anatomy | Same (**Restored**) | Exact nav-row and page-header sizes back in 10a. |
-| A3 13–16 | Panels, cards, banners, tables, inline editing, forms, settings recipe, buttons, menus | Same | Detail-disclosure pattern (**Restored**, 10a). |
-| A3 17–22 | Motion, loading, charts, responsive, a11y, performance | Same | — |
-| A3 23.1–23.5 | Frontend stack, component layers, CSS examples | Same (examples condensed) | Stack and layers kept; the CSS code samples became the token tables and motion values in 10-ui. |
-| A3 23.6 | "Required changes from the current frontend" | Removed (moot) | It listed fixes to V2's existing UI code, which is gone. The rules behind them (no hard-coded colours, `data-theme`, radius scale) remain. |
-| A3 23.7–23.8 | Shared primitives, validation scenes A–E | Same | — |
-| A3 24–26 | Tests, implementation sequence, acceptance | Same + **Changed** order | Tokens, Graphite and primitives in S0/S1 so no page is restyled later; other three themes + custom theme editor in S11. |
+| A3 1–4 | Purpose, scope, philosophy | Same (as intent) | Your design intent kept: calm, rounded, dense-not-cramped, overview before detail, quiet surfaces, immediate feedback. |
+| A3 5.1–5.10 | Reference descriptions, rejected direction | Same | Kept as written descriptions of your screenshots (10a); size estimates marked indicative. The screenshots themselves were never in the repo. |
+| A3 5.11–5.13, 6–8, 11–22 | Pixel targets, density budget, radius/spacing scales, grid, typography sizes, surfaces, panel/table/form/button recipes, motion durations, chart geometry, responsive/a11y/performance rules | **Removed** (rules) / kept as quality bar | These were the earlier agent's own rule sets. Replaced by: a short quality bar (WCAG 2.2 AA, keyboard, reduced motion, mobile usable, no theme flash, tokens only) and the new UI design slice S0b, which designs layouts and component rules for **all features at once** before feature pages are built. |
+| A3 9–10 | Four themes, colours, custom themes | Same | Theme colour table identical; Graphite default; custom themes kept as a feature (preview, reset, contrast check, import/export). |
+| A3 23 | Frontend stack, CSS examples, "required changes from current frontend", primitives list, validation scenes A–E | Stack Same; rest **Removed** | Stack unchanged (shadcn-svelte/Bits UI, Tailwind v4, Lucide, uPlot, CodeMirror). Code samples, the fix-list for V2's UI code, the primitives list and the five validation scenes were agent-written specifics; S0b defines its own. |
+| A3 24–26 | Tests, implementation sequence, acceptance | **Changed** | Visual tests kept (key pages × themes × widths). Sequence: full UI design first (S0b), custom theme editor in S11. |
+| — | UI design before features | **Added** | Slice S0b: page inventory for every feature, navigation, layout/component rules, tokens for four themes, every page as a clickable mock in the SPA with mock data — approved by you before feature work. |
 
 ## 4. Production today vs after Hashi
 
@@ -122,12 +118,12 @@ Part 4 lists the production setup today vs after Hashi. Part 5 answers "are the 
 | Reverse proxy (home) | Native Traefik on Alpine, copy of Pangolin's static config, routes pulled from Pangolin | Hashi-installed Traefik with Hashi config; old instance removed |
 | Edge auth | Pangolin badger plugin | Hashi forward auth + edge SSO (Pocket ID as IdP) |
 | Firewall (VPS) | `/scripts/firewall.sh` via cron every 15 min; ~30 duplicate FORWARD rules accumulated | Hashi-generated rules in Hashi chains, check-before-insert, rescue timer; old chains/cron removed in first apply |
-| Firewall (home) | None on host; router forwards; traffic enters via the VPS | `external_nat` mode: no firewall management; routing via VPS as today |
+| Firewall (home) | None on host; the home router does NAT and runs NetBird; traffic enters via the VPS | `external_nat` mode: no firewall management on the home host; routing via VPS as today |
 | Internal DNS | 2 AdGuard instances + adguardhome-sync every 10 min | Hashi writes rewrites to both; adguardhome-sync retired |
 | Monitoring | Gatus, 41 endpoints generated by V1 | Built-in monitoring + public status page; Gatus retired |
 | App dashboard | — | Public app dashboard |
 | Abuse / WAF / blocklists | CrowdSec log path set on home Traefik, no CrowdSec process found | Hashi security engine, Coraza WAF, CAPTCHA, blocklists |
-| CAPTCHA | wicketkeeper | Cap per spec — open question |
+| CAPTCHA | — (Cap per the old spec) | Cap, integrated (Hashi doesn't deploy it) |
 
 ## 5. Are the old V2 bugs still prevented?
 
@@ -149,5 +145,4 @@ occur in the new stack, so they are not in the spec.
 
 ## 6. Open questions
 
-1. CAPTCHA: keep Cap (deploy it before S10) or make wicketkeeper the first provider behind a CAPTCHA interface?
-2. Second Hetzner zone: managed from the start or import-only?
+1. The four current-script firewall items in B §14.3 — keep or remove (see chat).

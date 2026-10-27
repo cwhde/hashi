@@ -19,6 +19,10 @@ in its own way (Hetzner: RRSet labels; another provider: record comments or tags
 logic only ever asks the interface; provider-specific fields never leak past the adapter, so adding or swapping a
 provider stays a new module and nothing else.
 
+Hashi manages a single zone (the root domain's zone, chosen in setup). The interface stays zone-aware so a
+provider module doesn't need to change if multi-zone support is ever added, but multi-zone is not a requirement.
+"Full custom domain" resources must lie inside that zone.
+
 The unit of ownership and change is the **RRSet** (name + type → TTL + values). Hashi's UI shows records, but plans are
 RRSet operations. Future providers (Cloudflare, Route53, PowerDNS, …) implement the same interface without changes to
 resource logic.

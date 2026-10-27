@@ -47,7 +47,8 @@ happen at the end of every slice.
 
 | # | Slice | Scope | Prod-proof gate |
 | --- | --- | --- | --- |
-| S0 | Walking skeleton | Go binary, embedded SPA shell with tokens + Graphite + shared primitives skeleton, `/healthz` `/readyz`, SQLite + migrations, job runner skeleton, OpenAPI pipeline, CI (lint/test/generate check), multi-arch image, `make deploy` | Container runs on the Docker LXC next to V1; `/readyz` OK from LAN; CI green on Gitea runners; image published |
+| S0 | Walking skeleton | Go binary, embedded SPA shell, `/healthz` `/readyz`, SQLite + migrations, job runner skeleton, OpenAPI pipeline, CI (lint/test/generate check), multi-arch image, `make deploy` | Container runs on the Docker LXC next to V1; `/readyz` OK from LAN; CI green on Gitea runners; image published |
+| S0b | UI design for all features | 10-ui.md, 10a, every area file's UI parts | Before any feature page is built: page inventory for every feature in the spec, navigation grouping, layout and component rules, design tokens for the four themes, and every page built as a clickable mock inside the SPA (`/design` route, mock data, all four themes). Approved by the user; later slices fill these pages with real data |
 | S1 | Setup, auth, vault | 02-setup-auth.md §1.1–1.2, §2–5 (service mode), audit log, settings framework, Activity page | Bootstrap login from LAN, passkey registered from a real browser, session IP binding observed, restart keeps sessions, secrets encrypted in a DB dump |
 | S2 | DNS read + import | 03-dns.md §1–4 (read side), contract capture for Hetzner | Real zone listed; import table shows real RRSets; decisions persist; fixtures committed (sanitized) |
 | S3 | DNS write | 03-dns.md §5–7, sync engine 01-platform.md §5, approval UI | Probe TXT created + deleted via approved plan; a Hashi-owned test record applied and verified; NS/SOA untouched |
@@ -59,7 +60,7 @@ happen at the end of every slice.
 | S8 | AdGuard, Pulse, agent DNS | 03 §8–9, 08-pulse.md | Real AdGuard rewrites synced without touching manual ones; Pulse agent on a real host; IP change propagates; `<agent>.hashi.home.arpa` resolves |
 | S9 | Edge SSO + rules | 06 §2–4, §12, resource rules | SSO login covers two subdomains; rule by CIDR and by country observed; fail-closed behaviour observed with Hashi stopped |
 | S10 | Security engine, WAF, CAPTCHA, blocklists | 06 §5–11, §13–15 | Access logs ingested from real Traefik; synthetic load triggers challenge → Cap solve → clear; escalation to firewall block reaches all hosts; a blocklist fetched and enforced; WAF detect events visible |
-| S11 | Scripts, themes, settings completeness | 09-scripts-settings.md, 10-ui.md §5–5.1, §12 | Scheduled script runs on real hosts with history; all four themes + custom theme pass visual tests; every setting has a consumer test |
+| S11 | Scripts, custom themes, settings completeness | 09-scripts-settings.md, 10-ui.md §2 | Scheduled script runs on real hosts with history; custom theme editor works; visual tests pass in all four themes; every setting has a consumer test |
 | S12 | Hardening + 1.0 | strict vault mode (02 §5.4), backup/restore drill, threat model, docs | Restore from backup onto a fresh container works; strict mode unlock with PRF passkey or recovery key; security scans clean or accepted; tag `v1.0.0` |
 
 Slices may be split further when a PR would exceed the size rule; the gate stays at the slice level.
@@ -72,7 +73,7 @@ Slices may be split further when a PR would exceed the size rule; the gate stays
 | Contract | replay recorded real responses through adapters; drift job re-captures read-only shapes weekly | `make test-contract` |
 | Integration | real binaries in containers: Traefik (pinned), sshd, iptables/ipset in a privileged netns, AdGuard Home, OIDC test provider, SMTP sink | `make test-integration` (CI job with Docker) |
 | E2E | Playwright against a running Hashi with fake/contract-backed providers; WebAuthn via virtual authenticator | `make test-e2e` |
-| Visual | Playwright screenshots per 10-ui.md §12 | `make test-visual` |
+| Visual | Playwright screenshots of key pages per theme and width (10-ui.md §4) | `make test-visual` |
 | Prod-proof | manual/semi-automated checklist on the real deployment | `docs/progress.md` |
 
 Invariant tests (`TestInvariant_*`) run in every CI run. Safety tests from V2 are kept: NS/SOA deletion impossible;

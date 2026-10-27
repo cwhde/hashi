@@ -48,7 +48,9 @@ Domains are validated as FQDNs under the root domain; the internal URL must be a
 
 ### 1.3 DNS provider step
 
-See 03-dns.md §2–3. Collect provider type (Hetzner first), API token, zone, default TTL. Validate read-only (list
+See 03-dns.md §2–3. Collect provider type (Hetzner first), API token, default TTL. Hashi manages exactly **one zone**:
+the zone containing the root domain from step 2 is selected automatically; if the token sees several zones and none
+matches, the user picks one from the list. Other zones the token can see are ignored. Validate read-only (list
 zones, read RRSets). Write capability is only confirmed if the user explicitly approves a probe plan that creates and
 deletes `_hashi-test.<zone>` TXT. Import table: see 03-dns.md §4.
 
