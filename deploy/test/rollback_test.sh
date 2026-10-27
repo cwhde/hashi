@@ -25,6 +25,12 @@ export PATH="$work/bin:$PATH"
 run() { "$work/deploy/deploy.sh" "$@" >"$work/out" 2>&1 || { echo "FAIL: deploy.sh $*"; cat "$work/out"; exit 1; }; }
 tag() { grep HASHI_TAG= "$work/host/app/.env" | cut -d= -f2; }
 
+# Without the master key file the deploy stops before touching the running stack.
+if "$work/deploy/deploy.sh" deploy test A >"$work/out" 2>&1 || ! grep -q "master.key" "$work/out"; then
+  echo "FAIL: deploy without master.key must stop"; cat "$work/out"; exit 1
+fi
+mkdir -p "$work/host/app" && echo key > "$work/host/app/master.key"
+
 run deploy test A
 run deploy test B
 run deploy test B   # redeploy of the same tag must keep A as rollback target

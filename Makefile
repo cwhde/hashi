@@ -81,9 +81,11 @@ rollback: ## return ENV to the tag that was running before the last deploy
 smoke: ## readyz, version, SPA and public listeners on ENV
 	deploy/deploy.sh smoke $(ENV) $(if $(filter command line,$(origin TAG)),$(TAG),)
 
-dev: web-install ## Go backend on :8080 with ./data + Vite dev server on :5173 (proxies /api)
+dev: web-install ## dev build (-tags dev) on :8080 with ./data + Vite on :5173; passkeys work on http://localhost:5173
+	@mkdir -p data && [ -s data/dev-master.key ] || go run ./cmd/hashi keygen > data/dev-master.key
 	@trap 'kill 0' EXIT; \
-	  go run ./cmd/hashi -data-dir ./data -admin-addr 127.0.0.1:8080 -public-apps-addr off -public-status-addr off & \
+	  HASHI_MASTER_KEY_FILE=data/dev-master.key HASHI_DEV_WEBAUTHN_ORIGIN=http://localhost:5173 \
+	  go run -tags dev ./cmd/hashi -data-dir ./data -admin-addr 127.0.0.1:8080 -public-apps-addr off -public-status-addr off & \
 	  cd web && pnpm run dev
 
 clean:

@@ -11,10 +11,18 @@ services:
       - "${HASHI_PUBLIC_STATUS_PORT:-8082}:8082"
     volumes:
       - ${HASHI_DATA_DIR:-./data}:/data
+    secrets: [hashi_master_key]
     environment:
       HASHI_LOG_LEVEL: ${HASHI_LOG_LEVEL:-info}
+      HASHI_MASTER_KEY_FILE: /run/secrets/hashi_master_key
     read_only: true
     tmpfs: [/tmp]
     security_opt:
       - no-new-privileges:true
     cap_drop: [ALL]
+
+# 02-setup-auth.md §5.2: the master key never lives in the image, the repo or the data volume. Create it once next to
+# this file (`hashi keygen`), owned by uid 65532, mode 0400. Back it up in a password manager.
+secrets:
+  hashi_master_key:
+    file: ${HASHI_MASTER_KEY_PATH:-./master.key}

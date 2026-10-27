@@ -40,6 +40,9 @@ up() { # write compose + .env, pull, start
   else
     ssh -o BatchMode=yes "$DEPLOY_SSH" "cat > '$DEPLOY_DIR/compose.yaml.new'" < "$here/compose/compose.yaml"
   fi
+  # The master key is created once on the host by the operator (never by this script, never in the repo).
+  on_host "test -s '$DEPLOY_DIR/master.key'" || { echo "missing $DEPLOY_DIR/master.key on the host:" \
+    "create it once with \`docker run --rm git.juzo.io/juzo/hashi:$t keygen\`, owner 65532, mode 0400"; exit 1; }
   on_host "cd '$DEPLOY_DIR' && mv compose.yaml.new compose.yaml && chmod 600 compose.yaml \
     && cur=\$( (grep -E '^HASHI_TAG=' .env 2>/dev/null || true) | cut -d= -f2) \
     && { [ -z \"\$cur\" ] || [ \"\$cur\" = '$t' ] || echo \"\$cur\" > .previous-tag; } \
