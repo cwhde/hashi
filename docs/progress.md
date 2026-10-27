@@ -5,7 +5,18 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
-**S0b — UI design for all features** · status: not started (needs the user's approval before any feature slice)
+**S0b — UI design for all features** · status: **waiting for the user's approval**
+
+Gate: page inventory, navigation grouping, layout and component rules, tokens for the four themes, every page as a
+clickable mock under `/design` with mock data in all four themes; approved by the user.
+
+- [x] Rules written: `docs/spec/10b-ui-system.md` (tokens, shell, page inventory, component and writing rules)
+- [x] Tokens for Graphite, Warm Linen, Verdant, Violet Night; no-flash theme loading; contrast tests for every theme
+- [x] shadcn-svelte (nova) on Bits UI + Hashi components (Panel, HistoryStrip, PlanReview, AppShell, …)
+- [x] Every page as a clickable mock: 24 pages incl. setup, login, public pages and the visitor challenge (#24)
+- [x] Checked in the browser: all four themes at 1440 px, phone width (375 px), mobile navigation drawer
+- [ ] Deploy to the Docker LXC so the user can click through (needs the user's OK)
+- [ ] User approval → S1 starts
 
 S0 — Walking skeleton · **done** (gate passed 2026-10-27, see Slices)
 
@@ -36,7 +47,7 @@ Decisions made in S0:
 | Slice | Status | Prod-proof (date · version · evidence) |
 | --- | --- | --- |
 | S0 Walking skeleton | **done** | 2026-10-27 · `e7c0a30` · `make deploy ENV=prod TAG=e7c0a30` on the Docker LXC next to V1: smoke from the LAN → `/readyz` `{"checks":{"database":"ok"},"status":"ok"}`, `/api/version` `{"commit":"e7c0a30","version":"e7c0a30"}`, SPA 200, public apps 200, public status 200; container `healthy`, uid 65532, read-only rootfs; restart keeps the DB (no re-migration); V1 and Gatus still up. CI green on the Gitea runners (#17–#23 and main); release published `e7c0a30` = `latest`, amd64 + arm64. |
-| S0b UI design for all features | next | |
+| S0b UI design for all features | mocks done, awaiting approval | |
 | S1 Setup, auth, vault | — | |
 | S2 DNS read + import | — | |
 | S3 DNS write | — | |
@@ -65,6 +76,10 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-10-27 — S0b mocks merged (#24): `docs/spec/10b-ui-system.md` + every page under `/design`. One PR of ~5,500
+  hand-written lines (mostly page mocks reviewed by clicking), kept whole on purpose. Found: the shadcn-svelte nova
+  components need the CLI's `tailwind.css` variants (`data-open` → `data-state="open"` …) that `init` normally writes;
+  vendored as `web/src/lib/styles/shadcn-svelte.css`.
 - 2026-10-27 — S0 gate passed (`e7c0a30` on the Docker LXC). PR sizing rule changed from ~500 lines to per-slice
   reviewable PRs (spec 11-delivery §2.7). V1 image workflow restored for `legacy/v1` (V1 code changes only); CI and
   release skip docs/V1-only changes. README progress bar added. Repo moved out of iCloud-synced `~/Documents`.
