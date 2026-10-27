@@ -2,7 +2,9 @@
 	import type { Snippet } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { nav } from '$lib/design/nav';
+	import { nav as designNav, liveNav } from '$lib/design/nav';
+	import { session } from '$lib/auth/session.svelte';
+	import { time } from '$lib/format';
 	import { theme, themes } from '$lib/theme.svelte';
 	import { cn } from '$lib/utils';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
@@ -21,7 +23,10 @@
 		KeyRound
 	} from '@lucide/svelte';
 
-	let { children }: { children: Snippet } = $props();
+	// live: the real admin app (session from the server, only built pages). Without it the shell shows mock data (/design).
+	let { children, live }: { children: Snippet; live?: { onSignOut: () => void } } = $props();
+	const nav = $derived(live ? liveNav : designNav);
+	const s = $derived(session.current);
 
 	// Rail is 64px; hovering expands it over the content, pinning reserves 240px (10-ui.md §3).
 	let pinned = $state(readPinned());
@@ -111,9 +116,9 @@
 
 {#snippet brand(full: boolean)}
 	<a
-		href="/design"
+		href={live ? '/' : '/design'}
 		class="flex h-[52px] shrink-0 items-center gap-2.5 px-[18px]"
-		aria-label="Hashi design index"
+		aria-label={live ? 'Hashi home' : 'Hashi design index'}
 	>
 		<span
 			class="grid size-7 shrink-0 place-items-center rounded-lg bg-primary text-[15px] font-semibold text-primary-foreground"
@@ -203,13 +208,13 @@
 				onclick={() => (searchOpen = true)}><Search /></Button
 			>
 
-			<a
-				href="/design/changes"
-				class="flex h-8 items-center gap-1.5 rounded-[10px] border border-warn/30 bg-warn/10 px-2.5 text-[13px] font-medium text-warn-text hover:bg-warn/15"
-			>
-				<GitPullRequestArrow class="size-4" />
-				<span class="tnum">2</span><span class="hidden sm:inline">pending changes</span>
-			</a>
+			{#if !live}<a
+					href="/design/changes"
+					class="flex h-8 items-center gap-1.5 rounded-[10px] border border-warn/30 bg-warn/10 px-2.5 text-[13px] font-medium text-warn-text hover:bg-warn/15"
+				>
+					<GitPullRequestArrow class="size-4" />
+					<span class="tnum">2</span><span class="hidden sm:inline">pending changes</span>
+				</a>{/if}
 
 			<span
 				class="hidden h-8 items-center gap-1.5 rounded-[10px] px-2 text-[12.5px] text-muted-foreground xl:flex"
@@ -259,12 +264,17 @@
 					<DropdownMenu.Label class="font-normal">
 						<div class="text-[13px] font-medium">Admin</div>
 						<div class="text-[12px] text-muted-foreground">
-							Session ends 19:10 · bound to 192.0.2.10
+							{#if live}Session ends {time(s?.absolute_expires_at)} · bound to {s?.bound_ip}{:else}Session
+								ends 19:10 · bound to 192.0.2.10{/if}
 						</div>
 					</DropdownMenu.Label>
 					<DropdownMenu.Separator />
-					<DropdownMenu.Item><KeyRound />Passkeys and sessions</DropdownMenu.Item>
-					<DropdownMenu.Item><LogOut />Sign out</DropdownMenu.Item>
+					<DropdownMenu.Item onSelect={() => live && goto('/settings?category=account')}
+						><KeyRound />Passkeys and sessions</DropdownMenu.Item
+					>
+					<DropdownMenu.Item onSelect={() => live?.onSignOut()}
+						><LogOut />Sign out</DropdownMenu.Item
+					>
 				</DropdownMenu.Content>
 			</DropdownMenu.Root>
 		</header>
@@ -279,18 +289,18 @@
 	<Command.Input placeholder="IP, CIDR, ASN, domain or page…" />
 	<Command.List>
 		<Command.Empty>No match. Try an IP like 192.0.2.201 or a domain.</Command.Empty>
-		<Command.Group heading="Security subjects">
-			<Command.Item onSelect={() => (searchOpen = false)}
-				>192.0.2.201 · firewall blocked · NL</Command.Item
-			>
-			<Command.Item onSelect={() => (searchOpen = false)}
-				>AS64502 Example DSL · challenged</Command.Item
-			>
-		</Command.Group>
-		<Command.Group heading="Resources">
-			<Command.Item onSelect={() => (searchOpen = false)}>git.example.com</Command.Item>
-			<Command.Item onSelect={() => (searchOpen = false)}>media.example.com</Command.Item>
-		</Command.Group>
+		{#if !live}<Command.Group heading="Security subjects">
+				<Command.Item onSelect={() => (searchOpen = false)}
+					>192.0.2.201 · firewall blocked · NL</Command.Item
+				>
+				<Command.Item onSelect={() => (searchOpen = false)}
+					>AS64502 Example DSL · challenged</Command.Item
+				>
+			</Command.Group>
+			<Command.Group heading="Resources">
+				<Command.Item onSelect={() => (searchOpen = false)}>git.example.com</Command.Item>
+				<Command.Item onSelect={() => (searchOpen = false)}>media.example.com</Command.Item>
+			</Command.Group>{/if}
 		<Command.Group heading="Pages">
 			{#each nav.flatMap((g) => g.items) as item (item.href)}
 				<Command.Item

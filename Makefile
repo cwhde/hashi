@@ -9,7 +9,7 @@ VERSION   ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo de
 COMMIT    ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 LDFLAGS   := -s -w -X git.juzo.io/juzo/hashi/internal/app.Version=$(VERSION) -X git.juzo.io/juzo/hashi/internal/app.Commit=$(COMMIT)
 
-.PHONY: deploy-test build-config-check help image deploy rollback smoke check fmt-check lint test generate generate-check web-install web-check build-web build dev clean
+.PHONY: test-e2e deploy-test build-config-check help image deploy rollback smoke check fmt-check lint test generate generate-check web-install web-check build-web build dev clean
 
 help: ## list targets
 	@awk 'BEGIN{FS=":.*## "} /^[a-z-]+:.*## /{printf "  %-18s %s\n",$$1,$$2}' $(MAKEFILE_LIST)
@@ -64,6 +64,10 @@ build-web: web-install ## build the SPA into internal/web/dist (embedded by go b
 
 build: build-web ## build bin/hashi (with the SPA) for this machine
 	CGO_ENABLED=0 go build -trimpath -ldflags '$(LDFLAGS)' -o bin/hashi ./cmd/hashi
+
+test-e2e: build-web ## Playwright against a real -tags dev binary (virtual passkey authenticator)
+	CGO_ENABLED=0 go build -tags dev -o bin/hashi-e2e ./cmd/hashi
+	cd web && pnpm exec playwright test
 
 ENV ?= prod
 TAG ?= $(COMMIT)
