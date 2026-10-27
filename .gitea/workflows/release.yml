@@ -1,0 +1,62 @@
+name: Release
+
+# Multi-arch images to git.juzo.io/juzo/hashi on main and v* tags (11-delivery.md §6.1).
+# Never pushes the `old` tag: production V1 runs git.juzo.io/juzo/hashi:old until cutover.
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths-ignore:
+      - "docs/**"
+      - "legacy/**"
+      - "**/*.md"
+  workflow_dispatch:
+
+env:
+  REGISTRY: git.juzo.io
+  IMAGE_NAME: juzo/hashi
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=,format=short
+            type=semver,pattern={{version}}
+
+      - name: Refuse the V1 tag
+        run: |
+          if grep -qE ':old$' <<<"${{ steps.meta.outputs.tags }}"; then echo "refusing to push :old (V1 production tag)"; exit 1; fi
+
+      - name: Short SHA
+        id: sha
+        run: echo "short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ github.ref_type == 'tag' && github.ref_name || steps.sha.outputs.short }}
+            COMMIT=${{ steps.sha.outputs.short }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-v3
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-v3,mode=max,ignore-error=true
