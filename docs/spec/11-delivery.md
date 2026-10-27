@@ -55,7 +55,7 @@ happen at the end of every slice.
 | S1 | Setup, auth, vault | 02-setup-auth.md §1.1–1.2, §2–5 (service mode), audit log, settings framework, Activity page | Bootstrap login from LAN, passkey registered from a real browser, session IP binding observed, restart keeps sessions, secrets encrypted in a DB dump |
 | S2 | DNS read + import | 03-dns.md §1–4 (read side), contract capture for Hetzner | Real zone listed; import table shows real RRSets; decisions persist; fixtures committed (sanitized) |
 | S3 | DNS write | 03-dns.md §5–7, sync engine 01-platform.md §5, approval UI | Probe TXT created + deleted via approved plan; a Hashi-owned test record applied and verified; NS/SOA untouched |
-| S4 | SSH + Traefik | 04-traefik-resources.md §2–6, sshx with host-key pinning, httpreq ACME endpoint | Hashi-installed Traefik running on a fresh edge LXC; rendered files applied; Verify reads routers from the real Traefik API; certificate issued via DNS-01 through Hashi |
+| S4 | SSH + Traefik | 04-traefik-resources.md §2–6, sshx with host-key pinning, Hashi-issued certificates (03 §5.3) | Hashi-installed Traefik running on a fresh edge LXC; rendered files applied; Verify reads routers from the real Traefik API; Hashi issues the root + wildcard certificate via DNS-01, distributes it, and the edge serves it (fingerprint checked); forward-auth fallback observed with Hashi stopped (06 §2.1) |
 | S5 | HTTP resources | 04 §1, §7–8, DNS resource records, system resource (setup steps 7–8) | Hashi admin reachable at its HTTPS domain through Hashi-managed Traefik; one real service migrated and reachable; setup completes end-to-end on the real install |
 | S6 | Firewall + streams | 05-firewall.md, TCP/UDP resources | First apply with rescue timer on a real host; foreign + NetBird rules unchanged (diff of `iptables-save` before/after); public TCP/UDP port reaches its upstream; NetBird access verified |
 | S7 | Monitoring + public pages | 07-monitoring-public.md | All migrated resources monitored; public status + dashboard served on their ports; a real outage produces a notification and recovery |
@@ -135,7 +135,7 @@ Hashi takes over in this order, each step reversible:
 1. **S2–S3 (DNS):** import every RRSet V1 created as `imported`; Hashi's DNS plan for that set must show **no changes**
    while V1 still runs (proves equivalence). V1 keeps writing until step 4.
 2. **S4–S5 (Traefik):** the current reverse proxies are **replaced, not adopted**. Hashi installs its own Traefik
-   (04-traefik-resources.md §2–3, Hashi static config, Hashi paths, new ACME account and certificates) on a fresh edge LXC per
+   (04-traefik-resources.md §2–3, Hashi static config, Hashi paths, certificates issued by Hashi) on a fresh edge LXC per
    host; nothing of the Pangolin-generated or hand-written Traefik config is reused. Every Pangolin resource is recreated as a
    Hashi resource; once the new instance serves them all (verified via its API and real requests), the firewall DNAT target /
    router forward moves to the new LXC. Resources that relied on Pangolin's badger auth stay restricted by IP allowlist rules

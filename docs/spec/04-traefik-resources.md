@@ -53,7 +53,7 @@ Supported OS: Debian, Ubuntu, Alpine. Install flow (over SSH, each step a plan i
 
 1. Detect existing Traefik (binary, service, container) and package manager.
 2. Install Traefik if absent: official release binary for the pinned version + checksum verification (distro packages lag).
-3. Create Hashi directories: `/etc/hashi/traefik`, `/etc/hashi/traefik/dynamic`, `/var/log/hashi/traefik`, `/var/lib/hashi/traefik` (ACME storage, mode 0600).
+3. Create Hashi directories: `/etc/hashi/traefik`, `/etc/hashi/traefik/dynamic`, `/var/log/hashi/traefik`, `/etc/hashi/traefik/certs` (mode 0700, certificate files from Hashi, 03-dns.md §5.3), `/var/lib/hashi/traefik`.
 4. Discover existing configs in common paths (`/etc/traefik`, `/opt/traefik`, compose volumes); show files and summary.
 5. If found: back up to `/var/lib/hashi/traefik/backup/<timestamp>/` and require explicit confirmation before Hashi takes ownership.
 6. Write a systemd unit (Debian/Ubuntu) or OpenRC script (Alpine) running Traefik with Hashi's static config.
@@ -78,7 +78,7 @@ Because Traefik is not installed through the OS package manager, Hashi owns its 
 - Entry points: `web` :80/tcp (redirect to websecure), `websecure` :443/tcp (+ HTTP/3 on 443/udp optional), and one
   entry point per public TCP/UDP resource port, named `tcp-<port>` / `udp-<port>`.
 - Providers: file provider, directory `/etc/hashi/traefik/dynamic`, `watch: true`.
-- Certificate resolvers: `hashi-gts` (Google Trust Services + EAB) and optionally `hashi-le`; DNS-01 via `httpreq` → Hashi (03-dns.md §5.3).
+- No certificate resolvers: certificates are files issued and distributed by Hashi (03-dns.md §5.3), loaded via the file provider's `tls.certificates`.
 - Access log: JSON, `/var/log/hashi/traefik/access.log`, fields limited to what ingestion needs, `Authorization`/`Cookie`/`Set-Cookie` and
   any configured header dropped; rotation via logrotate (Hashi-installed config).
 - General log: JSON, `/var/log/hashi/traefik/traefik.log`.

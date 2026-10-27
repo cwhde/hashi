@@ -11,7 +11,7 @@ done / failed), its validated inputs, and the last error. A step can only be mar
 | 1 | Bootstrap login | yes | Valid bootstrap credentials from an allowed network |
 | 2 | Base settings | yes | Root domain, admin domain, internal Hashi URL, sync interval, public page toggles, theme saved and validated |
 | 3 | DNS provider | yes | Token validated read-only, zone resolved, import decisions saved |
-| 4 | Certificate provider | yes | ACME email + EAB stored, DNS provider bound |
+| 4 | Certificate provider | yes | ACME email + EAB stored, ACME account registered, DNS provider bound |
 | 5 | Traefik connection | yes | SSH validated + host key pinned, OS detected, paths confirmed, ownership confirmed |
 | 6 | Linux firewall host | yes | SSH validated, tools detected, subnets valid, linked to a Traefik connection |
 | 7 | Hashi system resource | yes | DNS + Traefik + firewall plans applied and verified for the admin domain |
@@ -56,7 +56,8 @@ deletes `_hashi-test.<zone>` TXT. Import table: see 03-dns.md §4.
 
 ### 1.4 Certificate provider step
 
-Initial support: Google Trust Services ACME with External Account Binding, DNS-01 via Hetzner. Collect ACME email, EAB
+Hashi itself is the ACME client (03-dns.md §5.3). Initial support: Google Trust Services ACME with External Account
+Binding, DNS-01 via Hetzner. Collect ACME email, EAB
 key ID, EAB HMAC (secret), DNS provider binding, propagation delay, resolver list. Secrets go to the vault. Let's
 Encrypt is offered as a second ACME directory option (no EAB) because it costs nothing to support and is a useful fallback.
 

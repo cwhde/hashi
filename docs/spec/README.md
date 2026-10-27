@@ -112,4 +112,4 @@ host firewall script with its own installs (11-delivery.md §7); the home host i
 - [Go WebAuthn](https://github.com/go-webauthn/webauthn)
 - [sqlc](https://docs.sqlc.dev/)
 - [oapi-codegen](https://github.com/oapi-codegen/oapi-codegen)
-- [lego httpreq provider](https://go-acme.github.io/lego/dns/httpreq/)
+- [lego (ACME client library)](https://go-acme.github.io/lego/)

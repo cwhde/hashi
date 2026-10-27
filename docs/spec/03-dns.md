@@ -103,17 +103,41 @@ AdGuard rewrites never use this override.
 
 Domain modes: root (apex — only A/AAAA, no CNAME; Hashi flattens by resolving `on.<host>` to the host IP), subdomain, full custom domain (must be in a managed zone).
 
-### 5.3 ACME DNS-01
+### 5.3 Certificates (Hashi-issued, distributed as files)
 
-Traefik obtains certificates via DNS-01. Traefik hosts do **not** receive the DNS provider token. Instead, each
-Traefik host's ACME resolver uses lego's `httpreq` provider pointed at Hashi (`/api/acme/httpreq/present|cleanup` on the
-admin listener, internal address), authenticated with a per-Traefik-host credential stored in the vault. Hashi
-validates that the requested `_acme-challenge` name belongs to a resource or system domain Hashi manages, writes the TXT
-via the provider adapter, and removes it on cleanup. These records have origin `system` and are excluded from prune.
+Hashi, not Traefik, obtains all certificates. It runs the ACME client itself (DNS-01 through its own DNS provider
+adapter) and copies the resulting files to every Traefik host. Traefik hosts never talk to an ACME server and never
+see the DNS token.
 
-**Changed from V2:** V2 put the Hetzner token on every Traefik host for lego's legacy Hetzner provider. This keeps one
-token in one place, works with the new Cloud API through Hashi's own adapter, and limits Traefik hosts to their own domains.
-Verify before implementation: the pinned Traefik version's lego build includes `httpreq` (`make contract-capture PROVIDER=traefik-lego`).
+**Which certificates:** Hashi manages one zone, so it derives the certificate set from the names it serves:
+
+- One certificate for the root domain and `*.<root>` (covers every first-level name, e.g. `app.example.com`).
+- For every deeper parent that has served names, one more wildcard: a resource `fra1.ns.example.com` makes Hashi add
+  `*.ns.example.com`. Wildcards cover exactly one level, so the rule is "one wildcard per parent name in use".
+- These are SANs of as few certificates as the CA allows (GTS/LE limit 100 names per certificate); a wildcard that is no
+  longer needed is dropped at the next renewal, never mid-term.
+
+**Lifecycle (job runner, job `certificates.renew`, daily):** issue when a needed name is missing; renew 30 days before
+expiry; on failure retry with backoff and raise a warning (Overview + notification) at 21 days left, critical at 7 days.
+`_acme-challenge` TXT records are written and removed through the normal provider adapter with origin `system` and are
+excluded from prune. ACME account key and certificate private keys are vault secrets (service class).
+
+**Distribution:** a sync plan per Traefik host writes `/etc/hashi/traefik/certs/<name>.crt|.key` (key mode 0600) and the
+dynamic file `/etc/hashi/traefik/dynamic/hashi-certs.yaml` listing them under `tls.certificates`. Every host gets every
+certificate; Traefik picks the matching one per SNI. Verify = TLS handshake to the host for one name per certificate and
+compare the served fingerprint. Distribution is low-risk (no restart; the file provider reloads). Verify before
+implementation that the pinned Traefik version reloads changed certificate files without a restart
+(`make contract-capture PROVIDER=traefik`).
+
+**UI:** Traefik → Certificates tab: each certificate with names, issuer, expiry, last renewal result, per-host
+distribution state, "Renew now" (creates a plan). Runs appear in Activity → Jobs.
+
+**Changed from the earlier draft:** Traefik hosts used to request their own certificates via lego's `httpreq` provider
+pointed at Hashi. With several Traefik hosts each requesting the same names, one host's challenge cleanup deleted the
+other's TXT value (random renewal failures), and every host held an ACME account. Central issuance removes the race,
+the `httpreq` endpoint and per-host ACME storage, uses one ACME account (fewer rate-limit hits), and wildcards keep
+subdomain names out of public certificate-transparency logs. Cost: certificates expire if Hashi is down for weeks
+(warned from 21 days), and every edge host holds the wildcard keys — they already serve every resource.
 
 ## 6. Sync rules
 
@@ -129,7 +153,7 @@ Verify before implementation: the pinned Traefik version's lego build includes `
 `POST /api/dns/records` · `PATCH|DELETE /api/dns/records/{id}` (manual entries),
 `GET /api/dns/import/{zoneId}` · `PUT /api/dns/import/{zoneId}/decisions`,
 `POST /api/dns/plan` · `POST /api/sync/plans/{id}/approve|apply`,
-`POST /api/acme/httpreq/present|cleanup` (Traefik credential auth).
+`GET /api/certificates` · `POST /api/certificates/{id}/renew` (creates a plan).
 
 Manual entry fields: name, type, TTL, values, display name (required when dashboard or monitoring is enabled),
 dashboard visible, monitoring enabled, target source (manual / firewall host / Pulse agent).
