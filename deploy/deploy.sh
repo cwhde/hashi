@@ -41,7 +41,8 @@ up() { # write compose + .env, pull, start
     ssh -o BatchMode=yes "$DEPLOY_SSH" "cat > '$DEPLOY_DIR/compose.yaml.new'" < "$here/compose/compose.yaml"
   fi
   on_host "cd '$DEPLOY_DIR' && mv compose.yaml.new compose.yaml && chmod 600 compose.yaml \
-    && { [ -f .env ] && grep -E '^HASHI_TAG=' .env | cut -d= -f2 > .previous-tag || true; } \
+    && cur=\$( (grep -E '^HASHI_TAG=' .env 2>/dev/null || true) | cut -d= -f2) \
+    && { [ -z \"\$cur\" ] || [ \"\$cur\" = '$t' ] || echo \"\$cur\" > .previous-tag; } \
     && printf 'HASHI_TAG=%s\nHASHI_ADMIN_PORT=%s\nHASHI_PUBLIC_APPS_PORT=%s\nHASHI_PUBLIC_STATUS_PORT=%s\nHASHI_DATA_DIR=%s\n' \
        '$t' '$DEPLOY_ADMIN_PORT' '$DEPLOY_PUBLIC_APPS_PORT' '$DEPLOY_PUBLIC_STATUS_PORT' '$DEPLOY_DATA_DIR' > .env && chmod 600 .env \
     && docker compose pull --quiet && docker compose up -d --remove-orphans && docker compose ps"
