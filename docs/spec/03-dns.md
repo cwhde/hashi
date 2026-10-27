@@ -14,6 +14,11 @@ type Provider interface {
 }
 ```
 
+`Capabilities` includes an optional **ownership marker** (`MarkOwned` / `IsMarkedOwned`) that each provider implements
+in its own way (Hetzner: RRSet labels; another provider: record comments or tags; none: unsupported → skipped). Core DNS
+logic only ever asks the interface; provider-specific fields never leak past the adapter, so adding or swapping a
+provider stays a new module and nothing else.
+
 The unit of ownership and change is the **RRSet** (name + type → TTL + values). Hashi's UI shows records, but plans are
 RRSet operations. Future providers (Cloudflare, Route53, PowerDNS, …) implement the same interface without changes to
 resource logic.
@@ -48,10 +53,10 @@ Adapter requirements:
 Manual DNS tab minimum: A, AAAA, CNAME, MX, TXT. More types (CAA, SRV, …) only if capability discovery reports them.
 
 Ownership (`dns_ownership`): per RRSet, origin ∈ `system` | `managed` | `imported` | `user`, plus `last_applied_hash`.
-The database is authoritative. Where the provider supports it, Hashi also writes a marker (Hetzner: RRSet label
-`hashi.io/owner=<instance-id>`) so ownership survives a DB loss and is visible in the provider console; a label alone never
-grants ownership. RRSets with provider-side change protection (Hetzner `protection.change: true`) are read-only to Hashi.
-A `null` TTL means "zone default" and is preserved as such.
+The database is authoritative. If the provider supports an ownership marker (§1), Hashi also writes it so ownership is
+visible in the provider console and can be re-imported after a DB loss; a marker alone never grants ownership. RRSets the
+provider reports as change-protected are read-only to Hashi. A "zone default" TTL is preserved as such.
+(Hetzner adapter: marker = RRSet label `hashi.io/owner=<instance-id>`, protection = `protection.change`, default TTL = `ttl: null`.)
 
 Conflicts: if Hashi wants an RRSet whose name+type exists but is not owned, the plan contains a `conflict` item — never
 an overwrite. Resolving requires an explicit adopt (import) decision. CNAME exclusivity is validated before planning
