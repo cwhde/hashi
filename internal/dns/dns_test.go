@@ -7,7 +7,7 @@ import (
 )
 
 // caps is the Hetzner adapter's capability set (kept here to avoid an import cycle).
-var caps = Capabilities{ManagedTypes: []string{"A", "AAAA", "CNAME", "MX", "TXT"}, ReadOnlyTypes: []string{"NS", "SOA"}}
+var caps = Capabilities{ManagedTypes: []string{"A", "AAAA", "CNAME", "MX", "TXT", "SRV", "CAA"}, ReadOnlyTypes: []string{"NS", "SOA"}}
 
 func TestInvariant_2_NSSOANeverSelectableForPrune(t *testing.T) {
 	for _, typ := range []string{"NS", "SOA", "ns", "soa"} {
@@ -113,13 +113,22 @@ func TestFQDN(t *testing.T) {
 
 // Review finding (#28): types the provider cannot manage are not importable or prunable (03 §3).
 func TestUnmanagedTypesOnlyLeave(t *testing.T) {
-	for _, typ := range []string{"SRV", "CAA"} {
+	for _, typ := range []string{"TLSA", "PTR", "DS"} {
 		r := Normalize(RRSet{Name: "x", Type: typ, Values: []string{"v"}})
 		if got := AllowedDecisions(r, caps); !slices.Equal(got, []Decision{Leave}) {
 			t.Errorf("%s: allowed = %v", typ, got)
 		}
 		if err := CheckDecision(r, caps, Import); err == nil {
 			t.Errorf("%s: import accepted", typ)
+		}
+	}
+}
+
+func TestSRVAndCAAImportable(t *testing.T) {
+	for _, typ := range []string{"SRV", "CAA"} {
+		r := Normalize(RRSet{Name: "x", Type: typ, Values: []string{"v"}})
+		if got := AllowedDecisions(r, caps); !slices.Equal(got, []Decision{Import, Leave, Prune}) {
+			t.Errorf("%s: allowed = %v", typ, got)
 		}
 	}
 }

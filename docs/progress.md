@@ -37,6 +37,10 @@ Decisions made in PR A:
 - NS/SOA and change-protected RRSets allow only "leave" on the import table; the schema backs this with CHECKs.
 - `dns.refresh` job interval = the sync interval at startup (a changed interval applies after a restart).
 - No 429 response was captured; the adapter acts on the status code and the captured `RateLimit-*` headers only.
+- SRV and CAA are managed types (user's request, spec 03 §3). Hetzner supports 16 types; the others are leave-only.
+- Write contract captured early on the user's OK (2026-10-28): `tools/contract-capture/hetzner_write.py` creates,
+  changes, labels and deletes probe RRSets named `_hashi-test` / `*._hashi-test` of every managed type, plus the error
+  cases; fixtures in `testdata/contracts/hetzner/write/`, nothing left in the zone. S3 builds the write side from these.
 - PR A review (#28) fixed: a token that cannot see the stored zone no longer replaces the stored token (no zone chosen
   → nothing stored); types outside the provider's managed set are leave-only on the import table.
 

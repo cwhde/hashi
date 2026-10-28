@@ -31,7 +31,7 @@ func Dir() string {
 	return filepath.Join(filepath.Dir(file), "..", "..", "..", "..", "testdata", "contracts", "hetzner")
 }
 
-// Load reads one fixture by file name (without directory).
+// Load reads one fixture by its path below Dir (e.g. "zone_get.json", "write/get_a.json").
 func Load(t testing.TB, name string) Fixture {
 	t.Helper()
 	raw, err := os.ReadFile(filepath.Join(Dir(), name)) //nolint:gosec // test fixture path

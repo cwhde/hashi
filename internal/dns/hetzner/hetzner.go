@@ -83,11 +83,11 @@ func New(token secrets.Value, opts ...Option) *Client {
 
 var _ dns.Reader = (*Client)(nil)
 
-// Capabilities are static for Hetzner. AAAA is in the spec's minimum set but not in the captured zone; the write
-// capture in S3 confirms each managed type.
+// Capabilities are static for Hetzner. Every managed type was created, changed and deleted in the probe capture
+// (testdata/contracts/hetzner/write).
 func (c *Client) Capabilities(context.Context) (dns.Capabilities, error) {
 	return dns.Capabilities{
-		ManagedTypes:     []string{"A", "AAAA", "CNAME", "MX", "TXT"},
+		ManagedTypes:     []string{"A", "AAAA", "CNAME", "MX", "TXT", "SRV", "CAA"},
 		ReadOnlyTypes:    []string{"NS", "SOA"},
 		MultiValue:       true,
 		ZoneDefaultTTL:   true,
@@ -125,6 +125,14 @@ type rrsetJSON struct {
 	Records []struct {
 		Value string `json:"value"`
 	} `json:"records"`
+}
+
+func (r rrsetJSON) model() dns.RRSet {
+	vals := make([]string, len(r.Records))
+	for i, rec := range r.Records {
+		vals[i] = rec.Value
+	}
+	return dns.Normalize(dns.RRSet{Name: r.Name, Type: r.Type, TTL: r.TTL, Values: vals, Labels: r.Labels, Protected: r.Protection.Change})
 }
 
 // ListZones returns every zone the token can see (token validation, 03 §2).
@@ -184,13 +192,7 @@ func (c *Client) ListRRSets(ctx context.Context, zone dns.Zone) ([]dns.RRSet, er
 			return err
 		}
 		for _, r := range p.RRSets {
-			vals := make([]string, len(r.Records))
-			for i, rec := range r.Records {
-				vals[i] = rec.Value
-			}
-			out = append(out, dns.Normalize(dns.RRSet{
-				Name: r.Name, Type: r.Type, TTL: r.TTL, Values: vals, Labels: r.Labels, Protected: r.Protection.Change,
-			}))
+			out = append(out, r.model())
 		}
 		return nil
 	})
