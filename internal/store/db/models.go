@@ -54,6 +54,63 @@ type BootstrapCredential struct {
 	CreatedAt    int64
 }
 
+type DnsImportDecision struct {
+	ZoneID    string
+	Name      string
+	Type      string
+	Decision  string
+	DecidedAt int64
+}
+
+type DnsObservedRrset struct {
+	ZoneID     string
+	Name       string
+	Type       string
+	Ttl        sql.NullInt64
+	ValuesJson string
+	LabelsJson string
+	Protected  int64
+	Hash       string
+	ObservedAt int64
+}
+
+type DnsOwnership struct {
+	ZoneID          string
+	Name            string
+	Type            string
+	Origin          string
+	LastAppliedHash string
+	CreatedAt       int64
+	UpdatedAt       int64
+}
+
+type DnsProvider struct {
+	ID                  string
+	Name                string
+	Type                string
+	Enabled             int64
+	DefaultTtl          int64
+	TokenSecretID       string
+	Health              string
+	LastValidatedAt     sql.NullInt64
+	LastValidationError string
+	DeletionPolicy      string
+	CreatedAt           int64
+	UpdatedAt           int64
+}
+
+type DnsZone struct {
+	ID               string
+	ProviderID       string
+	ProviderZoneID   string
+	Name             string
+	ZoneTtl          int64
+	LastRefreshedAt  sql.NullInt64
+	LastRefreshError string
+	RrsetCount       int64
+	CreatedAt        int64
+}
+
 type Job struct {
 	Kind            string
 	IntervalSeconds int64
