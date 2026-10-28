@@ -34,7 +34,7 @@ hosts after setup (both before the V1 cutover, with S6's edge move).
 PR A — backend
 - [x] Migration 00006: `services` (name, slug, kind http/https/h2c, domain mode + host name, enabled, origin, owning
       feature, dashboard/monitoring/AdGuard flags, target scheme/address/port, `https` options insecureSkipVerify +
-      serverName, TLS min version, advanced-routes flag, invalid reason, sync state) and `service_routes` (ULID, enabled,
+      serverName, TLS min version, advanced-routes flag) and `service_routes` (ULID, enabled,
       targets with weights, path match prefix/exact/regex, value, priority, rewrite mode + params); sqlc.
 - [x] `internal/services`: model, validation (04 §1.5: FQDN inside the managed zone, reserved labels, ports, RE2 at
       save, paths start with `/`, IPv6 bracketed), invalid services excluded from rendering, the Hashi system service
@@ -64,6 +64,14 @@ Decisions made in PR A:
 - A service change starts the certificate job at once when a name is not covered (`jobs.Runner.Soon`); setup step 7
   issues synchronously, like step 4's "Issue now".
 - Deleting a service needs a fresh passkey; the resulting Traefik plan is low risk (dynamic files only).
+- A service's invalid reason is computed on every read (against the current root and zone), not stored; its sync state
+  is the hosts' (per-file `last_applied_hash` in `traefik_files`), since every host receives every service.
+- Review #34 (reproduced, regression tests added): a failed admin-domain change (name taken) no longer stays saved
+  while the system service stays behind (`TestAdminDomainChangeIsAllOrNothing`); routes are validated while advanced
+  routes are off (they are stored either way). New scope `services.manage`, also on bootstrap sessions (spec
+  0e502cc), so the gate's service can be added before setup completes; `TestServicesAPI` covers the API over HTTP.
+- CI found that Traefik rejects a dynamic file with only `http: {}` and then drops every file of the provider; the
+  services file is comments only while no service renders (contract finding 7).
 
 PR B — UI + deploy
 - [ ] `/services` list and service page from the mocks (target, routes, rewrites, TLS, flags, rendered config;

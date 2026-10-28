@@ -62,9 +62,7 @@ func Validate(s Service, n Names) error {
 	default:
 		return invalid("tls_min_version", "must be empty, %s or %s", TLS12, TLS13)
 	}
-	if !s.AdvancedRoutes {
-		return nil
-	}
+	// Routes are stored even while advanced routes are off (the toggle keeps them), so they are always checked.
 	seen := map[int]bool{}
 	for i, r := range s.Routes {
 		if err := validateRoute(fmt.Sprintf("routes[%d]", i), r); err != nil {

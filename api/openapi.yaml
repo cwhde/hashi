@@ -882,7 +882,7 @@ paths:
       operationId: listServices
       summary: Every service, system services first, with the reason when one cannot be rendered
       tags: [services]
-      x-hashi-scopes: [admin.read]
+      x-hashi-scopes: [services.manage]
       responses:
         "200":
           description: Services
@@ -892,7 +892,7 @@ paths:
       operationId: createService
       summary: Add a service; every Traefik host is planned right away (low-risk plans apply) and a needed certificate name is issued in the background
       tags: [services]
-      x-hashi-scopes: [admin.write]
+      x-hashi-scopes: [services.manage]
       requestBody:
         required: true
         content: { application/json: { schema: { $ref: "#/components/schemas/ServiceInput" } } }
@@ -906,7 +906,7 @@ paths:
       operationId: getService
       summary: One service
       tags: [services]
-      x-hashi-scopes: [admin.read]
+      x-hashi-scopes: [services.manage]
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
       responses:
@@ -918,7 +918,7 @@ paths:
       operationId: updateService
       summary: Replace a user service's fields and routes (system services change only through their owning setting)
       tags: [services]
-      x-hashi-scopes: [admin.write]
+      x-hashi-scopes: [services.manage]
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
       requestBody:
@@ -933,7 +933,7 @@ paths:
       operationId: deleteService
       summary: Delete a user service and remove it from every Traefik host
       tags: [services]
-      x-hashi-scopes: [admin.write]
+      x-hashi-scopes: [services.manage]
       x-hashi-reauth: true
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
@@ -947,7 +947,7 @@ paths:
       operationId: enableService
       summary: Turn a user service on (it is rendered again)
       tags: [services]
-      x-hashi-scopes: [admin.write]
+      x-hashi-scopes: [services.manage]
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
       responses:
@@ -960,7 +960,7 @@ paths:
       operationId: disableService
       summary: Turn a user service off (it stays stored, absent from the rendered files)
       tags: [services]
-      x-hashi-scopes: [admin.write]
+      x-hashi-scopes: [services.manage]
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
       responses:
@@ -973,7 +973,7 @@ paths:
       operationId: getServiceEffective
       summary: The routers, middlewares and services Hashi renders for this service (rendered config preview)
       tags: [services]
-      x-hashi-scopes: [admin.read]
+      x-hashi-scopes: [services.manage]
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
       responses:

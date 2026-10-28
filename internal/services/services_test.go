@@ -175,6 +175,17 @@ func TestValidate(t *testing.T) {
 		"rewrite empty": route(func(r *Route) { r.RewriteMode = RewriteRegex; r.RewritePattern = "^/x(.*)" }),
 		"value no mode": route(func(r *Route) { r.RewriteValue = "/y" }),
 		"priority":      route(func(r *Route) { r.Priority = 0 }),
+		"routes off, bad route": func() Service {
+			s := route(func(r *Route) { r.PathMatch = "glob" })
+			s.AdvancedRoutes = false
+			return s
+		}(),
+		"routes off, same priority": func() Service {
+			s := route(func(*Route) {})
+			s.Routes = append(s.Routes, s.Routes[0])
+			s.AdvancedRoutes = false
+			return s
+		}(),
 	}
 	for name, s := range bad {
 		var ie *InvalidError
