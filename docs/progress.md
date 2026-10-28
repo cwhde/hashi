@@ -482,6 +482,11 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-10-29 — Deploy `24bef01` (S5: #34 + #35) to prod: smoke ok (readyz, version, SPA, public 200). S5 gate started:
+  step 7 issued the certificate with `*.hashi.<root>` (Google Trust Services, 3 names) but its Traefik plan failed
+  Verify on the Fedora dev edge, which Traefik had loaded 2 s later; with a second finding (general log not reopened
+  after rotation) fixed in `6f7d938` (reproduced in the integration tests first). Gate continues after that deploy.
+
 - 2026-10-28 — With the user's OK: host A got a daily `lxc-fstrim.timer` (runs `pct fstrim` for every running LXC;
   CI leaves ~15 GB of deleted blocks allocated per run, which caused the incident below), and the real zone got the
   manual record `dev.hashi` A → the Alpine edge's internal address (S5 gate admin name; outside Hashi's ownership,
