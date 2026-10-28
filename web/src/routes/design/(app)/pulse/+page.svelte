@@ -16,7 +16,7 @@
 
 <PageHeader
 	title="Pulse"
-	description="Small agents that report a machine's current addresses. Resources and connections can follow an agent instead of a fixed IP."
+	description="Small agents that report a machine's current addresses. Put an agent in an IP set and firewall rules, DNS values, upstreams and connections follow its address."
 >
 	{#snippet actions()}<Button onclick={() => (open = true)}><Plus />Add agent</Button>{/snippet}
 </PageHeader>

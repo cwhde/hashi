@@ -19,7 +19,7 @@
 
 <PageHeader
 	title="Status"
-	description="Built-in monitoring for resources, hosts, connections and your own checks."
+	description="Built-in monitoring for services, hosts, connections and your own checks."
 >
 	{#snippet actions()}<Button><Plus />Add check</Button>{/snippet}
 </PageHeader>

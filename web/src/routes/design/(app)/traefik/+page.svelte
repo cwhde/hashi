@@ -11,8 +11,8 @@
 
 	const files = [
 		{ f: '00-hashi-core.yml', what: 'Default middlewares', state: 'same' },
-		{ f: '10-hashi-http-resources.yml', what: 'HTTP routers and services', state: 'differs' },
-		{ f: '20-hashi-stream-resources.yml', what: 'TCP/UDP routers', state: 'same' },
+		{ f: '10-hashi-http-services.yml', what: 'HTTP routers and services', state: 'differs' },
+		{ f: '20-hashi-stream-services.yml', what: 'TCP/UDP routers', state: 'same' },
 		{ f: '30-user-middlewares.yml', what: 'Your middlewares', state: 'same' },
 		{ f: '40-hashi-security.yml', what: 'WAF and rate limits', state: 'same' },
 		{ f: '90-hashi-health.yml', what: 'Health routers', state: 'same' }
@@ -21,7 +21,7 @@
 
 <PageHeader
 	title="Traefik"
-	description="Every Traefik host gets every enabled resource; DNS decides which one receives traffic. Hashi installs, configures and updates Traefik itself."
+	description="Every Traefik host gets every enabled service; DNS decides which one receives traffic. Hashi installs, configures and updates Traefik itself."
 >
 	{#snippet actions()}<Button><Plus />Add Traefik host</Button>{/snippet}
 </PageHeader>
@@ -91,7 +91,7 @@
 	<Tabs.Content value="middlewares">
 		<Panel
 			title="30-user-middlewares.yml"
-			description="Middlewares you write here can be switched on per resource. Invalid YAML keeps the last applied file."
+			description="Middlewares you write here can be switched on per service. Invalid YAML keeps the last applied file."
 			flush
 		>
 			{#snippet actions()}<Button size="sm">Validate and plan</Button>{/snippet}

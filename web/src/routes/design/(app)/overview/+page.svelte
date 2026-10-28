@@ -10,7 +10,7 @@
 	import Tag from '$lib/components/hashi/Tag.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import {
-		resources,
+		services,
 		firewallHosts,
 		traefikHosts,
 		plans,
@@ -22,11 +22,11 @@
 	import { Settings2, ArrowUpRight } from '@lucide/svelte';
 
 	const counts = {
-		up: resources.filter((r) => r.health === 'up').length,
-		degraded: resources.filter((r) => r.health === 'degraded').length,
-		down: resources.filter((r) => r.health === 'down').length
+		up: services.filter((r) => r.health === 'up').length,
+		degraded: services.filter((r) => r.health === 'degraded').length,
+		down: services.filter((r) => r.health === 'down').length
 	};
-	const attention = resources.filter(
+	const attention = services.filter(
 		(r) => r.health === 'down' || r.health === 'degraded' || r.sync === 'invalid'
 	);
 </script>
@@ -44,7 +44,7 @@
 <!-- Pending high-risk plans are surfaced first after login (10-ui.md §3). -->
 <div class="mb-5 grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
 	<PlanReview {...plans[0]!} compact />
-	<Panel title="Needs attention" description="{attention.length} resources">
+	<Panel title="Needs attention" description="{attention.length + 1} items">
 		<ul class="divide-y">
 			{#each attention as r (r.id)}
 				<li class="flex items-center gap-3 py-2.5">
@@ -59,17 +59,32 @@
 					<Button
 						variant="ghost"
 						size="icon-sm"
-						href="/design/resources/{r.id}"
+						href="/design/services/{r.id}"
 						aria-label="Open {r.name}"><ArrowUpRight /></Button
 					>
 				</li>
 			{/each}
+			<li class="flex items-center gap-3 py-2.5">
+				<StatusDot state="degraded" />
+				<div class="min-w-0 flex-1">
+					<div class="truncate text-[13.5px] font-medium">feed-dc-ranges is stale</div>
+					<div class="truncate text-[12.5px] text-muted-foreground">
+						Last fetch failed 9 h ago (HTTP 503). datacenters uses the last good copy for 63 h more.
+					</div>
+				</div>
+				<Button
+					variant="ghost"
+					size="icon-sm"
+					href="/design/ip-sets/s-dcfeed"
+					aria-label="Open feed-dc-ranges"><ArrowUpRight /></Button
+				>
+			</li>
 		</ul>
 	</Panel>
 </div>
 
 <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-	<Panel title="Resource health" description="{resources.length} resources · last 60 min">
+	<Panel title="Service health" description="{services.length} services · last 60 min">
 		<div class="mb-3 flex gap-5 text-[13px]">
 			<span><span class="tnum text-[20px] font-semibold text-ok-text">{counts.up}</span> up</span>
 			<span
@@ -80,7 +95,7 @@
 			>
 		</div>
 		<div class="space-y-2">
-			{#each resources.slice(1, 6) as r (r.id)}
+			{#each services.slice(1, 6) as r (r.id)}
 				<div class="grid grid-cols-[7rem_1fr] items-center gap-3">
 					<span class="truncate text-[12.5px]">{r.name}</span>
 					<HistoryStrip samples={r.history} labels={false} />

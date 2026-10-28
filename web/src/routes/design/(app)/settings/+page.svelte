@@ -54,7 +54,7 @@
 	const widgets = [
 		'Pending changes',
 		'Needs attention',
-		'Resource health',
+		'Service health',
 		'Edge hosts',
 		'Sync state',
 		'Security',

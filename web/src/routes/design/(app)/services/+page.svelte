@@ -13,7 +13,8 @@
 	import * as Select from '$lib/components/ui/select';
 	import * as ToggleGroup from '$lib/components/ui/toggle-group';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import { resources } from '$lib/design/mock';
+	import { services } from '$lib/design/mock';
+	import IpSetPicker from '$lib/components/hashi/security/IpSetPicker.svelte';
 	import { Plus, Search, MoreHorizontal, Lock } from '@lucide/svelte';
 
 	let q = $state('');
@@ -21,9 +22,10 @@
 	let addOpen = $state(false);
 	let newKind = $state('http');
 	const rows = $derived(
-		resources.filter(
+		services.filter(
 			(r) =>
-				(kind === 'all' ||
+				(!kind ||
+					kind === 'all' ||
 					(kind === 'http'
 						? ['http', 'https', 'h2c'].includes(r.kind)
 						: ['tcp', 'udp'].includes(r.kind))) &&
@@ -33,11 +35,11 @@
 </script>
 
 <PageHeader
-	title="Resources"
-	description="Services Hashi publishes. Each one gets DNS, a Traefik route, firewall openings and monitoring from this one record."
+	title="Services"
+	description="What Hashi publishes. Each service gets DNS, a Traefik route, firewall openings, access rules and monitoring from this one record."
 >
 	{#snippet actions()}
-		<Button onclick={() => (addOpen = true)}><Plus />Add resource</Button>
+		<Button onclick={() => (addOpen = true)}><Plus />Add service</Button>
 	{/snippet}
 </PageHeader>
 
@@ -49,7 +51,7 @@
 				bind:value={q}
 				placeholder="Filter by name or domain"
 				class="pl-8"
-				aria-label="Filter resources"
+				aria-label="Filter services"
 			/>
 		</div>
 		<ToggleGroup.Root type="single" bind:value={kind} variant="outline" size="sm">
@@ -58,13 +60,13 @@
 			<ToggleGroup.Item value="stream">TCP/UDP</ToggleGroup.Item>
 		</ToggleGroup.Root>
 		<span class="ml-auto text-[12.5px] text-muted-foreground"
-			>{rows.length} of {resources.length}</span
+			>{rows.length} of {services.length}</span
 		>
 	</div>
 	<Table.Root>
 		<Table.Header>
 			<Table.Row>
-				<Table.Head class="pl-4">Resource</Table.Head>
+				<Table.Head class="pl-4">Service</Table.Head>
 				<Table.Head class="hidden md:table-cell">Target</Table.Head>
 				<Table.Head class="hidden lg:table-cell">Access</Table.Head>
 				<Table.Head class="hidden w-56 xl:table-cell">Last 60 min</Table.Head>
@@ -76,7 +78,7 @@
 			{#each rows as r (r.id)}
 				<Table.Row class={r.enabled ? '' : 'opacity-60'}>
 					<Table.Cell class="pl-4">
-						<a href="/design/resources/{r.id}" class="group block">
+						<a href="/design/services/{r.id}" class="group block">
 							<span class="flex items-center gap-2 font-medium group-hover:underline">
 								{r.name}
 								{#if r.origin === 'system'}<Tag><Lock class="size-3" />system</Tag>{/if}
@@ -91,11 +93,16 @@
 						<div class="flex items-center gap-2">
 							<Tag>{r.kind.toUpperCase()}</Tag><Mono class="text-muted-foreground">{r.target}</Mono>
 						</div>
-						<div class="mt-0.5 text-[12px] text-muted-foreground">via {r.host}</div>
+						<div class="mt-0.5 text-[12px] text-muted-foreground">
+							{#if r.upstreamSet}follows <span class="font-medium">{r.upstreamSet}</span> ·
+							{/if}via {r.host}
+						</div>
 					</Table.Cell>
 					<Table.Cell class="hidden lg:table-cell">
-						<div class="text-[13px]">{r.auth}</div>
-						<div class="text-[12px] text-muted-foreground">WAF {r.waf}</div>
+						<div class="max-w-64 truncate text-[13px]">{r.access}</div>
+						<div class="text-[12px] text-muted-foreground">
+							{['tcp', 'udp'].includes(r.kind) ? 'L4 service' : 'WAF ' + r.waf.replace('_', ' ')}
+						</div>
 					</Table.Cell>
 					<Table.Cell class="hidden xl:table-cell"
 						><HistoryStrip samples={r.history} labels={false} /></Table.Cell
@@ -139,7 +146,7 @@
 <Sheet.Root bind:open={addOpen}>
 	<Sheet.Content class="w-full sm:max-w-xl">
 		<Sheet.Header>
-			<Sheet.Title>Add resource</Sheet.Title>
+			<Sheet.Title>Add service</Sheet.Title>
 			<Sheet.Description
 				>Saving creates a plan. Nothing is published until it is applied.</Sheet.Description
 			>
@@ -173,24 +180,28 @@
 			<fieldset class="space-y-2">
 				<legend class="mb-1.5 text-[13px] font-medium">Upstream</legend>
 				<div class="grid grid-cols-[6rem_1fr_6rem] gap-2">
-					<Input value="http" aria-label="Scheme" /><Input
-						value="10.20.1.102"
-						aria-label="Host"
+					<Input value="http" aria-label="Scheme" /><IpSetPicker
+						value="media-upstream"
+						addressOnly
 					/><Input value="2283" aria-label="Port" />
 				</div>
 				<p class="text-[12.5px] text-muted-foreground">
-					Or point at a Pulse agent so the target follows its IP.
+					The target is an IP set of addresses: a fixed IP, a host, a DNS name or a Pulse agent, so
+					it follows the machine when its IP changes.
 				</p>
 			</fieldset>
 			<div class="space-y-3 rounded-xl border p-3">
 				<div class="flex items-center justify-between gap-3">
 					<div>
-						<div class="text-[13px] font-medium">Sign-in</div>
+						<div class="text-[13px] font-medium">Access</div>
 						<div class="text-[12.5px] text-muted-foreground">
-							SSO required, adaptive, observe or off
+							Open or closed to everyone not matched by a rule; add rules after saving
 						</div>
 					</div>
-					<Tag tone="accent">SSO required</Tag>
+					<ToggleGroup.Root type="single" value="none" variant="outline" size="sm">
+						<ToggleGroup.Item value="none">Open</ToggleGroup.Item>
+						<ToggleGroup.Item value="deny">Closed</ToggleGroup.Item>
+					</ToggleGroup.Root>
 				</div>
 				<div class="flex items-center justify-between gap-3">
 					<Label for="s1">Show on app dashboard</Label><Switch id="s1" checked />
@@ -203,7 +214,8 @@
 				</div>
 			</div>
 			<p class="text-[12.5px] text-muted-foreground">
-				Advanced routes, rewrites, TLS options and rules are on the resource page after saving.
+				Advanced routes, rewrites, TLS options, rules and WAF per path are on the service page after
+				saving.
 			</p>
 		</div>
 		<Sheet.Footer class="flex-row justify-end gap-2 border-t">

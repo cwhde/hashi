@@ -2,9 +2,9 @@
 
 The rules every page follows. The clickable mocks for every page live in the SPA under `/design` (index at `/design`);
 feature slices build the real page at the same path without `/design` and replace the mock data with the generated API
-client. Where this file and a mock disagree, this file wins and the mock gets fixed. The mocks for Resources, Security, Subject,
-Firewall and the resource Rules tab predate the security model (ADR 0002); they and the new IP set, rule set and address
-pages are redone after the user signs off the model. Intent and palettes: [10-ui.md](10-ui.md).
+client. Where this file and a mock disagree, this file wins and the mock gets fixed. Services, Firewall, Security, IP sets,
+rule sets and the address page follow the security model (ADR 0002); their mock data lives in `web/src/lib/design/security.ts`
+and the shared security components in `web/src/lib/components/hashi/security/`. Intent and palettes: [10-ui.md](10-ui.md).
 
 ## 1. Tokens
 

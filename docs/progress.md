@@ -68,7 +68,9 @@ Done on the branch:
 
 After sign-off (phase 2):
 - [x] Merge the spec branch (docs → `main`).
-- [ ] Redo the affected S0b mocks (Services, Security, address page, IP sets, rule sets, Firewall) and get them approved.
+- [x] Redo the affected S0b mocks (Services, Security incl. Counters, address page, IP sets, rule sets, Firewall) —
+      branch `s0b-security-mocks`.
+- [ ] Get the redone mocks approved by the user.
 - [ ] Check built code for the rename and the model: S1 code has no security engine; only the design mocks, nav and
       mock data use "resources"/subjects.
 - [ ] Then continue with S2.

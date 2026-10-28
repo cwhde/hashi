@@ -7,18 +7,22 @@
 	const notes: Record<string, string> = {
 		'/design/overview':
 			'Pending plans first, then health, hosts, sync, security, certificates, activity',
-		'/design/resources':
-			'Dense table, add-resource drawer · detail: summary strip + Routing / Access / Rules / Monitoring / Config tabs',
+		'/design/services':
+			'Dense table, add-service drawer · detail: Routing / Access (rules, flattened path, try a request) / WAF per path / Monitoring / Config',
 		'/design/dns':
 			'Inline row editing, generated toggle, import decisions, AdGuard, internal agent names',
 		'/design/traefik': 'Hosts with files and updates, middleware editor, certificates',
-		'/design/firewall': 'Hosts, allowlist · detail: rescue, NetBird, ports, live ruleset, script',
+		'/design/firewall':
+			'Global allow/block sets, hosts · detail: rescue, NetBird, host link, ports, host access, kernel sets, ruleset',
 		'/design/pulse': 'Agents table, install drawer',
 		'/design/status':
 			'Grouped endpoint cards with history strips, notifications · detail with charts',
 		'/design/app-display': 'What the public dashboard and status page show',
 		'/design/security':
-			'Dashboard, blocks, blocklists, challenge, sign-in providers, policies · subject detail with decision trace',
+			'Dashboard, counters (filter, edit, reset), challenge, sign-in providers, engine settings',
+		'/design/ip-sets':
+			'Every set with kind and lock · detail: items, resolved, used by, feed · address page with trace',
+		'/design/rule-sets': 'Global and reusable rule sets · detail: ordered entries, rule editor',
 		'/design/scripts': 'Editor, targets, schedule, run history',
 		'/design/activity': 'Audit log, jobs, live log',
 		'/design/connections': 'Every external system with health',
