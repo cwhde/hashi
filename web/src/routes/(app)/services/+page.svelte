@@ -21,6 +21,7 @@
 		domainMode,
 		kinds,
 		kindText,
+		rootDomain,
 		saveText,
 		slugify,
 		targetText,
@@ -48,11 +49,10 @@
 	);
 
 	async function load() {
-		const [s, g] = await Promise.all([api.GET('/api/services'), api.GET('/api/settings/general')]);
+		const [s, r] = await Promise.all([api.GET('/api/services'), rootDomain()]);
 		if (s.error || !s.data) throw s.error;
-		if (g.error || !g.data) throw g.error;
 		list = s.data.services;
-		root = g.data.root_domain;
+		root = r;
 		loaded = true;
 	}
 	onMount(() => load().catch((e) => (loadError = problemText(e))));

@@ -1,5 +1,5 @@
 // Helpers for the service pages (04-traefik-services.md §1).
-import type { Schemas } from '$lib/api/client';
+import { api, type Schemas } from '$lib/api/client';
 
 export type Service = Schemas['Service'];
 export type ServiceInput = Schemas['ServiceInput'];
@@ -114,4 +114,13 @@ export function saveText(r: { plans: Schemas['SyncPlan'][]; certificate_pending:
 		review: waiting.length > 0,
 		bad: failed.length > 0
 	};
+}
+
+/** The root domain: General settings for admins, the setup state for a setup session (it has no settings scope). */
+export async function rootDomain(): Promise<string> {
+	const g = await api.GET('/api/settings/general');
+	if (g.data) return g.data.root_domain;
+	const st = await api.GET('/api/setup');
+	if (st.error || !st.data) throw st.error;
+	return st.data.base_settings?.root_domain ?? '';
 }

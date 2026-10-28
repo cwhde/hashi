@@ -49,6 +49,12 @@
 		<p class="flex items-center gap-2 text-[13.5px]">
 			<Check class="size-4 text-ok-text" />This page came through Hashi's Traefik over HTTPS.
 		</p>
+		<p class="mt-2 text-[13px] text-muted-foreground">
+			You can move services to Hashi now, before setup is finished: <a
+				href="/services"
+				class="underline underline-offset-2">Services</a
+			>.
+		</p>
 	{:else if step?.status === 'done'}
 		<p class="flex items-center gap-2 text-[13.5px]">
 			<Check class="size-4 text-ok-text" />Done. Continue on <Mono>https://{admin}</Mono>: passkeys

@@ -120,15 +120,16 @@
 			});
 			if (res.error || !res.data) throw res.error;
 			setImport(res.data);
-			saved = 'Decisions saved.';
 			// The server planned the removals (03 §4: their own high-risk plan); this reads that plan back. Imports go out
 			// with the next records plan.
 			const prune = await api.POST('/api/dns/prune', { body: { zone_id: zone.id } });
 			if (prune.error) throw prune.error;
 			const plan = await api.POST('/api/dns/plan', { body: { zone_id: zone.id } });
 			if (plan.error) throw plan.error;
+			// Only now: a reload right after the message must not cancel the plans above (it did in E2E runs, and the
+			// imports' owner labels then went out with the next unrelated save).
+			saved = 'Decisions saved.';
 			if (prune.data?.plan) {
-				saved = 'Decisions saved.';
 				outcome = {
 					text: `${prune.data.plan.items.length} records are marked for removal. Removing them needs your approval.`,
 					review: true

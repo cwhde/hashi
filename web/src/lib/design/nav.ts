@@ -71,3 +71,8 @@ export const liveNav = nav
 			.filter((i) => built.has(i.href))
 	}))
 	.filter((g) => g.items.length > 0);
+
+// A setup session (before passkey sign-in exists) sees only the services pages.
+export const setupNav = liveNav
+	.map((g) => ({ ...g, items: g.items.filter((i) => i.href === '/services') }))
+	.filter((g) => g.items.length > 0);

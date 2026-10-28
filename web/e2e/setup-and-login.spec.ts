@@ -159,6 +159,10 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 		data: { nonce }
 	});
 	expect(ok.status()).toBe(200);
+	// Before setup finishes, the setup session can already use the services pages (02 §3.3), and nothing else.
+	await page.goto(`${state.baseURL}/services`);
+	await expect(page.getByRole('link', { name: /Hashi\s*system/ })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'DNS' })).toHaveCount(0);
 	await page.goto(`${state.baseURL}/setup`);
 
 	// Step 9: passkey, then recovery key with its checksum group.
@@ -301,6 +305,11 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByRole('button', { name: 'Turn off' }).click();
 	await expect(page.getByRole('status')).toContainText('applied on 1 Traefik host');
 	await expect(page.getByText('Off', { exact: true })).toBeVisible();
+	// Deleting asks for the passkey (reauth), then the service is gone.
+	await page.getByRole('button', { name: 'Delete' }).click();
+	await page.getByRole('button', { name: 'Delete service' }).click();
+	await expect(page).toHaveURL(/\/services$/);
+	await expect(page.getByRole('link', { name: /^Search/ })).toHaveCount(0);
 
 	// Account: the passkey and this session; the last passkey cannot be deleted.
 	await page.goto(`${state.baseURL}/settings?category=account`);

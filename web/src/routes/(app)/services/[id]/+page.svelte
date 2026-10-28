@@ -15,6 +15,7 @@
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { ChevronLeft, CircleAlert, Lock, Plus, Trash2 } from '@lucide/svelte';
 	import { api, problemText } from '$lib/api/client';
+	import { withReauth } from '$lib/auth/reauth';
 	import { pendingPlans } from '$lib/sync-pending.svelte';
 	import {
 		domainMode,
@@ -23,6 +24,7 @@
 		newRoute,
 		parseTargets,
 		rewriteText,
+		rootDomain,
 		saveText,
 		targetText,
 		toInput,
@@ -47,14 +49,13 @@
 	const system = $derived(svc?.origin === 'system');
 
 	async function load() {
-		const [s, g] = await Promise.all([
+		const [s, r] = await Promise.all([
 			api.GET('/api/services/{id}', { params: { path: { id } } }),
-			api.GET('/api/settings/general')
+			rootDomain()
 		]);
 		if (s.error || !s.data) throw s.error;
-		if (g.error || !g.data) throw g.error;
 		svc = s.data;
-		root = g.data.root_domain;
+		root = r;
 		edit = toInput(s.data);
 		targetsText = s.data.routes.map((r) =>
 			r.targets
@@ -101,6 +102,11 @@
 				target: { address: edit.target.address.trim(), port: Number(edit.target.port) },
 				routes
 			};
+			// Upstream TLS options belong to https only; their fields are hidden for the other kinds.
+			if (body.kind !== 'https') {
+				body.tls_skip_verify = false;
+				body.tls_server_name = '';
+			}
 			const res = await api.PUT('/api/services/{id}', { params: { path: { id } }, body });
 			if (res.error || !res.data) throw res.error;
 			outcome = saveText(res.data);
@@ -119,8 +125,7 @@
 	async function remove() {
 		busy = 'delete';
 		try {
-			const res = await api.DELETE('/api/services/{id}', { params: { path: { id } } });
-			if (res.error) throw res.error;
+			await withReauth(() => api.DELETE('/api/services/{id}', { params: { path: { id } } }));
 			await pendingPlans.refresh();
 			goto('/services');
 		} catch (e) {
@@ -245,6 +250,8 @@
 		<Tabs.List class="mb-4">
 			<Tabs.Trigger value="routing">Routing</Tabs.Trigger>
 			<Tabs.Trigger value="access">Access</Tabs.Trigger>
+			<Tabs.Trigger value="waf">WAF</Tabs.Trigger>
+			<Tabs.Trigger value="monitoring">Monitoring</Tabs.Trigger>
 			<Tabs.Trigger value="config">Rendered config</Tabs.Trigger>
 		</Tabs.List>
 
@@ -428,9 +435,27 @@
 		<Tabs.Content value="access">
 			<Panel title="Access">
 				<p class="text-[13px] text-muted-foreground">
-					Rules, sign-in and the WAF arrive in later slices. Until then Hashi's forward auth sits in
-					front of this service and lets every request through; if Hashi is unreachable the service
-					stays open.
+					Rules and sign-in arrive in a later slice. Until then Hashi's forward auth sits in front
+					of this service and lets every request through; if Hashi is unreachable the service stays
+					open.
+				</p>
+			</Panel>
+		</Tabs.Content>
+
+		<Tabs.Content value="waf">
+			<Panel title="WAF">
+				<p class="text-[13px] text-muted-foreground">
+					The web application firewall per path arrives in a later slice. Nothing filters request
+					bodies yet.
+				</p>
+			</Panel>
+		</Tabs.Content>
+
+		<Tabs.Content value="monitoring">
+			<Panel title="Monitoring">
+				<p class="text-[13px] text-muted-foreground">
+					Checks of the public address and the upstream arrive with monitoring (S7). "Monitor" above
+					already decides whether this service gets them.
 				</p>
 			</Panel>
 		</Tabs.Content>
