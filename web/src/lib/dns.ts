@@ -25,7 +25,9 @@ export function offeredDecisions(row: ImportRow): Decision[] {
  * exactly three reasons: NS/SOA (invariant 2), the provider's change protection, or a type the provider cannot manage.
  */
 export function leaveOnlyReason(r: RRSet): string {
-	return `Hashi leaves ${r.type} records alone.`;
+	if (r.type === 'NS' || r.type === 'SOA') return `${r.type} records are never changed by Hashi.`;
+	if (r.protected) return 'Locked at the provider; unlock it in the Hetzner console.';
+	return `Hashi does not manage ${r.type} records yet.`;
 }
 
 /** The decision per row as saved: stored ones, "leave" for new rows (so a saved table has no new rows left). */
