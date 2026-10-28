@@ -488,7 +488,7 @@ export const rrsets: Rrset[] = [
 ];
 
 export type PlanItem = {
-	action: 'create' | 'update' | 'delete' | 'conflict' | 'write file' | 'restart';
+	action: 'create' | 'update' | 'delete' | 'label' | 'conflict' | 'write file' | 'restart';
 	subsystem: 'DNS' | 'Traefik' | 'Firewall' | 'AdGuard';
 	target: string;
 	object: string;

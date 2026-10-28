@@ -122,4 +122,15 @@ func TestSetupStep3DNSProviderAndImport(t *testing.T) {
 	if strings.Contains(string(b), hetznertest.Token) {
 		t.Fatal("token in the database")
 	}
+	// The "Remove" decision from setup waits as a high-risk prune plan (03 §4); nothing was deleted.
+	open, err := st.R.ListOpenSyncPlans(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(open) != 1 || open[0].Subsystem != "dns-prune" || open[0].Status != "pending" || open[0].Risk != "high" {
+		t.Fatalf("open plans after setup: %+v", open)
+	}
+	if _, _, _, ok := sim.RRSet("100001", "svc2", "CNAME"); !ok {
+		t.Fatal("svc2 deleted without approval")
+	}
 }

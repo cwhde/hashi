@@ -52,12 +52,22 @@ Decisions made in PR A:
   Hashi's; the write test deletes its probe even after a failed create. Prod has no S2 imports (all 58 were "leave").
 
 PR B — UI + deploy
-- [ ] `/changes`: pending plans with exact before/after (PlanReview), passkey approval, discard, recent runs.
-- [ ] `/dns` Records: add/edit/delete manual entries (inline editor from the mock), "Save · creates a plan";
-      Import: saving prune decisions creates the prune plan; "Test write access" (probe) on `/dns` and setup step 3.
-- [ ] E2E against the fixtures: add record → plan → apply → verified; probe plan approve; NS/SOA have no edit.
+- [x] `/changes`: pending plans with exact before/after (PlanReview), passkey approval, apply, discard, recent runs;
+      top bar counts plans awaiting approval.
+- [x] `/dns` Records: add/edit/delete entries inline (editor from the mock), "Save · creates a plan", pending tag;
+      Import: saving creates the prune plan; "Test write access" on `/dns`; optional write test in setup step 3.
+- [x] E2E against the fake: write test in setup, entry created → applied and verified, delete → Pending changes →
+      passkey approval → gone; NS/SOA have no edit button.
 - [ ] Deploy (user OK) and prod-proof: probe TXT created + deleted via an approved plan; a `_hashi-test` A record
       created, verified and deleted through Hashi; NS/SOA unchanged (hash before/after).
+
+Decisions made in PR B:
+- RRSets Hashi created (origin user/system/managed) are left off the import table: there is nothing to import.
+- The setup write test shows its plan and runs on "Approve and run" (no passkey exists in setup yet).
+- Saving import decisions (setup or `/dns`) plans the removals on the server, so "Remove" chosen in setup waits on
+  Pending changes (review #31). The pending-changes counter is always in the top bar, amber when something waits.
+- Review #31 fixed (reproduced): a save reported another entry's waiting delete as its own; a TTL typo became "zone
+  default" without a preview; setup's removals never became a plan.
 
 ## Previous slice
 
@@ -235,6 +245,10 @@ Decisions made in S0:
 ## Unverified
 
 (Review findings that were not reproduced. Not worked on unless promoted.)
+
+- S3 PR B review (#31): discarding a waiting entry-delete plan on `/changes` probably does not last: the entry is
+  already gone from Hashi, so the next save or hourly sync proposes the same delete again. Not demonstrated; the spec
+  does not say what Discard means there (undo the entry removal, or just "not now").
 
 - S2 PR B review (#29): `/dns` "show generated" hides only `system` RRSets; the mock also counts `managed` as
   generated. No S2 row has either origin, so it cannot be observed yet — recheck when S3 creates records.

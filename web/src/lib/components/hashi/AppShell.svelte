@@ -1,7 +1,8 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { page } from '$app/state';
-	import { goto } from '$app/navigation';
+	import { afterNavigate, goto } from '$app/navigation';
+	import { pendingPlans } from '$lib/sync-pending.svelte';
 	import { nav as designNav, liveNav } from '$lib/design/nav';
 	import { session } from '$lib/auth/session.svelte';
 	import { time } from '$lib/format';
@@ -26,6 +27,10 @@
 	// live: the real admin app (session from the server, only built pages). Without it the shell shows mock data (/design).
 	let { children, live }: { children: Snippet; live?: { onSignOut: () => void } } = $props();
 	const nav = $derived(live ? liveNav : designNav);
+	// The pending-changes count follows every navigation in the live app (plans appear from saves and background sync).
+	afterNavigate(() => {
+		if (live) pendingPlans.refresh().catch(() => {});
+	});
 	const s = $derived(session.current);
 
 	// Rail is 64px; hovering expands it over the content, pinning reserves 240px (10-ui.md §3).
@@ -56,6 +61,7 @@
 	// Pages reached from the top bar rather than the navigation.
 	const extraTitles: Record<string, string> = {
 		'/design/changes': 'Pending changes',
+		'/changes': 'Pending changes',
 		'/design/states': 'States'
 	};
 	const current = $derived(
@@ -208,7 +214,20 @@
 				onclick={() => (searchOpen = true)}><Search /></Button
 			>
 
-			{#if !live}<a
+			{#if live}<a
+					href="/changes"
+					class={cn(
+						'flex h-8 items-center gap-1.5 rounded-[10px] border px-2.5 text-[13px] font-medium',
+						pendingPlans.count > 0
+							? 'border-warn/30 bg-warn/10 text-warn-text hover:bg-warn/15'
+							: 'text-muted-foreground hover:text-foreground'
+					)}
+				>
+					<GitPullRequestArrow class="size-4" />
+					<span class="tnum">{pendingPlans.count}</span><span class="hidden sm:inline"
+						>{pendingPlans.count === 1 ? 'pending change' : 'pending changes'}</span
+					>
+				</a>{:else if !live}<a
 					href="/design/changes"
 					class="flex h-8 items-center gap-1.5 rounded-[10px] border border-warn/30 bg-warn/10 px-2.5 text-[13px] font-medium text-warn-text hover:bg-warn/15"
 				>

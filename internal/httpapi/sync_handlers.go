@@ -139,13 +139,17 @@ func dnsRecordBody(r dns.Record) gen.DNSRecord {
 }
 
 // saved plans the zone after an entry changed: safe changes apply, a delete waits for approval. The entry stays saved
-// when planning fails; the error is reported and the next sync retries. Plan is the delete plan when one is waiting,
-// else the plan that ran.
-func (s *Server) saved(ctx context.Context, actor string, r dns.Record) gen.DNSRecordSaved {
+// when planning fails; the error is reported and the next sync retries. Plan is the plan this save caused: the
+// delete plan for a deleted entry, the records plan otherwise (another entry's waiting delete is not this save's).
+func (s *Server) saved(ctx context.Context, actor string, r dns.Record, deleted bool) gen.DNSRecordSaved {
 	out := gen.DNSRecordSaved{Record: dnsRecordBody(r)}
+	mine := dns.SubsystemRecords
+	if deleted {
+		mine = dns.SubsystemRecordDeletes
+	}
 	for _, sub := range dns.EntrySubsystems {
 		p, err := s.Sync.Auto(ctx, sub, r.ZoneID, hsync.TriggerSave, actor)
-		if p != nil && (out.Plan == nil || p.Status == hsync.StatusPending) {
+		if p != nil && sub == mine {
 			out.Plan = ptr(s.planBody(ctx, p))
 		}
 		if err != nil && !errors.Is(err, hsync.ErrReplanned) {
@@ -154,6 +158,14 @@ func (s *Server) saved(ctx context.Context, actor string, r dns.Record) gen.DNSR
 		}
 	}
 	return out
+}
+
+// proposePrune plans the removals marked on the import table (03 §4: a separate high-risk plan). A failure is not the
+// save's failure: the decisions are stored and the admin can plan again from the Import tab.
+func (s *Server) proposePrune(ctx context.Context, zoneID, actor string) {
+	if _, err := s.Sync.Propose(ctx, dns.SubsystemPrune, zoneID, hsync.TriggerPrune, actor); err != nil {
+		s.Log.Warn("planning removals failed", "zone", zoneID, "err", err)
+	}
 }
 
 func recordInput(name, typ string, ttl *int, values []string, display *string, dashboard, monitoring *bool) dns.RecordInput {
@@ -178,7 +190,7 @@ func (s *Server) CreateDNSRecord(ctx context.Context, req gen.CreateDNSRecordReq
 	if err != nil {
 		return nil, syncError(err)
 	}
-	return gen.CreateDNSRecord200JSONResponse(s.saved(ctx, s.actor(ri), r)), nil
+	return gen.CreateDNSRecord200JSONResponse(s.saved(ctx, s.actor(ri), r, false)), nil
 }
 
 func (s *Server) UpdateDNSRecord(ctx context.Context, req gen.UpdateDNSRecordRequestObject) (gen.UpdateDNSRecordResponseObject, error) {
@@ -189,7 +201,7 @@ func (s *Server) UpdateDNSRecord(ctx context.Context, req gen.UpdateDNSRecordReq
 	if err != nil {
 		return nil, syncError(err)
 	}
-	return gen.UpdateDNSRecord200JSONResponse(s.saved(ctx, s.actor(ri), r)), nil
+	return gen.UpdateDNSRecord200JSONResponse(s.saved(ctx, s.actor(ri), r, false)), nil
 }
 
 func (s *Server) DeleteDNSRecord(ctx context.Context, req gen.DeleteDNSRecordRequestObject) (gen.DeleteDNSRecordResponseObject, error) {
@@ -198,7 +210,7 @@ func (s *Server) DeleteDNSRecord(ctx context.Context, req gen.DeleteDNSRecordReq
 	if err != nil {
 		return nil, syncError(err)
 	}
-	return gen.DeleteDNSRecord200JSONResponse(s.saved(ctx, s.actor(ri), r)), nil
+	return gen.DeleteDNSRecord200JSONResponse(s.saved(ctx, s.actor(ri), r, true)), nil
 }
 
 // PlanDNS plans the zone's entries now; the result is the waiting delete plan when there is one, else the plan that ran.

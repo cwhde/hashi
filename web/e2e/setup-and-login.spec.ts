@@ -72,6 +72,12 @@ test('setup with a passkey, then sign in with it', async ({ page }) => {
 		.getByRole('radio', { name: 'Remove' })
 		.click();
 	await expect(page.getByText('1 to import · 1 to remove')).toBeVisible();
+	// Optional write test (invariant 4): the plan is shown first; only "Approve and run" writes.
+	await page.getByRole('button', { name: 'Plan the write test' }).click();
+	await expect(page.getByText('Test write access to example.com')).toBeVisible();
+	await expect(page.getByText('· 2 changes', { exact: false })).toBeVisible();
+	await page.getByRole('button', { name: 'Approve and run' }).click();
+	await expect(page.getByText('Write access confirmed', { exact: true })).toBeVisible();
 	await page.getByRole('button', { name: 'Save decisions and continue' }).click();
 
 	// Step 9: passkey, then recovery key with its checksum group.
@@ -118,6 +124,48 @@ test('setup with a passkey, then sign in with it', async ({ page }) => {
 			.getByRole('radiogroup', { name: 'Decision for svc2 CNAME' })
 			.getByRole('radio', { name: 'Leave' })
 	).toHaveAttribute('aria-checked', 'true');
+
+	// A manual entry: saving creates a plan that applies right away (low risk) and is verified.
+	await page.getByRole('tab', { name: 'Records' }).click();
+	await page.getByRole('button', { name: 'Add record' }).click();
+	await page.getByLabel('Name', { exact: true }).fill('_hashi-test');
+	await page.getByLabel('Values', { exact: true }).fill('192.0.2.10');
+	// A TTL that is not whole seconds is refused in the form instead of becoming "zone default".
+	await page.getByLabel('TTL (seconds)').fill('300s');
+	await expect(page.getByRole('alert')).toContainText('Whole seconds');
+	await expect(page.getByRole('button', { name: 'Save · creates a plan' })).toBeDisabled();
+	await page.getByLabel('TTL (seconds)').fill('');
+	await page.getByRole('button', { name: 'Save · creates a plan' }).click();
+	await expect(page.getByRole('status')).toContainText('1 created, verified');
+	const entry = records.getByRole('row', { name: /^_hashi-test A / });
+	await expect(entry).toContainText('user');
+	await expect(entry).toContainText('192.0.2.10');
+	// NS and SOA cannot be edited at all.
+	await expect(page.getByRole('button', { name: 'Edit @ NS' })).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Edit @ SOA' })).toHaveCount(0);
+
+	// Deleting it is high risk: it waits on Pending changes until approved with the passkey.
+	await page.getByRole('button', { name: 'Edit _hashi-test A' }).click();
+	await page.getByRole('button', { name: 'Delete record' }).click();
+	await expect(page.getByRole('status')).toContainText('needs your approval');
+	await expect(page.getByRole('link', { name: /1 pending change/ })).toBeVisible();
+	// Another save while that delete waits reports its own result, not the waiting delete.
+	await page.getByRole('button', { name: 'Add record' }).click();
+	await page.getByLabel('Name', { exact: true }).fill('b._hashi-test');
+	await page.getByLabel('Values', { exact: true }).fill('192.0.2.11');
+	await page.getByRole('button', { name: 'Save · creates a plan' }).click();
+	await expect(page.getByRole('status')).toContainText(
+		'b._hashi-test A saved. Applied: 1 created, verified'
+	);
+	await page.getByRole('link', { name: /1 pending change/ }).click();
+	await expect(page).toHaveURL(/\/changes$/);
+	await expect(page.getByText('Delete DNS records in example.com')).toBeVisible();
+	await expect(page.getByText('192.0.2.10  TTL zone')).toBeVisible();
+	await page.getByRole('button', { name: 'Approve and apply' }).click();
+	await expect(page.getByRole('status')).toContainText('1 deleted, verified');
+	await expect(page.getByText('Nothing waiting')).toBeVisible();
+	await page.getByRole('link', { name: 'DNS' }).first().click();
+	await expect(records.getByRole('row', { name: /^_hashi-test A / })).toHaveCount(0);
 
 	// Account: the passkey and this session; the last passkey cannot be deleted.
 	await page.goto(`${state.baseURL}/settings?category=account`);

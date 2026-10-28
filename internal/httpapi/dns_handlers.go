@@ -140,6 +140,7 @@ func (s *Server) PutDNSImportDecisions(ctx context.Context, req gen.PutDNSImport
 	if err := s.DNS.SaveDecisions(ctx, s.actor(ri), ri.ipString(), req.ZoneId, decisionInputs(req.Body)); err != nil {
 		return nil, dnsError(err)
 	}
+	s.proposePrune(ctx, req.ZoneId, s.actor(ri))
 	z, rows, err := s.DNS.ImportTable(ctx, req.ZoneId)
 	if err != nil {
 		return nil, dnsError(err)
@@ -258,6 +259,7 @@ func (s *Server) PutSetupDNSImport(ctx context.Context, req gen.PutSetupDNSImpor
 	if err := s.DNS.SaveDecisions(ctx, s.actor(ri), ri.ipString(), z.ID, decisionInputs(req.Body)); err != nil {
 		return nil, dnsError(err)
 	}
+	s.proposePrune(ctx, z.ID, s.actor(ri)) // waits on Pending changes until approved with a passkey after setup
 	// Step 3 completes when the token validated, the zone resolved and the decisions are saved (02 §1 table).
 	if err := s.Store.Tx(ctx, func(q *db.Queries) error {
 		return s.Setup.MarkDone(ctx, q, setup.StepDNS, map[string]any{"type": z.Provider.Type, "zone": z.Name, "decisions": len(req.Body.Decisions)})

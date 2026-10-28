@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import type { PlanItem, Risk } from '$lib/design/mock';
 	import { Button } from '$lib/components/ui/button';
 	import { cn } from '$lib/utils';
@@ -13,19 +14,26 @@
 		trigger,
 		risk,
 		items,
-		compact = false
+		compact = false,
+		badge,
+		footer
 	}: {
 		title: string;
 		trigger: string;
 		risk: Risk;
 		items: PlanItem[];
 		compact?: boolean;
+		/** Replaces the risk tag (e.g. the status of a finished plan). */
+		badge?: Snippet;
+		/** Replaces the footer with the live page's own actions. */
+		footer?: Snippet;
 	} = $props();
 
 	const verbs: Record<PlanItem['action'], string> = {
 		create: 'Create',
 		update: 'Change',
 		delete: 'Delete',
+		label: 'Mark',
 		conflict: 'Conflict',
 		'write file': 'Write',
 		restart: 'Restart'
@@ -37,9 +45,14 @@
 	<header class="flex flex-wrap items-center gap-x-4 gap-y-2 border-b px-4 py-3">
 		<div class="min-w-0 flex-1">
 			<h3 class="text-[14.5px] font-semibold">{title}</h3>
-			<p class="text-[12.5px] text-muted-foreground">{trigger} · {items.length} changes</p>
+			<p class="text-[12.5px] text-muted-foreground">
+				{trigger} · {items.length}
+				{items.length === 1 ? 'change' : 'changes'}
+			</p>
 		</div>
-		{#if risk === 'high'}
+		{#if badge}
+			{@render badge()}
+		{:else if risk === 'high'}
 			<Tag tone="warn"><ShieldAlert class="size-3" />{highCount} high-risk</Tag>
 		{:else}
 			<Tag tone="ok">Low risk · applies automatically</Tag>
@@ -94,7 +107,13 @@
 		{/each}
 	</ol>
 
-	{#if compact}
+	{#if footer}
+		<footer
+			class="flex flex-wrap items-center justify-end gap-2 border-t bg-surface-2/50 px-4 py-3"
+		>
+			{@render footer()}
+		</footer>
+	{:else if compact}
 		<footer class="flex items-center justify-end border-t px-4 py-2.5">
 			<Button variant="outline" size="sm" href="/design/changes">Review changes</Button>
 		</footer>

@@ -1209,7 +1209,7 @@ type ServerInterface interface {
 	// GetDNSImport Import table; rows without a decision are new since the last import
 	// (GET /api/dns/import/{zoneId})
 	GetDNSImport(w http.ResponseWriter, r *http.Request, zoneId string)
-	// PutDNSImportDecisions Save import decisions (prune only marks; deleting needs a confirmed prune plan)
+	// PutDNSImportDecisions Save import decisions; RRSets marked for prune go into a pending high-risk prune plan
 	// (PUT /api/dns/import/{zoneId}/decisions)
 	PutDNSImportDecisions(w http.ResponseWriter, r *http.Request, zoneId string)
 	// PlanDNS Plan the zone's entries now ("Sync now"); low-risk plans apply
@@ -1272,7 +1272,7 @@ type ServerInterface interface {
 	// GetSetupDNSImport Step 3 — import table of the managed zone
 	// (GET /api/setup/dns/import)
 	GetSetupDNSImport(w http.ResponseWriter, r *http.Request)
-	// PutSetupDNSImport Step 3 — save import decisions; completes the step
+	// PutSetupDNSImport Step 3 — save import decisions (prune marks become a pending prune plan); completes the step
 	// (PUT /api/setup/dns/import)
 	PutSetupDNSImport(w http.ResponseWriter, r *http.Request)
 	// PostSetupDNSProbe Step 3 — plan the write test (create and delete a `_hashi-test` TXT); nothing is written yet
@@ -5112,7 +5112,7 @@ type StrictServerInterface interface {
 	// GetDNSImport Import table; rows without a decision are new since the last import
 	// (GET /api/dns/import/{zoneId})
 	GetDNSImport(ctx context.Context, request GetDNSImportRequestObject) (GetDNSImportResponseObject, error)
-	// PutDNSImportDecisions Save import decisions (prune only marks; deleting needs a confirmed prune plan)
+	// PutDNSImportDecisions Save import decisions; RRSets marked for prune go into a pending high-risk prune plan
 	// (PUT /api/dns/import/{zoneId}/decisions)
 	PutDNSImportDecisions(ctx context.Context, request PutDNSImportDecisionsRequestObject) (PutDNSImportDecisionsResponseObject, error)
 	// PlanDNS Plan the zone's entries now ("Sync now"); low-risk plans apply
@@ -5175,7 +5175,7 @@ type StrictServerInterface interface {
 	// GetSetupDNSImport Step 3 — import table of the managed zone
 	// (GET /api/setup/dns/import)
 	GetSetupDNSImport(ctx context.Context, request GetSetupDNSImportRequestObject) (GetSetupDNSImportResponseObject, error)
-	// PutSetupDNSImport Step 3 — save import decisions; completes the step
+	// PutSetupDNSImport Step 3 — save import decisions (prune marks become a pending prune plan); completes the step
 	// (PUT /api/setup/dns/import)
 	PutSetupDNSImport(ctx context.Context, request PutSetupDNSImportRequestObject) (PutSetupDNSImportResponseObject, error)
 	// PostSetupDNSProbe Step 3 — plan the write test (create and delete a `_hashi-test` TXT); nothing is written yet

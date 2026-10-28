@@ -370,7 +370,7 @@ paths:
         default: { $ref: "#/components/responses/Problem" }
     put:
       operationId: putSetupDNSImport
-      summary: Step 3 — save import decisions; completes the step
+      summary: Step 3 — save import decisions (prune marks become a pending prune plan); completes the step
       tags: [setup]
       x-hashi-scopes: [setup.manage]
       requestBody:
@@ -582,7 +582,7 @@ paths:
   /api/dns/import/{zoneId}/decisions:
     put:
       operationId: putDNSImportDecisions
-      summary: Save import decisions (prune only marks; deleting needs a confirmed prune plan)
+      summary: Save import decisions; RRSets marked for prune go into a pending high-risk prune plan
       tags: [dns]
       x-hashi-scopes: [admin.write]
       parameters:

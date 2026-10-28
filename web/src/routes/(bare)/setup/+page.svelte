@@ -14,6 +14,9 @@
 	import { ceremonyText, createPasskey, passkeysSupported } from '$lib/auth/webauthn';
 	import { theme, themes, type ThemeId } from '$lib/theme.svelte';
 	import ImportTable from '$lib/components/hashi/dns/ImportTable.svelte';
+	import PlanReview from '$lib/components/hashi/PlanReview.svelte';
+	import Tag from '$lib/components/hashi/Tag.svelte';
+	import { outcomeText, reviewItems, triggerText, type Plan } from '$lib/sync';
 	import { decisionBody, initialDecisions, type Decision, type ImportRow } from '$lib/dns';
 
 	// 02-setup-auth.md §1: a resumable, persisted sequence; a step completes only after its validation succeeded.
@@ -132,6 +135,34 @@
 			setup = st.data;
 			await loadImport();
 		});
+	// Optional write test (02 §1.3, invariant 4): the plan is shown first; only the click on it runs it.
+	let probePlan = $state<Plan | null>(null);
+	let probeError = $state('');
+	let probing = $state(false);
+	async function probeStep(fn: () => Promise<void>) {
+		probeError = '';
+		probing = true;
+		try {
+			await fn();
+		} catch (e) {
+			probeError = problemText(e);
+		} finally {
+			probing = false;
+		}
+	}
+	const planProbe = () =>
+		probeStep(async () => {
+			const res = await api.POST('/api/setup/dns/probe');
+			if (res.error || !res.data) throw res.error;
+			probePlan = res.data;
+		});
+	const runProbe = (id: string) =>
+		probeStep(async () => {
+			const res = await api.POST('/api/setup/dns/probe/{id}/run', { params: { path: { id } } });
+			if (res.error || !res.data) throw res.error;
+			probePlan = res.data;
+		});
+
 	const saveImport = () =>
 		run(async () => {
 			if (!importRows) return;
@@ -511,6 +542,54 @@
 						)}{/if}
 					{#if error}{@render failure(error)}{/if}
 				</section>
+				{#if dnsZone}
+					<section class="mt-8">
+						<h2 class="text-[15px] font-semibold">Write access (optional)</h2>
+						<p class="mt-1 mb-3 max-w-[70ch] text-[13px] text-muted-foreground">
+							The check above only read the zone. To confirm Hashi can also write, it can create a
+							test record named <Mono>_hashi-test</Mono>, read it back and delete it again. Nothing
+							is written until you approve the plan.
+						</p>
+						{#if probePlan}
+							<PlanReview
+								title={probePlan.title}
+								trigger={triggerText(probePlan)}
+								risk={probePlan.risk}
+								items={reviewItems(probePlan)}
+							>
+								{#snippet badge()}
+									{#if probePlan?.status === 'applied'}<Tag tone="ok">Write access confirmed</Tag
+										>{:else if probePlan?.status === 'failed'}<Tag tone="bad">Failed</Tag>{/if}
+								{/snippet}
+								{#snippet footer()}
+									{#if probePlan?.status === 'pending' || probePlan?.status === 'approved'}
+										<p class="mr-auto text-[12.5px] text-muted-foreground">
+											Approving writes these two changes to your zone.
+										</p>
+										<Button variant="ghost" size="sm" onclick={() => (probePlan = null)}
+											>Not now</Button
+										>
+										<Button
+											size="sm"
+											disabled={probing}
+											onclick={() => probePlan && runProbe(probePlan.id)}
+											>{probing ? 'Testing…' : 'Approve and run'}</Button
+										>
+									{:else if probePlan}
+										<p class="mr-auto text-[12.5px] text-muted-foreground">
+											{outcomeText(probePlan)}
+										</p>
+									{/if}
+								{/snippet}
+							</PlanReview>
+						{:else}
+							<Button variant="outline" onclick={planProbe} disabled={probing}
+								>{probing ? 'Planning…' : 'Plan the write test'}</Button
+							>
+						{/if}
+						{#if probeError}{@render failure(probeError)}{/if}
+					</section>
+				{/if}
 				{#if dnsZone && importRows}
 					<h2 class="mt-8 text-[15px] font-semibold">Existing records</h2>
 					<p class="mt-1 mb-3 max-w-[70ch] text-[13px] text-muted-foreground">

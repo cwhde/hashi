@@ -445,7 +445,7 @@ export interface paths {
         };
         /** Step 3 — import table of the managed zone */
         get: operations["getSetupDNSImport"];
-        /** Step 3 — save import decisions; completes the step */
+        /** Step 3 — save import decisions (prune marks become a pending prune plan); completes the step */
         put: operations["putSetupDNSImport"];
         post?: never;
         delete?: never;
@@ -681,7 +681,7 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Save import decisions (prune only marks; deleting needs a confirmed prune plan) */
+        /** Save import decisions; RRSets marked for prune go into a pending high-risk prune plan */
         put: operations["putDNSImportDecisions"];
         post?: never;
         delete?: never;
