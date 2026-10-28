@@ -233,6 +233,44 @@ type SecretRecord struct {
 	UpdatedAt  int64
 }
 
+type Service struct {
+	ID                string
+	Name              string
+	Slug              string
+	Kind              string
+	DomainMode        string
+	HostName          string
+	Enabled           int64
+	Origin            string
+	OwnerFeature      string
+	TargetAddress     string
+	TargetPort        int64
+	TlsSkipVerify     int64
+	TlsServerName     string
+	TlsMinVersion     string
+	AdvancedRoutes    int64
+	DashboardVisible  int64
+	MonitoringVisible int64
+	AdguardRewrite    int64
+	CreatedAt         int64
+	UpdatedAt         int64
+}
+
+type ServiceRoute struct {
+	ID             string
+	ServiceID      string
+	Enabled        int64
+	TargetsJson    string
+	PathMatch      string
+	PathValue      string
+	Priority       int64
+	RewriteMode    string
+	RewritePattern string
+	RewriteValue   string
+	CreatedAt      int64
+	UpdatedAt      int64
+}
+
 type SetupState struct {
 	Step       int64
 	Status     string
