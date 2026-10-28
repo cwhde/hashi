@@ -46,6 +46,10 @@ Decisions made in PR A:
   passkey yet in setup); after setup it needs `sync.apply` + reauth like every high-risk plan.
 - `make dev`/E2E use a stateful Hetzner fake (`hetznertest.Sim`) seeded from the recorded zone, so plans apply locally.
 - PR A is ~4,000 hand-written lines (about half tests): one coherent backend, kept whole.
+- Review #30 (all four reproduced, regression tests added): S2-era imports get their entry before planning (else
+  they became deletes); entry deletes are their own subsystem `dns-record-deletes` so a waiting delete never holds
+  back safe changes (invariant 16); after a failed apply/read-back the zone is re-read and what took effect stays
+  Hashi's; the write test deletes its probe even after a failed create. Prod has no S2 imports (all 58 were "leave").
 
 PR B — UI + deploy
 - [ ] `/changes`: pending plans with exact before/after (PlanReview), passkey approval, discard, recent runs.
