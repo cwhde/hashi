@@ -63,6 +63,46 @@ After sign-off (phase 2):
 
 ## Finished slices (detail)
 
+**S1 — Setup, auth, vault** · done, signed off by the user 2026-10-27, deployed `8e5c1b5`.
+
+Scope and gate: 11-delivery.md §3 row S1. Pages built on the approved mocks (`/setup`, `/login`, `/settings`, `/activity`)
+following `docs/spec/10b-ui-system.md`.
+
+External systems: none (WebAuthn via `go-webauthn`, tested with a Playwright virtual authenticator), so no contract capture.
+
+PR A — backend (#25, merged)
+- [x] Migration 00002: setup state, audit, admin user, bootstrap credentials, passkeys (with RP ID), sessions, secrets,
+      recovery key, recovery links; sqlc queries; S0 noop job removed.
+- [x] Vault (service mode): master key file required (`HASHI_MASTER_KEY_FILE`, `hashi keygen`), HKDF KEKs, per-secret DEK,
+      key-check canary; recovery key (grouped base32 + checksum) wraps the master key; `hashi vault recover`.
+- [x] Client-IP resolver (01 §8), audit log, settings framework (General, Security, Appearance), live-log ring.
+- [x] Sessions (02 §3): sha256-only storage, strict IP binding, 4 h idle / 8 h absolute, reauth on the row, CSRF, cleanup
+      job; scope table generated from `x-hashi-scopes/-session/-reauth`; 02 §6 tests over real HTTP.
+- [x] Bootstrap (argon2id, printed once, private networks, `hashi bootstrap reset`); passkeys (RP ID = root domain, origin
+      = admin domain); `hashi admin recover` link; setup steps 1, 2, 9, 11 with invariant 14.
+
+PR B — UI + deploy (#26)
+- [x] Live AppShell (session, sign-out, built pages only), CSRF in the client, reauth-and-retry, 401 → sign-in.
+- [x] `/setup`, `/login`, `/login/recover`, `/settings` (Account, General, Security, Appearance), `/activity`.
+- [x] `make test-e2e` + CI job: full setup with a virtual authenticator → passkey sign-in → account → reauth → sign-out →
+      sign-in again → deleting the session's passkey ends it; console recovery link.
+- [x] Compose: master key as a Docker secret; deploy.sh refuses to start without it; `make dev` uses a dev build + dev key.
+- [x] Master key created on the host by the user; deployed `8e5c1b5` (user OK); prod-proof below.
+
+Decisions made in S1:
+- `-tags dev` builds (never in images) allow a `localhost` passkey origin and count later-slice setup steps as done, so
+  `make dev` and E2E can run the whole flow before S5 brings HTTPS.
+- Setup cannot finish in production builds until S2–S6 add steps 3–8; the deployed S1 only reaches step 9's prompt (no
+  HTTPS for passkeys yet). That is expected.
+- Deferred: `hashi vault rotate` (02 §5.2) → S12 with the backup drill; AAGUID → authenticator name (needs a metadata
+  source) → later; settings without a consumer yet (sync interval → S2, internal URL → S5, theme already applied by the UI).
+
+Spec changes before S1 (2026-10-27, from an external review, agreed with the user): S1 tests passkeys with a virtual
+authenticator only (no HTTPS before S5; first real passkey in S5, RP ID = root domain); setup steps arrive with their
+slices; Hashi issues and distributes certificates itself (03 §5.3, no `httpreq`); generated DNS is IPv4-only; forward-auth
+fallback guarantees stated and proven in S4; decision-order table with overlap rule (06 §3.1); firewall rollback warns
+on reverted foreign rules; security telemetry bounded by volume (01 §4.3, 06 §5.3–5.4).
+
 **S0b — UI design for all features** · done, approved by the user 2026-10-27 (not deployed; the user reviewed screenshots
 and the local preview). `docs/spec/10b-ui-system.md` + every page as a mock under `/design` (#24), four themes, contrast
 tests, phone layout. Feature slices build the real page at the same path without `/design`.
