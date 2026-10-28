@@ -5,45 +5,31 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
-**S1 — Setup, auth, vault** · status: **done**, signed off by the user 2026-10-27. Next: S2 (not started; the user asked to wait).
+**S2 — DNS read + import** · status: **in progress** (planning, 2026-10-28).
 
-Scope and gate: 11-delivery.md §3 row S1. Pages built on the approved mocks (`/setup`, `/login`, `/settings`, `/activity`)
-following `docs/spec/10b-ui-system.md`.
+Scope and gate: 11-delivery.md §3 row S2 — 03-dns.md §1–4 (read side), setup step 3 (02 §1.3). Gate: the real zone is
+listed; the import table shows the real RRSets; import decisions persist; sanitized fixtures committed.
 
-External systems: none (WebAuthn via `go-webauthn`, tested with a Playwright virtual authenticator), so no contract capture.
+External systems: Hetzner Cloud API (DNS zones and RRSets). No contract yet → captured first (read-only).
 
-PR A — backend (#25, merged)
-- [x] Migration 00002: setup state, audit, admin user, bootstrap credentials, passkeys (with RP ID), sessions, secrets,
-      recovery key, recovery links; sqlc queries; S0 noop job removed.
-- [x] Vault (service mode): master key file required (`HASHI_MASTER_KEY_FILE`, `hashi keygen`), HKDF KEKs, per-secret DEK,
-      key-check canary; recovery key (grouped base32 + checksum) wraps the master key; `hashi vault recover`.
-- [x] Client-IP resolver (01 §8), audit log, settings framework (General, Security, Appearance), live-log ring.
-- [x] Sessions (02 §3): sha256-only storage, strict IP binding, 4 h idle / 8 h absolute, reauth on the row, CSRF, cleanup
-      job; scope table generated from `x-hashi-scopes/-session/-reauth`; 02 §6 tests over real HTTP.
-- [x] Bootstrap (argon2id, printed once, private networks, `hashi bootstrap reset`); passkeys (RP ID = root domain, origin
-      = admin domain); `hashi admin recover` link; setup steps 1, 2, 9, 11 with invariant 14.
+Contract
+- [ ] `make contract-capture PROVIDER=hetzner`: list zones (paginated), get zone, list RRSets (paginated), bad token
+      (401), unknown zone (404); raw into `.contracts-raw/`, sanitized into `testdata/contracts/hetzner/` with
+      `captured_at` + docs URL; denylist check. Needs a Cloud project token (user).
 
-PR B — UI + deploy (#26)
-- [x] Live AppShell (session, sign-out, built pages only), CSRF in the client, reauth-and-retry, 401 → sign-in.
-- [x] `/setup`, `/login`, `/login/recover`, `/settings` (Account, General, Security, Appearance), `/activity`.
-- [x] `make test-e2e` + CI job: full setup with a virtual authenticator → passkey sign-in → account → reauth → sign-out →
-      sign-in again → deleting the session's passkey ends it; console recovery link.
-- [x] Compose: master key as a Docker secret; deploy.sh refuses to start without it; `make dev` uses a dev build + dev key.
-- [x] Master key created on the host by the user; deployed `8e5c1b5` (user OK); prod-proof below.
+PR A — backend
+- [ ] Migration 00003: DNS provider connection (type, default TTL, token as vault secret), `dns_zones`,
+      `dns_observed_rrsets`, `dns_ownership`, `dns_import_decisions`; sqlc queries.
+- [ ] `internal/dns`: provider interface (read part: Capabilities, ListZones, ResolveZone, ListRRSets), RRSet model and
+      normalization (TXT, TTL default); `internal/dns/hetzner` read adapter from the fixtures (pagination, RateLimit
+      backoff, legacy-token error); replay tests; `TestInvariant_2_*` (NS/SOA never selectable for prune) on the import side.
+- [ ] Zone refresh job (observed snapshot) + OpenAPI: `GET /api/dns/zones`, `POST …/refresh`, `GET …/rrsets`,
+      `GET /api/dns/import/{zoneId}`, `PUT …/decisions`; setup step 3 endpoints; `make generate`.
 
-Decisions made in S1:
-- `-tags dev` builds (never in images) allow a `localhost` passkey origin and count later-slice setup steps as done, so
-  `make dev` and E2E can run the whole flow before S5 brings HTTPS.
-- Setup cannot finish in production builds until S2–S6 add steps 3–8; the deployed S1 only reaches step 9's prompt (no
-  HTTPS for passkeys yet). That is expected.
-- Deferred: `hashi vault rotate` (02 §5.2) → S12 with the backup drill; AAGUID → authenticator name (needs a metadata
-  source) → later; settings without a consumer yet (sync interval → S2, internal URL → S5, theme already applied by the UI).
-
-Spec changes before S1 (2026-10-27, from an external review, agreed with the user): S1 tests passkeys with a virtual
-authenticator only (no HTTPS before S5; first real passkey in S5, RP ID = root domain); setup steps arrive with their
-slices; Hashi issues and distributes certificates itself (03 §5.3, no `httpreq`); generated DNS is IPv4-only; forward-auth
-fallback guarantees stated and proven in S4; decision-order table with overlap rule (06 §3.1); firewall rollback warns
-on reverted foreign rules; security telemetry bounded by volume (01 §4.3, 06 §5.3–5.4).
+PR B — UI + deploy
+- [ ] Setup step 3 (provider, token, zone auto-pick, read-only validation) and the import table.
+- [ ] `/dns`: Records (observed, origin, read-only in S2) and Import tab with decisions, from the approved mock.
+- [ ] Deploy (user OK) and prod-proof: real zone listed, import table matches the zone, decisions survive a restart.
 
 ## Side step: security model (branch `security-model`)
 
