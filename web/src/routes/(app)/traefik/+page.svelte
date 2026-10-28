@@ -98,7 +98,7 @@
 				? {
 						text:
 							p.status === 'applied'
-								? `${k.name} renewed. "Check and sync" on each host copies it there now; otherwise the daily run does.`
+								? `${k.name} renewed. "Check and sync" on each host copies it there now; otherwise Hashi does within the hour.`
 								: outcomeText(p),
 						review: false,
 						bad: p.status === 'failed'
@@ -264,7 +264,7 @@
 					</ul>
 				{:else}
 					<p class="px-4 py-3 text-[13px] text-muted-foreground">
-						No certificate yet. Hashi issues it in its daily run, or from setup step 4.
+						No certificate yet. Hashi issues it within the hour, or from setup step 4.
 					</p>
 				{/if}
 			</Panel>

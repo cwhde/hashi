@@ -43,12 +43,16 @@ type Desired struct {
 	PingTimeout time.Duration
 	// Certs are the certificates in Files; the manager checks each by TLS handshake after Verify (03 §5.3).
 	Certs []Cert
+	// PackageManager and Init (from the OS probe) install logrotate when the host lacks it (04 §3).
+	PackageManager, Init string
 }
 
 // Diff is what differs between Desired and the host, read fresh from the host (04 §6 step 1).
 type Diff struct {
 	InstalledVersion string // "" when no traefik at the binary path
 	InstallBinary    bool
+	// InstallLogrotate is the command that installs logrotate ("" = present).
+	InstallLogrotate string
 	MissingDirs      []Directory
 	Backup           []string
 	Service          FileChange
@@ -77,6 +81,15 @@ func Observe(ctx context.Context, h Host, d Desired) (Diff, error) {
 		diff.InstalledVersion = "v" + m[1]
 	}
 	diff.InstallBinary = diff.InstalledVersion != Version
+
+	if res, err = h.Run(ctx, "command -v logrotate", nil); err != nil {
+		return diff, fmt.Errorf("check logrotate: %w", err)
+	}
+	if !res.OK() {
+		if diff.InstallLogrotate, err = logrotateInstall(d.PackageManager, d.Init); err != nil {
+			return diff, err
+		}
+	}
 
 	for _, dir := range d.Paths.Directories() {
 		res, err := h.Run(ctx, "test -d "+sshx.Quote(dir.Path), nil)
@@ -145,6 +158,10 @@ func (d Diff) Items() []hsync.Item {
 			it.Action, it.Before = hsync.ActionUpdate, raw(map[string]string{"version": d.InstalledVersion})
 		}
 		items = append(items, it)
+	}
+	if d.InstallLogrotate != "" {
+		items = append(items, hsync.Item{Action: hsync.ActionCreate, Object: "package logrotate", Risk: hsync.High,
+			After: raw(map[string]string{"package": "logrotate"}), Note: "rotates Traefik's logs daily: " + d.InstallLogrotate})
 	}
 	if len(d.MissingDirs) > 0 {
 		var dirs []string
@@ -239,6 +256,11 @@ func Apply(ctx context.Context, h Host, d Desired, diff Diff, now time.Time) (Ap
 			return out, fmt.Errorf("upload traefik binary: %w", err)
 		}
 		restart = true
+	}
+	if diff.InstallLogrotate != "" {
+		if err := run("install logrotate", diff.InstallLogrotate); err != nil {
+			return out, err
+		}
 	}
 	for _, dir := range diff.MissingDirs {
 		if err := h.MkdirAll(dir.Path, fs.FileMode(dir.Mode)); err != nil {

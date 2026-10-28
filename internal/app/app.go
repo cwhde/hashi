@@ -169,8 +169,9 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 		return err
 	}
 
-	// Daily: issue what is missing, renew 30 days ahead, then bring every Traefik host's certificate files up to date.
-	if err := runner.Register(ctx, jobs.Job{Kind: certs.JobKind, Interval: 24 * time.Hour,
+	// Hourly: issue what is missing, renew 30 days ahead (a failure waits certs.RetryAfter), then bring every Traefik
+	// host's certificate files up to date.
+	if err := runner.Register(ctx, jobs.Job{Kind: certs.JobKind, Interval: certs.JobInterval,
 		Run: certMgr.Renew(syncEngine, traefikMgr.Distribute(syncEngine))}); err != nil {
 		return err
 	}

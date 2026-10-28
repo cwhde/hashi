@@ -79,7 +79,7 @@ func itemText(raw json.RawMessage) *string {
 		return nil
 	}
 	var parts []string
-	for _, k := range []string{"version", "names", "paths", "to", "mode", "sha256", "hash", "fingerprint", "not_after"} {
+	for _, k := range []string{"package", "version", "names", "paths", "to", "mode", "sha256", "hash", "fingerprint", "not_after"} {
 		v, ok := m[k]
 		if !ok || v == "" || v == nil {
 			continue

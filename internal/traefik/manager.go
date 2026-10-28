@@ -304,7 +304,7 @@ func (m *Manager) desired(ctx context.Context, connID string) (db.TraefikConnect
 		return row, Desired{}, err
 	}
 	d := Desired{Paths: paths, APIPort: opts.APIPort, Files: files, Service: svc, Backup: disc.pendingBackup(),
-		PingTimeout: m.pingTimeout, Certs: certs}
+		PingTimeout: m.pingTimeout, Certs: certs, PackageManager: probe.PackageManager, Init: probe.Init}
 	d.Binary = func(ctx context.Context) ([]byte, error) { return m.binary(ctx, probe.Arch) }
 	return row, d, nil
 }

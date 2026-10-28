@@ -144,6 +144,20 @@ func TestPlanIssuesRenewsAndForces(t *testing.T) {
 			t.Error("key material in a plan item")
 		}
 	}
+	// A failed attempt waits RetryAfter before the job tries again; "Renew now" does not wait.
+	issued(now.Add(10*24*time.Hour), `["example.com","*.example.com"]`)
+	_ = f.st.Q.SetCertificateRenewalFailed(ctx, db.SetCertificateRenewalFailedParams{
+		LastRenewalAt: sql.NullInt64{Int64: now.Add(-time.Hour).UnixMilli(), Valid: true}, LastRenewalError: "CA down", ID: "cert1"})
+	if d, _ := sub.Plan(ctx, "acme1"); len(d.Items) != 0 {
+		t.Errorf("retry within the backoff: %s", itemsNotes(d.Items))
+	}
+	if d, _ := sub.Plan(ctx, "cert1"); len(d.Items) != 1 {
+		t.Errorf("renew now during the backoff: %s", itemsNotes(d.Items))
+	}
+	now = now.Add(RetryAfter)
+	if d, _ := sub.Plan(ctx, "acme1"); len(d.Items) != 1 {
+		t.Errorf("retry after the backoff: %s", itemsNotes(d.Items))
+	}
 	if _, err := sub.Plan(ctx, "nope"); err == nil {
 		t.Error("unknown target accepted")
 	}

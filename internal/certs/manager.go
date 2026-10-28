@@ -28,7 +28,7 @@ import (
 // is missing or due) or a certificate ID ("Renew now" for that certificate).
 const Subsystem = "certificates"
 
-// JobKind is the daily renewal job.
+// JobKind is the renewal job (hourly, JobInterval).
 const JobKind = "certificates.renew"
 
 // Vault purposes (service class: issuing runs unattended).
@@ -161,6 +161,10 @@ func (s certSub) Plan(ctx context.Context, target string) (hsync.Draft, error) {
 		after, _ := json.Marshal(itemCert{Name: w.Name, Names: w.Names})
 		item := hsync.Item{Action: hsync.ActionUpdate, Object: "certificate " + w.Name, After: after, Risk: hsync.Low}
 		r, ok := byName[w.Name]
+		if ok && forced == "" && r.LastRenewalResult == "failed" && r.LastRenewalAt.Valid &&
+			now.Sub(time.UnixMilli(r.LastRenewalAt.Int64)) < RetryAfter {
+			continue // the last attempt failed recently: wait before the next automatic one
+		}
 		if !ok || r.CertPem == "" {
 			item.Action, item.Note = hsync.ActionCreate, "issue"
 			items = append(items, item)

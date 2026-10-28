@@ -260,7 +260,7 @@
 	<section class="mt-8">
 		<h2 class="text-[15px] font-semibold">First certificate</h2>
 		<p class="mt-1 mb-3 max-w-[70ch] text-[13px] text-muted-foreground">
-			Issuing now takes about a minute. Otherwise Hashi issues it in its daily certificate run. It
+			Issuing now takes about a minute. Otherwise Hashi issues it within the hour on its own. It
 			goes to your Traefik host once that host is connected.
 		</p>
 		{#if plan}

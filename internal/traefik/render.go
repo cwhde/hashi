@@ -65,6 +65,7 @@ func (p Paths) Directories() []Directory {
 const (
 	KindCert    = "cert"
 	KindDynamic = "dynamic"
+	KindSystem  = "system" // outside Traefik's config (logrotate); written with the dynamic files, no restart
 	KindStatic  = "static"
 )
 
@@ -244,6 +245,7 @@ func Render(o Options) ([]File, error) {
 	if err != nil {
 		return nil, fmt.Errorf("render static config: %w", err)
 	}
+	files = append(files, logrotateFile(o.Paths))
 	files = append(files, File{Path: o.Paths.Static(), Kind: KindStatic, Mode: 0o644, Data: append([]byte(generated), static...)})
 	return files, nil
 }

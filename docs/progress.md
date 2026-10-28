@@ -91,12 +91,23 @@ after every verified apply, so hosts that already ran v3.7.16 get certificates; 
 `traefik.previous` and restores it when the new binary does not start (04 §2.1).
 
 PR B — UI + deploy
-- [ ] Access-log rotation (04 §3): capture logrotate availability per OS and how Traefik v3.7 reopens its access log on
-      the dev targets, then install Hashi's logrotate config with the files.
-- [ ] Certificate retry with backoff (03 §5.3): a failed issue/renewal is retried sooner than the next daily run.
-- [ ] Setup steps 4 and 5 (host-key fingerprint confirmation, Hashi's public key to copy, validation results, install plan).
-- [ ] `/traefik` page from the mock: connection state, files with hashes, Certificates tab, "Renew now"; plans on `/changes`.
-- [ ] E2E against fakes (dev SSH/Traefik fake host, Pebble-less fake ACME) for setup steps 4–5 and the install plan.
+- [x] Access-log rotation (04 §3): captured on the dev targets (Alpine and Debian ship logrotate with a daily run;
+      Fedora's container image lacks it, its package enables but does not start the timer; `pkill` everywhere,
+      `testdata/contracts/os/README.md`). Hashi renders `/etc/logrotate.d/hashi-traefik` (daily or 100 MB, keep 14,
+      postrotate `pkill -USR1` matched on Hashi's exact Traefik command line) and installs logrotate when missing
+      (high-risk plan item). Integration: the real Traefik writes to a fresh `access.log` after `logrotate -f`.
+- [x] Certificate retry: `certificates.renew` runs hourly (nothing to do while certificates are current); after a failed
+      attempt it waits 4 hours, "Renew now" always tries (spec c84e87a).
+- [x] Setup steps 4 and 5 (`CertificateStep`, `TraefikStep`): CA choice with EAB, account registration, issue now; host
+      form from the mock, Hashi's key to copy, host key shown and pinned only after "It matches", checks, explicit
+      takeover, install plan approved and run. Steps 4–5 count as built. Plan items for Traefik and certificates show a
+      text summary (path, mode, short hash, version, names, expiry).
+- [x] `/traefik` page: hosts (health, version, last check, host key, applied files with hashes, "Check and sync") and
+      Certificates (names, issuer, days left by level, hosts serving the current fingerprint, failures, "Renew now").
+- [x] E2E against dev fakes: `certstest` (local CA that still publishes DNS-01 values through the fake zone) and
+      `traefiktest` (in-memory Debian 13 edge with TLS), both only behind `HASHI_DEV_DNS_FIXTURES` in `-tags dev`
+      builds. Setup walks steps 4–5 (including "It doesn't match"), then `/traefik`: files, served certificate, renew,
+      sync. A root domain outside the managed zone is refused with a plain message (spec c84e87a).
 - [ ] Deploy (user runs `/deploy`) and prod-proof on `hashi-edge-test` (full gate) plus the install plan, files and Verify
       on `hashi-edge-debian` and `hashi-edge-fedora`: host key pinned, install plan applied (Traefik under OpenRC/systemd), files applied, Verify from the real API, real certificate issued + distributed + fingerprint matches, Hashi
       stopped → fail-open route 200 / fail-closed 500 on the edge, Hashi back → normal; live Traefik instances untouched.

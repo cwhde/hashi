@@ -96,7 +96,7 @@ func TestIntegrationApplyVerifyFallback(t *testing.T) {
 		t.Fatal(err)
 	}
 	d := traefik.Desired{
-		Paths: opts.Paths, APIPort: apiPort, Files: files, PingTimeout: 15 * time.Second,
+		Paths: opts.Paths, APIPort: apiPort, Files: files, PingTimeout: 15 * time.Second, PackageManager: "apk", Init: traefik.InitOpenRC,
 		Service: traefik.Service{Path: "/etc/hashi-traefik-run", Data: []byte(runScript), Mode: 0o755,
 			Enable: "/etc/hashi-traefik-run", Restart: "/etc/hashi-traefik-run"},
 		Binary: func(context.Context) ([]byte, error) {
@@ -152,6 +152,22 @@ func TestIntegrationApplyVerifyFallback(t *testing.T) {
 		}
 		t.Logf("served %s: %.16s…", chk.Name, chk.Got)
 	}
+
+	// 04 §3: the image has no logrotate, so the apply installed it; Hashi's config rotates the access log and Traefik,
+	// signalled by the postrotate pkill, writes the next request to a fresh file.
+	if out := c.Exec(t, "sh", "-c", "command -v logrotate"); !strings.Contains(out, "logrotate") {
+		t.Fatalf("logrotate not installed: %q", out)
+	}
+	request := func() {
+		_, _ = h.Run(ctx, "wget -qO- --no-check-certificate -T 5 https://127.0.0.1"+traefik.HealthPath+"/open", nil)
+	}
+	request()
+	c.Exec(t, "sh", "-c", "logrotate -f /etc/logrotate.d/hashi-traefik")
+	request()
+	itest.WaitFor(t, 10*time.Second, "access log reopened after rotation", func() bool {
+		out := c.Exec(t, "sh", "-c", "ls /var/log/hashi/traefik/; test -s /var/log/hashi/traefik/access.log && echo REOPENED")
+		return strings.Contains(out, "REOPENED") && strings.Contains(out, "access.log-")
+	})
 
 	status := func(path string) string {
 		r, err := h.Run(ctx, "wget -qSO- --no-check-certificate -T 5 https://127.0.0.1"+path+" 2>&1 | grep -m1 'HTTP/'", nil)

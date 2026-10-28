@@ -33,6 +33,8 @@ type fakeHost struct {
 	startOK func(static []byte) bool
 	rawdata []byte
 	probe   string // what ProbeCommand prints
+	// noLogrotate makes `command -v logrotate` fail.
+	noLogrotate bool
 }
 
 func newFakeHost() *fakeHost {
@@ -47,6 +49,8 @@ func (h *fakeHost) Run(_ context.Context, cmd string, _ io.Reader) (sshx.Result,
 	switch {
 	case cmd == ProbeCommand:
 		return sshx.Result{Stdout: []byte(h.probe)}, nil
+	case cmd == "command -v logrotate" && h.noLogrotate:
+		return sshx.Result{ExitCode: 1}, nil
 	case strings.HasPrefix(cmd, "cp -p "):
 		args := strings.Fields(strings.TrimPrefix(cmd, "cp -p "))
 		from, to := unquote(args[0]), unquote(args[1])
@@ -308,4 +312,30 @@ func index(list []string, suffix string) int {
 		}
 	}
 	return -1
+}
+
+// 04 §3: a host without logrotate gets it with its package manager (high risk: a package install), then Hashi's config.
+func TestLogrotateInstalledWhenMissing(t *testing.T) {
+	ctx := context.Background()
+	h := newFakeHost()
+	h.noLogrotate = true
+	d := desired(t)
+	d.PackageManager, d.Init = "dnf", InitSystemd
+	diff, err := Observe(ctx, h, d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.ContainsFunc(diff.Items(), func(i hsync.Item) bool { return i.Object == "package logrotate" && i.Risk == hsync.High }) {
+		t.Fatalf("items: %+v", diff.Items())
+	}
+	if _, err := Apply(ctx, h, d, diff, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(h.ran, "dnf install -y logrotate && systemctl enable --now logrotate.timer") || h.files[LogrotatePath] == nil {
+		t.Errorf("ran %v", h.ran)
+	}
+	d.PackageManager = "pacman"
+	if _, err := Observe(ctx, h, d); !errors.Is(err, ErrUnsupported) {
+		t.Errorf("unknown package manager: %v", err)
+	}
 }
