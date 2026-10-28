@@ -5,12 +5,14 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/sha256"
 	"embed"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"strings"
 )
 
@@ -92,4 +94,35 @@ func extract(arch string, archive []byte) ([]byte, error) {
 		}
 		return b, nil
 	}
+}
+
+// MaxArchive bounds the download.
+const MaxArchive = 256 << 20
+
+// Download fetches the pinned release archive for arch from baseURL ("" = ReleaseURL) and returns the verified binary.
+func Download(ctx context.Context, client *http.Client, baseURL, arch string) ([]byte, error) {
+	u := ReleaseURL(arch)
+	if baseURL != "" {
+		u = strings.TrimSuffix(baseURL, "/") + "/" + AssetName(arch)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("download %s: %w", AssetName(arch), err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("download %s: HTTP %d", AssetName(arch), resp.StatusCode)
+	}
+	b, err := io.ReadAll(io.LimitReader(resp.Body, MaxArchive+1))
+	if err != nil {
+		return nil, fmt.Errorf("download %s: %w", AssetName(arch), err)
+	}
+	if len(b) > MaxArchive {
+		return nil, fmt.Errorf("download %s: larger than %d bytes", AssetName(arch), MaxArchive)
+	}
+	return Binary(arch, b)
 }
