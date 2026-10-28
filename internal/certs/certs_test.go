@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"math/big"
+	"slices"
 	"testing"
 	"time"
 )
@@ -28,10 +29,10 @@ func TestLevelsAndRenewalWindow(t *testing.T) {
 			t.Errorf("%s left: due %v", c.left, got)
 		}
 	}
-	if d := Desired(" Example.COM. "); len(d) != 1 || d[0].Name != "example.com" || !SameNames(d[0].Names, []string{"*.example.com", "example.com"}) {
+	if d := Desired(" Example.COM. ", "", nil); len(d) != 1 || d[0].Name != "example.com" || !SameNames(d[0].Names, []string{"*.example.com", "example.com"}) {
 		t.Errorf("desired: %+v", d)
 	}
-	if Desired("") != nil {
+	if Desired("", "", nil) != nil {
 		t.Error("no root, still a certificate")
 	}
 }
@@ -70,5 +71,24 @@ func TestFromChainAndKeys(t *testing.T) {
 	}
 	if _, err := decodeHMAC("not base64!"); err == nil {
 		t.Error("bad HMAC accepted")
+	}
+}
+
+// 03 §5.3: one wildcard per deeper parent in use; first-level names and the root need nothing more; a custom name at
+// the zone apex (outside the root) is listed itself; names outside the zone are skipped.
+func TestDesiredDeeperWildcards(t *testing.T) {
+	d := Desired("example.com", "example.com", []string{"example.com", "app.example.com", "dev.hashi.example.com",
+		"x.hashi.example.com", "fra1.ns.example.com", "other.example.net"})
+	want := []string{"example.com", "*.example.com", "*.hashi.example.com", "*.ns.example.com"}
+	if len(d) != 1 || !slices.Equal(d[0].Names, want) {
+		t.Errorf("got %v", d)
+	}
+	d = Desired("home.example.com", "example.com", []string{"example.com", "app.example.com", "a.home.example.com"})
+	want = []string{"home.example.com", "*.home.example.com", "*.example.com", "example.com"}
+	if !SameNames(d[0].Names, want) || d[0].Names[0] != "home.example.com" {
+		t.Errorf("deeper root: %v", d[0].Names)
+	}
+	if !Covers(want, []string{"*.example.com"}) || Covers([]string{"example.com"}, []string{"*.example.com"}) {
+		t.Error("Covers")
 	}
 }

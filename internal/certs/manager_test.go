@@ -15,6 +15,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/dns/hetzner"
 	"git.juzo.io/juzo/hashi/internal/dns/hetzner/hetznertest"
 	"git.juzo.io/juzo/hashi/internal/secrets"
+	"git.juzo.io/juzo/hashi/internal/services"
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/store"
 	"git.juzo.io/juzo/hashi/internal/store/db"
@@ -172,7 +173,7 @@ func TestIssueNowRetriesAfterFailedFirstIssue(t *testing.T) {
 	now := time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC)
 	m.now = func() time.Time { return now }
 	f.account(t, "https://ca.example.test/dir", "", "", "[]")
-	m.failed(ctx, "example.com", errors.New("the CA did not validate example.com"))
+	m.failed(ctx, "example.com", []string{"example.com", "*.example.com"}, errors.New("the CA did not validate example.com"))
 	sub := certSub{m}
 	if d, _ := sub.Plan(ctx, "acme1"); len(d.Items) != 0 {
 		t.Fatalf("the job retries within the wait: %s", itemsNotes(d.Items))
@@ -183,5 +184,53 @@ func TestIssueNowRetriesAfterFailedFirstIssue(t *testing.T) {
 	}
 	if d, _ := sub.Plan(ctx, target); len(d.Items) != 1 || d.Items[0].Action != hsync.ActionCreate {
 		t.Errorf("issue now after a failure: %s", itemsNotes(d.Items))
+	}
+}
+
+// 03 §5.3: a service on a deeper name makes the certificate gain that parent's wildcard; a wildcard no longer needed
+// stays until the next renewal instead of forcing one.
+func TestPlanAddsDeeperWildcardForServices(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t)
+	m := NewManager(f.st, f.vault, f.audit, nil, nil, slog.Default())
+	now := time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC)
+	m.now = func() time.Time { return now }
+	sub := certSub{m}
+	f.account(t, "https://ca.example.test/dir", "", "", "[]")
+	rec, _ := f.vault.Seal(vault.Service, KeyPurpose, secrets.New("k"))
+	_ = f.st.Q.InsertSecret(ctx, rec)
+	_ = f.st.Q.InsertCertificate(ctx, db.InsertCertificateParams{ID: "cert1", Name: "example.com", NamesJson: `[]`})
+	issued := func(names string) {
+		if err := f.st.Q.SetCertificateIssued(ctx, db.SetCertificateIssuedParams{NamesJson: names,
+			KeySecretID: sql.NullString{String: rec.ID, Valid: true}, CertPem: "PEM", Fingerprint: "ab",
+			NotAfter: sql.NullInt64{Int64: now.Add(80 * 24 * time.Hour).UnixMilli(), Valid: true}, LastRenewalResult: "issued", ID: "cert1"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	issued(`["example.com","*.example.com"]`)
+	svc, err := services.Create(ctx, f.st.Q, services.Service{Name: "Hashi dev", Slug: "dev", Kind: services.KindHTTP,
+		DomainMode: services.ModeSubdomain, HostName: "dev.hashi.example.com", Enabled: true,
+		Target: services.Target{Address: "192.0.2.5", Port: 3340}}, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d, _ := sub.Plan(ctx, "acme1")
+	if len(d.Items) != 1 || !strings.Contains(d.Items[0].Note, "names") || !strings.Contains(string(d.Items[0].After), `"*.hashi.example.com"`) {
+		t.Fatalf("deeper name: %s", itemsNotes(d.Items))
+	}
+	issued(`["example.com","*.example.com","*.hashi.example.com","*.old.example.com"]`)
+	if d, _ := sub.Plan(ctx, "acme1"); len(d.Items) != 0 {
+		t.Errorf("covered, with a stale wildcard: %s", itemsNotes(d.Items))
+	}
+	if _, err := services.SetEnabled(ctx, f.st.Q, svc.ID, false, now); err != nil {
+		t.Fatal(err)
+	}
+	if d, _ := sub.Plan(ctx, "acme1"); len(d.Items) != 0 {
+		t.Errorf("service disabled mid-term: %s", itemsNotes(d.Items))
+	}
+	// "Renew now" issues exactly the names needed now: the stale wildcards go.
+	d, _ = sub.Plan(ctx, "cert1")
+	if len(d.Items) != 1 || strings.Contains(string(d.Items[0].After), "old") || strings.Contains(string(d.Items[0].After), "hashi") {
+		t.Errorf("renew now: %s %s", itemsNotes(d.Items), d.Items[0].After)
 	}
 }
