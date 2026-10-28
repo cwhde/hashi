@@ -47,8 +47,15 @@ func dnsRRSetBody(z dns.ZoneInfo, o dns.Observed) gen.DNSRRSet {
 	if origin == "" {
 		origin = dns.Unmanaged
 	}
-	return gen.DNSRRSet{Name: o.Name, Fqdn: dns.FQDN(o.Name, z.Name), Type: o.Type, Ttl: o.TTL, EffectiveTtl: o.EffectiveTTL(z.ZoneTTL),
-		Values: o.Values, Protected: o.Protected, Origin: gen.DNSOrigin(origin), ObservedAt: o.ObservedAt}
+	out := gen.DNSRRSet{Name: o.Name, Fqdn: dns.FQDN(o.Name, z.Name), Type: o.Type, Ttl: o.TTL, EffectiveTtl: o.EffectiveTTL(z.ZoneTTL),
+		Values: o.Values, Protected: o.Protected, Origin: gen.DNSOrigin(origin), Pending: o.Pending}
+	if !o.Pending {
+		out.ObservedAt = &o.ObservedAt
+	}
+	if o.Entry != nil {
+		out.Entry = ptr(dnsRecordBody(*o.Entry))
+	}
+	return out
 }
 
 func dnsImportBody(z dns.ZoneInfo, rows []dns.ImportRow) gen.DNSImportTable {

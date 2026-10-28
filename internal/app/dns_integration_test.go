@@ -17,10 +17,10 @@ import (
 
 // Setup step 3 over HTTP against the recorded Hetzner responses (02 §1.3, 03 §4).
 func TestSetupStep3DNSProviderAndImport(t *testing.T) {
-	srv := hetznertest.NewServer(t)
+	sim, srv := hetznertest.NewSimServer(t)
 	cfg := newConfig(t)
-	cfg.dnsProviders = func(_ string, token secrets.Value) (dns.Reader, error) {
-		return hetzner.New(token, hetzner.WithBaseURL(srv.BaseURL())), nil
+	cfg.dnsProviders = func(_ string, token secrets.Value) (dns.Provider, error) {
+		return hetzner.New(token, hetzner.WithBaseURL(srv.URL+"/v1")), nil
 	}
 	in := start(t, cfg)
 	c := in.client()
@@ -89,6 +89,21 @@ func TestSetupStep3DNSProviderAndImport(t *testing.T) {
 
 	// The DNS admin API needs a passkey session's scopes; the bootstrap session has only setup.manage.
 	c.mustStatus(c.do(http.MethodGet, "/api/dns/zones", nil), 403)
+	c.mustStatus(c.do(http.MethodGet, "/api/sync/plans", nil), 403)
+
+	// The write test (invariant 4): planning it writes nothing; running the shown plan creates and deletes the probe.
+	r = c.mustStatus(c.do(http.MethodPost, "/api/setup/dns/probe", nil), 200)
+	if r.body["status"] != "pending" || r.body["risk"] != "high" || len(r.body["items"].([]any)) != 2 || len(sim.Writes) != 0 {
+		t.Fatalf("probe plan: %s, writes %v", r.raw, sim.Writes)
+	}
+	c.mustStatus(c.do(http.MethodPost, "/api/sync/plans/"+r.body["id"].(string)+"/approve", nil), 403) // needs sync.apply + reauth
+	r = c.mustStatus(c.do(http.MethodPost, "/api/setup/dns/probe/"+r.body["id"].(string)+"/run", nil), 200)
+	if r.body["status"] != "applied" || !strings.Contains(r.body["result"].(string), "write access confirmed") || len(sim.Writes) != 2 {
+		t.Fatalf("probe run: %s, writes %v", r.raw, sim.Writes)
+	}
+	if _, _, _, ok := sim.RRSet("100001", dns.ProbeName, "TXT"); ok {
+		t.Fatal("probe left behind")
+	}
 
 	// Invariant 5: the token is neither logged nor stored in plain text.
 	if strings.Contains(in.logs.String(), hetznertest.Token) {

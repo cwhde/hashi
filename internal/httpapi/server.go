@@ -16,6 +16,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/setup"
 	"git.juzo.io/juzo/hashi/internal/store"
+	hsync "git.juzo.io/juzo/hashi/internal/sync"
 	"git.juzo.io/juzo/hashi/internal/vault"
 )
 
@@ -29,6 +30,7 @@ type Server struct {
 	Setup    *setup.Service
 	Settings *settings.Service
 	DNS      *dns.Service
+	Sync     *hsync.Engine
 	Vault    *vault.Vault
 	Audit    *audit.Log
 	IP       *clientip.Resolver

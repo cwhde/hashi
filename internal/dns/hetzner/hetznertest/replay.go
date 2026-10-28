@@ -69,16 +69,6 @@ func NewServer(t testing.TB) *Server {
 	return s
 }
 
-// NewHandler replays the fixtures in dir without a test context: `-tags dev` builds (make dev, E2E) use it as their
-// fake Hetzner API. It accepts the same Token.
-func NewHandler(dir string) (http.Handler, error) {
-	s, err := newServer(dir)
-	if err != nil {
-		return nil, err
-	}
-	return http.HandlerFunc(s.serve), nil
-}
-
 func newServer(dir string) (*Server, error) {
 	s := &Server{byKey: map[string]Fixture{}}
 	entries, err := os.ReadDir(dir)

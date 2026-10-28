@@ -31,6 +31,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/setup"
 	"git.juzo.io/juzo/hashi/internal/store"
 	"git.juzo.io/juzo/hashi/internal/store/db"
+	hsync "git.juzo.io/juzo/hashi/internal/sync"
 	"git.juzo.io/juzo/hashi/internal/vault"
 	"git.juzo.io/juzo/hashi/internal/web"
 )
@@ -144,14 +145,19 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	if err != nil {
 		return err
 	}
-	if err := runner.Register(ctx, jobs.Job{Kind: "dns.refresh", Interval: time.Duration(general.SyncIntervalSeconds) * time.Second, Run: dnsSvc.RefreshAll}); err != nil {
+	syncEngine := hsync.New(st, al, dnsSvc.Subsystems()...)
+	if err := syncEngine.Start(ctx); err != nil {
+		return err
+	}
+	// Each run reads the zone fresh and reconciles Hashi's entries (01 §5.4 periodic reconcile).
+	if err := runner.Register(ctx, jobs.Job{Kind: "dns.refresh", Interval: time.Duration(general.SyncIntervalSeconds) * time.Second, Run: dnsSvc.Reconcile(syncEngine)}); err != nil {
 		return err
 	}
 
 	health := httpapi.NewHealth(map[string]httpapi.Check{"database": st.Ready})
 	api := &httpapi.Server{
 		Health: health, Version: gen.Version{Version: Version, Commit: Commit}, Store: st, Sessions: sessions,
-		Passkeys: passkeys, Setup: setupSvc, Settings: cfgSettings, DNS: dnsSvc, Vault: v, Audit: al, IP: ip, Logs: cfg.Logs,
+		Passkeys: passkeys, Setup: setupSvc, Settings: cfgSettings, DNS: dnsSvc, Sync: syncEngine, Vault: v, Audit: al, IP: ip, Logs: cfg.Logs,
 		Log: log.With("component", "api"),
 	}
 	servers := []*server{{name: "admin", addr: cfg.AdminAddr, handler: adminMux(api)}}
@@ -192,7 +198,7 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 }
 
 // openDNSProvider opens the adapter for a provider type (03 §1: adding a provider is a new module plus a case here).
-func openDNSProvider(typ string, token secrets.Value) (dns.Reader, error) {
+func openDNSProvider(typ string, token secrets.Value) (dns.Provider, error) {
 	switch typ {
 	case "hetzner":
 		return hetzner.New(token), nil

@@ -46,3 +46,43 @@ func TestInvariant_2_SchemaRejectsNSSOAOwnership(t *testing.T) {
 		t.Errorf("A prune: %v", err)
 	}
 }
+
+// Desired records can never be NS/SOA either (invariant 2), and a subsystem target has at most one open plan.
+func TestInvariant_2_SchemaRejectsNSSOARecords(t *testing.T) {
+	ctx := context.Background()
+	s := open(t)
+	if err := s.Migrate(ctx, quiet()); err != nil {
+		t.Fatal(err)
+	}
+	q := s.Q
+	if err := q.InsertSecret(ctx, db.InsertSecretParams{ID: "s1", Class: "service", Purpose: "dns.token", KeyVersion: 1,
+		Nonce: []byte{1}, Ciphertext: []byte{1}, DekNonce: []byte{1}, WrappedDek: []byte{1}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := q.InsertDNSProvider(ctx, db.InsertDNSProviderParams{ID: "p1", Name: "Hetzner", Type: "hetzner", DefaultTtl: 3600,
+		TokenSecretID: "s1", Health: "healthy"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := q.InsertDNSZone(ctx, db.InsertDNSZoneParams{ID: "z1", ProviderID: "p1", ProviderZoneID: "1", Name: "example.com", ZoneTtl: 3600}); err != nil {
+		t.Fatal(err)
+	}
+	for i, typ := range []string{"NS", "SOA"} {
+		if err := q.InsertDNSRecord(ctx, db.InsertDNSRecordParams{ID: "r" + typ, ZoneID: "z1", Name: "@", Type: typ, ValuesJson: "[]",
+			Origin: "user", CreatedAt: int64(i), UpdatedAt: int64(i)}); err == nil {
+			t.Errorf("%s desired record was accepted", typ)
+		}
+	}
+	plan := db.InsertSyncPlanParams{ID: "a", Subsystem: "dns-records", Target: "z1", Title: "t", Trigger: "save", Risk: "low",
+		Status: "pending", PlanHash: "h", CreatedBy: "admin"}
+	if err := q.InsertSyncPlan(ctx, plan); err != nil {
+		t.Fatal(err)
+	}
+	plan.ID = "b"
+	if err := q.InsertSyncPlan(ctx, plan); err == nil {
+		t.Error("second open plan for the same target was accepted")
+	}
+	plan.Status = "applied"
+	if err := q.InsertSyncPlan(ctx, plan); err != nil {
+		t.Errorf("finished plan beside an open one: %v", err)
+	}
+}

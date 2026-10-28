@@ -17,21 +17,22 @@ import (
 //   - HASHI_DEV_WEBAUTHN_ORIGIN (e.g. http://localhost:5173) binds passkeys to RP ID "localhost" at that origin,
 //     because Hashi has no HTTPS domain before S5 (02-setup-auth.md §1);
 //   - setup steps from later slices count as done, so the wizard can complete;
-//   - HASHI_DEV_DNS_FIXTURES points the Hetzner adapter at recorded fixtures (devDNSProviders).
+//   - HASHI_DEV_DNS_FIXTURES points the Hetzner adapter at a fake that starts from the recorded zone (devDNSProviders).
 const devBuild = true
 
-// devDNSProviders serves the recorded Hetzner responses in HASHI_DEV_DNS_FIXTURES in-process (token
-// hetznertest.Token), so setup step 3 and /dns work in make dev and E2E without a real provider.
+// devDNSProviders runs the stateful Hetzner fake (hetznertest.Sim) on the recorded zone in HASHI_DEV_DNS_FIXTURES
+// in-process (token hetznertest.Token), so setup step 3, /dns and DNS plans work in make dev and E2E without a real
+// provider. Writes live until the process ends.
 func devDNSProviders(cfg Config) (dns.Factory, error) {
 	if cfg.DevDNSFixtures == "" {
 		return nil, nil
 	}
-	h, err := hetznertest.NewHandler(cfg.DevDNSFixtures)
+	h, err := hetznertest.NewSim(cfg.DevDNSFixtures)
 	if err != nil {
 		return nil, fmt.Errorf("HASHI_DEV_DNS_FIXTURES: %w", err)
 	}
 	client := &http.Client{Transport: handlerTransport{h}}
-	return func(typ string, token secrets.Value) (dns.Reader, error) {
+	return func(typ string, token secrets.Value) (dns.Provider, error) {
 		if typ != "hetzner" {
 			return nil, fmt.Errorf("no fixtures for DNS provider type %q", typ)
 		}

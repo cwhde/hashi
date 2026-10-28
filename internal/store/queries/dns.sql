@@ -45,8 +45,8 @@ SELECT * FROM dns_observed_rrsets WHERE zone_id = ? ORDER BY name, type;
 DELETE FROM dns_observed_rrsets WHERE zone_id = ?;
 
 -- name: InsertObservedRRSet :exec
-INSERT INTO dns_observed_rrsets (zone_id, name, type, ttl, values_json, labels_json, protected, hash, observed_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO dns_observed_rrsets (zone_id, name, type, ttl, values_json, labels_json, protected, hash, observed_at, owner)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: ListDNSOwnership :many
 SELECT * FROM dns_ownership WHERE zone_id = ? ORDER BY name, type;
@@ -66,3 +66,34 @@ SELECT * FROM dns_import_decisions WHERE zone_id = ? ORDER BY name, type;
 -- name: UpsertImportDecision :exec
 INSERT INTO dns_import_decisions (zone_id, name, type, decision, decided_at) VALUES (?, ?, ?, ?, ?)
 ON CONFLICT (zone_id, name, type) DO UPDATE SET decision = excluded.decision, decided_at = excluded.decided_at;
+
+-- name: ListDNSRecords :many
+SELECT * FROM dns_records WHERE zone_id = ? ORDER BY name, type;
+
+-- name: GetDNSRecord :one
+SELECT * FROM dns_records WHERE id = ?;
+
+-- name: GetDNSRecordByKey :one
+SELECT * FROM dns_records WHERE zone_id = ? AND name = ? AND type = ?;
+
+-- name: InsertDNSRecord :exec
+INSERT INTO dns_records (id, zone_id, name, type, ttl, values_json, origin, display_name, dashboard, monitoring, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+-- name: UpdateDNSRecord :exec
+UPDATE dns_records SET ttl = ?, values_json = ?, display_name = ?, dashboard = ?, monitoring = ?, updated_at = ? WHERE id = ?;
+
+-- name: DeleteDNSRecord :exec
+DELETE FROM dns_records WHERE id = ?;
+
+-- name: DeleteImportedDNSRecord :exec
+DELETE FROM dns_records WHERE zone_id = ? AND name = ? AND type = ? AND origin = 'imported';
+
+-- name: DeleteDNSOwnership :exec
+DELETE FROM dns_ownership WHERE zone_id = ? AND name = ? AND type = ?;
+
+-- name: SetDNSOwnershipApplied :exec
+UPDATE dns_ownership SET last_applied_hash = ?, updated_at = ? WHERE zone_id = ? AND name = ? AND type = ?;
+
+-- name: DeleteImportDecision :exec
+DELETE FROM dns_import_decisions WHERE zone_id = ? AND name = ? AND type = ?;

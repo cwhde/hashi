@@ -333,6 +333,30 @@ paths:
           description: Validated and stored
           content: { application/json: { schema: { $ref: "#/components/schemas/DNSConnectResult" } } }
         default: { $ref: "#/components/responses/Problem" }
+  /api/setup/dns/probe:
+    post:
+      operationId: postSetupDNSProbe
+      summary: Step 3 — plan the write test (create and delete a `_hashi-test` TXT); nothing is written yet
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      responses:
+        "200":
+          description: The pending probe plan
+          content: { application/json: { schema: { $ref: "#/components/schemas/SyncPlan" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/setup/dns/probe/{id}/run:
+    post:
+      operationId: runSetupDNSProbe
+      summary: Step 3 — approve the shown probe plan and run it (invariant 4)
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The plan after the run
+          content: { application/json: { schema: { $ref: "#/components/schemas/SyncPlan" } } }
+        default: { $ref: "#/components/responses/Problem" }
   /api/setup/dns/import:
     get:
       operationId: getSetupDNSImport
@@ -570,6 +594,157 @@ paths:
         "200":
           description: Saved; the updated table
           content: { application/json: { schema: { $ref: "#/components/schemas/DNSImportTable" } } }
+        default: { $ref: "#/components/responses/Problem" }
+
+  /api/dns/records:
+    post:
+      operationId: createDNSRecord
+      summary: Add a manual entry; plans it right away (low risk applies, 01 §5.4)
+      tags: [dns]
+      x-hashi-scopes: [admin.write]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/DNSRecordInput" } } }
+      responses:
+        "200":
+          description: Saved, with the plan it caused (absent when nothing changes)
+          content: { application/json: { schema: { $ref: "#/components/schemas/DNSRecordSaved" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/dns/records/{id}:
+    patch:
+      operationId: updateDNSRecord
+      summary: Change a manual or imported entry's TTL, values and display fields; plans it right away
+      tags: [dns]
+      x-hashi-scopes: [admin.write]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/DNSRecordUpdate" } } }
+      responses:
+        "200":
+          description: Saved, with the plan it caused
+          content: { application/json: { schema: { $ref: "#/components/schemas/DNSRecordSaved" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    delete:
+      operationId: deleteDNSRecord
+      summary: Remove an entry; the deletion at the provider is a high-risk plan awaiting approval
+      tags: [dns]
+      x-hashi-scopes: [admin.write]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The removed entry and the plan it caused
+          content: { application/json: { schema: { $ref: "#/components/schemas/DNSRecordSaved" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/dns/plan:
+    post:
+      operationId: planDNS
+      summary: Plan the zone's entries now ("Sync now"); low-risk plans apply
+      tags: [dns]
+      x-hashi-scopes: [admin.write]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/DNSZoneRef" } } }
+      responses:
+        "200":
+          description: The plan, absent when the zone is in sync
+          content: { application/json: { schema: { $ref: "#/components/schemas/SyncPlanResult" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/dns/prune:
+    post:
+      operationId: planDNSPrune
+      summary: Plan the removal of every RRSet marked for prune on the import table (high risk, 03 §4)
+      tags: [dns]
+      x-hashi-scopes: [admin.write]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/DNSZoneRef" } } }
+      responses:
+        "200":
+          description: The pending plan, absent when nothing is marked
+          content: { application/json: { schema: { $ref: "#/components/schemas/SyncPlanResult" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/dns/probe:
+    post:
+      operationId: planDNSProbe
+      summary: Plan the write test (create, verify and delete a `_hashi-test` TXT); runs only after approval (invariant 4)
+      tags: [dns]
+      x-hashi-scopes: [admin.write]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/DNSZoneRef" } } }
+      responses:
+        "200":
+          description: The pending probe plan
+          content: { application/json: { schema: { $ref: "#/components/schemas/SyncPlanResult" } } }
+        default: { $ref: "#/components/responses/Problem" }
+
+  # ---- sync (01-platform.md §5) ----
+  /api/sync/plans:
+    get:
+      operationId: listSyncPlans
+      summary: Open plans (pending, approved, applying) with items, and recently finished ones
+      tags: [sync]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Plans
+          content: { application/json: { schema: { $ref: "#/components/schemas/SyncPlanOverview" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/sync/plans/{id}:
+    get:
+      operationId: getSyncPlan
+      summary: One plan with its exact items
+      tags: [sync]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The plan
+          content: { application/json: { schema: { $ref: "#/components/schemas/SyncPlan" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/sync/plans/{id}/approve:
+    post:
+      operationId: approveSyncPlan
+      summary: Approve a pending (high-risk) plan
+      tags: [sync]
+      x-hashi-scopes: [sync.apply]
+      x-hashi-reauth: true
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Approved
+          content: { application/json: { schema: { $ref: "#/components/schemas/SyncPlan" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/sync/plans/{id}/apply:
+    post:
+      operationId: applySyncPlan
+      summary: Apply an approved plan now; it is re-planned first and returns to approval if a new high-risk item appeared
+      tags: [sync]
+      x-hashi-scopes: [sync.apply]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The plan that ran (applied or failed), or the new plan awaiting approval
+          content: { application/json: { schema: { $ref: "#/components/schemas/SyncPlan" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/sync/plans/{id}/discard:
+    post:
+      operationId: discardSyncPlan
+      summary: Drop a pending or approved plan
+      tags: [sync]
+      x-hashi-scopes: [sync.apply]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Discarded
+          content: { application/json: { schema: { $ref: "#/components/schemas/SyncPlan" } } }
         default: { $ref: "#/components/responses/Problem" }
 
   # ---- vault (02 §5) ----
@@ -835,7 +1010,7 @@ components:
       enum: [import, leave, prune]
     DNSRRSet:
       type: object
-      required: [name, fqdn, type, effective_ttl, values, protected, origin, observed_at]
+      required: [name, fqdn, type, effective_ttl, values, protected, origin, pending]
       properties:
         name: { type: string, description: "Relative to the zone; `@` is the apex" }
         fqdn: { type: string }
@@ -845,7 +1020,9 @@ components:
         values: { type: array, items: { type: string }, description: Sorted; TXT values decoded to their text }
         protected: { type: boolean, description: The provider forbids changes; read-only to Hashi }
         origin: { $ref: "#/components/schemas/DNSOrigin" }
-        observed_at: { type: string, format: date-time }
+        observed_at: { type: string, format: date-time, description: Absent for a pending entry }
+        pending: { type: boolean, description: A Hashi entry not yet created at the provider (values are the entry's) }
+        entry: { $ref: "#/components/schemas/DNSRecord" }
     DNSRRSetList:
       type: object
       required: [zone, rrsets]
@@ -880,6 +1057,105 @@ components:
       required: [decisions]
       properties:
         decisions: { type: array, maxItems: 5000, items: { $ref: "#/components/schemas/DNSImportDecision" } }
+    DNSZoneRef:
+      type: object
+      required: [zone_id]
+      properties:
+        zone_id: { type: string }
+    DNSRecord:
+      type: object
+      description: A desired RRSet Hashi owns (manual entry or import, 03 §7)
+      required: [id, zone_id, name, type, values, origin, display_name, dashboard, monitoring]
+      properties:
+        id: { type: string }
+        zone_id: { type: string }
+        name: { type: string }
+        type: { type: string }
+        ttl: { type: integer, description: Absent = zone default }
+        values: { type: array, items: { type: string }, description: TXT as plain text }
+        origin: { $ref: "#/components/schemas/DNSOrigin" }
+        display_name: { type: string }
+        dashboard: { type: boolean }
+        monitoring: { type: boolean }
+    DNSRecordInput:
+      type: object
+      required: [zone_id, name, type, values]
+      properties:
+        zone_id: { type: string }
+        name: { type: string, maxLength: 253, description: "Relative to the zone (`@` = apex) or absolute inside it" }
+        type: { type: string, enum: [A, AAAA, CNAME, MX, TXT, SRV, CAA] }
+        ttl: { type: integer, minimum: 60, maximum: 86400, description: Absent = zone default }
+        values: { type: array, minItems: 1, maxItems: 100, items: { type: string, maxLength: 4000 } }
+        display_name: { type: string, maxLength: 200 }
+        dashboard: { type: boolean }
+        monitoring: { type: boolean }
+    DNSRecordUpdate:
+      type: object
+      description: Replaces TTL, values and display fields; name and type cannot change
+      required: [values]
+      properties:
+        ttl: { type: integer, minimum: 60, maximum: 86400, description: Absent = zone default }
+        values: { type: array, minItems: 1, maxItems: 100, items: { type: string, maxLength: 4000 } }
+        display_name: { type: string, maxLength: 200 }
+        dashboard: { type: boolean }
+        monitoring: { type: boolean }
+    DNSRecordSaved:
+      type: object
+      required: [record]
+      properties:
+        record: { $ref: "#/components/schemas/DNSRecord" }
+        plan: { $ref: "#/components/schemas/SyncPlan" }
+        plan_error: { type: string, description: Planning or applying failed; the entry is saved and the next sync retries }
+    SyncPlanItemValue:
+      type: object
+      description: Exact DNS RRSet sent and verified (TXT as plain text)
+      required: [name, type, values]
+      properties:
+        name: { type: string }
+        type: { type: string }
+        ttl: { type: [integer, "null"], description: null = zone default }
+        values: { type: array, items: { type: string } }
+        owner: { type: string, description: Ownership marker value written to the provider }
+    SyncPlanItem:
+      type: object
+      required: [action, object, risk, note]
+      properties:
+        action: { type: string, enum: [create, update, delete, label, conflict] }
+        object: { type: string, description: "e.g. `www A`" }
+        before: { $ref: "#/components/schemas/SyncPlanItemValue" }
+        after: { $ref: "#/components/schemas/SyncPlanItemValue" }
+        risk: { type: string, enum: [low, high] }
+        note: { type: string }
+    SyncPlan:
+      type: object
+      required: [id, subsystem, target, target_name, title, trigger, risk, status, created_by, created_at, approved_by, result, error, items]
+      properties:
+        id: { type: string }
+        subsystem: { type: string, enum: [dns-records, dns-record-deletes, dns-prune, dns-probe] }
+        target: { type: string }
+        target_name: { type: string, description: "e.g. the zone name" }
+        title: { type: string }
+        trigger: { type: string, enum: [save, reconcile, manual, probe, prune] }
+        risk: { type: string, enum: [low, high] }
+        status: { type: string, enum: [pending, approved, applying, applied, failed, discarded, superseded] }
+        created_by: { type: string }
+        created_at: { type: string, format: date-time }
+        approved_by: { type: string, description: "`auto` for low-risk plans" }
+        approved_at: { type: string, format: date-time }
+        finished_at: { type: string, format: date-time }
+        result: { type: string }
+        error: { type: string }
+        items: { type: array, items: { $ref: "#/components/schemas/SyncPlanItem" }, description: Empty in the recent list }
+    SyncPlanResult:
+      type: object
+      properties:
+        plan: { $ref: "#/components/schemas/SyncPlan" }
+    SyncPlanOverview:
+      type: object
+      required: [open, recent]
+      properties:
+        open: { type: array, items: { $ref: "#/components/schemas/SyncPlan" } }
+        recent: { type: array, items: { $ref: "#/components/schemas/SyncPlan" } }
     BaseSettings:
       type: object
       required: [root_domain, admin_domain, internal_url, sync_interval_seconds, theme, public_dashboard_enabled, public_status_enabled]

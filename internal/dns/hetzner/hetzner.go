@@ -1,12 +1,14 @@
 // Package hetzner is the DNS provider adapter for the Hetzner Cloud API (03-dns.md §2). Everything here follows the
 // recorded responses in testdata/contracts/hetzner (captured 2026-10-28): request paths, pagination via
 // meta.pagination.next_page, RateLimit-* headers with a Unix reset time, and the {"error": {"code", "message"}} body.
-// Only the read side exists so far; writes are captured in S3 before they are written.
+// The write side (write.go) follows the probe capture in testdata/contracts/hetzner/write.
 package hetzner
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -81,7 +83,7 @@ func New(token secrets.Value, opts ...Option) *Client {
 	return c
 }
 
-var _ dns.Reader = (*Client)(nil)
+var _ dns.Provider = (*Client)(nil)
 
 // Capabilities are static for Hetzner. Every managed type was created, changed and deleted in the probe capture
 // (testdata/contracts/hetzner/write).
@@ -132,7 +134,8 @@ func (r rrsetJSON) model() dns.RRSet {
 	for i, rec := range r.Records {
 		vals[i] = rec.Value
 	}
-	return dns.Normalize(dns.RRSet{Name: r.Name, Type: r.Type, TTL: r.TTL, Values: vals, Labels: r.Labels, Protected: r.Protection.Change})
+	return dns.Normalize(dns.RRSet{Name: r.Name, Type: r.Type, TTL: r.TTL, Values: vals, Labels: r.Labels,
+		Protected: r.Protection.Change, Owner: r.Labels[OwnerLabel]})
 }
 
 // ListZones returns every zone the token can see (token validation, 03 §2).
@@ -231,29 +234,57 @@ func (c *Client) pages(ctx context.Context, path string, each func([]byte) error
 	}
 }
 
-// get performs an idempotent GET with rate-limit backoff and retries on 429, 5xx and transport errors.
+// get performs an idempotent GET; a 404 is dns.ErrZoneNotFound.
 func (c *Client) get(ctx context.Context, path string, q url.Values) ([]byte, http.Header, error) {
+	body, h, err := c.do(ctx, http.MethodGet, path, q, nil, true)
+	var ae *APIError
+	if errors.As(err, &ae) && ae.Status == http.StatusNotFound {
+		return nil, nil, fmt.Errorf("%w: %s", dns.ErrZoneNotFound, ae.Message)
+	}
+	return body, h, err
+}
+
+// do sends one request with rate-limit backoff. A 429 is retried for every request (it was not processed);
+// 5xx and transport errors only when idempotent, because a lost response to a create may still have created it.
+func (c *Client) do(ctx context.Context, method, path string, q url.Values, payload any, idempotent bool) ([]byte, http.Header, error) {
 	u := c.base + path
 	if len(q) > 0 {
 		u += "?" + q.Encode()
+	}
+	var reqBody []byte
+	if payload != nil {
+		var err error
+		if reqBody, err = json.Marshal(payload); err != nil {
+			return nil, nil, fmt.Errorf("hetzner: encode %s %s: %w", method, path, err)
+		}
 	}
 	var lastErr error
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		if err := c.waitForBudget(ctx); err != nil {
 			return nil, nil, err
 		}
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+		var rd io.Reader
+		if reqBody != nil {
+			rd = bytes.NewReader(reqBody)
+		}
+		req, err := http.NewRequestWithContext(ctx, method, u, rd)
 		if err != nil {
 			return nil, nil, err
 		}
 		req.Header.Set("Authorization", "Bearer "+c.token.Reveal())
 		req.Header.Set("Accept", "application/json")
+		if reqBody != nil {
+			req.Header.Set("Content-Type", "application/json")
+		}
 		resp, err := c.http.Do(req)
 		if err != nil {
 			if ctx.Err() != nil {
 				return nil, nil, ctx.Err()
 			}
-			lastErr = fmt.Errorf("hetzner: GET %s: %w", path, err)
+			lastErr = fmt.Errorf("hetzner: %s %s: %w", method, path, err)
+			if !idempotent {
+				return nil, nil, lastErr
+			}
 			if err := c.sleep(ctx, backoff(attempt)); err != nil {
 				return nil, nil, err
 			}
@@ -270,14 +301,15 @@ func (c *Client) get(ctx context.Context, path string, q url.Values) ([]byte, ht
 			return body, resp.Header, nil
 		case resp.StatusCode == http.StatusUnauthorized:
 			return nil, nil, ErrLegacyOrInvalidToken
-		case resp.StatusCode == http.StatusNotFound:
-			return nil, nil, fmt.Errorf("%w: %s", dns.ErrZoneNotFound, apiError(resp.StatusCode, body).Message)
 		case resp.StatusCode == http.StatusTooManyRequests:
 			// No 429 was captured; RateLimit-Reset (if sent) decides the wait in waitForBudget, else backoff.
 			lastErr = fmt.Errorf("%w: %w", dns.ErrRateLimited, apiError(resp.StatusCode, body))
 			c.markExhausted(resp.Header, attempt)
 		case resp.StatusCode >= 500:
 			lastErr = apiError(resp.StatusCode, body)
+			if !idempotent {
+				return nil, nil, lastErr
+			}
 			if err := c.sleep(ctx, backoff(attempt)); err != nil {
 				return nil, nil, err
 			}
