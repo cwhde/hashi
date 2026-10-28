@@ -5,7 +5,7 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
-**S3 — DNS write** · status: in progress (started 2026-10-28).
+**S3 — DNS write** · status: **done** 2026-10-28, deployed `94d60ad` (#30, #31), prod-proof passed.
 
 Scope and gate: 11-delivery.md §3 row S3: 03-dns.md §5–7, sync engine 01-platform.md §5, approval UI. Gate: a probe
 TXT is created and deleted through an approved plan; a Hashi-owned test record is applied and verified; NS/SOA are untouched.
@@ -63,8 +63,8 @@ PR B — UI + deploy
       verified", direct read shows it with the owner label; delete → high-risk plan pending (still at the provider),
       approve refused without reauth, approved after a passkey assertion → "1 deleted, verified"; 58 RRSets after,
       NS hash and SOA (without the provider's serial) unchanged.
-- [ ] Deploy (user OK) and prod-proof on the deployed install: write test through setup step 3's approved plan
-      (probe TXT created + deleted); NS/SOA unchanged; background reconcile plans nothing (all RRSets "leave").
+- [x] Deploy (user OK, `/deploy 94d60ad`) and prod-proof on the deployed install: write test through setup step 3's
+      approved plan (probe TXT created + deleted); NS/SOA unchanged.
 
 Decisions made in PR B:
 - RRSets Hashi created (origin user/system/managed) are left off the import table: there is nothing to import.
@@ -231,7 +231,7 @@ Decisions made in S0:
 | S0b UI design for all features | **done** | 2026-10-27 · `646888e` · approved by the user from screenshots and the local preview; not deployed (not part of this gate) · #24 |
 | S1 Setup, auth, vault | **done** | 2026-10-27 · `8e5c1b5` · `make deploy ENV=prod TAG=8e5c1b5`: readyz ok, version `8e5c1b5`, SPA/public 200. Bootstrap login from the PVE host (LAN) → 200, `hashi.bootstrap` cookie (HttpOnly, SameSite=Strict, no Secure over HTTP), session bound to `10.0.4.1`, scopes `setup.manage` only. `docker restart hashi-v3` → same cookie still authenticated, bootstrap block not printed again. Cookie replayed from inside the Docker LXC (`10.0.4.106`) → `authenticated:false` + cookie cleared; afterwards rejected from `10.0.4.1` too; audit `session.revoked` `{bound_ip:10.0.4.1, reason:ip_mismatch}` observed ip `10.0.4.106`. DB + WAL copy: bootstrap password, master key (base64 and raw) absent; `secret_records` holds only AES-GCM ciphertext; session ids stored as 32-byte sha256; bootstrap hash argon2id. Passkeys: CI E2E with virtual authenticator green on `8e5c1b5` (no HTTPS before S5). Note: from the laptop, 10.0.4.0/24 is reached through kanae (NetBird route, SNAT), so the laptop appears as `10.0.4.1`. |
 | S2 DNS read + import | **done** | 2026-10-28 · `04ff8c7` · `make deploy ENV=prod TAG=04ff8c7`: readyz ok, version `04ff8c7`, SPA/public 200. `hashi bootstrap reset` in the container, bootstrap login from the laptop (seen as `10.0.4.1`, scopes `setup.manage`); base settings with the real root domain. Step 3 with the real project token: the zone containing the root domain picked automatically (token sees 2 zones, the other ignored), provider `healthy`, 58 RRSets read; no write requests. Import table vs a direct read-only Hetzner read: 58 = 58 RRSets, 0 differences in name/type/TTL/values/protection; only NS and SOA leave-only. All 58 saved as `leave` (no takeover before the V1 cutover) → step 3 `done`; `docker restart hashi-v3` → 58 decisions still `leave`, 0 new, step 3 still done; V1 container untouched. Screenshot of the setup page shown to the user. Drift check: no drift against the live API. |
-| S3 DNS write | — | |
+| S3 DNS write | **done** | 2026-10-28 · `94d60ad` · `make deploy ENV=prod TAG=94d60ad`: migration 3 → 4 with pre-migration backup, readyz ok, version `94d60ad`, SPA/public 200, container healthy, V1 untouched. Direct Hetzner read before: 58 RRSets, NS hash `d604b402d218`, SOA without serial `131e884f3662`, no `_hashi-test`. `hashi bootstrap reset`, setup login from the laptop (scope `setup.manage`); `POST /api/setup/dns/probe` → plan pending, high risk, 2 items (create + delete `_hashi-test` TXT), zone unchanged while pending; `POST …/probe/{id}/run` → applied in 14.6 s: "write access confirmed: _hashi-test TXT created, verified and deleted". Direct read after: 58 RRSets, NS and SOA (without serial) unchanged, no `_hashi-test`. Record path (spec row S3 as amended): `TestRealZoneRecordPath` against the real zone, same code (see PR B checklist): create applied + verified with owner label, delete pending until passkey reauth, then deleted and verified; zone unchanged. Bootstrap credentials file deleted after use. |
 | S4 SSH + Traefik | — | |
 | S5 HTTP resources | — | |
 | S6 Firewall + streams | — | |
@@ -269,6 +269,9 @@ Decisions made in S0:
   only short-SHA deploys exist so far.
 
 ## Log
+
+- 2026-10-28 — S3 done: #30 (backend) and #31 (UI) merged, deployed `94d60ad`, prod-proof passed (see the S3 row).
+  README bar 5/15. Next: S4 (SSH + Traefik). Admin pages on the server need S5's HTTPS for passkeys.
 
 - 2026-10-28 — S2 done: PR B (#29) merged, deployed `04ff8c7`, prod-proof passed (see the S2 row). README bar 4/15.
   Next: S3 (DNS write). Which existing records Hashi takes over is the user's decision at the V1 cutover.
