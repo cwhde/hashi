@@ -2,6 +2,7 @@ package traefik
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"io/fs"
@@ -53,7 +54,7 @@ func (h *fakeHost) Run(_ context.Context, cmd string, _ io.Reader) (sshx.Result,
 			return sshx.Result{}, nil
 		}
 		return sshx.Result{ExitCode: 1}, nil
-	case cmd == "fake-start" || cmd == "fake-restart":
+	case cmd == "fake-start" || cmd == "fake-restart" || strings.Contains(cmd, "rc-service "+ServiceName) || strings.HasSuffix(cmd, " "+ServiceName) && strings.HasPrefix(cmd, "systemctl"):
 		h.up = h.startOK(h.files[DefaultConfigDir+"/traefik.yaml"])
 		return sshx.Result{}, nil
 	}
@@ -97,7 +98,26 @@ func (h *fakeHost) Fetch(_ context.Context, _ int, path string) ([]byte, error) 
 	if path == "/ping" {
 		return []byte("OK"), nil
 	}
-	return h.rawdata, nil
+	if h.rawdata != nil {
+		return h.rawdata, nil
+	}
+	// Without a set answer the fake Traefik reports everything in its dynamic files as loaded.
+	var files []File
+	for p, b := range h.files {
+		if strings.HasPrefix(p, DefaultConfigDir+"/dynamic/") {
+			files = append(files, File{Path: p, Kind: KindDynamic, Data: b})
+		}
+	}
+	names, err := Expected(files)
+	if err != nil {
+		return nil, err
+	}
+	rd := rawData{Routers: map[string]rawObject{}, Middlewares: map[string]rawObject{}, Services: map[string]rawObject{}}
+	for _, n := range names {
+		kind, name, _ := strings.Cut(n, " ")
+		map[string]map[string]rawObject{"router": rd.Routers, "middleware": rd.Middlewares, "service": rd.Services}[kind][name] = rawObject{Status: "enabled"}
+	}
+	return json.Marshal(rd)
 }
 
 func fakeService() Service {

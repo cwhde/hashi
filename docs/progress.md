@@ -47,11 +47,18 @@ PR A — backend
       Go structs → YAML (`00-hashi-core`, `40-hashi-security` with the fail-open/closed construct, `90-hashi-health`,
       `hashi-certs.yaml` with certificate hashes), golden tests. Rendered files loaded into a real Traefik v3.7.16
       container: every router/middleware/service `enabled`, no errors, health `/open` 200 and `/closed` 500 with Hashi absent.
-- [ ] Apply + Verify (04 §6): install plan items (download → checksum → SFTP upload, directories, service, existing-config
-      backup to `/var/lib/hashi/traefik/backup/<ts>/` + explicit ownership confirmation), host hashes over SFTP, atomic writes, static change → restart + wait for ping + restore on
-      failure, Verify = `/api/rawdata` through the SSH tunnel (every expected router/service/middleware present, none
-      disabled), `last_applied_hash`. Golden render tests, JSON-schema check, `TestInvariant_8_*` (identical render → no write),
-      integration: real Traefik v3.7.16 container loads the files, API reports no errors, request reaches a stub upstream.
+- [x] Apply + Verify (04 §6): `Observe` reads the host fresh (binary version, directories, service file, file hashes)
+      → plan items with paths and hashes only (first install, binary, service and static file high risk; dynamic and
+      certificate files low); `Apply` writes only changed files (certificates before `hashi-certs.yaml`, static last),
+      enables/restarts, waits for ping, restores the previous static file + service definition on failure and waits for
+      Traefik to come back; existing configs backed up to `/var/lib/hashi/traefik/backup/<ts>/` once ownership is
+      confirmed; `Verify` = every rendered router/middleware/service `enabled` in `/api/rawdata`. `traefik` sync subsystem
+      (`Manager`): builds the desired state from the connection, internal URL and issued certificates, logs in with
+      Hashi's key or the stored credential against the pinned host key, records `last_applied_hash` (never for keys),
+      installed version and health. Tests: fake host (`TestInvariant_8_OnlyChangedFilesAreWritten`, restore, backup,
+      engine end to end), schema check against the pinned SchemaStore schema, integration with the real Traefik image
+      over real sshd (apply, verify, no rewrite, fail-open 200 / fail-closed 500 with the upstream stopped, restore after
+      a static change Traefik cannot start with). Not wired into `internal/app` yet: comes with the handlers.
 - [ ] Certificates: lego with a DNS-01 provider on Hashi's DNS adapter (`add_records`/`remove_records`, origin `system`,
       excluded from import/prune), keys in the vault, root + `*.root`, job `certificates.renew` (daily, 30 d renew,
       warnings at 21/7 d), distribution in the `traefik` plan, Verify = TLS handshake + fingerprint. Integration with Pebble.
