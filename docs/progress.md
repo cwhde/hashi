@@ -85,7 +85,15 @@ PR A — backend
       exist (PR B), so the current wizard and E2E keep working. Adding further Traefik hosts after setup comes with the
       `/traefik` page (S5 needs it, not the S4 gate).
 
+Review of PR A (#32), fixed with regression tests (`internal/traefik/review_regress_test.go`, each failed before the
+fix): existing config is backed up once (`discovery.backed_up`), not in every plan; `installed_version` is recorded
+after every verified apply, so hosts that already ran v3.7.16 get certificates; a binary upgrade keeps
+`traefik.previous` and restores it when the new binary does not start (04 §2.1).
+
 PR B — UI + deploy
+- [ ] Access-log rotation (04 §3): capture logrotate availability per OS and how Traefik v3.7 reopens its access log on
+      the dev targets, then install Hashi's logrotate config with the files.
+- [ ] Certificate retry with backoff (03 §5.3): a failed issue/renewal is retried sooner than the next daily run.
 - [ ] Setup steps 4 and 5 (host-key fingerprint confirmation, Hashi's public key to copy, validation results, install plan).
 - [ ] `/traefik` page from the mock: connection state, files with hashes, Certificates tab, "Renew now"; plans on `/changes`.
 - [ ] E2E against fakes (dev SSH/Traefik fake host, Pebble-less fake ACME) for setup steps 4–5 and the install plan.
@@ -338,6 +346,11 @@ Decisions made in S0:
 ## Unverified
 
 (Review findings that were not reproduced. Not worked on unless promoted.)
+
+- S4 PR A review (#32): the probe finds a Traefik binary on PATH and `/etc/traefik`, `/opt/traefik` only; a Traefik that
+  runs as a service or container (ports 80/443 taken) is neither detected nor stopped after takeover, so
+  `hashi-traefik` would fail to bind or run beside it (04 §2 steps 1, 4–6). Not tried on a real host; the gate's dev
+  targets have no running Traefik (Alpine's binary is not started).
 
 - S3 PR B review (#31): discarding a waiting entry-delete plan on `/changes` probably does not last: the entry is
   already gone from Hashi, so the next save or hourly sync proposes the same delete again. Not demonstrated; the spec

@@ -47,6 +47,15 @@ func (h *fakeHost) Run(_ context.Context, cmd string, _ io.Reader) (sshx.Result,
 	switch {
 	case cmd == ProbeCommand:
 		return sshx.Result{Stdout: []byte(h.probe)}, nil
+	case strings.HasPrefix(cmd, "cp -p "):
+		args := strings.Fields(strings.TrimPrefix(cmd, "cp -p "))
+		from, to := unquote(args[0]), unquote(args[1])
+		b, ok := h.files[from]
+		if !ok {
+			return sshx.Result{ExitCode: 1, Stderr: []byte("no such file")}, nil
+		}
+		h.files[to] = append([]byte(nil), b...)
+		return sshx.Result{}, nil
 	case strings.HasSuffix(cmd, " version"):
 		if h.version == "" {
 			return sshx.Result{ExitCode: 127, Stderr: []byte("not found")}, nil

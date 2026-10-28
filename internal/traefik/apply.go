@@ -185,8 +185,9 @@ func (d Diff) Empty() bool { return len(d.Items()) == 0 }
 // PingTimeout is how long Apply waits for Traefik's ping after a restart (04 §6 step 3), unless Desired says otherwise.
 const PingTimeout = 30 * time.Second
 
-// ErrRestored means a restart failed and the previous static config was put back (04 §6 step 3).
-var ErrRestored = errors.New("traefik did not come back after the change; the previous static configuration was restored")
+// ErrRestored means a restart failed and what was there before (binary, static config, service) was put back
+// (04 §6 step 3, 04 §2.1).
+var ErrRestored = errors.New("traefik did not come back after the change; the previous version was restored")
 
 // Applied lists the files written, for last_applied_hash (04 §6 step 5).
 type Applied struct {
@@ -196,7 +197,8 @@ type Applied struct {
 
 // Apply executes diff in a fixed order: binary, directories, backups, certificate and dynamic files, then service and
 // static file with a restart. Unchanged files are never touched (invariant 8). A restart that does not bring ping
-// back restores the previous static file and service definition, restarts again and fails.
+// back restores the previous binary (kept as traefik.previous), static file and service definition, restarts again
+// and fails.
 func Apply(ctx context.Context, h Host, d Desired, diff Diff, now time.Time) (Applied, error) {
 	var out Applied
 	run := func(what, cmd string) error {
@@ -217,7 +219,7 @@ func Apply(ctx context.Context, h Host, d Desired, diff Diff, now time.Time) (Ap
 		return nil
 	}
 
-	restart := false
+	restart, prevBinary := false, false
 	if diff.InstallBinary {
 		if d.Binary == nil {
 			return out, errors.New("traefik binary needed but no download configured")
@@ -225,6 +227,13 @@ func Apply(ctx context.Context, h Host, d Desired, diff Diff, now time.Time) (Ap
 		bin, err := d.Binary(ctx)
 		if err != nil {
 			return out, err
+		}
+		if diff.InstalledVersion != "" {
+			// 04 §2.1: the running binary stays as traefik.previous until the new one answers.
+			if err := run("keep the previous traefik binary", "cp -p "+sshx.Quote(d.Paths.Binary)+" "+sshx.Quote(d.Paths.Binary+".previous")); err != nil {
+				return out, err
+			}
+			prevBinary = true
 		}
 		if _, err := h.WriteFileAtomic(d.Paths.Binary, bin, 0o755); err != nil {
 			return out, fmt.Errorf("upload traefik binary: %w", err)
@@ -304,8 +313,13 @@ func Apply(ctx context.Context, h Host, d Desired, diff Diff, now time.Time) (Ap
 	if err == nil {
 		return out, nil
 	}
-	if prevStatic == nil && prevService == nil {
+	if prevStatic == nil && prevService == nil && !prevBinary {
 		return out, fmt.Errorf("traefik did not start: %w", err)
+	}
+	if prevBinary {
+		if rerr := run("restore the previous traefik binary", "cp -p "+sshx.Quote(d.Paths.Binary+".previous")+" "+sshx.Quote(d.Paths.Binary)); rerr != nil {
+			return out, fmt.Errorf("%w; restoring the previous binary failed too: %w", err, rerr)
+		}
 	}
 	if prevStatic != nil {
 		if _, werr := h.WriteFileAtomic(static.File.Path, prevStatic, fs.FileMode(static.File.Mode)); werr != nil {

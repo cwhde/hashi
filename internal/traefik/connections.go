@@ -245,7 +245,9 @@ func (m *Manager) validate(ctx context.Context, row db.TraefikConnection) (Probe
 	if !res.OK() {
 		return p, fmt.Errorf("write check: could not remove %s: %s", probe, strings.TrimSpace(string(res.Stderr)))
 	}
-	disc, _ := json.Marshal(Discovery{ExistingBinary: p.ExistingBinary, ExistingConfigs: p.ExistingConfigs})
+	var prev Discovery
+	_ = json.Unmarshal([]byte(row.DiscoveryJson), &prev)
+	disc, _ := json.Marshal(Discovery{ExistingBinary: p.ExistingBinary, ExistingConfigs: p.ExistingConfigs, BackedUp: prev.BackedUp})
 	return p, m.st.Q.SetTraefikConnectionDetected(ctx, db.SetTraefikConnectionDetectedParams{OsFamily: p.Family,
 		PackageManager: p.PackageManager, InitSystem: p.Init, OsProbe: string(r.Stdout), DiscoveryJson: string(disc),
 		InstalledVersion: row.InstalledVersion, UpdatedAt: m.now().UnixMilli(), ID: row.ID})

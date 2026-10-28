@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -53,6 +54,19 @@ var (
 type Discovery struct {
 	ExistingBinary  string   `json:"existing_binary,omitempty"`
 	ExistingConfigs []string `json:"existing_configs,omitempty"`
+	// BackedUp are the ExistingConfigs already copied to StateDir/backup (04 §2 step 5: once, at takeover).
+	BackedUp []string `json:"backed_up,omitempty"`
+}
+
+// pendingBackup is what still needs a backup before Hashi takes over.
+func (d Discovery) pendingBackup() []string {
+	var out []string
+	for _, c := range d.ExistingConfigs {
+		if !slices.Contains(d.BackedUp, c) {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 // Manager plans and applies Traefik hosts through the sync engine (invariant 7: it writes only from an approved plan).
@@ -154,8 +168,18 @@ func (s traefikSub) Apply(ctx context.Context, connID string, items []hsync.Item
 		if !filesOK {
 			return nil
 		}
-		if diff.InstallBinary {
-			if e := q.SetTraefikInstalledVersion(ctx, db.SetTraefikInstalledVersionParams{InstalledVersion: Version, UpdatedAt: now, ID: connID}); e != nil {
+		// The host now runs the pinned version, whether this apply uploaded it or found it there.
+		if e := q.SetTraefikInstalledVersion(ctx, db.SetTraefikInstalledVersionParams{InstalledVersion: Version, UpdatedAt: now, ID: connID}); e != nil {
+			return e
+		}
+		if len(diff.Backup) > 0 {
+			var disc Discovery
+			_ = json.Unmarshal([]byte(row.DiscoveryJson), &disc)
+			disc.BackedUp = append(disc.BackedUp, diff.Backup...)
+			b, _ := json.Marshal(disc)
+			if e := q.SetTraefikConnectionDetected(ctx, db.SetTraefikConnectionDetectedParams{OsFamily: row.OsFamily,
+				PackageManager: row.PackageManager, InitSystem: row.InitSystem, OsProbe: row.OsProbe, DiscoveryJson: string(b),
+				InstalledVersion: Version, UpdatedAt: now, ID: connID}); e != nil {
 				return e
 			}
 		}
@@ -264,7 +288,7 @@ func (m *Manager) desired(ctx context.Context, connID string) (db.TraefikConnect
 	if err != nil {
 		return row, Desired{}, err
 	}
-	d := Desired{Paths: paths, APIPort: opts.APIPort, Files: files, Service: svc, Backup: disc.ExistingConfigs,
+	d := Desired{Paths: paths, APIPort: opts.APIPort, Files: files, Service: svc, Backup: disc.pendingBackup(),
 		PingTimeout: m.pingTimeout, Certs: certs}
 	d.Binary = func(ctx context.Context) ([]byte, error) { return m.binary(ctx, probe.Arch) }
 	return row, d, nil
