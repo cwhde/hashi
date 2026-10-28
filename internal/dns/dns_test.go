@@ -3,6 +3,7 @@ package dns
 import (
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -130,5 +131,47 @@ func TestSRVAndCAAImportable(t *testing.T) {
 		if got := AllowedDecisions(r, caps); !slices.Equal(got, []Decision{Import, Leave, Prune}) {
 			t.Errorf("%s: allowed = %v", typ, got)
 		}
+	}
+}
+
+func TestDiff(t *testing.T) {
+	ttl := 300
+	rr := func(name, typ string, vals ...string) RRSet {
+		return Normalize(RRSet{Name: name, Type: typ, Values: vals})
+	}
+	keep := rr("keep", "A", "192.0.2.1")
+	changed := rr("www", "A", "192.0.2.2")
+	changedObs := rr("www", "A", "192.0.2.3")
+	ttlOnly := rr("t", "TXT", "x")
+	ttlOnly.TTL = &ttl
+	marked := rr("m", "A", "192.0.2.4")
+	marked.Owner = "inst"
+	desired := []RRSet{rr("new", "CNAME", "x.example.com."), keep, changed, ttlOnly, marked}
+	observed := []RRSet{keep, changedObs, rr("t", "TXT", "x"), rr("m", "A", "192.0.2.4"), rr("gone", "A", "192.0.2.9")}
+	var got []string
+	for _, c := range Diff(desired, observed) {
+		n, ty := c.Key()
+		got = append(got, string(c.Op)+" "+n+" "+ty)
+	}
+	want := []string{"delete gone A", "update t TXT", "update www A", "label m A", "create new CNAME"}
+	if !slices.Equal(got, want) {
+		t.Errorf("Diff = %q, want %q", got, want)
+	}
+	if d := Diff([]RRSet{keep}, []RRSet{keep}); len(d) != 0 {
+		t.Errorf("equal sets: %v", d)
+	}
+}
+
+func TestEncodeTXTKeepsUTF8(t *testing.T) {
+	text := strings.Repeat("a", 254) + "é" + "b" // é straddles byte 255
+	enc := EncodeTXT(text)
+	if !strings.HasPrefix(enc, `"`+strings.Repeat("a", 254)+`" "é`) {
+		t.Errorf("split inside a rune: %q", enc)
+	}
+	if got, ok := DecodeTXT(enc); !ok || got != text {
+		t.Errorf("round trip %q", got)
+	}
+	if EncodeTXT("") != `""` {
+		t.Errorf("empty: %q", EncodeTXT(""))
 	}
 }

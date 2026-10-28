@@ -192,7 +192,7 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 }
 
 // openDNSProvider opens the adapter for a provider type (03 §1: adding a provider is a new module plus a case here).
-func openDNSProvider(typ string, token secrets.Value) (dns.Reader, error) {
+func openDNSProvider(typ string, token secrets.Value) (dns.Provider, error) {
 	switch typ {
 	case "hetzner":
 		return hetzner.New(token), nil

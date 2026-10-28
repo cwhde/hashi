@@ -33,7 +33,7 @@ func newFixture(t *testing.T) fixture {
 		t.Fatal(err)
 	}
 	srv := hetznertest.NewServer(t)
-	open := func(typ string, token secrets.Value) (dns.Reader, error) {
+	open := func(typ string, token secrets.Value) (dns.Provider, error) {
 		return hetzner.New(token, hetzner.WithBaseURL(srv.BaseURL())), nil
 	}
 	return fixture{svc: dns.NewService(st, v, audit.New([]byte("k")), open), st: st, srv: srv}

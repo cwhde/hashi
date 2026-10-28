@@ -25,8 +25,8 @@ const tokenPurpose = "dns.provider.token" //nolint:gosec // a vault purpose name
 // Provider types Hashi has an adapter for.
 var ProviderTypes = []string{"hetzner"}
 
-// Factory opens a Reader for a provider type and token (wired in internal/app; tests pass a replay-backed one).
-type Factory func(typ string, token secrets.Value) (Reader, error)
+// Factory opens a Provider for a provider type and token (wired in internal/app; tests pass a replay-backed one).
+type Factory func(typ string, token secrets.Value) (Provider, error)
 
 // Service errors mapped by the API.
 var (

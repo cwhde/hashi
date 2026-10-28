@@ -9,9 +9,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"slices"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 // Apex is the relative name of the zone apex.
@@ -37,6 +39,9 @@ type RRSet struct {
 	Values    []string
 	Labels    map[string]string
 	Protected bool // the provider forbids changes; read-only to Hashi (03 §3)
+	// Owner is the Hashi instance named by the provider's ownership marker (03 §1; "" = unmarked). On a desired RRSet
+	// it is the marker to write. It never grants ownership on its own (invariant 1).
+	Owner string
 }
 
 // Capabilities describe what a provider supports (03 §1).
@@ -53,7 +58,7 @@ type Capabilities struct {
 	ChangeProtection bool
 }
 
-// Reader is the read part of the provider interface (03 §1). Plan/Apply/Verify arrive with the write side (S3).
+// Reader is the read part of the provider interface (03 §1).
 type Reader interface {
 	Capabilities(ctx context.Context) (Capabilities, error)
 	ListZones(ctx context.Context) ([]Zone, error)
@@ -62,12 +67,57 @@ type Reader interface {
 	ListRRSets(ctx context.Context, zone Zone) ([]RRSet, error)
 }
 
+// Provider is the full provider interface (03 §1, invariant 13). Plan diffs desired against observed RRSets the caller
+// has already restricted to what Hashi may touch; the adapter still refuses NS/SOA and change-protected RRSets.
+// Apply is idempotent ("no change" is success); Verify reads back and reports every RRSet that does not match.
+type Provider interface {
+	Reader
+	Plan(ctx context.Context, zone Zone, desired, observed []RRSet) (ProviderPlan, error)
+	Apply(ctx context.Context, zone Zone, plan ProviderPlan) error
+	Verify(ctx context.Context, zone Zone, plan ProviderPlan) error
+}
+
+// Op is the kind of one RRSet change.
+type Op string
+
+// RRSet operations. OpLabel changes only the ownership marker.
+const (
+	OpCreate Op = "create"
+	OpUpdate Op = "update"
+	OpDelete Op = "delete"
+	OpLabel  Op = "label"
+)
+
+// Change is one RRSet operation: Before is the observed RRSet (nil on create), After the desired one (nil on delete).
+type Change struct {
+	Op     Op
+	Before *RRSet
+	After  *RRSet
+}
+
+// Key is the name/type pair the change acts on.
+func (c Change) Key() (name, typ string) {
+	if c.After != nil {
+		return c.After.Name, c.After.Type
+	}
+	return c.Before.Name, c.Before.Type
+}
+
+// ProviderPlan is the ordered list of changes an adapter applies.
+type ProviderPlan struct {
+	Changes []Change
+}
+
 // Errors every provider maps its failures to.
 var (
 	// ErrUnauthorized: the token was rejected. Adapters wrap it with an actionable message.
 	ErrUnauthorized = errors.New("the DNS provider rejected the API token")
 	ErrZoneNotFound = errors.New("no zone found")
 	ErrRateLimited  = errors.New("the DNS provider's rate limit is exhausted")
+	// ErrForbiddenChange: a plan touches NS/SOA or a change-protected RRSet (invariant 2, 03 §3). Nothing was sent.
+	ErrForbiddenChange = errors.New("change not allowed")
+	// ErrVerify: the read-back after an apply does not match the plan.
+	ErrVerify = errors.New("verification failed")
 )
 
 // Protected reports whether Hashi may never own, change or delete RRSets of this type (invariant 2).
@@ -112,7 +162,7 @@ func ResolveFromList(zones []Zone, fqdn string) (Zone, error) {
 // Normalize returns r in the canonical form described on RRSet. Adapters call it on everything they return.
 func Normalize(r RRSet) RRSet {
 	out := RRSet{Name: strings.ToLower(strings.TrimSpace(r.Name)), Type: strings.ToUpper(strings.TrimSpace(r.Type)),
-		Labels: r.Labels, Protected: r.Protected}
+		Labels: r.Labels, Protected: r.Protected, Owner: r.Owner}
 	if out.Name == "" {
 		out.Name = Apex
 	}
@@ -145,7 +195,7 @@ func (r RRSet) EffectiveTTL(zoneTTL int) int {
 	return zoneTTL
 }
 
-// Hash identifies the DNS content of a normalized RRSet (name, type, TTL, values; labels and protection excluded).
+// Hash identifies the DNS content of a normalized RRSet (name, type, TTL, values; labels, owner and protection excluded).
 func (r RRSet) Hash() string {
 	ttl := ""
 	if r.TTL != nil {
@@ -210,3 +260,86 @@ func DecodeTXT(v string) (text string, ok bool) {
 }
 
 func isDigit(c byte) bool { return c >= '0' && c <= '9' }
+
+// maxTXTString is the longest character string a TXT value may hold (RFC 1035 §3.3; Hetzner answers 422 above it).
+const maxTXTString = 255
+
+// EncodeTXT turns text into TXT presentation form, the inverse of DecodeTXT: quoted strings of at most 255 bytes each,
+// with `"` and `\` escaped. A split never cuts a UTF-8 sequence. Empty text is one empty string.
+func EncodeTXT(text string) string {
+	var parts []string
+	for len(text) > maxTXTString || len(parts) == 0 {
+		n := min(len(text), maxTXTString)
+		for n > 0 && n < len(text) && !utf8.RuneStart(text[n]) {
+			n--
+		}
+		if n == 0 { // not UTF-8: split on bytes
+			n = min(len(text), maxTXTString)
+		}
+		parts = append(parts, quoteTXT(text[:n]))
+		text = text[n:]
+	}
+	if text != "" {
+		parts = append(parts, quoteTXT(text))
+	}
+	return strings.Join(parts, " ")
+}
+
+func quoteTXT(s string) string {
+	return `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(s) + `"`
+}
+
+// Diff compares desired with observed RRSets by name and type: a desired RRSet that is missing is created, one whose
+// content differs is updated, one whose ownership marker differs is labelled, and an observed RRSet that is not desired
+// is deleted. Both lists are normalized. Order: deletes, updates, labels, creates (a CNAME replacing other types at a
+// name needs them gone first), each by name and type.
+func Diff(desired, observed []RRSet) []Change {
+	type key struct{ name, typ string }
+	obs := make(map[key]RRSet, len(observed))
+	for _, o := range observed {
+		obs[key{o.Name, o.Type}] = o
+	}
+	var out []Change
+	seen := map[key]bool{}
+	for _, d := range desired {
+		k := key{d.Name, d.Type}
+		seen[k] = true
+		o, ok := obs[k]
+		switch {
+		case !ok:
+			out = append(out, Change{Op: OpCreate, After: &d})
+		case o.Hash() != d.Hash():
+			out = append(out, Change{Op: OpUpdate, Before: &o, After: &d})
+		case d.Owner != "" && o.Owner != d.Owner:
+			out = append(out, Change{Op: OpLabel, Before: &o, After: &d})
+		}
+	}
+	for _, o := range observed {
+		if !seen[key{o.Name, o.Type}] {
+			out = append(out, Change{Op: OpDelete, Before: &o})
+		}
+	}
+	rank := map[Op]int{OpDelete: 0, OpUpdate: 1, OpLabel: 2, OpCreate: 3}
+	slices.SortStableFunc(out, func(a, b Change) int {
+		if r := rank[a.Op] - rank[b.Op]; r != 0 {
+			return r
+		}
+		an, at := a.Key()
+		bn, bt := b.Key()
+		return strings.Compare(an+" "+at, bn+" "+bt)
+	})
+	return out
+}
+
+// CheckWritable refuses changes Hashi may never make, whatever the caller decided: NS/SOA (invariant 2) and RRSets the
+// provider reports as change-protected (03 §3).
+func CheckWritable(c Change) error {
+	name, typ := c.Key()
+	if Protected(typ) {
+		return fmt.Errorf("%w: %s %s records are never changed by Hashi", ErrForbiddenChange, name, typ)
+	}
+	if c.Before != nil && c.Before.Protected {
+		return fmt.Errorf("%w: %s %s is change-protected at the provider", ErrForbiddenChange, name, typ)
+	}
+	return nil
+}

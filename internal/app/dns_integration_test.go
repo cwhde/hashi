@@ -19,7 +19,7 @@ import (
 func TestSetupStep3DNSProviderAndImport(t *testing.T) {
 	srv := hetznertest.NewServer(t)
 	cfg := newConfig(t)
-	cfg.dnsProviders = func(_ string, token secrets.Value) (dns.Reader, error) {
+	cfg.dnsProviders = func(_ string, token secrets.Value) (dns.Provider, error) {
 		return hetzner.New(token, hetzner.WithBaseURL(srv.BaseURL())), nil
 	}
 	in := start(t, cfg)
