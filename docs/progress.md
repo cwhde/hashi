@@ -5,7 +5,7 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
-**S2 — DNS read + import** · status: **in progress** (PR A backend merged #28; PR B UI on `s2-dns-ui`, 2026-10-28).
+**S2 — DNS read + import** · status: **done** 2026-10-28, deployed `04ff8c7` (#28, #29), prod-proof passed.
 
 Scope and gate: 11-delivery.md §3 row S2 — 03-dns.md §1–4 (read side), setup step 3 (02 §1.3). Gate: the real zone is
 listed; the import table shows the real RRSets; import decisions persist; sanitized fixtures committed.
@@ -49,8 +49,8 @@ PR B — UI + deploy
       table (shared component); step 3 built; E2E covers it against the fixtures.
 - [x] `/dns`: Records (observed, origin, read-only in S2) and Import tab with decisions, from the approved mock.
 - [x] Contract drift job (03 §2 point 4): `.gitea/workflows/contract-drift.yml` (manual dispatch + Mondays) and
-      `make contract-drift`; compares JSON paths/types only. Needs the repo secret `HETZNER_TOKEN` (user).
-- [ ] Deploy (user OK) and prod-proof: real zone listed, import table matches the zone, decisions survive a restart.
+      `make contract-drift`; compares JSON paths/types only. Repo secret `HETZNER_TOKEN` set (the existing project token, user's choice).
+- [x] Deploy (user OK) and prod-proof: real zone listed, import table matches the zone, decisions survive a restart.
 
 Decisions made in PR B:
 - `-tags dev` builds serve recorded fixtures in-process when `HASHI_DEV_DNS_FIXTURES` is set (`make dev`, E2E; token
@@ -159,7 +159,7 @@ Decisions made in S0:
 | S0 Walking skeleton | **done** | 2026-10-27 · `e7c0a30` · `make deploy ENV=prod TAG=e7c0a30` on the Docker LXC next to V1: smoke from the LAN → `/readyz` `{"checks":{"database":"ok"},"status":"ok"}`, `/api/version` `{"commit":"e7c0a30","version":"e7c0a30"}`, SPA 200, public apps 200, public status 200; container `healthy`, uid 65532, read-only rootfs; restart keeps the DB (no re-migration); V1 and Gatus still up. CI green on the Gitea runners (#17–#23 and main); release published `e7c0a30` = `latest`, amd64 + arm64. |
 | S0b UI design for all features | **done** | 2026-10-27 · `646888e` · approved by the user from screenshots and the local preview; not deployed (not part of this gate) · #24 |
 | S1 Setup, auth, vault | **done** | 2026-10-27 · `8e5c1b5` · `make deploy ENV=prod TAG=8e5c1b5`: readyz ok, version `8e5c1b5`, SPA/public 200. Bootstrap login from the PVE host (LAN) → 200, `hashi.bootstrap` cookie (HttpOnly, SameSite=Strict, no Secure over HTTP), session bound to `10.0.4.1`, scopes `setup.manage` only. `docker restart hashi-v3` → same cookie still authenticated, bootstrap block not printed again. Cookie replayed from inside the Docker LXC (`10.0.4.106`) → `authenticated:false` + cookie cleared; afterwards rejected from `10.0.4.1` too; audit `session.revoked` `{bound_ip:10.0.4.1, reason:ip_mismatch}` observed ip `10.0.4.106`. DB + WAL copy: bootstrap password, master key (base64 and raw) absent; `secret_records` holds only AES-GCM ciphertext; session ids stored as 32-byte sha256; bootstrap hash argon2id. Passkeys: CI E2E with virtual authenticator green on `8e5c1b5` (no HTTPS before S5). Note: from the laptop, 10.0.4.0/24 is reached through kanae (NetBird route, SNAT), so the laptop appears as `10.0.4.1`. |
-| S2 DNS read + import | next | |
+| S2 DNS read + import | **done** | 2026-10-28 · `04ff8c7` · `make deploy ENV=prod TAG=04ff8c7`: readyz ok, version `04ff8c7`, SPA/public 200. `hashi bootstrap reset` in the container, bootstrap login from the laptop (seen as `10.0.4.1`, scopes `setup.manage`); base settings with the real root domain. Step 3 with the real project token: the zone containing the root domain picked automatically (token sees 2 zones, the other ignored), provider `healthy`, 58 RRSets read; no write requests. Import table vs a direct read-only Hetzner read: 58 = 58 RRSets, 0 differences in name/type/TTL/values/protection; only NS and SOA leave-only. All 58 saved as `leave` (no takeover before the V1 cutover) → step 3 `done`; `docker restart hashi-v3` → 58 decisions still `leave`, 0 new, step 3 still done; V1 container untouched. Screenshot of the setup page shown to the user. Drift check: no drift against the live API. |
 | S3 DNS write | — | |
 | S4 SSH + Traefik | — | |
 | S5 HTTP resources | — | |
@@ -194,6 +194,9 @@ Decisions made in S0:
   only short-SHA deploys exist so far.
 
 ## Log
+
+- 2026-10-28 — S2 done: PR B (#29) merged, deployed `04ff8c7`, prod-proof passed (see the S2 row). README bar 4/15.
+  Next: S3 (DNS write). Which existing records Hashi takes over is the user's decision at the V1 cutover.
 
 - 2026-10-28 — S2 PR A (backend) done on `s2-dns-read`: migration 00003, `internal/dns` + Hetzner read adapter from the
   fixtures, refresh job, DNS and setup step 3 API. PR B (UI, deploy, prod-proof) next.
