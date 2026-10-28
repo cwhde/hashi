@@ -482,6 +482,14 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-10-29 — S5 gate, step 8 with the user (Firefox/Floorp on the home LAN): the first link was refused ("nonce",
+  probably altered on the way to the browser); with a fresh copied link the proof succeeded through the edge
+  (`setup.https.proof` success from the user's LAN address), and so did a bootstrap login over HTTPS, but each session
+  was revoked within the same second (`ip_mismatch`, observed `127.0.0.1`): the admin route's forward-auth call came
+  through the edge's loopback hop with the visitor's cookie, and Hashi took the appended `127.0.0.1` for the client.
+  Reproduced in `TestSetupStep8HTTPSProof`, fixed in `ba9ad85`/`3c4504e` (edge loopback hop skipped; forward auth never
+  touches admin sessions). Server side of step 8 proven meanwhile by a proof sent from the edge (`127.0.0.1`).
+
 - 2026-10-29 — Deploy `6f7d938` to prod: smoke ok. S5 gate so far: setup connection switched back to `hashi-edge-test`
   (Alpine; host key read through Hashi = `ssh-keygen -lf` ECDSA on the host, pinned; ownership confirmed); its plan
   (6 low-risk files: renewed certificate, services file with the admin route, security file with the edge token,
