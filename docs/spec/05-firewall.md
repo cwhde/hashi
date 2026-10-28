@@ -12,7 +12,7 @@ rescue rollback scoped to Hashi's table.
 ## 1. Host model
 
 Name (→ public FQDN `name.<root>`), public IP (detected or override), public IPv6 (optional), managed subnets (multiple
-CIDRs), linked Traefik connection, internal Traefik target (address set, 05a §5.2), route target override (`on.` record,
+CIDRs), linked Traefik connection, internal Traefik target (address set, 05a §5.2), route target override (`on.` record: services on this host enter through another host,
 03-dns.md §5.1), SSH target (address set) + credentials + pinned host key, OS family, WAN interface (detected or
 override), LXC bridge (detected or override), NetBird settings (§5), host access (list of IP sets, §3.2).
 

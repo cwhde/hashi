@@ -7,7 +7,7 @@ kinds are L4 services (protected at the firewall). Formerly called "resource".
 
 Common fields: name, slug (unique, DNS-safe), kind (`http` | `https` | `h2c` | `tcp` | `udp`), domain mode (root /
 subdomain / full custom), enabled, origin, owning feature (for generated services), detected firewall host, explicit
-routing override, dashboard visible, monitoring visible, AdGuard rewrite enabled, extra middlewares (from the user
+routing override (entry host, 03-dns.md §5.1), dashboard visible, monitoring visible, AdGuard rewrite enabled, extra middlewares (from the user
 middleware file), root rule set + default fallback and WAF modes (HTTP kinds, 06-edge-security.md §4, §9), sync state + last applied hash.
 
 Kind semantics: `http` = upstream speaks HTTP; `https` = upstream speaks TLS (with per-service `insecureSkipVerify`

@@ -94,14 +94,41 @@ For each Linux firewall host named `machine1` under root `example.com`:
 | `via.machine1.example.com` | CNAME | `machine1.example.com` |
 | `on.machine1.example.com` | CNAME | `via.machine1.example.com` (default) |
 
-Routing override: `on.machine1` may point to `via.machine2` so traffic for services on machine1 enters through machine2.
-AdGuard rewrites never use this override.
+**Host routing override** (on the host, applies to every service on it): `on.machine1` may point to `via.machine2` so
+traffic for all services on machine1 enters through machine2. One record changes; the services keep pointing at `on.machine1`.
+
+**Service routing override** (on one service): the service enters through another host while staying recognisable as a
+machine1 service. Hashi generates one shared record per (home host, entry host) pair:
+
+| Name | Type | Target |
+| --- | --- | --- |
+| `machine2.ovr.on.machine1.example.com` | CNAME | `via.machine2.example.com` |
+
+```
+service.example.com → machine2.ovr.on.machine1.example.com → via.machine2.example.com → machine2.example.com (A)
+```
+
+- The name is derived from the pair, never numbered: no allocation state. Every service with the same pair uses the same
+  record.
+- The record exists exactly while at least one service needs it. It is part of the desired record set computed on every
+  DNS sync; when the last service drops or changes its override, the record is no longer desired and is deleted in the same
+  plan as the service record change (owned-objects-only, invariant 2). A service switching to another entry host gets the
+  other pair's record; the old one stays as long as another service still uses it.
+- If the chosen entry host equals where `on.machine1` already points (host override or the host itself), the service uses
+  `on.machine1` and no `ovr` record is generated. Hashi re-evaluates this on every sync, so changing the host override
+  later moves services between the two forms in one plan.
+- Chain length stays 3 CNAMEs, the same as a service without override.
+- Reserved labels: hosts cannot be named `on`, `via` or `ovr`; service domains cannot lie under `on.*`, `via.*` or
+  `*.ovr.*` of the root.
+
+AdGuard rewrites never use either override (internal clients go straight to the home host's Traefik).
 
 ### 5.2 Service records
 
 | Situation | Public record |
 | --- | --- |
 | Service maps to a detected firewall host (target IP in its managed subnets / NetBird-routed CIDRs / host FQDN) | `CNAME service.example.com → on.<host>.example.com` |
+| Same, with a service routing override to another entry host (§5.1) | `CNAME service.example.com → <entry>.ovr.on.<host>.example.com` |
 | No host detected | Resolve the service's target address set (05a-ip-sets.md §5.2) — single IP, Pulse agent (internal **and** public addresses), host, DNS name — and match every address against hosts; match → CNAME to `on.<host>`; no match → A with the resolved public IPv4 addresses |
 
 A target that resolves to nothing keeps the last applied record (invariant 21).
@@ -207,6 +234,10 @@ Example: `kanae.hashi.home.arpa → 10.0.0.42`.
 - Invariants 1–4 against fixtures (NS/SOA untouchable; unowned RRSets untouched; failed validation → no writes).
 - RRSet mapping: multi-value, TTL change only, TXT quoting, CNAME exclusivity, apex flattening.
 - Host record generation and routing override; Pulse IP matching → CNAME not A.
+- Service routing override: shared `ovr` record for two services with the same pair; one service stops or switches → record
+  kept while the other uses it; last user gone → record deleted in the same plan; entry host equal to the host's current
+  `on.` target → plain `on.` CNAME and no `ovr` record; host override changed later → services re-evaluated; reserved
+  labels rejected for host names and service domains.
 - AdGuard: manual rewrite preserved; duplicate of owned entry removed only when previewed; disabled connection untouched.
 - Agent name normalization and collisions.
 - Contract replay tests for every recorded endpoint.
