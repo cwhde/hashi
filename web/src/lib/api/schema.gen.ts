@@ -55,6 +55,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/edge-auth/forward": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Traefik forward auth for every edge service
+         * @description S4 stub: allows every request (204). Stage A and the rule engine replace it in S9/S10. Traefik reaches it directly (fail-closed services) or through the local `hashi-fa` fallback (fail-open services, 06 §2.1).
+         */
+        get: operations["getEdgeAuthForward"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/session": {
         parameters: {
             query?: never;
@@ -454,6 +474,151 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/setup/certificates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Step 4 — store the certificate provider and register the ACME account with the CA
+         * @description Validates the input, seals the EAB HMAC key, and registers (or finds) the ACME account. The step completes only
+         *     when registration succeeded; otherwise the account is stored with `health: failed` and the step stays open.
+         */
+        put: operations["putSetupCertificates"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/setup/certificates/issue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Step 4 — issue the root and wildcard certificate now (low-risk plan, applied right away; takes a minute) */
+        post: operations["issueSetupCertificates"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/setup/traefik/identity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Step 5 — Hashi's SSH public key (created on first call) for the host's authorized_keys */
+        post: operations["setupTraefikIdentity"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/setup/traefik/scan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Step 5 — read the host's SSH key for the admin to compare (nothing is stored) */
+        post: operations["scanSetupTraefikHost"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/setup/traefik/connection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Step 5 — save the Traefik host with the confirmed host key and validate it over SSH
+         * @description Saves the connection (credentials sealed, exactly the confirmed host key pinned), then logs in and detects the
+         *     OS, package manager, init system and any existing Traefik, and checks Hashi can write in its state directory.
+         *     A failed validation answers 200 with `health: failed` and `last_error`; invalid input answers 422.
+         */
+        put: operations["putSetupTraefikConnection"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/setup/traefik/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Step 5 — let Hashi take over the validated host (existing config is backed up first); completes the step */
+        post: operations["confirmSetupTraefik"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/setup/traefik/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Step 5 — plan installing Traefik and Hashi's files on the confirmed host; nothing is written yet */
+        post: operations["planSetupTraefik"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/setup/traefik/plan/{id}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Step 5 — approve the shown Traefik plan and run it */
+        post: operations["runSetupTraefikPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/setup/passkey/options": {
         parameters: {
             query?: never;
@@ -776,6 +941,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/traefik/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Traefik hosts with their state and applied files */
+        get: operations["listTraefikConnections"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/traefik/connections/{id}/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Plan the host's install, files and certificates (low-risk plans apply right away) */
+        post: operations["planTraefikConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/certificates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Certificates with expiry, last renewal and per-host distribution */
+        get: operations["listCertificates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/certificates/{id}/renew": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Renew now — creates a low-risk certificates plan for this certificate (apply it from Changes) */
+        post: operations["renewCertificate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sync/plans": {
         parameters: {
             query?: never;
@@ -1069,6 +1302,157 @@ export interface components {
             /** @description Registered passkeys (setup sessions only) */
             passkeys?: number;
             dns?: components["schemas"]["DNSConnectResult"];
+            certificates?: components["schemas"]["CertificateProvider"];
+            traefik?: components["schemas"]["TraefikConnection"];
+        };
+        CertificateProviderInput: {
+            /** @enum {string} */
+            directory: "gts" | "letsencrypt" | "custom";
+            /** @description ACME directory URL (custom only) */
+            directory_url?: string;
+            email: string;
+            /** @description External Account Binding key ID (required for gts) */
+            eab_kid?: string;
+            /** @description EAB HMAC key (base64url); omit to keep the stored one */
+            eab_hmac?: string;
+            /** @description Extra wait after the value is visible (default 0) */
+            propagation_delay_s?: number;
+            /** @description DNS servers to check challenge values on; empty = the zone's nameservers */
+            resolvers?: string[];
+        };
+        CertificateProvider: {
+            /** @enum {string} */
+            directory: "gts" | "letsencrypt" | "custom";
+            directory_url: string;
+            email: string;
+            eab_kid: string;
+            has_eab_hmac: boolean;
+            account_registered: boolean;
+            propagation_delay_s: number;
+            resolvers: string[];
+            /** @enum {string} */
+            health: "unknown" | "validating" | "healthy" | "degraded" | "failed";
+            /** Format: date-time */
+            last_validated_at?: string;
+            last_error: string;
+        };
+        TraefikIdentity: {
+            /** @description authorized_keys line */
+            public_key: string;
+        };
+        HostKeyScanInput: {
+            host: string;
+            port: number;
+        };
+        HostKey: {
+            /** @description e.g. ssh-ed25519 */
+            type: string;
+            /** @description SHA256:… as ssh-keygen -lf shows it */
+            fingerprint: string;
+            /**
+             * Format: byte
+             * @description Wire-format public key (base64)
+             */
+            key: string;
+        };
+        TraefikConnectionInput: {
+            name: string;
+            host: string;
+            port: number;
+            user: string;
+            /** @enum {string} */
+            auth: "hashi_key" | "private_key" | "password";
+            /** @description Private key or password; omit to keep the stored one */
+            credential?: string;
+            passphrase?: string;
+            /**
+             * Format: byte
+             * @description `key` from the scan the admin confirmed
+             */
+            host_key: string;
+            internal_ip?: string;
+            traefik_binary?: string;
+            config_dir?: string;
+            api_port?: number;
+        };
+        TraefikFile: {
+            path: string;
+            sha256: string;
+            /** Format: date-time */
+            applied_at: string;
+        };
+        TraefikConnection: {
+            id: string;
+            name: string;
+            host: string;
+            port: number;
+            user: string;
+            /** @enum {string} */
+            auth: "hashi_key" | "private_key" | "password";
+            host_key_type: string;
+            host_key_fingerprint: string;
+            internal_ip: string;
+            /** @description alpine, debian or fedora; empty until validated */
+            os_family: string;
+            package_manager: string;
+            init_system: string;
+            /** @description PRETTY_NAME from os-release */
+            os_name: string;
+            arch: string;
+            existing_binary: string;
+            existing_configs: string[];
+            traefik_binary: string;
+            config_dir: string;
+            api_port: number;
+            /** @description Traefik version Hashi installed; empty before the first apply */
+            installed_version: string;
+            ownership_confirmed: boolean;
+            /** @enum {string} */
+            health: "unknown" | "validating" | "healthy" | "degraded" | "failed";
+            /** Format: date-time */
+            last_validated_at?: string;
+            last_error: string;
+            files: components["schemas"]["TraefikFile"][];
+        };
+        TraefikConnectionList: {
+            connections: components["schemas"]["TraefikConnection"][];
+        };
+        CertificateDistribution: {
+            connection_id: string;
+            connection_name: string;
+            /** @enum {string} */
+            state: "pending" | "applied" | "verified" | "failed";
+            /** @description What the host served at the last check */
+            fingerprint: string;
+            /** Format: date-time */
+            last_verified_at?: string;
+            error: string;
+        };
+        Certificate: {
+            id: string;
+            name: string;
+            names: string[];
+            issuer: string;
+            /** Format: date-time */
+            not_before?: string;
+            /** Format: date-time */
+            not_after?: string;
+            /** @description SHA-256 of the leaf (hex) */
+            fingerprint: string;
+            /**
+             * @description Expiry urgency (21/7 days)
+             * @enum {string}
+             */
+            level: "" | "warning" | "critical" | "expired";
+            /** Format: date-time */
+            last_renewal_at?: string;
+            /** @enum {string} */
+            last_renewal_result: "" | "issued" | "renewed" | "failed";
+            last_renewal_error: string;
+            distributions: components["schemas"]["CertificateDistribution"][];
+        };
+        CertificateList: {
+            certificates: components["schemas"]["Certificate"][];
         };
         DNSProviderInput: {
             /** @enum {string} */
@@ -1238,7 +1622,7 @@ export interface components {
         SyncPlan: {
             id: string;
             /** @enum {string} */
-            subsystem: "dns-records" | "dns-record-deletes" | "dns-prune" | "dns-probe";
+            subsystem: "dns-records" | "dns-record-deletes" | "dns-prune" | "dns-probe" | "traefik" | "certificates";
             target: string;
             /** @description e.g. the zone name */
             target_name: string;
@@ -1492,6 +1876,24 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Version"];
                 };
+            };
+        };
+    };
+    getEdgeAuthForward: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Allowed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -2067,6 +2469,188 @@ export interface operations {
             default: components["responses"]["Problem"];
         };
     };
+    putSetupCertificates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CertificateProviderInput"];
+            };
+        };
+        responses: {
+            /** @description Stored; `health` and `last_error` say whether the CA accepted the account */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CertificateProvider"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    issueSetupCertificates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The certificates plan after the run (absent when nothing was needed) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncPlanResult"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    setupTraefikIdentity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The public key line */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TraefikIdentity"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    scanSetupTraefikHost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HostKeyScanInput"];
+            };
+        };
+        responses: {
+            /** @description The host key; send `key` back with the connection once the admin confirmed the fingerprint */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostKey"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putSetupTraefikConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TraefikConnectionInput"];
+            };
+        };
+        responses: {
+            /** @description Saved and validated (see `health`) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TraefikConnection"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    confirmSetupTraefik: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Confirmed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupState"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    planSetupTraefik: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The plan (absent when the host already matches) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncPlanResult"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    runSetupTraefikPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The plan after the run */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncPlan"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
     setupPasskeyOptions: {
         parameters: {
             query?: never;
@@ -2600,6 +3184,94 @@ export interface operations {
         };
         responses: {
             /** @description The pending probe plan */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncPlanResult"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listTraefikConnections: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Connections */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TraefikConnectionList"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    planTraefikConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The plan (absent when the host already matches) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncPlanResult"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listCertificates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Certificates */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CertificateList"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    renewCertificate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The plan */
             200: {
                 headers: {
                     [name: string]: unknown;

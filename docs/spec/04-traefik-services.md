@@ -55,14 +55,15 @@ from rendering.
 
 ## 2. Traefik installation
 
-Supported OS: Debian, Ubuntu, Alpine. Install flow (over SSH, each step a plan item):
+Supported OS: Debian, Ubuntu, Fedora (and other dnf + systemd distributions), Alpine. Hashi detects the family from
+`/etc/os-release` and the tools present (package manager, systemd or OpenRC), never from a version number. Install flow (over SSH, each step a plan item):
 
 1. Detect existing Traefik (binary, service, container) and package manager.
 2. Install Traefik if absent: official release binary for the pinned version + checksum verification (distro packages lag).
 3. Create Hashi directories: `/etc/hashi/traefik`, `/etc/hashi/traefik/dynamic`, `/var/log/hashi/traefik`, `/etc/hashi/traefik/certs` (mode 0700, certificate files from Hashi, 03-dns.md §5.3), `/var/lib/hashi/traefik`.
 4. Discover existing configs in common paths (`/etc/traefik`, `/opt/traefik`, compose volumes); show files and summary.
 5. If found: back up to `/var/lib/hashi/traefik/backup/<timestamp>/` and require explicit confirmation before Hashi takes ownership.
-6. Write a systemd unit (Debian/Ubuntu) or OpenRC script (Alpine) running Traefik with Hashi's static config.
+6. Write a systemd unit (Debian/Ubuntu/Fedora) or OpenRC script (Alpine) running Traefik with Hashi's static config.
 
 ### 2.1 Traefik updates (Hashi-managed)
 
@@ -132,8 +133,10 @@ Per Traefik host:
 2. Write changed files atomically (unique temp + rename) — dynamic files trigger Traefik's watcher; unchanged files are never touched.
 3. If static config changed: write it, restart the service, wait for `ping` (timeout 30 s). On failure restore the previous
    static file, restart again, mark the plan failed.
-4. **Verify** through the local Traefik API over SSH (`curl -s 127.0.0.1:<api>/api/rawdata`): every expected router/service/
-   middleware exists and none reports an error status. There is no `traefik check` command; do not invent one.
+4. **Verify** through the local Traefik API (`GET 127.0.0.1:<api>/api/rawdata`): every expected router/service/middleware
+   exists and none reports `status: disabled` or an `error`. Hashi reaches the loopback port through the SSH connection;
+   when sshd refuses forwarding (Alpine ships `AllowTcpForwarding no`) it runs the host's `curl` or `wget` instead, and
+   validation fails with a clear message when neither works. There is no `traefik check` command; do not invent one.
 5. Store per-file `last_applied_hash`.
 
 ## 7. Sync rules

@@ -620,6 +620,9 @@ func (s *Service) ImportTable(ctx context.Context, zoneID string) (ZoneInfo, []I
 		if o.Origin != "" && o.Origin != OriginImported {
 			continue // created by Hashi: nothing to import
 		}
+		if IsChallenge(o.Name) {
+			continue // DNS-01 values come and go with certificate orders (03 §5.3)
+		}
 		rows = append(rows, ImportRow{Observed: o, Allowed: AllowedDecisions(o.RRSet, caps)})
 	}
 	return z, rows, nil
@@ -684,6 +687,9 @@ func (s *Service) SaveDecisions(ctx context.Context, actor, ip, zoneID string, i
 			o, ok := byKey[k]
 			if !ok {
 				return fmt.Errorf("%w: %s %s is not in the zone's last snapshot; refresh and try again", ErrInvalid, k.name, k.typ)
+			}
+			if IsChallenge(k.name) {
+				return fmt.Errorf("%w: %s %s is a certificate challenge name and is not imported", ErrInvalid, k.name, k.typ)
 			}
 			if err := CheckDecision(o.RRSet, caps, d.Decision); err != nil {
 				return fmt.Errorf("%w: %w", ErrInvalid, err)

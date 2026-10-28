@@ -320,3 +320,34 @@ func TestInvariant_2_AdapterRefusesNSSOAAndProtected(t *testing.T) {
 		t.Errorf("requests sent: %v", wr.seen)
 	}
 }
+
+// DNS-01 values (03 §5.3) are added and removed one at a time, so another client's value at the same name survives:
+// add_records creates the missing RRSet, a duplicate and a missing value are success.
+func TestChallengeValuesAddAndRemoveOneAtATime(t *testing.T) {
+	ctx := context.Background()
+	zone := dns.Zone{ID: "100001", Name: "example.com"}
+	name := "_acme-challenge._hashi-test"
+	_, c := newWriteReplay(t, "challenge_add_missing", "challenge_add_missing_action_poll")
+	if err := c.AddValue(ctx, zone, name, "TXT", 60, "hashi challenge probe one"); err != nil {
+		t.Fatalf("add to a missing RRSet: %v", err)
+	}
+	wr, c2 := newWriteReplay(t, "challenge_add_duplicate")
+	wr.bodyEq = func(json.RawMessage, json.RawMessage) bool { return true } // the capture sent no ttl
+	if err := c2.AddValue(ctx, zone, name, "TXT", 60, "other writer probe two"); err != nil {
+		t.Errorf("duplicate value: %v", err)
+	}
+	_, c = newWriteReplay(t, "challenge_remove_one", "challenge_remove_one_action_poll")
+	if err := c.RemoveValue(ctx, zone, name, "TXT", "hashi challenge probe one"); err != nil {
+		t.Errorf("remove: %v", err)
+	}
+	for _, f := range []string{"challenge_remove_absent", "challenge_remove_missing_rrset"} {
+		wr, c := newWriteReplay(t, f)
+		wr.bodyEq = func(json.RawMessage, json.RawMessage) bool { return true }
+		if err := c.RemoveValue(ctx, zone, name, "TXT", "other writer probe two"); err != nil {
+			t.Errorf("%s: %v", f, err)
+		}
+	}
+	if err := c.AddValue(ctx, zone, dns.Apex, "NS", 60, "ns.example.com."); !errors.Is(err, dns.ErrForbiddenChange) {
+		t.Errorf("NS value: %v", err)
+	}
+}

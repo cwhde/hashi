@@ -56,6 +56,20 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Version" }
 
+  # ---- edge (06-edge-security.md §2) ----
+  /api/edge-auth/forward:
+    get:
+      operationId: getEdgeAuthForward
+      summary: Traefik forward auth for every edge service
+      description: >-
+        S4 stub: allows every request (204). Stage A and the rule engine replace it in S9/S10. Traefik reaches it
+        directly (fail-closed services) or through the local `hashi-fa` fallback (fail-open services, 06 §2.1).
+      tags: [edge]
+      x-hashi-scopes: []
+      responses:
+        "204":
+          description: Allowed
+
   # ---- auth (02-setup-auth.md §2–4) ----
   /api/auth/session:
     get:
@@ -381,6 +395,112 @@ paths:
           description: Saved
           content: { application/json: { schema: { $ref: "#/components/schemas/SetupState" } } }
         default: { $ref: "#/components/responses/Problem" }
+  /api/setup/certificates:
+    put:
+      operationId: putSetupCertificates
+      summary: Step 4 — store the certificate provider and register the ACME account with the CA
+      description: |
+        Validates the input, seals the EAB HMAC key, and registers (or finds) the ACME account. The step completes only
+        when registration succeeded; otherwise the account is stored with `health: failed` and the step stays open.
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CertificateProviderInput" } } }
+      responses:
+        "200":
+          description: Stored; `health` and `last_error` say whether the CA accepted the account
+          content: { application/json: { schema: { $ref: "#/components/schemas/CertificateProvider" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/setup/certificates/issue:
+    post:
+      operationId: issueSetupCertificates
+      summary: Step 4 — issue the root and wildcard certificate now (low-risk plan, applied right away; takes a minute)
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      responses:
+        "200":
+          description: The certificates plan after the run (absent when nothing was needed)
+          content: { application/json: { schema: { $ref: "#/components/schemas/SyncPlanResult" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/setup/traefik/identity:
+    post:
+      operationId: setupTraefikIdentity
+      summary: Step 5 — Hashi's SSH public key (created on first call) for the host's authorized_keys
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      responses:
+        "200":
+          description: The public key line
+          content: { application/json: { schema: { $ref: "#/components/schemas/TraefikIdentity" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/setup/traefik/scan:
+    post:
+      operationId: scanSetupTraefikHost
+      summary: Step 5 — read the host's SSH key for the admin to compare (nothing is stored)
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/HostKeyScanInput" } } }
+      responses:
+        "200":
+          description: The host key; send `key` back with the connection once the admin confirmed the fingerprint
+          content: { application/json: { schema: { $ref: "#/components/schemas/HostKey" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/setup/traefik/connection:
+    put:
+      operationId: putSetupTraefikConnection
+      summary: Step 5 — save the Traefik host with the confirmed host key and validate it over SSH
+      description: |
+        Saves the connection (credentials sealed, exactly the confirmed host key pinned), then logs in and detects the
+        OS, package manager, init system and any existing Traefik, and checks Hashi can write in its state directory.
+        A failed validation answers 200 with `health: failed` and `last_error`; invalid input answers 422.
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/TraefikConnectionInput" } } }
+      responses:
+        "200":
+          description: Saved and validated (see `health`)
+          content: { application/json: { schema: { $ref: "#/components/schemas/TraefikConnection" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/setup/traefik/confirm:
+    post:
+      operationId: confirmSetupTraefik
+      summary: Step 5 — let Hashi take over the validated host (existing config is backed up first); completes the step
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      responses:
+        "200":
+          description: Confirmed
+          content: { application/json: { schema: { $ref: "#/components/schemas/SetupState" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/setup/traefik/plan:
+    post:
+      operationId: planSetupTraefik
+      summary: Step 5 — plan installing Traefik and Hashi's files on the confirmed host; nothing is written yet
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      responses:
+        "200":
+          description: The plan (absent when the host already matches)
+          content: { application/json: { schema: { $ref: "#/components/schemas/SyncPlanResult" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/setup/traefik/plan/{id}/run:
+    post:
+      operationId: runSetupTraefikPlan
+      summary: Step 5 — approve the shown Traefik plan and run it
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The plan after the run
+          content: { application/json: { schema: { $ref: "#/components/schemas/SyncPlan" } } }
+        default: { $ref: "#/components/responses/Problem" }
   /api/setup/passkey/options:
     post:
       operationId: setupPasskeyOptions
@@ -682,6 +802,56 @@ paths:
         default: { $ref: "#/components/responses/Problem" }
 
   # ---- sync (01-platform.md §5) ----
+  # ---- traefik and certificates (04, 03 §5.3) ----
+  /api/traefik/connections:
+    get:
+      operationId: listTraefikConnections
+      summary: Traefik hosts with their state and applied files
+      tags: [traefik]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Connections
+          content: { application/json: { schema: { $ref: "#/components/schemas/TraefikConnectionList" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/traefik/connections/{id}/plan:
+    post:
+      operationId: planTraefikConnection
+      summary: Plan the host's install, files and certificates (low-risk plans apply right away)
+      tags: [traefik]
+      x-hashi-scopes: [admin.write]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The plan (absent when the host already matches)
+          content: { application/json: { schema: { $ref: "#/components/schemas/SyncPlanResult" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/certificates:
+    get:
+      operationId: listCertificates
+      summary: Certificates with expiry, last renewal and per-host distribution
+      tags: [traefik]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Certificates
+          content: { application/json: { schema: { $ref: "#/components/schemas/CertificateList" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/certificates/{id}/renew:
+    post:
+      operationId: renewCertificate
+      summary: Renew now — creates a low-risk certificates plan for this certificate (apply it from Changes)
+      tags: [traefik]
+      x-hashi-scopes: [admin.write]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The plan
+          content: { application/json: { schema: { $ref: "#/components/schemas/SyncPlanResult" } } }
+        default: { $ref: "#/components/responses/Problem" }
+
   /api/sync/plans:
     get:
       operationId: listSyncPlans
@@ -950,6 +1120,142 @@ components:
         base_settings: { $ref: "#/components/schemas/BaseSettings" }
         passkeys: { type: integer, description: Registered passkeys (setup sessions only) }
         dns: { $ref: "#/components/schemas/DNSConnectResult" }
+        certificates: { $ref: "#/components/schemas/CertificateProvider" }
+        traefik: { $ref: "#/components/schemas/TraefikConnection" }
+    CertificateProviderInput:
+      type: object
+      required: [directory, email]
+      properties:
+        directory: { type: string, enum: [gts, letsencrypt, custom] }
+        directory_url: { type: string, description: "ACME directory URL (custom only)" }
+        email: { type: string }
+        eab_kid: { type: string, description: External Account Binding key ID (required for gts) }
+        eab_hmac: { type: string, writeOnly: true, description: "EAB HMAC key (base64url); omit to keep the stored one" }
+        propagation_delay_s: { type: integer, minimum: 0, maximum: 600, description: "Extra wait after the value is visible (default 0)" }
+        resolvers: { type: array, items: { type: string }, description: "DNS servers to check challenge values on; empty = the zone's nameservers" }
+    CertificateProvider:
+      type: object
+      required: [directory, directory_url, email, eab_kid, has_eab_hmac, account_registered, propagation_delay_s, resolvers, health, last_error]
+      properties:
+        directory: { type: string, enum: [gts, letsencrypt, custom] }
+        directory_url: { type: string }
+        email: { type: string }
+        eab_kid: { type: string }
+        has_eab_hmac: { type: boolean }
+        account_registered: { type: boolean }
+        propagation_delay_s: { type: integer }
+        resolvers: { type: array, items: { type: string } }
+        health: { type: string, enum: [unknown, validating, healthy, degraded, failed] }
+        last_validated_at: { type: string, format: date-time }
+        last_error: { type: string }
+    TraefikIdentity:
+      type: object
+      required: [public_key]
+      properties:
+        public_key: { type: string, description: authorized_keys line }
+    HostKeyScanInput:
+      type: object
+      required: [host, port]
+      properties:
+        host: { type: string }
+        port: { type: integer, minimum: 1, maximum: 65535 }
+    HostKey:
+      type: object
+      required: [type, fingerprint, key]
+      properties:
+        type: { type: string, description: "e.g. ssh-ed25519" }
+        fingerprint: { type: string, description: "SHA256:… as ssh-keygen -lf shows it" }
+        key: { type: string, format: byte, description: Wire-format public key (base64) }
+    TraefikConnectionInput:
+      type: object
+      required: [name, host, port, user, auth, host_key]
+      properties:
+        name: { type: string }
+        host: { type: string }
+        port: { type: integer, minimum: 1, maximum: 65535 }
+        user: { type: string }
+        auth: { type: string, enum: [hashi_key, private_key, password] }
+        credential: { type: string, writeOnly: true, description: "Private key or password; omit to keep the stored one" }
+        passphrase: { type: string, writeOnly: true }
+        host_key: { type: string, format: byte, description: "`key` from the scan the admin confirmed" }
+        internal_ip: { type: string }
+        traefik_binary: { type: string }
+        config_dir: { type: string }
+        api_port: { type: integer, minimum: 1024, maximum: 65534 }
+    TraefikFile:
+      type: object
+      required: [path, sha256, applied_at]
+      properties:
+        path: { type: string }
+        sha256: { type: string }
+        applied_at: { type: string, format: date-time }
+    TraefikConnection:
+      type: object
+      required: [id, name, host, port, user, auth, host_key_type, host_key_fingerprint, internal_ip, os_family, package_manager,
+        init_system, os_name, arch, existing_binary, existing_configs, traefik_binary, config_dir, api_port, installed_version,
+        ownership_confirmed, health, last_error, files]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        host: { type: string }
+        port: { type: integer }
+        user: { type: string }
+        auth: { type: string, enum: [hashi_key, private_key, password] }
+        host_key_type: { type: string }
+        host_key_fingerprint: { type: string }
+        internal_ip: { type: string }
+        os_family: { type: string, description: "alpine, debian or fedora; empty until validated" }
+        package_manager: { type: string }
+        init_system: { type: string }
+        os_name: { type: string, description: PRETTY_NAME from os-release }
+        arch: { type: string }
+        existing_binary: { type: string }
+        existing_configs: { type: array, items: { type: string } }
+        traefik_binary: { type: string }
+        config_dir: { type: string }
+        api_port: { type: integer }
+        installed_version: { type: string, description: "Traefik version Hashi installed; empty before the first apply" }
+        ownership_confirmed: { type: boolean }
+        health: { type: string, enum: [unknown, validating, healthy, degraded, failed] }
+        last_validated_at: { type: string, format: date-time }
+        last_error: { type: string }
+        files: { type: array, items: { $ref: "#/components/schemas/TraefikFile" } }
+    TraefikConnectionList:
+      type: object
+      required: [connections]
+      properties:
+        connections: { type: array, items: { $ref: "#/components/schemas/TraefikConnection" } }
+    CertificateDistribution:
+      type: object
+      required: [connection_id, connection_name, state, fingerprint, error]
+      properties:
+        connection_id: { type: string }
+        connection_name: { type: string }
+        state: { type: string, enum: [pending, applied, verified, failed] }
+        fingerprint: { type: string, description: What the host served at the last check }
+        last_verified_at: { type: string, format: date-time }
+        error: { type: string }
+    Certificate:
+      type: object
+      required: [id, name, names, issuer, fingerprint, level, last_renewal_result, last_renewal_error, distributions]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        names: { type: array, items: { type: string } }
+        issuer: { type: string }
+        not_before: { type: string, format: date-time }
+        not_after: { type: string, format: date-time }
+        fingerprint: { type: string, description: SHA-256 of the leaf (hex) }
+        level: { type: string, enum: ["", warning, critical, expired], description: "Expiry urgency (21/7 days)" }
+        last_renewal_at: { type: string, format: date-time }
+        last_renewal_result: { type: string, enum: ["", issued, renewed, failed] }
+        last_renewal_error: { type: string }
+        distributions: { type: array, items: { $ref: "#/components/schemas/CertificateDistribution" } }
+    CertificateList:
+      type: object
+      required: [certificates]
+      properties:
+        certificates: { type: array, items: { $ref: "#/components/schemas/Certificate" } }
     DNSProviderInput:
       type: object
       required: [type, default_ttl]
@@ -1131,7 +1437,7 @@ components:
       required: [id, subsystem, target, target_name, title, trigger, risk, status, created_by, created_at, approved_by, result, error, items]
       properties:
         id: { type: string }
-        subsystem: { type: string, enum: [dns-records, dns-record-deletes, dns-prune, dns-probe] }
+        subsystem: { type: string, enum: [dns-records, dns-record-deletes, dns-prune, dns-probe, traefik, certificates] }
         target: { type: string }
         target_name: { type: string, description: "e.g. the zone name" }
         title: { type: string }

@@ -1,0 +1,37 @@
+{
+  "captured_at": "2026-10-28T14:47:35+00:00",
+  "docs_url": "https://docs.hetzner.cloud/reference/cloud#zone-rrsets",
+  "request": "POST /v1/zones/100001/rrsets/_acme-challenge._hashi-test/TXT/actions/add_records",
+  "request_body": {
+    "ttl": 60,
+    "records": [
+      {
+        "value": "\"hashi challenge probe one\""
+      }
+    ]
+  },
+  "status": 201,
+  "headers": {
+    "content-type": "application/json",
+    "ratelimit-limit": "7200",
+    "ratelimit-remaining": "7199",
+    "ratelimit-reset": "1793198856"
+  },
+  "body": {
+    "action": {
+      "id": 664362730156966,
+      "status": "running",
+      "command": "add_rrset_records",
+      "progress": 0,
+      "started": "2026-10-28T14:47:35Z",
+      "finished": null,
+      "error": null,
+      "resources": [
+        {
+          "id": 100001,
+          "type": "zone"
+        }
+      ]
+    }
+  }
+}

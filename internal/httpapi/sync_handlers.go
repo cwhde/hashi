@@ -6,9 +6,11 @@ import (
 	"errors"
 	"net/http"
 
+	"git.juzo.io/juzo/hashi/internal/certs"
 	"git.juzo.io/juzo/hashi/internal/dns"
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
 	hsync "git.juzo.io/juzo/hashi/internal/sync"
+	"git.juzo.io/juzo/hashi/internal/traefik"
 )
 
 // syncError maps engine and DNS write errors to problems.
@@ -30,8 +32,21 @@ func syncError(err error) error {
 
 func (s *Server) planBody(ctx context.Context, p *hsync.Plan) gen.SyncPlan {
 	name := p.Target
-	if z, err := s.DNS.Zone(ctx, p.Target); err == nil {
-		name = z.Name
+	switch p.Subsystem {
+	case traefik.Subsystem:
+		if c, err := s.Store.R.GetTraefikConnection(ctx, p.Target); err == nil {
+			name = c.Name
+		}
+	case certs.Subsystem:
+		if c, err := s.Store.R.GetCertificate(ctx, p.Target); err == nil {
+			name = c.Name
+		} else {
+			name = "certificates"
+		}
+	default:
+		if z, err := s.DNS.Zone(ctx, p.Target); err == nil {
+			name = z.Name
+		}
 	}
 	out := gen.SyncPlan{Id: p.ID, Subsystem: gen.SyncPlanSubsystem(p.Subsystem), Target: p.Target, TargetName: name, Title: p.Title,
 		Trigger: gen.SyncPlanTrigger(p.Trigger), Risk: gen.SyncPlanRisk(p.Risk), Status: gen.SyncPlanStatus(p.Status),

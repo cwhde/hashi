@@ -190,6 +190,8 @@ func (s *Sim) rrsets(w http.ResponseWriter, r *http.Request, zone string, rest [
 		}
 		s.zones[zone] = append(list, n)
 		answer(w, http.StatusCreated, map[string]any{"action": s.newAction("create_rrset"), "rrset": n})
+	case len(rest) == 4 && rest[2] == "actions" && (rest[3] == "add_records" || rest[3] == "remove_records") && r.Method == http.MethodPost:
+		s.values(w, r, zone, rest[0], rest[1], rest[3] == "add_records")
 	case len(rest) >= 2:
 		i := find(rest[0], rest[1])
 		if i < 0 {
@@ -254,6 +256,61 @@ func (s *Sim) change(w http.ResponseWriter, r *http.Request, zone string, i int,
 	default:
 		fail(w, http.StatusNotFound, "not_found", "404 Not Found")
 	}
+}
+
+// values answers add_records and remove_records as captured (write/challenge_*.json): add creates a missing RRSet with
+// the given ttl and rejects a duplicate value (422); remove answers 404 for a missing value or RRSet and deletes the
+// RRSet with its last value.
+func (s *Sim) values(w http.ResponseWriter, r *http.Request, zone, name, typ string, add bool) {
+	var b struct {
+		TTL     *int        `json:"ttl"`
+		Records []simRecord `json:"records"`
+	}
+	if json.NewDecoder(r.Body).Decode(&b) != nil {
+		fail(w, http.StatusBadRequest, "invalid_input", "invalid JSON")
+		return
+	}
+	if msg := checkTXT(typ, b.Records); msg != "" {
+		fail(w, http.StatusUnprocessableEntity, "invalid_input", msg)
+		return
+	}
+	i := slices.IndexFunc(s.zones[zone], func(x simRRSet) bool { return x.Name == name && x.Type == typ })
+	if !add {
+		if i < 0 {
+			fail(w, http.StatusNotFound, "not_found", "RRSet(s) not found")
+			return
+		}
+		x := &s.zones[zone][i]
+		for _, rec := range b.Records {
+			j := slices.IndexFunc(x.Records, func(v simRecord) bool { return v.Value == rec.Value })
+			if j < 0 {
+				fail(w, http.StatusNotFound, "not_found", "Record(s) not found")
+				return
+			}
+			x.Records = slices.Delete(x.Records, j, j+1)
+		}
+		if len(x.Records) == 0 {
+			s.zones[zone] = slices.Delete(s.zones[zone], i, i+1)
+		}
+		answer(w, http.StatusCreated, map[string]any{"action": s.newAction("remove_rrset_records")})
+		return
+	}
+	if i < 0 {
+		zid, _ := strconv.ParseInt(zone, 10, 64)
+		s.zones[zone] = append(s.zones[zone], simRRSet{ID: name + "/" + typ, Name: name, Type: typ, TTL: b.TTL, Labels: map[string]string{}, Zone: zid})
+		i = len(s.zones[zone]) - 1
+	}
+	x := &s.zones[zone][i]
+	for _, rec := range b.Records {
+		if slices.ContainsFunc(x.Records, func(v simRecord) bool { return v.Value == rec.Value }) {
+			fail(w, http.StatusUnprocessableEntity, "invalid_input", "duplicate value '"+rec.Value+"'")
+			return
+		}
+	}
+	for _, rec := range b.Records {
+		x.Records = append(x.Records, simRecord{Value: rec.Value})
+	}
+	answer(w, http.StatusCreated, map[string]any{"action": s.newAction("add_rrset_records")})
 }
 
 // checkTXT mirrors write/create_txt_unquoted.json and write/create_txt_long.json.

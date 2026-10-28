@@ -77,6 +77,15 @@ type Provider interface {
 	Verify(ctx context.Context, zone Zone, plan ProviderPlan) error
 }
 
+// ValueWriter adds and removes single values of an RRSet without touching the others (DNS-01 challenges, 03 §5.3:
+// another ACME client may hold a value at the same name). AddValue creates the RRSet with ttl when it is missing and
+// treats a value that is already there as success; RemoveValue treats a missing value or RRSet as success, and removing
+// the last value deletes the RRSet. Both wait until the provider has applied the change.
+type ValueWriter interface {
+	AddValue(ctx context.Context, zone Zone, name, typ string, ttl int, value string) error
+	RemoveValue(ctx context.Context, zone Zone, name, typ, value string) error
+}
+
 // Op is the kind of one RRSet change.
 type Op string
 

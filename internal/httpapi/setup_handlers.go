@@ -49,6 +49,18 @@ func (s *Server) setupBody(ctx context.Context) (gen.SetupState, error) {
 		if out.Dns, err = s.setupDNSBody(ctx); err != nil {
 			return out, err
 		}
+		if a, err := s.Store.R.GetACMEAccount(ctx); err == nil {
+			out.Certificates = ptr(providerBody(a))
+		}
+		if row, ok, err := s.setupConnection(ctx); err != nil {
+			return out, err
+		} else if ok {
+			c, err := s.connectionBody(ctx, row)
+			if err != nil {
+				return out, err
+			}
+			out.Traefik = &c
+		}
 	}
 	return out, nil
 }

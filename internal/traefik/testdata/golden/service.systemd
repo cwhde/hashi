@@ -1,0 +1,14 @@
+# Managed by Hashi. Changes are overwritten.
+[Unit]
+Description=Traefik reverse proxy managed by Hashi
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/traefik --configFile=/etc/hashi/traefik/traefik.yaml
+Restart=on-failure
+RestartSec=2
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target
