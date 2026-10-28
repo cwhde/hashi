@@ -270,6 +270,12 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-10-28 — S4 prep: the live Traefik instances on both hosts stay untouched (replaced, not adopted, 11-delivery.md §7).
+  A temporary dev target exists for S4: a fresh unprivileged Alpine 3.23 LXC `hashi-edge-test` on host B (1 CPU,
+  512 MB, 4 GB, no autostart, sshd with the laptop key, reachable from the Hashi container). It is not the production
+  edge: base image, name, address and size of the real edge LXCs are decided with the user at the V1 cutover, then this one
+  is deleted.
+
 - 2026-10-28 — S3 done: #30 (backend) and #31 (UI) merged, deployed `94d60ad`, prod-proof passed (see the S3 row).
   README bar 5/15. Next: S4 (SSH + Traefik). Admin pages on the server need S5's HTTPS for passkeys.
 
