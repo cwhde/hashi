@@ -46,6 +46,9 @@ func (s *Server) setupBody(ctx context.Context) (gen.SetupState, error) {
 			return out, err
 		}
 		out.Passkeys = ptr(int(n))
+		if out.Dns, err = s.setupDNSBody(ctx); err != nil {
+			return out, err
+		}
 	}
 	return out, nil
 }

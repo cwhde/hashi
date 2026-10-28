@@ -5,7 +5,7 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
-**S2 — DNS read + import** · status: **in progress** (planning, 2026-10-28).
+**S2 — DNS read + import** · status: **in progress** (PR A backend done, 2026-10-28).
 
 Scope and gate: 11-delivery.md §3 row S2 — 03-dns.md §1–4 (read side), setup step 3 (02 §1.3). Gate: the real zone is
 listed; the import table shows the real RRSets; import decisions persist; sanitized fixtures committed.
@@ -24,8 +24,19 @@ PR A — backend
 - [x] `internal/dns`: provider interface (read part: Capabilities, ListZones, ResolveZone, ListRRSets), RRSet model and
       normalization (TXT, TTL default); `internal/dns/hetzner` read adapter from the fixtures (pagination, RateLimit
       backoff, legacy-token error); replay tests; `TestInvariant_2_*` (NS/SOA never selectable for prune) on the import side.
-- [ ] Zone refresh job (observed snapshot) + OpenAPI: `GET /api/dns/zones`, `POST …/refresh`, `GET …/rrsets`,
+- [x] Zone refresh job (observed snapshot) + OpenAPI: `GET /api/dns/zones`, `POST …/refresh`, `GET …/rrsets`,
       `GET /api/dns/import/{zoneId}`, `PUT …/decisions`; setup step 3 endpoints; `make generate`.
+
+Decisions made in PR A:
+- Setup step 3 has its own endpoints (`PUT /api/setup/dns/provider`, `GET|PUT /api/setup/dns/import`, scope
+  `setup.manage`), because bootstrap sessions carry no admin scopes; they share the service with `/api/dns/*`.
+- Step 3 stays `built: false` until PR B adds its UI and the E2E run covers it (flipping it now would break the E2E
+  setup flow, which cannot reach step 3 without a page). `make dev`/E2E then need a fixture-backed fake provider.
+- The observed snapshot stores TXT values decoded (chunks joined, RFC 1035 escapes resolved); re-chunking for writes is
+  S3's job, from the write capture. `ttl: null` stays "zone default".
+- NS/SOA and change-protected RRSets allow only "leave" on the import table; the schema backs this with CHECKs.
+- `dns.refresh` job interval = the sync interval at startup (a changed interval applies after a restart).
+- No 429 response was captured; the adapter acts on the status code and the captured `RateLimit-*` headers only.
 
 PR B — UI + deploy
 - [ ] Setup step 3 (provider, token, zone auto-pick, read-only validation) and the import table.
@@ -155,6 +166,9 @@ Decisions made in S0:
   only short-SHA deploys exist so far.
 
 ## Log
+
+- 2026-10-28 — S2 PR A (backend) done on `s2-dns-read`: migration 00003, `internal/dns` + Hetzner read adapter from the
+  fixtures, refresh job, DNS and setup step 3 API. PR B (UI, deploy, prod-proof) next.
 
 - 2026-10-28 — Security model side step done: mocks merged (#27), built code renamed (setup step 7), S2 next.
 

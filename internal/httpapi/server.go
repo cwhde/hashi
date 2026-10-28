@@ -10,6 +10,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/audit"
 	"git.juzo.io/juzo/hashi/internal/auth"
 	"git.juzo.io/juzo/hashi/internal/clientip"
+	"git.juzo.io/juzo/hashi/internal/dns"
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
 	"git.juzo.io/juzo/hashi/internal/logring"
 	"git.juzo.io/juzo/hashi/internal/settings"
@@ -27,6 +28,7 @@ type Server struct {
 	Passkeys *auth.Passkeys
 	Setup    *setup.Service
 	Settings *settings.Service
+	DNS      *dns.Service
 	Vault    *vault.Vault
 	Audit    *audit.Log
 	IP       *clientip.Resolver
