@@ -10,6 +10,30 @@ import (
 	"database/sql"
 )
 
+const deleteDNSOwnership = `-- name: DeleteDNSOwnership :exec
+DELETE FROM dns_ownership WHERE zone_id = ? AND name = ? AND type = ?
+`
+
+type DeleteDNSOwnershipParams struct {
+	ZoneID string
+	Name   string
+	Type   string
+}
+
+func (q *Queries) DeleteDNSOwnership(ctx context.Context, arg DeleteDNSOwnershipParams) error {
+	_, err := q.db.ExecContext(ctx, deleteDNSOwnership, arg.ZoneID, arg.Name, arg.Type)
+	return err
+}
+
+const deleteDNSRecord = `-- name: DeleteDNSRecord :exec
+DELETE FROM dns_records WHERE id = ?
+`
+
+func (q *Queries) DeleteDNSRecord(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, deleteDNSRecord, id)
+	return err
+}
+
 const deleteDNSZonesExcept = `-- name: DeleteDNSZonesExcept :execrows
 DELETE FROM dns_zones WHERE provider_id = ? AND id != ?
 `
@@ -26,6 +50,36 @@ func (q *Queries) DeleteDNSZonesExcept(ctx context.Context, arg DeleteDNSZonesEx
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const deleteImportDecision = `-- name: DeleteImportDecision :exec
+DELETE FROM dns_import_decisions WHERE zone_id = ? AND name = ? AND type = ?
+`
+
+type DeleteImportDecisionParams struct {
+	ZoneID string
+	Name   string
+	Type   string
+}
+
+func (q *Queries) DeleteImportDecision(ctx context.Context, arg DeleteImportDecisionParams) error {
+	_, err := q.db.ExecContext(ctx, deleteImportDecision, arg.ZoneID, arg.Name, arg.Type)
+	return err
+}
+
+const deleteImportedDNSRecord = `-- name: DeleteImportedDNSRecord :exec
+DELETE FROM dns_records WHERE zone_id = ? AND name = ? AND type = ? AND origin = 'imported'
+`
+
+type DeleteImportedDNSRecordParams struct {
+	ZoneID string
+	Name   string
+	Type   string
+}
+
+func (q *Queries) DeleteImportedDNSRecord(ctx context.Context, arg DeleteImportedDNSRecordParams) error {
+	_, err := q.db.ExecContext(ctx, deleteImportedDNSRecord, arg.ZoneID, arg.Name, arg.Type)
+	return err
 }
 
 const deleteImportedOwnership = `-- name: DeleteImportedOwnership :execrows
@@ -74,6 +128,60 @@ func (q *Queries) GetDNSProvider(ctx context.Context, id string) (DnsProvider, e
 		&i.LastValidatedAt,
 		&i.LastValidationError,
 		&i.DeletionPolicy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getDNSRecord = `-- name: GetDNSRecord :one
+SELECT id, zone_id, name, type, ttl, values_json, origin, display_name, dashboard, monitoring, created_at, updated_at FROM dns_records WHERE id = ?
+`
+
+func (q *Queries) GetDNSRecord(ctx context.Context, id string) (DnsRecord, error) {
+	row := q.db.QueryRowContext(ctx, getDNSRecord, id)
+	var i DnsRecord
+	err := row.Scan(
+		&i.ID,
+		&i.ZoneID,
+		&i.Name,
+		&i.Type,
+		&i.Ttl,
+		&i.ValuesJson,
+		&i.Origin,
+		&i.DisplayName,
+		&i.Dashboard,
+		&i.Monitoring,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getDNSRecordByKey = `-- name: GetDNSRecordByKey :one
+SELECT id, zone_id, name, type, ttl, values_json, origin, display_name, dashboard, monitoring, created_at, updated_at FROM dns_records WHERE zone_id = ? AND name = ? AND type = ?
+`
+
+type GetDNSRecordByKeyParams struct {
+	ZoneID string
+	Name   string
+	Type   string
+}
+
+func (q *Queries) GetDNSRecordByKey(ctx context.Context, arg GetDNSRecordByKeyParams) (DnsRecord, error) {
+	row := q.db.QueryRowContext(ctx, getDNSRecordByKey, arg.ZoneID, arg.Name, arg.Type)
+	var i DnsRecord
+	err := row.Scan(
+		&i.ID,
+		&i.ZoneID,
+		&i.Name,
+		&i.Type,
+		&i.Ttl,
+		&i.ValuesJson,
+		&i.Origin,
+		&i.DisplayName,
+		&i.Dashboard,
+		&i.Monitoring,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -153,6 +261,44 @@ func (q *Queries) InsertDNSProvider(ctx context.Context, arg InsertDNSProviderPa
 		arg.TokenSecretID,
 		arg.Health,
 		arg.LastValidatedAt,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+	)
+	return err
+}
+
+const insertDNSRecord = `-- name: InsertDNSRecord :exec
+INSERT INTO dns_records (id, zone_id, name, type, ttl, values_json, origin, display_name, dashboard, monitoring, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`
+
+type InsertDNSRecordParams struct {
+	ID          string
+	ZoneID      string
+	Name        string
+	Type        string
+	Ttl         sql.NullInt64
+	ValuesJson  string
+	Origin      string
+	DisplayName string
+	Dashboard   int64
+	Monitoring  int64
+	CreatedAt   int64
+	UpdatedAt   int64
+}
+
+func (q *Queries) InsertDNSRecord(ctx context.Context, arg InsertDNSRecordParams) error {
+	_, err := q.db.ExecContext(ctx, insertDNSRecord,
+		arg.ID,
+		arg.ZoneID,
+		arg.Name,
+		arg.Type,
+		arg.Ttl,
+		arg.ValuesJson,
+		arg.Origin,
+		arg.DisplayName,
+		arg.Dashboard,
+		arg.Monitoring,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
@@ -291,6 +437,46 @@ func (q *Queries) ListDNSProviders(ctx context.Context) ([]DnsProvider, error) {
 	return items, nil
 }
 
+const listDNSRecords = `-- name: ListDNSRecords :many
+SELECT id, zone_id, name, type, ttl, values_json, origin, display_name, dashboard, monitoring, created_at, updated_at FROM dns_records WHERE zone_id = ? ORDER BY name, type
+`
+
+func (q *Queries) ListDNSRecords(ctx context.Context, zoneID string) ([]DnsRecord, error) {
+	rows, err := q.db.QueryContext(ctx, listDNSRecords, zoneID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DnsRecord{}
+	for rows.Next() {
+		var i DnsRecord
+		if err := rows.Scan(
+			&i.ID,
+			&i.ZoneID,
+			&i.Name,
+			&i.Type,
+			&i.Ttl,
+			&i.ValuesJson,
+			&i.Origin,
+			&i.DisplayName,
+			&i.Dashboard,
+			&i.Monitoring,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listDNSZones = `-- name: ListDNSZones :many
 SELECT id, provider_id, provider_zone_id, name, zone_ttl, last_refreshed_at, last_refresh_error, rrset_count, created_at FROM dns_zones ORDER BY name
 `
@@ -398,6 +584,29 @@ func (q *Queries) ListObservedRRSets(ctx context.Context, zoneID string) ([]DnsO
 	return items, nil
 }
 
+const setDNSOwnershipApplied = `-- name: SetDNSOwnershipApplied :exec
+UPDATE dns_ownership SET last_applied_hash = ?, updated_at = ? WHERE zone_id = ? AND name = ? AND type = ?
+`
+
+type SetDNSOwnershipAppliedParams struct {
+	LastAppliedHash string
+	UpdatedAt       int64
+	ZoneID          string
+	Name            string
+	Type            string
+}
+
+func (q *Queries) SetDNSOwnershipApplied(ctx context.Context, arg SetDNSOwnershipAppliedParams) error {
+	_, err := q.db.ExecContext(ctx, setDNSOwnershipApplied,
+		arg.LastAppliedHash,
+		arg.UpdatedAt,
+		arg.ZoneID,
+		arg.Name,
+		arg.Type,
+	)
+	return err
+}
+
 const setDNSProviderHealth = `-- name: SetDNSProviderHealth :exec
 UPDATE dns_providers SET health = ?, last_validated_at = ?, last_validation_error = ?, updated_at = ? WHERE id = ?
 `
@@ -479,6 +688,33 @@ func (q *Queries) UpdateDNSProvider(ctx context.Context, arg UpdateDNSProviderPa
 		arg.Health,
 		arg.LastValidatedAt,
 		arg.LastValidationError,
+		arg.UpdatedAt,
+		arg.ID,
+	)
+	return err
+}
+
+const updateDNSRecord = `-- name: UpdateDNSRecord :exec
+UPDATE dns_records SET ttl = ?, values_json = ?, display_name = ?, dashboard = ?, monitoring = ?, updated_at = ? WHERE id = ?
+`
+
+type UpdateDNSRecordParams struct {
+	Ttl         sql.NullInt64
+	ValuesJson  string
+	DisplayName string
+	Dashboard   int64
+	Monitoring  int64
+	UpdatedAt   int64
+	ID          string
+}
+
+func (q *Queries) UpdateDNSRecord(ctx context.Context, arg UpdateDNSRecordParams) error {
+	_, err := q.db.ExecContext(ctx, updateDNSRecord,
+		arg.Ttl,
+		arg.ValuesJson,
+		arg.DisplayName,
+		arg.Dashboard,
+		arg.Monitoring,
 		arg.UpdatedAt,
 		arg.ID,
 	)

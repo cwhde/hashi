@@ -99,6 +99,21 @@ type DnsProvider struct {
 	UpdatedAt           int64
 }
 
+type DnsRecord struct {
+	ID          string
+	ZoneID      string
+	Name        string
+	Type        string
+	Ttl         sql.NullInt64
+	ValuesJson  string
+	Origin      string
+	DisplayName string
+	Dashboard   int64
+	Monitoring  int64
+	CreatedAt   int64
+	UpdatedAt   int64
+}
+
 type DnsZone struct {
 	ID               string
 	ProviderID       string
@@ -177,4 +192,49 @@ type SetupState struct {
 	InputsJson string
 	LastError  string
 	UpdatedAt  int64
+}
+
+type SyncLock struct {
+	Key        string
+	Holder     string
+	AcquiredAt int64
+}
+
+type SyncPlan struct {
+	ID         string
+	Subsystem  string
+	Target     string
+	Title      string
+	Trigger    string
+	Risk       string
+	Status     string
+	PlanHash   string
+	CreatedBy  string
+	CreatedAt  int64
+	ApprovedBy string
+	ApprovedAt sql.NullInt64
+	FinishedAt sql.NullInt64
+	Result     string
+	Error      string
+}
+
+type SyncPlanItem struct {
+	PlanID     string
+	Seq        int64
+	Action     string
+	Object     string
+	BeforeJson string
+	AfterJson  string
+	Risk       string
+	Note       string
+}
+
+type SyncRun struct {
+	ID         string
+	PlanID     string
+	StartedAt  int64
+	FinishedAt sql.NullInt64
+	Outcome    string
+	Summary    string
+	Error      string
 }
