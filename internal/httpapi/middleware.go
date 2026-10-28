@@ -3,8 +3,10 @@ package httpapi
 import (
 	"context"
 	"errors"
+	"net"
 	"net/http"
 	"net/netip"
+	"strings"
 	"time"
 
 	"git.juzo.io/juzo/hashi/internal/audit"
@@ -28,6 +30,8 @@ type request struct {
 	tls     bool
 	ua      string
 	method  string
+	host    string // Host header without port, as the client sent it (through Traefik: the public name)
+	edge    bool   // carries the valid edge token: it came through Hashi-managed Traefik (01 §8)
 	session *auth.Session
 }
 
@@ -48,7 +52,7 @@ func (r *request) ipString() string {
 // withRequest resolves the client IP and the session cookie for every API call.
 func (s *Server) withRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ri := &request{tls: s.IP.IsTLS(r), ua: r.UserAgent(), method: r.Method}
+		ri := &request{tls: s.IP.IsTLS(r), ua: r.UserAgent(), method: r.Method, host: hostOnly(r.Host), edge: s.IP.FromEdge(r)}
 		if ip, err := s.IP.Resolve(r); err == nil {
 			ri.ip = ip
 		}
@@ -70,6 +74,13 @@ func (s *Server) withRequest(next http.Handler) http.Handler {
 		w.Header().Set("Cache-Control", "no-store")
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, ri)))
 	})
+}
+
+func hostOnly(h string) string {
+	if host, _, err := net.SplitHostPort(h); err == nil {
+		return strings.ToLower(host)
+	}
+	return strings.ToLower(h)
 }
 
 func sessionCookie(r *http.Request) (value, name string) {

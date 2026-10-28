@@ -60,6 +60,15 @@ func (r *Runner) Register(ctx context.Context, j Job) error {
 	return nil
 }
 
+// Soon makes a registered kind due now: the dispatcher starts it within a tick, or right after a run in progress.
+// Used when a change needs a job's work without waiting for its interval (a new service name needs a certificate).
+func (r *Runner) Soon(ctx context.Context, kind string) error {
+	if _, ok := r.jobs[kind]; !ok {
+		return fmt.Errorf("job %s is not registered", kind)
+	}
+	return r.q.SetJobNextRun(ctx, db.SetJobNextRunParams{NextRunAt: r.now().UnixMilli(), Kind: kind})
+}
+
 // Run marks runs orphaned by a previous process as interrupted, then schedules until ctx is done.
 // It waits for in-flight runs before returning.
 func (r *Runner) Run(ctx context.Context) error {

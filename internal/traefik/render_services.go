@@ -139,3 +139,10 @@ func rewrite(r services.Route) (middleware, bool) {
 func edgeMiddleware(token string) middleware {
 	return middleware{Headers: &headers{CustomRequestHeaders: map[string]string{EdgeHeader: token}}}
 }
+
+// EffectiveYAML is the part of 10-hashi-http-services.yml one service produces (rendered config preview, 04 §8), as
+// it would render while enabled. The edge token itself lives in the security file and never appears here.
+func EffectiveYAML(s services.Service) ([]byte, error) {
+	s.Enabled, s.InvalidReason = true, ""
+	return marshal(httpServices([]services.Service{s}, true))
+}

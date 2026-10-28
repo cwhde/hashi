@@ -510,3 +510,48 @@ func (m *Manager) Renew(eng *hsync.Engine, distribute Distributor) func(ctx cont
 		return strings.Join(parts, "; "), errors.Join(errs...)
 	}
 }
+
+// Pending reports whether a needed name is not covered by an issued certificate yet (a new service on a deeper name
+// needs one before the edge can serve it).
+func (m *Manager) Pending(ctx context.Context) (bool, error) {
+	general, err := settings.Get[settings.General](ctx, m.st.R)
+	if err != nil {
+		return false, err
+	}
+	want, err := m.want(ctx, general.RootDomain)
+	if err != nil {
+		return false, err
+	}
+	rows, err := m.st.R.ListCertificates(ctx)
+	if err != nil {
+		return false, err
+	}
+	for _, w := range want {
+		ok := false
+		for _, r := range rows {
+			ok = ok || (r.Name == w.Name && r.CertPem != "" && Covers(namesOf(r), w.Names))
+		}
+		if !ok {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// Serves reports whether a certificate with these names covers host, exactly or by a one-level wildcard.
+func Serves(names []string, host string) bool {
+	for _, n := range names {
+		if n == host {
+			return true
+		}
+		if rest, ok := strings.CutPrefix(n, "*."); ok {
+			if _, parent, ok := strings.Cut(host, "."); ok && parent == rest {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// NamesOf returns a certificate row's SANs.
+func NamesOf(r db.Certificate) []string { return namesOf(r) }

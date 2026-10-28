@@ -2,6 +2,7 @@
 package httpapi
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -34,12 +35,14 @@ type Server struct {
 	DNS      *dns.Service
 	Traefik  *traefik.Manager
 	Certs    *certs.Manager
-	Sync     *hsync.Engine
-	Vault    *vault.Vault
-	Audit    *audit.Log
-	IP       *clientip.Resolver
-	Logs     *logring.Ring
-	Log      *slog.Logger
+	// CertsSoon runs the certificate job now (a new service name needs a certificate); nil in tests without a runner.
+	CertsSoon func(ctx context.Context) error
+	Sync      *hsync.Engine
+	Vault     *vault.Vault
+	Audit     *audit.Log
+	IP        *clientip.Resolver
+	Logs      *logring.Ring
+	Log       *slog.Logger
 }
 
 var _ gen.StrictServerInterface = (*Server)(nil)

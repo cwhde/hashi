@@ -7,6 +7,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/audit"
 	"git.juzo.io/juzo/hashi/internal/auth"
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
+	"git.juzo.io/juzo/hashi/internal/services"
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/setup"
 	"git.juzo.io/juzo/hashi/internal/store/db"
@@ -60,6 +61,13 @@ func (s *Server) setupBody(ctx context.Context) (gen.SetupState, error) {
 				return out, err
 			}
 			out.Traefik = &c
+		}
+		if row, err := s.Store.R.GetServiceByOwner(ctx, services.OwnerSetup); err == nil {
+			sv, err := services.Get(ctx, s.Store.R, row.ID)
+			if err != nil {
+				return out, err
+			}
+			out.SystemService = ptr(serviceBody(sv))
 		}
 	}
 	return out, nil
@@ -116,6 +124,14 @@ func (s *Server) PutSetupBaseSettings(ctx context.Context, req gen.PutSetupBaseS
 		}
 		if err := s.Setup.MarkDone(ctx, q, setup.StepBase, nil); err != nil {
 			return err
+		}
+		// A published system service no longer matches: steps 7 and 8 have to run again for the new address.
+		if cur.Configured() && (cur.AdminDomain != g.AdminDomain || cur.InternalURL != g.InternalURL) {
+			for _, n := range []int{setup.StepSystemSvc, setup.StepHTTPS} {
+				if err := s.Setup.MarkPending(ctx, q, n); err != nil {
+					return err
+				}
+			}
 		}
 		return s.Audit.Record(ctx, q, audit.Event{Actor: s.actor(ri), Action: "setup.base_settings", IP: ri.ipString(),
 			Detail: map[string]any{"root_domain": g.RootDomain, "admin_domain": g.AdminDomain}})

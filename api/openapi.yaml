@@ -501,6 +501,56 @@ paths:
           description: The plan after the run
           content: { application/json: { schema: { $ref: "#/components/schemas/SyncPlan" } } }
         default: { $ref: "#/components/responses/Problem" }
+  /api/setup/system-service:
+    post:
+      operationId: createSetupSystemService
+      summary: Step 7 — create the Hashi admin service from the base settings, issue a certificate that covers the admin domain when needed, and plan the Traefik host
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      responses:
+        "200":
+          description: The service and the plans (the Traefik plan is absent when the host already serves it)
+          content: { application/json: { schema: { $ref: "#/components/schemas/SetupSystemService" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/setup/system-service/plan/{id}/run:
+    post:
+      operationId: runSetupSystemServicePlan
+      summary: Step 7 — approve the shown Traefik plan and run it; the step completes once the host serves the admin domain
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The service and the plan after the run
+          content: { application/json: { schema: { $ref: "#/components/schemas/SetupSystemService" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/setup/https/start:
+    post:
+      operationId: startSetupHTTPS
+      summary: Step 8 — a one-time link (5 minutes) that opens setup on https://<admin domain>
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      responses:
+        "200":
+          description: The link to open
+          content: { application/json: { schema: { $ref: "#/components/schemas/SetupHTTPSLink" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/setup/https/proof:
+    post:
+      operationId: proveSetupHTTPS
+      summary: Step 8 — called from https://<admin domain> with the link's nonce; accepted only through Hashi-managed Traefik (edge token, Host, HTTPS). Completes the step and signs the browser in there with a new bootstrap session
+      tags: [setup]
+      x-hashi-scopes: []
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/SetupHTTPSProof" } } }
+      responses:
+        "200":
+          description: Proven; the session cookie is for the HTTPS origin
+          headers: { Set-Cookie: { $ref: "#/components/headers/SetCookie" } }
+          content: { application/json: { schema: { $ref: "#/components/schemas/AuthSession" } } }
+        default: { $ref: "#/components/responses/Problem" }
   /api/setup/passkey/options:
     post:
       operationId: setupPasskeyOptions
@@ -827,6 +877,121 @@ paths:
           description: The plan (absent when the host already matches)
           content: { application/json: { schema: { $ref: "#/components/schemas/SyncPlanResult" } } }
         default: { $ref: "#/components/responses/Problem" }
+  /api/services:
+    get:
+      operationId: listServices
+      summary: Every service, system services first, with the reason when one cannot be rendered
+      tags: [services]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Services
+          content: { application/json: { schema: { $ref: "#/components/schemas/ServiceList" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    post:
+      operationId: createService
+      summary: Add a service; every Traefik host is planned right away (low-risk plans apply) and a needed certificate name is issued in the background
+      tags: [services]
+      x-hashi-scopes: [admin.write]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ServiceInput" } } }
+      responses:
+        "200":
+          description: Saved, with the Traefik plans it caused
+          content: { application/json: { schema: { $ref: "#/components/schemas/ServiceSaveResult" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/services/{id}:
+    get:
+      operationId: getService
+      summary: One service
+      tags: [services]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The service
+          content: { application/json: { schema: { $ref: "#/components/schemas/Service" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      operationId: updateService
+      summary: Replace a user service's fields and routes (system services change only through their owning setting)
+      tags: [services]
+      x-hashi-scopes: [admin.write]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ServiceInput" } } }
+      responses:
+        "200":
+          description: Saved, with the Traefik plans it caused
+          content: { application/json: { schema: { $ref: "#/components/schemas/ServiceSaveResult" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    delete:
+      operationId: deleteService
+      summary: Delete a user service and remove it from every Traefik host
+      tags: [services]
+      x-hashi-scopes: [admin.write]
+      x-hashi-reauth: true
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Deleted, with the Traefik plans it caused
+          content: { application/json: { schema: { $ref: "#/components/schemas/ServicePlans" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/services/{id}/enable:
+    post:
+      operationId: enableService
+      summary: Turn a user service on (it is rendered again)
+      tags: [services]
+      x-hashi-scopes: [admin.write]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Enabled, with the Traefik plans it caused
+          content: { application/json: { schema: { $ref: "#/components/schemas/ServiceSaveResult" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/services/{id}/disable:
+    post:
+      operationId: disableService
+      summary: Turn a user service off (it stays stored, absent from the rendered files)
+      tags: [services]
+      x-hashi-scopes: [admin.write]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Disabled, with the Traefik plans it caused
+          content: { application/json: { schema: { $ref: "#/components/schemas/ServiceSaveResult" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/services/{id}/effective:
+    get:
+      operationId: getServiceEffective
+      summary: The routers, middlewares and services Hashi renders for this service (rendered config preview)
+      tags: [services]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Rendered YAML
+          content: { application/json: { schema: { $ref: "#/components/schemas/ServiceEffective" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/traefik/plan:
+    post:
+      operationId: planTraefik
+      summary: Plan every Traefik host (low-risk plans apply right away)
+      tags: [traefik]
+      x-hashi-scopes: [admin.write]
+      responses:
+        "200":
+          description: One plan per host that needed changes
+          content: { application/json: { schema: { $ref: "#/components/schemas/ServicePlans" } } }
+        default: { $ref: "#/components/responses/Problem" }
   /api/certificates:
     get:
       operationId: listCertificates
@@ -1122,6 +1287,7 @@ components:
         dns: { $ref: "#/components/schemas/DNSConnectResult" }
         certificates: { $ref: "#/components/schemas/CertificateProvider" }
         traefik: { $ref: "#/components/schemas/TraefikConnection" }
+        system_service: { $ref: "#/components/schemas/Service" }
     CertificateProviderInput:
       type: object
       required: [directory, email]
@@ -1464,6 +1630,114 @@ components:
       properties:
         open: { type: array, items: { $ref: "#/components/schemas/SyncPlan" } }
         recent: { type: array, items: { $ref: "#/components/schemas/SyncPlan" } }
+    ServiceTarget:
+      type: object
+      required: [address, port]
+      properties:
+        address: { type: string, description: "IP address or host name (address sets arrive with S6)" }
+        port: { type: integer, minimum: 1, maximum: 65535 }
+        weight: { type: integer, minimum: 0, maximum: 1000, description: "Load-balancing weight; 0 or absent = 1" }
+    ServiceRoute:
+      type: object
+      required: [enabled, targets, path_match, path_value, priority, rewrite_mode, rewrite_pattern, rewrite_value]
+      properties:
+        id: { type: string, description: "ULID; absent for a new route" }
+        enabled: { type: boolean }
+        targets: { type: array, items: { $ref: "#/components/schemas/ServiceTarget" } }
+        path_match: { type: string, enum: [prefix, exact, regex] }
+        path_value: { type: string }
+        priority: { type: integer, minimum: 1, maximum: 9999 }
+        rewrite_mode: { type: string, enum: [none, replace_prefix, exact, regex, strip_prefix] }
+        rewrite_pattern: { type: string, description: "regex rewrite: the pattern matched against the path" }
+        rewrite_value: { type: string, description: "replace_prefix: new prefix; exact: new path; regex: replacement ($1…)" }
+    ServiceInput:
+      type: object
+      required: [name, slug, kind, domain_mode, host_name, target]
+      properties:
+        name: { type: string }
+        slug: { type: string }
+        kind: { type: string, enum: [http, https, h2c] }
+        domain_mode: { type: string, enum: [root, subdomain, custom] }
+        host_name: { type: string }
+        enabled: { type: boolean, description: "On create only (default true); enable/disable have their own calls" }
+        target: { $ref: "#/components/schemas/ServiceTarget" }
+        tls_skip_verify: { type: boolean }
+        tls_server_name: { type: string }
+        tls_min_version: { type: string, enum: ["", VersionTLS12, VersionTLS13] }
+        advanced_routes: { type: boolean }
+        routes: { type: array, items: { $ref: "#/components/schemas/ServiceRoute" } }
+        dashboard_visible: { type: boolean }
+        monitoring_visible: { type: boolean }
+        adguard_rewrite: { type: boolean }
+    Service:
+      type: object
+      required: [id, name, slug, kind, domain_mode, host_name, enabled, origin, owner_feature, target, tls_skip_verify,
+        tls_server_name, tls_min_version, advanced_routes, routes, dashboard_visible, monitoring_visible, adguard_rewrite,
+        invalid_reason, created_at, updated_at]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        slug: { type: string }
+        kind: { type: string, enum: [http, https, h2c] }
+        domain_mode: { type: string, enum: [root, subdomain, custom] }
+        host_name: { type: string }
+        enabled: { type: boolean }
+        origin: { type: string, enum: [system, managed, imported, user] }
+        owner_feature: { type: string, description: "The feature that owns a system service, e.g. setup" }
+        target: { $ref: "#/components/schemas/ServiceTarget" }
+        tls_skip_verify: { type: boolean }
+        tls_server_name: { type: string }
+        tls_min_version: { type: string, enum: ["", VersionTLS12, VersionTLS13] }
+        advanced_routes: { type: boolean }
+        routes: { type: array, items: { $ref: "#/components/schemas/ServiceRoute" } }
+        dashboard_visible: { type: boolean }
+        monitoring_visible: { type: boolean }
+        adguard_rewrite: { type: boolean }
+        invalid_reason: { type: string, description: "Why the service is left out of the rendered files; empty when valid" }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ServiceList:
+      type: object
+      required: [services]
+      properties:
+        services: { type: array, items: { $ref: "#/components/schemas/Service" } }
+    ServicePlans:
+      type: object
+      required: [plans, certificate_pending]
+      properties:
+        plans: { type: array, items: { $ref: "#/components/schemas/SyncPlan" }, description: "One Traefik plan per host that needed changes" }
+        certificate_pending: { type: boolean, description: "A name is not covered by the current certificate yet; issuing runs in the background" }
+    ServiceSaveResult:
+      type: object
+      required: [service, plans, certificate_pending]
+      properties:
+        service: { $ref: "#/components/schemas/Service" }
+        plans: { type: array, items: { $ref: "#/components/schemas/SyncPlan" } }
+        certificate_pending: { type: boolean }
+    ServiceEffective:
+      type: object
+      required: [yaml]
+      properties:
+        yaml: { type: string }
+    SetupSystemService:
+      type: object
+      required: [service, state]
+      properties:
+        service: { $ref: "#/components/schemas/Service" }
+        certificate_plan: { $ref: "#/components/schemas/SyncPlan" }
+        traefik_plan: { $ref: "#/components/schemas/SyncPlan" }
+        state: { $ref: "#/components/schemas/SetupState" }
+    SetupHTTPSLink:
+      type: object
+      required: [url, expires_at]
+      properties:
+        url: { type: string, description: "https://<admin domain>/setup#https=<nonce>" }
+        expires_at: { type: string, format: date-time }
+    SetupHTTPSProof:
+      type: object
+      required: [nonce]
+      properties:
+        nonce: { type: string }
     BaseSettings:
       type: object
       required: [root_domain, admin_domain, internal_url, sync_interval_seconds, theme, public_dashboard_enabled, public_status_enabled]

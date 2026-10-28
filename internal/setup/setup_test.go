@@ -250,3 +250,29 @@ func TestRootDomainChangeResetsPasskeyStep(t *testing.T) {
 		t.Fatalf("step 9 %s, want pending", state.Steps[StepPasskey-1].Status)
 	}
 }
+
+func TestHTTPSNonceOnceAndExpiring(t *testing.T) {
+	s := &Service{now: time.Now}
+	n, exp, err := s.NewHTTPSNonce()
+	if err != nil || n == "" || time.Until(exp) > HTTPSNonceTTL {
+		t.Fatalf("%q %v %v", n, exp, err)
+	}
+	if err := s.ConsumeHTTPSNonce("wrong"); !errors.Is(err, ErrNonce) {
+		t.Errorf("wrong nonce: %v", err)
+	}
+	if err := s.ConsumeHTTPSNonce(n); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.ConsumeHTTPSNonce(n); !errors.Is(err, ErrNonce) {
+		t.Errorf("reused nonce: %v", err)
+	}
+	old, _, _ := s.NewHTTPSNonce()
+	latest, _, _ := s.NewHTTPSNonce()
+	if err := s.ConsumeHTTPSNonce(old); !errors.Is(err, ErrNonce) {
+		t.Errorf("superseded nonce: %v", err)
+	}
+	s.now = func() time.Time { return time.Now().Add(HTTPSNonceTTL + time.Second) }
+	if err := s.ConsumeHTTPSNonce(latest); !errors.Is(err, ErrNonce) {
+		t.Errorf("expired nonce: %v", err)
+	}
+}

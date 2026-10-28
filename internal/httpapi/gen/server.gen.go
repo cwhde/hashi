@@ -398,6 +398,204 @@ func (e SecretMetaClass) Valid() bool {
 	}
 }
 
+// Defines values for ServiceDomainMode.
+const (
+	ServiceDomainModeCustom    ServiceDomainMode = "custom"
+	ServiceDomainModeRoot      ServiceDomainMode = "root"
+	ServiceDomainModeSubdomain ServiceDomainMode = "subdomain"
+)
+
+// Valid indicates whether the value is a known member of the ServiceDomainMode enum.
+func (e ServiceDomainMode) Valid() bool {
+	switch e {
+	case ServiceDomainModeCustom:
+		return true
+	case ServiceDomainModeRoot:
+		return true
+	case ServiceDomainModeSubdomain:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ServiceKind.
+const (
+	ServiceKindH2c   ServiceKind = "h2c"
+	ServiceKindHttp  ServiceKind = "http"
+	ServiceKindHttps ServiceKind = "https"
+)
+
+// Valid indicates whether the value is a known member of the ServiceKind enum.
+func (e ServiceKind) Valid() bool {
+	switch e {
+	case ServiceKindH2c:
+		return true
+	case ServiceKindHttp:
+		return true
+	case ServiceKindHttps:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ServiceOrigin.
+const (
+	ServiceOriginImported ServiceOrigin = "imported"
+	ServiceOriginManaged  ServiceOrigin = "managed"
+	ServiceOriginSystem   ServiceOrigin = "system"
+	ServiceOriginUser     ServiceOrigin = "user"
+)
+
+// Valid indicates whether the value is a known member of the ServiceOrigin enum.
+func (e ServiceOrigin) Valid() bool {
+	switch e {
+	case ServiceOriginImported:
+		return true
+	case ServiceOriginManaged:
+		return true
+	case ServiceOriginSystem:
+		return true
+	case ServiceOriginUser:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ServiceTlsMinVersion.
+const (
+	ServiceTlsMinVersionEmpty        ServiceTlsMinVersion = ""
+	ServiceTlsMinVersionVersionTLS12 ServiceTlsMinVersion = "VersionTLS12"
+	ServiceTlsMinVersionVersionTLS13 ServiceTlsMinVersion = "VersionTLS13"
+)
+
+// Valid indicates whether the value is a known member of the ServiceTlsMinVersion enum.
+func (e ServiceTlsMinVersion) Valid() bool {
+	switch e {
+	case ServiceTlsMinVersionEmpty:
+		return true
+	case ServiceTlsMinVersionVersionTLS12:
+		return true
+	case ServiceTlsMinVersionVersionTLS13:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ServiceInputDomainMode.
+const (
+	ServiceInputDomainModeCustom    ServiceInputDomainMode = "custom"
+	ServiceInputDomainModeRoot      ServiceInputDomainMode = "root"
+	ServiceInputDomainModeSubdomain ServiceInputDomainMode = "subdomain"
+)
+
+// Valid indicates whether the value is a known member of the ServiceInputDomainMode enum.
+func (e ServiceInputDomainMode) Valid() bool {
+	switch e {
+	case ServiceInputDomainModeCustom:
+		return true
+	case ServiceInputDomainModeRoot:
+		return true
+	case ServiceInputDomainModeSubdomain:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ServiceInputKind.
+const (
+	ServiceInputKindH2c   ServiceInputKind = "h2c"
+	ServiceInputKindHttp  ServiceInputKind = "http"
+	ServiceInputKindHttps ServiceInputKind = "https"
+)
+
+// Valid indicates whether the value is a known member of the ServiceInputKind enum.
+func (e ServiceInputKind) Valid() bool {
+	switch e {
+	case ServiceInputKindH2c:
+		return true
+	case ServiceInputKindHttp:
+		return true
+	case ServiceInputKindHttps:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ServiceInputTlsMinVersion.
+const (
+	ServiceInputTlsMinVersionEmpty        ServiceInputTlsMinVersion = ""
+	ServiceInputTlsMinVersionVersionTLS12 ServiceInputTlsMinVersion = "VersionTLS12"
+	ServiceInputTlsMinVersionVersionTLS13 ServiceInputTlsMinVersion = "VersionTLS13"
+)
+
+// Valid indicates whether the value is a known member of the ServiceInputTlsMinVersion enum.
+func (e ServiceInputTlsMinVersion) Valid() bool {
+	switch e {
+	case ServiceInputTlsMinVersionEmpty:
+		return true
+	case ServiceInputTlsMinVersionVersionTLS12:
+		return true
+	case ServiceInputTlsMinVersionVersionTLS13:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ServiceRoutePathMatch.
+const (
+	ServiceRoutePathMatchExact  ServiceRoutePathMatch = "exact"
+	ServiceRoutePathMatchPrefix ServiceRoutePathMatch = "prefix"
+	ServiceRoutePathMatchRegex  ServiceRoutePathMatch = "regex"
+)
+
+// Valid indicates whether the value is a known member of the ServiceRoutePathMatch enum.
+func (e ServiceRoutePathMatch) Valid() bool {
+	switch e {
+	case ServiceRoutePathMatchExact:
+		return true
+	case ServiceRoutePathMatchPrefix:
+		return true
+	case ServiceRoutePathMatchRegex:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ServiceRouteRewriteMode.
+const (
+	ServiceRouteRewriteModeExact         ServiceRouteRewriteMode = "exact"
+	ServiceRouteRewriteModeNone          ServiceRouteRewriteMode = "none"
+	ServiceRouteRewriteModeRegex         ServiceRouteRewriteMode = "regex"
+	ServiceRouteRewriteModeReplacePrefix ServiceRouteRewriteMode = "replace_prefix"
+	ServiceRouteRewriteModeStripPrefix   ServiceRouteRewriteMode = "strip_prefix"
+)
+
+// Valid indicates whether the value is a known member of the ServiceRouteRewriteMode enum.
+func (e ServiceRouteRewriteMode) Valid() bool {
+	switch e {
+	case ServiceRouteRewriteModeExact:
+		return true
+	case ServiceRouteRewriteModeNone:
+		return true
+	case ServiceRouteRewriteModeRegex:
+		return true
+	case ServiceRouteRewriteModeReplacePrefix:
+		return true
+	case ServiceRouteRewriteModeStripPrefix:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SetupStepStatus.
 const (
 	SetupStepStatusDone       SetupStepStatus = "done"
@@ -1231,6 +1429,138 @@ type SecuritySettings struct {
 	BootstrapAllowedCidrs   []string `json:"bootstrap_allowed_cidrs"`
 }
 
+// Service defines model for Service.
+type Service struct {
+	AdguardRewrite   bool              `json:"adguard_rewrite"`
+	AdvancedRoutes   bool              `json:"advanced_routes"`
+	CreatedAt        time.Time         `json:"created_at"`
+	DashboardVisible bool              `json:"dashboard_visible"`
+	DomainMode       ServiceDomainMode `json:"domain_mode"`
+	Enabled          bool              `json:"enabled"`
+	HostName         string            `json:"host_name"`
+	Id               string            `json:"id"`
+
+	// InvalidReason Why the service is left out of the rendered files; empty when valid
+	InvalidReason     string        `json:"invalid_reason"`
+	Kind              ServiceKind   `json:"kind"`
+	MonitoringVisible bool          `json:"monitoring_visible"`
+	Name              string        `json:"name"`
+	Origin            ServiceOrigin `json:"origin"`
+
+	// OwnerFeature The feature that owns a system service, e.g. setup
+	OwnerFeature  string               `json:"owner_feature"`
+	Routes        []ServiceRoute       `json:"routes"`
+	Slug          string               `json:"slug"`
+	Target        ServiceTarget        `json:"target"`
+	TlsMinVersion ServiceTlsMinVersion `json:"tls_min_version"`
+	TlsServerName string               `json:"tls_server_name"`
+	TlsSkipVerify bool                 `json:"tls_skip_verify"`
+	UpdatedAt     time.Time            `json:"updated_at"`
+}
+
+// ServiceDomainMode defines model for Service.DomainMode.
+type ServiceDomainMode string
+
+// ServiceKind defines model for Service.Kind.
+type ServiceKind string
+
+// ServiceOrigin defines model for Service.Origin.
+type ServiceOrigin string
+
+// ServiceTlsMinVersion defines model for Service.TlsMinVersion.
+type ServiceTlsMinVersion string
+
+// ServiceEffective defines model for ServiceEffective.
+type ServiceEffective struct {
+	Yaml string `json:"yaml"`
+}
+
+// ServiceInput defines model for ServiceInput.
+type ServiceInput struct {
+	AdguardRewrite   *bool                  `json:"adguard_rewrite,omitempty"`
+	AdvancedRoutes   *bool                  `json:"advanced_routes,omitempty"`
+	DashboardVisible *bool                  `json:"dashboard_visible,omitempty"`
+	DomainMode       ServiceInputDomainMode `json:"domain_mode"`
+
+	// Enabled On create only (default true); enable/disable have their own calls
+	Enabled           *bool                      `json:"enabled,omitempty"`
+	HostName          string                     `json:"host_name"`
+	Kind              ServiceInputKind           `json:"kind"`
+	MonitoringVisible *bool                      `json:"monitoring_visible,omitempty"`
+	Name              string                     `json:"name"`
+	Routes            *[]ServiceRoute            `json:"routes,omitempty"`
+	Slug              string                     `json:"slug"`
+	Target            ServiceTarget              `json:"target"`
+	TlsMinVersion     *ServiceInputTlsMinVersion `json:"tls_min_version,omitempty"`
+	TlsServerName     *string                    `json:"tls_server_name,omitempty"`
+	TlsSkipVerify     *bool                      `json:"tls_skip_verify,omitempty"`
+}
+
+// ServiceInputDomainMode defines model for ServiceInput.DomainMode.
+type ServiceInputDomainMode string
+
+// ServiceInputKind defines model for ServiceInput.Kind.
+type ServiceInputKind string
+
+// ServiceInputTlsMinVersion defines model for ServiceInput.TlsMinVersion.
+type ServiceInputTlsMinVersion string
+
+// ServiceList defines model for ServiceList.
+type ServiceList struct {
+	Services []Service `json:"services"`
+}
+
+// ServicePlans defines model for ServicePlans.
+type ServicePlans struct {
+	// CertificatePending A name is not covered by the current certificate yet; issuing runs in the background
+	CertificatePending bool `json:"certificate_pending"`
+
+	// Plans One Traefik plan per host that needed changes
+	Plans []SyncPlan `json:"plans"`
+}
+
+// ServiceRoute defines model for ServiceRoute.
+type ServiceRoute struct {
+	Enabled bool `json:"enabled"`
+
+	// Id ULID; absent for a new route
+	Id          *string                 `json:"id,omitempty"`
+	PathMatch   ServiceRoutePathMatch   `json:"path_match"`
+	PathValue   string                  `json:"path_value"`
+	Priority    int                     `json:"priority"`
+	RewriteMode ServiceRouteRewriteMode `json:"rewrite_mode"`
+
+	// RewritePattern regex rewrite: the pattern matched against the path
+	RewritePattern string `json:"rewrite_pattern"`
+
+	// RewriteValue replace_prefix: new prefix; exact: new path; regex: replacement ($1…)
+	RewriteValue string          `json:"rewrite_value"`
+	Targets      []ServiceTarget `json:"targets"`
+}
+
+// ServiceRoutePathMatch defines model for ServiceRoute.PathMatch.
+type ServiceRoutePathMatch string
+
+// ServiceRouteRewriteMode defines model for ServiceRoute.RewriteMode.
+type ServiceRouteRewriteMode string
+
+// ServiceSaveResult defines model for ServiceSaveResult.
+type ServiceSaveResult struct {
+	CertificatePending bool       `json:"certificate_pending"`
+	Plans              []SyncPlan `json:"plans"`
+	Service            Service    `json:"service"`
+}
+
+// ServiceTarget defines model for ServiceTarget.
+type ServiceTarget struct {
+	// Address IP address or host name (address sets arrive with S6)
+	Address string `json:"address"`
+	Port    int    `json:"port"`
+
+	// Weight Load-balancing weight; 0 or absent = 1
+	Weight *int `json:"weight,omitempty"`
+}
+
 // SessionInfo defines model for SessionInfo.
 type SessionInfo struct {
 	AbsoluteExpiresAt time.Time `json:"absolute_expires_at"`
@@ -1247,6 +1577,19 @@ type SessionList struct {
 	Sessions []SessionInfo `json:"sessions"`
 }
 
+// SetupHTTPSLink defines model for SetupHTTPSLink.
+type SetupHTTPSLink struct {
+	ExpiresAt time.Time `json:"expires_at"`
+
+	// Url https://<admin domain>/setup#https=<nonce>
+	Url string `json:"url"`
+}
+
+// SetupHTTPSProof defines model for SetupHTTPSProof.
+type SetupHTTPSProof struct {
+	Nonce string `json:"nonce"`
+}
+
 // SetupState defines model for SetupState.
 type SetupState struct {
 	BaseSettings *BaseSettings        `json:"base_settings,omitempty"`
@@ -1257,9 +1600,10 @@ type SetupState struct {
 	Dns *DNSConnectResult `json:"dns,omitempty"`
 
 	// Passkeys Registered passkeys (setup sessions only)
-	Passkeys *int               `json:"passkeys,omitempty"`
-	Steps    []SetupStep        `json:"steps"`
-	Traefik  *TraefikConnection `json:"traefik,omitempty"`
+	Passkeys      *int               `json:"passkeys,omitempty"`
+	Steps         []SetupStep        `json:"steps"`
+	SystemService *Service           `json:"system_service,omitempty"`
+	Traefik       *TraefikConnection `json:"traefik,omitempty"`
 }
 
 // SetupStep defines model for SetupStep.
@@ -1277,6 +1621,14 @@ type SetupStep struct {
 
 // SetupStepStatus defines model for SetupStep.Status.
 type SetupStepStatus string
+
+// SetupSystemService defines model for SetupSystemService.
+type SetupSystemService struct {
+	CertificatePlan *SyncPlan  `json:"certificate_plan,omitempty"`
+	Service         Service    `json:"service"`
+	State           SetupState `json:"state"`
+	TraefikPlan     *SyncPlan  `json:"traefik_plan,omitempty"`
+}
 
 // SyncPlan defines model for SyncPlan.
 type SyncPlan struct {
@@ -1532,6 +1884,12 @@ type CreateDNSRecordJSONRequestBody = DNSRecordInput
 // UpdateDNSRecordJSONRequestBody defines body for UpdateDNSRecord for application/json ContentType.
 type UpdateDNSRecordJSONRequestBody = DNSRecordUpdate
 
+// CreateServiceJSONRequestBody defines body for CreateService for application/json ContentType.
+type CreateServiceJSONRequestBody = ServiceInput
+
+// UpdateServiceJSONRequestBody defines body for UpdateService for application/json ContentType.
+type UpdateServiceJSONRequestBody = ServiceInput
+
 // PutAppearanceSettingsJSONRequestBody defines body for PutAppearanceSettings for application/json ContentType.
 type PutAppearanceSettingsJSONRequestBody = AppearanceSettings
 
@@ -1552,6 +1910,9 @@ type PutSetupDNSImportJSONRequestBody = DNSImportDecisions
 
 // PutSetupDNSProviderJSONRequestBody defines body for PutSetupDNSProvider for application/json ContentType.
 type PutSetupDNSProviderJSONRequestBody = DNSProviderInput
+
+// ProveSetupHTTPSJSONRequestBody defines body for ProveSetupHTTPS for application/json ContentType.
+type ProveSetupHTTPSJSONRequestBody = SetupHTTPSProof
 
 // SetupPasskeyVerifyJSONRequestBody defines body for SetupPasskeyVerify for application/json ContentType.
 type SetupPasskeyVerifyJSONRequestBody = CeremonyResponse
@@ -1672,6 +2033,30 @@ type ServerInterface interface {
 	// GetEdgeAuthForward Traefik forward auth for every edge service
 	// (GET /api/edge-auth/forward)
 	GetEdgeAuthForward(w http.ResponseWriter, r *http.Request)
+	// ListServices Every service, system services first, with the reason when one cannot be rendered
+	// (GET /api/services)
+	ListServices(w http.ResponseWriter, r *http.Request)
+	// CreateService Add a service; every Traefik host is planned right away (low-risk plans apply) and a needed certificate name is issued in the background
+	// (POST /api/services)
+	CreateService(w http.ResponseWriter, r *http.Request)
+	// DeleteService Delete a user service and remove it from every Traefik host
+	// (DELETE /api/services/{id})
+	DeleteService(w http.ResponseWriter, r *http.Request, id string)
+	// GetService One service
+	// (GET /api/services/{id})
+	GetService(w http.ResponseWriter, r *http.Request, id string)
+	// UpdateService Replace a user service's fields and routes (system services change only through their owning setting)
+	// (PUT /api/services/{id})
+	UpdateService(w http.ResponseWriter, r *http.Request, id string)
+	// DisableService Turn a user service off (it stays stored, absent from the rendered files)
+	// (POST /api/services/{id}/disable)
+	DisableService(w http.ResponseWriter, r *http.Request, id string)
+	// GetServiceEffective The routers, middlewares and services Hashi renders for this service (rendered config preview)
+	// (GET /api/services/{id}/effective)
+	GetServiceEffective(w http.ResponseWriter, r *http.Request, id string)
+	// EnableService Turn a user service on (it is rendered again)
+	// (POST /api/services/{id}/enable)
+	EnableService(w http.ResponseWriter, r *http.Request, id string)
 	// GetSettings All settings categories
 	// (GET /api/settings)
 	GetSettings(w http.ResponseWriter, r *http.Request)
@@ -1723,6 +2108,12 @@ type ServerInterface interface {
 	// PutSetupDNSProvider Step 3 — validate a DNS provider token read-only, pick the zone, store the first snapshot
 	// (PUT /api/setup/dns/provider)
 	PutSetupDNSProvider(w http.ResponseWriter, r *http.Request)
+	// ProveSetupHTTPS Step 8 — called from https://<admin domain> with the link's nonce; accepted only through Hashi-managed Traefik (edge token, Host, HTTPS). Completes the step and signs the browser in there with a new bootstrap session
+	// (POST /api/setup/https/proof)
+	ProveSetupHTTPS(w http.ResponseWriter, r *http.Request)
+	// StartSetupHTTPS Step 8 — a one-time link (5 minutes) that opens setup on https://<admin domain>
+	// (POST /api/setup/https/start)
+	StartSetupHTTPS(w http.ResponseWriter, r *http.Request)
 	// SetupPasskeyOptions Step 9 — start registering the first passkey
 	// (POST /api/setup/passkey/options)
 	SetupPasskeyOptions(w http.ResponseWriter, r *http.Request)
@@ -1735,6 +2126,12 @@ type ServerInterface interface {
 	// ConfirmRecoveryKey Step 9 — confirm the recovery key by re-entering its last group; runs a test unlock
 	// (POST /api/setup/recovery-key/confirm)
 	ConfirmRecoveryKey(w http.ResponseWriter, r *http.Request)
+	// CreateSetupSystemService Step 7 — create the Hashi admin service from the base settings, issue a certificate that covers the admin domain when needed, and plan the Traefik host
+	// (POST /api/setup/system-service)
+	CreateSetupSystemService(w http.ResponseWriter, r *http.Request)
+	// RunSetupSystemServicePlan Step 7 — approve the shown Traefik plan and run it; the step completes once the host serves the admin domain
+	// (POST /api/setup/system-service/plan/{id}/run)
+	RunSetupSystemServicePlan(w http.ResponseWriter, r *http.Request, id string)
 	// ConfirmSetupTraefik Step 5 — let Hashi take over the validated host (existing config is backed up first); completes the step
 	// (POST /api/setup/traefik/confirm)
 	ConfirmSetupTraefik(w http.ResponseWriter, r *http.Request)
@@ -1774,6 +2171,9 @@ type ServerInterface interface {
 	// PlanTraefikConnection Plan the host's install, files and certificates (low-risk plans apply right away)
 	// (POST /api/traefik/connections/{id}/plan)
 	PlanTraefikConnection(w http.ResponseWriter, r *http.Request, id string)
+	// PlanTraefik Plan every Traefik host (low-risk plans apply right away)
+	// (POST /api/traefik/plan)
+	PlanTraefik(w http.ResponseWriter, r *http.Request)
 	// GetVault Vault mode and state
 	// (GET /api/vault)
 	GetVault(w http.ResponseWriter, r *http.Request)
@@ -2493,6 +2893,190 @@ func (siw *ServerInterfaceWrapper) GetEdgeAuthForward(w http.ResponseWriter, r *
 	handler.ServeHTTP(w, r)
 }
 
+// ListServices operation middleware
+func (siw *ServerInterfaceWrapper) ListServices(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListServices(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateService operation middleware
+func (siw *ServerInterfaceWrapper) CreateService(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateService(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteService operation middleware
+func (siw *ServerInterfaceWrapper) DeleteService(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteService(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetService operation middleware
+func (siw *ServerInterfaceWrapper) GetService(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetService(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateService operation middleware
+func (siw *ServerInterfaceWrapper) UpdateService(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateService(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DisableService operation middleware
+func (siw *ServerInterfaceWrapper) DisableService(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DisableService(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetServiceEffective operation middleware
+func (siw *ServerInterfaceWrapper) GetServiceEffective(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetServiceEffective(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// EnableService operation middleware
+func (siw *ServerInterfaceWrapper) EnableService(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.EnableService(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetSettings operation middleware
 func (siw *ServerInterfaceWrapper) GetSettings(w http.ResponseWriter, r *http.Request) {
 
@@ -2743,6 +3327,34 @@ func (siw *ServerInterfaceWrapper) PutSetupDNSProvider(w http.ResponseWriter, r 
 	handler.ServeHTTP(w, r)
 }
 
+// ProveSetupHTTPS operation middleware
+func (siw *ServerInterfaceWrapper) ProveSetupHTTPS(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ProveSetupHTTPS(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartSetupHTTPS operation middleware
+func (siw *ServerInterfaceWrapper) StartSetupHTTPS(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartSetupHTTPS(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // SetupPasskeyOptions operation middleware
 func (siw *ServerInterfaceWrapper) SetupPasskeyOptions(w http.ResponseWriter, r *http.Request) {
 
@@ -2790,6 +3402,46 @@ func (siw *ServerInterfaceWrapper) ConfirmRecoveryKey(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ConfirmRecoveryKey(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateSetupSystemService operation middleware
+func (siw *ServerInterfaceWrapper) CreateSetupSystemService(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateSetupSystemService(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RunSetupSystemServicePlan operation middleware
+func (siw *ServerInterfaceWrapper) RunSetupSystemServicePlan(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RunSetupSystemServicePlan(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -3053,6 +3705,20 @@ func (siw *ServerInterfaceWrapper) PlanTraefikConnection(w http.ResponseWriter, 
 	handler.ServeHTTP(w, r)
 }
 
+// PlanTraefik operation middleware
+func (siw *ServerInterfaceWrapper) PlanTraefik(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PlanTraefik(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetVault operation middleware
 func (siw *ServerInterfaceWrapper) GetVault(w http.ResponseWriter, r *http.Request) {
 
@@ -3306,6 +3972,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/traefik/confirm", wrapper.ConfirmSetupTraefik)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/traefik/plan", wrapper.PlanSetupTraefik)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/traefik/plan/{id}/run", wrapper.RunSetupTraefikPlan)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/system-service", wrapper.CreateSetupSystemService)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/system-service/plan/{id}/run", wrapper.RunSetupSystemServicePlan)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/https/start", wrapper.StartSetupHTTPS)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/https/proof", wrapper.ProveSetupHTTPS)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/passkey/options", wrapper.SetupPasskeyOptions)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/passkey/verify", wrapper.SetupPasskeyVerify)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/recovery-key", wrapper.SetupRecoveryKey)
@@ -3331,6 +4001,15 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/dns/probe", wrapper.PlanDNSProbe)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/traefik/connections", wrapper.ListTraefikConnections)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/traefik/connections/{id}/plan", wrapper.PlanTraefikConnection)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/services", wrapper.ListServices)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/services", wrapper.CreateService)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/services/{id}", wrapper.DeleteService)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/services/{id}", wrapper.GetService)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/services/{id}", wrapper.UpdateService)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/services/{id}/enable", wrapper.EnableService)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/services/{id}/disable", wrapper.DisableService)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/services/{id}/effective", wrapper.GetServiceEffective)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/traefik/plan", wrapper.PlanTraefik)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/certificates", wrapper.ListCertificates)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/certificates/{id}/renew", wrapper.RenewCertificate)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/sync/plans", wrapper.ListSyncPlans)
@@ -4713,6 +5392,318 @@ func (response GetEdgeAuthForward204Response) VisitGetEdgeAuthForwardResponse(w 
 	return nil
 }
 
+type ListServicesRequestObject struct {
+}
+
+type ListServicesResponseObject interface {
+	VisitListServicesResponse(w http.ResponseWriter) error
+}
+
+type ListServices200JSONResponse ServiceList
+
+func (response ListServices200JSONResponse) VisitListServicesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListServicesdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ListServicesdefaultApplicationProblemPlusJSONResponse) VisitListServicesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateServiceRequestObject struct {
+	Body *CreateServiceJSONRequestBody
+}
+
+type CreateServiceResponseObject interface {
+	VisitCreateServiceResponse(w http.ResponseWriter) error
+}
+
+type CreateService200JSONResponse ServiceSaveResult
+
+func (response CreateService200JSONResponse) VisitCreateServiceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateServicedefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response CreateServicedefaultApplicationProblemPlusJSONResponse) VisitCreateServiceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteServiceRequestObject struct {
+	Id string `json:"id"`
+}
+
+type DeleteServiceResponseObject interface {
+	VisitDeleteServiceResponse(w http.ResponseWriter) error
+}
+
+type DeleteService200JSONResponse ServicePlans
+
+func (response DeleteService200JSONResponse) VisitDeleteServiceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteServicedefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response DeleteServicedefaultApplicationProblemPlusJSONResponse) VisitDeleteServiceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetServiceRequestObject struct {
+	Id string `json:"id"`
+}
+
+type GetServiceResponseObject interface {
+	VisitGetServiceResponse(w http.ResponseWriter) error
+}
+
+type GetService200JSONResponse Service
+
+func (response GetService200JSONResponse) VisitGetServiceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetServicedefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetServicedefaultApplicationProblemPlusJSONResponse) VisitGetServiceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateServiceRequestObject struct {
+	Id   string `json:"id"`
+	Body *UpdateServiceJSONRequestBody
+}
+
+type UpdateServiceResponseObject interface {
+	VisitUpdateServiceResponse(w http.ResponseWriter) error
+}
+
+type UpdateService200JSONResponse ServiceSaveResult
+
+func (response UpdateService200JSONResponse) VisitUpdateServiceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateServicedefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response UpdateServicedefaultApplicationProblemPlusJSONResponse) VisitUpdateServiceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DisableServiceRequestObject struct {
+	Id string `json:"id"`
+}
+
+type DisableServiceResponseObject interface {
+	VisitDisableServiceResponse(w http.ResponseWriter) error
+}
+
+type DisableService200JSONResponse ServiceSaveResult
+
+func (response DisableService200JSONResponse) VisitDisableServiceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DisableServicedefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response DisableServicedefaultApplicationProblemPlusJSONResponse) VisitDisableServiceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetServiceEffectiveRequestObject struct {
+	Id string `json:"id"`
+}
+
+type GetServiceEffectiveResponseObject interface {
+	VisitGetServiceEffectiveResponse(w http.ResponseWriter) error
+}
+
+type GetServiceEffective200JSONResponse ServiceEffective
+
+func (response GetServiceEffective200JSONResponse) VisitGetServiceEffectiveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetServiceEffectivedefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetServiceEffectivedefaultApplicationProblemPlusJSONResponse) VisitGetServiceEffectiveResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EnableServiceRequestObject struct {
+	Id string `json:"id"`
+}
+
+type EnableServiceResponseObject interface {
+	VisitEnableServiceResponse(w http.ResponseWriter) error
+}
+
+type EnableService200JSONResponse ServiceSaveResult
+
+func (response EnableService200JSONResponse) VisitEnableServiceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EnableServicedefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response EnableServicedefaultApplicationProblemPlusJSONResponse) VisitEnableServiceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetSettingsRequestObject struct {
 }
 
@@ -5367,6 +6358,93 @@ func (response PutSetupDNSProviderdefaultApplicationProblemPlusJSONResponse) Vis
 	return err
 }
 
+type ProveSetupHTTPSRequestObject struct {
+	Body *ProveSetupHTTPSJSONRequestBody
+}
+
+type ProveSetupHTTPSResponseObject interface {
+	VisitProveSetupHTTPSResponse(w http.ResponseWriter) error
+}
+
+type ProveSetupHTTPS200ResponseHeaders struct {
+	SetCookie *string
+}
+
+type ProveSetupHTTPS200JSONResponse struct {
+	Body    AuthSession
+	Headers ProveSetupHTTPS200ResponseHeaders
+}
+
+func (response ProveSetupHTTPS200JSONResponse) VisitProveSetupHTTPSResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if response.Headers.SetCookie != nil {
+		w.Header().Set("Set-Cookie", fmt.Sprint(*response.Headers.SetCookie))
+	}
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ProveSetupHTTPSdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ProveSetupHTTPSdefaultApplicationProblemPlusJSONResponse) VisitProveSetupHTTPSResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartSetupHTTPSRequestObject struct {
+}
+
+type StartSetupHTTPSResponseObject interface {
+	VisitStartSetupHTTPSResponse(w http.ResponseWriter) error
+}
+
+type StartSetupHTTPS200JSONResponse SetupHTTPSLink
+
+func (response StartSetupHTTPS200JSONResponse) VisitStartSetupHTTPSResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartSetupHTTPSdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response StartSetupHTTPSdefaultApplicationProblemPlusJSONResponse) VisitStartSetupHTTPSResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type SetupPasskeyOptionsRequestObject struct {
 }
 
@@ -5510,6 +6588,83 @@ type ConfirmRecoveryKeydefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response ConfirmRecoveryKeydefaultApplicationProblemPlusJSONResponse) VisitConfirmRecoveryKeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateSetupSystemServiceRequestObject struct {
+}
+
+type CreateSetupSystemServiceResponseObject interface {
+	VisitCreateSetupSystemServiceResponse(w http.ResponseWriter) error
+}
+
+type CreateSetupSystemService200JSONResponse SetupSystemService
+
+func (response CreateSetupSystemService200JSONResponse) VisitCreateSetupSystemServiceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateSetupSystemServicedefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response CreateSetupSystemServicedefaultApplicationProblemPlusJSONResponse) VisitCreateSetupSystemServiceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RunSetupSystemServicePlanRequestObject struct {
+	Id string `json:"id"`
+}
+
+type RunSetupSystemServicePlanResponseObject interface {
+	VisitRunSetupSystemServicePlanResponse(w http.ResponseWriter) error
+}
+
+type RunSetupSystemServicePlan200JSONResponse SetupSystemService
+
+func (response RunSetupSystemServicePlan200JSONResponse) VisitRunSetupSystemServicePlanResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RunSetupSystemServicePlandefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response RunSetupSystemServicePlandefaultApplicationProblemPlusJSONResponse) VisitRunSetupSystemServicePlanResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -6023,6 +7178,44 @@ func (response PlanTraefikConnectiondefaultApplicationProblemPlusJSONResponse) V
 	return err
 }
 
+type PlanTraefikRequestObject struct {
+}
+
+type PlanTraefikResponseObject interface {
+	VisitPlanTraefikResponse(w http.ResponseWriter) error
+}
+
+type PlanTraefik200JSONResponse ServicePlans
+
+func (response PlanTraefik200JSONResponse) VisitPlanTraefikResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PlanTraefikdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PlanTraefikdefaultApplicationProblemPlusJSONResponse) VisitPlanTraefikResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetVaultRequestObject struct {
 }
 
@@ -6322,6 +7515,30 @@ type StrictServerInterface interface {
 	// GetEdgeAuthForward Traefik forward auth for every edge service
 	// (GET /api/edge-auth/forward)
 	GetEdgeAuthForward(ctx context.Context, request GetEdgeAuthForwardRequestObject) (GetEdgeAuthForwardResponseObject, error)
+	// ListServices Every service, system services first, with the reason when one cannot be rendered
+	// (GET /api/services)
+	ListServices(ctx context.Context, request ListServicesRequestObject) (ListServicesResponseObject, error)
+	// CreateService Add a service; every Traefik host is planned right away (low-risk plans apply) and a needed certificate name is issued in the background
+	// (POST /api/services)
+	CreateService(ctx context.Context, request CreateServiceRequestObject) (CreateServiceResponseObject, error)
+	// DeleteService Delete a user service and remove it from every Traefik host
+	// (DELETE /api/services/{id})
+	DeleteService(ctx context.Context, request DeleteServiceRequestObject) (DeleteServiceResponseObject, error)
+	// GetService One service
+	// (GET /api/services/{id})
+	GetService(ctx context.Context, request GetServiceRequestObject) (GetServiceResponseObject, error)
+	// UpdateService Replace a user service's fields and routes (system services change only through their owning setting)
+	// (PUT /api/services/{id})
+	UpdateService(ctx context.Context, request UpdateServiceRequestObject) (UpdateServiceResponseObject, error)
+	// DisableService Turn a user service off (it stays stored, absent from the rendered files)
+	// (POST /api/services/{id}/disable)
+	DisableService(ctx context.Context, request DisableServiceRequestObject) (DisableServiceResponseObject, error)
+	// GetServiceEffective The routers, middlewares and services Hashi renders for this service (rendered config preview)
+	// (GET /api/services/{id}/effective)
+	GetServiceEffective(ctx context.Context, request GetServiceEffectiveRequestObject) (GetServiceEffectiveResponseObject, error)
+	// EnableService Turn a user service on (it is rendered again)
+	// (POST /api/services/{id}/enable)
+	EnableService(ctx context.Context, request EnableServiceRequestObject) (EnableServiceResponseObject, error)
 	// GetSettings All settings categories
 	// (GET /api/settings)
 	GetSettings(ctx context.Context, request GetSettingsRequestObject) (GetSettingsResponseObject, error)
@@ -6373,6 +7590,12 @@ type StrictServerInterface interface {
 	// PutSetupDNSProvider Step 3 — validate a DNS provider token read-only, pick the zone, store the first snapshot
 	// (PUT /api/setup/dns/provider)
 	PutSetupDNSProvider(ctx context.Context, request PutSetupDNSProviderRequestObject) (PutSetupDNSProviderResponseObject, error)
+	// ProveSetupHTTPS Step 8 — called from https://<admin domain> with the link's nonce; accepted only through Hashi-managed Traefik (edge token, Host, HTTPS). Completes the step and signs the browser in there with a new bootstrap session
+	// (POST /api/setup/https/proof)
+	ProveSetupHTTPS(ctx context.Context, request ProveSetupHTTPSRequestObject) (ProveSetupHTTPSResponseObject, error)
+	// StartSetupHTTPS Step 8 — a one-time link (5 minutes) that opens setup on https://<admin domain>
+	// (POST /api/setup/https/start)
+	StartSetupHTTPS(ctx context.Context, request StartSetupHTTPSRequestObject) (StartSetupHTTPSResponseObject, error)
 	// SetupPasskeyOptions Step 9 — start registering the first passkey
 	// (POST /api/setup/passkey/options)
 	SetupPasskeyOptions(ctx context.Context, request SetupPasskeyOptionsRequestObject) (SetupPasskeyOptionsResponseObject, error)
@@ -6385,6 +7608,12 @@ type StrictServerInterface interface {
 	// ConfirmRecoveryKey Step 9 — confirm the recovery key by re-entering its last group; runs a test unlock
 	// (POST /api/setup/recovery-key/confirm)
 	ConfirmRecoveryKey(ctx context.Context, request ConfirmRecoveryKeyRequestObject) (ConfirmRecoveryKeyResponseObject, error)
+	// CreateSetupSystemService Step 7 — create the Hashi admin service from the base settings, issue a certificate that covers the admin domain when needed, and plan the Traefik host
+	// (POST /api/setup/system-service)
+	CreateSetupSystemService(ctx context.Context, request CreateSetupSystemServiceRequestObject) (CreateSetupSystemServiceResponseObject, error)
+	// RunSetupSystemServicePlan Step 7 — approve the shown Traefik plan and run it; the step completes once the host serves the admin domain
+	// (POST /api/setup/system-service/plan/{id}/run)
+	RunSetupSystemServicePlan(ctx context.Context, request RunSetupSystemServicePlanRequestObject) (RunSetupSystemServicePlanResponseObject, error)
 	// ConfirmSetupTraefik Step 5 — let Hashi take over the validated host (existing config is backed up first); completes the step
 	// (POST /api/setup/traefik/confirm)
 	ConfirmSetupTraefik(ctx context.Context, request ConfirmSetupTraefikRequestObject) (ConfirmSetupTraefikResponseObject, error)
@@ -6424,6 +7653,9 @@ type StrictServerInterface interface {
 	// PlanTraefikConnection Plan the host's install, files and certificates (low-risk plans apply right away)
 	// (POST /api/traefik/connections/{id}/plan)
 	PlanTraefikConnection(ctx context.Context, request PlanTraefikConnectionRequestObject) (PlanTraefikConnectionResponseObject, error)
+	// PlanTraefik Plan every Traefik host (low-risk plans apply right away)
+	// (POST /api/traefik/plan)
+	PlanTraefik(ctx context.Context, request PlanTraefikRequestObject) (PlanTraefikResponseObject, error)
 	// GetVault Vault mode and state
 	// (GET /api/vault)
 	GetVault(ctx context.Context, request GetVaultRequestObject) (GetVaultResponseObject, error)
@@ -7439,6 +8671,224 @@ func (sh *strictHandler) GetEdgeAuthForward(w http.ResponseWriter, r *http.Reque
 	}
 }
 
+// ListServices operation middleware
+func (sh *strictHandler) ListServices(w http.ResponseWriter, r *http.Request) {
+	var request ListServicesRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListServices(ctx, request.(ListServicesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListServices")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListServicesResponseObject); ok {
+		if err := validResponse.VisitListServicesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateService operation middleware
+func (sh *strictHandler) CreateService(w http.ResponseWriter, r *http.Request) {
+	var request CreateServiceRequestObject
+
+	var body CreateServiceJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateService(ctx, request.(CreateServiceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateService")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateServiceResponseObject); ok {
+		if err := validResponse.VisitCreateServiceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteService operation middleware
+func (sh *strictHandler) DeleteService(w http.ResponseWriter, r *http.Request, id string) {
+	var request DeleteServiceRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteService(ctx, request.(DeleteServiceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteService")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteServiceResponseObject); ok {
+		if err := validResponse.VisitDeleteServiceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetService operation middleware
+func (sh *strictHandler) GetService(w http.ResponseWriter, r *http.Request, id string) {
+	var request GetServiceRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetService(ctx, request.(GetServiceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetService")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetServiceResponseObject); ok {
+		if err := validResponse.VisitGetServiceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateService operation middleware
+func (sh *strictHandler) UpdateService(w http.ResponseWriter, r *http.Request, id string) {
+	var request UpdateServiceRequestObject
+
+	request.Id = id
+
+	var body UpdateServiceJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateService(ctx, request.(UpdateServiceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateService")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateServiceResponseObject); ok {
+		if err := validResponse.VisitUpdateServiceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DisableService operation middleware
+func (sh *strictHandler) DisableService(w http.ResponseWriter, r *http.Request, id string) {
+	var request DisableServiceRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DisableService(ctx, request.(DisableServiceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DisableService")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DisableServiceResponseObject); ok {
+		if err := validResponse.VisitDisableServiceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetServiceEffective operation middleware
+func (sh *strictHandler) GetServiceEffective(w http.ResponseWriter, r *http.Request, id string) {
+	var request GetServiceEffectiveRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetServiceEffective(ctx, request.(GetServiceEffectiveRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetServiceEffective")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetServiceEffectiveResponseObject); ok {
+		if err := validResponse.VisitGetServiceEffectiveResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// EnableService operation middleware
+func (sh *strictHandler) EnableService(w http.ResponseWriter, r *http.Request, id string) {
+	var request EnableServiceRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.EnableService(ctx, request.(EnableServiceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "EnableService")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(EnableServiceResponseObject); ok {
+		if err := validResponse.VisitEnableServiceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetSettings operation middleware
 func (sh *strictHandler) GetSettings(w http.ResponseWriter, r *http.Request) {
 	var request GetSettingsRequestObject
@@ -7898,6 +9348,61 @@ func (sh *strictHandler) PutSetupDNSProvider(w http.ResponseWriter, r *http.Requ
 	}
 }
 
+// ProveSetupHTTPS operation middleware
+func (sh *strictHandler) ProveSetupHTTPS(w http.ResponseWriter, r *http.Request) {
+	var request ProveSetupHTTPSRequestObject
+
+	var body ProveSetupHTTPSJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ProveSetupHTTPS(ctx, request.(ProveSetupHTTPSRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ProveSetupHTTPS")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ProveSetupHTTPSResponseObject); ok {
+		if err := validResponse.VisitProveSetupHTTPSResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// StartSetupHTTPS operation middleware
+func (sh *strictHandler) StartSetupHTTPS(w http.ResponseWriter, r *http.Request) {
+	var request StartSetupHTTPSRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.StartSetupHTTPS(ctx, request.(StartSetupHTTPSRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "StartSetupHTTPS")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(StartSetupHTTPSResponseObject); ok {
+		if err := validResponse.VisitStartSetupHTTPSResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // SetupPasskeyOptions operation middleware
 func (sh *strictHandler) SetupPasskeyOptions(w http.ResponseWriter, r *http.Request) {
 	var request SetupPasskeyOptionsRequestObject
@@ -8001,6 +9506,56 @@ func (sh *strictHandler) ConfirmRecoveryKey(w http.ResponseWriter, r *http.Reque
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ConfirmRecoveryKeyResponseObject); ok {
 		if err := validResponse.VisitConfirmRecoveryKeyResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateSetupSystemService operation middleware
+func (sh *strictHandler) CreateSetupSystemService(w http.ResponseWriter, r *http.Request) {
+	var request CreateSetupSystemServiceRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateSetupSystemService(ctx, request.(CreateSetupSystemServiceRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateSetupSystemService")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateSetupSystemServiceResponseObject); ok {
+		if err := validResponse.VisitCreateSetupSystemServiceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RunSetupSystemServicePlan operation middleware
+func (sh *strictHandler) RunSetupSystemServicePlan(w http.ResponseWriter, r *http.Request, id string) {
+	var request RunSetupSystemServicePlanRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RunSetupSystemServicePlan(ctx, request.(RunSetupSystemServicePlanRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RunSetupSystemServicePlan")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RunSetupSystemServicePlanResponseObject); ok {
+		if err := validResponse.VisitRunSetupSystemServicePlanResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -8339,6 +9894,30 @@ func (sh *strictHandler) PlanTraefikConnection(w http.ResponseWriter, r *http.Re
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(PlanTraefikConnectionResponseObject); ok {
 		if err := validResponse.VisitPlanTraefikConnectionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PlanTraefik operation middleware
+func (sh *strictHandler) PlanTraefik(w http.ResponseWriter, r *http.Request) {
+	var request PlanTraefikRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PlanTraefik(ctx, request.(PlanTraefikRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PlanTraefik")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PlanTraefikResponseObject); ok {
+		if err := validResponse.VisitPlanTraefikResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

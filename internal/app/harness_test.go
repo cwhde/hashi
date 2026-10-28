@@ -142,6 +142,9 @@ func (c *client) do(method, path string, body any) response {
 	for k, v := range c.header {
 		req.Header[k] = v
 	}
+	if h := c.header.Get("Host"); h != "" {
+		req.Host = h // net/http sends req.Host, never a Host entry in the header map
+	}
 	if c.cookie != nil {
 		req.AddCookie(c.cookie)
 	}

@@ -7,6 +7,7 @@ import (
 
 	"git.juzo.io/juzo/hashi/internal/audit"
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
+	"git.juzo.io/juzo/hashi/internal/services"
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 )
@@ -98,6 +99,27 @@ func (s *Server) PutGeneralSettings(ctx context.Context, req gen.PutGeneralSetti
 	})
 	if err != nil {
 		return nil, err
+	}
+	// The Hashi system service follows the admin domain and internal URL (02 §1.6: edited only here).
+	if row, err := s.Store.R.GetServiceByOwner(ctx, services.OwnerSetup); err == nil {
+		changed := false
+		ri := info(ctx)
+		if err := s.Store.Tx(ctx, func(q *db.Queries) error {
+			sv, ch, err := services.EnsureSystem(ctx, q, s.now())
+			if err != nil || !ch {
+				return err
+			}
+			changed = true
+			return s.Audit.Record(ctx, q, audit.Event{Actor: s.actor(ri), Action: "service.system.saved", IP: ri.ipString(),
+				Target: "service:" + row.ID, Detail: map[string]any{"host_name": sv.HostName}})
+		}); err != nil {
+			return nil, serviceError(err)
+		}
+		if changed {
+			if _, _, err := s.syncServices(ctx); err != nil {
+				return nil, err
+			}
+		}
 	}
 	return gen.PutGeneralSettings200JSONResponse(generalBody(v)), nil
 }
