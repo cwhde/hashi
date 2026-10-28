@@ -211,8 +211,15 @@ func Render(o Options) ([]File, error) {
 		return nil, err
 	}
 	edge := !o.EdgeToken.IsZero()
-	if err := dyn("10-hashi-http-services.yml", httpServices(o.Services, edge), ""); err != nil {
-		return nil, err
+	if svc := httpServices(o.Services, edge); len(svc.HTTP.Routers) > 0 {
+		if err := dyn("10-hashi-http-services.yml", svc, ""); err != nil {
+			return nil, err
+		}
+	} else {
+		// Traefik v3.7 rejects an empty `http: {}` and then drops every file of the provider (seen in the integration
+		// test); a file with only comments loads as empty.
+		files = append(files, File{Path: o.Paths.Dynamic() + "/10-hashi-http-services.yml", Kind: KindDynamic, Mode: 0o644,
+			Data: []byte(generated + "# No services are enabled.\n")})
 	}
 	// Forward auth with the local fallback (06 §2.1, captured construct): fail-open middlewares call the loopback
 	// hashi-fa entry point, whose router fails over from Hashi (health-checked on /readyz) to ping@internal (200).

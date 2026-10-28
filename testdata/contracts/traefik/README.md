@@ -36,6 +36,9 @@ Findings that shape the implementation (also in `docs/spec/environment.md`):
    primary within one health-check interval after Hashi is back.
 5. Missing middleware → router `status: disabled` with `error: ["middleware \"x@file\" does not exist"]`, request 404.
 6. `traefik healthcheck --configFile=…` exits 0 when ping answers. The web entry point redirect answers 301.
+7. (S5, 2026-10-28, integration test) A dynamic file containing only `http: {}` is an error ("http cannot be a
+   standalone element") and the file provider then loads **none** of its files. A file with only comments loads as
+   empty, so `10-hashi-http-services.yml` without services is comments only. The SchemaStore schema accepts `http: {}`.
 
 `schema_v3_file_provider.json`: Traefik v3 file-provider (dynamic config) JSON schema from SchemaStore
 (https://json.schemastore.org/traefik-v3-file-provider.json), fetched 2026-10-28. Rendered dynamic files are validated
