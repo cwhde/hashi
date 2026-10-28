@@ -377,6 +377,12 @@ Download job with checksum, atomic swap of the reader, staleness warning after 1
   GeoIP), Counters (§13.1), Challenge (Cap), Sign-in providers, Engine (§10 settings, `T_ban` curve).
   Filters: 1 h / 24 h / 7 d / 30 d; service; Traefik host; firewall host; action.
 - **IP sets**, **IP set detail**, **address page**: 05a §6 (the address page shows both counters with edit/reset).
+- **Rule sets** (`/rule-sets`, `/rule-sets/{id}`): entries ordered by drag (priorities renumbered), item editor (IP set
+  picker, condition, action, auth options), attach a rule set, used-by list, warnings.
+- **Service → Access tab**: root rule set editor, attached rule sets, default fallback, the flattened list with the
+  origin of every item, "try a request" (address + path → trace).
+- **Service → WAF tab**: mode per path, exclusions.
+- **Firewall** page: global allow/block bindings (05 §4).
 
 ### 13.1 Counters view
 
@@ -386,12 +392,6 @@ next decrement, last source. Filters: state (banned now, challenged now, any act
 challenge counter, last source (L7 rate, WAF, challenge failed, L4 meter, manual), country/ASN, last offence within a
 range. Search by address or CIDR (rows inside it). Sort by any counter or time. Row actions: edit counters, reset,
 ban now, challenge now, remove from dynamic sets. Selection and "all matching filter" for bulk reset. Paginated.
-- **Rule sets** (`/rule-sets`, `/rule-sets/{id}`): entries ordered by drag (priorities renumbered), item editor (IP set
-  picker, condition, action, auth options), attach a rule set, used-by list, warnings.
-- **Service → Access tab**: root rule set editor, attached rule sets, default fallback, the flattened list with the
-  origin of every item, "try a request" (address + path → trace).
-- **Service → WAF tab**: mode per path, exclusions.
-- **Firewall** page: global allow/block bindings (05 §4).
 
 ## 14. API
 
