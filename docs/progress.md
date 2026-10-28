@@ -58,8 +58,13 @@ PR B — UI + deploy
       Import: saving creates the prune plan; "Test write access" on `/dns`; optional write test in setup step 3.
 - [x] E2E against the fake: write test in setup, entry created → applied and verified, delete → Pending changes →
       passkey approval → gone; NS/SOA have no edit button.
-- [ ] Deploy (user OK) and prod-proof: probe TXT created + deleted via an approved plan; a `_hashi-test` A record
-      created, verified and deleted through Hashi; NS/SOA unchanged (hash before/after).
+- [x] Record gate against the real zone (spec row S3, as amended): `TestRealZoneRecordPath` (`-tags 'dev realzone'`),
+      2026-10-28 on `s3-dns-ui`: 58 RRSets before; `_hashi-test` A 192.0.2.10 TTL 300 saved → plan applied "1 created,
+      verified", direct read shows it with the owner label; delete → high-risk plan pending (still at the provider),
+      approve refused without reauth, approved after a passkey assertion → "1 deleted, verified"; 58 RRSets after,
+      NS hash and SOA (without the provider's serial) unchanged.
+- [ ] Deploy (user OK) and prod-proof on the deployed install: write test through setup step 3's approved plan
+      (probe TXT created + deleted); NS/SOA unchanged; background reconcile plans nothing (all RRSets "leave").
 
 Decisions made in PR B:
 - RRSets Hashi created (origin user/system/managed) are left off the import table: there is nothing to import.
