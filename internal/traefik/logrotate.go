@@ -41,7 +41,8 @@ func logrotateInstall(pm, init string) (string, error) {
 	case "apk":
 		cmd = "apk add --no-cache logrotate"
 	case "apt-get":
-		cmd = "DEBIAN_FRONTEND=noninteractive apt-get install -y logrotate"
+		// The package index may be empty (fresh images): refresh it first (debian:13, ubuntu:24.04 captured).
+		cmd = "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y logrotate"
 	case "dnf":
 		cmd = "dnf install -y logrotate"
 	default:

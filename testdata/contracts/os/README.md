@@ -26,7 +26,7 @@ Docs: https://www.freedesktop.org/software/systemd/man/latest/os-release.html
 | Host | Present | Schedule | Install command (exit 0, also when already installed) |
 | --- | --- | --- | --- |
 | Alpine 3.23 | `/usr/sbin/logrotate` | `/etc/periodic/daily/logrotate`, `crond` running (OpenRC default runlevel) | `apk add --no-cache logrotate` |
-| Debian 13 | `/sbin/logrotate` | `logrotate.timer` (`OnCalendar=daily`, `Persistent=true`) and `/etc/cron.daily/logrotate` | `DEBIAN_FRONTEND=noninteractive apt-get install -y logrotate` |
+| Debian 13 | `/sbin/logrotate` | `logrotate.timer` (`OnCalendar=daily`, `Persistent=true`) and `/etc/cron.daily/logrotate` | `apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y logrotate` (without the update, an empty package index fails: `E: Unable to locate package`; `debian:13` and `ubuntu:24.04` images lack logrotate and install it this way, timer and cron job included) |
 | Fedora 44 (container image) | missing | package ships `logrotate.timer`; the install enables it but does not start it (`is-enabled` enabled, `is-active` inactive) | `dnf install -y logrotate`, then `systemctl enable --now logrotate.timer` (then active) |
 
 All three `/etc/logrotate.conf` include `/etc/logrotate.d`. `pkill` exists on all three (`/usr/bin`, `/bin`, `/sbin`).

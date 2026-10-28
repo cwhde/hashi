@@ -248,6 +248,25 @@ func (s certSub) Apply(ctx context.Context, target string, items []hsync.Item) (
 	return "issued " + strings.Join(done, ", "), err
 }
 
+// IssueTarget is the plan target for an "issue now" click: the account, or, after a failed first attempt, that
+// certificate, so a user action is not held back by the job's retry wait (RetryAfter, 03 §5.3).
+func (m *Manager) IssueTarget(ctx context.Context) (string, error) {
+	acct, err := m.account(ctx)
+	if err != nil {
+		return "", err
+	}
+	rows, err := m.st.R.ListCertificates(ctx)
+	if err != nil {
+		return "", err
+	}
+	for _, r := range rows {
+		if r.CertPem == "" && r.LastRenewalResult == "failed" {
+			return r.ID, nil
+		}
+	}
+	return acct.ID, nil
+}
+
 // account returns the stored ACME account.
 func (m *Manager) account(ctx context.Context) (db.AcmeAccount, error) {
 	a, err := m.st.R.GetACMEAccount(ctx)

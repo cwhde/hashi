@@ -108,11 +108,11 @@ func (s *Server) IssueSetupCertificates(ctx context.Context, _ gen.IssueSetupCer
 	if err := s.requireSetupOpen(ctx); err != nil {
 		return nil, err
 	}
-	a, err := s.Store.R.GetACMEAccount(ctx)
+	target, err := s.Certs.IssueTarget(ctx)
 	if err != nil {
-		return nil, traefikError(certs.ErrNotConfigured)
+		return nil, traefikError(err)
 	}
-	p, err := s.autoRun(ctx, certs.Subsystem, a.ID)
+	p, err := s.autoRun(ctx, certs.Subsystem, target)
 	if err != nil {
 		return nil, traefikError(err)
 	}

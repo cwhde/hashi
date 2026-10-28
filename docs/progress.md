@@ -108,7 +108,12 @@ PR B — UI + deploy
       `traefiktest` (in-memory Debian 13 edge with TLS), both only behind `HASHI_DEV_DNS_FIXTURES` in `-tags dev`
       builds. Setup walks steps 4–5 (including "It doesn't match"), then `/traefik`: files, served certificate, renew,
       sync. A root domain outside the managed zone is refused with a plain message (spec c84e87a).
-- [ ] Deploy (user runs `/deploy`) and prod-proof on `hashi-edge-test` (full gate) plus the install plan, files and Verify
+Review of PR B (#33), fixed: "Issue now"/"Try again" in setup after a failed first issue targets that certificate, so
+the job's 4-hour wait does not swallow the click (`TestIssueNowRetriesAfterFailedFirstIssue`); Debian/Ubuntu run
+`apt-get update` before installing logrotate (captured on `debian:13` and `ubuntu:24.04`, which lack it).
+
+- [ ] Deploy (user runs `/deploy`) and prod-proof on `hashi-edge-test` (full gate; also: `logrotate -f` on each target
+      rotates and the OpenRC/systemd-started Traefik reopens its access log, i.e. the `pkill` pattern matches) plus the install plan, files and Verify
       on `hashi-edge-debian` and `hashi-edge-fedora`: host key pinned, install plan applied (Traefik under OpenRC/systemd), files applied, Verify from the real API, real certificate issued + distributed + fingerprint matches, Hashi
       stopped → fail-open route 200 / fail-closed 500 on the edge, Hashi back → normal; live Traefik instances untouched.
 
@@ -357,6 +362,9 @@ Decisions made in S0:
 ## Unverified
 
 (Review findings that were not reproduced. Not worked on unless promoted.)
+
+- S4 PR B review (#33): on an Alpine host where Hashi has to install logrotate, rotation depends on `crond` running
+  (`/etc/periodic/daily`); the plan neither checks nor starts it. The Alpine dev target runs `crond` (default runlevel).
 
 - S4 PR A review (#32): the probe finds a Traefik binary on PATH and `/etc/traefik`, `/opt/traefik` only; a Traefik that
   runs as a service or container (ports 80/443 taken) is neither detected nor stopped after takeover, so
