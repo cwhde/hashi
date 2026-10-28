@@ -21,8 +21,10 @@ External systems and contracts:
 - OS probe over SSH (Alpine 3.23, Debian 12): captured (`testdata/contracts/os/`).
 - sshd: real `sshd` in the integration container (x/crypto/ssh + pkg/sftp, 01 §2), no fixture needed.
 - Hetzner `add_records`/`remove_records` for `_acme-challenge`: already captured (`testdata/contracts/hetzner/write/`).
-- ACME: Pebble (the ACME test server) in the integration container; the real CA only in the gate. **Open:** which CA
-  and whether Hashi may write `_acme-challenge` TXT on the real zone (asked 2026-10-28).
+- ACME: Pebble (the ACME test server, with EAB required) in the integration container; Google Trust Services in the gate.
+  User decisions 2026-10-28: CA = **Google Trust Services** (EAB; the user creates a fresh EAB key for the gate, the one
+  in the old Traefik config is not reused); Hashi may write and remove `_acme-challenge` TXT on the real zone, in
+  development and on the server (nothing else beyond `_hashi-test`).
 
 Scope cut: services (S5) are not rendered yet, so `10-`/`20-hashi-*` files stay absent; the gate's route is a Hashi health
 router on the edge. Deeper wildcards come with S5 services. Debian/Ubuntu (systemd) is rendered and unit-tested; only
