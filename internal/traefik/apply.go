@@ -41,6 +41,8 @@ type Desired struct {
 	Binary func(ctx context.Context) ([]byte, error)
 	// PingTimeout overrides the default wait after a restart (tests).
 	PingTimeout time.Duration
+	// Certs are the certificates in Files; the manager checks each by TLS handshake after Verify (03 §5.3).
+	Certs []Cert
 }
 
 // Diff is what differs between Desired and the host, read fresh from the host (04 §6 step 1).

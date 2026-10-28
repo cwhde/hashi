@@ -12,6 +12,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"math/big"
+	"net"
 	"strconv"
 	"strings"
 	"testing"
@@ -70,7 +71,7 @@ func TestIntegrationApplyVerifyFallback(t *testing.T) {
 		"chmod 700 /root/.ssh && chmod 600 /root/.ssh/authorized_keys && echo ok > /www/readyz && echo ok > /www/api/edge-auth/forward && " +
 		"httpd -p 127.0.0.1:" + strconv.Itoa(stubPort) + " -h /www && " +
 		"exec /usr/sbin/sshd -D -e -p " + strconv.Itoa(sshPort) + " -o PermitRootLogin=prohibit-password"
-	c := itest.Run(t, sshPort, []string{"-e", "AUTHORIZED=" + line, "--entrypoint", "sh"}, traefikImage, "-c", script)
+	c := itest.RunPorts(t, []int{sshPort, traefik.TLSPort}, []string{"-e", "AUTHORIZED=" + line, "--entrypoint", "sh"}, traefikImage, "-c", script)
 	itest.WaitFor(t, 120*time.Second, "sshd", func() bool { return itest.SSHBanner(c.Addr) })
 
 	ctx := context.Background()
@@ -118,6 +119,38 @@ func TestIntegrationApplyVerifyFallback(t *testing.T) {
 	}
 	if again, err := traefik.Observe(ctx, h, d); err != nil || !again.Empty() {
 		t.Fatalf("second observe: %+v %v", again.Items(), err)
+	}
+
+	// 03 §5.3 Verify: the edge serves exactly the distributed certificate, and a renewed one after the next apply
+	// (only the certificate files and hashi-certs.yaml change; Traefik reloads them without a restart).
+	tlsAddr := c.Port(t, traefik.TLSPort)
+	dial := func(ctx context.Context) (net.Conn, error) {
+		var d net.Dialer
+		return d.DialContext(ctx, "tcp", tlsAddr)
+	}
+	for _, chk := range traefik.VerifyServed(ctx, dial, opts.Certs, 20*time.Second) {
+		if chk.Err != nil {
+			t.Fatalf("served certificate: %v", chk.Err)
+		}
+	}
+	crt2, key2 := selfSigned(t, "example.test")
+	opts.Certs = []traefik.Cert{{Name: "example.test", CertPEM: crt2, KeyPEM: secrets.New(key2)}}
+	if files, err = traefik.Render(opts); err != nil {
+		t.Fatal(err)
+	}
+	d.Files = files
+	diff, err = traefik.Observe(ctx, h, d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out, err := traefik.Apply(ctx, h, d, diff, time.Now()); err != nil || out.Restarted || len(out.Written) != 3 {
+		t.Fatalf("renewed certificate: written %d restarted %v err %v", len(out.Written), out.Restarted, err)
+	}
+	for _, chk := range traefik.VerifyServed(ctx, dial, opts.Certs, 20*time.Second) {
+		if chk.Err != nil {
+			t.Fatalf("renewed certificate not served: %v", chk.Err)
+		}
+		t.Logf("served %s: %.16s…", chk.Name, chk.Got)
 	}
 
 	status := func(path string) string {

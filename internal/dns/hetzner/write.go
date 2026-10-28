@@ -138,6 +138,44 @@ func (c *Client) putLabels(ctx context.Context, base string, r dns.RRSet, observ
 	return err
 }
 
+// AddValue adds one value with add_records, which creates a missing RRSet with ttl; a value that is already there is
+// answered 422 "duplicate value" and is success (write/challenge_add_missing.json, challenge_add_duplicate.json).
+func (c *Client) AddValue(ctx context.Context, zone dns.Zone, name, typ string, ttl int, value string) error {
+	r := dns.RRSet{Name: name, Type: typ, Values: []string{value}}
+	if err := dns.CheckWritable(dns.Change{Op: dns.OpCreate, After: &r}); err != nil {
+		return err
+	}
+	path := "/zones/" + url.PathEscape(zone.ID) + "/rrsets/" + rrsetPath(r) + "/actions/add_records"
+	raw, _, err := c.do(ctx, http.MethodPost, path, nil, map[string]any{"ttl": ttl, "records": records(r)}, true) // a retried add answers "duplicate value"
+	var ae *APIError
+	if errors.As(err, &ae) && ae.Status == http.StatusUnprocessableEntity && strings.HasPrefix(ae.Message, "duplicate value") {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("add %s %s value: %w", name, typ, err)
+	}
+	return c.waitAction(ctx, raw)
+}
+
+// RemoveValue removes one value with remove_records. A missing value or RRSet is answered 404 and is success; removing
+// the last value deletes the RRSet (write/challenge_remove_*.json, challenge_get_after_last.json).
+func (c *Client) RemoveValue(ctx context.Context, zone dns.Zone, name, typ, value string) error {
+	r := dns.RRSet{Name: name, Type: typ, Values: []string{value}}
+	if err := dns.CheckWritable(dns.Change{Op: dns.OpDelete, Before: &r}); err != nil {
+		return err
+	}
+	path := "/zones/" + url.PathEscape(zone.ID) + "/rrsets/" + rrsetPath(r) + "/actions/remove_records"
+	raw, _, err := c.do(ctx, http.MethodPost, path, nil, map[string]any{"records": records(r)}, true)
+	var ae *APIError
+	if errors.As(err, &ae) && ae.Status == http.StatusNotFound {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("remove %s %s value: %w", name, typ, err)
+	}
+	return c.waitAction(ctx, raw)
+}
+
 // waitAction polls GET /actions/{id} until the Action in a write response succeeds or fails.
 func (c *Client) waitAction(ctx context.Context, raw []byte) error {
 	var resp struct {

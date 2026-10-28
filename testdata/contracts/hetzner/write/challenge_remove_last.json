@@ -1,0 +1,36 @@
+{
+  "captured_at": "2026-10-28T14:47:56+00:00",
+  "docs_url": "https://docs.hetzner.cloud/reference/cloud#zone-rrsets",
+  "request": "POST /v1/zones/100001/rrsets/_acme-challenge._hashi-test/TXT/actions/remove_records",
+  "request_body": {
+    "records": [
+      {
+        "value": "\"other writer probe two\""
+      }
+    ]
+  },
+  "status": 201,
+  "headers": {
+    "content-type": "application/json",
+    "ratelimit-limit": "7200",
+    "ratelimit-remaining": "7197",
+    "ratelimit-reset": "1793198877"
+  },
+  "body": {
+    "action": {
+      "id": 664362730157045,
+      "status": "running",
+      "command": "remove_rrset_records",
+      "progress": 0,
+      "started": "2026-10-28T14:47:56Z",
+      "finished": null,
+      "error": null,
+      "resources": [
+        {
+          "id": 100001,
+          "type": "zone"
+        }
+      ]
+    }
+  }
+}

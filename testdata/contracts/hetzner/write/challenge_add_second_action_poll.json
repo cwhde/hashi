@@ -1,0 +1,30 @@
+{
+  "captured_at": "2026-10-28T14:47:41+00:00",
+  "docs_url": "https://docs.hetzner.cloud/reference/cloud#zone-rrsets",
+  "request": "GET /v1/actions/664362730156985",
+  "request_body": null,
+  "status": 200,
+  "headers": {
+    "content-type": "application/json",
+    "ratelimit-limit": "7200",
+    "ratelimit-remaining": "7197",
+    "ratelimit-reset": "1793198862"
+  },
+  "body": {
+    "action": {
+      "id": 664362730156985,
+      "status": "running",
+      "command": "add_rrset_records",
+      "progress": 0,
+      "started": "2026-10-28T14:47:40Z",
+      "finished": null,
+      "error": null,
+      "resources": [
+        {
+          "id": 100001,
+          "type": "zone"
+        }
+      ]
+    }
+  }
+}

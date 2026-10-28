@@ -7,14 +7,17 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"errors"
+	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"golang.org/x/crypto/ssh"
 
 	"git.juzo.io/juzo/hashi/internal/audit"
+	"git.juzo.io/juzo/hashi/internal/secrets"
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/sshx"
 	"git.juzo.io/juzo/hashi/internal/store/db"
@@ -119,5 +122,57 @@ func TestManagerPlansAndAppliesThroughTheEngine(t *testing.T) {
 	host.version = Version
 	if again, err := eng.Propose(ctx, Subsystem, "c1", hsync.TriggerReconcile, "system"); err != nil || again != nil {
 		t.Errorf("second plan: %+v %v", again, err)
+	}
+
+	// A certificate is issued: Distribute plans the lagging host, the certificate files apply without approval, and
+	// the TLS check finds the edge serving it.
+	crt, key := testCert(t, "example.com")
+	krec, err := v.Seal(vault.Service, "certificate.key", secrets.New(string(key)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = st.Q.InsertSecret(ctx, krec)
+	_ = st.Q.InsertCertificate(ctx, db.InsertCertificateParams{ID: "cert1", Name: "example.com", NamesJson: `["example.com","*.example.com"]`})
+	fp, _ := Cert{Name: "example.com", CertPEM: crt}.Fingerprint()
+	if err := st.Q.SetCertificateIssued(ctx, db.SetCertificateIssuedParams{NamesJson: `["example.com","*.example.com"]`,
+		KeySecretID: sql.NullString{String: krec.ID, Valid: true}, CertPem: string(crt), Fingerprint: fp, LastRenewalResult: "issued", ID: "cert1"}); err != nil {
+		t.Fatal(err)
+	}
+	dial, _ := tlsEdge(t, crt, key)
+	m.tlsDial = func(ctx context.Context, addr string) (net.Conn, error) {
+		if addr != "192.0.2.10:443" {
+			t.Errorf("TLS check dialed %s", addr)
+		}
+		return dial(ctx)
+	}
+	m.tlsTimeout = time.Second
+	sum, err := m.Distribute(eng)(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dists, _ := st.R.ListCertificateDistributions(ctx)
+	if len(dists) != 1 || dists[0].State != "verified" || dists[0].Fingerprint != fp {
+		t.Fatalf("distribution after %q: %+v", sum, dists)
+	}
+	if string(host.files[DefaultConfigDir+"/certs/example.com.crt"]) != string(crt) || host.modes[DefaultConfigDir+"/certs/example.com.key"] != 0o600 {
+		t.Error("certificate files not written")
+	}
+	if sum, err := m.Distribute(eng)(ctx); err != nil || sum != "" {
+		t.Errorf("nothing lags, yet: %q %v", sum, err)
+	}
+
+	// The edge serves something else: the plan fails and the distribution says so.
+	crt2, key2 := testCert(t, "example.com")
+	fp2, _ := Cert{Name: "example.com", CertPEM: crt2}.Fingerprint()
+	krec2, _ := v.Seal(vault.Service, "certificate.key", secrets.New(string(key2)))
+	_ = st.Q.InsertSecret(ctx, krec2)
+	_ = st.Q.SetCertificateIssued(ctx, db.SetCertificateIssuedParams{NamesJson: `["example.com","*.example.com"]`,
+		KeySecretID: sql.NullString{String: krec2.ID, Valid: true}, CertPem: string(crt2), Fingerprint: fp2, LastRenewalResult: "renewed", ID: "cert1"})
+	if _, err := m.Distribute(eng)(ctx); !errors.Is(err, ErrNotServed) {
+		t.Fatalf("stale edge: err = %v", err)
+	}
+	dists, _ = st.R.ListCertificateDistributions(ctx)
+	if dists[0].State != "failed" || !strings.Contains(dists[0].Error, "does not serve") {
+		t.Errorf("stale edge: %+v", dists[0])
 	}
 }

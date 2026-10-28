@@ -436,9 +436,10 @@ func (p pruneSub) Plan(ctx context.Context, zoneID string) (hsync.Draft, error) 
 	return hsync.Draft{Title: fmt.Sprintf("Remove %d records from %s", len(items), c.zone.Name), Items: items}, nil
 }
 
-// prunable: never NS/SOA (invariant 2) or a locked RRSet, never one Hashi owns other than through an import.
+// prunable: never NS/SOA (invariant 2) or a locked RRSet, never a challenge name, never one Hashi owns other than
+// through an import.
 func prunable(o Observed) bool {
-	return !Protected(o.Type) && !o.Protected && (o.Origin == "" || o.Origin == OriginImported)
+	return !Protected(o.Type) && !o.Protected && !IsChallenge(o.Name) && (o.Origin == "" || o.Origin == OriginImported)
 }
 
 func (p pruneSub) Apply(ctx context.Context, zoneID string, items []hsync.Item) (string, error) {

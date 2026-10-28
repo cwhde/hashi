@@ -1,0 +1,35 @@
+{
+  "captured_at": "2026-10-28T14:47:56+00:00",
+  "docs_url": "https://docs.hetzner.cloud/reference/cloud#zone-rrsets",
+  "request": "POST /v1/zones/100001/rrsets/_acme-challenge._hashi-test/TXT/actions/remove_records",
+  "request_body": {
+    "records": [
+      {
+        "value": "\"hashi challenge probe one\""
+      }
+    ]
+  },
+  "status": 404,
+  "headers": {
+    "content-type": "application/json",
+    "ratelimit-limit": "7200",
+    "ratelimit-remaining": "7198",
+    "ratelimit-reset": "1793198877"
+  },
+  "body": {
+    "error": {
+      "code": "not_found",
+      "message": "Record(s) not found",
+      "details": {
+        "fields": [
+          {
+            "messages": [
+              "(_acme-challenge._hashi-test, TXT) does not have a record with that value"
+            ],
+            "name": "_acme-challenge._hashi-test"
+          }
+        ]
+      }
+    }
+  }
+}

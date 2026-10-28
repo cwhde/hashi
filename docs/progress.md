@@ -59,9 +59,18 @@ PR A — backend
       engine end to end), schema check against the pinned SchemaStore schema, integration with the real Traefik image
       over real sshd (apply, verify, no rewrite, fail-open 200 / fail-closed 500 with the upstream stopped, restore after
       a static change Traefik cannot start with). Not wired into `internal/app` yet: comes with the handlers.
-- [ ] Certificates: lego with a DNS-01 provider on Hashi's DNS adapter (`add_records`/`remove_records`, origin `system`,
-      excluded from import/prune), keys in the vault, root + `*.root`, job `certificates.renew` (daily, 30 d renew,
-      warnings at 21/7 d), distribution in the `traefik` plan, Verify = TLS handshake + fingerprint. Integration with Pebble.
+- [x] Certificates (03 §5.3): `internal/certs` on `golang.org/x/crypto/acme` (already a dependency; lego not needed):
+      account with EAB (key created and registered on first use, vault), order root + `*.root`, DNS-01 through
+      `dns.Challenger` (single TXT values via Hetzner `add_records`/`remove_records`, captured; `_acme-challenge` names
+      reserved: no import, prune or entry), wait until the value is visible on the zone's nameservers (TCP) or the
+      configured resolvers, then the propagation delay; certificate key in the vault, old key deleted on renewal.
+      `certificates` subsystem (target = account: issue missing / renew inside 30 days / names changed; target =
+      certificate: "Renew now"), `certificates.renew` job (auto plan, then `traefik` plans for hosts whose distribution
+      lags, expiry levels 21/7 days in the summary and log). `traefik` apply checks each certificate by TLS handshake
+      to the edge's :443 and stores per-host state (`verified`/`failed`). Tests: plan rules, levels, Hetzner value
+      replay, challenger leaves other values, TLS check with a local listener, engine end to end with distribution;
+      integration with Pebble 2.10.1 (EAB required) + challtestsrv (issue, nothing due, renew now) and the real
+      Traefik serving a renewed certificate without restart. Job and handlers are wired with the next item.
 - [ ] Stub `GET /api/edge-auth/forward` (204) on the admin listener; health router on the edge uses it fail-open.
 - [ ] OpenAPI + handlers: setup steps 4 and 5 (`/api/setup/certificates`, `/api/setup/traefik/*`: scan host key, confirm,
       validate, install plan), `/api/traefik/connections/*`, `POST /api/traefik/plan`, `GET /api/traefik/certificates`,

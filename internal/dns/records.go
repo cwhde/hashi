@@ -90,6 +90,9 @@ func normalizeInput(in RecordInput, zone string, caps Capabilities) (RRSet, erro
 	if err != nil {
 		return RRSet{}, err
 	}
+	if IsChallenge(name) {
+		return RRSet{}, fmt.Errorf("%w: %s names are reserved for certificate challenges", ErrInvalid, ChallengeLabel)
+	}
 	if in.TTL != nil && (*in.TTL < 60 || *in.TTL > 86400) {
 		return RRSet{}, fmt.Errorf("%w: TTL must be between 60 and 86400 seconds", ErrInvalid)
 	}

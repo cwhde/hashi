@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/url"
+	"strings"
 	"time"
 
 	"git.juzo.io/juzo/hashi/internal/audit"
@@ -25,10 +27,9 @@ const Subsystem = "traefik"
 
 // Vault purposes.
 const (
-	IdentityPurpose   = "ssh.identity"          // Hashi's own SSH key
+	IdentityPurpose   = "ssh.identity"           // Hashi's own SSH key
 	CredentialPurpose = "traefik.ssh.credential" //nolint:gosec // a vault purpose name, not a credential
 	PassphrasePurpose = "traefik.ssh.passphrase" //nolint:gosec // a vault purpose name, not a credential
-	CertKeyPurpose    = "certificate.key"
 )
 
 // Conn is an open SSH connection to a host.
@@ -64,11 +65,19 @@ type Manager struct {
 	now     func() time.Time
 	// pingTimeout overrides PingTimeout (tests).
 	pingTimeout time.Duration
+	// tlsDial reaches an edge's websecure port for the certificate check; tlsTimeout bounds the wait for Traefik to
+	// serve a new certificate.
+	tlsDial    func(ctx context.Context, addr string) (net.Conn, error)
+	tlsTimeout time.Duration
 }
 
 // NewManager returns the Traefik manager.
 func NewManager(st *store.Store, v *vault.Vault, a *audit.Log, connect Connector, binary BinarySource) *Manager {
-	return &Manager{st: st, vault: v, audit: a, connect: connect, binary: binary, now: time.Now}
+	return &Manager{st: st, vault: v, audit: a, connect: connect, binary: binary, now: time.Now, tlsTimeout: 30 * time.Second,
+		tlsDial: func(ctx context.Context, addr string) (net.Conn, error) {
+			var d net.Dialer
+			return d.DialContext(ctx, "tcp", addr)
+		}}
 }
 
 // Subsystems returns the sync subsystems to register with the engine.
@@ -118,11 +127,19 @@ func (s traefikSub) Apply(ctx context.Context, connID string, items []hsync.Item
 	if err == nil {
 		err = Verify(ctx, c, d.APIPort, d.Files)
 	}
+	filesOK := err == nil
+	var checks []CertCheck
+	if filesOK && len(d.Certs) > 0 {
+		checks = VerifyServed(ctx, m.dialer(row), d.Certs, m.tlsTimeout)
+		for _, chk := range checks {
+			err = errors.Join(err, chk.Err)
+		}
+	}
 	now := m.now().UnixMilli()
 	// Files that were written before a failure are on the host: record them so the next plan's "before" is right.
 	if serr := m.st.Tx(ctx, func(q *db.Queries) error {
 		record := out.Written
-		if err == nil {
+		if filesOK {
 			record = d.Files // every desired file now matches the host
 		}
 		for _, f := range record {
@@ -134,7 +151,7 @@ func (s traefikSub) Apply(ctx context.Context, connID string, items []hsync.Item
 				return e
 			}
 		}
-		if err != nil {
+		if !filesOK {
 			return nil
 		}
 		if diff.InstallBinary {
@@ -142,7 +159,7 @@ func (s traefikSub) Apply(ctx context.Context, connID string, items []hsync.Item
 				return e
 			}
 		}
-		return m.markDistributed(ctx, q, connID, now)
+		return m.recordDistribution(ctx, q, connID, checks, now)
 	}); serr != nil {
 		return "", errors.Join(err, serr)
 	}
@@ -151,29 +168,46 @@ func (s traefikSub) Apply(ctx context.Context, connID string, items []hsync.Item
 	}
 	_ = m.health(ctx, connID, nil)
 	sum := fmt.Sprintf("%d change(s) applied on %s and verified through the Traefik API", len(items), row.Name)
+	if len(checks) > 0 {
+		sum += fmt.Sprintf("; %d certificate(s) served with the expected fingerprint", len(checks))
+	}
 	if out.Restarted {
 		sum += "; Traefik restarted"
 	}
 	return sum, nil
 }
 
-// markDistributed records that every issued certificate is on the host (Verify by TLS handshake comes with
-// certificates.go).
-func (m *Manager) markDistributed(ctx context.Context, q *db.Queries, connID string, now int64) error {
+// recordDistribution stores what each certificate check found on the host (Traefik → Certificates tab).
+func (m *Manager) recordDistribution(ctx context.Context, q *db.Queries, connID string, checks []CertCheck, now int64) error {
 	certs, err := q.ListCertificates(ctx)
 	if err != nil {
 		return err
 	}
+	byName := map[string]db.Certificate{}
 	for _, c := range certs {
-		if c.CertPem == "" {
+		byName[c.Name] = c
+	}
+	for _, chk := range checks {
+		c, ok := byName[chk.Name]
+		if !ok {
 			continue
 		}
-		if err := q.UpsertCertificateDistribution(ctx, db.UpsertCertificateDistributionParams{CertificateID: c.ID,
-			ConnectionID: connID, Fingerprint: c.Fingerprint, State: "applied", UpdatedAt: now}); err != nil {
+		p := db.UpsertCertificateDistributionParams{CertificateID: c.ID, ConnectionID: connID, Fingerprint: chk.Got,
+			State: "verified", LastVerifiedAt: sql.NullInt64{Int64: now, Valid: true}, UpdatedAt: now}
+		if chk.Err != nil {
+			p.State, p.Error = "failed", chk.Err.Error()
+		}
+		if err := q.UpsertCertificateDistribution(ctx, p); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// dialer reaches the host's websecure port directly (the edge's TLS listener faces the network Hashi is in).
+func (m *Manager) dialer(row db.TraefikConnection) Dialer {
+	addr := sshx.Addr(row.SshHost, TLSPort)
+	return func(ctx context.Context) (net.Conn, error) { return m.tlsDial(ctx, addr) }
 }
 
 // health stores the connection's health from an apply's outcome and returns err.
@@ -231,7 +265,7 @@ func (m *Manager) desired(ctx context.Context, connID string) (db.TraefikConnect
 		return row, Desired{}, err
 	}
 	d := Desired{Paths: paths, APIPort: opts.APIPort, Files: files, Service: svc, Backup: disc.ExistingConfigs,
-		PingTimeout: m.pingTimeout}
+		PingTimeout: m.pingTimeout, Certs: certs}
 	d.Binary = func(ctx context.Context) ([]byte, error) { return m.binary(ctx, probe.Arch) }
 	return row, d, nil
 }
@@ -279,7 +313,7 @@ func (m *Manager) Auth(ctx context.Context, row db.TraefikConnection) (sshx.Auth
 	case "hashi_key":
 		rec, err := m.st.R.GetSecretByPurpose(ctx, IdentityPurpose)
 		if err != nil {
-			return a, fmt.Errorf("Hashi's SSH key: %w", err)
+			return a, fmt.Errorf("the Hashi SSH key: %w", err)
 		}
 		k, err := m.vault.Open(rec)
 		if err != nil {
@@ -322,4 +356,54 @@ func (m *Manager) dial(ctx context.Context, row db.TraefikConnection) (Conn, err
 		return nil, fmt.Errorf("connect to %s (%s): %w", row.Name, addr, err)
 	}
 	return c, nil
+}
+
+// Distribute plans every installed connection whose certificates lag behind: an issued certificate without a verified
+// distribution of its current fingerprint (the certificates.renew job, after issuing). Certificate files are low risk
+// and apply right away; a plan that also needs a restart waits for approval.
+func (m *Manager) Distribute(eng *hsync.Engine) func(ctx context.Context) (string, error) {
+	return func(ctx context.Context) (string, error) {
+		conns, err := m.st.R.ListTraefikConnections(ctx)
+		if err != nil {
+			return "", err
+		}
+		certs, err := m.st.R.ListCertificates(ctx)
+		if err != nil {
+			return "", err
+		}
+		dists, err := m.st.R.ListCertificateDistributions(ctx)
+		if err != nil {
+			return "", err
+		}
+		verified := map[string]bool{} // connection + fingerprint
+		for _, d := range dists {
+			if d.State == "verified" {
+				verified[d.ConnectionID+" "+d.Fingerprint] = true
+			}
+		}
+		var parts []string
+		var errs []error
+		for _, c := range conns {
+			if !c.OwnershipConfirmedAt.Valid || c.InstalledVersion == "" {
+				continue
+			}
+			lag := false
+			for _, cert := range certs {
+				if cert.CertPem != "" && !verified[c.ID+" "+cert.Fingerprint] {
+					lag = true
+				}
+			}
+			if !lag {
+				continue
+			}
+			p, err := eng.Auto(ctx, Subsystem, c.ID, hsync.TriggerReconcile, audit.System)
+			switch {
+			case err != nil:
+				errs = append(errs, fmt.Errorf("%s: %w", c.Name, err))
+			case p != nil:
+				parts = append(parts, fmt.Sprintf("%s: plan %s", c.Name, p.Status))
+			}
+		}
+		return strings.Join(parts, ", "), errors.Join(errs...)
+	}
 }

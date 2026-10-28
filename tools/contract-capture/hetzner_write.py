@@ -138,6 +138,42 @@ def cleanup(c: Client) -> None:
     print("probe RRSets left:", [(r["name"], r["type"]) for r in left])
 
 
+def challenge(c: Client) -> None:
+    """DNS-01 challenge values (03 §5.3): add_records on a missing RRSet, a second writer's value next to Hashi's,
+    removing one value, removing the last value. The name is a probe name shaped like a challenge name."""
+    name = "_acme-challenge." + PROBE
+    if c.probe_rrsets():
+        sys.exit("probe RRSets exist already; run with --cleanup first")
+    try:
+        r = c.action(name, "TXT", "add_records", {"ttl": 60, "records": [{"value": '"hashi challenge probe one"'}]})
+        save("challenge_add_missing", r)
+        wait(c, r, "challenge_add_missing")
+        save("challenge_get_after_add", c.get_rrset(name, "TXT"))
+        r = c.action(name, "TXT", "add_records", {"records": [{"value": '"other writer probe two"'}]})
+        save("challenge_add_second", r)
+        wait(c, r, "challenge_add_second")
+        r = c.action(name, "TXT", "add_records", {"records": [{"value": '"other writer probe two"'}]})
+        save("challenge_add_duplicate", r)
+        wait(c, r, "challenge_add_duplicate")
+        save("challenge_get_two", c.get_rrset(name, "TXT"))
+        r = c.action(name, "TXT", "remove_records", {"records": [{"value": '"hashi challenge probe one"'}]})
+        save("challenge_remove_one", r)
+        wait(c, r, "challenge_remove_one")
+        save("challenge_get_after_remove", c.get_rrset(name, "TXT"))
+        r = c.action(name, "TXT", "remove_records", {"records": [{"value": '"hashi challenge probe one"'}]})
+        save("challenge_remove_absent", r)
+        wait(c, r, "challenge_remove_absent")
+        r = c.action(name, "TXT", "remove_records", {"records": [{"value": '"other writer probe two"'}]})
+        save("challenge_remove_last", r)
+        wait(c, r, "challenge_remove_last")
+        save("challenge_get_after_last", c.get_rrset(name, "TXT"))
+        r = c.action(name, "TXT", "remove_records", {"records": [{"value": '"other writer probe two"'}]})
+        save("challenge_remove_missing_rrset", r)
+        wait(c, r, "challenge_remove_missing_rrset")
+    finally:
+        cleanup(c)
+
+
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     tok = token()
@@ -149,6 +185,9 @@ def main() -> None:
 
     if "--cleanup" in sys.argv:
         cleanup(c)
+        return
+    if "--challenge" in sys.argv:
+        challenge(c)
         return
     if c.probe_rrsets():
         sys.exit("probe RRSets exist already; run with --cleanup first")

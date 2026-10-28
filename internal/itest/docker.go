@@ -47,13 +47,16 @@ func inContainer() bool {
 	return err == nil
 }
 
-// Run starts image with the given docker run flags and command, waits until port accepts TCP, and removes the
-// container when the test ends.
+// Run starts image with the given docker run flags and command, publishes port, and removes the container when the
+// test ends.
 func Run(t testing.TB, port int, flags []string, image string, cmd ...string) Container {
 	t.Helper()
-	if _, err := exec.LookPath("docker"); err != nil {
-		t.Skip("docker not available")
-	}
+	return RunPorts(t, []int{port}, flags, image, cmd...)
+}
+
+// RunPorts is Run with more published TCP ports; ports[0] becomes Addr, the others are reached through Port.
+func RunPorts(t testing.TB, ports []int, flags []string, image string, cmd ...string) Container {
+	t.Helper()
 	args := []string{"run", "-d", "--rm"}
 	if inContainer() {
 		self, err := os.Hostname()
@@ -62,9 +65,37 @@ func Run(t testing.TB, port int, flags []string, image string, cmd ...string) Co
 		}
 		args = append(args, "--network", "container:"+self)
 	} else {
-		args = append(args, "-p", "127.0.0.1::"+strconv.Itoa(port))
+		for _, p := range ports {
+			args = append(args, "-p", "127.0.0.1::"+strconv.Itoa(p))
+		}
 	}
-	args = append(args, flags...)
+	c := start(t, append(args, flags...), image, cmd...)
+	c.Addr = c.Port(t, ports[0])
+	return c
+}
+
+// Join starts image in c's network namespace, so the two reach each other on 127.0.0.1 and c's published ports
+// carry both (Pebble and its DNS server).
+func Join(t testing.TB, c Container, flags []string, image string, cmd ...string) Container {
+	t.Helper()
+	netns := c.ID
+	if inContainer() {
+		self, err := os.Hostname()
+		if err != nil {
+			t.Fatal(err)
+		}
+		netns = self
+	}
+	j := start(t, append([]string{"run", "-d", "--rm", "--network", "container:" + netns}, flags...), image, cmd...)
+	j.Addr = c.Addr
+	return j
+}
+
+func start(t testing.TB, args []string, image string, cmd ...string) Container {
+	t.Helper()
+	if _, err := exec.LookPath("docker"); err != nil {
+		t.Skip("docker not available")
+	}
 	args = append(args, image)
 	args = append(args, cmd...)
 	out, err := docker(args...).CombinedOutput()
@@ -79,15 +110,20 @@ func Run(t testing.TB, port int, flags []string, image string, cmd ...string) Co
 		}
 		_ = docker("rm", "-f", id).Run()
 	})
-	c := Container{ID: id, Addr: net.JoinHostPort("127.0.0.1", strconv.Itoa(port))}
-	if !inContainer() {
-		out, err := docker("port", id, strconv.Itoa(port)).Output()
-		if err != nil {
-			t.Fatalf("docker port: %v", err)
-		}
-		c.Addr = strings.TrimSpace(strings.Split(string(out), "\n")[0])
+	return Container{ID: id}
+}
+
+// Port is the address the test process reaches the container's TCP port on.
+func (c Container) Port(t testing.TB, port int) string {
+	t.Helper()
+	if inContainer() {
+		return net.JoinHostPort("127.0.0.1", strconv.Itoa(port))
 	}
-	return c
+	out, err := docker("port", c.ID, strconv.Itoa(port)+"/tcp").Output()
+	if err != nil {
+		t.Fatalf("docker port %d: %v", port, err)
+	}
+	return strings.TrimSpace(strings.Split(string(out), "\n")[0])
 }
 
 // WaitFor polls fn until it returns true or the timeout passes.
