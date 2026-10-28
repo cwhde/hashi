@@ -21,7 +21,7 @@ Contract
 PR A — backend
 - [x] Migration 00003: DNS provider connection (type, default TTL, token as vault secret), `dns_zones`,
       `dns_observed_rrsets`, `dns_ownership`, `dns_import_decisions`; sqlc queries.
-- [ ] `internal/dns`: provider interface (read part: Capabilities, ListZones, ResolveZone, ListRRSets), RRSet model and
+- [x] `internal/dns`: provider interface (read part: Capabilities, ListZones, ResolveZone, ListRRSets), RRSet model and
       normalization (TXT, TTL default); `internal/dns/hetzner` read adapter from the fixtures (pagination, RateLimit
       backoff, legacy-token error); replay tests; `TestInvariant_2_*` (NS/SOA never selectable for prune) on the import side.
 - [ ] Zone refresh job (observed snapshot) + OpenAPI: `GET /api/dns/zones`, `POST …/refresh`, `GET …/rrsets`,
