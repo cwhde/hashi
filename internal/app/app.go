@@ -126,6 +126,11 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 
 	openDNS := cfg.dnsProviders
 	if openDNS == nil {
+		if openDNS, err = devDNSProviders(cfg); err != nil {
+			return err
+		}
+	}
+	if openDNS == nil {
 		openDNS = openDNSProvider
 	}
 	dnsSvc := dns.NewService(st, v, al, openDNS)

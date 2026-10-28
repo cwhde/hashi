@@ -71,8 +71,8 @@ func TestFreshStateListsElevenSteps(t *testing.T) {
 			builtSteps = append(builtSteps, ss.N)
 		}
 	}
-	if len(builtSteps) != 4 {
-		t.Fatalf("built steps %v, want 1, 2, 9, 11", builtSteps)
+	if len(builtSteps) != 5 {
+		t.Fatalf("built steps %v, want 1, 2, 3, 9, 11", builtSteps)
 	}
 }
 
@@ -120,7 +120,7 @@ func TestInvariant_14_CompleteRequiresPasskeyAndRecoveryKey(t *testing.T) {
 	st := storetest.Open(t, path)
 	s := newService(t, st)
 	s.SkipUnbuilt = true // isolate the passkey/recovery rule from steps of later slices
-	markDone(t, s, st, StepBootstrap, StepBase)
+	markDone(t, s, st, StepBootstrap, StepBase, StepDNS)
 	// Even a forged "done" flag on step 9 does not complete setup without the data behind it.
 	markDone(t, s, st, StepPasskey)
 	if err := s.Complete(ctx, "test", ""); !errors.Is(err, ErrNotReady) {
@@ -163,13 +163,13 @@ func TestCompleteNeedsUnbuiltStepsInProductionBuilds(t *testing.T) {
 	st := storetest.New(t)
 	s := newService(t, st)
 	addPasskey(t, st)
-	markDone(t, s, st, StepBootstrap, StepBase)
+	markDone(t, s, st, StepBootstrap, StepBase, StepDNS)
 	d, _ := s.GenerateRecoveryKey(ctx, owner)
 	if err := s.ConfirmRecoveryKey(ctx, owner, lastGroup(d.Reveal())); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.Complete(ctx, "test", ""); !errors.Is(err, ErrNotReady) || !strings.Contains(err.Error(), "DNS provider") {
-		t.Fatalf("got %v, want step 3 missing", err)
+	if err := s.Complete(ctx, "test", ""); !errors.Is(err, ErrNotReady) || !strings.Contains(err.Error(), "Certificate provider") {
+		t.Fatalf("got %v, want step 4 missing", err)
 	}
 }
 
@@ -191,7 +191,7 @@ func TestCompleteDestroysBootstrapAndRevokesBootstrapSessions(t *testing.T) {
 		}
 	}
 	addPasskey(t, st)
-	markDone(t, s, st, StepBootstrap, StepBase)
+	markDone(t, s, st, StepBootstrap, StepBase, StepDNS)
 	d, _ := s.GenerateRecoveryKey(ctx, owner)
 	if err := s.ConfirmRecoveryKey(ctx, owner, lastGroup(d.Reveal())); err != nil {
 		t.Fatal(err)

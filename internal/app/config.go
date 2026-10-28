@@ -24,6 +24,7 @@ type Config struct {
 	LogLevel          slog.Level
 	MasterKeyFile     string // HASHI_MASTER_KEY_FILE: base64 master key from `hashi keygen` (02-setup-auth.md §5.2)
 	DevWebAuthnOrigin string // dev builds only, see devbuild_dev.go
+	DevDNSFixtures    string // dev builds only: directory of recorded Hetzner responses to serve instead of the API
 
 	// Set by main, not by flags: where the one-time bootstrap block goes, and the live-log ring.
 	Stdout io.Writer
@@ -75,6 +76,7 @@ func LoadConfig(args []string, getenv func(string) string) (Config, error) {
 		if u, err := url.Parse(c.DevWebAuthnOrigin); c.DevWebAuthnOrigin != "" && (err != nil || u.Hostname() != "localhost") {
 			return Config{}, fmt.Errorf("HASHI_DEV_WEBAUTHN_ORIGIN must be a http(s)://localhost origin")
 		}
+		c.DevDNSFixtures = env("HASHI_DEV_DNS_FIXTURES", "")
 	}
 	return c, nil
 }

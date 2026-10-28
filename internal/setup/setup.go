@@ -72,7 +72,7 @@ var Steps = []Definition{
 }
 
 // built are the steps this build implements.
-var built = map[int]bool{StepBootstrap: true, StepBase: true, StepPasskey: true, StepComplete: true}
+var built = map[int]bool{StepBootstrap: true, StepBase: true, StepDNS: true, StepPasskey: true, StepComplete: true}
 
 // StepState is a step's definition plus its persisted state.
 type StepState struct {

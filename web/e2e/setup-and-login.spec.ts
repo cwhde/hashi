@@ -43,9 +43,36 @@ test('setup with a passkey, then sign in with it', async ({ page }) => {
 
 	// Step 2: base settings.
 	await expect(page.getByRole('heading', { name: 'Base settings' })).toBeVisible();
-	await page.getByLabel('Root domain').fill('example.com');
-	await page.getByLabel('Admin domain').fill('hashi.example.com');
+	// A root domain outside the fixture zones, so step 3 has to offer the zone choice (auto-pick: Go integration tests).
+	await page.getByLabel('Root domain').fill('example.net');
+	await page.getByLabel('Admin domain').fill('hashi.example.net');
 	await page.getByRole('button', { name: 'Save and continue' }).click();
+
+	// Step 3: DNS provider against the recorded Hetzner fixtures. A bad token stores nothing and says why.
+	await expect(page.getByRole('heading', { name: 'Connect your DNS provider' })).toBeVisible();
+	await page.getByLabel('API token').fill('not-a-token');
+	await page.getByRole('button', { name: 'Check read-only' }).click();
+	await expect(page.getByRole('alert')).toContainText('token');
+	await page.getByLabel('API token').fill('replay-token');
+	await page.getByRole('button', { name: 'Check read-only' }).click();
+	// No zone contains the root domain: nothing is stored yet, the admin picks one of the token's zones.
+	await expect(page.getByText('Choose the zone Hashi manages')).toBeVisible();
+	await page.getByRole('radio', { name: 'example.com' }).check();
+	await page.getByRole('button', { name: 'Use this zone' }).click();
+	await expect(page.getByText('58 records', { exact: false }).first()).toBeVisible();
+	await expect(page.getByRole('alert')).toHaveCount(0);
+	// NS and SOA are leave-only; everything else starts as "leave".
+	await expect(page.getByRole('radiogroup', { name: 'Decision for @ NS' })).toHaveCount(0);
+	await expect(page.getByRole('radiogroup', { name: 'Decision for @ SOA' })).toHaveCount(0);
+	const svc1 = page.getByRole('radiogroup', { name: 'Decision for svc1 A' });
+	await expect(svc1.getByRole('radio', { name: 'Leave' })).toHaveAttribute('aria-checked', 'true');
+	await svc1.getByRole('radio', { name: 'Import' }).click();
+	await page
+		.getByRole('radiogroup', { name: 'Decision for svc2 CNAME' })
+		.getByRole('radio', { name: 'Remove' })
+		.click();
+	await expect(page.getByText('1 to import · 1 to remove')).toBeVisible();
+	await page.getByRole('button', { name: 'Save decisions and continue' }).click();
 
 	// Step 9: passkey, then recovery key with its checksum group.
 	await expect(page.getByRole('heading', { name: 'Passkey and recovery key' })).toBeVisible();
@@ -71,6 +98,26 @@ test('setup with a passkey, then sign in with it', async ({ page }) => {
 	await expect(page).toHaveURL(/\/activity$/);
 	await expect(page.getByRole('cell', { name: 'setup.completed' })).toBeVisible();
 	await expect(page.getByRole('cell', { name: 'auth.passkey.login' })).toBeVisible();
+
+	// DNS: the observed zone with the decisions from setup; a changed decision survives a reload.
+	await page.getByRole('link', { name: 'DNS' }).first().click();
+	await expect(page).toHaveURL(/\/dns$/);
+	const records = page.getByRole('table', { name: 'DNS records' });
+	await expect(records.getByRole('row', { name: /^svc1 A / })).toContainText('imported');
+	await expect(records.getByRole('row', { name: /^@ SOA / })).toContainText('protected');
+	await page.getByRole('tab', { name: 'Import' }).click();
+	await expect(page).toHaveURL(/\?tab=import$/);
+	const svc2 = page.getByRole('radiogroup', { name: 'Decision for svc2 CNAME' });
+	await expect(svc2.getByRole('radio', { name: 'Remove' })).toHaveAttribute('aria-checked', 'true');
+	await svc2.getByRole('radio', { name: 'Leave' }).click();
+	await page.getByRole('button', { name: 'Save decisions' }).click();
+	await expect(page.getByText('Decisions saved.')).toBeVisible();
+	await page.reload();
+	await expect(
+		page
+			.getByRole('radiogroup', { name: 'Decision for svc2 CNAME' })
+			.getByRole('radio', { name: 'Leave' })
+	).toHaveAttribute('aria-checked', 'true');
 
 	// Account: the passkey and this session; the last passkey cannot be deleted.
 	await page.goto(`${state.baseURL}/settings?category=account`);
