@@ -5,6 +5,67 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
+**S5 — HTTP services** · status: **in progress** (started 2026-10-28).
+
+Scope and gate: 11-delivery.md §3 row S5 (amended 77ca773 with the user, 2026-10-28): 04 §1, §7–8 for the HTTP kinds,
+system service (setup steps 7–8), deeper wildcards (03 §5.3). Gate: Hashi admin reachable at its HTTPS domain through
+Hashi-managed Traefik (step 8 proof on the real install); the first real passkey registered from a real browser on the
+temporary admin domain; one real service served by the new Traefik and reachable through it. Setup completion,
+passkey sign-in, the S3 record repeat and generated host/service records move to S6 (they need a firewall host).
+
+User decisions 2026-10-28: temporary admin domain `dev.hashi.<root>` (needs the deeper wildcard `*.hashi.<root>`);
+first real service: SearXNG (its public name stays on the old setup until the S6 traffic move). The temporary name
+resolves through a manual DNS entry (S3) pointing at the edge's internal address, so it opens from the home network and
+NetBird only.
+
+External systems and contracts:
+- Traefik v3.7.16 dynamic config for services (routers with Host/Path rules and priorities, `stripPrefix`,
+  `replacePath`, `replacePathRegex`, `headers.customRequestHeaders`, `serversTransports` with `insecureSkipVerify` /
+  `serverName`, `h2c://` servers, weighted services): proven against the real binary in the integration test (loads,
+  every object `enabled`, requests reach stub HTTP/H2C/HTTPS upstreams with the expected path) plus the pinned schema.
+- Edge → Hashi source address (captured 2026-10-28): the remote edge's connection arrives from the gateway address,
+  the same address routed laptops get, hence the edge token (spec 77ca773).
+- Hetzner, ACME, sshd: already captured.
+
+Scope cut: TCP/UDP services, address-set targets (literal IPs until S6), DNS service records, rule sets and WAF
+(the service pages show them as arriving later), user middlewares file (`30-user-middlewares.yml`) and adding Traefik
+hosts after setup (both before the V1 cutover, with S6's edge move).
+
+PR A — backend
+- [ ] Migration 00006: `services` (name, slug, kind http/https/h2c, domain mode + host name, enabled, origin, owning
+      feature, dashboard/monitoring/AdGuard flags, target scheme/address/port, `https` options insecureSkipVerify +
+      serverName, TLS min version, advanced-routes flag, invalid reason, sync state) and `service_routes` (ULID, enabled,
+      targets with weights, path match prefix/exact/regex, value, priority, rewrite mode + params); sqlc.
+- [ ] `internal/services`: model, validation (04 §1.5: FQDN inside the managed zone, reserved labels, ports, RE2 at
+      save, paths start with `/`, IPv6 bracketed), invalid services excluded from rendering, the Hashi system service
+      kept in step with General settings (admin domain → internal URL; delete forbidden, invariant 10).
+- [ ] Render `10-hashi-http-services.yml`: router per service and route (`Host` + path rule, websecure, TLS, priority),
+      chain headers → compress → forward auth (fail-open while no rule set can deny) → route rewrites; services with
+      weighted servers, `serversTransports` for `https`, `h2c://`; edge token header on the system service and on
+      forward auth. Golden files for every kind, path match and rewrite mode; schema check; integration with the real
+      Traefik and stub upstreams.
+- [ ] Certificates: desired names = root + `*.root` + one wildcard per deeper parent of an enabled service's host name;
+      a changed name set re-issues (existing "names changed" rule), dropped wildcards wait for renewal.
+- [ ] Edge token (vault secret, rendered on every edge), client-IP resolver trusts requests that carry it; saving a
+      service plans every Traefik host (low risk) and the certificate when names change.
+- [ ] OpenAPI + handlers: `/api/services` CRUD, `enable|disable`, `GET /api/services/{id}/effective` (rendered
+      routers/services for it), `POST /api/traefik/plan`; setup step 7 (system service → certificate + Traefik plans
+      run; done once every host verified the admin router and serves a certificate covering the admin domain) and
+      step 8 (nonce → `https://<admin>/setup?https=…` → proof through the edge token, `Host`, `X-Forwarded-Proto` →
+      done + `Secure` bootstrap session on that origin). Tests incl. invariants 7, 8, 10.
+
+PR B — UI + deploy
+- [ ] `/services` list and service page from the mocks (target, routes, rewrites, TLS, flags, rendered config;
+      Access/WAF/monitoring marked as later slices); add/edit drawer; plans through `/changes`.
+- [ ] Setup steps 7 and 8 pages (step 8 opens the HTTPS origin and continues there), steps 7–8 built.
+- [ ] E2E against the dev fakes: system service applied on the fake edge, a user service with a route and rewrite,
+      step 8 proof with a simulated edge request.
+- [ ] Deploy (user runs `/deploy`) and prod-proof: manual DNS entry `dev.hashi` → edge internal address, steps 7–8 on
+      the real install, real browser opens `https://dev.hashi.<root>` with the issued wildcard, first passkey
+      registered by the user, SearXNG served through `hashi-edge-test` (request with the real host name), V1 untouched.
+
+## Previous slice
+
 **S4 — SSH + Traefik** · status: **done** 2026-10-28, deployed `2868d0e` (#32, #33), prod-proof passed. Next: S5.
 
 Scope and gate: 11-delivery.md §3 row S4: 04-traefik-services.md §2–6, sshx with host-key pinning, Hashi-issued
@@ -117,7 +178,37 @@ the job's 4-hour wait does not swallow the click (`TestIssueNowRetriesAfterFaile
       on `hashi-edge-debian` and `hashi-edge-fedora`: host key pinned, install plan applied (Traefik under OpenRC/systemd), files applied, Verify from the real API, real certificate issued + distributed + fingerprint matches, Hashi
       stopped → fail-open route 200 / fail-closed 500 on the edge, Hashi back → normal; live Traefik instances untouched.
 
-## Previous slice
+## Side step: security model (branch `security-model`)
+
+Status: **done** (signed off 2026-10-28, mocks merged). S2 is next.
+
+The user replaced the security design with a model built on two shared primitives: IP sets (the one address primitive,
+also for DNS values, upstreams and connection targets, so anything can be "set via Pulse") and rule sets (global,
+reusable and service-root rule sets are one type), a two-stage edge engine (Stage A abuse engine before Stage B rules),
+one ban function, and nftables with folded allow/block sets and kernel meters. Original input archived in
+`docs/archive/` (not for implementation); decisions, corrections and rejected alternatives in ADR 0002.
+
+Done on the branch:
+- [x] ADR 0002; spec rewritten: 05-firewall, new 05a-ip-sets, 06-edge-security, 06a (object model §0: what is shared,
+      what is compiled per layer, deliberate deviations); updated 01, 02, 03, 04 (renamed `04-traefik-services.md`),
+      07, 08, 09, 10, 10b, 11, README (invariants 7, 10, 12 amended; 20–22 added), environment, CLAUDE.md.
+- [x] Read-only survey of the first firewall host: kernel 7.0, nft 1.1.3, iptables **legacy**; NetBird uses legacy
+      chains + ipsets; old script chains still present; Proxmox firewall disabled; no nftables tables;
+      `nftables.service` disabled with the stock `flush ruleset` config.
+- [x] Counters view (ban + challenge counter, filters, edit/reset).
+- [x] Review round 2026-10-28: step decay for both counters; an SSO session satisfies `pass_captcha`; observe/detect
+      modes stay out; host link stays SSH (ADR 0002 "Host link vs host agent"); Pulse footprint targets (08 §1).
+
+After sign-off (phase 2):
+- [x] Merge the spec branch (docs → `main`).
+- [x] Redo the affected S0b mocks (Services, Security incl. Counters, address page, IP sets, rule sets, Firewall) —
+      branch `s0b-security-mocks`.
+- [x] Redone mocks approved by the user (2026-10-28), plus host and per-service routing (03-dns.md §5.1 `ovr` records).
+- [x] Mocks PR juzo/hashi#27 merged.
+- [x] Built code checked: only setup step 7's key/title and the palette mock said "resource"/subjects; renamed.
+- [ ] Then continue with S2.
+
+## Finished slices (detail)
 
 **S3 — DNS write** · status: **done** 2026-10-28, deployed `94d60ad` (#30, #31), prod-proof passed.
 
@@ -187,38 +278,6 @@ Decisions made in PR B:
   Pending changes (review #31). The pending-changes counter is always in the top bar, amber when something waits.
 - Review #31 fixed (reproduced): a save reported another entry's waiting delete as its own; a TTL typo became "zone
   default" without a preview; setup's removals never became a plan.
-
-## Side step: security model (branch `security-model`)
-
-Status: **done** (signed off 2026-10-28, mocks merged). S2 is next.
-
-The user replaced the security design with a model built on two shared primitives: IP sets (the one address primitive,
-also for DNS values, upstreams and connection targets, so anything can be "set via Pulse") and rule sets (global,
-reusable and service-root rule sets are one type), a two-stage edge engine (Stage A abuse engine before Stage B rules),
-one ban function, and nftables with folded allow/block sets and kernel meters. Original input archived in
-`docs/archive/` (not for implementation); decisions, corrections and rejected alternatives in ADR 0002.
-
-Done on the branch:
-- [x] ADR 0002; spec rewritten: 05-firewall, new 05a-ip-sets, 06-edge-security, 06a (object model §0: what is shared,
-      what is compiled per layer, deliberate deviations); updated 01, 02, 03, 04 (renamed `04-traefik-services.md`),
-      07, 08, 09, 10, 10b, 11, README (invariants 7, 10, 12 amended; 20–22 added), environment, CLAUDE.md.
-- [x] Read-only survey of the first firewall host: kernel 7.0, nft 1.1.3, iptables **legacy**; NetBird uses legacy
-      chains + ipsets; old script chains still present; Proxmox firewall disabled; no nftables tables;
-      `nftables.service` disabled with the stock `flush ruleset` config.
-- [x] Counters view (ban + challenge counter, filters, edit/reset).
-- [x] Review round 2026-10-28: step decay for both counters; an SSO session satisfies `pass_captcha`; observe/detect
-      modes stay out; host link stays SSH (ADR 0002 "Host link vs host agent"); Pulse footprint targets (08 §1).
-
-After sign-off (phase 2):
-- [x] Merge the spec branch (docs → `main`).
-- [x] Redo the affected S0b mocks (Services, Security incl. Counters, address page, IP sets, rule sets, Firewall) —
-      branch `s0b-security-mocks`.
-- [x] Redone mocks approved by the user (2026-10-28), plus host and per-service routing (03-dns.md §5.1 `ovr` records).
-- [x] Mocks PR juzo/hashi#27 merged.
-- [x] Built code checked: only setup step 7's key/title and the palette mock said "resource"/subjects; renamed.
-- [ ] Then continue with S2.
-
-## Finished slices (detail)
 
 **S2 — DNS read + import** · status: **done** 2026-10-28, deployed `04ff8c7` (#28, #29), prod-proof passed.
 
@@ -345,7 +404,7 @@ Decisions made in S0:
 | S2 DNS read + import | **done** | 2026-10-28 · `04ff8c7` · `make deploy ENV=prod TAG=04ff8c7`: readyz ok, version `04ff8c7`, SPA/public 200. `hashi bootstrap reset` in the container, bootstrap login from the laptop (seen as `10.0.4.1`, scopes `setup.manage`); base settings with the real root domain. Step 3 with the real project token: the zone containing the root domain picked automatically (token sees 2 zones, the other ignored), provider `healthy`, 58 RRSets read; no write requests. Import table vs a direct read-only Hetzner read: 58 = 58 RRSets, 0 differences in name/type/TTL/values/protection; only NS and SOA leave-only. All 58 saved as `leave` (no takeover before the V1 cutover) → step 3 `done`; `docker restart hashi-v3` → 58 decisions still `leave`, 0 new, step 3 still done; V1 container untouched. Screenshot of the setup page shown to the user. Drift check: no drift against the live API. |
 | S3 DNS write | **done** | 2026-10-28 · `94d60ad` · `make deploy ENV=prod TAG=94d60ad`: migration 3 → 4 with pre-migration backup, readyz ok, version `94d60ad`, SPA/public 200, container healthy, V1 untouched. Direct Hetzner read before: 58 RRSets, NS hash `d604b402d218`, SOA without serial `131e884f3662`, no `_hashi-test`. `hashi bootstrap reset`, setup login from the laptop (scope `setup.manage`); `POST /api/setup/dns/probe` → plan pending, high risk, 2 items (create + delete `_hashi-test` TXT), zone unchanged while pending; `POST …/probe/{id}/run` → applied in 14.6 s: "write access confirmed: _hashi-test TXT created, verified and deleted". Direct read after: 58 RRSets, NS and SOA (without serial) unchanged, no `_hashi-test`. Record path (spec row S3 as amended): `TestRealZoneRecordPath` against the real zone, same code (see PR B checklist): create applied + verified with owner label, delete pending until passkey reauth, then deleted and verified; zone unchanged. First background reconcile on the server (12:41 UTC): `dns.refresh` succeeded, "juzo.io: in sync" (no plan). Bootstrap credentials file deleted after use. |
 | S4 SSH + Traefik | **done** | 2026-10-28 · `2868d0e` · `make deploy ENV=prod TAG=2868d0e`: readyz ok, version `2868d0e`, SPA/public 200. Dev targets rolled back to `clean` first. Setup over the API with a fresh bootstrap login (CSRF header): step 4 with a fresh Google Trust Services EAB key → account registered (health healthy); "issue now" → plan applied, "issued <root> (2 names, valid until 2027-01-26)", `_acme-challenge.<root>` TXT empty again at the authoritative server. Step 5 on `hashi-edge-test` (Alpine 3.23): host key read through Hashi (ECDSA SHA256:WAIE…aXc) equal to `ssh-keygen -lf` on the host, pinned; login with Hashi's own key; validation found Alpine/apk/OpenRC/amd64 and the existing binary; ownership confirmed; install plan (10 items, high risk, no download: v3.7.16 already there) approved and run: "10 change(s) applied … verified through the Traefik API; 1 certificate(s) served with the expected fingerprint; Traefik restarted". On the host: `hashi-traefik` started under OpenRC, in the default runlevel, process `/usr/local/bin/traefik --configFile=/etc/hashi/traefik/traefik.yaml`. Served on the edge's :443 for `<root>` and `app.<root>`: issuer Google Trust Services WR1, SAN <root> + *.<root>, sha256 AB:16:E5:8B…1B:9C = the file on disk. Health routes with Hashi up: open 200, closed 200 (the edge reaches Hashi's internal URL across sites). `docker stop hashi-v3` 18:53:39 → open 200 / closed 500 three times; started 18:54:23 → open 200 / closed 200. `logrotate -f` with Hashi's config: `access.log-20261028` created, the next request written to a fresh `access.log`, same Traefik PID (no restart). Install path on `hashi-edge-debian` (Debian 13, systemd, download + checksum, 11 items) and `hashi-edge-fedora` (Fedora 44, systemd, dnf, 12 items incl. logrotate install): applied and verified with the served fingerprint; services active + enabled, v3.7.16, `logrotate.timer` active, same certificate served, rotation reopens the access log. Live Traefik on both hosts and V1 untouched (up 2 days / still started / up 5 days). Found and fixed on main: the host-key hint named the ed25519 file while hosts offer their ECDSA key. |
-| S5 HTTP resources | — | |
+| S5 HTTP services | in progress | |
 | S6 Firewall + streams | — | |
 | S7 Monitoring + public pages | — | |
 | V1 cutover | — | |
