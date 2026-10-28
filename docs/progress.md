@@ -449,6 +449,15 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-10-28 — Incident (not caused by Hashi's code): the host A thin pool (local-lvm, 127 GB, about 232 GB promised
+  to its volumes) filled at 23:00 CET while CI built S5 PR A on the Gitea runners in the Docker LXC (build cache 17 GB).
+  The Docker LXC's filesystem went emergency read-only (Gitea, V1, hashi-v3, Vaultwarden, NetBird server and the other
+  apps could not write); the Pangolin LXC lost writes to its Traefik access/stream logs only. Fixed with the user's OK:
+  fstrim of the other LXCs, clean shutdown + fsck (repaired, then clean) + start of the Docker LXC, `docker builder prune
+  -af` (17 GB), fstrim of the Docker LXC (42 GB returned): pool 100 % → 72 %, every container back (both Hashis
+  healthy). The CI runs of that moment failed and were re-run. Open: the pool stays overcommitted and CI build caches
+  grow without a limit.
+
 - 2026-10-28 — Deploy `2868d0e` (S4: #32 + #33) to prod: smoke ok. S4 prod-proof passed (Slices table). The GTS EAB key
   created for the gate is now bound to Hashi's account; the ACME contact address is the one the old Traefik already uses
   with Google Trust Services.
