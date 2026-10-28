@@ -95,7 +95,8 @@
 						</div>
 						<div class="mt-0.5 text-[12px] text-muted-foreground">
 							{#if r.upstreamSet}follows <span class="font-medium">{r.upstreamSet}</span> ·
-							{/if}via {r.host}
+							{/if}on {r.host}{#if r.entry}
+								· enters via {r.entry}{/if}
 						</div>
 					</Table.Cell>
 					<Table.Cell class="hidden lg:table-cell">

@@ -120,6 +120,8 @@ export type Service = {
 	access: string;
 	waf: 'enabled' | 'headers_only' | 'disabled';
 	upstreamSet?: string;
+	/** Per-service routing override: the host where traffic enters, when it differs (03-dns.md §5.1). */
+	entry?: string;
 	health: Health;
 	uptime: string;
 	latency: number;
@@ -195,6 +197,7 @@ export const services: Service[] = [
 		kind: 'https',
 		target: 'https://10.20.1.102:8920',
 		upstreamSet: 'media-upstream',
+		entry: 'edge-fra',
 		host: 'edge-home',
 		origin: 'user',
 		enabled: true,
@@ -215,6 +218,7 @@ export const services: Service[] = [
 		kind: 'http',
 		target: 'http://10.20.1.102:2283',
 		upstreamSet: 'media-upstream',
+		entry: 'edge-fra',
 		host: 'edge-home',
 		origin: 'user',
 		enabled: true,

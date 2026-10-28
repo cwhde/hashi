@@ -7,10 +7,19 @@
 	import AddressLink from '$lib/components/hashi/security/AddressLink.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as Tabs from '$lib/components/ui/tabs';
-	import { ChevronLeft, LifeBuoy, Cable, Plus } from '@lucide/svelte';
+	import * as Select from '$lib/components/ui/select';
+	import { Input } from '$lib/components/ui/input';
+	import { firewallHosts } from '$lib/design/mock';
+	import { ChevronLeft, LifeBuoy, Cable, Plus, X } from '@lucide/svelte';
 
 	let { data } = $props();
 	const h = $derived(data.h);
+	let entry = $derived(h.id);
+	const entryName = $derived(firewallHosts.find((x) => x.id === entry)?.name ?? h.name);
+	// Per-service overrides that start on this host (03-dns.md §5.1); one shared record per entry host.
+	const ovr = $derived(
+		h.id === 'fh2' ? [{ entry: 'edge-fra', services: ['Media', 'Photos'] }] : []
+	);
 	const kernelSets = [
 		{ name: 'allow4 / allow6', what: 'Folded allow (interval)', size: '7 / 3', owner: 'plan' },
 		{ name: 'block4 / block6', what: 'Folded block (interval)', size: '1,503 / 0', owner: 'plan' },
@@ -79,30 +88,96 @@
 		</dl>
 	</Panel>
 	<Panel title="Host link" description="One SSH connection Hashi keeps open">
-		<div class="flex items-start gap-3 text-[13px]">
-			<Cable class="mt-0.5 size-5 shrink-0 text-ok-text" />
-			<dl class="grid flex-1 grid-cols-[7rem_1fr] gap-y-1.5">
-				<dt class="text-muted-foreground">State</dt>
-				<dd>connected for 3 d</dd>
-				<dt class="text-muted-foreground">Last drain</dt>
-				<dd>2 s ago · 0 waiting</dd>
-				<dt class="text-muted-foreground">Last push</dt>
-				<dd>13:37 · 1 ban, applied</dd>
-				<dt class="text-muted-foreground">Checked</dt>
-				<dd>4 min ago · no difference</dd>
-			</dl>
-		</div>
+		{#if h.mode === 'managed'}<div class="flex items-start gap-3 text-[13px]">
+				<Cable class="mt-0.5 size-5 shrink-0 text-ok-text" />
+				<dl class="grid flex-1 grid-cols-[7rem_1fr] gap-y-1.5">
+					<dt class="text-muted-foreground">State</dt>
+					<dd>connected for 3 d</dd>
+					<dt class="text-muted-foreground">Last drain</dt>
+					<dd>2 s ago · 0 waiting</dd>
+					<dt class="text-muted-foreground">Last push</dt>
+					<dd>13:37 · 1 ban, applied</dd>
+					<dt class="text-muted-foreground">Checked</dt>
+					<dd>4 min ago · no difference</dd>
+				</dl>
+			</div>
+		{:else}<p class="text-[13px] text-muted-foreground">
+				Not used: Hashi does not manage this host’s firewall (external NAT).
+			</p>{/if}
 	</Panel>
 </div>
 
-<Tabs.Root value="ports">
+<Tabs.Root value="routing">
 	<Tabs.List class="mb-4">
+		<Tabs.Trigger value="routing">Routing</Tabs.Trigger>
 		<Tabs.Trigger value="ports">Ports</Tabs.Trigger>
 		<Tabs.Trigger value="access">Host access</Tabs.Trigger>
 		<Tabs.Trigger value="sets">Kernel sets</Tabs.Trigger>
 		<Tabs.Trigger value="rules">Live ruleset</Tabs.Trigger>
 		<Tabs.Trigger value="generated">Generated</Tabs.Trigger>
 	</Tabs.List>
+	<Tabs.Content value="routing" class="grid gap-4 lg:grid-cols-2">
+		<Panel
+			title="Managed subnets"
+			description="A service whose target is in one of these runs on {h.name}"
+		>
+			<ul class="space-y-1.5 text-[13px]">
+				{#each h.subnets as n (n)}
+					<li class="flex items-center gap-2">
+						<Mono class="flex-1">{n}</Mono><Button
+							variant="ghost"
+							size="icon-xs"
+							aria-label="Remove {n}"><X /></Button
+						>
+					</li>
+				{/each}
+			</ul>
+			<div class="mt-3 flex gap-2">
+				<Input class="font-mono" placeholder="10.20.2.0/24" aria-label="Add subnet" /><Button
+					variant="outline"
+					size="sm">Add</Button
+				>
+			</div>
+			<p class="mt-2 text-[12.5px] text-muted-foreground">
+				NetBird-routed ranges and Pulse agents whose addresses fall inside count too.
+			</p>
+		</Panel>
+		<Panel
+			title="Public entry"
+			description="Where traffic for services on {h.name} enters. Changes one DNS record."
+		>
+			<Select.Root type="single" bind:value={entry}>
+				<Select.Trigger class="w-full"
+					>{entry === h.id ? `${h.name} itself` : `through ${entryName}`}</Select.Trigger
+				>
+				<Select.Content>
+					{#each firewallHosts as x (x.id)}<Select.Item value={x.id}
+							>{x.id === h.id ? `${x.name} itself` : `through ${x.name}`}</Select.Item
+						>{/each}
+				</Select.Content>
+			</Select.Root>
+			<div class="mt-3 space-y-1 text-[12.5px]">
+				<div><Mono>on.{h.name}.example.com</Mono> → <Mono>via.{entryName}.example.com</Mono></div>
+				<div><Mono>via.{h.name}.example.com</Mono> → <Mono>{h.name}.example.com</Mono></div>
+				<div><Mono>{h.name}.example.com</Mono> A <Mono>{h.publicIp}</Mono></div>
+			</div>
+			{#if ovr.length}
+				<div class="mt-4 mb-1.5 text-[12.5px] font-medium">Services entering elsewhere</div>
+				<ul class="space-y-1.5 text-[12.5px]">
+					{#each ovr as o (o.entry)}
+						<li>
+							<Mono>{o.entry}.ovr.on.{h.name}.example.com</Mono> → <Mono
+								>via.{o.entry}.example.com</Mono
+							>
+							<span class="block text-muted-foreground"
+								>used by {o.services.join(', ')} · removed when no service uses it</span
+							>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		</Panel>
+	</Tabs.Content>
 	<Tabs.Content value="ports">
 		<Panel
 			flush

@@ -25,6 +25,12 @@
 	const root = $derived(serviceRoots[r.id] ?? { entries: [], fallback: 'none' as const });
 	let fallback = $derived<'none' | 'deny'>(root.fallback);
 	let advanced = $state(false);
+	let entry = $derived(r.entry ?? r.host);
+	const chain = $derived(
+		entry === r.host
+			? [`on.${r.host}`, `via.${r.host}`, r.host]
+			: [`${entry}.ovr.on.${r.host}`, `via.${entry}`, entry]
+	);
 	let upstream = $state('media-upstream');
 	let ruleOpen = $state(false);
 	let tryIp = $state('203.0.113.54');
@@ -86,8 +92,8 @@
 			<dd class="tnum">{r.uptime}</dd>
 		</div>
 		<div>
-			<dt class="text-[12px] text-muted-foreground">Enters via</dt>
-			<dd>{r.host}</dd>
+			<dt class="text-[12px] text-muted-foreground">Runs on · enters via</dt>
+			<dd>{r.host} · {entry}</dd>
 		</div>
 		<div class="col-span-2 sm:col-span-1">
 			<dt class="text-[12px] text-muted-foreground">Access</dt>
@@ -119,12 +125,38 @@
 		<Panel title="Public address">
 			<div class="space-y-4">
 				<div class="space-y-1.5"><Label>Domain</Label><Input value={r.domain} /></div>
-				<div class="text-[13px]">
-					<div class="mb-1 text-[12px] text-muted-foreground">DNS Hashi will keep</div>
-					<Mono>{r.domain}. CNAME on.{r.host}.example.com.</Mono>
+				<div class="space-y-1.5">
+					<Label>Enter through</Label>
+					<Select.Root type="single" bind:value={entry}>
+						<Select.Trigger class="w-full"
+							>{entry === r.host
+								? `${r.host} (where it runs, host setting)`
+								: entry}</Select.Trigger
+						>
+						<Select.Content>
+							{#each ['edge-fra', 'edge-home'] as h (h)}<Select.Item value={h}
+									>{h === r.host ? `${h} (where it runs, host setting)` : h}</Select.Item
+								>{/each}
+						</Select.Content>
+					</Select.Root>
+					<p class="text-[12.5px] text-muted-foreground">
+						Runs on {r.host}: its target is in {r.host}’s subnets. Choosing another host overrides
+						the host’s public entry for this service only.
+					</p>
 				</div>
-				<div class="flex items-center justify-between">
-					<Label for="ov">Route through another host</Label><Switch id="ov" />
+				<div class="text-[13px]">
+					<div class="mb-1 text-[12px] text-muted-foreground">DNS chain Hashi will keep</div>
+					<ol class="space-y-0.5">
+						<li><Mono>{r.domain}</Mono></li>
+						{#each chain as c, i (c)}<li class="text-muted-foreground">
+								→ <Mono class="text-foreground">{c}.example.com</Mono>{#if i === 2}<span>
+										A</span
+									>{/if}
+							</li>{/each}
+					</ol>
+					{#if entry !== r.host}<p class="mt-1.5 text-[12.5px] text-muted-foreground">
+							Shared with other {r.host} services entering through {entry}; removed when none does.
+						</p>{/if}
 				</div>
 				{#if stream}<p class="text-[12.5px] text-muted-foreground">
 						TCP and UDP services cannot use forward auth. They are protected by the firewall’s allow
