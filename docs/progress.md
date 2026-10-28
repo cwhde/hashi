@@ -47,7 +47,7 @@ on reverted foreign rules; security telemetry bounded by volume (01 §4.3, 06 §
 
 ## Side step: security model (branch `security-model`)
 
-Status: **signed off by the user 2026-10-28** (incl. the SSH host link). Phase 2 in progress; S2 waits until it is done.
+Status: **done** (signed off 2026-10-28, mocks merged). S2 is next.
 
 The user replaced the security design with a model built on two shared primitives: IP sets (the one address primitive,
 also for DNS values, upstreams and connection targets, so anything can be "set via Pulse") and rule sets (global,
@@ -71,9 +71,8 @@ After sign-off (phase 2):
 - [x] Redo the affected S0b mocks (Services, Security incl. Counters, address page, IP sets, rule sets, Firewall) —
       branch `s0b-security-mocks`.
 - [x] Redone mocks approved by the user (2026-10-28), plus host and per-service routing (03-dns.md §5.1 `ovr` records).
-- [ ] Merge the mocks PR.
-- [ ] Check built code for the rename and the model: S1 code has no security engine; only the design mocks, nav and
-      mock data use "resources"/subjects.
+- [x] Mocks PR juzo/hashi#27 merged.
+- [x] Built code checked: only setup step 7's key/title and the palette mock said "resource"/subjects; renamed.
 - [ ] Then continue with S2.
 
 ## Finished slices (detail)
@@ -129,6 +128,8 @@ Decisions made in S0:
   only short-SHA deploys exist so far.
 
 ## Log
+
+- 2026-10-28 — Security model side step done: mocks merged (#27), built code renamed (setup step 7), S2 next.
 
 - 2026-10-28 — Security model signed off by the user (ADR 0002 accepted). Branch merged to `main`; mocks next.
 
