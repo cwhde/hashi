@@ -171,8 +171,10 @@ see the DNS token.
 - These are SANs of as few certificates as the CA allows (GTS/LE limit 100 names per certificate); a wildcard that is no
   longer needed is dropped at the next renewal, never mid-term.
 
-**Lifecycle (job runner, job `certificates.renew`, daily):** issue when a needed name is missing; renew 30 days before
-expiry; on failure retry with backoff and raise a warning (Overview + notification) at 21 days left, critical at 7 days.
+**Lifecycle (job runner, job `certificates.renew`, hourly; it plans nothing while every certificate is valid and not
+due):** issue when a needed name is missing; renew 30 days before expiry; after a failed attempt the job waits 4 hours
+before trying again ("Renew now" always tries), and raises a warning (Overview + notification) at 21 days left, critical
+at 7 days. Every certificate name must lie inside the managed zone: DNS-01 can only be answered there.
 `_acme-challenge` TXT values are written and removed through the normal provider adapter (origin `system`) one value at a
 time (Hetzner `add_records`/`remove_records`, captured 2026-10-28): another ACME client may hold a value at the same name
 while it still runs (migration), and its value survives. `_acme-challenge` names are reserved: never offered on the import

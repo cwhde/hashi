@@ -11,7 +11,6 @@ import (
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
 	"git.juzo.io/juzo/hashi/internal/secrets"
 	"git.juzo.io/juzo/hashi/internal/setup"
-	"git.juzo.io/juzo/hashi/internal/sshx"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 	hsync "git.juzo.io/juzo/hashi/internal/sync"
 	"git.juzo.io/juzo/hashi/internal/traefik"
@@ -109,11 +108,11 @@ func (s *Server) IssueSetupCertificates(ctx context.Context, _ gen.IssueSetupCer
 	if err := s.requireSetupOpen(ctx); err != nil {
 		return nil, err
 	}
-	a, err := s.Store.R.GetACMEAccount(ctx)
+	target, err := s.Certs.IssueTarget(ctx)
 	if err != nil {
-		return nil, traefikError(certs.ErrNotConfigured)
+		return nil, traefikError(err)
 	}
-	p, err := s.autoRun(ctx, certs.Subsystem, a.ID)
+	p, err := s.autoRun(ctx, certs.Subsystem, target)
 	if err != nil {
 		return nil, traefikError(err)
 	}
@@ -163,7 +162,7 @@ func (s *Server) RenewCertificate(ctx context.Context, req gen.RenewCertificateR
 	if _, err := s.Store.R.GetCertificate(ctx, req.Id); err != nil {
 		return nil, traefikError(err)
 	}
-	p, err := s.Sync.Propose(ctx, certs.Subsystem, req.Id, hsync.TriggerManual, s.actor(info(ctx)))
+	p, err := s.autoRun(ctx, certs.Subsystem, req.Id)
 	if err != nil {
 		return nil, traefikError(err)
 	}
@@ -227,7 +226,7 @@ func (s *Server) ScanSetupTraefikHost(ctx context.Context, req gen.ScanSetupTrae
 	if err := s.requireSetupOpen(ctx); err != nil {
 		return nil, err
 	}
-	hk, err := sshx.Scan(ctx, sshx.Addr(req.Body.Host, req.Body.Port), 10*time.Second)
+	hk, err := s.Traefik.ScanHostKey(ctx, req.Body.Host, req.Body.Port)
 	if err != nil {
 		return nil, providerFailed("Could not read the SSH host key: " + err.Error())
 	}

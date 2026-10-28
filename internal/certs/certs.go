@@ -26,12 +26,17 @@ var Directories = map[string]string{
 	"letsencrypt": "https://acme-v02.api.letsencrypt.org/directory",
 }
 
-// Renewal windows (03 §5.3): renew 30 days before expiry; warn at 21 days left, critical at 7.
+// Renewal windows (03 §5.3): renew 30 days before expiry; warn at 21 days left, critical at 7. After a failed attempt
+// the hourly job waits RetryAfter before trying again on its own (Renew now always tries).
 const (
 	RenewBefore    = 30 * 24 * time.Hour
 	WarnBefore     = 21 * 24 * time.Hour
 	CriticalBefore = 7 * 24 * time.Hour
+	RetryAfter     = 4 * time.Hour
 )
+
+// JobInterval is how often certificates.renew runs. It plans nothing while every certificate is valid and not due.
+const JobInterval = time.Hour
 
 // Want is one certificate Hashi needs: its stable name and the SANs it covers.
 type Want struct {

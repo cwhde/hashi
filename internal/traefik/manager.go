@@ -83,11 +83,26 @@ type Manager struct {
 	// serve a new certificate.
 	tlsDial    func(ctx context.Context, addr string) (net.Conn, error)
 	tlsTimeout time.Duration
+	// scan reads a host's SSH key before it is pinned (sshx.Scan).
+	scan func(ctx context.Context, addr string, timeout time.Duration) (sshx.HostKey, error)
+}
+
+// UseFakes replaces SSH, the release download, host-key scanning and the TLS check (the dev build's in-memory edge;
+// never in production builds).
+func (m *Manager) UseFakes(connect Connector, binary BinarySource,
+	scan func(ctx context.Context, addr string, timeout time.Duration) (sshx.HostKey, error),
+	tlsDial func(ctx context.Context, addr string) (net.Conn, error)) {
+	m.connect, m.binary, m.scan, m.tlsDial = connect, binary, scan, tlsDial
+}
+
+// ScanHostKey reads the host's SSH key for the admin to compare with the host before Hashi pins it.
+func (m *Manager) ScanHostKey(ctx context.Context, host string, port int) (sshx.HostKey, error) {
+	return m.scan(ctx, sshx.Addr(host, port), 10*time.Second)
 }
 
 // NewManager returns the Traefik manager.
 func NewManager(st *store.Store, v *vault.Vault, a *audit.Log, connect Connector, binary BinarySource) *Manager {
-	return &Manager{st: st, vault: v, audit: a, connect: connect, binary: binary, now: time.Now, tlsTimeout: 30 * time.Second,
+	return &Manager{st: st, vault: v, audit: a, connect: connect, binary: binary, now: time.Now, tlsTimeout: 30 * time.Second, scan: sshx.Scan,
 		tlsDial: func(ctx context.Context, addr string) (net.Conn, error) {
 			var d net.Dialer
 			return d.DialContext(ctx, "tcp", addr)
@@ -289,7 +304,7 @@ func (m *Manager) desired(ctx context.Context, connID string) (db.TraefikConnect
 		return row, Desired{}, err
 	}
 	d := Desired{Paths: paths, APIPort: opts.APIPort, Files: files, Service: svc, Backup: disc.pendingBackup(),
-		PingTimeout: m.pingTimeout, Certs: certs}
+		PingTimeout: m.pingTimeout, Certs: certs, PackageManager: probe.PackageManager, Init: probe.Init}
 	d.Binary = func(ctx context.Context) ([]byte, error) { return m.binary(ctx, probe.Arch) }
 	return row, d, nil
 }

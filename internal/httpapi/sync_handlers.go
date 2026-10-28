@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
+	"strings"
+	"time"
 
 	"git.juzo.io/juzo/hashi/internal/certs"
 	"git.juzo.io/juzo/hashi/internal/dns"
@@ -52,11 +55,68 @@ func (s *Server) planBody(ctx context.Context, p *hsync.Plan) gen.SyncPlan {
 		Trigger: gen.SyncPlanTrigger(p.Trigger), Risk: gen.SyncPlanRisk(p.Risk), Status: gen.SyncPlanStatus(p.Status),
 		CreatedBy: p.CreatedBy, CreatedAt: p.CreatedAt, ApprovedBy: p.ApprovedBy, ApprovedAt: p.ApprovedAt, FinishedAt: p.FinishedAt,
 		Result: p.Result, Error: p.Error, Items: make([]gen.SyncPlanItem, len(p.Items))}
+	dnsItems := p.Subsystem != traefik.Subsystem && p.Subsystem != certs.Subsystem
 	for i, it := range p.Items {
 		out.Items[i] = gen.SyncPlanItem{Action: gen.SyncPlanItemAction(it.Action), Object: it.Object, Risk: gen.SyncPlanItemRisk(it.Risk),
-			Note: it.Note, Before: itemValue(it.Before), After: itemValue(it.After)}
+			Note: it.Note}
+		if dnsItems {
+			out.Items[i].Before, out.Items[i].After = itemValue(it.Before), itemValue(it.After)
+		} else {
+			out.Items[i].BeforeText, out.Items[i].AfterText = itemText(it.Before), itemText(it.After)
+		}
 	}
 	return out
+}
+
+// itemText summarizes a Traefik or certificate item's JSON (path, hash, mode, version, names, expiry) in one line;
+// hashes are shortened, key material never appears in items.
+func itemText(raw json.RawMessage) *string {
+	if len(raw) == 0 {
+		return nil
+	}
+	var m map[string]any
+	if json.Unmarshal(raw, &m) != nil {
+		return nil
+	}
+	var parts []string
+	for _, k := range []string{"package", "version", "names", "paths", "to", "mode", "sha256", "hash", "fingerprint", "not_after"} {
+		v, ok := m[k]
+		if !ok || v == "" || v == nil {
+			continue
+		}
+		switch x := v.(type) {
+		case []any:
+			var ss []string
+			for _, e := range x {
+				ss = append(ss, fmt.Sprint(e))
+			}
+			parts = append(parts, strings.Join(ss, ", "))
+		case string:
+			switch k {
+			case "sha256", "hash", "fingerprint":
+				if len(x) > 12 {
+					x = x[:12] + "…"
+				}
+				parts = append(parts, "sha256 "+x)
+			case "not_after":
+				if t, err := time.Parse(time.RFC3339, x); err == nil {
+					x = "valid until " + t.UTC().Format(time.DateOnly)
+				}
+				parts = append(parts, x)
+			case "mode":
+				parts = append(parts, "mode "+x)
+			case "to":
+				parts = append(parts, "to "+x)
+			default:
+				parts = append(parts, x)
+			}
+		}
+	}
+	if len(parts) == 0 {
+		return nil
+	}
+	t := strings.Join(parts, " · ")
+	return &t
 }
 
 func itemValue(raw json.RawMessage) *gen.SyncPlanItemValue {

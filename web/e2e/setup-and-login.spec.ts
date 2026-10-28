@@ -80,6 +80,53 @@ test('setup with a passkey, then sign in with it', async ({ page }) => {
 	await expect(page.getByText('Write access confirmed', { exact: true })).toBeVisible();
 	await page.getByRole('button', { name: 'Save decisions and continue' }).click();
 
+	// Certificates can only be proven for names inside the managed zone (03 §5.3), so the root domain moves into it.
+	await expect(page.getByRole('heading', { name: 'Certificates' })).toBeVisible();
+	await page.getByRole('button', { name: 'Base settings' }).click();
+	await page.getByLabel('Root domain').fill('example.com');
+	await page.getByLabel('Admin domain').fill('hashi.example.com');
+	await page.getByRole('button', { name: 'Save and continue' }).click();
+
+	// Step 4: certificate authority (dev build: a local CA; the DNS-01 values go through the fake zone).
+	await expect(page.getByRole('heading', { name: 'Certificates' })).toBeVisible();
+	await page.getByLabel('Google Trust Services').check();
+	await page.getByLabel('Contact email').fill('admin@example.com');
+	await page.getByLabel('EAB key ID').fill('kid-e2e');
+	await expect(page.getByRole('button', { name: 'Register account' })).toBeDisabled(); // HMAC missing
+	await page.getByLabel('EAB HMAC key').fill('ZTJlLWhtYWMta2V5');
+	await page.getByRole('button', { name: 'Register account' }).click();
+	await expect(page.getByText('Account registered with Google Trust Services')).toBeVisible();
+	await page.getByRole('button', { name: 'Issue the certificate now' }).click();
+	await expect(page.getByText('Issued', { exact: true })).toBeVisible();
+	await expect(page.getByText('*.example.com', { exact: false }).first()).toBeVisible();
+	await page.getByRole('button', { name: 'Continue' }).click();
+
+	// Step 5: Traefik host (dev build: an in-memory Debian 13 host). Key shown, compared, pinned; checks; takeover; install.
+	await expect(page.getByRole('heading', { name: 'Connect a Traefik host' })).toBeVisible();
+	await expect(page.getByTestId('hashi-public-key')).toContainText('ssh-ed25519 ');
+	await page.getByLabel('Host or IP').fill('192.0.2.10');
+	await page.getByRole('button', { name: 'Read the host key' }).click();
+	await expect(page.getByTestId('host-key')).toContainText('SHA256:');
+	await page.getByRole('button', { name: "It doesn't match" }).click();
+	await expect(page.getByRole('alert')).toContainText('Connection stopped');
+	await page.getByRole('button', { name: 'Read the host key' }).click();
+	await page.getByRole('button', { name: 'It matches, pin it' }).click();
+	const checks = page.getByRole('list', { name: 'Checks' });
+	await expect(checks).toContainText('Debian GNU/Linux 13');
+	await expect(checks).toContainText('No Traefik found on the host');
+	await expect(page.getByRole('button', { name: 'Continue' })).toBeDisabled();
+	await page.getByLabel(/Hashi may run its own Traefik service/).check();
+	await page.getByRole('button', { name: 'Confirm', exact: true }).click();
+	await page.getByRole('button', { name: 'Plan the install' }).click();
+	await expect(page.getByRole('heading', { name: 'Traefik on edge' })).toBeVisible();
+	await expect(page.getByText('traefik binary')).toBeVisible();
+	await page.getByRole('button', { name: 'Approve and run' }).click();
+	await expect(page.getByText('Installed and verified')).toBeVisible();
+	await expect(
+		page.getByText(/certificate\(s\) served with the expected fingerprint/)
+	).toBeVisible();
+	await page.getByRole('button', { name: 'Continue' }).click();
+
 	// Step 9: passkey, then recovery key with its checksum group.
 	await expect(page.getByRole('heading', { name: 'Passkey and recovery key' })).toBeVisible();
 	await page.getByLabel('Name').fill('E2E authenticator');
@@ -166,6 +213,33 @@ test('setup with a passkey, then sign in with it', async ({ page }) => {
 	await expect(page.getByText('Nothing waiting')).toBeVisible();
 	await page.getByRole('link', { name: 'DNS' }).first().click();
 	await expect(records.getByRole('row', { name: /^_hashi-test A / })).toHaveCount(0);
+
+	// Traefik: the host from setup with the files Hashi applied; the certificate is served by it; "Renew now" plans.
+	await page.getByRole('link', { name: 'Traefik' }).first().click();
+	await expect(page).toHaveURL(/\/traefik$/);
+	await expect(page.getByText('v3.7.16')).toBeVisible();
+	const files = page.getByRole('list', { name: 'Files on edge' });
+	await expect(files).toContainText('40-hashi-security.yml');
+	await expect(files).toContainText('example.com.crt');
+	await expect(files).not.toContainText('example.com.key'); // key hashes stay out of the database
+	await page.getByRole('button', { name: 'Check and sync' }).click();
+	await expect(page.getByRole('status')).toContainText('edge already matches');
+	await page.getByRole('tab', { name: 'Certificates' }).click();
+	await expect(page).toHaveURL(/\?tab=certificates$/);
+	const certs = page.getByRole('list', { name: 'Certificates' });
+	await expect(certs).toContainText('example.com, *.example.com');
+	await expect(certs).toContainText('served by 1 of 1 host');
+	await expect(certs).toContainText('Hashi dev');
+	await page.getByRole('button', { name: 'Renew now' }).click();
+	await expect(page.getByRole('status')).toContainText('example.com renewed');
+	await expect(certs).toContainText('served by 0 of 1 host'); // the new one is not on the host yet
+	await page.getByRole('tab', { name: 'Hosts' }).click();
+	await page.getByRole('button', { name: 'Check and sync' }).click();
+	await expect(page.getByRole('status')).toContainText(
+		'certificate(s) served with the expected fingerprint'
+	);
+	await page.getByRole('tab', { name: 'Certificates' }).click();
+	await expect(certs).toContainText('served by 1 of 1 host');
 
 	// Account: the passkey and this session; the last passkey cannot be deleted.
 	await page.goto(`${state.baseURL}/settings?category=account`);

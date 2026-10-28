@@ -489,7 +489,7 @@ export const rrsets: Rrset[] = [
 
 export type PlanItem = {
 	action: 'create' | 'update' | 'delete' | 'label' | 'conflict' | 'write file' | 'restart';
-	subsystem: 'DNS' | 'Traefik' | 'Firewall' | 'AdGuard';
+	subsystem: 'DNS' | 'Traefik' | 'Certificates' | 'Firewall' | 'AdGuard';
 	target: string;
 	object: string;
 	before?: string;

@@ -1001,7 +1001,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Renew now — creates a low-risk certificates plan for this certificate (apply it from Changes) */
+        /** Renew now — a low-risk certificates plan for this certificate, applied right away (takes about a minute) */
         post: operations["renewCertificate"];
         delete?: never;
         options?: never;
@@ -1615,6 +1615,10 @@ export interface components {
             object: string;
             before?: components["schemas"]["SyncPlanItemValue"];
             after?: components["schemas"]["SyncPlanItemValue"];
+            /** @description Summary of the before state for non-DNS items (file hash, version, names) */
+            before_text?: string;
+            /** @description Summary of the after state for non-DNS items */
+            after_text?: string;
             /** @enum {string} */
             risk: "low" | "high";
             note: string;
@@ -3271,7 +3275,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description The plan */
+            /** @description The plan after the run; distribution to the hosts follows with the daily job or "Check and sync" */
             200: {
                 headers: {
                     [name: string]: unknown;

@@ -1323,9 +1323,15 @@ type SyncPlanItem struct {
 	// After Exact DNS RRSet sent and verified (TXT as plain text)
 	After *SyncPlanItemValue `json:"after,omitempty"`
 
+	// AfterText Summary of the after state for non-DNS items
+	AfterText *string `json:"after_text,omitempty"`
+
 	// Before Exact DNS RRSet sent and verified (TXT as plain text)
 	Before *SyncPlanItemValue `json:"before,omitempty"`
-	Note   string             `json:"note"`
+
+	// BeforeText Summary of the before state for non-DNS items (file hash, version, names)
+	BeforeText *string `json:"before_text,omitempty"`
+	Note       string  `json:"note"`
 
 	// Object e.g. `www A`
 	Object string           `json:"object"`
@@ -1627,7 +1633,7 @@ type ServerInterface interface {
 	// ListCertificates Certificates with expiry, last renewal and per-host distribution
 	// (GET /api/certificates)
 	ListCertificates(w http.ResponseWriter, r *http.Request)
-	// RenewCertificate Renew now — creates a low-risk certificates plan for this certificate (apply it from Changes)
+	// RenewCertificate Renew now — a low-risk certificates plan for this certificate, applied right away (takes about a minute)
 	// (POST /api/certificates/{id}/renew)
 	RenewCertificate(w http.ResponseWriter, r *http.Request, id string)
 	// GetDNSImport Import table; rows without a decision are new since the last import
@@ -6277,7 +6283,7 @@ type StrictServerInterface interface {
 	// ListCertificates Certificates with expiry, last renewal and per-host distribution
 	// (GET /api/certificates)
 	ListCertificates(ctx context.Context, request ListCertificatesRequestObject) (ListCertificatesResponseObject, error)
-	// RenewCertificate Renew now — creates a low-risk certificates plan for this certificate (apply it from Changes)
+	// RenewCertificate Renew now — a low-risk certificates plan for this certificate, applied right away (takes about a minute)
 	// (POST /api/certificates/{id}/renew)
 	RenewCertificate(ctx context.Context, request RenewCertificateRequestObject) (RenewCertificateResponseObject, error)
 	// GetDNSImport Import table; rows without a decision are new since the last import

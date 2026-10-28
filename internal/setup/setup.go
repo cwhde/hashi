@@ -72,8 +72,8 @@ var Steps = []Definition{
 }
 
 // built are the steps this build implements.
-// Steps 4 and 5 have their API (S4 PR A) and count as built with their wizard pages (S4 PR B).
-var built = map[int]bool{StepBootstrap: true, StepBase: true, StepDNS: true, StepPasskey: true, StepComplete: true}
+var built = map[int]bool{StepBootstrap: true, StepBase: true, StepDNS: true, StepCert: true, StepTraefik: true, StepPasskey: true,
+	StepComplete: true}
 
 // StepState is a step's definition plus its persisted state.
 type StepState struct {

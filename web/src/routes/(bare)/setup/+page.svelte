@@ -14,6 +14,8 @@
 	import { ceremonyText, createPasskey, passkeysSupported } from '$lib/auth/webauthn';
 	import { theme, themes, type ThemeId } from '$lib/theme.svelte';
 	import ImportTable from '$lib/components/hashi/dns/ImportTable.svelte';
+	import CertificateStep from '$lib/components/hashi/setup/CertificateStep.svelte';
+	import TraefikStep from '$lib/components/hashi/setup/TraefikStep.svelte';
 	import PlanReview from '$lib/components/hashi/PlanReview.svelte';
 	import Tag from '$lib/components/hashi/Tag.svelte';
 	import { outcomeText, reviewItems, triggerText, type Plan } from '$lib/sync';
@@ -606,6 +608,18 @@
 				{:else if dnsZone}
 					<Skeleton class="mt-8 h-64 rounded-2xl" />
 				{/if}
+			{:else if step.n === 4}
+				<CertificateStep
+					{setup}
+					onupdate={(s) => (setup = s)}
+					oncontinue={() => setup && (selected = firstOpen(setup))}
+				/>
+			{:else if step.n === 5}
+				<TraefikStep
+					{setup}
+					onupdate={(s) => (setup = s)}
+					oncontinue={() => setup && (selected = firstOpen(setup))}
+				/>
 			{:else if step.n === 9}
 				<h1 class="mt-1 text-[24px] font-semibold">Passkey and recovery key</h1>
 				<p class="mt-1 max-w-[62ch] text-[13.5px] text-muted-foreground">

@@ -1,0 +1,15 @@
+# Managed by Hashi. Changes are overwritten.
+/var/log/hashi/traefik/*.log {
+	daily
+	maxsize 100M
+	rotate 14
+	missingok
+	notifempty
+	compress
+	delaycompress
+	dateext
+	sharedscripts
+	postrotate
+		pkill -USR1 -f '^/usr/local/bin/traefik --configFile=/etc/hashi/traefik/traefik.yaml$' || true
+	endscript
+}

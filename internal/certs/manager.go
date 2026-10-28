@@ -28,7 +28,7 @@ import (
 // is missing or due) or a certificate ID ("Renew now" for that certificate).
 const Subsystem = "certificates"
 
-// JobKind is the daily renewal job.
+// JobKind is the renewal job (hourly, JobInterval).
 const JobKind = "certificates.renew"
 
 // Vault purposes (service class: issuing runs unattended).
@@ -76,14 +76,29 @@ type Manager struct {
 	now    func() time.Time
 	// wait checks that a challenge value is visible; WaitTXT by default (tests shorten the poll).
 	wait func(ctx context.Context, servers []string, fqdn, value string) error
+	// newClient opens the ACME client: NewClient, or the dev build's local CA.
+	newClient ClientFactory
 }
+
+// ACMEClient is what the manager needs from an ACME client (*Client).
+type ACMEClient interface {
+	Register(ctx context.Context) (string, error)
+	Issue(ctx context.Context, solver Solver, names []string, opt IssueOptions) (Issued, error)
+}
+
+// ClientFactory opens an ACME client for an account.
+type ClientFactory func(httpClient *http.Client, acct Account) ACMEClient
+
+// UseClients replaces the ACME client (the dev build's local CA; never in production builds).
+func (m *Manager) UseClients(f ClientFactory) { m.newClient = f }
 
 // NewManager returns the certificate manager. httpClient talks to the CA (nil = http.DefaultClient).
 func NewManager(st *store.Store, v *vault.Vault, a *audit.Log, solver SolverSource, httpClient *http.Client, log *slog.Logger) *Manager {
 	return &Manager{st: st, vault: v, audit: a, solver: solver, http: httpClient, log: log.With("component", "certs"), now: time.Now,
 		wait: func(ctx context.Context, servers []string, fqdn, value string) error {
 			return WaitTXT(ctx, servers, fqdn, value, 5*time.Second)
-		}}
+		},
+		newClient: func(h *http.Client, a Account) ACMEClient { return NewClient(h, a) }}
 }
 
 // Subsystems returns the sync subsystems to register with the engine.
@@ -146,6 +161,10 @@ func (s certSub) Plan(ctx context.Context, target string) (hsync.Draft, error) {
 		after, _ := json.Marshal(itemCert{Name: w.Name, Names: w.Names})
 		item := hsync.Item{Action: hsync.ActionUpdate, Object: "certificate " + w.Name, After: after, Risk: hsync.Low}
 		r, ok := byName[w.Name]
+		if ok && forced == "" && r.LastRenewalResult == "failed" && r.LastRenewalAt.Valid &&
+			now.Sub(time.UnixMilli(r.LastRenewalAt.Int64)) < RetryAfter {
+			continue // the last attempt failed recently: wait before the next automatic one
+		}
 		if !ok || r.CertPem == "" {
 			item.Action, item.Note = hsync.ActionCreate, "issue"
 			items = append(items, item)
@@ -229,6 +248,25 @@ func (s certSub) Apply(ctx context.Context, target string, items []hsync.Item) (
 	return "issued " + strings.Join(done, ", "), err
 }
 
+// IssueTarget is the plan target for an "issue now" click: the account, or, after a failed first attempt, that
+// certificate, so a user action is not held back by the job's retry wait (RetryAfter, 03 §5.3).
+func (m *Manager) IssueTarget(ctx context.Context) (string, error) {
+	acct, err := m.account(ctx)
+	if err != nil {
+		return "", err
+	}
+	rows, err := m.st.R.ListCertificates(ctx)
+	if err != nil {
+		return "", err
+	}
+	for _, r := range rows {
+		if r.CertPem == "" && r.LastRenewalResult == "failed" {
+			return r.ID, nil
+		}
+	}
+	return acct.ID, nil
+}
+
 // account returns the stored ACME account.
 func (m *Manager) account(ctx context.Context) (db.AcmeAccount, error) {
 	a, err := m.st.R.GetACMEAccount(ctx)
@@ -239,7 +277,7 @@ func (m *Manager) account(ctx context.Context) (db.AcmeAccount, error) {
 }
 
 // client opens the ACME client, creating the account key and registering the account on first use.
-func (m *Manager) client(ctx context.Context, a db.AcmeAccount) (*Client, error) {
+func (m *Manager) client(ctx context.Context, a db.AcmeAccount) (ACMEClient, error) {
 	acct := Account{DirectoryURL: a.DirectoryUrl, Email: a.Email, EABKID: a.EabKid, URI: a.AccountUri}
 	if a.EabHmacSecretID.Valid {
 		v, err := m.secret(ctx, a.EabHmacSecretID.String)
@@ -278,7 +316,7 @@ func (m *Manager) client(ctx context.Context, a db.AcmeAccount) (*Client, error)
 		return nil, fmt.Errorf("ACME account key: %w", err)
 	}
 	acct.Key = crypto.Signer(key)
-	c := NewClient(m.http, acct)
+	c := m.newClient(m.http, acct)
 	if acct.URI == "" {
 		uri, err := c.Register(ctx)
 		if err != nil {

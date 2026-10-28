@@ -841,14 +841,14 @@ paths:
   /api/certificates/{id}/renew:
     post:
       operationId: renewCertificate
-      summary: Renew now — creates a low-risk certificates plan for this certificate (apply it from Changes)
+      summary: Renew now — a low-risk certificates plan for this certificate, applied right away (takes about a minute)
       tags: [traefik]
       x-hashi-scopes: [admin.write]
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
       responses:
         "200":
-          description: The plan
+          description: The plan after the run; distribution to the hosts follows with the daily job or "Check and sync"
           content: { application/json: { schema: { $ref: "#/components/schemas/SyncPlanResult" } } }
         default: { $ref: "#/components/responses/Problem" }
 
@@ -1430,6 +1430,8 @@ components:
         object: { type: string, description: "e.g. `www A`" }
         before: { $ref: "#/components/schemas/SyncPlanItemValue" }
         after: { $ref: "#/components/schemas/SyncPlanItemValue" }
+        before_text: { type: string, description: "Summary of the before state for non-DNS items (file hash, version, names)" }
+        after_text: { type: string, description: "Summary of the after state for non-DNS items" }
         risk: { type: string, enum: [low, high] }
         note: { type: string }
     SyncPlan:

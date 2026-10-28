@@ -156,6 +156,9 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 			return traefik.Download(ctx, downloads, "", arch)
 		})
 	certMgr := certs.NewManager(st, v, al, certs.DNSSolver(st, dnsSvc), &http.Client{Timeout: time.Minute}, log)
+	if err := devEdge(cfg, traefikMgr, certMgr); err != nil {
+		return err
+	}
 	subs := append(dnsSvc.Subsystems(), traefikMgr.Subsystems()...)
 	syncEngine := hsync.New(st, al, append(subs, certMgr.Subsystems()...)...)
 	if err := syncEngine.Start(ctx); err != nil {
@@ -166,8 +169,9 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 		return err
 	}
 
-	// Daily: issue what is missing, renew 30 days ahead, then bring every Traefik host's certificate files up to date.
-	if err := runner.Register(ctx, jobs.Job{Kind: certs.JobKind, Interval: 24 * time.Hour,
+	// Hourly: issue what is missing, renew 30 days ahead (a failure waits certs.RetryAfter), then bring every Traefik
+	// host's certificate files up to date.
+	if err := runner.Register(ctx, jobs.Job{Kind: certs.JobKind, Interval: certs.JobInterval,
 		Run: certMgr.Renew(syncEngine, traefikMgr.Distribute(syncEngine))}); err != nil {
 		return err
 	}

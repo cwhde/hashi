@@ -64,7 +64,11 @@ func (c *Challenger) name(fqdn string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if !IsChallenge(rel) || FQDN(rel, c.zone.Name) != CanonicalName(fqdn) {
+	if FQDN(rel, c.zone.Name) != CanonicalName(fqdn) {
+		return "", fmt.Errorf("%w: %s is outside the managed zone %s; Hashi can only prove it owns names in that zone, so "+
+			"certificates need a root domain inside it", ErrForbiddenChange, strings.TrimPrefix(fqdn, ChallengeLabel+"."), c.zone.Name)
+	}
+	if !IsChallenge(rel) {
 		return "", fmt.Errorf("%w: %s is not a challenge name in %s", ErrForbiddenChange, fqdn, c.zone.Name)
 	}
 	return rel, nil

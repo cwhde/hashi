@@ -165,7 +165,7 @@ func TestRenderGolden(t *testing.T) {
 		"cert /etc/hashi/traefik/certs/example.com.crt", "cert /etc/hashi/traefik/certs/example.com.key",
 		"dynamic /etc/hashi/traefik/dynamic/hashi-certs.yaml", "dynamic /etc/hashi/traefik/dynamic/00-hashi-core.yml",
 		"dynamic /etc/hashi/traefik/dynamic/40-hashi-security.yml", "dynamic /etc/hashi/traefik/dynamic/90-hashi-health.yml",
-		"static /etc/hashi/traefik/traefik.yaml",
+		"system /etc/logrotate.d/hashi-traefik", "static /etc/hashi/traefik/traefik.yaml",
 	}
 	if !slices.Equal(order, want) {
 		t.Errorf("order:\n%s", strings.Join(order, "\n"))

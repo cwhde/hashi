@@ -144,7 +144,44 @@ func TestPlanIssuesRenewsAndForces(t *testing.T) {
 			t.Error("key material in a plan item")
 		}
 	}
+	// A failed attempt waits RetryAfter before the job tries again; "Renew now" does not wait.
+	issued(now.Add(10*24*time.Hour), `["example.com","*.example.com"]`)
+	_ = f.st.Q.SetCertificateRenewalFailed(ctx, db.SetCertificateRenewalFailedParams{
+		LastRenewalAt: sql.NullInt64{Int64: now.Add(-time.Hour).UnixMilli(), Valid: true}, LastRenewalError: "CA down", ID: "cert1"})
+	if d, _ := sub.Plan(ctx, "acme1"); len(d.Items) != 0 {
+		t.Errorf("retry within the backoff: %s", itemsNotes(d.Items))
+	}
+	if d, _ := sub.Plan(ctx, "cert1"); len(d.Items) != 1 {
+		t.Errorf("renew now during the backoff: %s", itemsNotes(d.Items))
+	}
+	now = now.Add(RetryAfter)
+	if d, _ := sub.Plan(ctx, "acme1"); len(d.Items) != 1 {
+		t.Errorf("retry after the backoff: %s", itemsNotes(d.Items))
+	}
 	if _, err := sub.Plan(ctx, "nope"); err == nil {
 		t.Error("unknown target accepted")
+	}
+}
+
+// Review of #33: after a failed first issue, the job waits RetryAfter, but the setup click ("Issue now", "Try again")
+// targets the certificate and tries at once.
+func TestIssueNowRetriesAfterFailedFirstIssue(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t)
+	m := NewManager(f.st, f.vault, f.audit, nil, nil, slog.Default())
+	now := time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC)
+	m.now = func() time.Time { return now }
+	f.account(t, "https://ca.example.test/dir", "", "", "[]")
+	m.failed(ctx, "example.com", errors.New("the CA did not validate example.com"))
+	sub := certSub{m}
+	if d, _ := sub.Plan(ctx, "acme1"); len(d.Items) != 0 {
+		t.Fatalf("the job retries within the wait: %s", itemsNotes(d.Items))
+	}
+	target, err := m.IssueTarget(ctx)
+	if err != nil || target == "acme1" {
+		t.Fatalf("target %q %v", target, err)
+	}
+	if d, _ := sub.Plan(ctx, target); len(d.Items) != 1 || d.Items[0].Action != hsync.ActionCreate {
+		t.Errorf("issue now after a failure: %s", itemsNotes(d.Items))
 	}
 }

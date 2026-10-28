@@ -55,6 +55,10 @@ func TestSetupSteps4And5API(t *testing.T) {
 	if r := c.mustStatus(c.do(http.MethodPost, "/api/setup/certificates/issue", nil), 200); r.body["plan"].(map[string]any)["status"] != "failed" {
 		t.Fatalf("issue: %s", r.raw)
 	}
+	// "Try again" right away tries again.
+	if r := c.mustStatus(c.do(http.MethodPost, "/api/setup/certificates/issue", nil), 200); r.body["plan"] == nil {
+		t.Fatalf("try again: %s", r.raw)
+	}
 
 	// Step 5: Hashi's key, a scan of a closed port, input checks, nothing to confirm or plan yet.
 	r = c.mustStatus(c.do(http.MethodPost, "/api/setup/traefik/identity", nil), 200)
