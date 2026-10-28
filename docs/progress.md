@@ -37,10 +37,14 @@ Decisions made in PR A:
 - NS/SOA and change-protected RRSets allow only "leave" on the import table; the schema backs this with CHECKs.
 - `dns.refresh` job interval = the sync interval at startup (a changed interval applies after a restart).
 - No 429 response was captured; the adapter acts on the status code and the captured `RateLimit-*` headers only.
+- PR A review (#28) fixed: a token that cannot see the stored zone no longer replaces the stored token (no zone chosen
+  → nothing stored); types outside the provider's managed set are leave-only on the import table.
 
 PR B — UI + deploy
 - [ ] Setup step 3 (provider, token, zone auto-pick, read-only validation) and the import table.
 - [ ] `/dns`: Records (observed, origin, read-only in S2) and Import tab with decisions, from the approved mock.
+- [ ] Contract drift job (03 §2 point 4): manual dispatch + weekly workflow re-runs the read-only capture and diffs
+      response shapes (from the PR A review).
 - [ ] Deploy (user OK) and prod-proof: real zone listed, import table matches the zone, decisions survive a restart.
 
 ## Side step: security model (branch `security-model`)
@@ -158,6 +162,10 @@ Decisions made in S0:
 ## Unverified
 
 (Review findings that were not reproduced. Not worked on unless promoted.)
+
+- S2 PR A review (#28): the zones pagination replay uses captures taken with `per_page=1` while the adapter sends
+  `per_page=25` (the replay ignores `per_page`); `zone_get_by_name.json` is never replayed because the adapter does not
+  call that endpoint. Test-shape gaps, no wrong behaviour observed.
 
 - S1 review (#26): Activity → Live log keeps its last sequence number across a server restart (sequence restarts at 0),
   so an open tab could skip the startup lines after a restart. Read from code, not observed.

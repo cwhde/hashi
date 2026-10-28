@@ -320,8 +320,9 @@ paths:
       summary: Step 3 — validate a DNS provider token read-only, pick the zone, store the first snapshot
       description: |
         Lists the zones the token sees and reads the chosen zone's RRSets; nothing is stored when that fails
-        (invariant 3). Without `zone_id` the zone containing the root domain is chosen; when none does, `zone` is
-        absent and the admin picks one from `zones`. Omitting `token` reuses the stored one.
+        (invariant 3). Without `zone_id` the zone containing the root domain (or the stored zone) is chosen; when
+        none is, only `zones` is returned, nothing is stored, and the admin sends the token again with a `zone_id`.
+        Omitting `token` reuses the stored one.
       tags: [setup]
       x-hashi-scopes: [setup.manage]
       requestBody:
@@ -800,7 +801,8 @@ components:
         name: { type: string }
     DNSConnectResult:
       type: object
-      required: [provider, zones]
+      description: "`provider` and `zone` are absent when no zone was chosen (nothing stored)"
+      required: [zones]
       properties:
         provider: { $ref: "#/components/schemas/DNSProvider" }
         zones:

@@ -101,12 +101,15 @@ func TestConnectWithoutMatchingZoneAsksForChoice(t *testing.T) {
 	if err != nil || res.Zone != nil || len(res.Zones) != 2 {
 		t.Fatalf("res = %+v, %v", res, err)
 	}
-	// Picking a zone later works without re-entering the token.
-	res, err = f.svc.Connect(ctx, "test", "", dns.ConnectInput{Type: "hetzner", DefaultTTL: 300, RootDomain: "example.net", ZoneID: res.Zones[0].ID})
+	if _, _, err := f.svc.Current(ctx); !errors.Is(err, dns.ErrNotConfigured) {
+		t.Errorf("stored without a zone: %v", err)
+	}
+	res, err = f.svc.Connect(ctx, "test", "", dns.ConnectInput{Type: "hetzner", Token: secrets.New(hetznertest.Token), DefaultTTL: 300,
+		RootDomain: "example.net", ZoneID: res.Zones[0].ID})
 	if err != nil || res.Zone == nil || res.Zone.Name != "example.com" {
 		t.Fatalf("pick: %+v, %v", res, err)
 	}
-	if _, err := f.svc.Connect(ctx, "test", "", dns.ConnectInput{Type: "hetzner", DefaultTTL: 300, ZoneID: "123"}); !errors.Is(err, dns.ErrInvalid) {
+	if _, err := f.svc.Connect(ctx, "test", "", dns.ConnectInput{Type: "hetzner", DefaultTTL: 300, ZoneID: "123"}); !errors.Is(err, dns.ErrInvalid) { // stored token reused
 		t.Errorf("unknown zone id: %v", err)
 	}
 }
@@ -162,7 +165,7 @@ func TestDecisionsPersistAndOwnership(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, rows, _ = f.svc.ImportTable(ctx, z.ID)
-	if i := slices.IndexFunc(rows, func(o dns.Observed) bool { return o.Name == "svc2" && o.Type == "CNAME" }); i < 0 || rows[i].Decision == nil || *rows[i].Decision != dns.Prune {
+	if i := slices.IndexFunc(rows, func(o dns.ImportRow) bool { return o.Name == "svc2" && o.Type == "CNAME" }); i < 0 || rows[i].Decision == nil || *rows[i].Decision != dns.Prune {
 		t.Error("decision lost on refresh")
 	}
 }
@@ -182,8 +185,8 @@ func TestInvariant_2_ImportRejectsNSSOAPrune(t *testing.T) {
 	_, rows, _ := f.svc.ImportTable(ctx, z.ID)
 	for _, r := range rows {
 		if dns.Protected(r.Type) {
-			if r.Decision != nil || r.Origin != "" || !slices.Equal(dns.AllowedDecisions(r.RRSet), []dns.Decision{dns.Leave}) {
-				t.Errorf("%s %s: decision=%v origin=%q allowed=%v", r.Name, r.Type, r.Decision, r.Origin, dns.AllowedDecisions(r.RRSet))
+			if r.Decision != nil || r.Origin != "" || !slices.Equal(r.Allowed, []dns.Decision{dns.Leave}) {
+				t.Errorf("%s %s: decision=%v origin=%q allowed=%v", r.Name, r.Type, r.Decision, r.Origin, r.Allowed)
 			}
 		}
 	}
@@ -240,5 +243,38 @@ func TestRRSetsFilter(t *testing.T) {
 	}
 	if _, err := f.svc.RRSets(context.Background(), "nope", "", ""); !errors.Is(err, dns.ErrNoZone) {
 		t.Errorf("unknown zone: %v", err)
+	}
+}
+
+// Review finding (#28): a new token that cannot see the managed zone must not replace the stored token, and the old
+// zone must not stay as if validated.
+func TestConnectTokenWithoutManagedZoneStoresNothing(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	first := connect(t, f)
+	before, _ := f.st.R.ListSecretMeta(ctx)
+	f.srv.Override = func(w http.ResponseWriter, r *http.Request) bool {
+		if r.URL.Path == "/v1/zones" { // this token sees only the other zone
+			_, _ = w.Write([]byte(`{"zones":[{"id":100002,"name":"example.org","ttl":3600}],"meta":{"pagination":{"next_page":null}}}`))
+			return true
+		}
+		return false
+	}
+	res, err := f.svc.Connect(ctx, "test", "", dns.ConnectInput{Type: "hetzner", Token: secrets.New("other-" + hetznertest.Token),
+		DefaultTTL: 600, RootDomain: "example.com"})
+	if err != nil || res.Zone != nil || len(res.Zones) != 1 {
+		t.Fatalf("res = %+v, %v; want the zone list and no zone", res, err)
+	}
+	after, _ := f.st.R.ListSecretMeta(ctx)
+	if len(after) != 1 || after[0].ID != before[0].ID {
+		t.Errorf("stored token replaced: %+v → %+v", before, after)
+	}
+	p, z, err := f.svc.Current(ctx)
+	if err != nil || z == nil || z.ID != first.Zone.ID || p.DefaultTTL != 3600 {
+		t.Errorf("stored state changed: %+v %+v %v", p, z, err)
+	}
+	f.srv.Override = nil
+	if _, err := f.svc.Refresh(ctx, first.Zone.ID); err != nil {
+		t.Errorf("stored token no longer reads the zone: %v", err)
 	}
 }

@@ -384,10 +384,10 @@ type CeremonyResponse struct {
 	Name *string `json:"name,omitempty"`
 }
 
-// DNSConnectResult defines model for DNSConnectResult.
+// DNSConnectResult `provider` and `zone` are absent when no zone was chosen (nothing stored)
 type DNSConnectResult struct {
-	Provider DNSProvider `json:"provider"`
-	Zone     *DNSZone    `json:"zone,omitempty"`
+	Provider *DNSProvider `json:"provider,omitempty"`
+	Zone     *DNSZone     `json:"zone,omitempty"`
 
 	// Zones Zones the token sees (only right after validation; empty when read back)
 	Zones []DNSProviderZone `json:"zones"`
@@ -670,9 +670,11 @@ type SessionList struct {
 
 // SetupState defines model for SetupState.
 type SetupState struct {
-	BaseSettings *BaseSettings     `json:"base_settings,omitempty"`
-	Completed    bool              `json:"completed"`
-	Dns          *DNSConnectResult `json:"dns,omitempty"`
+	BaseSettings *BaseSettings `json:"base_settings,omitempty"`
+	Completed    bool          `json:"completed"`
+
+	// Dns `provider` and `zone` are absent when no zone was chosen (nothing stored)
+	Dns *DNSConnectResult `json:"dns,omitempty"`
 
 	// Passkeys Registered passkeys (setup sessions only)
 	Passkeys *int        `json:"passkeys,omitempty"`

@@ -51,12 +51,11 @@ func dnsRRSetBody(z dns.ZoneInfo, o dns.Observed) gen.DNSRRSet {
 		Values: o.Values, Protected: o.Protected, Origin: gen.DNSOrigin(origin), ObservedAt: o.ObservedAt}
 }
 
-func dnsImportBody(z dns.ZoneInfo, rows []dns.Observed) gen.DNSImportTable {
+func dnsImportBody(z dns.ZoneInfo, rows []dns.ImportRow) gen.DNSImportTable {
 	out := gen.DNSImportTable{Zone: dnsZoneBody(z), Rows: make([]gen.DNSImportRow, len(rows))}
 	for i, o := range rows {
-		allowed := dns.AllowedDecisions(o.RRSet)
-		r := gen.DNSImportRow{Rrset: dnsRRSetBody(z, o), AllowedDecisions: make([]gen.DNSDecision, len(allowed))}
-		for j, a := range allowed {
+		r := gen.DNSImportRow{Rrset: dnsRRSetBody(z, o.Observed), AllowedDecisions: make([]gen.DNSDecision, len(o.Allowed))}
+		for j, a := range o.Allowed {
 			r.AllowedDecisions[j] = gen.DNSDecision(a)
 		}
 		if o.Decision != nil {
@@ -164,7 +163,7 @@ func (s *Server) setupDNSBody(ctx context.Context) (*gen.DNSConnectResult, error
 	if err != nil {
 		return nil, err
 	}
-	out := &gen.DNSConnectResult{Provider: dnsProviderBody(*p), Zones: []gen.DNSProviderZone{}}
+	out := &gen.DNSConnectResult{Provider: ptr(dnsProviderBody(*p)), Zones: []gen.DNSProviderZone{}}
 	if z != nil {
 		out.Zone = ptr(dnsZoneBody(*z))
 	}
@@ -198,19 +197,17 @@ func (s *Server) PutSetupDNSProvider(ctx context.Context, req gen.PutSetupDNSPro
 		}
 		return nil, dnsError(err)
 	}
-	inputs := map[string]any{"type": in.Type, "default_ttl": in.DefaultTTL, "zone": ""}
-	if res.Zone != nil {
-		inputs["zone"] = res.Zone.Name
-	}
-	if err := s.Setup.MarkInProgress(ctx, s.Store.Q, setup.StepDNS, inputs); err != nil {
-		return nil, err
-	}
-	out := gen.DNSConnectResult{Provider: dnsProviderBody(res.Provider), Zones: make([]gen.DNSProviderZone, len(res.Zones))}
+	out := gen.DNSConnectResult{Zones: make([]gen.DNSProviderZone, len(res.Zones))}
 	for i, z := range res.Zones {
 		out.Zones[i] = gen.DNSProviderZone{Id: z.ID, Name: z.Name}
 	}
-	if res.Zone != nil {
-		out.Zone = ptr(dnsZoneBody(*res.Zone))
+	if res.Zone == nil {
+		return gen.PutSetupDNSProvider200JSONResponse(out), nil // nothing stored; the admin picks a zone
+	}
+	out.Provider, out.Zone = ptr(dnsProviderBody(*res.Provider)), ptr(dnsZoneBody(*res.Zone))
+	inputs := map[string]any{"type": in.Type, "default_ttl": in.DefaultTTL, "zone": res.Zone.Name}
+	if err := s.Setup.MarkInProgress(ctx, s.Store.Q, setup.StepDNS, inputs); err != nil {
+		return nil, err
 	}
 	return gen.PutSetupDNSProvider200JSONResponse(out), nil
 }

@@ -82,16 +82,17 @@ type ConnectInput struct {
 	ZoneID     string
 }
 
-// ConnectResult lists the zones the token sees and the zone now managed; Zone is nil when none contains the root
-// domain and the admin has to pick one.
+// ConnectResult lists the zones the token sees and the zone now managed. Provider and Zone are nil when no zone
+// contains the root domain: nothing was stored and the admin picks one (sending the token again).
 type ConnectResult struct {
-	Provider ProviderInfo
+	Provider *ProviderInfo
 	Zones    []Zone
 	Zone     *ZoneInfo
 }
 
 // Connect validates a token read-only (list zones, read the zone's RRSets), then stores the provider with its token
-// sealed in the vault, the managed zone and its first snapshot. Nothing is stored when validation fails.
+// sealed in the vault, the managed zone and its first snapshot. Nothing is stored when validation fails or no zone
+// was chosen, so a stored token can always read the stored zone.
 func (s *Service) Connect(ctx context.Context, actor, ip string, in ConnectInput) (ConnectResult, error) {
 	if !slices.Contains(ProviderTypes, in.Type) {
 		return ConnectResult{}, fmt.Errorf("%w: unknown provider type %q", ErrInvalid, in.Type)
@@ -127,11 +128,13 @@ func (s *Service) Connect(ctx context.Context, actor, ip string, in ConnectInput
 	if err != nil {
 		return ConnectResult{}, err
 	}
-	var rrsets []RRSet
-	if zone != nil {
-		if rrsets, err = r.ListRRSets(ctx, *zone); err != nil {
-			return ConnectResult{}, fmt.Errorf("%w: read RRSets of %s: %w", ErrValidation, zone.Name, err)
-		}
+	if zone == nil {
+		// Validation is incomplete until a zone's RRSets were read with this token: store nothing, let the admin pick.
+		return ConnectResult{Zones: zones}, nil
+	}
+	rrsets, err := r.ListRRSets(ctx, *zone)
+	if err != nil {
+		return ConnectResult{}, fmt.Errorf("%w: read RRSets of %s: %w", ErrValidation, zone.Name, err)
 	}
 
 	now := s.now()
@@ -140,10 +143,6 @@ func (s *Service) Connect(ctx context.Context, actor, ip string, in ConnectInput
 		var err error
 		if providerID, err = s.saveProvider(ctx, q, existing, in, now); err != nil {
 			return err
-		}
-		if zone == nil {
-			return s.audit.Record(ctx, q, audit.Event{Actor: actor, Action: "dns.provider.validated", IP: ip,
-				Target: "dns_provider:" + providerID, Detail: map[string]any{"type": in.Type, "zones": len(zones), "zone": "none matched"}})
 		}
 		if zoneID, err = s.saveZone(ctx, q, providerID, *zone, now); err != nil {
 			return err
@@ -157,24 +156,15 @@ func (s *Service) Connect(ctx context.Context, actor, ip string, in ConnectInput
 	if err != nil {
 		return ConnectResult{}, err
 	}
-	res := ConnectResult{Zones: zones}
-	p, err := s.provider(ctx, s.st.R)
+	zi, err := s.Zone(ctx, zoneID)
 	if err != nil {
-		return res, err
+		return ConnectResult{}, err
 	}
-	res.Provider = *p
-	if zoneID != "" {
-		zi, err := s.Zone(ctx, zoneID)
-		if err != nil {
-			return res, err
-		}
-		res.Zone = &zi
-	}
-	return res, nil
+	return ConnectResult{Provider: &zi.Provider, Zones: zones, Zone: &zi}, nil
 }
 
 // pickZone: an explicit choice must be one the token sees; otherwise the zone containing the root domain, else the
-// zone already stored (resuming setup), else none.
+// zone already stored if this token sees it (resuming setup), else none.
 func (s *Service) pickZone(ctx context.Context, zones []Zone, in ConnectInput, existing *ProviderInfo) (*Zone, error) {
 	if in.ZoneID != "" {
 		for _, z := range zones {
@@ -584,14 +574,44 @@ func (s *Service) observed(ctx context.Context, q *db.Queries, zoneID string) ([
 	return out, nil
 }
 
+// ImportRow is an observed RRSet with the decisions the import table may offer for it.
+type ImportRow struct {
+	Observed
+	Allowed []Decision
+}
+
 // ImportTable returns every observed RRSet of the zone with its decision; undecided rows are the new ones (03 §4).
-func (s *Service) ImportTable(ctx context.Context, zoneID string) (ZoneInfo, []Observed, error) {
+func (s *Service) ImportTable(ctx context.Context, zoneID string) (ZoneInfo, []ImportRow, error) {
 	z, err := s.Zone(ctx, zoneID)
 	if err != nil {
 		return ZoneInfo{}, nil, err
 	}
-	rows, err := s.observed(ctx, s.st.R, zoneID)
-	return z, rows, err
+	caps, err := s.capabilities(ctx, z.Provider)
+	if err != nil {
+		return ZoneInfo{}, nil, err
+	}
+	obs, err := s.observed(ctx, s.st.R, zoneID)
+	if err != nil {
+		return ZoneInfo{}, nil, err
+	}
+	rows := make([]ImportRow, len(obs))
+	for i, o := range obs {
+		rows[i] = ImportRow{Observed: o, Allowed: AllowedDecisions(o.RRSet, caps)}
+	}
+	return z, rows, nil
+}
+
+// capabilities asks the provider's adapter (static for Hetzner; no request is made).
+func (s *Service) capabilities(ctx context.Context, p ProviderInfo) (Capabilities, error) {
+	token, err := s.token(ctx, p)
+	if err != nil {
+		return Capabilities{}, err
+	}
+	r, err := s.open(p.Type, token)
+	if err != nil {
+		return Capabilities{}, err
+	}
+	return r.Capabilities(ctx)
 }
 
 // DecisionInput is one row of a decisions save.
@@ -603,8 +623,16 @@ type DecisionInput struct {
 
 // SaveDecisions persists import decisions. Each must name an observed RRSet and be allowed for it (NS/SOA and
 // change-protected RRSets: leave only, invariant 2). "import" makes the RRSet Hashi's with origin imported; taking it
-// back removes only that imported ownership. Prune decisions are only recorded; deleting needs S3's confirmed plan.
+// back removes only that imported ownership. Types the provider cannot manage are leave-only too. Prune decisions are only recorded; deleting needs S3's confirmed plan.
 func (s *Service) SaveDecisions(ctx context.Context, actor, ip, zoneID string, in []DecisionInput) error {
+	z, err := s.Zone(ctx, zoneID)
+	if err != nil {
+		return err
+	}
+	caps, err := s.capabilities(ctx, z.Provider)
+	if err != nil {
+		return err
+	}
 	return s.st.Tx(ctx, func(q *db.Queries) error {
 		if _, err := q.GetDNSZone(ctx, zoneID); errors.Is(err, sql.ErrNoRows) {
 			return ErrNoZone
@@ -632,7 +660,7 @@ func (s *Service) SaveDecisions(ctx context.Context, actor, ip, zoneID string, i
 			if !ok {
 				return fmt.Errorf("%w: %s %s is not in the zone's last snapshot; refresh and try again", ErrInvalid, k.name, k.typ)
 			}
-			if err := CheckDecision(o.RRSet, d.Decision); err != nil {
+			if err := CheckDecision(o.RRSet, caps, d.Decision); err != nil {
 				return fmt.Errorf("%w: %w", ErrInvalid, err)
 			}
 			if d.Decision == Prune && o.Origin != "" && o.Origin != OriginImported {

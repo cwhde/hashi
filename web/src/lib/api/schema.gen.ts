@@ -390,8 +390,9 @@ export interface paths {
         /**
          * Step 3 — validate a DNS provider token read-only, pick the zone, store the first snapshot
          * @description Lists the zones the token sees and reads the chosen zone's RRSets; nothing is stored when that fails
-         *     (invariant 3). Without `zone_id` the zone containing the root domain is chosen; when none does, `zone` is
-         *     absent and the admin picks one from `zones`. Omitting `token` reuses the stored one.
+         *     (invariant 3). Without `zone_id` the zone containing the root domain (or the stored zone) is chosen; when
+         *     none is, only `zones` is returned, nothing is stored, and the admin sends the token again with a `zone_id`.
+         *     Omitting `token` reuses the stored one.
          */
         put: operations["putSetupDNSProvider"];
         post?: never;
@@ -890,8 +891,9 @@ export interface components {
             id: string;
             name: string;
         };
+        /** @description `provider` and `zone` are absent when no zone was chosen (nothing stored) */
         DNSConnectResult: {
-            provider: components["schemas"]["DNSProvider"];
+            provider?: components["schemas"]["DNSProvider"];
             /** @description Zones the token sees (only right after validation; empty when read back) */
             zones: components["schemas"]["DNSProviderZone"][];
             zone?: components["schemas"]["DNSZone"];
