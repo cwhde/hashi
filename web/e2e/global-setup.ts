@@ -36,7 +36,15 @@ export default async function globalSetup() {
 			'-public-status-addr',
 			'off'
 		],
-		{ env: { ...process.env, HASHI_MASTER_KEY_FILE: keyFile, HASHI_DEV_WEBAUTHN_ORIGIN: baseURL } }
+		{
+			env: {
+				...process.env,
+				HASHI_MASTER_KEY_FILE: keyFile,
+				HASHI_DEV_WEBAUTHN_ORIGIN: baseURL,
+				// The Hetzner adapter talks to the recorded fixtures (token "replay-token", zone example.com).
+				HASHI_DEV_DNS_FIXTURES: resolve(import.meta.dirname, '../../testdata/contracts/hetzner')
+			}
+		}
 	);
 	let out = '';
 	const creds = await new Promise<{ username: string; password: string }>((ok, fail) => {

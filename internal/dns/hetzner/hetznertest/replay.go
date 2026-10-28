@@ -4,6 +4,7 @@ package hetznertest
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -59,25 +60,53 @@ type Server struct {
 // NewServer starts a replay server; its URL + "/v1" is the adapter base URL.
 func NewServer(t testing.TB) *Server {
 	t.Helper()
-	s := &Server{byKey: map[string]Fixture{}}
-	entries, err := os.ReadDir(Dir())
+	s, err := newServer(Dir())
 	if err != nil {
 		t.Fatal(err)
+	}
+	s.Server = httptest.NewServer(http.HandlerFunc(s.serve))
+	t.Cleanup(s.Close)
+	return s
+}
+
+// NewHandler replays the fixtures in dir without a test context: `-tags dev` builds (make dev, E2E) use it as their
+// fake Hetzner API. It accepts the same Token.
+func NewHandler(dir string) (http.Handler, error) {
+	s, err := newServer(dir)
+	if err != nil {
+		return nil, err
+	}
+	return http.HandlerFunc(s.serve), nil
+}
+
+func newServer(dir string) (*Server, error) {
+	s := &Server{byKey: map[string]Fixture{}}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
 	}
 	for _, e := range entries {
 		if !strings.HasSuffix(e.Name(), ".json") {
 			continue
 		}
-		f := Load(t, e.Name())
+		raw, err := os.ReadFile(filepath.Join(dir, e.Name())) //nolint:gosec // fixture path
+		if err != nil {
+			return nil, err
+		}
+		var f Fixture
+		if err := json.Unmarshal(raw, &f); err != nil {
+			return nil, fmt.Errorf("%s: %w", e.Name(), err)
+		}
 		if f.Status == http.StatusUnauthorized {
 			s.byKey["401"] = f
 			continue
 		}
 		s.byKey[key(f.Request)] = f
 	}
-	s.Server = httptest.NewServer(http.HandlerFunc(s.serve))
-	t.Cleanup(s.Close)
-	return s
+	if _, ok := s.byKey["401"]; !ok {
+		return nil, fmt.Errorf("%s: no recorded 401 fixture", dir)
+	}
+	return s, nil
 }
 
 // BaseURL is the adapter base URL for this server.

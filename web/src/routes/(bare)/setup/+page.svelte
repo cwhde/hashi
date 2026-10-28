@@ -13,6 +13,8 @@
 	import { session } from '$lib/auth/session.svelte';
 	import { ceremonyText, createPasskey, passkeysSupported } from '$lib/auth/webauthn';
 	import { theme, themes, type ThemeId } from '$lib/theme.svelte';
+	import ImportTable from '$lib/components/hashi/dns/ImportTable.svelte';
+	import { decisionBody, initialDecisions, type Decision, type ImportRow } from '$lib/dns';
 
 	// 02-setup-auth.md §1: a resumable, persisted sequence; a step completes only after its validation succeeded.
 	type SetupState = Schemas['SetupState'];
@@ -39,6 +41,8 @@
 		}
 		selected = session.has('setup.manage') ? firstOpen(setup) : 1;
 		if (setup.base_settings) base = { ...setup.base_settings };
+		if (setup.dns?.provider) dnsForm.default_ttl = setup.dns.provider.default_ttl;
+		if (setup.dns?.zone && session.has('setup.manage')) await loadImport();
 	}
 
 	onMount(() => load().catch((e) => (loadError = problemText(e))));
@@ -83,6 +87,59 @@
 			if (res.error || !res.data) throw res.error;
 			setup = res.data;
 			theme.set(base.theme as ThemeId);
+			selected = firstOpen(res.data);
+		});
+
+	// Step 3 (02 §1.3): validate read-only, pick the zone, decide per RRSet.
+	let dnsForm = $state({ token: '', default_ttl: 3600 });
+	let zoneChoices = $state<Schemas['DNSProviderZone'][]>([]);
+	let zoneId = $state('');
+	let importRows = $state<ImportRow[] | null>(null);
+	let decisions = $state<Record<string, Decision>>({});
+	let changingToken = $state(false);
+	const dnsZone = $derived(setup?.dns?.zone);
+
+	async function loadImport() {
+		const res = await api.GET('/api/setup/dns/import');
+		if (res.error || !res.data) throw res.error;
+		importRows = res.data.rows;
+		decisions = initialDecisions(res.data.rows);
+	}
+	const connectDNS = () =>
+		run(async () => {
+			const res = await api.PUT('/api/setup/dns/provider', {
+				body: {
+					type: 'hetzner',
+					default_ttl: dnsForm.default_ttl,
+					token: dnsForm.token || undefined,
+					zone_id: zoneId || undefined
+				}
+			});
+			if (res.error || !res.data) throw res.error;
+			if (!res.data.zone) {
+				// No zone contains the root domain: nothing was stored; the admin picks one and we send the token again.
+				zoneChoices = res.data.zones;
+				zoneId = '';
+				return;
+			}
+			zoneChoices = [];
+			zoneId = '';
+			dnsForm.token = '';
+			changingToken = false;
+			// Re-read the state: the step is in progress now, an earlier failure no longer applies.
+			const st = await api.GET('/api/setup');
+			if (st.error || !st.data) throw st.error;
+			setup = st.data;
+			await loadImport();
+		});
+	const saveImport = () =>
+		run(async () => {
+			if (!importRows) return;
+			const res = await api.PUT('/api/setup/dns/import', {
+				body: decisionBody(importRows, decisions)
+			});
+			if (res.error || !res.data) throw res.error;
+			setup = res.data;
 			selected = firstOpen(res.data);
 		});
 
@@ -345,6 +402,131 @@
 						>{busy ? 'Checking…' : 'Save and continue'}</Button
 					>
 				</div>
+			{:else if step.n === 3}
+				<h1 class="mt-1 text-[24px] font-semibold">Connect your DNS provider</h1>
+				<p class="mt-1 max-w-[62ch] text-[13.5px] text-muted-foreground">
+					Hashi manages one zone: the one that contains <Mono
+						>{setup.base_settings?.root_domain}</Mono
+					>. This step only reads from the provider; nothing in the zone changes.
+				</p>
+				<section class="mt-6 rounded-3xl border bg-card p-6">
+					{#if dnsZone && !changingToken}
+						<div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-[13.5px]">
+							<span class="flex items-center gap-2"
+								><Check class="size-4 text-ok-text" />Hetzner · zone <Mono>{dnsZone.name}</Mono
+								></span
+							>
+							<span class="tnum text-muted-foreground"
+								>{dnsZone.rrset_count} records · default TTL {setup.dns?.provider?.default_ttl} s</span
+							>
+							<Button
+								variant="ghost"
+								size="sm"
+								class="ml-auto"
+								onclick={() => (changingToken = true)}>Change token or TTL</Button
+							>
+						</div>
+					{:else}
+						<form
+							class="grid gap-4 md:grid-cols-[10rem_minmax(0,1fr)_9rem]"
+							onsubmit={(e) => (e.preventDefault(), connectDNS())}
+						>
+							<div class="space-y-1.5">
+								<Label for="dp">Provider</Label>
+								<Input id="dp" value="Hetzner Cloud" disabled class="h-10" />
+							</div>
+							<div class="space-y-1.5">
+								<Label for="dt">API token</Label><Input
+									id="dt"
+									type="password"
+									bind:value={dnsForm.token}
+									autocomplete="off"
+									placeholder={dnsZone ? 'Leave empty to keep the stored token' : ''}
+									class="h-10 font-mono"
+								/>
+							</div>
+							<div class="space-y-1.5">
+								<Label for="dttl">Default TTL (s)</Label><Input
+									id="dttl"
+									type="number"
+									min="60"
+									max="86400"
+									bind:value={dnsForm.default_ttl}
+									class="h-10"
+								/>
+							</div>
+							<p class="text-[12.5px] text-muted-foreground md:col-span-3">
+								A Hetzner Cloud project token with read and write access (Security → API tokens in
+								the Cloud Console). Read and write, because later slices create records; this step
+								only reads. It is stored encrypted and never shown again. The default TTL applies to
+								records Hashi creates.
+							</p>
+							{#if zoneChoices.length > 0}
+								<fieldset class="md:col-span-3">
+									<legend class="text-[13px] font-medium">Choose the zone Hashi manages</legend>
+									<p class="mt-0.5 text-[12.5px] text-muted-foreground">
+										None of the {zoneChoices.length} zones this token sees contains the root domain. The
+										other zones are ignored.
+									</p>
+									<div class="mt-2 grid gap-1.5 sm:grid-cols-2">
+										{#each zoneChoices as z (z.id)}
+											<label
+												class={cn(
+													'flex h-10 items-center gap-2.5 rounded-[10px] border px-3 text-[13px]',
+													zoneId === z.id && 'border-primary bg-primary/[0.06]'
+												)}
+												><input
+													type="radio"
+													name="zone"
+													value={z.id}
+													bind:group={zoneId}
+													class="accent-primary"
+												/><Mono>{z.name}</Mono></label
+											>
+										{/each}
+									</div>
+								</fieldset>
+							{/if}
+							<div class="flex gap-2 md:col-span-3">
+								<Button
+									type="submit"
+									disabled={busy ||
+										(!dnsForm.token && !dnsZone) ||
+										(zoneChoices.length > 0 && !zoneId)}
+									>{busy
+										? 'Reading the zone…'
+										: zoneChoices.length > 0
+											? 'Use this zone'
+											: 'Check read-only'}</Button
+								>
+								{#if dnsZone}<Button
+										variant="ghost"
+										onclick={() => ((changingToken = false), (zoneChoices = []))}>Cancel</Button
+									>{/if}
+							</div>
+						</form>
+					{/if}
+					{#if step.status === 'failed' && step.last_error && !error}{@render failure(
+							step.last_error
+						)}{/if}
+					{#if error}{@render failure(error)}{/if}
+				</section>
+				{#if dnsZone && importRows}
+					<h2 class="mt-8 text-[15px] font-semibold">Existing records</h2>
+					<p class="mt-1 mb-3 max-w-[70ch] text-[13px] text-muted-foreground">
+						Hashi leaves every record alone unless you choose otherwise. Import makes it a managed
+						entry you edit in Hashi; Remove only marks it: deleting is a separate plan you approve
+						with your passkey later. NS and SOA are never changed.
+					</p>
+					<ImportTable rows={importRows} bind:decisions />
+					<div class="mt-6 flex justify-end">
+						<Button onclick={saveImport} disabled={busy}
+							>{busy ? 'Saving…' : 'Save decisions and continue'}</Button
+						>
+					</div>
+				{:else if dnsZone}
+					<Skeleton class="mt-8 h-64 rounded-2xl" />
+				{/if}
 			{:else if step.n === 9}
 				<h1 class="mt-1 text-[24px] font-semibold">Passkey and recovery key</h1>
 				<p class="mt-1 max-w-[62ch] text-[13.5px] text-muted-foreground">

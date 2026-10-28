@@ -47,6 +47,28 @@ test('setup with a passkey, then sign in with it', async ({ page }) => {
 	await page.getByLabel('Admin domain').fill('hashi.example.com');
 	await page.getByRole('button', { name: 'Save and continue' }).click();
 
+	// Step 3: DNS provider against the recorded Hetzner fixtures. A bad token stores nothing and says why.
+	await expect(page.getByRole('heading', { name: 'Connect your DNS provider' })).toBeVisible();
+	await page.getByLabel('API token').fill('not-a-token');
+	await page.getByRole('button', { name: 'Check read-only' }).click();
+	await expect(page.getByRole('alert')).toContainText('token');
+	await page.getByLabel('API token').fill('replay-token');
+	await page.getByRole('button', { name: 'Check read-only' }).click();
+	await expect(page.getByText('58 records', { exact: false }).first()).toBeVisible();
+	await expect(page.getByRole('alert')).toHaveCount(0);
+	// NS and SOA are leave-only; everything else starts as "leave".
+	await expect(page.getByRole('radiogroup', { name: 'Decision for @ NS' })).toHaveCount(0);
+	await expect(page.getByRole('radiogroup', { name: 'Decision for @ SOA' })).toHaveCount(0);
+	const svc1 = page.getByRole('radiogroup', { name: 'Decision for svc1 A' });
+	await expect(svc1.getByRole('radio', { name: 'Leave' })).toHaveAttribute('aria-checked', 'true');
+	await svc1.getByRole('radio', { name: 'Import' }).click();
+	await page
+		.getByRole('radiogroup', { name: 'Decision for svc2 CNAME' })
+		.getByRole('radio', { name: 'Remove' })
+		.click();
+	await expect(page.getByText('1 to import · 1 to remove')).toBeVisible();
+	await page.getByRole('button', { name: 'Save decisions and continue' }).click();
+
 	// Step 9: passkey, then recovery key with its checksum group.
 	await expect(page.getByRole('heading', { name: 'Passkey and recovery key' })).toBeVisible();
 	await page.getByLabel('Name').fill('E2E authenticator');

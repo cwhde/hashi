@@ -93,7 +93,7 @@ contract-capture: ## record read-only responses from PROVIDER (hetzner) into .co
 dev: web-install ## dev build (-tags dev) on :8080 with ./data + Vite on :5173; passkeys work on http://localhost:5173
 	@mkdir -p data && [ -s data/dev-master.key ] || go run ./cmd/hashi keygen > data/dev-master.key
 	@trap 'kill 0' EXIT; \
-	  HASHI_MASTER_KEY_FILE=data/dev-master.key HASHI_DEV_WEBAUTHN_ORIGIN=http://localhost:5173 \
+	  HASHI_MASTER_KEY_FILE=data/dev-master.key HASHI_DEV_WEBAUTHN_ORIGIN=http://localhost:5173 HASHI_DEV_DNS_FIXTURES=testdata/contracts/hetzner \
 	  go run -tags dev ./cmd/hashi -data-dir ./data -admin-addr 127.0.0.1:8080 -public-apps-addr off -public-status-addr off & \
 	  cd web && pnpm run dev
 
