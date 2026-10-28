@@ -173,8 +173,12 @@ see the DNS token.
 
 **Lifecycle (job runner, job `certificates.renew`, daily):** issue when a needed name is missing; renew 30 days before
 expiry; on failure retry with backoff and raise a warning (Overview + notification) at 21 days left, critical at 7 days.
-`_acme-challenge` TXT records are written and removed through the normal provider adapter with origin `system` and are
-excluded from prune. ACME account key and certificate private keys are vault secrets (service class).
+`_acme-challenge` TXT values are written and removed through the normal provider adapter (origin `system`) one value at a
+time (Hetzner `add_records`/`remove_records`, captured 2026-10-28): another ACME client may hold a value at the same name
+while it still runs (migration), and its value survives. `_acme-challenge` names are reserved: never offered on the import
+table, never pruned, never an entry, no ownership row. Before the CA is asked to check, Hashi waits until every value is
+visible on the zone's authoritative nameservers (or the configured resolvers), then the propagation delay. ACME account key
+and certificate private keys are vault secrets (service class).
 
 **Distribution:** a sync plan per Traefik host writes `/etc/hashi/traefik/certs/<name>.crt|.key` (key mode 0600) and the
 dynamic file `/etc/hashi/traefik/dynamic/hashi-certs.yaml` listing them under `tls.certificates`. Every host gets every
