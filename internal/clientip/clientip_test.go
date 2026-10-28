@@ -122,3 +122,18 @@ func TestEdgeTokenTrustsTheEdge(t *testing.T) {
 		t.Error("empty token still trusts")
 	}
 }
+
+// Forward auth through the edge's loopback hop: the visitor is the hop before 127.0.0.1. Without the token a loopback
+// hop is not skipped.
+func TestEdgeLoopbackHopIsSkipped(t *testing.T) {
+	r := New(nil)
+	r.SetEdgeToken("tok")
+	h := map[string]string{"X-Forwarded-For": "198.51.100.7, 127.0.0.1", EdgeHeader: "tok"}
+	if a, _ := r.Resolve(req("192.168.50.1:5000", h)); a.String() != "198.51.100.7" {
+		t.Errorf("with token: %v", a)
+	}
+	r.SetTrusted([]netip.Prefix{netip.MustParsePrefix("192.168.50.1/32")})
+	if a, _ := r.Resolve(req("192.168.50.1:5000", map[string]string{"X-Forwarded-For": "198.51.100.7, 127.0.0.1"})); a.String() != "127.0.0.1" {
+		t.Errorf("trusted proxy without token: %v", a)
+	}
+}

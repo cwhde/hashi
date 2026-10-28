@@ -107,4 +107,16 @@ func TestSetupStep8HTTPSProof(t *testing.T) {
 	}
 	again := browser(ok)
 	again.mustStatus(again.do(http.MethodPost, "/api/setup/https/proof", map[string]string{"nonce": nonce}), 403) // used
+
+	// S5 gate: every request on the admin route also passes forward auth, which the edge sends through its loopback
+	// hashi-fa hop: same cookie, edge token, and 127.0.0.1 appended to X-Forwarded-For (contract finding 3). That call
+	// must neither be mistaken for a request from 127.0.0.1 nor end the session (it did: ip_mismatch, bounce to login).
+	fa := browser(map[string]string{"X-Hashi-Edge": edge.Reveal(), "X-Forwarded-For": "192.168.50.1, 127.0.0.1",
+		"X-Forwarded-Proto": "https", "X-Forwarded-Host": "dev.hashi.example.com", "Host": "127.0.0.1:28181"})
+	fa.cookie = b.cookie
+	fa.mustStatus(fa.do(http.MethodGet, "/api/edge-auth/forward", nil), 204)
+	r = b.mustStatus(b.do(http.MethodGet, "/api/auth/session", nil), 200)
+	if r.body["authenticated"] != true || r.body["bound_ip"] != "192.168.50.1" {
+		t.Fatalf("session after a forward-auth call: %s", r.raw)
+	}
 }

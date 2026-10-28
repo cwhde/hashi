@@ -20,6 +20,7 @@ const (
 	cookieSession   = "__Host-hashi.session"
 	cookieBootstrap = "hashi.bootstrap"
 	headerCSRF      = "X-Hashi-CSRF"
+	forwardAuthPath = "/api/edge-auth/forward"
 )
 
 type ctxKey struct{}
@@ -56,7 +57,9 @@ func (s *Server) withRequest(next http.Handler) http.Handler {
 		if ip, err := s.IP.Resolve(r); err == nil {
 			ri.ip = ip
 		}
-		if c, name := sessionCookie(r); c != "" {
+		// Forward-auth calls carry a visitor's cookies for a request to another service (or to the admin domain): they
+		// never validate, renew or revoke an admin session here.
+		if c, name := sessionCookie(r); c != "" && r.URL.Path != forwardAuthPath {
 			sess, err := s.Sessions.Validate(r.Context(), c, ri.ip)
 			switch {
 			case err == nil && name == cookieBootstrap && sess.Method != auth.MethodBootstrap:

@@ -100,12 +100,15 @@ func (r *Resolver) Resolve(req *http.Request) (netip.Addr, error) {
 	if err != nil {
 		return netip.Addr{}, err
 	}
+	// Hashi-managed Traefik reaches Hashi's forward auth through its own loopback entry point, which appends 127.0.0.1
+	// (testdata/contracts/traefik/README.md finding 3): with the edge token, loopback hops are the edge's.
+	edge := r.FromEdge(req)
 	for i := len(chain) - 1; i >= 0; i-- {
 		a, ok := Canonical(chain[i])
 		if !ok {
 			return netip.Addr{}, ErrUnresolvable
 		}
-		if !r.isTrusted(a) {
+		if !r.isTrusted(a) && !(edge && a.IsLoopback()) {
 			return a, nil
 		}
 	}
