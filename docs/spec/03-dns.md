@@ -112,7 +112,8 @@ service.example.com → machine2.ovr.on.machine1.example.com → via.machine2.ex
   record.
 - The record exists exactly while at least one service needs it. It is part of the desired record set computed on every
   DNS sync; when the last service drops or changes its override, the record is no longer desired and is deleted in the same
-  plan as the service record change (owned-objects-only, invariant 2). A service switching to another entry host gets the
+  plan as the service record change. Ownership is stored like for every generated record (invariant 1); the name
+  alone never makes a record Hashi's. A service switching to another entry host gets the
   other pair's record; the old one stays as long as another service still uses it.
 - If the chosen entry host equals where `on.machine1` already points (host override or the host itself), the service uses
   `on.machine1` and no `ovr` record is generated. Hashi re-evaluates this on every sync, so changing the host override
