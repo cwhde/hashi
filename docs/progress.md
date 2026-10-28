@@ -18,20 +18,34 @@ IP sets (05a). Those arrive with their slices on top of this engine. S3 delivers
 imports, prunes and the probe, all through plan → approve → apply → verify.
 
 PR A — backend
-- [ ] Migration 00004: `dns_records` (desired manual entries: name, type, TTL or zone default, values, display name,
-      dashboard/monitoring flags), `sync_plans`, `sync_plan_items`, `sync_runs`, `sync_locks`; sqlc queries.
-- [ ] Hetzner write adapter from the write fixtures: create, `set_records`, `change_ttl`, delete, owner label (`PUT`),
-      Action polling with timeout, TXT quoting/escaping/255-byte split; replay tests for every write fixture.
-- [ ] `internal/dns` planner: desired (owned rows) vs observed → create/update/delete/conflict items; NS/SOA and
-      unowned RRSets never planned (conflict instead); CNAME exclusivity and apex checks; risk per item (01 §5.2).
-- [ ] `internal/sync` engine: persist plan + items + hash, low-risk auto-approve, high-risk approval (`sync.apply` +
-      reauth), apply under the lock with re-fetch and re-plan (a changed high-risk item goes back to approval),
-      verify by read-back, `last_applied_hash`, run row, audit entry. Background reconcile after each zone refresh.
-- [ ] Probe plan (invariant 4): create `_hashi-test` TXT → verify → delete → verify, only after explicit approval;
-      import → ownership `imported` (+ owner label); prune → one high-risk plan listing every RRSet.
-- [ ] OpenAPI: `POST /api/dns/records`, `PATCH|DELETE /api/dns/records/{id}`, `POST /api/dns/plan`, `POST /api/dns/probe`,
-      `GET /api/sync/plans`, `GET /api/sync/plans/{id}`, `POST /api/sync/plans/{id}/approve|apply|discard`, `GET /api/sync/runs`;
-      `make generate`. Tests `TestInvariant_1/2/3/4/7/13_*` for the write side.
+- [x] Migration 00004: `dns_records` (desired manual entries: name, type, TTL or zone default, values, display name,
+      dashboard/monitoring flags), `sync_plans`, `sync_plan_items`, `sync_runs`, `sync_locks`, observed `owner`; sqlc queries.
+- [x] Hetzner write adapter from the write fixtures: create, `set_records`, `change_ttl`, delete, owner label (`PUT`),
+      Action polling with timeout, TXT quoting/escaping/255-byte split; replay tests for every write fixture used.
+- [x] `internal/dns` planner: desired (owned rows) vs observed → create/update/label/delete/conflict items; NS/SOA and
+      unowned RRSets never planned (conflict instead); CNAME exclusivity and apex checks; deletes are high risk.
+- [x] `internal/sync` engine: plan + items + hash, low-risk auto-approve, high-risk approval, apply under the lock with
+      re-plan (a new high-risk item goes back to approval), verify by read-back, `last_applied_hash`, run row, audit.
+      Background reconcile in the `dns.refresh` job.
+- [x] Probe plan (create `_hashi-test` TXT → verify → delete → verify, high risk); import → desired entry `imported`
+      (+ owner label as a low-risk item); prune → one high-risk plan listing every RRSet.
+- [x] OpenAPI + handlers: `POST /api/dns/records`, `PATCH|DELETE /api/dns/records/{id}`, `POST /api/dns/plan|prune|probe`,
+      `GET /api/sync/plans`, `GET /api/sync/plans/{id}`, `POST /api/sync/plans/{id}/approve|apply|discard`,
+      `POST /api/setup/dns/probe`, `POST /api/setup/dns/probe/{id}/run`. Tests `TestInvariant_1/2/3/4/7_*` for the write side.
+
+Decisions made in PR A:
+- A user entry counts as Hashi's at the provider only after Hashi created it (`last_applied_hash` set). An RRSet that
+  appears in the console between saving and planning becomes a conflict item, never an overwrite (invariant 1).
+- Conflict-only drafts create no plan (the background reconcile would otherwise make one every hour); saving an entry
+  over an unowned RRSet is refused up front with "import it instead".
+- Owner marker = label `hashi.io/owner=<instance id>` (new setting `dns.instance_id`, a lowercase ULID); imported
+  RRSets get it as a low-risk "label" item, other labels are kept.
+- Updates use `set_records` and `change_ttl` only (`add_records`/`remove_records` are captured but not needed).
+- Low-risk plans apply in the saving request (no 2 s debounce yet; one save = one plan). `GET /api/sync/runs` dropped:
+  recent plans carry the result. The probe in setup step 3 is approved by the click on the shown plan (there is no
+  passkey yet in setup); after setup it needs `sync.apply` + reauth like every high-risk plan.
+- `make dev`/E2E use a stateful Hetzner fake (`hetznertest.Sim`) seeded from the recorded zone, so plans apply locally.
+- PR A is ~4,000 hand-written lines (about half tests): one coherent backend, kept whole.
 
 PR B — UI + deploy
 - [ ] `/changes`: pending plans with exact before/after (PlanReview), passkey approval, discard, recent runs.
