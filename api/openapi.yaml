@@ -56,6 +56,20 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Version" }
 
+  # ---- edge (06-edge-security.md §2) ----
+  /api/edge-auth/forward:
+    get:
+      operationId: getEdgeAuthForward
+      summary: Traefik forward auth for every edge service
+      description: >-
+        S4 stub: allows every request (204). Stage A and the rule engine replace it in S9/S10. Traefik reaches it
+        directly (fail-closed services) or through the local `hashi-fa` fallback (fail-open services, 06 §2.1).
+      tags: [edge]
+      x-hashi-scopes: []
+      responses:
+        "204":
+          description: Allowed
+
   # ---- auth (02-setup-auth.md §2–4) ----
   /api/auth/session:
     get:

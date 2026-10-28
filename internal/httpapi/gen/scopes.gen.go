@@ -26,6 +26,7 @@ var Requirements = map[string]Requirement{
 	"GetAppearanceSettings":  {Scopes: []string{"admin.read"}, Session: false, Reauth: false},
 	"GetAuthSession":         {Scopes: []string{}, Session: false, Reauth: false},
 	"GetDNSImport":           {Scopes: []string{"admin.read"}, Session: false, Reauth: false},
+	"GetEdgeAuthForward":     {Scopes: []string{}, Session: false, Reauth: false},
 	"GetGeneralSettings":     {Scopes: []string{"admin.read"}, Session: false, Reauth: false},
 	"GetHealthz":             {Scopes: []string{}, Session: false, Reauth: false},
 	"GetReadyz":              {Scopes: []string{}, Session: false, Reauth: false},

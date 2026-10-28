@@ -30,7 +30,7 @@ func TestRunServesHealthAndShutsDownCleanly(t *testing.T) {
 
 	// No keep-alive: an unused spare connection would hold Shutdown for 5s (net/http treats StateNew as active).
 	client := &http.Client{Transport: &http.Transport{DisableKeepAlives: true}}
-	for path, want := range map[string]int{"/healthz": 200, "/readyz": 200, "/api/version": 200, "/api/nope": 404} {
+	for path, want := range map[string]int{"/healthz": 200, "/readyz": 200, "/api/version": 200, "/api/edge-auth/forward": 204, "/api/nope": 404} {
 		res, err := client.Get("http://" + addr + path)
 		if err != nil {
 			t.Fatal(err)

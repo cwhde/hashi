@@ -64,3 +64,8 @@ func (s *Server) GetReadyz(ctx context.Context, _ gen.GetReadyzRequestObject) (g
 func (s *Server) GetVersion(context.Context, gen.GetVersionRequestObject) (gen.GetVersionResponseObject, error) {
 	return gen.GetVersion200JSONResponse(s.Version), nil
 }
+
+// GetEdgeAuthForward is the S4 forward-auth stub (06 §2): every request is allowed until Stage A exists (S9/S10).
+func (s *Server) GetEdgeAuthForward(context.Context, gen.GetEdgeAuthForwardRequestObject) (gen.GetEdgeAuthForwardResponseObject, error) {
+	return gen.GetEdgeAuthForward204Response{}, nil
+}

@@ -1245,6 +1245,9 @@ type ServerInterface interface {
 	// ListDNSRRSets Observed RRSets of a zone with Hashi's ownership
 	// (GET /api/dns/zones/{id}/rrsets)
 	ListDNSRRSets(w http.ResponseWriter, r *http.Request, id string, params ListDNSRRSetsParams)
+	// GetEdgeAuthForward Traefik forward auth for every edge service
+	// (GET /api/edge-auth/forward)
+	GetEdgeAuthForward(w http.ResponseWriter, r *http.Request)
 	// GetSettings All settings categories
 	// (GET /api/settings)
 	GetSettings(w http.ResponseWriter, r *http.Request)
@@ -1982,6 +1985,20 @@ func (siw *ServerInterfaceWrapper) ListDNSRRSets(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// GetEdgeAuthForward operation middleware
+func (siw *ServerInterfaceWrapper) GetEdgeAuthForward(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetEdgeAuthForward(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetSettings operation middleware
 func (siw *ServerInterfaceWrapper) GetSettings(w http.ResponseWriter, r *http.Request) {
 
@@ -2597,6 +2614,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/healthz", wrapper.GetHealthz)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/readyz", wrapper.GetReadyz)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/version", wrapper.GetVersion)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/edge-auth/forward", wrapper.GetEdgeAuthForward)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/auth/session", wrapper.GetAuthSession)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/auth/bootstrap/login", wrapper.BootstrapLogin)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/auth/logout", wrapper.Logout)
@@ -3933,6 +3951,21 @@ func (response ListDNSRRSetsdefaultApplicationProblemPlusJSONResponse) VisitList
 	return err
 }
 
+type GetEdgeAuthForwardRequestObject struct {
+}
+
+type GetEdgeAuthForwardResponseObject interface {
+	VisitGetEdgeAuthForwardResponse(w http.ResponseWriter) error
+}
+
+type GetEdgeAuthForward204Response struct {
+}
+
+func (response GetEdgeAuthForward204Response) VisitGetEdgeAuthForwardResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
 type GetSettingsRequestObject struct {
 }
 
@@ -5148,6 +5181,9 @@ type StrictServerInterface interface {
 	// ListDNSRRSets Observed RRSets of a zone with Hashi's ownership
 	// (GET /api/dns/zones/{id}/rrsets)
 	ListDNSRRSets(ctx context.Context, request ListDNSRRSetsRequestObject) (ListDNSRRSetsResponseObject, error)
+	// GetEdgeAuthForward Traefik forward auth for every edge service
+	// (GET /api/edge-auth/forward)
+	GetEdgeAuthForward(ctx context.Context, request GetEdgeAuthForwardRequestObject) (GetEdgeAuthForwardResponseObject, error)
 	// GetSettings All settings categories
 	// (GET /api/settings)
 	GetSettings(ctx context.Context, request GetSettingsRequestObject) (GetSettingsResponseObject, error)
@@ -6154,6 +6190,30 @@ func (sh *strictHandler) ListDNSRRSets(w http.ResponseWriter, r *http.Request, i
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ListDNSRRSetsResponseObject); ok {
 		if err := validResponse.VisitListDNSRRSetsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetEdgeAuthForward operation middleware
+func (sh *strictHandler) GetEdgeAuthForward(w http.ResponseWriter, r *http.Request) {
+	var request GetEdgeAuthForwardRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetEdgeAuthForward(ctx, request.(GetEdgeAuthForwardRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetEdgeAuthForward")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetEdgeAuthForwardResponseObject); ok {
+		if err := validResponse.VisitGetEdgeAuthForwardResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

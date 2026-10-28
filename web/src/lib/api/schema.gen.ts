@@ -55,6 +55,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/edge-auth/forward": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Traefik forward auth for every edge service
+         * @description S4 stub: allows every request (204). Stage A and the rule engine replace it in S9/S10. Traefik reaches it directly (fail-closed services) or through the local `hashi-fa` fallback (fail-open services, 06 §2.1).
+         */
+        get: operations["getEdgeAuthForward"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/session": {
         parameters: {
             query?: never;
@@ -1492,6 +1512,24 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Version"];
                 };
+            };
+        };
+    };
+    getEdgeAuthForward: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Allowed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

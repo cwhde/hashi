@@ -71,7 +71,7 @@ PR A — backend
       replay, challenger leaves other values, TLS check with a local listener, engine end to end with distribution;
       integration with Pebble 2.10.1 (EAB required) + challtestsrv (issue, nothing due, renew now) and the real
       Traefik serving a renewed certificate without restart. Job and handlers are wired with the next item.
-- [ ] Stub `GET /api/edge-auth/forward` (204) on the admin listener; health router on the edge uses it fail-open.
+- [x] Stub `GET /api/edge-auth/forward` (204) on the admin listener; health router on the edge uses it fail-open.
 - [ ] OpenAPI + handlers: setup steps 4 and 5 (`/api/setup/certificates`, `/api/setup/traefik/*`: scan host key, confirm,
       validate, install plan), `/api/traefik/connections/*`, `POST /api/traefik/plan`, `GET /api/traefik/certificates`,
       `POST /api/traefik/certificates/renew`. `TestInvariant_1/5/7/13_*` for the new adapters.
