@@ -482,6 +482,15 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-10-29 — Deploy `6f7d938` to prod: smoke ok. S5 gate so far: setup connection switched back to `hashi-edge-test`
+  (Alpine; host key read through Hashi = `ssh-keygen -lf` ECDSA on the host, pinned; ownership confirmed); its plan
+  (6 low-risk files: renewed certificate, services file with the admin route, security file with the edge token,
+  logrotate) applied and verified. Step 7 done: `https://dev.hashi.<root>` from the laptop → 200, `/api/version`
+  `6f7d938`, certificate Google Trust Services WR1, SAN `<root>`, `*.<root>`, `*.hashi.<root>`. SearXNG added as a
+  service with the setup session (services.manage): applied + verified on the edge; a request with its real name sent
+  to the edge → 200 (page and a search), edge access log: router `svc-searxng@file` → the internal upstream, forward
+  auth `hashi-fa@file` → Hashi 204; its public DNS unchanged (old setup). Pocket ID's health check fixed by the user.
+
 - 2026-10-29 — Deploy `24bef01` (S5: #34 + #35) to prod: smoke ok (readyz, version, SPA, public 200). S5 gate started:
   step 7 issued the certificate with `*.hashi.<root>` (Google Trust Services, 3 names) but its Traefik plan failed
   Verify on the Fedora dev edge, which Traefik had loaded 2 s later; with a second finding (general log not reopened
