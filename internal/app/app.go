@@ -156,6 +156,9 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 			return traefik.Download(ctx, downloads, "", arch)
 		})
 	certMgr := certs.NewManager(st, v, al, certs.DNSSolver(st, dnsSvc), &http.Client{Timeout: time.Minute}, log)
+	if err := devEdge(cfg, traefikMgr, certMgr); err != nil {
+		return err
+	}
 	subs := append(dnsSvc.Subsystems(), traefikMgr.Subsystems()...)
 	syncEngine := hsync.New(st, al, append(subs, certMgr.Subsystems()...)...)
 	if err := syncEngine.Start(ctx); err != nil {

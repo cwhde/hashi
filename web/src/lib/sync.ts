@@ -12,14 +12,23 @@ export function valueText(v?: Value): string | undefined {
 }
 
 /** The plan's items in PlanReview's shape. */
+const subsystems: Record<Plan['subsystem'], PlanItem['subsystem']> = {
+	'dns-records': 'DNS',
+	'dns-record-deletes': 'DNS',
+	'dns-prune': 'DNS',
+	'dns-probe': 'DNS',
+	traefik: 'Traefik',
+	certificates: 'Certificates'
+};
+
 export function reviewItems(p: Plan): PlanItem[] {
 	return p.items.map((i) => ({
 		action: i.action,
-		subsystem: 'DNS',
+		subsystem: subsystems[p.subsystem],
 		target: p.target_name,
 		object: i.object,
-		before: valueText(i.before),
-		after: valueText(i.after),
+		before: valueText(i.before) ?? i.before_text,
+		after: valueText(i.after) ?? i.after_text,
 		risk: i.risk,
 		note: i.note || undefined
 	}));

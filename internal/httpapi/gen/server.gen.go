@@ -1323,9 +1323,15 @@ type SyncPlanItem struct {
 	// After Exact DNS RRSet sent and verified (TXT as plain text)
 	After *SyncPlanItemValue `json:"after,omitempty"`
 
+	// AfterText Summary of the after state for non-DNS items
+	AfterText *string `json:"after_text,omitempty"`
+
 	// Before Exact DNS RRSet sent and verified (TXT as plain text)
 	Before *SyncPlanItemValue `json:"before,omitempty"`
-	Note   string             `json:"note"`
+
+	// BeforeText Summary of the before state for non-DNS items (file hash, version, names)
+	BeforeText *string `json:"before_text,omitempty"`
+	Note       string  `json:"note"`
 
 	// Object e.g. `www A`
 	Object string           `json:"object"`

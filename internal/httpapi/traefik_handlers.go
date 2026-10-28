@@ -11,7 +11,6 @@ import (
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
 	"git.juzo.io/juzo/hashi/internal/secrets"
 	"git.juzo.io/juzo/hashi/internal/setup"
-	"git.juzo.io/juzo/hashi/internal/sshx"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 	hsync "git.juzo.io/juzo/hashi/internal/sync"
 	"git.juzo.io/juzo/hashi/internal/traefik"
@@ -227,7 +226,7 @@ func (s *Server) ScanSetupTraefikHost(ctx context.Context, req gen.ScanSetupTrae
 	if err := s.requireSetupOpen(ctx); err != nil {
 		return nil, err
 	}
-	hk, err := sshx.Scan(ctx, sshx.Addr(req.Body.Host, req.Body.Port), 10*time.Second)
+	hk, err := s.Traefik.ScanHostKey(ctx, req.Body.Host, req.Body.Port)
 	if err != nil {
 		return nil, providerFailed("Could not read the SSH host key: " + err.Error())
 	}

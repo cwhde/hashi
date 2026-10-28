@@ -1615,6 +1615,10 @@ export interface components {
             object: string;
             before?: components["schemas"]["SyncPlanItemValue"];
             after?: components["schemas"]["SyncPlanItemValue"];
+            /** @description Summary of the before state for non-DNS items (file hash, version, names) */
+            before_text?: string;
+            /** @description Summary of the after state for non-DNS items */
+            after_text?: string;
             /** @enum {string} */
             risk: "low" | "high";
             note: string;

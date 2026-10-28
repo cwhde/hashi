@@ -53,3 +53,15 @@ func TestReadyz(t *testing.T) {
 		}
 	}
 }
+
+func TestItemTextSummarizesNonDNSItems(t *testing.T) {
+	for raw, want := range map[string]string{
+		`{"path":"/etc/hashi/traefik/traefik.yaml","kind":"static","mode":"644","sha256":"0123456789abcdef0123"}`: "mode 644 · sha256 0123456789ab…",
+		`{"version":"v3.7.16"}`: "v3.7.16",
+		`{"name":"example.com","names":["example.com","*.example.com"],"not_after":"2027-01-26T15:01:41Z"}`: "example.com, *.example.com · valid until 2027-01-26",
+	} {
+		if got := itemText([]byte(raw)); got == nil || *got != want {
+			t.Errorf("%s: %v, want %q", raw, got, want)
+		}
+	}
+}
