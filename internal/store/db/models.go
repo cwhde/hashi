@@ -8,6 +8,25 @@ import (
 	"database/sql"
 )
 
+type AcmeAccount struct {
+	ID                  string
+	Directory           string
+	DirectoryUrl        string
+	Email               string
+	EabKid              string
+	EabHmacSecretID     sql.NullString
+	AccountKeySecretID  sql.NullString
+	AccountUri          string
+	DnsProviderID       string
+	PropagationDelayS   int64
+	ResolversJson       string
+	Health              string
+	LastValidatedAt     sql.NullInt64
+	LastValidationError string
+	CreatedAt           int64
+	UpdatedAt           int64
+}
+
 type AdminSession struct {
 	IDHash            []byte
 	AuthMethod        string
@@ -52,6 +71,33 @@ type BootstrapCredential struct {
 	Username     string
 	PasswordHash string
 	CreatedAt    int64
+}
+
+type Certificate struct {
+	ID                string
+	Name              string
+	NamesJson         string
+	KeySecretID       sql.NullString
+	CertPem           string
+	Issuer            string
+	NotBefore         sql.NullInt64
+	NotAfter          sql.NullInt64
+	Fingerprint       string
+	LastRenewalAt     sql.NullInt64
+	LastRenewalResult string
+	LastRenewalError  string
+	CreatedAt         int64
+	UpdatedAt         int64
+}
+
+type CertificateDistribution struct {
+	CertificateID  string
+	ConnectionID   string
+	Fingerprint    string
+	State          string
+	LastVerifiedAt sql.NullInt64
+	Error          string
+	UpdatedAt      int64
 }
 
 type DnsImportDecision struct {
@@ -238,4 +284,41 @@ type SyncRun struct {
 	Outcome    string
 	Summary    string
 	Error      string
+}
+
+type TraefikConnection struct {
+	ID                   string
+	Name                 string
+	SshHost              string
+	SshPort              int64
+	SshUser              string
+	Auth                 string
+	CredentialSecretID   sql.NullString
+	PassphraseSecretID   sql.NullString
+	HostKeyType          string
+	HostKey              []byte
+	HostKeyFingerprint   string
+	InternalIp           string
+	OsFamily             string
+	PackageManager       string
+	InitSystem           string
+	OsProbe              string
+	TraefikBinary        string
+	ConfigDir            string
+	ApiPort              int64
+	DiscoveryJson        string
+	OwnershipConfirmedAt sql.NullInt64
+	InstalledVersion     string
+	Health               string
+	LastValidatedAt      sql.NullInt64
+	LastValidationError  string
+	CreatedAt            int64
+	UpdatedAt            int64
+}
+
+type TraefikFile struct {
+	ConnectionID    string
+	Path            string
+	LastAppliedHash string
+	AppliedAt       int64
 }

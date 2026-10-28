@@ -1131,7 +1131,7 @@ components:
       required: [id, subsystem, target, target_name, title, trigger, risk, status, created_by, created_at, approved_by, result, error, items]
       properties:
         id: { type: string }
-        subsystem: { type: string, enum: [dns-records, dns-record-deletes, dns-prune, dns-probe] }
+        subsystem: { type: string, enum: [dns-records, dns-record-deletes, dns-prune, dns-probe, traefik, certificates] }
         target: { type: string }
         target_name: { type: string, description: "e.g. the zone name" }
         title: { type: string }

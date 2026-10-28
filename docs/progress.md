@@ -38,7 +38,7 @@ PR A — backend
       SFTP read/hash, atomic write (same-dir temp + chmod + posix-rename, skipped when the hash matches), `Fetch` of
       loopback URLs through the SSH connection or the host's curl/wget. `make test-integration` + CI job with a real
       OpenSSH container (Alpine 3.23): pin, both logins, changed host key refused, atomic writes, both fetch paths.
-- [ ] Migration 00005: certificate provider (ACME email, EAB, account key ref), `traefik_connections` (target, port, user,
+- [x] Migration 00005: certificate provider (ACME email, EAB, account key ref), `traefik_connections` (target, port, user,
       credential refs, pinned host key, internal IP, OS, paths, state), `traefik_files` (per-host `last_applied_hash`),
       `certificates` (+ per-host distribution state); sync subsystems `traefik` and `certificates` in the CHECK + OpenAPI enum.
 - [ ] `internal/traefik`: OS probe parser (fixtures), install items (Hashi downloads the pinned release, checks the
