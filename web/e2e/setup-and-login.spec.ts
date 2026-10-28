@@ -94,6 +94,26 @@ test('setup with a passkey, then sign in with it', async ({ page }) => {
 	await expect(page.getByRole('cell', { name: 'setup.completed' })).toBeVisible();
 	await expect(page.getByRole('cell', { name: 'auth.passkey.login' })).toBeVisible();
 
+	// DNS: the observed zone with the decisions from setup; a changed decision survives a reload.
+	await page.getByRole('link', { name: 'DNS' }).first().click();
+	await expect(page).toHaveURL(/\/dns$/);
+	const records = page.getByRole('table', { name: 'DNS records' });
+	await expect(records.getByRole('row', { name: /^svc1 A / })).toContainText('imported');
+	await expect(records.getByRole('row', { name: /^@ SOA / })).toContainText('protected');
+	await page.getByRole('tab', { name: 'Import' }).click();
+	await expect(page).toHaveURL(/\?tab=import$/);
+	const svc2 = page.getByRole('radiogroup', { name: 'Decision for svc2 CNAME' });
+	await expect(svc2.getByRole('radio', { name: 'Remove' })).toHaveAttribute('aria-checked', 'true');
+	await svc2.getByRole('radio', { name: 'Leave' }).click();
+	await page.getByRole('button', { name: 'Save decisions' }).click();
+	await expect(page.getByText('Decisions saved.')).toBeVisible();
+	await page.reload();
+	await expect(
+		page
+			.getByRole('radiogroup', { name: 'Decision for svc2 CNAME' })
+			.getByRole('radio', { name: 'Leave' })
+	).toHaveAttribute('aria-checked', 'true');
+
 	// Account: the passkey and this session; the last passkey cannot be deleted.
 	await page.goto(`${state.baseURL}/settings?category=account`);
 	await expect(page.getByText('E2E authenticator')).toBeVisible();
