@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"go.yaml.in/yaml/v3"
 )
@@ -55,13 +56,33 @@ func Expected(files []File) ([]string, error) {
 	return out, nil
 }
 
+// VerifyWait is how long Verify keeps reading the API until Traefik shows what Hashi wrote. Dynamic files are loaded by
+// Traefik's watcher a moment after the write (S5 gate: an immediate read still showed the previous configuration).
+var VerifyWait = 20 * time.Second
+
 // Verify reads the local Traefik API through the SSH connection (04 §6 step 4): every expected router, middleware and
-// service exists and none is disabled or reports an error. Problems are listed, not just counted.
+// service exists and none is disabled or reports an error. It retries until VerifyWait has passed, then lists the
+// problems of the last read, not just a count.
 func Verify(ctx context.Context, h Host, apiPort int, files []File) error {
 	want, err := Expected(files)
 	if err != nil {
 		return err
 	}
+	deadline := time.Now().Add(VerifyWait)
+	for {
+		err = verifyOnce(ctx, h, apiPort, want)
+		if err == nil || time.Now().After(deadline) {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return errors.Join(err, ctx.Err())
+		case <-time.After(500 * time.Millisecond):
+		}
+	}
+}
+
+func verifyOnce(ctx context.Context, h Host, apiPort int, want []string) error {
 	b, err := h.Fetch(ctx, apiPort, "/api/rawdata")
 	if err != nil {
 		return fmt.Errorf("read the traefik API: %w", err)

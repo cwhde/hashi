@@ -10,12 +10,14 @@ import (
 // from /etc/logrotate.conf and runs logrotate daily (testdata/contracts/os/README.md).
 const LogrotatePath = "/etc/logrotate.d/hashi-traefik"
 
-// logrotateFile rotates the access and Traefik logs daily (and at 100 MB), keeps 14, and asks Hashi's Traefik (matched by
-// its exact command line, so no other Traefik on the host) to reopen its files with USR1.
+// logrotateFile rotates Traefik's logs daily (and at 100 MB) and keeps 14. The access log is renamed and Hashi's Traefik
+// (matched by its exact command line, so no other Traefik on the host) reopens it on USR1. Traefik v3.7.16 does not
+// reopen its general log on USR1 (integration test, S5 gate): that one is copied and truncated in place instead, which
+// can lose the lines written during the copy.
 func logrotateFile(p Paths) File {
 	pattern := "^" + p.Binary + " --configFile=" + p.Static() + "$"
 	data := fmt.Sprintf(`# Managed by Hashi. Changes are overwritten.
-%s/*.log {
+%[1]s/access.log {
 	daily
 	maxsize 100M
 	rotate 14
@@ -24,10 +26,21 @@ func logrotateFile(p Paths) File {
 	compress
 	delaycompress
 	dateext
-	sharedscripts
 	postrotate
-		pkill -USR1 -f %s || true
+		pkill -USR1 -f %[2]s || true
 	endscript
+}
+
+%[1]s/traefik.log {
+	daily
+	maxsize 100M
+	rotate 14
+	missingok
+	notifempty
+	compress
+	delaycompress
+	dateext
+	copytruncate
 }
 `, LogDir, sshx.Quote(pattern))
 	return File{Path: LogrotatePath, Kind: KindSystem, Mode: 0o644, Data: []byte(data)}

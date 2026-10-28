@@ -62,6 +62,7 @@ func selfSigned(t *testing.T, name string) (certPEM []byte, keyPEM string) {
 // API reports no errors, nothing is rewritten on the second run, fail-open/closed behave as captured with "Hashi"
 // stopped, and a static change that keeps Traefik from starting is restored.
 func TestIntegrationApplyVerifyFallback(t *testing.T) {
+	traefik.VerifyWait = 20 * time.Second
 	priv, line, err := sshx.GenerateKey("hashi@itest")
 	if err != nil {
 		t.Fatal(err)
@@ -168,6 +169,11 @@ func TestIntegrationApplyVerifyFallback(t *testing.T) {
 	itest.WaitFor(t, 10*time.Second, "access log reopened after rotation", func() bool {
 		out := c.Exec(t, "sh", "-c", "ls /var/log/hashi/traefik/; test -s /var/log/hashi/traefik/access.log && echo REOPENED")
 		return strings.Contains(out, "REOPENED") && strings.Contains(out, "access.log-")
+	})
+	// The general log too (S5 gate: after a rotation Traefik kept writing into the renamed traefik.log-<date>).
+	itest.WaitFor(t, 10*time.Second, "general log present after rotation", func() bool {
+		out := c.Exec(t, "sh", "-c", "test -e /var/log/hashi/traefik/traefik.log && echo PRESENT || true")
+		return strings.Contains(out, "PRESENT")
 	})
 
 	status := func(path string) string {

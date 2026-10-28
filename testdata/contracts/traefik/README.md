@@ -39,6 +39,11 @@ Findings that shape the implementation (also in `docs/spec/environment.md`):
 7. (S5, 2026-10-28, integration test) A dynamic file containing only `http: {}` is an error ("http cannot be a
    standalone element") and the file provider then loads **none** of its files. A file with only comments loads as
    empty, so `10-hashi-http-services.yml` without services is comments only. The SchemaStore schema accepts `http: {}`.
+8. (S5 gate, 2026-10-29, reproduced in the integration test) A changed dynamic file is loaded about 1–2 s after the
+   write; `/api/rawdata` read right away still shows the previous configuration. Verify polls until it matches.
+9. (S5 gate, 2026-10-29, reproduced in the integration test) On `USR1` Traefik v3.7.16 reopens the access log but not
+   its general log (`log.filePath`): after a rename it keeps writing into the renamed file. The general log is rotated
+   with `copytruncate`.
 
 `schema_v3_file_provider.json`: Traefik v3 file-provider (dynamic config) JSON schema from SchemaStore
 (https://json.schemastore.org/traefik-v3-file-provider.json), fetched 2026-10-28. Rendered dynamic files are validated

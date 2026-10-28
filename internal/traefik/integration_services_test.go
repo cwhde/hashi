@@ -44,6 +44,7 @@ func buildUpstream(t *testing.T) []byte {
 // H2C and HTTPS upstreams with the rewritten path. Requests to Hashi and forward-auth calls carry the edge token
 // (a client cannot forge it); other upstreams never see it.
 func TestIntegrationServices(t *testing.T) {
+	traefik.VerifyWait = 20 * time.Second
 	bin := buildUpstream(t)
 	priv, line, err := sshx.GenerateKey("hashi@itest")
 	if err != nil {
@@ -127,6 +128,27 @@ func TestIntegrationServices(t *testing.T) {
 	}
 	if again, err := traefik.Observe(ctx, h, d); err != nil || !again.Empty() {
 		t.Fatalf("second observe: %+v %v", again.Items(), err)
+	}
+
+	// A dynamic-only change (no restart): Verify right after the write must wait until Traefik's file watcher loaded it
+	// (S5 gate: it read the API before the reload and reported the new router missing).
+	late := opts
+	late.Services = append(append([]services.Service(nil), opts.Services...), services.Service{Name: "Late", Slug: "late",
+		Kind: services.KindHTTP, HostName: "late.example.test", Enabled: true, Origin: services.OriginUser, Target: target(9001)})
+	lateFiles, err := traefik.Render(late)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d.Files = lateFiles
+	diff, err = traefik.Observe(ctx, h, d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out, err := traefik.Apply(ctx, h, d, diff, time.Now()); err != nil || out.Restarted {
+		t.Fatalf("dynamic change: restarted %v err %v", out.Restarted, err)
+	}
+	if err := traefik.Verify(ctx, h, apiPort, lateFiles); err != nil {
+		t.Fatalf("verify right after a dynamic change: %v", err)
 	}
 
 	get := func(host, path string, headers ...string) string {

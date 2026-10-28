@@ -23,6 +23,10 @@ const fakeKey = "-----BEGIN PRIVATE KEY-----\nBB==\n-----END PRIVATE KEY-----\n"
 
 var update = flag.Bool("update", false, "rewrite golden files")
 
+// Fake hosts answer at once; tests that expect a failed Verify should not wait for a reload. The integration tests
+// (same binary) set VerifyWait back for the real Traefik.
+func init() { VerifyWait = 0 }
+
 func golden(t *testing.T, name string, got []byte) {
 	t.Helper()
 	p := filepath.Join("testdata", "golden", name)
