@@ -43,8 +43,9 @@ test('setup with a passkey, then sign in with it', async ({ page }) => {
 
 	// Step 2: base settings.
 	await expect(page.getByRole('heading', { name: 'Base settings' })).toBeVisible();
-	await page.getByLabel('Root domain').fill('example.com');
-	await page.getByLabel('Admin domain').fill('hashi.example.com');
+	// A root domain outside the fixture zones, so step 3 has to offer the zone choice (auto-pick: Go integration tests).
+	await page.getByLabel('Root domain').fill('example.net');
+	await page.getByLabel('Admin domain').fill('hashi.example.net');
 	await page.getByRole('button', { name: 'Save and continue' }).click();
 
 	// Step 3: DNS provider against the recorded Hetzner fixtures. A bad token stores nothing and says why.
@@ -54,6 +55,10 @@ test('setup with a passkey, then sign in with it', async ({ page }) => {
 	await expect(page.getByRole('alert')).toContainText('token');
 	await page.getByLabel('API token').fill('replay-token');
 	await page.getByRole('button', { name: 'Check read-only' }).click();
+	// No zone contains the root domain: nothing is stored yet, the admin picks one of the token's zones.
+	await expect(page.getByText('Choose the zone Hashi manages')).toBeVisible();
+	await page.getByRole('radio', { name: 'example.com' }).check();
+	await page.getByRole('button', { name: 'Use this zone' }).click();
 	await expect(page.getByText('58 records', { exact: false }).first()).toBeVisible();
 	await expect(page.getByRole('alert')).toHaveCount(0);
 	// NS and SOA are leave-only; everything else starts as "leave".

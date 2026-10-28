@@ -58,8 +58,11 @@ Decisions made in PR B:
 - Saving the import table sends a decision for every row (new rows as `leave`), so a saved table has no "new" rows.
 - The default TTL field starts at 3600 s (no spec value).
 - The import table hides "Remove" on RRSets Hashi owns other than imports (the server rejects it too).
-- The drift diff merges pages per endpoint and treats `labels` as a map, so a grown zone or new labels are no drift;
-  it fails on any other path/type difference so the fixtures keep describing the API.
+- The drift diff merges pages per endpoint and does not look inside `labels`, so a grown zone or new labels are no
+  drift; a path that appears or disappears, or a value type the fixtures never had, is (review #29: labels would
+  otherwise have failed the job from S3 on).
+- E2E uses a root domain outside the fixture zones, so it always walks the zone choice; auto-pick stays covered by the
+  Go integration tests. On a re-import the table starts with "New only" on (03 §4).
 
 ## Side step: security model (branch `security-model`)
 
@@ -176,6 +179,9 @@ Decisions made in S0:
 ## Unverified
 
 (Review findings that were not reproduced. Not worked on unless promoted.)
+
+- S2 PR B review (#29): `/dns` "show generated" hides only `system` RRSets; the mock also counts `managed` as
+  generated. No S2 row has either origin, so it cannot be observed yet — recheck when S3 creates records.
 
 - S2 PR A review (#28): the zones pagination replay uses captures taken with `per_page=1` while the adapter sends
   `per_page=25` (the replay ignores `per_page`); `zone_get_by_name.json` is never replayed because the adapter does not

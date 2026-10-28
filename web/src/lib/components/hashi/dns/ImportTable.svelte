@@ -21,7 +21,9 @@
 	}: { rows: ImportRow[]; decisions: Record<string, Decision> } = $props();
 
 	let q = $state('');
-	let newOnly = $state(false);
+	// A re-import starts with only the new rows (03-dns.md §4); a first import shows everything anyway.
+	// svelte-ignore state_referenced_locally
+	let newOnly = $state(rows.some((r) => r.decision) && rows.some((r) => !r.decision));
 	let expanded = $state<Record<string, boolean>>({});
 
 	const labels: Record<Decision, string> = { leave: 'Leave', import: 'Import', prune: 'Remove' };
@@ -30,7 +32,7 @@
 	const newCount = $derived(rows.filter((r) => !r.decision).length);
 	const shown = $derived(
 		rows.filter((r) => {
-			if (newOnly && r.decision) return false;
+			if (newOnly && newCount > 0 && r.decision) return false;
 			const needle = q.trim().toLowerCase();
 			if (!needle) return true;
 			const hay = `${r.rrset.name} ${r.rrset.type} ${r.rrset.values.join(' ')}`.toLowerCase();

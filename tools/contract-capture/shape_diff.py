@@ -6,8 +6,10 @@ Usage: shape_diff.py <fresh raw dir> <fixture dir>
 A shape is the set of JSON paths with their value types (e.g. `body.rrsets[].ttl: null|number`) plus the status and
 the kept header names. Pages of one endpoint (`rrsets_page1`, `rrsets_page2`, …) are merged into one shape, so a zone
 that grew a page is not drift. Only paths and types are printed, never values, so the output is safe for a CI log even
-though the fresh capture is unsanitized. Objects under `labels` are maps with user-chosen keys: only their value types
-count. Exit status 1 on any difference: re-capture and update the adapter when the API changed.
+though the fresh capture is unsanitized. Objects under `labels` are maps with user-chosen keys: they count as "object"
+and are not descended into. A path is drift when it appears or disappears, or when the fresh capture shows a type the
+fixtures never had; a type the fixtures had but this capture did not exercise (e.g. no `ttl: null` this week) is data,
+not drift. Exit status 1 on drift: re-capture and update the adapter when the API changed.
 """
 import json
 import pathlib
@@ -20,9 +22,10 @@ MAPS = {"labels"}
 def walk(v, path: str, out: dict) -> None:
     if isinstance(v, dict):
         out.setdefault(path, set()).add("object")
-        leaf = path.rsplit(".", 1)[-1]
+        if path.rsplit(".", 1)[-1] in MAPS:
+            return
         for k, child in v.items():
-            walk(child, f"{path}.{'*' if leaf in MAPS else k}", out)
+            walk(child, f"{path}.{k}", out)
     elif isinstance(v, list):
         out.setdefault(path, set()).add("array")
         for child in v:
@@ -54,7 +57,7 @@ def main() -> int:
             continue
         for path in sorted(old.keys() | new.keys()):
             a, b = old.get(path), new.get(path)
-            if a != b:
+            if a is None or b is None or not b <= a:
                 fmt = lambda s: "absent" if s is None else "|".join(sorted(s))  # noqa: E731
                 drift.append(f"{name}: {path}: {fmt(a)} -> {fmt(b)}")
     for line in drift:
