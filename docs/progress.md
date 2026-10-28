@@ -5,7 +5,7 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
-**S2 — DNS read + import** · status: **in progress** (PR A backend done, 2026-10-28).
+**S2 — DNS read + import** · status: **in progress** (PR A backend merged #28; PR B UI on `s2-dns-ui`, 2026-10-28).
 
 Scope and gate: 11-delivery.md §3 row S2 — 03-dns.md §1–4 (read side), setup step 3 (02 §1.3). Gate: the real zone is
 listed; the import table shows the real RRSets; import decisions persist; sanitized fixtures committed.
@@ -45,11 +45,21 @@ Decisions made in PR A:
   → nothing stored); types outside the provider's managed set are leave-only on the import table.
 
 PR B — UI + deploy
-- [ ] Setup step 3 (provider, token, zone auto-pick, read-only validation) and the import table.
-- [ ] `/dns`: Records (observed, origin, read-only in S2) and Import tab with decisions, from the approved mock.
-- [ ] Contract drift job (03 §2 point 4): manual dispatch + weekly workflow re-runs the read-only capture and diffs
-      response shapes (from the PR A review).
+- [x] Setup step 3 (provider, token, default TTL, zone auto-pick or choice, read-only validation) and the import
+      table (shared component); step 3 built; E2E covers it against the fixtures.
+- [x] `/dns`: Records (observed, origin, read-only in S2) and Import tab with decisions, from the approved mock.
+- [x] Contract drift job (03 §2 point 4): `.gitea/workflows/contract-drift.yml` (manual dispatch + Mondays) and
+      `make contract-drift`; compares JSON paths/types only. Needs the repo secret `HETZNER_TOKEN` (user).
 - [ ] Deploy (user OK) and prod-proof: real zone listed, import table matches the zone, decisions survive a restart.
+
+Decisions made in PR B:
+- `-tags dev` builds serve recorded fixtures in-process when `HASHI_DEV_DNS_FIXTURES` is set (`make dev`, E2E; token
+  `replay-token`, zone `example.com`); release builds contain no fixture code (`devDNSProviders` stub).
+- Saving the import table sends a decision for every row (new rows as `leave`), so a saved table has no "new" rows.
+- The default TTL field starts at 3600 s (no spec value).
+- The import table hides "Remove" on RRSets Hashi owns other than imports (the server rejects it too).
+- The drift diff merges pages per endpoint and treats `labels` as a map, so a grown zone or new labels are no drift;
+  it fails on any other path/type difference so the fixtures keep describing the API.
 
 ## Side step: security model (branch `security-model`)
 
