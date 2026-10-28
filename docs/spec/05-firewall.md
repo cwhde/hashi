@@ -52,7 +52,8 @@ Hashi's view); managed subnets valid, non-overlapping, containing the internal T
 | `hashi-firewall.service` (systemd) / OpenRC service | Loads `hashi.nft.json` at boot after network-online; never `flush ruleset` |
 
 Packages ensured by the apply plan: Debian/Ubuntu `nftables` (the binary; the `nftables.service` unit stays disabled),
-Alpine `nftables`. Persistence is the boot unit plus Hashi re-pushing dynamic entries when the host link reconnects (§6).
+Fedora `nftables` (dnf; `firewalld`, when active, keeps its own table and may drop forwarded traffic, so validation
+reports it), Alpine `nftables`. Persistence is the boot unit plus Hashi re-pushing dynamic entries when the host link reconnects (§6).
 
 ### 3.2 Contents
 

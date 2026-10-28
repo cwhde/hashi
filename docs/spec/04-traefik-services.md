@@ -55,14 +55,15 @@ from rendering.
 
 ## 2. Traefik installation
 
-Supported OS: Debian, Ubuntu, Alpine. Install flow (over SSH, each step a plan item):
+Supported OS: Debian, Ubuntu, Fedora (and other dnf + systemd distributions), Alpine. Hashi detects the family from
+`/etc/os-release` and the tools present (package manager, systemd or OpenRC), never from a version number. Install flow (over SSH, each step a plan item):
 
 1. Detect existing Traefik (binary, service, container) and package manager.
 2. Install Traefik if absent: official release binary for the pinned version + checksum verification (distro packages lag).
 3. Create Hashi directories: `/etc/hashi/traefik`, `/etc/hashi/traefik/dynamic`, `/var/log/hashi/traefik`, `/etc/hashi/traefik/certs` (mode 0700, certificate files from Hashi, 03-dns.md §5.3), `/var/lib/hashi/traefik`.
 4. Discover existing configs in common paths (`/etc/traefik`, `/opt/traefik`, compose volumes); show files and summary.
 5. If found: back up to `/var/lib/hashi/traefik/backup/<timestamp>/` and require explicit confirmation before Hashi takes ownership.
-6. Write a systemd unit (Debian/Ubuntu) or OpenRC script (Alpine) running Traefik with Hashi's static config.
+6. Write a systemd unit (Debian/Ubuntu/Fedora) or OpenRC script (Alpine) running Traefik with Hashi's static config.
 
 ### 2.1 Traefik updates (Hashi-managed)
 
