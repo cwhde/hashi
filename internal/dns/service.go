@@ -600,7 +600,8 @@ type ImportRow struct {
 	Allowed []Decision
 }
 
-// ImportTable returns every observed RRSet of the zone with its decision; undecided rows are the new ones (03 §4).
+// ImportTable returns the zone's observed RRSets that Hashi did not create, with their decision; undecided rows are
+// the new ones (03 §4).
 func (s *Service) ImportTable(ctx context.Context, zoneID string) (ZoneInfo, []ImportRow, error) {
 	z, err := s.Zone(ctx, zoneID)
 	if err != nil {
@@ -614,9 +615,12 @@ func (s *Service) ImportTable(ctx context.Context, zoneID string) (ZoneInfo, []I
 	if err != nil {
 		return ZoneInfo{}, nil, err
 	}
-	rows := make([]ImportRow, len(obs))
-	for i, o := range obs {
-		rows[i] = ImportRow{Observed: o, Allowed: AllowedDecisions(o.RRSet, caps)}
+	rows := make([]ImportRow, 0, len(obs))
+	for _, o := range obs {
+		if o.Origin != "" && o.Origin != OriginImported {
+			continue // created by Hashi: nothing to import
+		}
+		rows = append(rows, ImportRow{Observed: o, Allowed: AllowedDecisions(o.RRSet, caps)})
 	}
 	return z, rows, nil
 }

@@ -330,3 +330,19 @@ func TestImportAndPrune(t *testing.T) {
 func timeNow() time.Time { return time.Now() }
 
 func noSleep(context.Context, time.Duration) error { return nil }
+
+// RRSets Hashi created are not "existing records" on the import table.
+func TestImportTableLeavesOutHashisOwnRRSets(t *testing.T) {
+	f := newWriteFixture(t)
+	if _, err := f.svc.CreateRecord(t.Context(), "admin", "", f.zone, dns.RecordInput{Name: "_hashi-test", Type: "A", Values: []string{"192.0.2.1"}}); err != nil {
+		t.Fatal(err)
+	}
+	f.auto(t, dns.SubsystemRecords)
+	_, rows, err := f.svc.ImportTable(t.Context(), f.zone)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 58 || slices.ContainsFunc(rows, func(r dns.ImportRow) bool { return r.Name == "_hashi-test" }) {
+		t.Errorf("%d rows", len(rows))
+	}
+}
