@@ -47,7 +47,7 @@ on reverted foreign rules; security telemetry bounded by volume (01 §4.3, 06 §
 
 ## Side step: security model (branch `security-model`)
 
-Status: **spec written, awaiting the user's sign-off.** S2 waits until this is done.
+Status: **signed off by the user 2026-10-28** (incl. the SSH host link). Phase 2 in progress; S2 waits until it is done.
 
 The user replaced the security design with a model built on two shared primitives: IP sets (the one address primitive,
 also for DNS values, upstreams and connection targets, so anything can be "set via Pulse") and rule sets (global,
@@ -67,7 +67,7 @@ Done on the branch:
       modes stay out; host link stays SSH (ADR 0002 "Host link vs host agent"); Pulse footprint targets (08 §1).
 
 After sign-off (phase 2):
-- [ ] Merge the spec branch (docs → `main`).
+- [x] Merge the spec branch (docs → `main`).
 - [ ] Redo the affected S0b mocks (Services, Security, address page, IP sets, rule sets, Firewall) and get them approved.
 - [ ] Check built code for the rename and the model: S1 code has no security engine; only the design mocks, nav and
       mock data use "resources"/subjects.
@@ -126,6 +126,8 @@ Decisions made in S0:
   only short-SHA deploys exist so far.
 
 ## Log
+
+- 2026-10-28 — Security model signed off by the user (ADR 0002 accepted). Branch merged to `main`; mocks next.
 
 - 2026-10-28 — Security model review round with the user: step decay, SSO satisfies CAPTCHA, no detect mode, SSH
   host link confirmed in the ADR, Pulse footprint targets. Still awaiting final sign-off.

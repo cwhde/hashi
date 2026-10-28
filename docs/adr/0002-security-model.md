@@ -1,6 +1,6 @@
 # ADR 0002 — Security model: IP sets, rule sets, two-stage edge engine, nftables
 
-Date: 2026-10-27 · Status: proposed (awaiting the user's sign-off)
+Date: 2026-10-27 · Status: accepted (signed off by the user 2026-10-28)
 
 ## Context
 
