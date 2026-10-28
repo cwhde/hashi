@@ -61,12 +61,24 @@
 	});
 	let f = $state(initial());
 
+	// Empty = zone default; otherwise whole seconds in the provider's range. Anything else is refused here, so a typo
+	// never turns into "zone default" (03 §6: plans show the exact TTL).
+	const ttlError = $derived.by(() => {
+		const t = f.ttl.trim();
+		if (!t) return '';
+		const n = Number(t);
+		return /^\d+$/.test(t) && n >= 60 && n <= 86400
+			? ''
+			: 'Whole seconds from 60 to 86400, or empty for the zone default.';
+	});
+
 	function submit(e: SubmitEvent) {
 		e.preventDefault();
+		if (ttlError) return;
 		onSave({
 			name: f.name.trim() || '@',
 			type: f.type,
-			ttl: f.ttl.trim() ? Number(f.ttl) : undefined,
+			ttl: f.ttl.trim() ? Number(f.ttl.trim()) : undefined,
 			values: f.values
 				.split('\n')
 				.map((v) => v.trim())
@@ -110,8 +122,15 @@
 				inputmode="numeric"
 				placeholder="zone default"
 				class="tnum"
+				aria-invalid={!!ttlError}
+				aria-describedby={ttlError ? 'rec-ttl-error' : undefined}
 			/>
 		</div>
+		{#if ttlError}
+			<p id="rec-ttl-error" role="alert" class="text-[12px] text-bad-text sm:col-span-3">
+				{ttlError}
+			</p>
+		{/if}
 	</div>
 	<div class="mt-3 space-y-1">
 		<Label for="rec-values" class="text-[12px]">Values</Label>
@@ -155,7 +174,7 @@
 		{/if}
 		<span class="flex-1"></span>
 		<Button type="button" variant="ghost" size="sm" onclick={onCancel}>Cancel</Button>
-		<Button type="submit" size="sm" disabled={busy}
+		<Button type="submit" size="sm" disabled={busy || !!ttlError}
 			>{busy ? 'Saving…' : 'Save · creates a plan'}</Button
 		>
 	</div>

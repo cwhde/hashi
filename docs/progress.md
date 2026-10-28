@@ -64,6 +64,10 @@ PR B — UI + deploy
 Decisions made in PR B:
 - RRSets Hashi created (origin user/system/managed) are left off the import table: there is nothing to import.
 - The setup write test shows its plan and runs on "Approve and run" (no passkey exists in setup yet).
+- Saving import decisions (setup or `/dns`) plans the removals on the server, so "Remove" chosen in setup waits on
+  Pending changes (review #31). The pending-changes counter is always in the top bar, amber when something waits.
+- Review #31 fixed (reproduced): a save reported another entry's waiting delete as its own; a TTL typo became "zone
+  default" without a preview; setup's removals never became a plan.
 
 ## Previous slice
 
@@ -241,6 +245,10 @@ Decisions made in S0:
 ## Unverified
 
 (Review findings that were not reproduced. Not worked on unless promoted.)
+
+- S3 PR B review (#31): discarding a waiting entry-delete plan on `/changes` probably does not last: the entry is
+  already gone from Hashi, so the next save or hourly sync proposes the same delete again. Not demonstrated; the spec
+  does not say what Discard means there (undo the entry removal, or just "not now").
 
 - S2 PR B review (#29): `/dns` "show generated" hides only `system` RRSets; the mock also counts `managed` as
   generated. No S2 row has either origin, so it cannot be observed yet — recheck when S3 creates records.

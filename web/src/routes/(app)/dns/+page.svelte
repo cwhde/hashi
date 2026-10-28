@@ -121,7 +121,8 @@
 			if (res.error || !res.data) throw res.error;
 			setImport(res.data);
 			saved = 'Decisions saved.';
-			// Removals are their own high-risk plan (03 §4); imports go out with the next records plan.
+			// The server planned the removals (03 §4: their own high-risk plan); this reads that plan back. Imports go out
+			// with the next records plan.
 			const prune = await api.POST('/api/dns/prune', { body: { zone_id: zone.id } });
 			if (prune.error) throw prune.error;
 			const plan = await api.POST('/api/dns/plan', { body: { zone_id: zone.id } });

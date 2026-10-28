@@ -214,9 +214,14 @@
 				onclick={() => (searchOpen = true)}><Search /></Button
 			>
 
-			{#if live && pendingPlans.count > 0}<a
+			{#if live}<a
 					href="/changes"
-					class="flex h-8 items-center gap-1.5 rounded-[10px] border border-warn/30 bg-warn/10 px-2.5 text-[13px] font-medium text-warn-text hover:bg-warn/15"
+					class={cn(
+						'flex h-8 items-center gap-1.5 rounded-[10px] border px-2.5 text-[13px] font-medium',
+						pendingPlans.count > 0
+							? 'border-warn/30 bg-warn/10 text-warn-text hover:bg-warn/15'
+							: 'text-muted-foreground hover:text-foreground'
+					)}
 				>
 					<GitPullRequestArrow class="size-4" />
 					<span class="tnum">{pendingPlans.count}</span><span class="hidden sm:inline"

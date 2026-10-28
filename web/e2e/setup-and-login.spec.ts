@@ -130,6 +130,11 @@ test('setup with a passkey, then sign in with it', async ({ page }) => {
 	await page.getByRole('button', { name: 'Add record' }).click();
 	await page.getByLabel('Name', { exact: true }).fill('_hashi-test');
 	await page.getByLabel('Values', { exact: true }).fill('192.0.2.10');
+	// A TTL that is not whole seconds is refused in the form instead of becoming "zone default".
+	await page.getByLabel('TTL (seconds)').fill('300s');
+	await expect(page.getByRole('alert')).toContainText('Whole seconds');
+	await expect(page.getByRole('button', { name: 'Save · creates a plan' })).toBeDisabled();
+	await page.getByLabel('TTL (seconds)').fill('');
 	await page.getByRole('button', { name: 'Save · creates a plan' }).click();
 	await expect(page.getByRole('status')).toContainText('1 created, verified');
 	const entry = records.getByRole('row', { name: /^_hashi-test A / });
@@ -144,7 +149,15 @@ test('setup with a passkey, then sign in with it', async ({ page }) => {
 	await page.getByRole('button', { name: 'Delete record' }).click();
 	await expect(page.getByRole('status')).toContainText('needs your approval');
 	await expect(page.getByRole('link', { name: /1 pending change/ })).toBeVisible();
-	await page.getByRole('link', { name: 'Review changes' }).click();
+	// Another save while that delete waits reports its own result, not the waiting delete.
+	await page.getByRole('button', { name: 'Add record' }).click();
+	await page.getByLabel('Name', { exact: true }).fill('b._hashi-test');
+	await page.getByLabel('Values', { exact: true }).fill('192.0.2.11');
+	await page.getByRole('button', { name: 'Save · creates a plan' }).click();
+	await expect(page.getByRole('status')).toContainText(
+		'b._hashi-test A saved. Applied: 1 created, verified'
+	);
+	await page.getByRole('link', { name: /1 pending change/ }).click();
 	await expect(page).toHaveURL(/\/changes$/);
 	await expect(page.getByText('Delete DNS records in example.com')).toBeVisible();
 	await expect(page.getByText('192.0.2.10  TTL zone')).toBeVisible();
