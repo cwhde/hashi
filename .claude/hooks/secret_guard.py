@@ -45,6 +45,17 @@ def added_lines(diff):
             yield line[1:]
 
 
+def module_path(project):
+    """The Go module path from go.mod: public by construction, so it never counts as private infrastructure."""
+    try:
+        for line in open(os.path.join(project, "go.mod")):
+            if line.startswith("module "):
+                return line.split()[1]
+    except OSError:
+        pass
+    return ""
+
+
 def main():
     data = json.load(sys.stdin)
     command = data.get("tool_input", {}).get("command", "")
@@ -64,7 +75,10 @@ def main():
         for item in open(deny).read().split():
             patterns.append((re.escape(item), "private infrastructure name/address"))
 
+    module = module_path(project)
     for text in added_lines(diff_for(command, project)):
+        if module:
+            text = text.replace(module, "<module>")
         for pat, label in patterns:
             if re.search(pat, text):
                 findings.append("%s: %s" % (label, text.strip()[:120]))
