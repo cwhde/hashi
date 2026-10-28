@@ -5,6 +5,44 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
+**S3 — DNS write** · status: in progress (started 2026-10-28).
+
+Scope and gate: 11-delivery.md §3 row S3: 03-dns.md §5–7, sync engine 01-platform.md §5, approval UI. Gate: a probe
+TXT is created and deleted through an approved plan; a Hashi-owned test record is applied and verified; NS/SOA are untouched.
+
+External systems: Hetzner Cloud API writes. The contract is already captured (`testdata/contracts/hetzner/write/`,
+2026-10-28), so nothing new to capture.
+
+Scope cut: §5 host and service records need firewall hosts (S6) and services (S5), and A/AAAA address-set values need
+IP sets (05a). Those arrive with their slices on top of this engine. S3 delivers manual entries with literal values,
+imports, prunes and the probe, all through plan → approve → apply → verify.
+
+PR A — backend
+- [ ] Migration 00004: `dns_records` (desired manual entries: name, type, TTL or zone default, values, display name,
+      dashboard/monitoring flags), `sync_plans`, `sync_plan_items`, `sync_runs`, `sync_locks`; sqlc queries.
+- [ ] Hetzner write adapter from the write fixtures: create, `set_records`, `change_ttl`, delete, owner label (`PUT`),
+      Action polling with timeout, TXT quoting/escaping/255-byte split; replay tests for every write fixture.
+- [ ] `internal/dns` planner: desired (owned rows) vs observed → create/update/delete/conflict items; NS/SOA and
+      unowned RRSets never planned (conflict instead); CNAME exclusivity and apex checks; risk per item (01 §5.2).
+- [ ] `internal/sync` engine: persist plan + items + hash, low-risk auto-approve, high-risk approval (`sync.apply` +
+      reauth), apply under the lock with re-fetch and re-plan (a changed high-risk item goes back to approval),
+      verify by read-back, `last_applied_hash`, run row, audit entry. Background reconcile after each zone refresh.
+- [ ] Probe plan (invariant 4): create `_hashi-test` TXT → verify → delete → verify, only after explicit approval;
+      import → ownership `imported` (+ owner label); prune → one high-risk plan listing every RRSet.
+- [ ] OpenAPI: `POST /api/dns/records`, `PATCH|DELETE /api/dns/records/{id}`, `POST /api/dns/plan`, `POST /api/dns/probe`,
+      `GET /api/sync/plans`, `GET /api/sync/plans/{id}`, `POST /api/sync/plans/{id}/approve|apply|discard`, `GET /api/sync/runs`;
+      `make generate`. Tests `TestInvariant_1/2/3/4/7/13_*` for the write side.
+
+PR B — UI + deploy
+- [ ] `/changes`: pending plans with exact before/after (PlanReview), passkey approval, discard, recent runs.
+- [ ] `/dns` Records: add/edit/delete manual entries (inline editor from the mock), "Save · creates a plan";
+      Import: saving prune decisions creates the prune plan; "Test write access" (probe) on `/dns` and setup step 3.
+- [ ] E2E against the fixtures: add record → plan → apply → verified; probe plan approve; NS/SOA have no edit.
+- [ ] Deploy (user OK) and prod-proof: probe TXT created + deleted via an approved plan; a `_hashi-test` A record
+      created, verified and deleted through Hashi; NS/SOA unchanged (hash before/after).
+
+## Previous slice
+
 **S2 — DNS read + import** · status: **done** 2026-10-28, deployed `04ff8c7` (#28, #29), prod-proof passed.
 
 Scope and gate: 11-delivery.md §3 row S2 — 03-dns.md §1–4 (read side), setup step 3 (02 §1.3). Gate: the real zone is
