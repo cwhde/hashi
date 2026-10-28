@@ -36,8 +36,8 @@ var (
 	ErrNoZone        = errors.New("no such DNS zone")
 )
 
-// Service keeps the DNS provider connection, the managed zone, its observed snapshot, ownership and import decisions.
-// It only reads from providers; writes arrive with S3's plans (invariant 7).
+// Service keeps the DNS provider connection, the managed zone, its observed snapshot, ownership, import decisions and
+// desired entries. It writes to providers only through its sync subsystems (plans.go, invariant 7).
 type Service struct {
 	st    *store.Store
 	vault *vault.Vault
@@ -295,7 +295,7 @@ func (s *Service) replaceSnapshot(ctx context.Context, q *db.Queries, zoneID str
 			ttl = sql.NullInt64{Int64: int64(*r.TTL), Valid: true}
 		}
 		if err := q.InsertObservedRRSet(ctx, db.InsertObservedRRSetParams{ZoneID: zoneID, Name: r.Name, Type: r.Type, Ttl: ttl,
-			ValuesJson: string(vals), LabelsJson: string(labels), Protected: boolInt(r.Protected), Hash: h, ObservedAt: now.UnixMilli()}); err != nil {
+			ValuesJson: string(vals), LabelsJson: string(labels), Protected: boolInt(r.Protected), Hash: h, ObservedAt: now.UnixMilli(), Owner: r.Owner}); err != nil {
 			return "", fmt.Errorf("store RRSet %s %s: %w", r.Name, r.Type, err)
 		}
 	}
@@ -473,14 +473,18 @@ func (s *Service) zoneInfo(ctx context.Context, r db.DnsZone) (ZoneInfo, error) 
 }
 
 // Observed is an observed RRSet with Hashi's ownership ("" = not Hashi's) and import decision (nil = undecided).
+// Entry is Hashi's desired entry for it, if any. Pending marks an entry Hashi has not created at the provider yet
+// (RRSets lists it with the entry's values).
 type Observed struct {
 	RRSet
 	Origin     string
 	Decision   *Decision
 	ObservedAt time.Time
+	Entry      *Record
+	Pending    bool
 }
 
-// Origins (invariant 9). OriginImported is the only one this slice assigns.
+// Origins (invariant 9). Manual entries are user, imports imported; system and managed arrive with generated records.
 const (
 	OriginSystem   = "system"
 	OriginManaged  = "managed"
@@ -501,6 +505,22 @@ func (s *Service) RRSets(ctx context.Context, zoneID, origin, q string) ([]Obser
 	if err != nil {
 		return nil, err
 	}
+	recs, err := s.Records(ctx, s.st.R, zoneID)
+	if err != nil {
+		return nil, err
+	}
+	idx := make(map[rrsetKey]int, len(all))
+	for i, o := range all {
+		idx[rrsetKey{o.Name, o.Type}] = i
+	}
+	for _, rec := range recs {
+		if i, ok := idx[rrsetKey{rec.RRSet.Name, rec.RRSet.Type}]; ok {
+			all[i].Entry = &rec
+			continue
+		}
+		all = append(all, Observed{RRSet: rec.RRSet, Origin: rec.Origin, Entry: &rec, Pending: true})
+	}
+	slices.SortFunc(all, func(a, b Observed) int { return strings.Compare(a.Name+" "+a.Type, b.Name+" "+b.Type) })
 	q = strings.ToLower(strings.TrimSpace(q))
 	out := all[:0]
 	for _, o := range all {
@@ -554,7 +574,7 @@ func (s *Service) observed(ctx context.Context, q *db.Queries, zoneID string) ([
 	}
 	out := make([]Observed, 0, len(rows))
 	for _, r := range rows {
-		o := Observed{RRSet: RRSet{Name: r.Name, Type: r.Type, Protected: r.Protected == 1, Labels: map[string]string{}},
+		o := Observed{RRSet: RRSet{Name: r.Name, Type: r.Type, Protected: r.Protected == 1, Labels: map[string]string{}, Owner: r.Owner},
 			ObservedAt: time.UnixMilli(r.ObservedAt).UTC()}
 		if r.Ttl.Valid {
 			ttl := int(r.Ttl.Int64)
@@ -623,7 +643,8 @@ type DecisionInput struct {
 
 // SaveDecisions persists import decisions. Each must name an observed RRSet and be allowed for it (NS/SOA and
 // change-protected RRSets: leave only, invariant 2). "import" makes the RRSet Hashi's with origin imported; taking it
-// back removes only that imported ownership. Types the provider cannot manage are leave-only too. Prune decisions are only recorded; deleting needs S3's confirmed plan.
+// back removes only that imported ownership and entry. Types the provider cannot manage are leave-only too. Prune
+// decisions are only recorded; deleting needs the confirmed dns-prune plan.
 func (s *Service) SaveDecisions(ctx context.Context, actor, ip, zoneID string, in []DecisionInput) error {
 	z, err := s.Zone(ctx, zoneID)
 	if err != nil {
@@ -670,11 +691,18 @@ func (s *Service) SaveDecisions(ctx context.Context, actor, ip, zoneID string, i
 				Decision: string(d.Decision), DecidedAt: now}); err != nil {
 				return err
 			}
-			if d.Decision == Import {
-				err = q.UpsertDNSOwnership(ctx, db.UpsertDNSOwnershipParams{ZoneID: zoneID, Name: k.name, Type: k.typ,
-					Origin: OriginImported, CreatedAt: now, UpdatedAt: now})
-			} else {
-				_, err = q.DeleteImportedOwnership(ctx, db.DeleteImportedOwnershipParams{ZoneID: zoneID, Name: k.name, Type: k.typ})
+			if d.Decision == Import && o.Origin == "" {
+				// The entry starts as the RRSet is now, so importing changes nothing at the provider.
+				err = q.InsertDNSRecord(ctx, recordParams(ulid.Make().String(), zoneID, o.RRSet, OriginImported, RecordInput{}, now))
+				if err == nil {
+					err = q.UpsertDNSOwnership(ctx, db.UpsertDNSOwnershipParams{ZoneID: zoneID, Name: k.name, Type: k.typ,
+						Origin: OriginImported, CreatedAt: now, UpdatedAt: now})
+				}
+			} else if d.Decision != Import && o.Origin == OriginImported {
+				err = q.DeleteImportedDNSRecord(ctx, db.DeleteImportedDNSRecordParams{ZoneID: zoneID, Name: k.name, Type: k.typ})
+				if err == nil {
+					_, err = q.DeleteImportedOwnership(ctx, db.DeleteImportedOwnershipParams{ZoneID: zoneID, Name: k.name, Type: k.typ})
+				}
 			}
 			if err != nil {
 				return err

@@ -331,8 +331,8 @@ func (q *Queries) InsertDNSZone(ctx context.Context, arg InsertDNSZoneParams) er
 }
 
 const insertObservedRRSet = `-- name: InsertObservedRRSet :exec
-INSERT INTO dns_observed_rrsets (zone_id, name, type, ttl, values_json, labels_json, protected, hash, observed_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO dns_observed_rrsets (zone_id, name, type, ttl, values_json, labels_json, protected, hash, observed_at, owner)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertObservedRRSetParams struct {
@@ -345,6 +345,7 @@ type InsertObservedRRSetParams struct {
 	Protected  int64
 	Hash       string
 	ObservedAt int64
+	Owner      string
 }
 
 func (q *Queries) InsertObservedRRSet(ctx context.Context, arg InsertObservedRRSetParams) error {
@@ -358,6 +359,7 @@ func (q *Queries) InsertObservedRRSet(ctx context.Context, arg InsertObservedRRS
 		arg.Protected,
 		arg.Hash,
 		arg.ObservedAt,
+		arg.Owner,
 	)
 	return err
 }
@@ -548,7 +550,7 @@ func (q *Queries) ListImportDecisions(ctx context.Context, zoneID string) ([]Dns
 }
 
 const listObservedRRSets = `-- name: ListObservedRRSets :many
-SELECT zone_id, name, type, ttl, values_json, labels_json, protected, hash, observed_at FROM dns_observed_rrsets WHERE zone_id = ? ORDER BY name, type
+SELECT zone_id, name, type, ttl, values_json, labels_json, protected, hash, observed_at, owner FROM dns_observed_rrsets WHERE zone_id = ? ORDER BY name, type
 `
 
 func (q *Queries) ListObservedRRSets(ctx context.Context, zoneID string) ([]DnsObservedRrset, error) {
@@ -570,6 +572,7 @@ func (q *Queries) ListObservedRRSets(ctx context.Context, zoneID string) ([]DnsO
 			&i.Protected,
 			&i.Hash,
 			&i.ObservedAt,
+			&i.Owner,
 		); err != nil {
 			return nil, err
 		}

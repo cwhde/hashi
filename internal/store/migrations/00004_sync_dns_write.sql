@@ -21,6 +21,9 @@ CREATE TABLE dns_records (
     UNIQUE (zone_id, name, type)
 ) STRICT;
 
+-- The Hashi instance named by the provider's ownership marker ('' = unmarked; never grants ownership, invariant 1).
+ALTER TABLE dns_observed_rrsets ADD COLUMN owner TEXT NOT NULL DEFAULT '';
+
 -- A persisted diff between desired and observed state for one subsystem and target (01 §5.1).
 -- subsystem: dns-records (desired vs observed), dns-prune (prune decisions), dns-probe (write test, invariant 4).
 -- At most one open plan per subsystem and target: a newer plan supersedes the older one.
@@ -88,3 +91,4 @@ DROP TABLE sync_runs;
 DROP TABLE sync_plan_items;
 DROP TABLE sync_plans;
 DROP TABLE dns_records;
+ALTER TABLE dns_observed_rrsets DROP COLUMN owner;

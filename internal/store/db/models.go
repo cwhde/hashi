@@ -72,6 +72,7 @@ type DnsObservedRrset struct {
 	Protected  int64
 	Hash       string
 	ObservedAt int64
+	Owner      string
 }
 
 type DnsOwnership struct {

@@ -45,8 +45,8 @@ SELECT * FROM dns_observed_rrsets WHERE zone_id = ? ORDER BY name, type;
 DELETE FROM dns_observed_rrsets WHERE zone_id = ?;
 
 -- name: InsertObservedRRSet :exec
-INSERT INTO dns_observed_rrsets (zone_id, name, type, ttl, values_json, labels_json, protected, hash, observed_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO dns_observed_rrsets (zone_id, name, type, ttl, values_json, labels_json, protected, hash, observed_at, owner)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: ListDNSOwnership :many
 SELECT * FROM dns_ownership WHERE zone_id = ? ORDER BY name, type;
