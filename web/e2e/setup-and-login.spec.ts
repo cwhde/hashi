@@ -214,6 +214,33 @@ test('setup with a passkey, then sign in with it', async ({ page }) => {
 	await page.getByRole('link', { name: 'DNS' }).first().click();
 	await expect(records.getByRole('row', { name: /^_hashi-test A / })).toHaveCount(0);
 
+	// Traefik: the host from setup with the files Hashi applied; the certificate is served by it; "Renew now" plans.
+	await page.getByRole('link', { name: 'Traefik' }).first().click();
+	await expect(page).toHaveURL(/\/traefik$/);
+	await expect(page.getByText('v3.7.16')).toBeVisible();
+	const files = page.getByRole('list', { name: 'Files on edge' });
+	await expect(files).toContainText('40-hashi-security.yml');
+	await expect(files).toContainText('example.com.crt');
+	await expect(files).not.toContainText('example.com.key'); // key hashes stay out of the database
+	await page.getByRole('button', { name: 'Check and sync' }).click();
+	await expect(page.getByRole('status')).toContainText('edge already matches');
+	await page.getByRole('tab', { name: 'Certificates' }).click();
+	await expect(page).toHaveURL(/\?tab=certificates$/);
+	const certs = page.getByRole('list', { name: 'Certificates' });
+	await expect(certs).toContainText('example.com, *.example.com');
+	await expect(certs).toContainText('served by 1 of 1 host');
+	await expect(certs).toContainText('Hashi dev');
+	await page.getByRole('button', { name: 'Renew now' }).click();
+	await expect(page.getByRole('status')).toContainText('example.com renewed');
+	await expect(certs).toContainText('served by 0 of 1 host'); // the new one is not on the host yet
+	await page.getByRole('tab', { name: 'Hosts' }).click();
+	await page.getByRole('button', { name: 'Check and sync' }).click();
+	await expect(page.getByRole('status')).toContainText(
+		'certificate(s) served with the expected fingerprint'
+	);
+	await page.getByRole('tab', { name: 'Certificates' }).click();
+	await expect(certs).toContainText('served by 1 of 1 host');
+
 	// Account: the passkey and this session; the last passkey cannot be deleted.
 	await page.goto(`${state.baseURL}/settings?category=account`);
 	await expect(page.getByText('E2E authenticator')).toBeVisible();

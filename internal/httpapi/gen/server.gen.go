@@ -1633,7 +1633,7 @@ type ServerInterface interface {
 	// ListCertificates Certificates with expiry, last renewal and per-host distribution
 	// (GET /api/certificates)
 	ListCertificates(w http.ResponseWriter, r *http.Request)
-	// RenewCertificate Renew now — creates a low-risk certificates plan for this certificate (apply it from Changes)
+	// RenewCertificate Renew now — a low-risk certificates plan for this certificate, applied right away (takes about a minute)
 	// (POST /api/certificates/{id}/renew)
 	RenewCertificate(w http.ResponseWriter, r *http.Request, id string)
 	// GetDNSImport Import table; rows without a decision are new since the last import
@@ -6283,7 +6283,7 @@ type StrictServerInterface interface {
 	// ListCertificates Certificates with expiry, last renewal and per-host distribution
 	// (GET /api/certificates)
 	ListCertificates(ctx context.Context, request ListCertificatesRequestObject) (ListCertificatesResponseObject, error)
-	// RenewCertificate Renew now — creates a low-risk certificates plan for this certificate (apply it from Changes)
+	// RenewCertificate Renew now — a low-risk certificates plan for this certificate, applied right away (takes about a minute)
 	// (POST /api/certificates/{id}/renew)
 	RenewCertificate(ctx context.Context, request RenewCertificateRequestObject) (RenewCertificateResponseObject, error)
 	// GetDNSImport Import table; rows without a decision are new since the last import

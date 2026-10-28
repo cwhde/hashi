@@ -162,7 +162,7 @@ func (s *Server) RenewCertificate(ctx context.Context, req gen.RenewCertificateR
 	if _, err := s.Store.R.GetCertificate(ctx, req.Id); err != nil {
 		return nil, traefikError(err)
 	}
-	p, err := s.Sync.Propose(ctx, certs.Subsystem, req.Id, hsync.TriggerManual, s.actor(info(ctx)))
+	p, err := s.autoRun(ctx, certs.Subsystem, req.Id)
 	if err != nil {
 		return nil, traefikError(err)
 	}

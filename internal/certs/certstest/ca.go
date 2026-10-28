@@ -33,7 +33,7 @@ func NewCA() (*CA, error) {
 	if err != nil {
 		return nil, err
 	}
-	tpl := &x509.Certificate{SerialNumber: big.NewInt(1), Subject: pkix.Name{Organization: []string{"Hashi dev"}, CommonName: "Hashi dev CA"},
+	tpl := &x509.Certificate{SerialNumber: big.NewInt(1), Subject: pkix.Name{Organization: []string{"Hashi dev"}, CommonName: "local CA"},
 		NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(10 * 365 * 24 * time.Hour), IsCA: true,
 		BasicConstraintsValid: true, KeyUsage: x509.KeyUsageCertSign}
 	der, err := x509.CreateCertificate(rand.Reader, tpl, tpl, &key.PublicKey, key)
