@@ -19,6 +19,15 @@ func (q *Queries) ConfirmRecoveryKey(ctx context.Context, confirmedAt sql.NullIn
 	return err
 }
 
+const deleteSecret = `-- name: DeleteSecret :exec
+DELETE FROM secret_records WHERE id = ?
+`
+
+func (q *Queries) DeleteSecret(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, deleteSecret, id)
+	return err
+}
+
 const getRecoveryKey = `-- name: GetRecoveryKey :one
 SELECT id, key_version, verifier, nonce, wrapped_master, created_at, confirmed_at FROM recovery_key WHERE id = 1
 `

@@ -176,6 +176,11 @@ func (s *Service) MarkDone(ctx context.Context, q *db.Queries, n int, inputs any
 	return s.mark(ctx, q, n, Done, inputs, "")
 }
 
+// MarkInProgress records a step whose validation passed so far but that is not complete yet.
+func (s *Service) MarkInProgress(ctx context.Context, q *db.Queries, n int, inputs any) error {
+	return s.mark(ctx, q, n, InProgress, inputs, "")
+}
+
 // MarkFailed records a failed validation; the step does not advance.
 func (s *Service) MarkFailed(ctx context.Context, q *db.Queries, n int, reason string) error {
 	return s.mark(ctx, q, n, Failed, nil, reason)

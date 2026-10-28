@@ -1,0 +1,38 @@
+{
+  "captured_at": "2026-10-28T08:39:17+00:00",
+  "docs_url": "https://docs.hetzner.cloud/reference/cloud#zone-rrsets",
+  "request": "POST /v1/zones/100001/rrsets",
+  "request_body": {
+    "name": "long._hashi-test",
+    "type": "TXT",
+    "ttl": null,
+    "records": [
+      {
+        "value": "\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\""
+      }
+    ]
+  },
+  "status": 422,
+  "headers": {
+    "content-type": "application/json",
+    "ratelimit-limit": "3600",
+    "ratelimit-remaining": "3598",
+    "ratelimit-reset": "1793176759"
+  },
+  "body": {
+    "error": {
+      "code": "invalid_input",
+      "message": "a TXT string exceeds 255 characters",
+      "details": {
+        "fields": [
+          {
+            "messages": [
+              "a TXT string exceeds 255 characters"
+            ],
+            "name": "rrsets[0].records[0].value"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -314,6 +314,49 @@ paths:
           description: Saved
           content: { application/json: { schema: { $ref: "#/components/schemas/SetupState" } } }
         default: { $ref: "#/components/responses/Problem" }
+  /api/setup/dns/provider:
+    put:
+      operationId: putSetupDNSProvider
+      summary: Step 3 — validate a DNS provider token read-only, pick the zone, store the first snapshot
+      description: |
+        Lists the zones the token sees and reads the chosen zone's RRSets; nothing is stored when that fails
+        (invariant 3). Without `zone_id` the zone containing the root domain (or the stored zone) is chosen; when
+        none is, only `zones` is returned, nothing is stored, and the admin sends the token again with a `zone_id`.
+        Omitting `token` reuses the stored one.
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/DNSProviderInput" } } }
+      responses:
+        "200":
+          description: Validated and stored
+          content: { application/json: { schema: { $ref: "#/components/schemas/DNSConnectResult" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/setup/dns/import:
+    get:
+      operationId: getSetupDNSImport
+      summary: Step 3 — import table of the managed zone
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      responses:
+        "200":
+          description: Import table
+          content: { application/json: { schema: { $ref: "#/components/schemas/DNSImportTable" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      operationId: putSetupDNSImport
+      summary: Step 3 — save import decisions; completes the step
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/DNSImportDecisions" } } }
+      responses:
+        "200":
+          description: Saved
+          content: { application/json: { schema: { $ref: "#/components/schemas/SetupState" } } }
+        default: { $ref: "#/components/responses/Problem" }
   /api/setup/passkey/options:
     post:
       operationId: setupPasskeyOptions
@@ -454,6 +497,79 @@ paths:
         "200":
           description: Saved
           content: { application/json: { schema: { $ref: "#/components/schemas/AppearanceSettings" } } }
+        default: { $ref: "#/components/responses/Problem" }
+
+  # ---- dns (03-dns.md §7) ----
+  /api/dns/zones:
+    get:
+      operationId: listDNSZones
+      summary: Managed zones with their refresh state
+      tags: [dns]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Zones
+          content: { application/json: { schema: { $ref: "#/components/schemas/DNSZoneList" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/dns/zones/{id}/refresh:
+    post:
+      operationId: refreshDNSZone
+      summary: Read the zone from the provider now and replace the observed snapshot (read-only towards the provider)
+      tags: [dns]
+      x-hashi-scopes: [admin.write]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Refreshed
+          content: { application/json: { schema: { $ref: "#/components/schemas/DNSZone" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/dns/zones/{id}/rrsets:
+    get:
+      operationId: listDNSRRSets
+      summary: Observed RRSets of a zone with Hashi's ownership
+      tags: [dns]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - name: origin
+          in: query
+          description: Only RRSets with this origin; `unmanaged` = not Hashi's
+          schema: { type: string, enum: [system, managed, imported, user, unmanaged] }
+        - { name: q, in: query, description: "Substring of name or value, or a type", schema: { type: string } }
+      responses:
+        "200":
+          description: RRSets
+          content: { application/json: { schema: { $ref: "#/components/schemas/DNSRRSetList" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/dns/import/{zoneId}:
+    get:
+      operationId: getDNSImport
+      summary: Import table; rows without a decision are new since the last import
+      tags: [dns]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: zoneId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Import table
+          content: { application/json: { schema: { $ref: "#/components/schemas/DNSImportTable" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/dns/import/{zoneId}/decisions:
+    put:
+      operationId: putDNSImportDecisions
+      summary: Save import decisions (prune only marks; deleting needs a confirmed prune plan)
+      tags: [dns]
+      x-hashi-scopes: [admin.write]
+      parameters:
+        - { name: zoneId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/DNSImportDecisions" } } }
+      responses:
+        "200":
+          description: Saved; the updated table
+          content: { application/json: { schema: { $ref: "#/components/schemas/DNSImportTable" } } }
         default: { $ref: "#/components/responses/Problem" }
 
   # ---- vault (02 §5) ----
@@ -658,6 +774,112 @@ components:
         steps: { type: array, items: { $ref: "#/components/schemas/SetupStep" } }
         base_settings: { $ref: "#/components/schemas/BaseSettings" }
         passkeys: { type: integer, description: Registered passkeys (setup sessions only) }
+        dns: { $ref: "#/components/schemas/DNSConnectResult" }
+    DNSProviderInput:
+      type: object
+      required: [type, default_ttl]
+      properties:
+        type: { type: string, enum: [hetzner] }
+        token: { type: string, writeOnly: true, description: "Cloud project API token; omit to keep the stored one" }
+        default_ttl: { type: integer, minimum: 60, maximum: 86400, description: TTL for RRSets Hashi creates }
+        zone_id: { type: string, description: "Provider zone ID chosen from `zones` when the root domain matched none" }
+    DNSProvider:
+      type: object
+      required: [id, type, default_ttl, health, last_error]
+      properties:
+        id: { type: string }
+        type: { type: string, enum: [hetzner] }
+        default_ttl: { type: integer }
+        health: { type: string, enum: [unknown, validating, healthy, degraded, failed] }
+        last_validated_at: { type: string, format: date-time }
+        last_error: { type: string }
+    DNSProviderZone:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string, description: Provider zone ID }
+        name: { type: string }
+    DNSConnectResult:
+      type: object
+      description: "`provider` and `zone` are absent when no zone was chosen (nothing stored)"
+      required: [zones]
+      properties:
+        provider: { $ref: "#/components/schemas/DNSProvider" }
+        zones:
+          type: array
+          description: Zones the token sees (only right after validation; empty when read back)
+          items: { $ref: "#/components/schemas/DNSProviderZone" }
+        zone: { $ref: "#/components/schemas/DNSZone" }
+    DNSZone:
+      type: object
+      required: [id, name, provider, zone_ttl, rrset_count, last_refresh_error]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        provider: { $ref: "#/components/schemas/DNSProvider" }
+        zone_ttl: { type: integer, description: Zone default TTL (RRSets without a TTL inherit it) }
+        rrset_count: { type: integer }
+        last_refreshed_at: { type: string, format: date-time }
+        last_refresh_error: { type: string }
+    DNSZoneList:
+      type: object
+      required: [zones]
+      properties:
+        zones: { type: array, items: { $ref: "#/components/schemas/DNSZone" } }
+    DNSOrigin:
+      type: string
+      description: Hashi's ownership; `unmanaged` = not Hashi's
+      enum: [system, managed, imported, user, unmanaged]
+    DNSDecision:
+      type: string
+      enum: [import, leave, prune]
+    DNSRRSet:
+      type: object
+      required: [name, fqdn, type, effective_ttl, values, protected, origin, observed_at]
+      properties:
+        name: { type: string, description: "Relative to the zone; `@` is the apex" }
+        fqdn: { type: string }
+        type: { type: string }
+        ttl: { type: integer, description: Absent = zone default }
+        effective_ttl: { type: integer }
+        values: { type: array, items: { type: string }, description: Sorted; TXT values decoded to their text }
+        protected: { type: boolean, description: The provider forbids changes; read-only to Hashi }
+        origin: { $ref: "#/components/schemas/DNSOrigin" }
+        observed_at: { type: string, format: date-time }
+    DNSRRSetList:
+      type: object
+      required: [zone, rrsets]
+      properties:
+        zone: { $ref: "#/components/schemas/DNSZone" }
+        rrsets: { type: array, items: { $ref: "#/components/schemas/DNSRRSet" } }
+    DNSImportRow:
+      type: object
+      required: [rrset, allowed_decisions]
+      properties:
+        rrset: { $ref: "#/components/schemas/DNSRRSet" }
+        decision: { $ref: "#/components/schemas/DNSDecision" }
+        allowed_decisions:
+          type: array
+          description: NS, SOA and change-protected RRSets allow only `leave` (invariant 2)
+          items: { $ref: "#/components/schemas/DNSDecision" }
+    DNSImportTable:
+      type: object
+      required: [zone, rows]
+      properties:
+        zone: { $ref: "#/components/schemas/DNSZone" }
+        rows: { type: array, items: { $ref: "#/components/schemas/DNSImportRow" } }
+    DNSImportDecision:
+      type: object
+      required: [name, type, decision]
+      properties:
+        name: { type: string }
+        type: { type: string }
+        decision: { $ref: "#/components/schemas/DNSDecision" }
+    DNSImportDecisions:
+      type: object
+      required: [decisions]
+      properties:
+        decisions: { type: array, maxItems: 5000, items: { $ref: "#/components/schemas/DNSImportDecision" } }
     BaseSettings:
       type: object
       required: [root_domain, admin_domain, internal_url, sync_interval_seconds, theme, public_dashboard_enabled, public_status_enabled]

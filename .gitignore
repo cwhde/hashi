@@ -10,6 +10,7 @@ CLAUDE.local.md
 .claude/.state/
 .contracts-raw/
 testdata/contracts/denylist.txt
+testdata/contracts/rename.txt
 
 # Go
 /bin/

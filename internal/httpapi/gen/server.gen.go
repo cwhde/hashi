@@ -59,6 +59,111 @@ func (e AuthSessionMethod) Valid() bool {
 	}
 }
 
+// Defines values for DNSDecision.
+const (
+	Import DNSDecision = "import"
+	Leave  DNSDecision = "leave"
+	Prune  DNSDecision = "prune"
+)
+
+// Valid indicates whether the value is a known member of the DNSDecision enum.
+func (e DNSDecision) Valid() bool {
+	switch e {
+	case Import:
+		return true
+	case Leave:
+		return true
+	case Prune:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DNSOrigin.
+const (
+	DNSOriginImported  DNSOrigin = "imported"
+	DNSOriginManaged   DNSOrigin = "managed"
+	DNSOriginSystem    DNSOrigin = "system"
+	DNSOriginUnmanaged DNSOrigin = "unmanaged"
+	DNSOriginUser      DNSOrigin = "user"
+)
+
+// Valid indicates whether the value is a known member of the DNSOrigin enum.
+func (e DNSOrigin) Valid() bool {
+	switch e {
+	case DNSOriginImported:
+		return true
+	case DNSOriginManaged:
+		return true
+	case DNSOriginSystem:
+		return true
+	case DNSOriginUnmanaged:
+		return true
+	case DNSOriginUser:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DNSProviderHealth.
+const (
+	DNSProviderHealthDegraded   DNSProviderHealth = "degraded"
+	DNSProviderHealthFailed     DNSProviderHealth = "failed"
+	DNSProviderHealthHealthy    DNSProviderHealth = "healthy"
+	DNSProviderHealthUnknown    DNSProviderHealth = "unknown"
+	DNSProviderHealthValidating DNSProviderHealth = "validating"
+)
+
+// Valid indicates whether the value is a known member of the DNSProviderHealth enum.
+func (e DNSProviderHealth) Valid() bool {
+	switch e {
+	case DNSProviderHealthDegraded:
+		return true
+	case DNSProviderHealthFailed:
+		return true
+	case DNSProviderHealthHealthy:
+		return true
+	case DNSProviderHealthUnknown:
+		return true
+	case DNSProviderHealthValidating:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DNSProviderType.
+const (
+	DNSProviderTypeHetzner DNSProviderType = "hetzner"
+)
+
+// Valid indicates whether the value is a known member of the DNSProviderType enum.
+func (e DNSProviderType) Valid() bool {
+	switch e {
+	case DNSProviderTypeHetzner:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for DNSProviderInputType.
+const (
+	DNSProviderInputTypeHetzner DNSProviderInputType = "hetzner"
+)
+
+// Valid indicates whether the value is a known member of the DNSProviderInputType enum.
+func (e DNSProviderInputType) Valid() bool {
+	switch e {
+	case DNSProviderInputTypeHetzner:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for HealthStatus.
 const (
 	Ok          HealthStatus = "ok"
@@ -161,6 +266,33 @@ func (e VaultStateMode) Valid() bool {
 	}
 }
 
+// Defines values for ListDNSRRSetsParamsOrigin.
+const (
+	ListDNSRRSetsParamsOriginImported  ListDNSRRSetsParamsOrigin = "imported"
+	ListDNSRRSetsParamsOriginManaged   ListDNSRRSetsParamsOrigin = "managed"
+	ListDNSRRSetsParamsOriginSystem    ListDNSRRSetsParamsOrigin = "system"
+	ListDNSRRSetsParamsOriginUnmanaged ListDNSRRSetsParamsOrigin = "unmanaged"
+	ListDNSRRSetsParamsOriginUser      ListDNSRRSetsParamsOrigin = "user"
+)
+
+// Valid indicates whether the value is a known member of the ListDNSRRSetsParamsOrigin enum.
+func (e ListDNSRRSetsParamsOrigin) Valid() bool {
+	switch e {
+	case ListDNSRRSetsParamsOriginImported:
+		return true
+	case ListDNSRRSetsParamsOriginManaged:
+		return true
+	case ListDNSRRSetsParamsOriginSystem:
+		return true
+	case ListDNSRRSetsParamsOriginUnmanaged:
+		return true
+	case ListDNSRRSetsParamsOriginUser:
+		return true
+	default:
+		return false
+	}
+}
+
 // AllSettings defines model for AllSettings.
 type AllSettings struct {
 	Appearance AppearanceSettings `json:"appearance"`
@@ -250,6 +382,133 @@ type CeremonyResponse struct {
 
 	// Name Passkey name (registration only)
 	Name *string `json:"name,omitempty"`
+}
+
+// DNSConnectResult `provider` and `zone` are absent when no zone was chosen (nothing stored)
+type DNSConnectResult struct {
+	Provider *DNSProvider `json:"provider,omitempty"`
+	Zone     *DNSZone     `json:"zone,omitempty"`
+
+	// Zones Zones the token sees (only right after validation; empty when read back)
+	Zones []DNSProviderZone `json:"zones"`
+}
+
+// DNSDecision defines model for DNSDecision.
+type DNSDecision string
+
+// DNSImportDecision defines model for DNSImportDecision.
+type DNSImportDecision struct {
+	Decision DNSDecision `json:"decision"`
+	Name     string      `json:"name"`
+	Type     string      `json:"type"`
+}
+
+// DNSImportDecisions defines model for DNSImportDecisions.
+type DNSImportDecisions struct {
+	Decisions []DNSImportDecision `json:"decisions"`
+}
+
+// DNSImportRow defines model for DNSImportRow.
+type DNSImportRow struct {
+	// AllowedDecisions NS, SOA and change-protected RRSets allow only `leave` (invariant 2)
+	AllowedDecisions []DNSDecision `json:"allowed_decisions"`
+	Decision         *DNSDecision  `json:"decision,omitempty"`
+	Rrset            DNSRRSet      `json:"rrset"`
+}
+
+// DNSImportTable defines model for DNSImportTable.
+type DNSImportTable struct {
+	Rows []DNSImportRow `json:"rows"`
+	Zone DNSZone        `json:"zone"`
+}
+
+// DNSOrigin Hashi's ownership; `unmanaged` = not Hashi's
+type DNSOrigin string
+
+// DNSProvider defines model for DNSProvider.
+type DNSProvider struct {
+	DefaultTtl      int               `json:"default_ttl"`
+	Health          DNSProviderHealth `json:"health"`
+	Id              string            `json:"id"`
+	LastError       string            `json:"last_error"`
+	LastValidatedAt *time.Time        `json:"last_validated_at,omitempty"`
+	Type            DNSProviderType   `json:"type"`
+}
+
+// DNSProviderHealth defines model for DNSProvider.Health.
+type DNSProviderHealth string
+
+// DNSProviderType defines model for DNSProvider.Type.
+type DNSProviderType string
+
+// DNSProviderInput defines model for DNSProviderInput.
+type DNSProviderInput struct {
+	// DefaultTtl TTL for RRSets Hashi creates
+	DefaultTtl int `json:"default_ttl"`
+
+	// Token Cloud project API token; omit to keep the stored one
+	Token *string              `json:"token,omitempty"`
+	Type  DNSProviderInputType `json:"type"`
+
+	// ZoneId Provider zone ID chosen from `zones` when the root domain matched none
+	ZoneId *string `json:"zone_id,omitempty"`
+}
+
+// DNSProviderInputType defines model for DNSProviderInput.Type.
+type DNSProviderInputType string
+
+// DNSProviderZone defines model for DNSProviderZone.
+type DNSProviderZone struct {
+	// Id Provider zone ID
+	Id   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// DNSRRSet defines model for DNSRRSet.
+type DNSRRSet struct {
+	EffectiveTtl int    `json:"effective_ttl"`
+	Fqdn         string `json:"fqdn"`
+
+	// Name Relative to the zone; `@` is the apex
+	Name       string    `json:"name"`
+	ObservedAt time.Time `json:"observed_at"`
+
+	// Origin Hashi's ownership; `unmanaged` = not Hashi's
+	Origin DNSOrigin `json:"origin"`
+
+	// Protected The provider forbids changes; read-only to Hashi
+	Protected bool `json:"protected"`
+
+	// Ttl Absent = zone default
+	Ttl  *int   `json:"ttl,omitempty"`
+	Type string `json:"type"`
+
+	// Values Sorted; TXT values decoded to their text
+	Values []string `json:"values"`
+}
+
+// DNSRRSetList defines model for DNSRRSetList.
+type DNSRRSetList struct {
+	Rrsets []DNSRRSet `json:"rrsets"`
+	Zone   DNSZone    `json:"zone"`
+}
+
+// DNSZone defines model for DNSZone.
+type DNSZone struct {
+	Id               string      `json:"id"`
+	LastRefreshError string      `json:"last_refresh_error"`
+	LastRefreshedAt  *time.Time  `json:"last_refreshed_at,omitempty"`
+	Name             string      `json:"name"`
+	Provider         DNSProvider `json:"provider"`
+	RrsetCount       int         `json:"rrset_count"`
+
+	// ZoneTtl Zone default TTL (RRSets without a TTL inherit it)
+	ZoneTtl int `json:"zone_ttl"`
+}
+
+// DNSZoneList defines model for DNSZoneList.
+type DNSZoneList struct {
+	Zones []DNSZone `json:"zones"`
 }
 
 // GeneralSettings defines model for GeneralSettings.
@@ -414,6 +673,9 @@ type SetupState struct {
 	BaseSettings *BaseSettings `json:"base_settings,omitempty"`
 	Completed    bool          `json:"completed"`
 
+	// Dns `provider` and `zone` are absent when no zone was chosen (nothing stored)
+	Dns *DNSConnectResult `json:"dns,omitempty"`
+
 	// Passkeys Registered passkeys (setup sessions only)
 	Passkeys *int        `json:"passkeys,omitempty"`
 	Steps    []SetupStep `json:"steps"`
@@ -466,6 +728,18 @@ type ListLogLinesParams struct {
 	After *int64 `form:"after,omitempty" json:"after,omitempty"`
 }
 
+// ListDNSRRSetsParams defines parameters for ListDNSRRSets.
+type ListDNSRRSetsParams struct {
+	// Origin Only RRSets with this origin; `unmanaged` = not Hashi's
+	Origin *ListDNSRRSetsParamsOrigin `form:"origin,omitempty" json:"origin,omitempty"`
+
+	// Q Substring of name or value, or a type
+	Q *string `form:"q,omitempty" json:"q,omitempty"`
+}
+
+// ListDNSRRSetsParamsOrigin defines parameters for ListDNSRRSets.
+type ListDNSRRSetsParamsOrigin string
+
 // BootstrapLoginJSONRequestBody defines body for BootstrapLogin for application/json ContentType.
 type BootstrapLoginJSONRequestBody = BootstrapLogin
 
@@ -487,6 +761,9 @@ type RecoverLoginJSONRequestBody = RecoverLogin
 // RecoverPasskeyVerifyJSONRequestBody defines body for RecoverPasskeyVerify for application/json ContentType.
 type RecoverPasskeyVerifyJSONRequestBody = CeremonyResponse
 
+// PutDNSImportDecisionsJSONRequestBody defines body for PutDNSImportDecisions for application/json ContentType.
+type PutDNSImportDecisionsJSONRequestBody = DNSImportDecisions
+
 // PutAppearanceSettingsJSONRequestBody defines body for PutAppearanceSettings for application/json ContentType.
 type PutAppearanceSettingsJSONRequestBody = AppearanceSettings
 
@@ -498,6 +775,12 @@ type PutSecuritySettingsJSONRequestBody = SecuritySettings
 
 // PutSetupBaseSettingsJSONRequestBody defines body for PutSetupBaseSettings for application/json ContentType.
 type PutSetupBaseSettingsJSONRequestBody = BaseSettings
+
+// PutSetupDNSImportJSONRequestBody defines body for PutSetupDNSImport for application/json ContentType.
+type PutSetupDNSImportJSONRequestBody = DNSImportDecisions
+
+// PutSetupDNSProviderJSONRequestBody defines body for PutSetupDNSProvider for application/json ContentType.
+type PutSetupDNSProviderJSONRequestBody = DNSProviderInput
 
 // SetupPasskeyVerifyJSONRequestBody defines body for SetupPasskeyVerify for application/json ContentType.
 type SetupPasskeyVerifyJSONRequestBody = CeremonyResponse
@@ -570,6 +853,21 @@ type ServerInterface interface {
 	// RevokeSession Revoke one session by its correlation ID
 	// (DELETE /api/auth/sessions/{id})
 	RevokeSession(w http.ResponseWriter, r *http.Request, id string)
+	// GetDNSImport Import table; rows without a decision are new since the last import
+	// (GET /api/dns/import/{zoneId})
+	GetDNSImport(w http.ResponseWriter, r *http.Request, zoneId string)
+	// PutDNSImportDecisions Save import decisions (prune only marks; deleting needs a confirmed prune plan)
+	// (PUT /api/dns/import/{zoneId}/decisions)
+	PutDNSImportDecisions(w http.ResponseWriter, r *http.Request, zoneId string)
+	// ListDNSZones Managed zones with their refresh state
+	// (GET /api/dns/zones)
+	ListDNSZones(w http.ResponseWriter, r *http.Request)
+	// RefreshDNSZone Read the zone from the provider now and replace the observed snapshot (read-only towards the provider)
+	// (POST /api/dns/zones/{id}/refresh)
+	RefreshDNSZone(w http.ResponseWriter, r *http.Request, id string)
+	// ListDNSRRSets Observed RRSets of a zone with Hashi's ownership
+	// (GET /api/dns/zones/{id}/rrsets)
+	ListDNSRRSets(w http.ResponseWriter, r *http.Request, id string, params ListDNSRRSetsParams)
 	// GetSettings All settings categories
 	// (GET /api/settings)
 	GetSettings(w http.ResponseWriter, r *http.Request)
@@ -600,6 +898,15 @@ type ServerInterface interface {
 	// CompleteSetup Step 11 — finish setup; destroys the bootstrap credentials and signs out bootstrap sessions
 	// (POST /api/setup/complete)
 	CompleteSetup(w http.ResponseWriter, r *http.Request)
+	// GetSetupDNSImport Step 3 — import table of the managed zone
+	// (GET /api/setup/dns/import)
+	GetSetupDNSImport(w http.ResponseWriter, r *http.Request)
+	// PutSetupDNSImport Step 3 — save import decisions; completes the step
+	// (PUT /api/setup/dns/import)
+	PutSetupDNSImport(w http.ResponseWriter, r *http.Request)
+	// PutSetupDNSProvider Step 3 — validate a DNS provider token read-only, pick the zone, store the first snapshot
+	// (PUT /api/setup/dns/provider)
+	PutSetupDNSProvider(w http.ResponseWriter, r *http.Request)
 	// SetupPasskeyOptions Step 9 — start registering the first passkey
 	// (POST /api/setup/passkey/options)
 	SetupPasskeyOptions(w http.ResponseWriter, r *http.Request)
@@ -1022,6 +1329,153 @@ func (siw *ServerInterfaceWrapper) RevokeSession(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// GetDNSImport operation middleware
+func (siw *ServerInterfaceWrapper) GetDNSImport(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "zoneId" -------------
+	var zoneId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "zoneId", r.PathValue("zoneId"), &zoneId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "zoneId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetDNSImport(w, r, zoneId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutDNSImportDecisions operation middleware
+func (siw *ServerInterfaceWrapper) PutDNSImportDecisions(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "zoneId" -------------
+	var zoneId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "zoneId", r.PathValue("zoneId"), &zoneId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "zoneId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutDNSImportDecisions(w, r, zoneId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListDNSZones operation middleware
+func (siw *ServerInterfaceWrapper) ListDNSZones(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListDNSZones(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RefreshDNSZone operation middleware
+func (siw *ServerInterfaceWrapper) RefreshDNSZone(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RefreshDNSZone(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListDNSRRSets operation middleware
+func (siw *ServerInterfaceWrapper) ListDNSRRSets(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListDNSRRSetsParams
+
+	// ------------- Optional query parameter "origin" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "origin", r.URL.Query(), &params.Origin, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "origin"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "origin", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListDNSRRSets(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetSettings operation middleware
 func (siw *ServerInterfaceWrapper) GetSettings(w http.ResponseWriter, r *http.Request) {
 
@@ -1153,6 +1607,48 @@ func (siw *ServerInterfaceWrapper) CompleteSetup(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CompleteSetup(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSetupDNSImport operation middleware
+func (siw *ServerInterfaceWrapper) GetSetupDNSImport(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSetupDNSImport(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutSetupDNSImport operation middleware
+func (siw *ServerInterfaceWrapper) PutSetupDNSImport(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutSetupDNSImport(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutSetupDNSProvider operation middleware
+func (siw *ServerInterfaceWrapper) PutSetupDNSProvider(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutSetupDNSProvider(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1457,6 +1953,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/auth/recover/passkey/verify", wrapper.RecoverPasskeyVerify)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/setup", wrapper.GetSetup)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/setup/base-settings", wrapper.PutSetupBaseSettings)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/setup/dns/provider", wrapper.PutSetupDNSProvider)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/setup/dns/import", wrapper.GetSetupDNSImport)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/setup/dns/import", wrapper.PutSetupDNSImport)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/passkey/options", wrapper.SetupPasskeyOptions)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/passkey/verify", wrapper.SetupPasskeyVerify)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/recovery-key", wrapper.SetupRecoveryKey)
@@ -1469,6 +1968,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/settings/security", wrapper.PutSecuritySettings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings/appearance", wrapper.GetAppearanceSettings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/settings/appearance", wrapper.PutAppearanceSettings)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/dns/zones", wrapper.ListDNSZones)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/dns/zones/{id}/refresh", wrapper.RefreshDNSZone)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/dns/zones/{id}/rrsets", wrapper.ListDNSRRSets)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/dns/import/{zoneId}", wrapper.GetDNSImport)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/dns/import/{zoneId}/decisions", wrapper.PutDNSImportDecisions)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/vault", wrapper.GetVault)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/vault/secrets", wrapper.ListSecrets)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/vault/secrets/{id}/reveal", wrapper.RevealSecret)
@@ -2321,6 +2825,202 @@ func (response RevokeSessiondefaultApplicationProblemPlusJSONResponse) VisitRevo
 	return err
 }
 
+type GetDNSImportRequestObject struct {
+	ZoneId string `json:"zoneId"`
+}
+
+type GetDNSImportResponseObject interface {
+	VisitGetDNSImportResponse(w http.ResponseWriter) error
+}
+
+type GetDNSImport200JSONResponse DNSImportTable
+
+func (response GetDNSImport200JSONResponse) VisitGetDNSImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDNSImportdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetDNSImportdefaultApplicationProblemPlusJSONResponse) VisitGetDNSImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutDNSImportDecisionsRequestObject struct {
+	ZoneId string `json:"zoneId"`
+	Body   *PutDNSImportDecisionsJSONRequestBody
+}
+
+type PutDNSImportDecisionsResponseObject interface {
+	VisitPutDNSImportDecisionsResponse(w http.ResponseWriter) error
+}
+
+type PutDNSImportDecisions200JSONResponse DNSImportTable
+
+func (response PutDNSImportDecisions200JSONResponse) VisitPutDNSImportDecisionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutDNSImportDecisionsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutDNSImportDecisionsdefaultApplicationProblemPlusJSONResponse) VisitPutDNSImportDecisionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListDNSZonesRequestObject struct {
+}
+
+type ListDNSZonesResponseObject interface {
+	VisitListDNSZonesResponse(w http.ResponseWriter) error
+}
+
+type ListDNSZones200JSONResponse DNSZoneList
+
+func (response ListDNSZones200JSONResponse) VisitListDNSZonesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListDNSZonesdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ListDNSZonesdefaultApplicationProblemPlusJSONResponse) VisitListDNSZonesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RefreshDNSZoneRequestObject struct {
+	Id string `json:"id"`
+}
+
+type RefreshDNSZoneResponseObject interface {
+	VisitRefreshDNSZoneResponse(w http.ResponseWriter) error
+}
+
+type RefreshDNSZone200JSONResponse DNSZone
+
+func (response RefreshDNSZone200JSONResponse) VisitRefreshDNSZoneResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RefreshDNSZonedefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response RefreshDNSZonedefaultApplicationProblemPlusJSONResponse) VisitRefreshDNSZoneResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListDNSRRSetsRequestObject struct {
+	Id     string `json:"id"`
+	Params ListDNSRRSetsParams
+}
+
+type ListDNSRRSetsResponseObject interface {
+	VisitListDNSRRSetsResponse(w http.ResponseWriter) error
+}
+
+type ListDNSRRSets200JSONResponse DNSRRSetList
+
+func (response ListDNSRRSets200JSONResponse) VisitListDNSRRSetsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListDNSRRSetsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ListDNSRRSetsdefaultApplicationProblemPlusJSONResponse) VisitListDNSRRSetsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetSettingsRequestObject struct {
 }
 
@@ -2694,6 +3394,122 @@ type CompleteSetupdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response CompleteSetupdefaultApplicationProblemPlusJSONResponse) VisitCompleteSetupResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetSetupDNSImportRequestObject struct {
+}
+
+type GetSetupDNSImportResponseObject interface {
+	VisitGetSetupDNSImportResponse(w http.ResponseWriter) error
+}
+
+type GetSetupDNSImport200JSONResponse DNSImportTable
+
+func (response GetSetupDNSImport200JSONResponse) VisitGetSetupDNSImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetSetupDNSImportdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetSetupDNSImportdefaultApplicationProblemPlusJSONResponse) VisitGetSetupDNSImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutSetupDNSImportRequestObject struct {
+	Body *PutSetupDNSImportJSONRequestBody
+}
+
+type PutSetupDNSImportResponseObject interface {
+	VisitPutSetupDNSImportResponse(w http.ResponseWriter) error
+}
+
+type PutSetupDNSImport200JSONResponse SetupState
+
+func (response PutSetupDNSImport200JSONResponse) VisitPutSetupDNSImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutSetupDNSImportdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutSetupDNSImportdefaultApplicationProblemPlusJSONResponse) VisitPutSetupDNSImportResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutSetupDNSProviderRequestObject struct {
+	Body *PutSetupDNSProviderJSONRequestBody
+}
+
+type PutSetupDNSProviderResponseObject interface {
+	VisitPutSetupDNSProviderResponse(w http.ResponseWriter) error
+}
+
+type PutSetupDNSProvider200JSONResponse DNSConnectResult
+
+func (response PutSetupDNSProvider200JSONResponse) VisitPutSetupDNSProviderResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutSetupDNSProviderdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutSetupDNSProviderdefaultApplicationProblemPlusJSONResponse) VisitPutSetupDNSProviderResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -3116,6 +3932,21 @@ type StrictServerInterface interface {
 	// RevokeSession Revoke one session by its correlation ID
 	// (DELETE /api/auth/sessions/{id})
 	RevokeSession(ctx context.Context, request RevokeSessionRequestObject) (RevokeSessionResponseObject, error)
+	// GetDNSImport Import table; rows without a decision are new since the last import
+	// (GET /api/dns/import/{zoneId})
+	GetDNSImport(ctx context.Context, request GetDNSImportRequestObject) (GetDNSImportResponseObject, error)
+	// PutDNSImportDecisions Save import decisions (prune only marks; deleting needs a confirmed prune plan)
+	// (PUT /api/dns/import/{zoneId}/decisions)
+	PutDNSImportDecisions(ctx context.Context, request PutDNSImportDecisionsRequestObject) (PutDNSImportDecisionsResponseObject, error)
+	// ListDNSZones Managed zones with their refresh state
+	// (GET /api/dns/zones)
+	ListDNSZones(ctx context.Context, request ListDNSZonesRequestObject) (ListDNSZonesResponseObject, error)
+	// RefreshDNSZone Read the zone from the provider now and replace the observed snapshot (read-only towards the provider)
+	// (POST /api/dns/zones/{id}/refresh)
+	RefreshDNSZone(ctx context.Context, request RefreshDNSZoneRequestObject) (RefreshDNSZoneResponseObject, error)
+	// ListDNSRRSets Observed RRSets of a zone with Hashi's ownership
+	// (GET /api/dns/zones/{id}/rrsets)
+	ListDNSRRSets(ctx context.Context, request ListDNSRRSetsRequestObject) (ListDNSRRSetsResponseObject, error)
 	// GetSettings All settings categories
 	// (GET /api/settings)
 	GetSettings(ctx context.Context, request GetSettingsRequestObject) (GetSettingsResponseObject, error)
@@ -3146,6 +3977,15 @@ type StrictServerInterface interface {
 	// CompleteSetup Step 11 — finish setup; destroys the bootstrap credentials and signs out bootstrap sessions
 	// (POST /api/setup/complete)
 	CompleteSetup(ctx context.Context, request CompleteSetupRequestObject) (CompleteSetupResponseObject, error)
+	// GetSetupDNSImport Step 3 — import table of the managed zone
+	// (GET /api/setup/dns/import)
+	GetSetupDNSImport(ctx context.Context, request GetSetupDNSImportRequestObject) (GetSetupDNSImportResponseObject, error)
+	// PutSetupDNSImport Step 3 — save import decisions; completes the step
+	// (PUT /api/setup/dns/import)
+	PutSetupDNSImport(ctx context.Context, request PutSetupDNSImportRequestObject) (PutSetupDNSImportResponseObject, error)
+	// PutSetupDNSProvider Step 3 — validate a DNS provider token read-only, pick the zone, store the first snapshot
+	// (PUT /api/setup/dns/provider)
+	PutSetupDNSProvider(ctx context.Context, request PutSetupDNSProviderRequestObject) (PutSetupDNSProviderResponseObject, error)
 	// SetupPasskeyOptions Step 9 — start registering the first passkey
 	// (POST /api/setup/passkey/options)
 	SetupPasskeyOptions(ctx context.Context, request SetupPasskeyOptionsRequestObject) (SetupPasskeyOptionsResponseObject, error)
@@ -3780,6 +4620,142 @@ func (sh *strictHandler) RevokeSession(w http.ResponseWriter, r *http.Request, i
 	}
 }
 
+// GetDNSImport operation middleware
+func (sh *strictHandler) GetDNSImport(w http.ResponseWriter, r *http.Request, zoneId string) {
+	var request GetDNSImportRequestObject
+
+	request.ZoneId = zoneId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetDNSImport(ctx, request.(GetDNSImportRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetDNSImport")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetDNSImportResponseObject); ok {
+		if err := validResponse.VisitGetDNSImportResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutDNSImportDecisions operation middleware
+func (sh *strictHandler) PutDNSImportDecisions(w http.ResponseWriter, r *http.Request, zoneId string) {
+	var request PutDNSImportDecisionsRequestObject
+
+	request.ZoneId = zoneId
+
+	var body PutDNSImportDecisionsJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutDNSImportDecisions(ctx, request.(PutDNSImportDecisionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutDNSImportDecisions")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutDNSImportDecisionsResponseObject); ok {
+		if err := validResponse.VisitPutDNSImportDecisionsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListDNSZones operation middleware
+func (sh *strictHandler) ListDNSZones(w http.ResponseWriter, r *http.Request) {
+	var request ListDNSZonesRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListDNSZones(ctx, request.(ListDNSZonesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListDNSZones")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListDNSZonesResponseObject); ok {
+		if err := validResponse.VisitListDNSZonesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RefreshDNSZone operation middleware
+func (sh *strictHandler) RefreshDNSZone(w http.ResponseWriter, r *http.Request, id string) {
+	var request RefreshDNSZoneRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RefreshDNSZone(ctx, request.(RefreshDNSZoneRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RefreshDNSZone")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RefreshDNSZoneResponseObject); ok {
+		if err := validResponse.VisitRefreshDNSZoneResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListDNSRRSets operation middleware
+func (sh *strictHandler) ListDNSRRSets(w http.ResponseWriter, r *http.Request, id string, params ListDNSRRSetsParams) {
+	var request ListDNSRRSetsRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListDNSRRSets(ctx, request.(ListDNSRRSetsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListDNSRRSets")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListDNSRRSetsResponseObject); ok {
+		if err := validResponse.VisitListDNSRRSetsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetSettings operation middleware
 func (sh *strictHandler) GetSettings(w http.ResponseWriter, r *http.Request) {
 	var request GetSettingsRequestObject
@@ -4041,6 +5017,92 @@ func (sh *strictHandler) CompleteSetup(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(CompleteSetupResponseObject); ok {
 		if err := validResponse.VisitCompleteSetupResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetSetupDNSImport operation middleware
+func (sh *strictHandler) GetSetupDNSImport(w http.ResponseWriter, r *http.Request) {
+	var request GetSetupDNSImportRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetSetupDNSImport(ctx, request.(GetSetupDNSImportRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetSetupDNSImport")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetSetupDNSImportResponseObject); ok {
+		if err := validResponse.VisitGetSetupDNSImportResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutSetupDNSImport operation middleware
+func (sh *strictHandler) PutSetupDNSImport(w http.ResponseWriter, r *http.Request) {
+	var request PutSetupDNSImportRequestObject
+
+	var body PutSetupDNSImportJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutSetupDNSImport(ctx, request.(PutSetupDNSImportRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutSetupDNSImport")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutSetupDNSImportResponseObject); ok {
+		if err := validResponse.VisitPutSetupDNSImportResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutSetupDNSProvider operation middleware
+func (sh *strictHandler) PutSetupDNSProvider(w http.ResponseWriter, r *http.Request) {
+	var request PutSetupDNSProviderRequestObject
+
+	var body PutSetupDNSProviderJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutSetupDNSProvider(ctx, request.(PutSetupDNSProviderRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutSetupDNSProvider")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutSetupDNSProviderResponseObject); ok {
+		if err := validResponse.VisitPutSetupDNSProviderResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

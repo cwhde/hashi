@@ -1,0 +1,19 @@
+{
+  "captured_at": "2026-10-28T07:58:40+00:00",
+  "docs_url": "https://docs.hetzner.cloud/reference/cloud#zones",
+  "request": "GET /v1/zones/999999999",
+  "status": 404,
+  "headers": {
+    "content-type": "application/json",
+    "ratelimit-limit": "3600",
+    "ratelimit-remaining": "3591",
+    "ratelimit-reset": "1793174329"
+  },
+  "body": {
+    "error": {
+      "code": "not_found",
+      "message": "Zone not found",
+      "details": null
+    }
+  }
+}

@@ -22,3 +22,6 @@ SELECT * FROM recovery_key WHERE id = 1;
 
 -- name: ConfirmRecoveryKey :exec
 UPDATE recovery_key SET confirmed_at = ? WHERE id = 1;
+
+-- name: DeleteSecret :exec
+DELETE FROM secret_records WHERE id = ?;

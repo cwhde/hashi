@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"git.juzo.io/juzo/hashi/internal/dns"
 	"git.juzo.io/juzo/hashi/internal/logring"
 )
 
@@ -27,6 +28,9 @@ type Config struct {
 	// Set by main, not by flags: where the one-time bootstrap block goes, and the live-log ring.
 	Stdout io.Writer
 	Logs   *logring.Ring
+
+	// dnsProviders replaces the real provider adapters (tests point them at the recorded fixtures).
+	dnsProviders dns.Factory
 }
 
 // DBPath is the SQLite file inside DataDir.

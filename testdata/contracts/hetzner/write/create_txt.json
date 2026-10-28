@@ -1,0 +1,70 @@
+{
+  "captured_at": "2026-10-28T08:39:10+00:00",
+  "docs_url": "https://docs.hetzner.cloud/reference/cloud#zone-rrsets",
+  "request": "POST /v1/zones/100001/rrsets",
+  "request_body": {
+    "name": "_hashi-test",
+    "type": "TXT",
+    "ttl": null,
+    "records": [
+      {
+        "value": "\"hashi contract probe\""
+      },
+      {
+        "value": "\"part one \" \"part two\""
+      },
+      {
+        "value": "\"with \\\"escaped\\\" quotes\""
+      }
+    ]
+  },
+  "status": 201,
+  "headers": {
+    "content-type": "application/json",
+    "ratelimit-limit": "3600",
+    "ratelimit-remaining": "3599",
+    "ratelimit-reset": "1793176751"
+  },
+  "body": {
+    "action": {
+      "id": 664311190422574,
+      "status": "running",
+      "command": "create_rrset",
+      "progress": 0,
+      "started": "2026-10-28T08:39:10Z",
+      "finished": null,
+      "error": null,
+      "resources": [
+        {
+          "id": 100001,
+          "type": "zone"
+        }
+      ]
+    },
+    "rrset": {
+      "id": "_hashi-test/TXT",
+      "name": "_hashi-test",
+      "type": "TXT",
+      "ttl": null,
+      "labels": {},
+      "protection": {
+        "change": false
+      },
+      "records": [
+        {
+          "value": "\"hashi contract probe\"",
+          "comment": ""
+        },
+        {
+          "value": "\"part one \" \"part two\"",
+          "comment": ""
+        },
+        {
+          "value": "\"with \\\"escaped\\\" quotes\"",
+          "comment": ""
+        }
+      ],
+      "zone": 100001
+    }
+  }
+}

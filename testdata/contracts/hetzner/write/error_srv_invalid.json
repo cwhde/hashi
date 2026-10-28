@@ -1,0 +1,38 @@
+{
+  "captured_at": "2026-10-28T08:40:23+00:00",
+  "docs_url": "https://docs.hetzner.cloud/reference/cloud#zone-rrsets",
+  "request": "POST /v1/zones/100001/rrsets",
+  "request_body": {
+    "name": "_bad._tcp._hashi-test",
+    "type": "SRV",
+    "ttl": null,
+    "records": [
+      {
+        "value": "10 60 sip.example.com."
+      }
+    ]
+  },
+  "status": 422,
+  "headers": {
+    "content-type": "application/json",
+    "ratelimit-limit": "3600",
+    "ratelimit-remaining": "3596",
+    "ratelimit-reset": "1793176827"
+  },
+  "body": {
+    "error": {
+      "code": "invalid_input",
+      "message": "invalid value '10 60 sip.example.com.'",
+      "details": {
+        "fields": [
+          {
+            "messages": [
+              "invalid value '10 60 sip.example.com.'"
+            ],
+            "name": "rrsets[0].records[0].value"
+          }
+        ]
+      }
+    }
+  }
+}

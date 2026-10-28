@@ -5,7 +5,7 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
-**S2 — DNS read + import** · status: **in progress** (planning, 2026-10-28).
+**S2 — DNS read + import** · status: **in progress** (PR A backend done, 2026-10-28).
 
 Scope and gate: 11-delivery.md §3 row S2 — 03-dns.md §1–4 (read side), setup step 3 (02 §1.3). Gate: the real zone is
 listed; the import table shows the real RRSets; import decisions persist; sanitized fixtures committed.
@@ -13,22 +13,42 @@ listed; the import table shows the real RRSets; import decisions persist; saniti
 External systems: Hetzner Cloud API (DNS zones and RRSets). No contract yet → captured first (read-only).
 
 Contract
-- [ ] `make contract-capture PROVIDER=hetzner`: list zones (paginated), get zone, list RRSets (paginated), bad token
+- [x] `make contract-capture PROVIDER=hetzner`: list zones (paginated), get zone, list RRSets (paginated), bad token
       (401), unknown zone (404); raw into `.contracts-raw/`, sanitized into `testdata/contracts/hetzner/` with
-      `captured_at` + docs URL; denylist check. Needs a Cloud project token (user).
+      `captured_at` + docs URL; denylist check. Token: V1's project token copied read-only into the keychain
+      (`hashi-hetzner-token`) on the user's request. Record names, external hosts and TXT contents are sanitized too.
 
 PR A — backend
-- [ ] Migration 00003: DNS provider connection (type, default TTL, token as vault secret), `dns_zones`,
+- [x] Migration 00003: DNS provider connection (type, default TTL, token as vault secret), `dns_zones`,
       `dns_observed_rrsets`, `dns_ownership`, `dns_import_decisions`; sqlc queries.
-- [ ] `internal/dns`: provider interface (read part: Capabilities, ListZones, ResolveZone, ListRRSets), RRSet model and
+- [x] `internal/dns`: provider interface (read part: Capabilities, ListZones, ResolveZone, ListRRSets), RRSet model and
       normalization (TXT, TTL default); `internal/dns/hetzner` read adapter from the fixtures (pagination, RateLimit
       backoff, legacy-token error); replay tests; `TestInvariant_2_*` (NS/SOA never selectable for prune) on the import side.
-- [ ] Zone refresh job (observed snapshot) + OpenAPI: `GET /api/dns/zones`, `POST …/refresh`, `GET …/rrsets`,
+- [x] Zone refresh job (observed snapshot) + OpenAPI: `GET /api/dns/zones`, `POST …/refresh`, `GET …/rrsets`,
       `GET /api/dns/import/{zoneId}`, `PUT …/decisions`; setup step 3 endpoints; `make generate`.
+
+Decisions made in PR A:
+- Setup step 3 has its own endpoints (`PUT /api/setup/dns/provider`, `GET|PUT /api/setup/dns/import`, scope
+  `setup.manage`), because bootstrap sessions carry no admin scopes; they share the service with `/api/dns/*`.
+- Step 3 stays `built: false` until PR B adds its UI and the E2E run covers it (flipping it now would break the E2E
+  setup flow, which cannot reach step 3 without a page). `make dev`/E2E then need a fixture-backed fake provider.
+- The observed snapshot stores TXT values decoded (chunks joined, RFC 1035 escapes resolved); re-chunking for writes is
+  S3's job, from the write capture. `ttl: null` stays "zone default".
+- NS/SOA and change-protected RRSets allow only "leave" on the import table; the schema backs this with CHECKs.
+- `dns.refresh` job interval = the sync interval at startup (a changed interval applies after a restart).
+- No 429 response was captured; the adapter acts on the status code and the captured `RateLimit-*` headers only.
+- SRV and CAA are managed types (user's request, spec 03 §3). Hetzner supports 16 types; the others are leave-only.
+- Write contract captured early on the user's OK (2026-10-28): `tools/contract-capture/hetzner_write.py` creates,
+  changes, labels and deletes probe RRSets named `_hashi-test` / `*._hashi-test` of every managed type, plus the error
+  cases; fixtures in `testdata/contracts/hetzner/write/`, nothing left in the zone. S3 builds the write side from these.
+- PR A review (#28) fixed: a token that cannot see the stored zone no longer replaces the stored token (no zone chosen
+  → nothing stored); types outside the provider's managed set are leave-only on the import table.
 
 PR B — UI + deploy
 - [ ] Setup step 3 (provider, token, zone auto-pick, read-only validation) and the import table.
 - [ ] `/dns`: Records (observed, origin, read-only in S2) and Import tab with decisions, from the approved mock.
+- [ ] Contract drift job (03 §2 point 4): manual dispatch + weekly workflow re-runs the read-only capture and diffs
+      response shapes (from the PR A review).
 - [ ] Deploy (user OK) and prod-proof: real zone listed, import table matches the zone, decisions survive a restart.
 
 ## Side step: security model (branch `security-model`)
@@ -147,6 +167,10 @@ Decisions made in S0:
 
 (Review findings that were not reproduced. Not worked on unless promoted.)
 
+- S2 PR A review (#28): the zones pagination replay uses captures taken with `per_page=1` while the adapter sends
+  `per_page=25` (the replay ignores `per_page`); `zone_get_by_name.json` is never replayed because the adapter does not
+  call that endpoint. Test-shape gaps, no wrong behaviour observed.
+
 - S1 review (#26): Activity → Live log keeps its last sequence number across a server restart (sequence restarts at 0),
   so an open tab could skip the startup lines after a restart. Read from code, not observed.
 - S0 review: for a `v1.2.3` git tag the image tag is `1.2.3` (metadata-action `{{version}}`) but the binary reports
@@ -154,6 +178,9 @@ Decisions made in S0:
   only short-SHA deploys exist so far.
 
 ## Log
+
+- 2026-10-28 — S2 PR A (backend) done on `s2-dns-read`: migration 00003, `internal/dns` + Hetzner read adapter from the
+  fixtures, refresh job, DNS and setup step 3 API. PR B (UI, deploy, prod-proof) next.
 
 - 2026-10-28 — Security model side step done: mocks merged (#27), built code renamed (setup step 7), S2 next.
 

@@ -1,0 +1,29 @@
+{
+  "captured_at": "2026-10-28T08:40:24+00:00",
+  "docs_url": "https://docs.hetzner.cloud/reference/cloud#zone-rrsets",
+  "request": "DELETE /v1/zones/100001/rrsets/missing._hashi-test/A",
+  "request_body": null,
+  "status": 404,
+  "headers": {
+    "content-type": "application/json",
+    "ratelimit-limit": "3600",
+    "ratelimit-remaining": "3592",
+    "ratelimit-reset": "1793176832"
+  },
+  "body": {
+    "error": {
+      "code": "not_found",
+      "message": "RRSet(s) not found",
+      "details": {
+        "fields": [
+          {
+            "messages": [
+              "(missing._hashi-test, A) does not exist"
+            ],
+            "name": "missing._hashi-test"
+          }
+        ]
+      }
+    }
+  }
+}

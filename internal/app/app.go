@@ -20,6 +20,8 @@ import (
 	"git.juzo.io/juzo/hashi/internal/audit"
 	"git.juzo.io/juzo/hashi/internal/auth"
 	"git.juzo.io/juzo/hashi/internal/clientip"
+	"git.juzo.io/juzo/hashi/internal/dns"
+	"git.juzo.io/juzo/hashi/internal/dns/hetzner"
 	"git.juzo.io/juzo/hashi/internal/httpapi"
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
 	"git.juzo.io/juzo/hashi/internal/jobs"
@@ -122,15 +124,29 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 		return err
 	}
 
+	openDNS := cfg.dnsProviders
+	if openDNS == nil {
+		openDNS = openDNSProvider
+	}
+	dnsSvc := dns.NewService(st, v, al, openDNS)
+
 	runner := jobs.New(st.Q, log)
 	if err := runner.Register(ctx, jobs.Job{Kind: "session_cleanup", Interval: time.Hour, Run: sessions.Cleanup}); err != nil {
+		return err
+	}
+	// The observed snapshot follows the sync interval from the base settings (read at start; a change applies after a restart).
+	general, err := settings.Get[settings.General](ctx, st.R)
+	if err != nil {
+		return err
+	}
+	if err := runner.Register(ctx, jobs.Job{Kind: "dns.refresh", Interval: time.Duration(general.SyncIntervalSeconds) * time.Second, Run: dnsSvc.RefreshAll}); err != nil {
 		return err
 	}
 
 	health := httpapi.NewHealth(map[string]httpapi.Check{"database": st.Ready})
 	api := &httpapi.Server{
 		Health: health, Version: gen.Version{Version: Version, Commit: Commit}, Store: st, Sessions: sessions,
-		Passkeys: passkeys, Setup: setupSvc, Settings: cfgSettings, Vault: v, Audit: al, IP: ip, Logs: cfg.Logs,
+		Passkeys: passkeys, Setup: setupSvc, Settings: cfgSettings, DNS: dnsSvc, Vault: v, Audit: al, IP: ip, Logs: cfg.Logs,
 		Log: log.With("component", "api"),
 	}
 	servers := []*server{{name: "admin", addr: cfg.AdminAddr, handler: adminMux(api)}}
@@ -168,6 +184,15 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 		return errors.Join(errs...)
 	})
 	return g.Wait()
+}
+
+// openDNSProvider opens the adapter for a provider type (03 §1: adding a provider is a new module plus a case here).
+func openDNSProvider(typ string, token secrets.Value) (dns.Reader, error) {
+	switch typ {
+	case "hetzner":
+		return hetzner.New(token), nil
+	}
+	return nil, fmt.Errorf("no adapter for DNS provider type %q", typ)
 }
 
 // relyingParty resolves where passkeys are bound: the base settings, or a localhost origin in dev builds.

@@ -379,6 +379,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/setup/dns/provider": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Step 3 — validate a DNS provider token read-only, pick the zone, store the first snapshot
+         * @description Lists the zones the token sees and reads the chosen zone's RRSets; nothing is stored when that fails
+         *     (invariant 3). Without `zone_id` the zone containing the root domain (or the stored zone) is chosen; when
+         *     none is, only `zones` is returned, nothing is stored, and the admin sends the token again with a `zone_id`.
+         *     Omitting `token` reuses the stored one.
+         */
+        put: operations["putSetupDNSProvider"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/setup/dns/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Step 3 — import table of the managed zone */
+        get: operations["getSetupDNSImport"];
+        /** Step 3 — save import decisions; completes the step */
+        put: operations["putSetupDNSImport"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/setup/passkey/options": {
         parameters: {
             query?: never;
@@ -523,6 +564,91 @@ export interface paths {
         };
         get: operations["getAppearanceSettings"];
         put: operations["putAppearanceSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dns/zones": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Managed zones with their refresh state */
+        get: operations["listDNSZones"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dns/zones/{id}/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Read the zone from the provider now and replace the observed snapshot (read-only towards the provider) */
+        post: operations["refreshDNSZone"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dns/zones/{id}/rrsets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Observed RRSets of a zone with Hashi's ownership */
+        get: operations["listDNSRRSets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dns/import/{zoneId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Import table; rows without a decision are new since the last import */
+        get: operations["getDNSImport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dns/import/{zoneId}/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Save import decisions (prune only marks; deleting needs a confirmed prune plan) */
+        put: operations["putDNSImportDecisions"];
         post?: never;
         delete?: never;
         options?: never;
@@ -737,6 +863,99 @@ export interface components {
             base_settings?: components["schemas"]["BaseSettings"];
             /** @description Registered passkeys (setup sessions only) */
             passkeys?: number;
+            dns?: components["schemas"]["DNSConnectResult"];
+        };
+        DNSProviderInput: {
+            /** @enum {string} */
+            type: "hetzner";
+            /** @description Cloud project API token; omit to keep the stored one */
+            token?: string;
+            /** @description TTL for RRSets Hashi creates */
+            default_ttl: number;
+            /** @description Provider zone ID chosen from `zones` when the root domain matched none */
+            zone_id?: string;
+        };
+        DNSProvider: {
+            id: string;
+            /** @enum {string} */
+            type: "hetzner";
+            default_ttl: number;
+            /** @enum {string} */
+            health: "unknown" | "validating" | "healthy" | "degraded" | "failed";
+            /** Format: date-time */
+            last_validated_at?: string;
+            last_error: string;
+        };
+        DNSProviderZone: {
+            /** @description Provider zone ID */
+            id: string;
+            name: string;
+        };
+        /** @description `provider` and `zone` are absent when no zone was chosen (nothing stored) */
+        DNSConnectResult: {
+            provider?: components["schemas"]["DNSProvider"];
+            /** @description Zones the token sees (only right after validation; empty when read back) */
+            zones: components["schemas"]["DNSProviderZone"][];
+            zone?: components["schemas"]["DNSZone"];
+        };
+        DNSZone: {
+            id: string;
+            name: string;
+            provider: components["schemas"]["DNSProvider"];
+            /** @description Zone default TTL (RRSets without a TTL inherit it) */
+            zone_ttl: number;
+            rrset_count: number;
+            /** Format: date-time */
+            last_refreshed_at?: string;
+            last_refresh_error: string;
+        };
+        DNSZoneList: {
+            zones: components["schemas"]["DNSZone"][];
+        };
+        /**
+         * @description Hashi's ownership; `unmanaged` = not Hashi's
+         * @enum {string}
+         */
+        DNSOrigin: "system" | "managed" | "imported" | "user" | "unmanaged";
+        /** @enum {string} */
+        DNSDecision: "import" | "leave" | "prune";
+        DNSRRSet: {
+            /** @description Relative to the zone; `@` is the apex */
+            name: string;
+            fqdn: string;
+            type: string;
+            /** @description Absent = zone default */
+            ttl?: number;
+            effective_ttl: number;
+            /** @description Sorted; TXT values decoded to their text */
+            values: string[];
+            /** @description The provider forbids changes; read-only to Hashi */
+            protected: boolean;
+            origin: components["schemas"]["DNSOrigin"];
+            /** Format: date-time */
+            observed_at: string;
+        };
+        DNSRRSetList: {
+            zone: components["schemas"]["DNSZone"];
+            rrsets: components["schemas"]["DNSRRSet"][];
+        };
+        DNSImportRow: {
+            rrset: components["schemas"]["DNSRRSet"];
+            decision?: components["schemas"]["DNSDecision"];
+            /** @description NS, SOA and change-protected RRSets allow only `leave` (invariant 2) */
+            allowed_decisions: components["schemas"]["DNSDecision"][];
+        };
+        DNSImportTable: {
+            zone: components["schemas"]["DNSZone"];
+            rows: components["schemas"]["DNSImportRow"][];
+        };
+        DNSImportDecision: {
+            name: string;
+            type: string;
+            decision: components["schemas"]["DNSDecision"];
+        };
+        DNSImportDecisions: {
+            decisions: components["schemas"]["DNSImportDecision"][];
         };
         BaseSettings: {
             root_domain: string;
@@ -1420,6 +1639,77 @@ export interface operations {
             default: components["responses"]["Problem"];
         };
     };
+    putSetupDNSProvider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DNSProviderInput"];
+            };
+        };
+        responses: {
+            /** @description Validated and stored */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DNSConnectResult"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getSetupDNSImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Import table */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DNSImportTable"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putSetupDNSImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DNSImportDecisions"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupState"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
     setupPasskeyOptions: {
         parameters: {
             query?: never;
@@ -1687,6 +1977,128 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AppearanceSettings"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listDNSZones: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Zones */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DNSZoneList"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    refreshDNSZone: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Refreshed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DNSZone"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listDNSRRSets: {
+        parameters: {
+            query?: {
+                /** @description Only RRSets with this origin; `unmanaged` = not Hashi's */
+                origin?: "system" | "managed" | "imported" | "user" | "unmanaged";
+                /** @description Substring of name or value, or a type */
+                q?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description RRSets */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DNSRRSetList"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getDNSImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                zoneId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Import table */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DNSImportTable"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putDNSImportDecisions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                zoneId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DNSImportDecisions"];
+            };
+        };
+        responses: {
+            /** @description Saved; the updated table */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DNSImportTable"];
                 };
             };
             default: components["responses"]["Problem"];

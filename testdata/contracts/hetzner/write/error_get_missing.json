@@ -1,0 +1,20 @@
+{
+  "captured_at": "2026-10-28T08:40:24+00:00",
+  "docs_url": "https://docs.hetzner.cloud/reference/cloud#zone-rrsets",
+  "request": "GET /v1/zones/100001/rrsets/missing._hashi-test/A",
+  "request_body": null,
+  "status": 404,
+  "headers": {
+    "content-type": "application/json",
+    "ratelimit-limit": "3600",
+    "ratelimit-remaining": "3593",
+    "ratelimit-reset": "1793176831"
+  },
+  "body": {
+    "error": {
+      "code": "not_found",
+      "message": "404 Not Found",
+      "details": null
+    }
+  }
+}

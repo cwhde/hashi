@@ -1,0 +1,471 @@
+{
+  "captured_at": "2026-10-28T07:58:39+00:00",
+  "docs_url": "https://docs.hetzner.cloud/reference/cloud#zones",
+  "request": "GET /v1/zones/100001/rrsets?per_page=25&page=2",
+  "status": 200,
+  "headers": {
+    "content-type": "application/json",
+    "ratelimit-limit": "3600",
+    "ratelimit-remaining": "3593",
+    "ratelimit-reset": "1793174326"
+  },
+  "body": {
+    "meta": {
+      "pagination": {
+        "last_page": 3,
+        "next_page": 3,
+        "page": 2,
+        "per_page": 25,
+        "previous_page": 1,
+        "total_entries": 58
+      }
+    },
+    "rrsets": [
+      {
+        "id": "svc19/CNAME",
+        "name": "svc19",
+        "type": "CNAME",
+        "ttl": 3600,
+        "labels": {},
+        "protection": {
+          "change": false
+        },
+        "records": [
+          {
+            "value": "on.edge-b.example.com.",
+            "comment": ""
+          }
+        ],
+        "zone": 100001
+      },
+      {
+        "id": "mail/CNAME",
+        "name": "mail",
+        "type": "CNAME",
+        "ttl": null,
+        "labels": {},
+        "protection": {
+          "change": false
+        },
+        "records": [
+          {
+            "value": "host1.ext1.example.net.",
+            "comment": ""
+          }
+        ],
+        "zone": 100001
+      },
+      {
+        "id": "svc20/CNAME",
+        "name": "svc20",
+        "type": "CNAME",
+        "ttl": 3600,
+        "labels": {},
+        "protection": {
+          "change": false
+        },
+        "records": [
+          {
+            "value": "on.edge-b.example.com.",
+            "comment": ""
+          }
+        ],
+        "zone": 100001
+      },
+      {
+        "id": "svc21/CNAME",
+        "name": "svc21",
+        "type": "CNAME",
+        "ttl": 3600,
+        "labels": {},
+        "protection": {
+          "change": false
+        },
+        "records": [
+          {
+            "value": "on.edge-b.example.com.",
+            "comment": ""
+          }
+        ],
+        "zone": 100001
+      },
+      {
+        "id": "on.edge-a/CNAME",
+        "name": "on.edge-a",
+        "type": "CNAME",
+        "ttl": null,
+        "labels": {},
+        "protection": {
+          "change": false
+        },
+        "records": [
+          {
+            "value": "via.edge-a.example.com.",
+            "comment": ""
+          }
+        ],
+        "zone": 100001
+      },
+      {
+        "id": "on.edge-b/CNAME",
+        "name": "on.edge-b",
+        "type": "CNAME",
+        "ttl": null,
+        "labels": {},
+        "protection": {
+          "change": false
+        },
+        "records": [
+          {
+            "value": "via.edge-a.example.com.",
+            "comment": ""
+          }
+        ],
+        "zone": 100001
+      },
+      {
+        "id": "svc22/CNAME",
+        "name": "svc22",
+        "type": "CNAME",
+        "ttl": 3600,
+        "labels": {},
+        "protection": {
+          "change": false
+        },
+        "records": [
+          {
+            "value": "on.edge-b.example.com.",
+            "comment": ""
+          }
+        ],
+        "zone": 100001
+      },
+      {
+        "id": "svc23/CNAME",
+        "name": "svc23",
+        "type": "CNAME",
+        "ttl": 3600,
+        "labels": {},
+        "protection": {
+          "change": false
+        },
+        "records": [
+          {
+            "value": "on.edge-a.example.com.",
+            "comment": ""
+          }
+        ],
+        "zone": 100001
+      },
+      {
+        "id": "svc24/CNAME",
+        "name": "svc24",
+        "type": "CNAME",
+        "ttl": 3600,
+        "labels": {},
+        "protection": {
+          "change": false
+        },
+        "records": [
+          {
+            "value": "on.edge-a.example.com.",
+            "comment": ""
+          }
+        ],
+        "zone": 100001
+      },
+      {
+        "id": "svc25/CNAME",
+        "name": "svc25",
+        "type": "CNAME",
+        "ttl": 3600,
+        "labels": {},
+        "protection": {
+          "change": false
+        },
+        "records": [
+          {
+            "value": "on.edge-a.example.com.",
+            "comment": ""
+          }
+        ],
+        "zone": 100001
+      },
+      {
+        "id": "svc26/CNAME",
+        "name": "svc26",
+        "type": "CNAME",
+        "ttl": 3600,
+        "labels": {},
+        "protection": {
+          "change": false
+        },
+        "records": [
+          {
+            "value": "host3.ext3.example.net.",
+            "comment": ""
+          }
+        ],
+        "zone": 100001
+      },
+      {
+        "id": "status/CNAME",
+        "name": "status",
+        "type": "CNAME",
+        "ttl": 3600,
+        "labels": {},
+        "protection": {
+          "change": false
+        },
+        "records": [
+          {
+            "value": "on.edge-a.example.com.",
+            "comment": ""
+          }
+        ],
+        "zone": 100001
+      },
+      {
+        "id": "svc27/CNAME",
+        "name": "svc27",
+        "type": "CNAME",
+        "ttl": 3600,
+        "labels": {},
+        "protection": {
+          "change": false
+        },
+        "records": [
+          {
+            "value": "on.edge-b.example.com.",
+            "comment": ""
+          }
+        ],
+        "zone": 100001
+      },
+      {
+        "id": "svc28.ns/CNAME",
+        "name": "svc28.ns",
+        "type": "CNAME",
+        "ttl": 3600,
+        "labels": {},
+        "protection": {
+          "change": false
+        },
+        "records": [
+          {
+            "value": "on.edge-a.example.com.",
+            "comment": ""
+          }
+        ],
+        "zone": 100001
+      },
+      {
+        "id": "svc29/CNAME",
+        "name": "svc29",
+        "type": "CNAME",
+        "ttl": 3600,
+        "labels": {},
+        "protection": {
+          "change": false
+        },
+        "records": [
+          {
+            "value": "on.edge-b.example.com.",
+            "comment": ""
+          }
+        ],
+        "zone": 100001
+      },
+      {
+        "id": "svc30/CNAME",
+        "name": "svc30",
+        "type": "CNAME",
+        "ttl": 3600,
+        "labels": {},
+        "protection": {
+          "change": false
+        },
+        "records": [
+          {
+            "value": "on.edge-b.example.com.",
+            "comment": ""
+          }
+        ],
+        "zone": 100001
+      },
+      {
+        "id": "svc31/CNAME",
+        "name": "svc31",
+        "type": "CNAME",
+        "ttl": 3600,
+        "labels": {},
+        "protection": {
+          "change": false
+        },
+        "records": [
+          {
+            "value": "on.edge-a.example.com.",
+            "comment": ""
+          }
+        ],
+        "zone": 100001
+      },
+      {
+        "id": "via.edge-a/CNAME",
+        "name": "via.edge-a",
+        "type": "CNAME",
+        "ttl": null,
+        "labels": {},
+        "protection": {
+          "change": false
+        },
+        "records": [
+          {
+            "value": "edge-a.example.com.",
+            "comment": ""
+          }
+        ],
+        "zone": 100001
+      },
+      {
+        "id": "via.edge-b/CNAME",
+        "name": "via.edge-b",
+        "type": "CNAME",
+        "ttl": null,
+        "labels": {},
+        "protection": {
+          "change": false
+        },
+        "records": [
+          {
+            "value": "edge-b.example.com.",
+            "comment": ""
+          }
+        ],
+        "zone": 100001
+      },
+      {
+        "id": "site-b.ns/CNAME",
+        "name": "site-b.ns",
+        "type": "CNAME",
+        "ttl": 3600,
+        "labels": {},
+        "protection": {
+          "change": false
+        },
+        "records": [
+          {
+            "value": "on.edge-b.example.com.",
+            "comment": ""
+          }
+        ],
+        "zone": 100001
+      },
+      {
+        "id": "site-b.svc13/CNAME",
+        "name": "site-b.svc13",
+        "type": "CNAME",
+        "ttl": 3600,
+        "labels": {},
+        "protection": {
+          "change": false
+        },
+        "records": [
+          {
+            "value": "on.edge-b.example.com.",
+            "comment": ""
+          }
+        ],
+        "zone": 100001
+      },
+      {
+        "id": "site-b.svc32/CNAME",
+        "name": "site-b.svc32",
+        "type": "CNAME",
+        "ttl": 3600,
+        "labels": {},
+        "protection": {
+          "change": false
+        },
+        "records": [
+          {
+            "value": "on.edge-b.example.com.",
+            "comment": ""
+          }
+        ],
+        "zone": 100001
+      },
+      {
+        "id": "site-b.svc14/CNAME",
+        "name": "site-b.svc14",
+        "type": "CNAME",
+        "ttl": 3600,
+        "labels": {},
+        "protection": {
+          "change": false
+        },
+        "records": [
+          {
+            "value": "on.edge-b.example.com.",
+            "comment": ""
+          }
+        ],
+        "zone": 100001
+      },
+      {
+        "id": "@/MX",
+        "name": "@",
+        "type": "MX",
+        "ttl": null,
+        "labels": {},
+        "protection": {
+          "change": false
+        },
+        "records": [
+          {
+            "value": "10 host4.ext4.example.net.",
+            "comment": ""
+          },
+          {
+            "value": "10 host5.ext4.example.net.",
+            "comment": ""
+          },
+          {
+            "value": "20 host6.ext4.example.net.",
+            "comment": ""
+          },
+          {
+            "value": "20 host7.ext4.example.net.",
+            "comment": ""
+          }
+        ],
+        "zone": 100001
+      },
+      {
+        "id": "@/NS",
+        "name": "@",
+        "type": "NS",
+        "ttl": null,
+        "labels": {},
+        "protection": {
+          "change": false
+        },
+        "records": [
+          {
+            "value": "helium.ns.hetzner.de.",
+            "comment": ""
+          },
+          {
+            "value": "hydrogen.ns.hetzner.com.",
+            "comment": ""
+          },
+          {
+            "value": "oxygen.ns.hetzner.com.",
+            "comment": ""
+          }
+        ],
+        "zone": 100001
+      }
+    ]
+  }
+}
