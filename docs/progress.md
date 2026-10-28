@@ -482,6 +482,11 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-10-28 — With the user's OK: host A got a daily `lxc-fstrim.timer` (runs `pct fstrim` for every running LXC;
+  CI leaves ~15 GB of deleted blocks allocated per run, which caused the incident below), and the real zone got the
+  manual record `dev.hashi` A → the Alpine edge's internal address (S5 gate admin name; outside Hashi's ownership,
+  left on the import table; replaced at the S6 traffic move). S5 merged: #34, #35 (`24bef01`), CI and release green.
+
 - 2026-10-28 — Incident (not caused by Hashi's code): the host A thin pool (local-lvm, 127 GB, about 232 GB promised
   to its volumes) filled at 23:00 CET while CI built S5 PR A on the Gitea runners in the Docker LXC (build cache 17 GB).
   The Docker LXC's filesystem went emergency read-only (Gitea, V1, hashi-v3, Vaultwarden, NetBird server and the other
