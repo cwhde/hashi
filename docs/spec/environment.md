@@ -62,3 +62,6 @@ host-A firewall script. Their current configuration is reference material only, 
   `ping@internal` answers 200 on any path; a loopback entry point used as a forward-auth hop must trust loopback
   forwarded headers or the original host/URI are lost; GitHub's release list mixes v3 and v2 maintenance releases, so
   "latest" means the highest version of the installed major.
+- SSH (captured 2026-10-28 on the dev edge LXC and `alpine:3.23`): Alpine's sshd ships with `AllowTcpForwarding no`, so
+  loopback tunnels are refused ("administratively prohibited"); busybox `wget` is always present on Alpine; minimal
+  Debian images have neither `curl` nor `wget`.

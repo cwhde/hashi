@@ -132,8 +132,10 @@ Per Traefik host:
 2. Write changed files atomically (unique temp + rename) — dynamic files trigger Traefik's watcher; unchanged files are never touched.
 3. If static config changed: write it, restart the service, wait for `ping` (timeout 30 s). On failure restore the previous
    static file, restart again, mark the plan failed.
-4. **Verify** through the local Traefik API over SSH (`curl -s 127.0.0.1:<api>/api/rawdata`): every expected router/service/
-   middleware exists and none reports an error status. There is no `traefik check` command; do not invent one.
+4. **Verify** through the local Traefik API (`GET 127.0.0.1:<api>/api/rawdata`): every expected router/service/middleware
+   exists and none reports `status: disabled` or an `error`. Hashi reaches the loopback port through the SSH connection;
+   when sshd refuses forwarding (Alpine ships `AllowTcpForwarding no`) it runs the host's `curl` or `wget` instead, and
+   validation fails with a clear message when neither works. There is no `traefik check` command; do not invent one.
 5. Store per-file `last_applied_hash`.
 
 ## 7. Sync rules
