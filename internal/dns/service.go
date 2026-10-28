@@ -691,9 +691,14 @@ func (s *Service) SaveDecisions(ctx context.Context, actor, ip, zoneID string, i
 				Decision: string(d.Decision), DecidedAt: now}); err != nil {
 				return err
 			}
-			if d.Decision == Import && o.Origin == "" {
-				// The entry starts as the RRSet is now, so importing changes nothing at the provider.
-				err = q.InsertDNSRecord(ctx, recordParams(ulid.Make().String(), zoneID, o.RRSet, OriginImported, RecordInput{}, now))
+			if d.Decision == Import && (o.Origin == "" || o.Origin == OriginImported) {
+				// The entry starts as the RRSet is now, so importing changes nothing at the provider. An import saved
+				// before entries existed (S2) gets its entry here too.
+				if _, gerr := q.GetDNSRecordByKey(ctx, db.GetDNSRecordByKeyParams{ZoneID: zoneID, Name: k.name, Type: k.typ}); errors.Is(gerr, sql.ErrNoRows) {
+					err = q.InsertDNSRecord(ctx, recordParams(ulid.Make().String(), zoneID, o.RRSet, OriginImported, RecordInput{}, now))
+				} else {
+					err = gerr
+				}
 				if err == nil {
 					err = q.UpsertDNSOwnership(ctx, db.UpsertDNSOwnershipParams{ZoneID: zoneID, Name: k.name, Type: k.typ,
 						Origin: OriginImported, CreatedAt: now, UpdatedAt: now})

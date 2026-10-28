@@ -112,7 +112,10 @@ func TestManualEntryLifecycle(t *testing.T) {
 	if _, err := f.svc.DeleteRecord(ctx, "admin", "", rec.ID); err != nil {
 		t.Fatal(err)
 	}
-	p = f.auto(t, dns.SubsystemRecords)
+	if p := f.auto(t, dns.SubsystemRecords); p != nil {
+		t.Fatalf("records plan for a delete: %+v", p.Items)
+	}
+	p = f.auto(t, dns.SubsystemRecordDeletes)
 	if p.Status != hsync.StatusPending || p.Risk != hsync.High {
 		t.Fatalf("delete plan %+v", p)
 	}
@@ -125,8 +128,10 @@ func TestManualEntryLifecycle(t *testing.T) {
 	if _, _, _, ok := f.sim.RRSet("100001", "_hashi-test", "A"); ok {
 		t.Fatal("still at the provider")
 	}
-	if p := f.auto(t, dns.SubsystemRecords); p != nil {
-		t.Fatalf("plan after delete: %+v", p.Items)
+	for _, sub := range dns.EntrySubsystems {
+		if p := f.auto(t, sub); p != nil {
+			t.Fatalf("%s plan after delete: %+v", sub, p.Items)
+		}
 	}
 }
 

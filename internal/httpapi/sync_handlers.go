@@ -138,16 +138,20 @@ func dnsRecordBody(r dns.Record) gen.DNSRecord {
 		Origin: gen.DNSOrigin(r.Origin), DisplayName: r.DisplayName, Dashboard: r.Dashboard, Monitoring: r.Monitoring}
 }
 
-// saved plans the zone after an entry changed. The entry stays saved when planning fails; the error is reported and
-// the next sync retries.
+// saved plans the zone after an entry changed: safe changes apply, a delete waits for approval. The entry stays saved
+// when planning fails; the error is reported and the next sync retries. Plan is the delete plan when one is waiting,
+// else the plan that ran.
 func (s *Server) saved(ctx context.Context, actor string, r dns.Record) gen.DNSRecordSaved {
 	out := gen.DNSRecordSaved{Record: dnsRecordBody(r)}
-	p, err := s.Sync.Auto(ctx, dns.SubsystemRecords, r.ZoneID, hsync.TriggerSave, actor)
-	if p != nil {
-		out.Plan = ptr(s.planBody(ctx, p))
-	}
-	if err != nil && !errors.Is(err, hsync.ErrReplanned) {
-		out.PlanError = ptr(err.Error())
+	for _, sub := range dns.EntrySubsystems {
+		p, err := s.Sync.Auto(ctx, sub, r.ZoneID, hsync.TriggerSave, actor)
+		if p != nil && (out.Plan == nil || p.Status == hsync.StatusPending) {
+			out.Plan = ptr(s.planBody(ctx, p))
+		}
+		if err != nil && !errors.Is(err, hsync.ErrReplanned) {
+			out.PlanError = ptr(err.Error())
+			break
+		}
 	}
 	return out
 }
@@ -197,12 +201,19 @@ func (s *Server) DeleteDNSRecord(ctx context.Context, req gen.DeleteDNSRecordReq
 	return gen.DeleteDNSRecord200JSONResponse(s.saved(ctx, s.actor(ri), r)), nil
 }
 
+// PlanDNS plans the zone's entries now; the result is the waiting delete plan when there is one, else the plan that ran.
 func (s *Server) PlanDNS(ctx context.Context, req gen.PlanDNSRequestObject) (gen.PlanDNSResponseObject, error) {
-	p, err := s.Sync.Auto(ctx, dns.SubsystemRecords, req.Body.ZoneId, hsync.TriggerManual, s.actor(info(ctx)))
-	if err != nil && !errors.Is(err, hsync.ErrReplanned) {
-		return nil, syncError(err)
+	var shown *hsync.Plan
+	for _, sub := range dns.EntrySubsystems {
+		p, err := s.Sync.Auto(ctx, sub, req.Body.ZoneId, hsync.TriggerManual, s.actor(info(ctx)))
+		if err != nil && !errors.Is(err, hsync.ErrReplanned) {
+			return nil, syncError(err)
+		}
+		if p != nil && (shown == nil || p.Status == hsync.StatusPending) {
+			shown = p
+		}
 	}
-	return gen.PlanDNS200JSONResponse(s.planResult(ctx, p)), nil
+	return gen.PlanDNS200JSONResponse(s.planResult(ctx, shown)), nil
 }
 
 func (s *Server) PlanDNSPrune(ctx context.Context, req gen.PlanDNSPruneRequestObject) (gen.PlanDNSPruneResponseObject, error) {

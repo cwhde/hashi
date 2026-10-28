@@ -334,9 +334,10 @@ func (e SyncPlanStatus) Valid() bool {
 
 // Defines values for SyncPlanSubsystem.
 const (
-	DnsProbe   SyncPlanSubsystem = "dns-probe"
-	DnsPrune   SyncPlanSubsystem = "dns-prune"
-	DnsRecords SyncPlanSubsystem = "dns-records"
+	DnsProbe         SyncPlanSubsystem = "dns-probe"
+	DnsPrune         SyncPlanSubsystem = "dns-prune"
+	DnsRecordDeletes SyncPlanSubsystem = "dns-record-deletes"
+	DnsRecords       SyncPlanSubsystem = "dns-records"
 )
 
 // Valid indicates whether the value is a known member of the SyncPlanSubsystem enum.
@@ -345,6 +346,8 @@ func (e SyncPlanSubsystem) Valid() bool {
 	case DnsProbe:
 		return true
 	case DnsPrune:
+		return true
+	case DnsRecordDeletes:
 		return true
 	case DnsRecords:
 		return true

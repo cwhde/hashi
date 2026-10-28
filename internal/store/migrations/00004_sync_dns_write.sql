@@ -25,11 +25,13 @@ CREATE TABLE dns_records (
 ALTER TABLE dns_observed_rrsets ADD COLUMN owner TEXT NOT NULL DEFAULT '';
 
 -- A persisted diff between desired and observed state for one subsystem and target (01 §5.1).
--- subsystem: dns-records (desired vs observed), dns-prune (prune decisions), dns-probe (write test, invariant 4).
+-- subsystem: dns-records (creates and changes of Hashi's entries), dns-record-deletes (deletes of entries Hashi no
+-- longer wants; separate so a waiting delete never holds back safe changes, invariant 16), dns-prune (prune
+-- decisions), dns-probe (write test, invariant 4).
 -- At most one open plan per subsystem and target: a newer plan supersedes the older one.
 CREATE TABLE sync_plans (
     id          TEXT PRIMARY KEY,
-    subsystem   TEXT NOT NULL CHECK (subsystem IN ('dns-records', 'dns-prune', 'dns-probe')),
+    subsystem   TEXT NOT NULL CHECK (subsystem IN ('dns-records', 'dns-record-deletes', 'dns-prune', 'dns-probe')),
     target      TEXT NOT NULL,
     title       TEXT NOT NULL,
     trigger     TEXT NOT NULL CHECK (trigger IN ('save', 'reconcile', 'manual', 'probe', 'prune')),

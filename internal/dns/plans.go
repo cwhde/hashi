@@ -8,6 +8,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/oklog/ulid/v2"
+
 	"git.juzo.io/juzo/hashi/internal/audit"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 	hsync "git.juzo.io/juzo/hashi/internal/sync"
@@ -15,10 +17,17 @@ import (
 
 // Subsystem names (sync_plans.subsystem).
 const (
+	// SubsystemRecords creates, changes and labels Hashi's entries (low risk, applies automatically).
 	SubsystemRecords = "dns-records"
-	SubsystemPrune   = "dns-prune"
-	SubsystemProbe   = "dns-probe"
+	// SubsystemRecordDeletes deletes RRSets Hashi no longer wants (high risk). It is its own plan so a delete waiting
+	// for approval never holds back safe changes (invariant 16).
+	SubsystemRecordDeletes = "dns-record-deletes"
+	SubsystemPrune         = "dns-prune"
+	SubsystemProbe         = "dns-probe"
 )
+
+// EntrySubsystems are the subsystems a saved entry or the background reconcile plans.
+var EntrySubsystems = []string{SubsystemRecords, SubsystemRecordDeletes}
 
 // ProbeName is the probe RRSet's relative name (03 §2 point 3): a leading "_" label is not a host name, and
 // "_hashi-test" is Hashi's own, so no real record can match it.
@@ -131,15 +140,25 @@ func (s *Service) fresh(ctx context.Context, zoneID string) ([]Observed, error) 
 
 // Subsystems returns the DNS sync subsystems for the engine.
 func (s *Service) Subsystems() []hsync.Subsystem {
-	return []hsync.Subsystem{recordsSub{s}, pruneSub{s}, probeSub{s}}
+	return []hsync.Subsystem{recordsSub{s: s}, recordsSub{s: s, deletes: true}, pruneSub{s}, probeSub{s}}
 }
 
 func lockKey(zoneID string) string { return "dns:" + zoneID }
 
-// recordsSub plans desired entries (dns_records) against the observed RRSets Hashi owns.
-type recordsSub struct{ s *Service }
+// recordsSub plans desired entries (dns_records) against the observed RRSets Hashi owns. With deletes it keeps only
+// the delete items, without only the rest (and the conflicts).
+type recordsSub struct {
+	s       *Service
+	deletes bool
+}
 
-func (recordsSub) Name() string               { return SubsystemRecords }
+func (r recordsSub) Name() string {
+	if r.deletes {
+		return SubsystemRecordDeletes
+	}
+	return SubsystemRecords
+}
+
 func (recordsSub) LockKey(zone string) string { return lockKey(zone) }
 
 func (r recordsSub) Plan(ctx context.Context, zoneID string) (hsync.Draft, error) {
@@ -150,6 +169,9 @@ func (r recordsSub) Plan(ctx context.Context, zoneID string) (hsync.Draft, error
 	}
 	obs, err := s.fresh(ctx, zoneID)
 	if err != nil {
+		return hsync.Draft{}, err
+	}
+	if err := s.ensureImportedEntries(ctx, zoneID, obs); err != nil {
 		return hsync.Draft{}, err
 	}
 	owned, err := ownership(ctx, s.st.R, zoneID)
@@ -178,10 +200,12 @@ func (r recordsSub) Plan(ctx context.Context, zoneID string) (hsync.Draft, error
 			Risk: hsync.Low, Note: note})
 	}
 	for _, rec := range recs {
+		wanted[rrsetKey{rec.RRSet.Name, rec.RRSet.Type}] = true
+	}
+	for _, rec := range recs {
 		d := rec.RRSet
 		d.Owner = inst
 		k := rrsetKey{d.Name, d.Type}
-		wanted[k] = true
 		o, exists := byKey[k]
 		switch {
 		case Protected(d.Type):
@@ -190,8 +214,8 @@ func (r recordsSub) Plan(ctx context.Context, zoneID string) (hsync.Draft, error
 			conflict(d, "exists at the provider and is not Hashi's; import it on the Import tab to manage it")
 		case exists && o.Protected:
 			conflict(d, "locked at the provider; unlock it in the provider console")
-		case cnameClash(d, obs, owned):
-			conflict(d, "a CNAME cannot share its name with other record types")
+		case cnameClash(d, obs):
+			conflict(d, "a CNAME cannot share its name with other record types (waits until the other RRSet is gone)")
 		default:
 			desired = append(desired, d)
 		}
@@ -215,6 +239,9 @@ func (r recordsSub) Plan(ctx context.Context, zoneID string) (hsync.Draft, error
 	}
 	items := make([]hsync.Item, 0, len(plan.Changes)+len(conflicts))
 	for _, ch := range plan.Changes {
+		if (ch.Op == OpDelete) != r.deletes {
+			continue
+		}
 		note := ""
 		switch ch.Op {
 		case OpDelete:
@@ -224,21 +251,49 @@ func (r recordsSub) Plan(ctx context.Context, zoneID string) (hsync.Draft, error
 		}
 		items = append(items, changeItem(ch, note))
 	}
+	if r.deletes {
+		return hsync.Draft{Title: "Delete DNS records in " + c.zone.Name, Items: items}, nil
+	}
 	items = append(items, conflicts...)
 	return hsync.Draft{Title: "DNS records in " + c.zone.Name, Items: items}, nil
 }
 
-// cnameClash reports whether d would share its name with a CNAME (or be a CNAME beside other types) that stays.
-func cnameClash(d RRSet, obs []Observed, owned map[rrsetKey]owner) bool {
-	for _, o := range obs {
-		if o.Name != d.Name || o.Type == d.Type || (d.Type != "CNAME" && o.Type != "CNAME") {
-			continue
+// ensureImportedEntries gives every imported RRSet without an entry one, copied from the observed RRSet (imports
+// saved before entries existed, S2). Without it the planner would see an owned RRSet nobody wants and delete it.
+func (s *Service) ensureImportedEntries(ctx context.Context, zoneID string, obs []Observed) error {
+	return s.st.Tx(ctx, func(q *db.Queries) error {
+		owned, err := ownership(ctx, q, zoneID)
+		if err != nil {
+			return err
 		}
-		if !owned[rrsetKey{o.Name, o.Type}].adopted() {
-			return true // an RRSet Hashi does not own stays
+		recs, err := q.ListDNSRecords(ctx, zoneID)
+		if err != nil {
+			return err
 		}
-	}
-	return false
+		have := make(map[rrsetKey]bool, len(recs))
+		for _, r := range recs {
+			have[rrsetKey{r.Name, r.Type}] = true
+		}
+		now := s.now().UnixMilli()
+		for _, o := range obs {
+			k := rrsetKey{o.Name, o.Type}
+			if owned[k].origin != OriginImported || have[k] {
+				continue
+			}
+			if err := q.InsertDNSRecord(ctx, recordParams(ulid.Make().String(), zoneID, o.RRSet, OriginImported, RecordInput{}, now)); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// cnameClash reports whether d would share its name with a CNAME (or be a CNAME beside other types) that is still at
+// the provider, whoever owns it: one Hashi wants gone leaves through the delete plan first, then d is planned.
+func cnameClash(d RRSet, obs []Observed) bool {
+	return slices.ContainsFunc(obs, func(o Observed) bool {
+		return o.Name == d.Name && o.Type != d.Type && (d.Type == "CNAME" || o.Type == "CNAME")
+	})
 }
 
 func (r recordsSub) Apply(ctx context.Context, zoneID string, items []hsync.Item) (string, error) {
@@ -258,8 +313,8 @@ func (r recordsSub) Apply(ctx context.Context, zoneID string, items []hsync.Item
 			return "", fmt.Errorf("%w: %s %s is not Hashi's", ErrForbiddenChange, name, typ)
 		}
 	}
-	return s.applyChanges(ctx, zoneID, changes, func(q *db.Queries, now int64) error {
-		for _, ch := range changes {
+	return s.applyChanges(ctx, zoneID, changes, func(q *db.Queries, now int64, done []Change) error {
+		for _, ch := range done {
 			name, typ := ch.Key()
 			if ch.Op == OpDelete {
 				if err := q.DeleteDNSOwnership(ctx, db.DeleteDNSOwnershipParams{ZoneID: zoneID, Name: name, Type: typ}); err != nil {
@@ -276,27 +331,58 @@ func (r recordsSub) Apply(ctx context.Context, zoneID string, items []hsync.Item
 	})
 }
 
-// applyChanges sends changes, verifies them, records the result with after(q) and refreshes the snapshot.
-func (s *Service) applyChanges(ctx context.Context, zoneID string, changes []Change, after func(q *db.Queries, now int64) error) (string, error) {
+// applyChanges sends changes, verifies them, records the result with after(q, now, done) and refreshes the snapshot.
+// When the apply or the read-back fails, the zone is read again and after gets the changes that did take effect, so
+// an RRSet Hashi created stays Hashi's (01 §5.1 step 4); the error is returned.
+func (s *Service) applyChanges(ctx context.Context, zoneID string, changes []Change, after func(q *db.Queries, now int64, done []Change) error) (string, error) {
 	c, err := s.connect(ctx, zoneID)
 	if err != nil {
 		return "", err
 	}
 	plan := ProviderPlan{Changes: changes}
-	if err := c.p.Apply(ctx, c.zone, plan); err != nil {
-		return "", err
-	}
-	if err := c.p.Verify(ctx, c.zone, plan); err != nil {
-		return "", err
+	err = c.p.Apply(ctx, c.zone, plan)
+	if err == nil {
+		err = c.p.Verify(ctx, c.zone, plan)
 	}
 	ctx = context.WithoutCancel(ctx)
-	if err := s.st.Tx(ctx, func(q *db.Queries) error { return after(q, s.now().UnixMilli()) }); err != nil {
+	done := changes
+	if err != nil {
+		done = s.tookEffect(ctx, c, changes)
+	}
+	if len(done) > 0 {
+		if terr := s.st.Tx(ctx, func(q *db.Queries) error { return after(q, s.now().UnixMilli(), done) }); terr != nil {
+			return "", errors.Join(err, terr)
+		}
+	}
+	if _, rerr := s.Refresh(ctx, zoneID); rerr != nil && err == nil {
+		return "", fmt.Errorf("applied and verified, but refreshing the snapshot failed: %w", rerr)
+	}
+	if err != nil {
 		return "", err
 	}
-	if _, err := s.Refresh(ctx, zoneID); err != nil {
-		return "", fmt.Errorf("applied and verified, but refreshing the snapshot failed: %w", err)
-	}
 	return summarize(changes) + ", verified", nil
+}
+
+// tookEffect reads the zone and returns the changes whose result is there: a delete whose RRSet is gone, anything
+// else whose RRSet has exactly the planned content. A failed read returns none.
+func (s *Service) tookEffect(ctx context.Context, c conn, changes []Change) []Change {
+	rrsets, err := c.p.ListRRSets(ctx, c.zone)
+	if err != nil {
+		return nil
+	}
+	got := make(map[rrsetKey]RRSet, len(rrsets))
+	for _, r := range rrsets {
+		got[rrsetKey{r.Name, r.Type}] = r
+	}
+	var done []Change
+	for _, ch := range changes {
+		name, typ := ch.Key()
+		r, ok := got[rrsetKey{name, typ}]
+		if ch.Op == OpDelete && !ok || ch.Op != OpDelete && ok && r.Hash() == ch.After.Hash() {
+			done = append(done, ch)
+		}
+	}
+	return done
 }
 
 func summarize(changes []Change) string {
@@ -376,8 +462,8 @@ func (p pruneSub) Apply(ctx context.Context, zoneID string, items []hsync.Item) 
 			return "", fmt.Errorf("%w: %s %s is no longer marked for removal", ErrForbiddenChange, name, typ)
 		}
 	}
-	return s.applyChanges(ctx, zoneID, changes, func(q *db.Queries, _ int64) error {
-		for _, ch := range changes {
+	return s.applyChanges(ctx, zoneID, changes, func(q *db.Queries, _ int64, done []Change) error {
+		for _, ch := range done {
 			name, typ := ch.Key()
 			if err := q.DeleteImportDecision(ctx, db.DeleteImportDecisionParams{ZoneID: zoneID, Name: name, Type: typ}); err != nil {
 				return err
@@ -442,14 +528,18 @@ func (p probeSub) Apply(ctx context.Context, zoneID string, items []hsync.Item) 
 		return "", err
 	}
 	create, del := ProviderPlan{Changes: changes[:1]}, ProviderPlan{Changes: changes[1:]}
-	if err := c.p.Apply(ctx, c.zone, create); err != nil {
-		return "", err
+	cerr := c.p.Apply(ctx, c.zone, create)
+	if cerr == nil {
+		cerr = c.p.Verify(ctx, c.zone, create)
 	}
-	verr := c.p.Verify(ctx, c.zone, create)
-	if err := c.p.Apply(ctx, c.zone, del); err != nil { // delete even when the read-back failed: leave nothing behind
-		return "", errors.Join(verr, err)
+	// Delete whatever happened to the create: a failed create may still have created the probe (the provider
+	// accepted it and only a later step failed), and deleting a missing RRSet is success. Leave nothing behind.
+	ctx = context.WithoutCancel(ctx)
+	derr := c.p.Apply(ctx, c.zone, del)
+	if derr == nil {
+		derr = c.p.Verify(ctx, c.zone, del)
 	}
-	if err := errors.Join(verr, c.p.Verify(ctx, c.zone, del)); err != nil {
+	if err := errors.Join(cerr, derr); err != nil {
 		return "", err
 	}
 	if _, err := s.Refresh(context.WithoutCancel(ctx), zoneID); err != nil {
@@ -472,15 +562,20 @@ func (s *Service) Reconcile(eng *hsync.Engine) func(ctx context.Context) (string
 		var sums []string
 		var errs []error
 		for _, z := range rows {
-			p, err := eng.Auto(ctx, SubsystemRecords, z.ID, hsync.TriggerReconcile, audit.System)
-			switch {
-			case err != nil && !errors.Is(err, hsync.ErrReplanned):
-				errs = append(errs, fmt.Errorf("%s: %w", z.Name, err))
-			case p == nil:
-				sums = append(sums, z.Name+": in sync")
-			default:
-				sums = append(sums, fmt.Sprintf("%s: plan %s (%d items)", z.Name, p.Status, len(p.Items)))
+			var parts []string
+			for _, sub := range EntrySubsystems {
+				p, err := eng.Auto(ctx, sub, z.ID, hsync.TriggerReconcile, audit.System)
+				switch {
+				case err != nil && !errors.Is(err, hsync.ErrReplanned):
+					errs = append(errs, fmt.Errorf("%s %s: %w", z.Name, sub, err))
+				case p != nil:
+					parts = append(parts, fmt.Sprintf("%s %s (%d items)", sub, p.Status, len(p.Items)))
+				}
 			}
+			if len(parts) == 0 {
+				parts = []string{"in sync"}
+			}
+			sums = append(sums, z.Name+": "+strings.Join(parts, ", "))
 		}
 		return strings.Join(sums, "; "), errors.Join(errs...)
 	}

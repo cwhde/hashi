@@ -1238,7 +1238,7 @@ export interface components {
         SyncPlan: {
             id: string;
             /** @enum {string} */
-            subsystem: "dns-records" | "dns-prune" | "dns-probe";
+            subsystem: "dns-records" | "dns-record-deletes" | "dns-prune" | "dns-probe";
             target: string;
             /** @description e.g. the zone name */
             target_name: string;
