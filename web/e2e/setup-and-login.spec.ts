@@ -118,7 +118,7 @@ test('setup with a passkey, then sign in with it', async ({ page }) => {
 	await page.getByLabel(/Hashi may run its own Traefik service/).check();
 	await page.getByRole('button', { name: 'Confirm', exact: true }).click();
 	await page.getByRole('button', { name: 'Plan the install' }).click();
-	await expect(page.getByText('Traefik on edge')).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Traefik on edge' })).toBeVisible();
 	await expect(page.getByText('traefik binary')).toBeVisible();
 	await page.getByRole('button', { name: 'Approve and run' }).click();
 	await expect(page.getByText('Installed and verified')).toBeVisible();
