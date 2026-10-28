@@ -128,8 +128,14 @@ func validateTarget(field string, t Target) error {
 		}
 		return nil
 	}
-	if !isHostName(t.Address) {
-		return invalid(field+".address", "%q is neither an IP address nor a host name", t.Address)
+	// Upstreams may be single-label names (localhost, a container name); public names need a domain.
+	if len(t.Address) > 253 || t.Address != strings.ToLower(t.Address) {
+		return invalid(field+".address", "%q is neither an IP address nor a lowercase host name", t.Address)
+	}
+	for _, l := range strings.Split(t.Address, ".") {
+		if !labelRe.MatchString(l) {
+			return invalid(field+".address", "%q is neither an IP address nor a host name", t.Address)
+		}
 	}
 	return nil
 }

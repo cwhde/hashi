@@ -27,8 +27,17 @@ class SessionState {
 
 export const session = new SessionState();
 
-/** Where an unauthenticated or setup-incomplete visitor belongs, or null when the admin app is fine. */
-export function routeFor(s: AuthSession): '/setup' | '/login' | null {
+/** Whether this is a setup (bootstrap) session that may manage services before setup completes (02 §3.3). */
+export function setupServices(s: AuthSession | null): boolean {
+	return (
+		!!s && !s.setup_completed && s.method === 'bootstrap' && !!s.scopes?.includes('services.manage')
+	);
+}
+
+/** Where an unauthenticated or setup-incomplete visitor belongs, or null when the admin app is fine. While setup is
+ * open, a setup session may use the services pages (services are migrated before passkey sign-in exists). */
+export function routeFor(s: AuthSession, path = '/'): '/setup' | '/login' | null {
+	if (setupServices(s) && (path === '/services' || path.startsWith('/services/'))) return null;
 	if (!s.setup_completed) return '/setup';
 	if (!s.authenticated || s.method !== 'passkey') return '/login';
 	return null;

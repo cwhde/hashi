@@ -62,7 +62,7 @@ export const nav = [
 ];
 
 // Real pages that exist so far (feature slices add theirs). The live shell shows only these, at their real paths.
-const built = new Set(['/dns', '/traefik', '/activity', '/settings']);
+const built = new Set(['/services', '/dns', '/traefik', '/activity', '/settings']);
 export const liveNav = nav
 	.map((g) => ({
 		...g,
@@ -70,4 +70,9 @@ export const liveNav = nav
 			.map((i) => ({ ...i, href: i.href.replace(/^\/design/, '') }))
 			.filter((i) => built.has(i.href))
 	}))
+	.filter((g) => g.items.length > 0);
+
+// A setup session (before passkey sign-in exists) sees only the services pages.
+export const setupNav = liveNav
+	.map((g) => ({ ...g, items: g.items.filter((i) => i.href === '/services') }))
 	.filter((g) => g.items.length > 0);

@@ -31,7 +31,7 @@ async function virtualAuthenticator(page: Page, transport: 'internal' | 'usb' = 
 	return () => cdp.send('WebAuthn.removeVirtualAuthenticator', { authenticatorId });
 }
 
-test('setup with a passkey, then sign in with it', async ({ page }) => {
+test('setup with a passkey, then sign in with it', async ({ page, request }) => {
 	await virtualAuthenticator(page);
 	await page.goto(state.baseURL);
 	await expect(page).toHaveURL(/\/setup$/);
@@ -84,7 +84,8 @@ test('setup with a passkey, then sign in with it', async ({ page }) => {
 	await expect(page.getByRole('heading', { name: 'Certificates' })).toBeVisible();
 	await page.getByRole('button', { name: 'Base settings' }).click();
 	await page.getByLabel('Root domain').fill('example.com');
-	await page.getByLabel('Admin domain').fill('hashi.example.com');
+	// A name a level deeper, so step 7 needs the extra wildcard *.hashi.example.com (03 §5.3).
+	await page.getByLabel('Admin domain').fill('dev.hashi.example.com');
 	await page.getByRole('button', { name: 'Save and continue' }).click();
 
 	// Step 4: certificate authority (dev build: a local CA; the DNS-01 values go through the fake zone).
@@ -127,6 +128,42 @@ test('setup with a passkey, then sign in with it', async ({ page }) => {
 		page.getByText(/certificate\(s\) served with the expected fingerprint/)
 	).toBeVisible();
 	await page.getByRole('button', { name: 'Continue' }).click();
+
+	// Step 7: the Hashi admin service; its deeper name re-issues the certificate first, then the plan is shown.
+	await expect(page.getByRole('heading', { name: 'Publish Hashi' })).toBeVisible();
+	await page.getByRole('button', { name: 'Prepare' }).click();
+	await expect(page.getByText(/Certificate: Applied: issued example.com \(3 names/)).toBeVisible();
+	await expect(page.getByText('10-hashi-http-services.yml')).toBeVisible();
+	await page.getByRole('button', { name: 'Approve and run' }).click();
+	await expect(page.getByText('The Traefik host serves dev.hashi.example.com')).toBeVisible();
+	await page.getByRole('button', { name: 'Continue' }).click();
+
+	// Step 8: the button opens https://dev.hashi.example.com/setup#https=<nonce>. There is no Traefik in front of this
+	// dev server, so the test catches the link and sends the proof the way Hashi's Traefik would (dev edge token).
+	await expect(page.getByRole('heading', { name: 'Open Hashi over HTTPS' })).toBeVisible();
+	await page.route('https://dev.hashi.example.com/**', (route) => route.fulfill({ status: 204 }));
+	const started = page.waitForResponse((r) => r.url().endsWith('/api/setup/https/start'));
+	await page.getByRole('button', { name: 'Open https://dev.hashi.example.com' }).click();
+	const link = ((await (await started).json()) as { url: string }).url;
+	expect(link).toMatch(/^https:\/\/dev\.hashi\.example\.com\/setup#https=/);
+	const nonce = link.split('#https=')[1];
+	const edge = {
+		Host: 'dev.hashi.example.com',
+		'X-Forwarded-Proto': 'https',
+		'X-Forwarded-For': '127.0.0.1'
+	};
+	const proof = `${state.baseURL}/api/setup/https/proof`;
+	expect((await request.post(proof, { headers: edge, data: { nonce } })).status()).toBe(403); // no edge token
+	const ok = await request.post(proof, {
+		headers: { ...edge, 'X-Hashi-Edge': 'dev-edge-token' },
+		data: { nonce }
+	});
+	expect(ok.status()).toBe(200);
+	// Before setup finishes, the setup session can already use the services pages (02 §3.3), and nothing else.
+	await page.goto(`${state.baseURL}/services`);
+	await expect(page.getByRole('link', { name: /Hashi\s*system/ })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'DNS' })).toHaveCount(0);
+	await page.goto(`${state.baseURL}/setup`);
 
 	// Step 9: passkey, then recovery key with its checksum group.
 	await expect(page.getByRole('heading', { name: 'Passkey and recovery key' })).toBeVisible();
@@ -241,6 +278,38 @@ test('setup with a passkey, then sign in with it', async ({ page }) => {
 	);
 	await page.getByRole('tab', { name: 'Certificates' }).click();
 	await expect(certs).toContainText('served by 1 of 1 host');
+
+	// Services: the admin service from setup is read-only; a user service with a route and rewrite is published on the
+	// edge, shows its rendered excerpt, and turning it off takes it off the host again.
+	await page.getByRole('link', { name: 'Services' }).first().click();
+	await expect(page).toHaveURL(/\/services$/);
+	await expect(page.getByRole('link', { name: /Hashi\s*system/ })).toBeVisible();
+	await page.getByRole('button', { name: 'Add service' }).click();
+	await page.getByLabel('Name', { exact: true }).fill('Search');
+	await page.getByLabel('Public domain').fill('search');
+	await page.getByLabel('Address').fill('192.0.2.20');
+	await page.getByLabel('Port').fill('8080');
+	await page.getByRole('button', { name: 'Save and publish' }).click();
+	await expect(page.getByRole('status')).toContainText('applied on 1 Traefik host');
+	await page.getByRole('link', { name: /^Search/ }).click();
+	await expect(page).toHaveURL(/\/services\/[0-9A-Z]+$/);
+	await page.getByLabel('Advanced routes').click();
+	await page.getByRole('button', { name: 'Add route' }).click();
+	await page.getByLabel('Path', { exact: true }).fill('/api');
+	await page.getByLabel('Rewrite', { exact: true }).click();
+	await page.getByRole('option', { name: 'strip prefix' }).click();
+	await page.getByRole('button', { name: 'Save and publish' }).click();
+	await expect(page.getByRole('status')).toContainText('applied on 1 Traefik host');
+	await page.getByRole('tab', { name: 'Rendered config' }).click();
+	await expect(page.getByText(/stripPrefix/)).toBeVisible();
+	await page.getByRole('button', { name: 'Turn off' }).click();
+	await expect(page.getByRole('status')).toContainText('applied on 1 Traefik host');
+	await expect(page.getByText('Off', { exact: true })).toBeVisible();
+	// Deleting asks for the passkey (reauth), then the service is gone.
+	await page.getByRole('button', { name: 'Delete' }).click();
+	await page.getByRole('button', { name: 'Delete service' }).click();
+	await expect(page).toHaveURL(/\/services$/);
+	await expect(page.getByRole('link', { name: /^Search/ })).toHaveCount(0);
 
 	// Account: the passkey and this session; the last passkey cannot be deleted.
 	await page.goto(`${state.baseURL}/settings?category=account`);

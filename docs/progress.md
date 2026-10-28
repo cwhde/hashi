@@ -74,15 +74,29 @@ Decisions made in PR A:
   services file is comments only while no service renders (contract finding 7).
 
 PR B — UI + deploy
-- [ ] `/services` list and service page from the mocks (target, routes, rewrites, TLS, flags, rendered config;
+- [x] `/services` list and service page from the mocks (target, routes, rewrites, TLS, flags, rendered config;
       Access/WAF/monitoring marked as later slices); add/edit drawer; plans through `/changes`.
-- [ ] Setup steps 7 and 8 pages (step 8 opens the HTTPS origin and continues there), steps 7–8 built.
-- [ ] E2E against the dev fakes: system service applied on the fake edge, a user service with a route and rewrite,
+- [x] Setup steps 7 and 8 pages (step 8 opens the HTTPS origin and continues there), steps 7–8 built.
+- [x] E2E against the dev fakes: system service applied on the fake edge, a user service with a route and rewrite,
       step 8 proof with a simulated edge request.
 - [ ] Deploy (user runs `/deploy`) and prod-proof: manual DNS entry `dev.hashi` → edge internal address, steps 7–8 on
       the real install, real browser opens `https://dev.hashi.<root>` with the issued wildcard, first passkey
       registered by the user, SearXNG served through `hashi-edge-test` (request with the real host name), V1 untouched.
 
+
+Decisions made in PR B:
+- A setup session reaches the services pages (and nothing else of the admin app) while setup is open, so the gate's
+  service can be added from the browser before passkey sign-in exists (scope `services.manage`, spec 0e502cc).
+- Step 8's Continue is not tied to the HTTPS address; the passkey ceremony on step 9 fails clearly anywhere else.
+  Dev builds with fixtures trust a fixed edge token (`dev-edge-token`) so the E2E can send the proof; release builds
+  never contain it.
+- Upstreams may be single-label names (`localhost`, a container name).
+- Review of PR B (reproduced, fixed): setup session could not open /services; delete needed the passkey retry;
+  hidden TLS options blocked a switch away from https. The E2E covers the setup session on /services and delete.
+  Not covered by E2E: the proof sent on arrival at the HTTPS address (the gate does it for real), the https kind's
+  options, regex rewrites and weights (golden files and the Traefik integration test cover their rendering).
+- A flaky S3 E2E check had a UI cause: `/dns` said "Decisions saved." before its follow-up plans finished, and a
+  reload on that text cancelled the records plan. Fixed in the page.
 ## Previous slice
 
 **S4 — SSH + Traefik** · status: **done** 2026-10-28, deployed `2868d0e` (#32, #33), prod-proof passed. Next: S5.

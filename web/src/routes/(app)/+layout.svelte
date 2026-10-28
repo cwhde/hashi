@@ -15,7 +15,7 @@
 	onMount(async () => {
 		try {
 			const s = await session.refresh();
-			const away = routeFor(s);
+			const away = routeFor(s, page.url.pathname);
 			if (away) {
 				const next = away === '/login' ? `?next=${encodeURIComponent(page.url.pathname)}` : '';
 				goto(away + next, { replaceState: true });

@@ -3,8 +3,8 @@
 	import { page } from '$app/state';
 	import { afterNavigate, goto } from '$app/navigation';
 	import { pendingPlans } from '$lib/sync-pending.svelte';
-	import { nav as designNav, liveNav } from '$lib/design/nav';
-	import { session } from '$lib/auth/session.svelte';
+	import { nav as designNav, liveNav, setupNav } from '$lib/design/nav';
+	import { session, setupServices } from '$lib/auth/session.svelte';
 	import { time } from '$lib/format';
 	import { theme, themes } from '$lib/theme.svelte';
 	import { cn } from '$lib/utils';
@@ -26,7 +26,7 @@
 
 	// live: the real admin app (session from the server, only built pages). Without it the shell shows mock data (/design).
 	let { children, live }: { children: Snippet; live?: { onSignOut: () => void } } = $props();
-	const nav = $derived(live ? liveNav : designNav);
+	const nav = $derived(live ? (setupServices(session.current) ? setupNav : liveNav) : designNav);
 	// The pending-changes count follows every navigation in the live app (plans appear from saves and background sync).
 	afterNavigate(() => {
 		if (live) pendingPlans.refresh().catch(() => {});
