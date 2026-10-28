@@ -107,6 +107,7 @@ test('setup with a passkey, then sign in with it', async ({ page }) => {
 	await page.getByLabel('Host or IP').fill('192.0.2.10');
 	await page.getByRole('button', { name: 'Read the host key' }).click();
 	await expect(page.getByTestId('host-key')).toContainText('SHA256:');
+	await expect(page.getByText('ssh_host_ed25519_key.pub')).toBeVisible(); // the file for the shown key type
 	await page.getByRole('button', { name: "It doesn't match" }).click();
 	await expect(page.getByRole('alert')).toContainText('Connection stopped');
 	await page.getByRole('button', { name: 'Read the host key' }).click();

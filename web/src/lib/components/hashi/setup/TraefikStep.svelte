@@ -124,6 +124,10 @@
 			await reload();
 		});
 
+	// The host offers one of its keys (often ECDSA, captured at the S4 gate); name the file that holds that one.
+	const keyFile = (type: string) =>
+		type.startsWith('ecdsa') ? 'ecdsa' : type === 'ssh-rsa' ? 'rsa' : type.replace(/^ssh-/, '');
+
 	async function copyKey() {
 		await navigator.clipboard.writeText(publicKey);
 		copied = true;
@@ -286,7 +290,7 @@
 				</div>
 				<p class="mt-1 text-[13px] text-muted-foreground">
 					First contact with {form.host}. Compare it with <Mono
-						>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</Mono
+						>ssh-keygen -lf /etc/ssh/ssh_host_{keyFile(scanned.type)}_key.pub</Mono
 					> on the host.
 				</p>
 				<Mono class="mt-3 block rounded-lg bg-surface-2 px-3 py-2"
