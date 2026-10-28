@@ -90,9 +90,11 @@ Feed refreshes update a feed set's elements by diff (insert new, delete gone) in
 `dynamic_entry_hosts`: `element_id`, `firewall_host_id`, `state` (`pending` | `applied` | `removed` | `failed`),
 `applied_at`, `error`.
 
-`address_counters` (06 §5.1): `address` (IPv4 or IPv6 /64, unique), `ban_count`, `challenge_count`, `last_ban_at`,
-`last_ban_ends_at`, `last_challenge_at`, `last_source`, `country`, `asn` (at last offence), `ban_decays_at`,
-`challenge_decays_at`. Indexes: (`ban_count`), (`challenge_count`), (`last_ban_at`), (`last_challenge_at`).
+`address_counters` (06 §5.1): `address` (IPv4 or IPv6 /64, unique), `ban_count`, `ban_quiet_since`, `challenge_count`,
+`challenge_quiet_since`, `last_ban_at`, `last_ban_ends_at`, `last_challenge_at`, `last_source`, `country`, `asn` (at last
+offence). Stored counts are values as of their quiet-since time; effective values (step decay) are computed on read, in
+Go and as an SQL expression for filters and sorting. Indexes: (`ban_quiet_since`), (`challenge_quiet_since`),
+(`last_ban_at`), (`last_challenge_at`).
 
 ### 2.4 Feeds
 

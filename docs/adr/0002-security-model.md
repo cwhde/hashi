@@ -37,13 +37,15 @@ records what was adopted, what was corrected and why, and the decisions taken wi
 
 Decided with the user while turning the draft into spec:
 
-- Staging set drain and ban push run over a **persistent SSH connection per firewall host** ("host link"), not a new agent.
-  Pulse stays heartbeat-only and credential-free.
+- Staging set drain and ban push run over a **persistent SSH connection per firewall host** ("host link"), not a host
+  agent (the draft's "Hashi Host Agent"). Nothing is installed on the host; Hashi keeps its SSH client connection open
+  and runs short `nft` commands over it. Pulse stays heartbeat-only and credential-free. See "Host link vs host agent".
+- **No observe/dry-run mode and no WAF detect-only mode** (confirmed again after discussing a per-path `detect` mode): a
+  false positive shows as a broken app; the fix is a path exclusion, a WAF mode per path, or resetting the ban and counter.
 - The **WAF stays a Traefik plugin** (Coraza + OWASP CRS, pinned). Hashi tails Traefik's access log continuously (seconds,
   not the former 60 s batch) to count WAF hits per address.
 - **Exempt from the L7 rate trigger**: addresses in the effective manual allow, and requests carrying a valid edge SSO
   session. The WAF still rejects their malicious requests.
-- **No observe/dry-run mode and no WAF detect-only mode.** Enforcement is on from the start.
 
 ## Corrections to the draft (and why)
 
@@ -69,12 +71,30 @@ Decided with the user while turning the draft into spec:
   former "trusted FQDN" refresh). System sets `hashi-hosts` and `private-networks`.
 - Items carry an optional note and expiry (former allowlist entries had reason + expiry).
 - `Pass Authentication` takes an optional provider and optional allowed groups (former per-resource SSO options).
-- `Pass CAPTCHA` clearance cookie lifetime: setting `captcha.clearance_ttl`, default 24 h.
+- `Pass CAPTCHA` clearance cookie lifetime: setting `captcha.clearance_ttl`, default 24 h. A valid edge SSO session
+  also satisfies `Pass CAPTCHA` (a logged-in user on a VPN or data-center address is not asked for a CAPTCHA).
 - Forward-auth outage: services whose flattened rules can deny or require authentication fail closed; the rest fail open.
 - Target resolution that yields no address never empties applied state (DNS value, upstream, SSH target).
 - Two persistent per-address counters: the ban counter (drives `T_ban`) and an informational challenge counter, both
-  decaying, both visible, filterable, editable and resettable (Security → Counters, address page).
+  visible, filterable, editable and resettable (Security → Counters, address page). Both use **step decay**: −1 per
+  `ban.counter_decay_ttl` of quiet time, the clock starting at the end of the last ban (last challenge), computed at
+  read time. Reason: addresses are reassigned (dynamic home IPs, CGNAT, cloud), so history must fade, but a heavy
+  offender fades slower than a one-time one. The draft had no decay; the first spec had a full reset after a window.
 - WAF rule exclusions per service/path are kept (CRS false positives would otherwise force `Disabled`).
+
+## Host link vs host agent
+
+| | Persistent SSH (chosen) | Host agent |
+| --- | --- | --- |
+| On the host | nothing new; SSH is already required for validation, plans and rescue | a root-capable binary per firewall host: install, update, own credentials, own release |
+| Ban latency | ≤ `l4.poll_interval` (3 s); HTTP is blocked at once by A1 | instant |
+| Hashi down | kernel keeps enforcing `block`, `dyn`, staging and meters; no new bans (the engine is Hashi) | same: the engine is still Hashi |
+| Cost | reconnect with backoff; 5-min reconciliation repairs anything missed | a second channel next to SSH, which plans still need |
+
+SSH wins for a few firewall hosts that Hashi already reaches. Revisit when a firewall host is not reachable by SSH from
+Hashi, when there are many firewall hosts, or when enforcement must make decisions without Hashi. Such an agent would be
+its own program with its own name, never part of Pulse: Pulse must stay small enough to run dozens of times per host (one
+per Compose stack). A host agent may embed Pulse's heartbeat; Pulse never embeds the host agent.
 
 ## Rejected alternatives
 

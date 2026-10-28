@@ -95,7 +95,7 @@ These hold in every slice. Each has at least one automated test named `TestInvar
 | Stage A / Stage B | Forward auth's global abuse engine (block guard, WAF + rate trigger, challenge) / the service's flattened rule set. |
 | Dynamic sets | `dynamic-challenge` and `dynamic-blocked`: IP sets owned by the abuse engine. |
 | Folding | Resolving combined manual allow vs block by longest prefix match (tie → block) into the kernel's `allow`/`block` sets. |
-| Ban counter | Per-address offence count `c` feeding `T_ban(c)`; decays, never reset by a CAPTCHA solve. |
+| Ban counter | Per-address offence count `c` feeding `T_ban(c)`; drops by 1 per quiet period (step decay), never reset by a CAPTCHA solve. |
 | Host link | Hashi's persistent SSH session per firewall host that drains the kernel staging set and pushes bans. |
 | Prod-proof | The recorded evidence that a slice worked against the real system (11-delivery.md). |
 

@@ -62,6 +62,9 @@ Done on the branch:
 - [x] Read-only survey of the first firewall host: kernel 7.0, nft 1.1.3, iptables **legacy**; NetBird uses legacy
       chains + ipsets; old script chains still present; Proxmox firewall disabled; no nftables tables;
       `nftables.service` disabled with the stock `flush ruleset` config.
+- [x] Counters view (ban + challenge counter, filters, edit/reset).
+- [x] Review round 2026-10-28: step decay for both counters; an SSO session satisfies `pass_captcha`; observe/detect
+      modes stay out; host link stays SSH (ADR 0002 "Host link vs host agent"); Pulse footprint targets (08 §1).
 
 After sign-off (phase 2):
 - [ ] Merge the spec branch (docs → `main`).
@@ -123,6 +126,9 @@ Decisions made in S0:
   only short-SHA deploys exist so far.
 
 ## Log
+
+- 2026-10-28 — Security model review round with the user: step decay, SSO satisfies CAPTCHA, no detect mode, SSH
+  host link confirmed in the ADR, Pulse footprint targets. Still awaiting final sign-off.
 
 - 2026-10-27 — Security model side step: the user's new model turned into spec on branch `security-model` (ADR 0002,
   05a new, 05/06/06a rewritten, Resource → Service). Kanae survey: everything on iptables-legacy, NetBird too → S6 starts

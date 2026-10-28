@@ -11,6 +11,10 @@ Pulse lets a host report its current addresses without holding any provider cred
 - Config: Hashi URL, agent ID, token, interval, optional interface selector.
 - Heartbeat: agent version, hostname, private IPv4/IPv6 candidates (per interface), optional user-selected interface,
   timestamp, optional Docker metadata. Retries with jittered backoff.
+- Footprint: small enough to run in every Compose stack, dozens of instances per host. Targets, measured in S8: idle
+  RSS ≤ 15 MB, no disk writes after start (config read once, no local state), sleeps between heartbeats (no busy
+  loops or polling). Pulse stays heartbeat-only; firewall or other root-level host functions never go into it
+  (ADR 0002, "Host link vs host agent").
 
 ## 2. Server model (`pulse_agents`)
 

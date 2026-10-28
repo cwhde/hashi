@@ -145,6 +145,8 @@ Actions:
 - **`pass_captcha`** — requires a valid clearance cookie for this service: HMAC-signed `{service, issued, expiry}`,
   lifetime `captcha.clearance_ttl`, not bound to the address (mobile clients change addresses). Missing → challenge with
   `scope=service`. Never adds the address to `dynamic-challenge`; a bot hammering the challenge is still counted by A2.
+  A valid edge SSO session (§7) also satisfies it, so a logged-in user is never asked for a CAPTCHA (e.g. on a VPN that a
+  rule sends to CAPTCHA).
 - **`pass_authentication`** — requires a valid edge SSO session (§7); with allowed groups, a session outside them gets
   `403`. Missing → login redirect (browser) or `401` (API). Floods of the login flow are counted by A2.
 
@@ -204,17 +206,33 @@ Save-time warnings (not errors): an item after an earlier `applies_to all` + pre
 
 Each address (IPv6: /64) has one persistent counter record with two counters:
 
-| Counter | Increments | Decays to 0 | Effect |
+| Counter | Increments | Quiet time starts | Effect |
 | --- | --- | --- | --- |
-| **Ban counter** `c` | before every ban (§3.4), any source | `ban.counter_decay_ttl` after the end of the last ban, with no new ban | drives `T_ban(c)` |
-| **Challenge counter** | each time the address enters `dynamic-challenge` (§3.2, or "challenge now") | `ban.counter_decay_ttl` after the last challenge, with no new challenge | informational (stats, sorting, filters); `T_exp` stays fixed |
+| **Ban counter** `c` | before every ban (§3.4), any source | at the end of the last ban (a permanent ban never decays) | drives `T_ban(c)` |
+| **Challenge counter** | each time the address enters `dynamic-challenge` (§3.2, or "challenge now") | at the last challenge | informational (stats, sorting, filters); `T_exp` stays fixed |
 
-Neither is reset by a CAPTCHA solve. The live failure count `f` belongs to the current challenge entry (§3.3), not to the
-counter record. A record without counters, active entries or events for 30 days is deleted.
+**Step decay:** each counter drops by **1** for every full `ban.counter_decay_ttl` (`D`) of quiet time, down to 0. An
+address banned once is forgotten after `D`; one banned six times needs `6 × D` without a new ban. A new ban (challenge)
+restarts that counter's quiet time; a violation that does not lead to a ban leaves the ban counter and its clock alone.
 
-Manual actions (reauth, audited): set either counter to a value (setting `c` changes the next ban's duration, not a
-running ban), reset one or both, reset `f` of a running challenge. Bulk reset applies to a selection or to every row
-matching the current filter (the confirmation names the count).
+Decay is computed at read time, never by a timer per address. The record stores the counter and its quiet-since time;
+the effective value is
+
+```
+effective(n, since) = n                                  if now ≤ since
+                    = max(0, n − ⌊(now − since) / D⌋)    otherwise
+```
+
+On an increment Hashi first takes the effective value, adds 1 and stores it with the new quiet-since time (for a ban: its
+end). Every view, filter and `T_ban` use effective values; the Counters view also shows when the next decrement happens.
+Neither counter is reset by a CAPTCHA solve. The live failure count `f` belongs to the current challenge entry (§3.3),
+not to the counter record. A record whose effective counters are 0 and that has no active entries or events for 30 days
+is deleted by the cleanup job.
+
+Manual actions (reauth, audited): set either counter to a value (stored as the effective value; quiet time restarts at
+the later of now and the end of a running ban; setting `c` changes the next ban's duration, not a running ban), reset one
+or both, reset `f` of a running challenge. Bulk reset applies to a selection or to every row matching the current filter
+(the confirmation names the count).
 
 ### 5.2 Ban duration
 
@@ -319,7 +337,7 @@ All in Settings → Security (09-scripts-settings.md §2).
 | `l4.staging_timeout` | 5 m | kernel drop time before Hashi drains an entry |
 | `l4.poll_interval` | 3 s | host link drain/push interval |
 | `ban.function`, `ban.base`, `ban.k`, `ban.max`, `ban.permanent_after` | exponential, 15 m, 2.0, 30 d, 0 | §5.2 |
-| `ban.counter_decay_ttl` | 7 d | decay of the ban and challenge counters (§5.1) |
+| `ban.counter_decay_ttl` | 7 d | quiet time per step of decay (−1) of the ban and challenge counters (§5.1) |
 | `feeds.refresh_interval` | 6 h | feed refresh |
 | `feeds.stale_expiry_ttl` | 72 h | last-known-good retention |
 | `geoip.update` | weekly | MaxMind download |
@@ -364,7 +382,7 @@ Download job with checksum, atomic swap of the reader, staleness warning after 1
 
 Security → Counters: one row per counter record — address (link to the address page), country/ASN, ban counter,
 challenge counter, current state (banned until … / challenged, `f` of `F_max`, expires … / none), last ban, last challenge,
-decays at, last source. Filters: state (banned now, challenged now, any active, all with counters), minimum ban or
+next decrement, last source. Filters: state (banned now, challenged now, any active, all with counters), minimum ban or
 challenge counter, last source (L7 rate, WAF, challenge failed, L4 meter, manual), country/ASN, last offence within a
 range. Search by address or CIDR (rows inside it). Sort by any counter or time. Row actions: edit counters, reset,
 ban now, challenge now, remove from dynamic sets. Selection and "all matching filter" for bulk reset. Paginated.
@@ -419,9 +437,10 @@ enable; CAPTCHA settings and Cap secret rotation; SSO provider changes; engine s
 ## 18. Tests that must exist
 
 Unit: path normalization; flattening (nesting, priorities, disabled items, global set position, fallback); first-match
-evaluation table-driven over §4.4; ban function per type incl. cap and permanent; counter decay; A2 windows and
+evaluation table-driven over §4.4; ban function per type incl. cap and permanent; step decay (one step per `D`, several steps at once, clock restart on
+a new ban, a violation without a ban leaves the clock alone, permanent ban never decays, read-time value at boundaries); A2 windows and
 exemptions; A3 transitions (solve, expiry, failures, escalation); escalation skip for allowed addresses; feed parsers per
-format, dedupe, SSRF validation incl. redirects and final dial; clearance cookie signing and expiry; both counters'
+format, dedupe, SSRF validation incl. redirects and final dial; clearance cookie signing and expiry; a valid SSO session satisfies `pass_captcha`; both counters'
 increment and decay; manual counter edits (next ban uses the edited `c`, running ban unchanged); bulk reset by filter.
 `TestInvariant_20_ManualAllowBeatsDynamic` (L7 side), `TestInvariant_22_SetGraphsAcyclic` (rule sets),
 `TestInvariant_StageOrder_*` (Stage A always before Stage B; A1 before A2 before A3).
