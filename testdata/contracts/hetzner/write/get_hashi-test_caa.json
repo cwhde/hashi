@@ -1,0 +1,40 @@
+{
+  "captured_at": "2026-10-28T08:39:18+00:00",
+  "docs_url": "https://docs.hetzner.cloud/reference/cloud#zone-rrsets",
+  "request": "GET /v1/zones/100001/rrsets/_hashi-test/CAA",
+  "request_body": null,
+  "status": 200,
+  "headers": {
+    "content-type": "application/json",
+    "ratelimit-limit": "3600",
+    "ratelimit-remaining": "3593",
+    "ratelimit-reset": "1793176765"
+  },
+  "body": {
+    "rrset": {
+      "id": "_hashi-test/CAA",
+      "name": "_hashi-test",
+      "type": "CAA",
+      "ttl": null,
+      "labels": {},
+      "protection": {
+        "change": false
+      },
+      "records": [
+        {
+          "value": "0 issue \"letsencrypt.org\"",
+          "comment": ""
+        },
+        {
+          "value": "0 issuewild \";\"",
+          "comment": ""
+        },
+        {
+          "value": "128 iodef \"mailto:hostmaster@example.com\"",
+          "comment": ""
+        }
+      ],
+      "zone": 100001
+    }
+  }
+}

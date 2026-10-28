@@ -1,0 +1,38 @@
+{
+  "captured_at": "2026-10-28T08:40:15+00:00",
+  "docs_url": "https://docs.hetzner.cloud/reference/cloud#zone-rrsets",
+  "request": "PUT /v1/zones/100001/rrsets/_hashi-test/A",
+  "request_body": {
+    "labels": {
+      "hashi.io/owner": "instance-0001"
+    }
+  },
+  "status": 200,
+  "headers": {
+    "content-type": "application/json",
+    "ratelimit-limit": "3600",
+    "ratelimit-remaining": "3599",
+    "ratelimit-reset": "1793176816"
+  },
+  "body": {
+    "rrset": {
+      "id": "_hashi-test/A",
+      "name": "_hashi-test",
+      "type": "A",
+      "ttl": null,
+      "labels": {
+        "hashi.io/owner": "instance-0001"
+      },
+      "protection": {
+        "change": false
+      },
+      "records": [
+        {
+          "value": "192.0.2.13",
+          "comment": ""
+        }
+      ],
+      "zone": 100001
+    }
+  }
+}

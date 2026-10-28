@@ -1,0 +1,63 @@
+{
+  "captured_at": "2026-10-28T08:38:12+00:00",
+  "docs_url": "https://docs.hetzner.cloud/reference/cloud#zone-rrsets",
+  "request": "POST /v1/zones/100001/rrsets",
+  "request_body": {
+    "name": "_hashi-test",
+    "type": "A",
+    "ttl": null,
+    "records": [
+      {
+        "value": "192.0.2.10"
+      },
+      {
+        "value": "192.0.2.11"
+      }
+    ]
+  },
+  "status": 201,
+  "headers": {
+    "content-type": "application/json",
+    "ratelimit-limit": "3600",
+    "ratelimit-remaining": "3596",
+    "ratelimit-reset": "1793176695"
+  },
+  "body": {
+    "action": {
+      "id": 664311190422316,
+      "status": "running",
+      "command": "create_rrset",
+      "progress": 0,
+      "started": "2026-10-28T08:38:11Z",
+      "finished": null,
+      "error": null,
+      "resources": [
+        {
+          "id": 100001,
+          "type": "zone"
+        }
+      ]
+    },
+    "rrset": {
+      "id": "_hashi-test/A",
+      "name": "_hashi-test",
+      "type": "A",
+      "ttl": null,
+      "labels": {},
+      "protection": {
+        "change": false
+      },
+      "records": [
+        {
+          "value": "192.0.2.10",
+          "comment": ""
+        },
+        {
+          "value": "192.0.2.11",
+          "comment": ""
+        }
+      ],
+      "zone": 100001
+    }
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "captured_at": "2026-10-28T08:38:40+00:00",
+  "docs_url": "https://docs.hetzner.cloud/reference/cloud#zone-rrsets",
+  "request": "POST /v1/zones/100001/rrsets",
+  "request_body": {
+    "name": "cname._hashi-test",
+    "type": "CNAME",
+    "ttl": null,
+    "records": [
+      {
+        "value": "_hashi-test.example.com."
+      }
+    ]
+  },
+  "status": 201,
+  "headers": {
+    "content-type": "application/json",
+    "ratelimit-limit": "3600",
+    "ratelimit-remaining": "3599",
+    "ratelimit-reset": "1793176721"
+  },
+  "body": {
+    "action": {
+      "id": 664311190422401,
+      "status": "running",
+      "command": "create_rrset",
+      "progress": 0,
+      "started": "2026-10-28T08:38:40Z",
+      "finished": null,
+      "error": null,
+      "resources": [
+        {
+          "id": 100001,
+          "type": "zone"
+        }
+      ]
+    },
+    "rrset": {
+      "id": "cname._hashi-test/CNAME",
+      "name": "cname._hashi-test",
+      "type": "CNAME",
+      "ttl": null,
+      "labels": {},
+      "protection": {
+        "change": false
+      },
+      "records": [
+        {
+          "value": "_hashi-test.example.com.",
+          "comment": ""
+        }
+      ],
+      "zone": 100001
+    }
+  }
+}

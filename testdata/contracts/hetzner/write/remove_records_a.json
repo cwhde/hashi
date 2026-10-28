@@ -1,0 +1,36 @@
+{
+  "captured_at": "2026-10-28T08:39:57+00:00",
+  "docs_url": "https://docs.hetzner.cloud/reference/cloud#zone-rrsets",
+  "request": "POST /v1/zones/100001/rrsets/_hashi-test/A/actions/remove_records",
+  "request_body": {
+    "records": [
+      {
+        "value": "192.0.2.12"
+      }
+    ]
+  },
+  "status": 201,
+  "headers": {
+    "content-type": "application/json",
+    "ratelimit-limit": "7200",
+    "ratelimit-remaining": "7198",
+    "ratelimit-reset": "1793176798"
+  },
+  "body": {
+    "action": {
+      "id": 664311190422717,
+      "status": "running",
+      "command": "remove_rrset_records",
+      "progress": 0,
+      "started": "2026-10-28T08:39:57Z",
+      "finished": null,
+      "error": null,
+      "resources": [
+        {
+          "id": 100001,
+          "type": "zone"
+        }
+      ]
+    }
+  }
+}

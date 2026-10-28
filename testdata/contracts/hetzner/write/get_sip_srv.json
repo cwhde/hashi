@@ -1,0 +1,36 @@
+{
+  "captured_at": "2026-10-28T08:39:18+00:00",
+  "docs_url": "https://docs.hetzner.cloud/reference/cloud#zone-rrsets",
+  "request": "GET /v1/zones/100001/rrsets/_sip._tcp._hashi-test/SRV",
+  "request_body": null,
+  "status": 200,
+  "headers": {
+    "content-type": "application/json",
+    "ratelimit-limit": "3600",
+    "ratelimit-remaining": "3594",
+    "ratelimit-reset": "1793176764"
+  },
+  "body": {
+    "rrset": {
+      "id": "_sip._tcp._hashi-test/SRV",
+      "name": "_sip._tcp._hashi-test",
+      "type": "SRV",
+      "ttl": null,
+      "labels": {},
+      "protection": {
+        "change": false
+      },
+      "records": [
+        {
+          "value": "10 60 5060 sip._hashi-test.example.com.",
+          "comment": ""
+        },
+        {
+          "value": "20 0 5061 sip2._hashi-test.example.com.",
+          "comment": ""
+        }
+      ],
+      "zone": 100001
+    }
+  }
+}
