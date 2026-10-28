@@ -26,6 +26,8 @@ host-A firewall script. Their current configuration is reference material only, 
 | Service | Use | Contract captured |
 | --- | --- | --- |
 | Hetzner Cloud API (zones, RRSets) | public DNS, one zone managed | read side 2026-10-28: `testdata/contracts/hetzner/` (`make contract-capture PROVIDER=hetzner`); writes 2026-10-28 with `_hashi-test` probe RRSets: `testdata/contracts/hetzner/write/` (`tools/contract-capture/hetzner_write.py`) |
+| Traefik v3.7.16 (release binary, file provider, API) | reverse proxy on the edge LXCs | 2026-10-28 on a disposable Alpine LXC: `testdata/contracts/traefik/` (release checksums, `/api/rawdata`, cert reload, forward-auth fallback) |
+| Edge host OS probe over SSH | Traefik/firewall host validation | 2026-10-28, Alpine 3.23 and Debian 12: `testdata/contracts/os/` |
 | Google Trust Services ACME (EAB) | certificates | — |
 | AdGuard Home ×2 (+ adguardhome-sync) | internal rewrites | — |
 | Pocket ID | edge SSO | — |
@@ -55,3 +57,8 @@ host-A firewall script. Their current configuration is reference material only, 
 - A topology TXT record is consumed by the current firewall script; it must keep existing until Hashi's firewall slice replaces the script.
 - Ports 8080–8082 are taken on the Docker host; Hashi's listener ports are configurable and the deployment uses free ones.
 - Both Traefik instances use `serversTransport.insecureSkipVerify: true` and log at DEBUG; Hashi's static config will tighten both per service.
+- Traefik v3.7.16 (captured 2026-10-28, `testdata/contracts/traefik/README.md`): changed certificate files are reloaded only
+  when the dynamic file that lists them changes; `noop@internal` answers 418 (denies as a forward-auth fallback),
+  `ping@internal` answers 200 on any path; a loopback entry point used as a forward-auth hop must trust loopback
+  forwarded headers or the original host/URI are lost; GitHub's release list mixes v3 and v2 maintenance releases, so
+  "latest" means the highest version of the installed major.

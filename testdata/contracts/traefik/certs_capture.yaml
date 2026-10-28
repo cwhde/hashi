@@ -1,0 +1,5 @@
+# rev 2
+tls:
+  certificates:
+    - certFile: /etc/hashi/traefik/certs/root.crt
+      keyFile: /etc/hashi/traefik/certs/root.key

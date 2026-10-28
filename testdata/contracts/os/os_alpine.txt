@@ -1,0 +1,18 @@
+NAME="Alpine Linux"
+ID=alpine
+VERSION_ID=3.23.2
+PRETTY_NAME="Alpine Linux v3.23"
+HOME_URL="https://alpinelinux.org/"
+BUG_REPORT_URL="https://gitlab.alpinelinux.org/alpine/aports/-/issues"
+--- uname
+x86_64
+--- id
+0
+--- pm
+/sbin/apk
+--- init
+/sbin/rc-service
+/sbin/openrc-run
+--- traefik
+/usr/local/bin/traefik
+--- end

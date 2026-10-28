@@ -1,0 +1,55 @@
+http:
+  routers:
+    app-open:
+      rule: Host(`open.example.test`)
+      entryPoints: [websecure]
+      tls: {}
+      middlewares: [fa-open]
+      service: app
+    app-closed:
+      rule: Host(`closed.example.test`)
+      entryPoints: [websecure]
+      tls: {}
+      middlewares: [fa-closed]
+      service: app
+    fa-local:
+      rule: PathPrefix(`/`)
+      entryPoints: [hashi-fa]
+      service: fa-failover
+    noop-probe:
+      rule: Host(`noop.example.test`)
+      entryPoints: [websecure]
+      tls: {}
+      service: noop@internal
+    broken:
+      rule: Host(`broken.example.test`)
+      entryPoints: [websecure]
+      tls: {}
+      middlewares: [does-not-exist]
+      service: app
+  middlewares:
+    fa-open:
+      forwardAuth:
+        address: "http://127.0.0.1:8081/api/edge-auth/forward"
+        trustForwardHeader: true
+    fa-closed:
+      forwardAuth:
+        address: "http://127.0.0.1:9100/api/edge-auth/forward"
+        trustForwardHeader: true
+  services:
+    app:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:9000"
+    fa-failover:
+      failover:
+        service: fa-primary
+        fallback: ping@internal
+    fa-primary:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:9100"
+        healthCheck:
+          path: /readyz
+          interval: 2s
+          timeout: 1s

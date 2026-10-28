@@ -1,0 +1,16 @@
+ping: OK 200
+redirect web: 301 https://open.example.test/a
+open (fa up, 204): 200
+closed (fa up, 204): 200
+noop@internal direct: 418
+broken router: 404
+open (fa says 403): 403
+fp before: sha256 Fingerprint=9F:3B:72:B0:A8:85:35:BE:2C:E3:89:6B:5A:50:92:09:52:AC:B7:06:1B:66:C1:4D:78:68:BE:09:FB:41:CE:43
+fp after cert files replaced, yaml untouched (6s): sha256 Fingerprint=9F:3B:72:B0:A8:85:35:BE:2C:E3:89:6B:5A:50:92:09:52:AC:B7:06:1B:66:C1:4D:78:68:BE:09:FB:41:CE:43
+fp after yaml rewritten (4s): sha256 Fingerprint=D9:3D:0A:8B:29:01:47:32:70:4A:34:84:99:B7:D6:52:50:4B:82:99:FE:A9:23:39:57:47:DF:CD:E8:46:A4:30
+fp files on disk: sha256 Fingerprint=D9:3D:0A:8B:29:01:47:32:70:4A:34:84:99:B7:D6:52:50:4B:82:99:FE:A9:23:39:57:47:DF:CD:E8:46:A4:30
+open (fa down, failover): 418
+closed (fa down, no failover): 500
+open (fa back): 200
+bad static exit: 1
+healthcheck exit: 0
