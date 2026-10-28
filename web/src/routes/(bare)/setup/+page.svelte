@@ -16,6 +16,8 @@
 	import ImportTable from '$lib/components/hashi/dns/ImportTable.svelte';
 	import CertificateStep from '$lib/components/hashi/setup/CertificateStep.svelte';
 	import TraefikStep from '$lib/components/hashi/setup/TraefikStep.svelte';
+	import SystemServiceStep from '$lib/components/hashi/setup/SystemServiceStep.svelte';
+	import HttpsStep from '$lib/components/hashi/setup/HttpsStep.svelte';
 	import PlanReview from '$lib/components/hashi/PlanReview.svelte';
 	import Tag from '$lib/components/hashi/Tag.svelte';
 	import { outcomeText, reviewItems, triggerText, type Plan } from '$lib/sync';
@@ -36,7 +38,19 @@
 		return s.steps.find((x) => x.built && x.status !== 'done')?.n ?? 11;
 	}
 
+	// Step 8 arrives here on https://<admin domain>/setup#https=<nonce>: send the nonce back (it never reached the
+	// server in the URL), drop it from the address bar, and continue with the session the proof opened.
+	let proofError = $state('');
+	async function proveHTTPS() {
+		const m = /^#https=([\w-]+)$/.exec(location.hash);
+		if (!m) return;
+		history.replaceState(history.state, '', location.pathname);
+		const res = await api.POST('/api/setup/https/proof', { body: { nonce: m[1] ?? '' } });
+		if (res.error) proofError = problemText(res.error);
+	}
+
 	async function load() {
+		await proveHTTPS();
 		const [, res] = await Promise.all([session.refresh(), api.GET('/api/setup')]);
 		if (res.error || !res.data) throw res.error;
 		setup = res.data;
@@ -620,6 +634,14 @@
 					onupdate={(s) => (setup = s)}
 					oncontinue={() => setup && (selected = firstOpen(setup))}
 				/>
+			{:else if step.n === 7}
+				<SystemServiceStep
+					{setup}
+					onupdate={(st) => (setup = st)}
+					oncontinue={() => setup && (selected = firstOpen(setup))}
+				/>
+			{:else if step.n === 8}
+				<HttpsStep {setup} {proofError} oncontinue={() => setup && (selected = firstOpen(setup))} />
 			{:else if step.n === 9}
 				<h1 class="mt-1 text-[24px] font-semibold">Passkey and recovery key</h1>
 				<p class="mt-1 max-w-[62ch] text-[13.5px] text-muted-foreground">

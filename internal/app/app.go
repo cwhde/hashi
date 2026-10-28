@@ -182,6 +182,9 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 		return fmt.Errorf("edge token: %w", err)
 	}
 	ip.SetEdgeToken(edgeToken.Reveal())
+	if t := devEdgeToken(cfg); t != "" {
+		ip.SetEdgeToken(t)
+	}
 
 	health := httpapi.NewHealth(map[string]httpapi.Check{"database": st.Ready})
 	api := &httpapi.Server{

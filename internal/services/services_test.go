@@ -198,6 +198,7 @@ func TestValidate(t *testing.T) {
 		func() Service { s := web(); s.HostName = "dev.hashi.example.com"; return s }(),
 		func() Service { s := web(); s.DomainMode, s.HostName = ModeRoot, "example.com"; return s }(),
 		func() Service { s := web(); s.Target.Address = "2001:db8::5"; return s }(),
+		func() Service { s := web(); s.Target.Address = "localhost"; return s }(),
 		func() Service {
 			s := web()
 			s.Kind, s.TLSSkipVerify, s.TLSServerName, s.TLSMinVersion = KindHTTPS, true, "app.internal.example", TLS13

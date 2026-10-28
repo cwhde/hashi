@@ -79,3 +79,14 @@ func devEdge(cfg Config, tm *traefik.Manager, cm *certs.Manager) error {
 	cm.UseClients(ca.Clients)
 	return nil
 }
+
+// DevEdgeToken is the edge token dev builds with HASHI_DEV_DNS_FIXTURES trust instead of the vault's, so the E2E suite
+// can send the setup step 8 proof as Hashi's Traefik would (there is no real Traefik in front of the dev server).
+const DevEdgeToken = "dev-edge-token"
+
+func devEdgeToken(cfg Config) string {
+	if cfg.DevDNSFixtures == "" {
+		return ""
+	}
+	return DevEdgeToken
+}

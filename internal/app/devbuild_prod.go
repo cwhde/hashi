@@ -16,3 +16,6 @@ func devDNSProviders(Config) (dns.Factory, error) { return nil, nil }
 
 // devEdge is never set outside dev builds.
 func devEdge(Config, *traefik.Manager, *certs.Manager) error { return nil }
+
+// devEdgeToken is never set outside dev builds.
+func devEdgeToken(Config) string { return "" }
