@@ -25,9 +25,12 @@ Steps are built by the slice that owns their subsystem (11-delivery.md §3): S1 
 Passkeys need HTTPS (or `localhost`), which Hashi only has from S5, so S1 tests passkey registration and login with an
 automated virtual authenticator; the first real passkey is registered during the full setup run in S5.
 
-Step 8 verification: Hashi issues a one-time nonce, the SPA fetches `https://<admin domain>/api/setup/https-proof?nonce=…`,
-and the server accepts only if the request arrived on the admin listener via a trusted Traefik peer with the
-expected `Host` and TLS-terminated scheme. Forwarded headers from untrusted peers are ignored.
+Step 8 verification: Hashi issues a one-time nonce (5 minutes) to the bootstrap session, and the browser opens
+`https://<admin domain>/setup?https=<nonce>`. The SPA there posts the nonce to `/api/setup/https/proof`; the server
+accepts only if the request arrived through a Hashi-managed Traefik (edge token, 01-platform.md §8) with the expected
+`Host` and `X-Forwarded-Proto: https`. Acceptance marks the step done and hands the setup over to the HTTPS origin: a
+new bootstrap session (cookie `Secure`) bound to the client IP seen there, because passkeys (step 9) need that origin.
+Forwarded headers without the edge token are ignored.
 
 ### 1.1 Bootstrap access
 

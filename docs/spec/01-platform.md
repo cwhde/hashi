@@ -290,3 +290,8 @@ limiting, Pulse public IP):
 - Unparseable → fail closed.
 - For forward auth, Traefik passes the original client IP in `X-Forwarded-For`; Traefik hosts' internal IPs are
   automatically part of the trusted-proxy list.
+- **Edge token.** Hashi-managed Traefik sets a per-install secret header (`X-Hashi-Edge`, vault secret) on every request
+  it sends to Hashi (admin router and forward auth), overwriting any value a client sent. A request carrying the valid
+  token counts as coming from a trusted proxy whatever its source address. Reason: across sites the edge reaches Hashi
+  through NAT (observed 2026-10-28: the remote edge appears as the gateway address, the same address other routed
+  clients get), so a peer-address rule can neither recognise the edge nor be safely widened to cover it.
