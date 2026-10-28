@@ -333,9 +333,10 @@ Decisions made in S0:
 
 ## Log
 
-- 2026-10-28 — S4: Proxmox snapshot `clean` of `hashi-edge-debian` and `hashi-edge-fedora` (fresh OS + sshd, before any
-  Hashi install); roll back to it before each install test and before the prod-proof. `hashi-edge-test` still runs the
-  contract-capture Traefik and stubs, so it has no snapshot yet.
+- 2026-10-28 — S4: Proxmox snapshot `clean` of all three dev targets: `hashi-edge-debian` and `hashi-edge-fedora` (fresh OS + sshd, before any
+  Hashi install); roll back to it before each install test and before the prod-proof. `hashi-edge-test` was tidied first
+  (capture Traefik and stubs stopped, capture files removed) and snapshotted `clean` too; its Traefik v3.7.16 binary at
+  `/usr/local/bin/traefik` stays on purpose so the existing-Traefik path is exercised.
 - 2026-10-28 — S4 `internal/traefik`: Traefik runs as root under service name `hashi-traefik` (never collides with a
   distribution's `traefik` service; a dedicated user is a later hardening step). Health routers answer
   `/.well-known/hashi/health/{open,closed}` on every host name (priority 100000) with `ping@internal`. Traefik v3.7.16
