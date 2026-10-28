@@ -15,16 +15,20 @@ const (
 	FirewallApply  Scope = "firewall.apply"
 	ScriptsManage  Scope = "scripts.manage"
 	SecurityManage Scope = "security.manage"
-	SetupManage    Scope = "setup.manage" // the only setup.* scope; bootstrap sessions carry nothing else
+	// ServicesManage covers the service API; bootstrap sessions carry it too, so services can be migrated before setup
+	// completes (02 §3.3).
+	ServicesManage Scope = "services.manage"
+	SetupManage    Scope = "setup.manage" // the only setup.* scope
 	// RecoveryPasskey lets a console-recovery session register one new passkey and nothing else (02 §2).
 	RecoveryPasskey Scope = "recovery.passkey"
 )
 
 // PasskeyScopes are granted to every passkey session: all non-setup scopes.
-var PasskeyScopes = []Scope{AdminRead, AdminWrite, SettingsManage, SecretsManage, SyncApply, FirewallApply, ScriptsManage, SecurityManage}
+var PasskeyScopes = []Scope{AdminRead, AdminWrite, SettingsManage, SecretsManage, SyncApply, FirewallApply, ScriptsManage, SecurityManage,
+	ServicesManage}
 
 // BootstrapScopes are granted to bootstrap sessions.
-var BootstrapScopes = []Scope{SetupManage}
+var BootstrapScopes = []Scope{SetupManage, ServicesManage}
 
 // RecoveryScopes are granted to sessions opened with a `hashi admin recover` link.
 var RecoveryScopes = []Scope{RecoveryPasskey}

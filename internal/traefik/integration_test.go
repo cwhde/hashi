@@ -115,6 +115,7 @@ func TestIntegrationApplyVerifyFallback(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := traefik.Verify(ctx, h, apiPort, files); err != nil {
+		t.Log(c.Exec(t, "sh", "-c", "tail -n 20 /var/log/hashi/traefik/traefik.log"))
 		t.Fatal(err)
 	}
 	if again, err := traefik.Observe(ctx, h, d); err != nil || !again.Empty() {

@@ -17,6 +17,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/audit"
 	"git.juzo.io/juzo/hashi/internal/dns"
 	"git.juzo.io/juzo/hashi/internal/secrets"
+	"git.juzo.io/juzo/hashi/internal/services"
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/store"
 	"git.juzo.io/juzo/hashi/internal/store/db"
@@ -117,6 +118,25 @@ type itemCert struct {
 	Fingerprint string     `json:"fingerprint,omitempty"`
 }
 
+// want is the certificate set for the root and every renderable service's host name.
+func (m *Manager) want(ctx context.Context, root string) ([]Want, error) {
+	names, err := services.CurrentNames(ctx, m.st.R)
+	if err != nil {
+		return nil, err
+	}
+	svcs, err := services.List(ctx, m.st.R)
+	if err != nil {
+		return nil, err
+	}
+	var hosts []string
+	for _, s := range svcs {
+		if s.Renderable() {
+			hosts = append(hosts, s.HostName)
+		}
+	}
+	return Desired(root, names.Zone, hosts), nil
+}
+
 func namesOf(r db.Certificate) []string {
 	var n []string
 	_ = json.Unmarshal([]byte(r.NamesJson), &n)
@@ -133,7 +153,10 @@ func (s certSub) Plan(ctx context.Context, target string) (hsync.Draft, error) {
 	if err != nil {
 		return hsync.Draft{}, err
 	}
-	want := Desired(general.RootDomain)
+	want, err := m.want(ctx, general.RootDomain)
+	if err != nil {
+		return hsync.Draft{}, err
+	}
 	if len(want) == 0 {
 		return hsync.Draft{}, errors.New("the root domain is not set (setup step 2)")
 	}
@@ -173,7 +196,7 @@ func (s certSub) Plan(ctx context.Context, target string) (hsync.Draft, error) {
 		na := time.UnixMilli(r.NotAfter.Int64).UTC()
 		item.Before, _ = json.Marshal(itemCert{Name: r.Name, Names: namesOf(r), NotAfter: &na, Fingerprint: r.Fingerprint})
 		switch {
-		case !SameNames(namesOf(r), w.Names):
+		case !Covers(namesOf(r), w.Names):
 			item.Note = "renew with the names now needed"
 		case forced != "":
 			item.Note = "renew now (requested)"
@@ -229,7 +252,7 @@ func (s certSub) Apply(ctx context.Context, target string, items []hsync.Item) (
 		iss, err := client.Issue(ctx, solver, w.Names, opt)
 		if iss.CertPEM == nil {
 			errs = append(errs, fmt.Errorf("%s: %w", w.Name, err))
-			m.failed(ctx, w.Name, err)
+			m.failed(ctx, w.Name, w.Names, err)
 			continue
 		}
 		if serr := m.store(ctx, w, iss, it.Action == hsync.ActionCreate); serr != nil {
@@ -408,7 +431,7 @@ func (m *Manager) store(ctx context.Context, w itemCert, iss Issued, first bool)
 }
 
 // failed records a failed issue or renewal on the certificate row (created if this was its first attempt).
-func (m *Manager) failed(ctx context.Context, name string, cause error) {
+func (m *Manager) failed(ctx context.Context, name string, names []string, cause error) {
 	ctx = context.WithoutCancel(ctx)
 	now := m.now().UnixMilli()
 	err := m.st.Tx(ctx, func(q *db.Queries) error {
@@ -423,8 +446,8 @@ func (m *Manager) failed(ctx context.Context, name string, cause error) {
 			}
 		}
 		id := ulid.Make().String()
-		names, _ := json.Marshal(Desired(name)[0].Names)
-		if err := q.InsertCertificate(ctx, db.InsertCertificateParams{ID: id, Name: name, NamesJson: string(names), CreatedAt: now, UpdatedAt: now}); err != nil {
+		nj, _ := json.Marshal(names)
+		if err := q.InsertCertificate(ctx, db.InsertCertificateParams{ID: id, Name: name, NamesJson: string(nj), CreatedAt: now, UpdatedAt: now}); err != nil {
 			return err
 		}
 		return q.SetCertificateRenewalFailed(ctx, db.SetCertificateRenewalFailedParams{
@@ -487,3 +510,48 @@ func (m *Manager) Renew(eng *hsync.Engine, distribute Distributor) func(ctx cont
 		return strings.Join(parts, "; "), errors.Join(errs...)
 	}
 }
+
+// Pending reports whether a needed name is not covered by an issued certificate yet (a new service on a deeper name
+// needs one before the edge can serve it).
+func (m *Manager) Pending(ctx context.Context) (bool, error) {
+	general, err := settings.Get[settings.General](ctx, m.st.R)
+	if err != nil {
+		return false, err
+	}
+	want, err := m.want(ctx, general.RootDomain)
+	if err != nil {
+		return false, err
+	}
+	rows, err := m.st.R.ListCertificates(ctx)
+	if err != nil {
+		return false, err
+	}
+	for _, w := range want {
+		ok := false
+		for _, r := range rows {
+			ok = ok || (r.Name == w.Name && r.CertPem != "" && Covers(namesOf(r), w.Names))
+		}
+		if !ok {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// Serves reports whether a certificate with these names covers host, exactly or by a one-level wildcard.
+func Serves(names []string, host string) bool {
+	for _, n := range names {
+		if n == host {
+			return true
+		}
+		if rest, ok := strings.CutPrefix(n, "*."); ok {
+			if _, parent, ok := strings.Cut(host, "."); ok && parent == rest {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// NamesOf returns a certificate row's SANs.
+func NamesOf(r db.Certificate) []string { return namesOf(r) }

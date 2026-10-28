@@ -92,3 +92,33 @@ func TestSetTrustedTakesEffect(t *testing.T) {
 		t.Fatalf("after: %v", a)
 	}
 }
+
+// A request through Hashi-managed Traefik behind NAT arrives from the gateway address; the edge token, not the address,
+// makes its forwarding headers count (01 §8). A wrong, repeated or missing token changes nothing.
+func TestEdgeTokenTrustsTheEdge(t *testing.T) {
+	r := New(nil)
+	r.SetEdgeToken("tok")
+	fwd := map[string]string{"X-Forwarded-For": "198.51.100.7", "X-Forwarded-Proto": "https"}
+	edge := req("192.168.50.1:5000", map[string]string{"X-Forwarded-For": "198.51.100.7", "X-Forwarded-Proto": "https", EdgeHeader: "tok"})
+	if a, _ := r.Resolve(edge); a.String() != "198.51.100.7" || !r.IsTLS(edge) || !r.FromEdge(edge) {
+		t.Errorf("edge request: %v tls=%v", a, r.IsTLS(edge))
+	}
+	for name, rq := range map[string]*http.Request{
+		"no token":    req("192.168.50.1:5000", fwd),
+		"wrong token": req("192.168.50.1:5000", map[string]string{"X-Forwarded-For": "198.51.100.7", EdgeHeader: "tox"}),
+	} {
+		if a, _ := r.Resolve(rq); a.String() != "192.168.50.1" || r.IsTLS(rq) || r.FromEdge(rq) {
+			t.Errorf("%s: %v", name, a)
+		}
+	}
+	twice := req("192.168.50.1:5000", fwd)
+	twice.Header.Add(EdgeHeader, "tok")
+	twice.Header.Add(EdgeHeader, "tok")
+	if r.FromEdge(twice) {
+		t.Error("a repeated header counted")
+	}
+	r.SetEdgeToken("")
+	if r.FromEdge(edge) {
+		t.Error("empty token still trusts")
+	}
+}

@@ -176,11 +176,19 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 		return err
 	}
 
+	// Requests through Hashi-managed Traefik carry the edge token; the resolver trusts their forwarding headers (01 §8).
+	edgeToken, err := traefik.EnsureEdgeToken(ctx, st, v)
+	if err != nil {
+		return fmt.Errorf("edge token: %w", err)
+	}
+	ip.SetEdgeToken(edgeToken.Reveal())
+
 	health := httpapi.NewHealth(map[string]httpapi.Check{"database": st.Ready})
 	api := &httpapi.Server{
 		Health: health, Version: gen.Version{Version: Version, Commit: Commit}, Store: st, Sessions: sessions,
 		Passkeys: passkeys, Setup: setupSvc, Settings: cfgSettings, DNS: dnsSvc, Traefik: traefikMgr, Certs: certMgr, Sync: syncEngine, Vault: v, Audit: al, IP: ip, Logs: cfg.Logs,
-		Log: log.With("component", "api"),
+		CertsSoon: func(ctx context.Context) error { return runner.Soon(ctx, certs.JobKind) },
+		Log:       log.With("component", "api"),
 	}
 	servers := []*server{{name: "admin", addr: cfg.AdminAddr, handler: adminMux(api)}}
 	if cfg.PublicAppsAddr != "" {

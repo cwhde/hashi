@@ -112,6 +112,7 @@ type Service struct {
 
 	mu      sync.Mutex
 	pending map[string]pendingKey // recovery keys shown but not yet confirmed, by session id hash
+	https   httpsNonce            // step 8's one-time link
 }
 
 type pendingKey struct {
@@ -178,6 +179,11 @@ func (s *Service) MarkDone(ctx context.Context, q *db.Queries, n int, inputs any
 }
 
 // MarkInProgress records a step whose validation passed so far but that is not complete yet.
+// MarkPending puts a step back to pending (its inputs changed, so it has to run again).
+func (s *Service) MarkPending(ctx context.Context, q *db.Queries, n int) error {
+	return s.mark(ctx, q, n, Pending, nil, "")
+}
+
 func (s *Service) MarkInProgress(ctx context.Context, q *db.Queries, n int, inputs any) error {
 	return s.mark(ctx, q, n, InProgress, inputs, "")
 }

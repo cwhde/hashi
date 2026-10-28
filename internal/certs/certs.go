@@ -44,14 +44,49 @@ type Want struct {
 	Names []string
 }
 
-// Desired is the certificate set for the root domain: the root and `*.<root>` in one certificate. Deeper wildcards
-// (one per parent name in use) arrive with services in S5.
-func Desired(root string) []Want {
-	root = strings.TrimSuffix(strings.ToLower(strings.TrimSpace(root)), ".")
+// Desired is the certificate set (03 §5.3): one certificate named after the root with the root, `*.<root>` and one
+// wildcard per deeper parent of a served host name (`fra1.ns.<root>` needs `*.ns.<root>`). A host whose parent lies
+// outside the managed zone (a custom name at the zone apex) is listed itself. Hosts outside the zone are skipped:
+// DNS-01 can only be answered inside it, and service validation refuses them.
+func Desired(root, zone string, hosts []string) []Want {
+	clean := func(s string) string { return strings.TrimSuffix(strings.ToLower(strings.TrimSpace(s)), ".") }
+	root, zone = clean(root), clean(zone)
 	if root == "" {
 		return nil
 	}
-	return []Want{{Name: root, Names: []string{root, "*." + root}}}
+	if zone == "" {
+		zone = root
+	}
+	in := func(n string) bool { return n == zone || strings.HasSuffix(n, "."+zone) }
+	seen := map[string]bool{root: true, "*." + root: true}
+	var extra []string
+	for _, h := range hosts {
+		h = clean(h)
+		if h == "" || !in(h) || h == root {
+			continue
+		}
+		name := h
+		if _, parent, ok := strings.Cut(h, "."); ok && in(parent) {
+			name = "*." + parent
+		}
+		if !seen[name] {
+			seen[name] = true
+			extra = append(extra, name)
+		}
+	}
+	slices.Sort(extra)
+	return []Want{{Name: root, Names: append([]string{root, "*." + root}, extra...)}}
+}
+
+// Covers reports whether a certificate with names have serves every name in want. A wildcard no longer needed stays
+// until the next renewal (03 §5.3: dropped at renewal, never mid-term).
+func Covers(have, want []string) bool {
+	for _, w := range want {
+		if !slices.Contains(have, w) {
+			return false
+		}
+	}
+	return true
 }
 
 // SameNames reports whether two SAN lists cover the same names, in any order.

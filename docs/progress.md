@@ -32,27 +32,46 @@ Scope cut: TCP/UDP services, address-set targets (literal IPs until S6), DNS ser
 hosts after setup (both before the V1 cutover, with S6's edge move).
 
 PR A — backend
-- [ ] Migration 00006: `services` (name, slug, kind http/https/h2c, domain mode + host name, enabled, origin, owning
+- [x] Migration 00006: `services` (name, slug, kind http/https/h2c, domain mode + host name, enabled, origin, owning
       feature, dashboard/monitoring/AdGuard flags, target scheme/address/port, `https` options insecureSkipVerify +
-      serverName, TLS min version, advanced-routes flag, invalid reason, sync state) and `service_routes` (ULID, enabled,
+      serverName, TLS min version, advanced-routes flag) and `service_routes` (ULID, enabled,
       targets with weights, path match prefix/exact/regex, value, priority, rewrite mode + params); sqlc.
-- [ ] `internal/services`: model, validation (04 §1.5: FQDN inside the managed zone, reserved labels, ports, RE2 at
+- [x] `internal/services`: model, validation (04 §1.5: FQDN inside the managed zone, reserved labels, ports, RE2 at
       save, paths start with `/`, IPv6 bracketed), invalid services excluded from rendering, the Hashi system service
       kept in step with General settings (admin domain → internal URL; delete forbidden, invariant 10).
-- [ ] Render `10-hashi-http-services.yml`: router per service and route (`Host` + path rule, websecure, TLS, priority),
+- [x] Render `10-hashi-http-services.yml`: router per service and route (`Host` + path rule, websecure, TLS, priority),
       chain headers → compress → forward auth (fail-open while no rule set can deny) → route rewrites; services with
       weighted servers, `serversTransports` for `https`, `h2c://`; edge token header on the system service and on
       forward auth. Golden files for every kind, path match and rewrite mode; schema check; integration with the real
       Traefik and stub upstreams.
-- [ ] Certificates: desired names = root + `*.root` + one wildcard per deeper parent of an enabled service's host name;
+- [x] Certificates: desired names = root + `*.root` + one wildcard per deeper parent of an enabled service's host name;
       a changed name set re-issues (existing "names changed" rule), dropped wildcards wait for renewal.
-- [ ] Edge token (vault secret, rendered on every edge), client-IP resolver trusts requests that carry it; saving a
+- [x] Edge token (vault secret, rendered on every edge), client-IP resolver trusts requests that carry it; saving a
       service plans every Traefik host (low risk) and the certificate when names change.
-- [ ] OpenAPI + handlers: `/api/services` CRUD, `enable|disable`, `GET /api/services/{id}/effective` (rendered
+- [x] OpenAPI + handlers: `/api/services` CRUD, `enable|disable`, `GET /api/services/{id}/effective` (rendered
       routers/services for it), `POST /api/traefik/plan`; setup step 7 (system service → certificate + Traefik plans
       run; done once every host verified the admin router and serves a certificate covering the admin domain) and
       step 8 (nonce → `https://<admin>/setup?https=…` → proof through the edge token, `Host`, `X-Forwarded-Proto` →
       done + `Secure` bootstrap session on that origin). Tests incl. invariants 7, 8, 10.
+
+Decisions made in PR A:
+- Targets are a single IP or host name until S6's address sets; a host name goes to Traefik as is.
+- Values with `{{` or `}}` are refused: Traefik's file provider runs dynamic files through Go templates.
+- The edge token is set by the `hashi-fa` router (forward-auth calls) and on the Hashi admin service only, so
+  upstream services never see it; `40-hashi-security.yml` carries it and is owner-only (0600).
+- The step 8 nonce travels in the URL fragment, so it never reaches an access log; the proof also requires a
+  bootstrap network, like the bootstrap login.
+- A service change starts the certificate job at once when a name is not covered (`jobs.Runner.Soon`); setup step 7
+  issues synchronously, like step 4's "Issue now".
+- Deleting a service needs a fresh passkey; the resulting Traefik plan is low risk (dynamic files only).
+- A service's invalid reason is computed on every read (against the current root and zone), not stored; its sync state
+  is the hosts' (per-file `last_applied_hash` in `traefik_files`), since every host receives every service.
+- Review #34 (reproduced, regression tests added): a failed admin-domain change (name taken) no longer stays saved
+  while the system service stays behind (`TestAdminDomainChangeIsAllOrNothing`); routes are validated while advanced
+  routes are off (they are stored either way). New scope `services.manage`, also on bootstrap sessions (spec
+  0e502cc), so the gate's service can be added before setup completes; `TestServicesAPI` covers the API over HTTP.
+- CI found that Traefik rejects a dynamic file with only `http: {}` and then drops every file of the provider; the
+  services file is comments only while no service renders (contract finding 7).
 
 PR B — UI + deploy
 - [ ] `/services` list and service page from the mocks (target, routes, rewrites, TLS, flags, rendered config;

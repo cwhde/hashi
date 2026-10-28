@@ -619,6 +619,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/setup/system-service": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Step 7 — create the Hashi admin service from the base settings, issue a certificate that covers the admin domain when needed, and plan the Traefik host */
+        post: operations["createSetupSystemService"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/setup/system-service/plan/{id}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Step 7 — approve the shown Traefik plan and run it; the step completes once the host serves the admin domain */
+        post: operations["runSetupSystemServicePlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/setup/https/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Step 8 — a one-time link (5 minutes) that opens setup on https://<admin domain> */
+        post: operations["startSetupHTTPS"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/setup/https/proof": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Step 8 — called from https://<admin domain> with the link's nonce; accepted only through Hashi-managed Traefik (edge token, Host, HTTPS). Completes the step and signs the browser in there with a new bootstrap session */
+        post: operations["proveSetupHTTPS"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/setup/passkey/options": {
         parameters: {
             query?: never;
@@ -975,6 +1043,111 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every service, system services first, with the reason when one cannot be rendered */
+        get: operations["listServices"];
+        put?: never;
+        /** Add a service; every Traefik host is planned right away (low-risk plans apply) and a needed certificate name is issued in the background */
+        post: operations["createService"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/services/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One service */
+        get: operations["getService"];
+        /** Replace a user service's fields and routes (system services change only through their owning setting) */
+        put: operations["updateService"];
+        post?: never;
+        /** Delete a user service and remove it from every Traefik host */
+        delete: operations["deleteService"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/services/{id}/enable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Turn a user service on (it is rendered again) */
+        post: operations["enableService"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/services/{id}/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Turn a user service off (it stays stored, absent from the rendered files) */
+        post: operations["disableService"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/services/{id}/effective": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The routers, middlewares and services Hashi renders for this service (rendered config preview) */
+        get: operations["getServiceEffective"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/traefik/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Plan every Traefik host (low-risk plans apply right away) */
+        post: operations["planTraefik"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/certificates": {
         parameters: {
             query?: never;
@@ -1304,6 +1477,7 @@ export interface components {
             dns?: components["schemas"]["DNSConnectResult"];
             certificates?: components["schemas"]["CertificateProvider"];
             traefik?: components["schemas"]["TraefikConnection"];
+            system_service?: components["schemas"]["Service"];
         };
         CertificateProviderInput: {
             /** @enum {string} */
@@ -1657,6 +1831,113 @@ export interface components {
         SyncPlanOverview: {
             open: components["schemas"]["SyncPlan"][];
             recent: components["schemas"]["SyncPlan"][];
+        };
+        ServiceTarget: {
+            /** @description IP address or host name (address sets arrive with S6) */
+            address: string;
+            port: number;
+            /** @description Load-balancing weight; 0 or absent = 1 */
+            weight?: number;
+        };
+        ServiceRoute: {
+            /** @description ULID; absent for a new route */
+            id?: string;
+            enabled: boolean;
+            targets: components["schemas"]["ServiceTarget"][];
+            /** @enum {string} */
+            path_match: "prefix" | "exact" | "regex";
+            path_value: string;
+            priority: number;
+            /** @enum {string} */
+            rewrite_mode: "none" | "replace_prefix" | "exact" | "regex" | "strip_prefix";
+            /** @description regex rewrite: the pattern matched against the path */
+            rewrite_pattern: string;
+            /** @description replace_prefix: new prefix; exact: new path; regex: replacement ($1…) */
+            rewrite_value: string;
+        };
+        ServiceInput: {
+            name: string;
+            slug: string;
+            /** @enum {string} */
+            kind: "http" | "https" | "h2c";
+            /** @enum {string} */
+            domain_mode: "root" | "subdomain" | "custom";
+            host_name: string;
+            /** @description On create only (default true); enable/disable have their own calls */
+            enabled?: boolean;
+            target: components["schemas"]["ServiceTarget"];
+            tls_skip_verify?: boolean;
+            tls_server_name?: string;
+            /** @enum {string} */
+            tls_min_version?: "" | "VersionTLS12" | "VersionTLS13";
+            advanced_routes?: boolean;
+            routes?: components["schemas"]["ServiceRoute"][];
+            dashboard_visible?: boolean;
+            monitoring_visible?: boolean;
+            adguard_rewrite?: boolean;
+        };
+        Service: {
+            id: string;
+            name: string;
+            slug: string;
+            /** @enum {string} */
+            kind: "http" | "https" | "h2c";
+            /** @enum {string} */
+            domain_mode: "root" | "subdomain" | "custom";
+            host_name: string;
+            enabled: boolean;
+            /** @enum {string} */
+            origin: "system" | "managed" | "imported" | "user";
+            /** @description The feature that owns a system service, e.g. setup */
+            owner_feature: string;
+            target: components["schemas"]["ServiceTarget"];
+            tls_skip_verify: boolean;
+            tls_server_name: string;
+            /** @enum {string} */
+            tls_min_version: "" | "VersionTLS12" | "VersionTLS13";
+            advanced_routes: boolean;
+            routes: components["schemas"]["ServiceRoute"][];
+            dashboard_visible: boolean;
+            monitoring_visible: boolean;
+            adguard_rewrite: boolean;
+            /** @description Why the service is left out of the rendered files; empty when valid */
+            invalid_reason: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        ServiceList: {
+            services: components["schemas"]["Service"][];
+        };
+        ServicePlans: {
+            /** @description One Traefik plan per host that needed changes */
+            plans: components["schemas"]["SyncPlan"][];
+            /** @description A name is not covered by the current certificate yet; issuing runs in the background */
+            certificate_pending: boolean;
+        };
+        ServiceSaveResult: {
+            service: components["schemas"]["Service"];
+            plans: components["schemas"]["SyncPlan"][];
+            certificate_pending: boolean;
+        };
+        ServiceEffective: {
+            yaml: string;
+        };
+        SetupSystemService: {
+            service: components["schemas"]["Service"];
+            certificate_plan?: components["schemas"]["SyncPlan"];
+            traefik_plan?: components["schemas"]["SyncPlan"];
+            state: components["schemas"]["SetupState"];
+        };
+        SetupHTTPSLink: {
+            /** @description https://<admin domain>/setup#https=<nonce> */
+            url: string;
+            /** Format: date-time */
+            expires_at: string;
+        };
+        SetupHTTPSProof: {
+            nonce: string;
         };
         BaseSettings: {
             root_domain: string;
@@ -2655,6 +2936,97 @@ export interface operations {
             default: components["responses"]["Problem"];
         };
     };
+    createSetupSystemService: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The service and the plans (the Traefik plan is absent when the host already serves it) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupSystemService"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    runSetupSystemServicePlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The service and the plan after the run */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupSystemService"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    startSetupHTTPS: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The link to open */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupHTTPSLink"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    proveSetupHTTPS: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetupHTTPSProof"];
+            };
+        };
+        responses: {
+            /** @description Proven; the session cookie is for the HTTPS origin */
+            200: {
+                headers: {
+                    "Set-Cookie": components["headers"]["SetCookie"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthSession"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
     setupPasskeyOptions: {
         parameters: {
             query?: never;
@@ -3238,6 +3610,215 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SyncPlanResult"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listServices: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Services */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceList"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createService: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServiceInput"];
+            };
+        };
+        responses: {
+            /** @description Saved, with the Traefik plans it caused */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceSaveResult"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getService: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The service */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Service"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    updateService: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServiceInput"];
+            };
+        };
+        responses: {
+            /** @description Saved, with the Traefik plans it caused */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceSaveResult"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    deleteService: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted, with the Traefik plans it caused */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServicePlans"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    enableService: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Enabled, with the Traefik plans it caused */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceSaveResult"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    disableService: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Disabled, with the Traefik plans it caused */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceSaveResult"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getServiceEffective: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rendered YAML */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceEffective"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    planTraefik: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One plan per host that needed changes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServicePlans"];
                 };
             };
             default: components["responses"]["Problem"];

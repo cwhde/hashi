@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"git.juzo.io/juzo/hashi/internal/secrets"
+	"git.juzo.io/juzo/hashi/internal/services"
 )
 
 // fakeKey is not a key, only PEM-shaped bytes for the render tests.
@@ -164,7 +165,7 @@ func TestRenderGolden(t *testing.T) {
 	want := []string{
 		"cert /etc/hashi/traefik/certs/example.com.crt", "cert /etc/hashi/traefik/certs/example.com.key",
 		"dynamic /etc/hashi/traefik/dynamic/hashi-certs.yaml", "dynamic /etc/hashi/traefik/dynamic/00-hashi-core.yml",
-		"dynamic /etc/hashi/traefik/dynamic/40-hashi-security.yml", "dynamic /etc/hashi/traefik/dynamic/90-hashi-health.yml",
+		"dynamic /etc/hashi/traefik/dynamic/10-hashi-http-services.yml", "dynamic /etc/hashi/traefik/dynamic/40-hashi-security.yml", "dynamic /etc/hashi/traefik/dynamic/90-hashi-health.yml",
 		"system /etc/logrotate.d/hashi-traefik", "static /etc/hashi/traefik/traefik.yaml",
 	}
 	if !slices.Equal(order, want) {
@@ -226,5 +227,86 @@ func TestServiceDefinitions(t *testing.T) {
 	}
 	if _, err := ServiceFor("runit", paths); !errors.Is(err, ErrUnsupported) {
 		t.Errorf("runit: %v", err)
+	}
+}
+
+// testServices covers every kind, path match and rewrite mode, plus services that must not render.
+func testServices() []services.Service {
+	t := func(addr string, port, weight int) services.Target {
+		return services.Target{Address: addr, Port: port, Weight: weight}
+	}
+	return []services.Service{
+		{Name: "Hashi", Slug: "hashi-admin", Kind: services.KindHTTP, HostName: "dev.hashi.example.com", Enabled: true,
+			Origin: services.OriginSystem, OwnerFeature: services.OwnerSetup, Target: t("192.0.2.5", 3340, 0)},
+		{Name: "Search", Slug: "search", Kind: services.KindHTTP, HostName: "search.example.com", Enabled: true,
+			Origin: services.OriginUser, Target: t("192.0.2.20", 8080, 0)},
+		{Name: "Media", Slug: "media", Kind: services.KindHTTPS, HostName: "media.example.com", Enabled: true,
+			Origin: services.OriginUser, Target: t("2001:db8::7", 8920, 0), TLSSkipVerify: true,
+			TLSServerName: "media.internal.example", TLSMinVersion: services.TLS13},
+		{Name: "Grpc", Slug: "grpc", Kind: services.KindH2C, HostName: "grpc.example.com", Enabled: true,
+			Origin: services.OriginUser, Target: t("192.0.2.40", 50051, 0), TLSMinVersion: services.TLS12, AdvancedRoutes: true,
+			Routes: []services.Route{
+				{ID: "01JR0000000000000000000001", Enabled: true, Targets: []services.Target{t("192.0.2.41", 8080, 3), t("192.0.2.42", 8080, 0)},
+					PathMatch: services.MatchPrefix, PathValue: "/api", Priority: 30, RewriteMode: services.RewriteStripPrefix},
+				{ID: "01JR0000000000000000000002", Enabled: true, Targets: []services.Target{t("192.0.2.43", 8080, 0)},
+					PathMatch: services.MatchPrefix, PathValue: "/old", Priority: 20, RewriteMode: services.RewriteReplacePrefix,
+					RewriteValue: "/new$x"},
+				{ID: "01JR0000000000000000000003", Enabled: true, Targets: []services.Target{t("192.0.2.43", 8080, 0)},
+					PathMatch: services.MatchExact, PathValue: "/health", Priority: 10, RewriteMode: services.RewriteExact,
+					RewriteValue: "/status"},
+				{ID: "01JR0000000000000000000004", Enabled: true, Targets: []services.Target{t("192.0.2.43", 8080, 0)},
+					PathMatch: services.MatchRegex, PathValue: `^/u/[0-9]+`, Priority: 40, RewriteMode: services.RewriteRegex,
+					RewritePattern: `^/u/([0-9]+)`, RewriteValue: "/user/$1"},
+				{ID: "01JR0000000000000000000005", Enabled: false, Targets: []services.Target{t("192.0.2.44", 8080, 0)},
+					PathMatch: services.MatchPrefix, PathValue: "/off", Priority: 50, RewriteMode: services.RewriteNone},
+			}},
+		{Name: "Off", Slug: "off", Kind: services.KindHTTP, HostName: "off.example.com", Enabled: false,
+			Origin: services.OriginUser, Target: t("192.0.2.50", 80, 0)},
+		{Name: "Broken", Slug: "broken", Kind: services.KindHTTP, HostName: "broken.example.net", Enabled: true,
+			Origin: services.OriginUser, Target: t("192.0.2.51", 80, 0), InvalidReason: "outside the zone"},
+	}
+}
+
+func TestRenderServicesGolden(t *testing.T) {
+	o := testOptions()
+	o.Services = testServices()
+	o.EdgeToken = secrets.New("edge-token-for-tests")
+	files, err := Render(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range files {
+		switch filepath.Base(f.Path) {
+		case "10-hashi-http-services.yml":
+			golden(t, "services.yml", f.Data)
+		case "40-hashi-security.yml":
+			golden(t, "security-edge.yml", f.Data)
+			if !f.Secret || f.Mode != 0o600 {
+				t.Errorf("security file with the edge token: secret=%v mode=%o", f.Secret, f.Mode)
+			}
+		}
+	}
+	// Disabled and invalid services leave no trace; Verify expects exactly the rendered objects.
+	want, err := Expected(files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, w := range want {
+		if strings.Contains(w, "svc-off") || strings.Contains(w, "svc-broken") || strings.Contains(w, "0000005") {
+			t.Errorf("rendered %s", w)
+		}
+	}
+}
+
+// Without services the services file exists but is empty, and the edge middleware is absent without a token.
+func TestRenderWithoutServicesOrToken(t *testing.T) {
+	files, err := Render(testOptions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range files {
+		if strings.Contains(string(f.Data), MiddlewareEdge) {
+			t.Errorf("%s mentions the edge middleware without a token", f.Path)
+		}
 	}
 }

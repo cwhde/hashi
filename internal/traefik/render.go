@@ -14,6 +14,7 @@ import (
 	"go.yaml.in/yaml/v3"
 
 	"git.juzo.io/juzo/hashi/internal/secrets"
+	"git.juzo.io/juzo/hashi/internal/services"
 )
 
 // Fixed host paths (04 §2 step 3, 04 §3). Only the binary and the config directory are overridable per connection.
@@ -101,6 +102,10 @@ type Options struct {
 	// TrustedIPs are the firewall hosts' internal addresses whose X-Forwarded-* headers websecure trusts (04 §3; S6).
 	TrustedIPs []string
 	Certs      []Cert
+	// Services are every stored service; Render keeps the renderable ones (04 §7).
+	Services []services.Service
+	// EdgeToken is set on requests the edge sends to Hashi (01 §8); empty renders no edge middleware.
+	EdgeToken secrets.Value
 }
 
 // Router, middleware and service names other code (Verify, S5 services) refers to.
@@ -205,10 +210,22 @@ func Render(o Options) ([]File, error) {
 	}}}, ""); err != nil {
 		return nil, err
 	}
+	edge := !o.EdgeToken.IsZero()
+	if svc := httpServices(o.Services, edge); len(svc.HTTP.Routers) > 0 {
+		if err := dyn("10-hashi-http-services.yml", svc, ""); err != nil {
+			return nil, err
+		}
+	} else {
+		// Traefik v3.7 rejects an empty `http: {}` and then drops every file of the provider (seen in the integration
+		// test); a file with only comments loads as empty.
+		files = append(files, File{Path: o.Paths.Dynamic() + "/10-hashi-http-services.yml", Kind: KindDynamic, Mode: 0o644,
+			Data: []byte(generated + "# No services are enabled.\n")})
+	}
 	// Forward auth with the local fallback (06 §2.1, captured construct): fail-open middlewares call the loopback
 	// hashi-fa entry point, whose router fails over from Hashi (health-checked on /readyz) to ping@internal (200).
-	// Fail-closed middlewares call Hashi directly and get 500 while it is down.
-	if err := dyn("40-hashi-security.yml", dynamicConfig{HTTP: &httpConfig{
+	// Fail-closed middlewares call Hashi directly and get 500 while it is down. The hashi-fa router adds the edge token,
+	// so forward-auth requests carry it while upstream services never see it.
+	security := &httpConfig{
 		Routers: map[string]router{RouterForwardAuth: {
 			Rule: "PathPrefix(`/`)", EntryPoints: []string{"hashi-fa"}, Service: ServiceFailover,
 		}},
@@ -224,8 +241,20 @@ func Render(o Options) ([]File, error) {
 				HealthCheck: &healthCheck{Path: readyPath, Interval: "5s", Timeout: "2s"},
 			}},
 		},
-	}}, ""); err != nil {
+	}
+	if edge {
+		security.Middlewares[MiddlewareEdge] = edgeMiddleware(o.EdgeToken.Reveal())
+		fa := security.Routers[RouterForwardAuth]
+		fa.Middlewares = []string{MiddlewareEdge}
+		security.Routers[RouterForwardAuth] = fa
+	}
+	if err := dyn("40-hashi-security.yml", dynamicConfig{HTTP: security}, ""); err != nil {
 		return nil, err
+	}
+	if edge {
+		// The file holds the edge token: owner-only, like a key, and kept out of plan text.
+		f := &files[len(files)-1]
+		f.Mode, f.Secret = 0o600, true
 	}
 	health := func(mw string) router {
 		suffix := "/open"
@@ -233,7 +262,7 @@ func Render(o Options) ([]File, error) {
 			suffix = "/closed"
 		}
 		return router{Rule: "PathPrefix(`" + HealthPath + suffix + "`)", EntryPoints: []string{"websecure"},
-			Middlewares: []string{mw}, Service: "ping@internal", Priority: healthPriority, TLS: &struct{}{}}
+			Middlewares: []string{mw}, Service: "ping@internal", Priority: healthPriority, TLS: &routerTLS{}}
 	}
 	if err := dyn("90-hashi-health.yml", dynamicConfig{HTTP: &httpConfig{Routers: map[string]router{
 		RouterHealthOpen: health(MiddlewareAuthOpen), RouterHealthClosed: health(MiddlewareAuthClosed),

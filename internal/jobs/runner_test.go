@@ -120,3 +120,24 @@ func must(t *testing.T, err error) {
 		t.Fatal(err)
 	}
 }
+
+func TestSoonRunsBeforeTheInterval(t *testing.T) {
+	r, _ := newRunner(t)
+	var runs atomic.Int32
+	must(t, r.Register(context.Background(), Job{Kind: "hourly", Interval: time.Hour, Run: func(context.Context) (string, error) {
+		runs.Add(1)
+		return "", nil
+	}}))
+	runFor(t, r, 50*time.Millisecond) // the first run of a new kind
+	if runs.Load() != 1 {
+		t.Fatalf("runs after start = %d", runs.Load())
+	}
+	must(t, r.Soon(context.Background(), "hourly"))
+	runFor(t, r, 50*time.Millisecond)
+	if runs.Load() != 2 {
+		t.Fatalf("runs after Soon = %d", runs.Load())
+	}
+	if err := r.Soon(context.Background(), "nope"); err == nil {
+		t.Error("unknown kind accepted")
+	}
+}

@@ -2,11 +2,13 @@ package httpapi
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"slices"
 
 	"git.juzo.io/juzo/hashi/internal/audit"
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
+	"git.juzo.io/juzo/hashi/internal/services"
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 )
@@ -42,7 +44,9 @@ func (s *Server) GetSettings(ctx context.Context, _ gen.GetSettingsRequestObject
 
 // saveSetting validates and stores v with an audit event, then notifies consumers. check may veto the change
 // after seeing the current value.
-func saveSetting[T settings.Category](ctx context.Context, s *Server, v T, check func(cur T) error) error {
+// saveSetting validates and stores one category with its audit entry. then runs in the same transaction after the
+// write (a follow-up that must succeed or undo the save).
+func saveSetting[T settings.Category](ctx context.Context, s *Server, v T, check func(cur T) error, then ...func(q *db.Queries) error) error {
 	ri := info(ctx)
 	err := s.Store.Tx(ctx, func(q *db.Queries) error {
 		cur, err := settings.Get[T](ctx, q)
@@ -56,6 +60,11 @@ func saveSetting[T settings.Category](ctx context.Context, s *Server, v T, check
 		}
 		if err := settings.Put(ctx, q, v); err != nil {
 			return err
+		}
+		for _, f := range then {
+			if err := f(q); err != nil {
+				return err
+			}
 		}
 		return s.Audit.Record(ctx, q, audit.Event{Actor: s.actor(ri), Action: "settings." + v.Key() + ".saved", IP: ri.ipString()})
 	})
@@ -85,7 +94,9 @@ func (s *Server) PutGeneralSettings(ctx context.Context, req gen.PutGeneralSetti
 	}
 	v := settings.General{RootDomain: b.RootDomain, AdminDomain: b.AdminDomain, InternalURL: b.InternalUrl,
 		SyncIntervalSeconds: b.SyncIntervalSeconds, TrustedProxies: proxies}
-	sess := info(ctx).session
+	ri := info(ctx)
+	sess := ri.session
+	moved := false
 	err := saveSetting(ctx, s, v, func(cur settings.General) error {
 		if cur.Configured() && cur.RootDomain != v.RootDomain {
 			// Passkeys are bound to the root domain (02 §2); changing it would lock the admin out.
@@ -95,9 +106,29 @@ func (s *Server) PutGeneralSettings(ctx context.Context, req gen.PutGeneralSetti
 			return reauthRequired() // trusted-proxy change is high-risk (02 §2, 01 §8)
 		}
 		return nil
+	}, func(q *db.Queries) error {
+		// The Hashi system service follows the admin domain and internal URL (02 §1.6: edited only here). In the same
+		// transaction: if the service cannot move (the name is taken), the settings stay as they were.
+		if _, err := q.GetServiceByOwner(ctx, services.OwnerSetup); errors.Is(err, sql.ErrNoRows) {
+			return nil
+		} else if err != nil {
+			return err
+		}
+		sv, changed, err := services.EnsureSystem(ctx, q, s.now())
+		if err != nil || !changed {
+			return err
+		}
+		moved = true
+		return s.Audit.Record(ctx, q, audit.Event{Actor: s.actor(ri), Action: "service.system.saved", IP: ri.ipString(),
+			Target: "service:" + sv.ID, Detail: map[string]any{"host_name": sv.HostName}})
 	})
 	if err != nil {
-		return nil, err
+		return nil, serviceError(err)
+	}
+	if moved {
+		if _, _, err := s.syncServices(ctx); err != nil {
+			return nil, err
+		}
 	}
 	return gen.PutGeneralSettings200JSONResponse(generalBody(v)), nil
 }

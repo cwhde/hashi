@@ -14,6 +14,7 @@ import (
 
 	"git.juzo.io/juzo/hashi/internal/audit"
 	"git.juzo.io/juzo/hashi/internal/secrets"
+	"git.juzo.io/juzo/hashi/internal/services"
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/sshx"
 	"git.juzo.io/juzo/hashi/internal/store"
@@ -293,8 +294,17 @@ func (m *Manager) desired(ctx context.Context, connID string) (db.TraefikConnect
 	if err != nil {
 		return row, Desired{}, err
 	}
+	svcs, err := services.List(ctx, m.st.R)
+	if err != nil {
+		return row, Desired{}, err
+	}
+	edge, err := EnsureEdgeToken(ctx, m.st, m.vault)
+	if err != nil {
+		return row, Desired{}, fmt.Errorf("edge token: %w", err)
+	}
 	paths := Paths{Binary: row.TraefikBinary, ConfigDir: row.ConfigDir}
-	opts := Options{Paths: paths, APIPort: int(row.ApiPort), ForwardAuthPort: int(row.ApiPort) + 1, HashiURL: hashiURL, Certs: certs}
+	opts := Options{Paths: paths, APIPort: int(row.ApiPort), ForwardAuthPort: int(row.ApiPort) + 1, HashiURL: hashiURL, Certs: certs,
+		Services: svcs, EdgeToken: edge}
 	files, err := Render(opts)
 	if err != nil {
 		return row, Desired{}, err
