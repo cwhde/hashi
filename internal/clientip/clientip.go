@@ -108,7 +108,7 @@ func (r *Resolver) Resolve(req *http.Request) (netip.Addr, error) {
 		if !ok {
 			return netip.Addr{}, ErrUnresolvable
 		}
-		if !r.isTrusted(a) && !(edge && a.IsLoopback()) {
+		if !r.isTrusted(a) && (!edge || !a.IsLoopback()) {
 			return a, nil
 		}
 	}
