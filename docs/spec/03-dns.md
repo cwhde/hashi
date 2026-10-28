@@ -179,9 +179,10 @@ excluded from prune. ACME account key and certificate private keys are vault sec
 **Distribution:** a sync plan per Traefik host writes `/etc/hashi/traefik/certs/<name>.crt|.key` (key mode 0600) and the
 dynamic file `/etc/hashi/traefik/dynamic/hashi-certs.yaml` listing them under `tls.certificates`. Every host gets every
 certificate; Traefik picks the matching one per SNI. Verify = TLS handshake to the host for one name per certificate and
-compare the served fingerprint. Distribution is low-risk (no restart; the file provider reloads). Verify before
-implementation that the pinned Traefik version reloads changed certificate files without a restart
-(`make contract-capture PROVIDER=traefik`).
+compare the served fingerprint. Distribution is low-risk (no restart; the file provider reloads). Traefik v3.7 reloads
+changed certificate files only when the dynamic file that lists them changes (captured 2026-10-28,
+`testdata/contracts/traefik/`), so `hashi-certs.yaml` carries a comment with the SHA-256 of every listed certificate and
+is rewritten whenever one changes; certificate files are written before the YAML.
 
 **UI:** Traefik → Certificates tab: each certificate with names, issuer, expiry, last renewal result, per-host
 distribution state, "Renew now" (creates a plan). Runs appear in Activity → Jobs.

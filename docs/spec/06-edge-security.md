@@ -52,7 +52,12 @@ route whose service has a health check on Hashi and a failover to a static `204`
 | Firewall sets (`block`, `dyn`, `staging`) and meters | Keep working in the kernel |
 | Recording | The outage window is recorded as an event; access logs are ingested afterwards |
 
-Verify the fallback construct against the pinned Traefik version and prove the outage path with a real Traefik in S4.
+Construct (captured on Traefik v3.7.16, `testdata/contracts/traefik/`): a loopback entry point `hashi-fa` whose
+`forwardedHeaders.trustedIPs` are the loopback addresses (otherwise the original host and URI are lost on this hop); a
+router on it sends everything to a `failover` service whose primary is Hashi's forward-auth URL with a `healthCheck` on
+`/readyz` and whose fallback is `ping@internal` (200 on any path; `noop@internal` answers 418 and would deny). Fail-open
+services' `forwardAuth.address` points at `hashi-fa`; fail-closed services point straight at Hashi and get 500 while it
+is down. Prove the outage path with a real Traefik in S4.
 Forward auth for services on a remote Traefik host crosses the overlay network; if that link drops, the same table applies.
 S9 records the forward-auth latency over that link.
 
