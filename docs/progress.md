@@ -13,7 +13,9 @@ running on a fresh edge LXC; rendered files applied; Verify reads routers from t
 wildcard certificate via DNS-01, distributes it, and the edge serves it (fingerprint checked); forward-auth fallback
 observed with Hashi stopped, using a stub forward-auth endpoint (06 §2.1).
 
-Dev target: the temporary `hashi-edge-test` LXC on host B (see Log 2026-10-28); not the production edge.
+Dev targets: three temporary LXCs on host B, one per OS family Hashi installs on: `hashi-edge-test` (Alpine 3.23,
+OpenRC, sshd without forwarding), `hashi-edge-debian` (Debian 13, systemd) and `hashi-edge-fedora` (Fedora 44, systemd,
+dnf). Same size and settings as the first (see Log 2026-10-28); not the production edge.
 
 External systems and contracts:
 - Traefik v3.7.16 release, static/dynamic config, `/api/rawdata`, cert reload, forward-auth fallback: captured
@@ -27,8 +29,8 @@ External systems and contracts:
   development and on the server (nothing else beyond `_hashi-test`).
 
 Scope cut: services (S5) are not rendered yet, so `10-`/`20-hashi-*` files stay absent; the gate's route is a Hashi health
-router on the edge. Deeper wildcards come with S5 services. Debian/Ubuntu (systemd) is rendered and unit-tested; only
-Alpine (OpenRC) is proven on a real host in S4. Forward auth is a stub that allows everything (the engine is S9/S10).
+router on the edge. Deeper wildcards come with S5 services. The Traefik install is proven on all three dev targets
+(Alpine/OpenRC, Debian/systemd, Fedora/systemd + dnf); Ubuntu shares Debian's path. Forward auth is a stub that allows everything (the engine is S9/S10).
 
 PR A — backend
 - [x] `internal/sshx`: x/crypto/ssh client, mandatory host-key pin (scan → user confirms the SHA256 fingerprint → stored),
@@ -59,8 +61,8 @@ PR B — UI + deploy
 - [ ] Setup steps 4 and 5 (host-key fingerprint confirmation, Hashi's public key to copy, validation results, install plan).
 - [ ] `/traefik` page from the mock: connection state, files with hashes, Certificates tab, "Renew now"; plans on `/changes`.
 - [ ] E2E against fakes (dev SSH/Traefik fake host, Pebble-less fake ACME) for setup steps 4–5 and the install plan.
-- [ ] Deploy (user runs `/deploy`) and prod-proof on `hashi-edge-test`: host key pinned, install plan applied (Traefik under
-      OpenRC), files applied, Verify from the real API, real certificate issued + distributed + fingerprint matches, Hashi
+- [ ] Deploy (user runs `/deploy`) and prod-proof on `hashi-edge-test` (full gate) plus the install plan, files and Verify
+      on `hashi-edge-debian` and `hashi-edge-fedora`: host key pinned, install plan applied (Traefik under OpenRC/systemd), files applied, Verify from the real API, real certificate issued + distributed + fingerprint matches, Hashi
       stopped → fail-open route 200 / fail-closed 500 on the edge, Hashi back → normal; live Traefik instances untouched.
 
 ## Previous slice
@@ -327,6 +329,10 @@ Decisions made in S0:
   only short-SHA deploys exist so far.
 
 ## Log
+
+- 2026-10-28 — S4: two more temporary dev targets on host B, `hashi-edge-debian` (Debian 13) and `hashi-edge-fedora`
+  (Fedora 44, template downloaded for it), same size, no autostart, sshd with the laptop key, reachable from the Hashi
+  container. Fedora (dnf + systemd) added to the supported host OS list at the user's request.
 
 - 2026-10-28 — S4 prep: the live Traefik instances on both hosts stay untouched (replaced, not adopted, 11-delivery.md §7).
   A temporary dev target exists for S4: a fresh unprivileged Alpine 3.23 LXC `hashi-edge-test` on host B (1 CPU,
