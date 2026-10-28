@@ -133,7 +133,7 @@ Decisions made in S0:
   host link confirmed in the ADR, Pulse footprint targets. Still awaiting final sign-off.
 
 - 2026-10-27 — Security model side step: the user's new model turned into spec on branch `security-model` (ADR 0002,
-  05a new, 05/06/06a rewritten, Resource → Service). Kanae survey: everything on iptables-legacy, NetBird too → S6 starts
+  05a new, 05/06/06a rewritten, Resource → Service). First firewall host survey: everything on iptables-legacy, NetBird too → S6 starts
   with an nft/NetBird coexistence gate, iptables+ipset as plan B. Awaiting sign-off.
 
 - 2026-10-27 — S1 signed off by the user. README bar 3/15. S2 not started on the user's request.
