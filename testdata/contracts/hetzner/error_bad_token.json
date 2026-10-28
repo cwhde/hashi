@@ -1,0 +1,15 @@
+{
+  "captured_at": "2026-10-28T07:58:40+00:00",
+  "docs_url": "https://docs.hetzner.cloud/reference/cloud#zones",
+  "request": "GET /v1/zones",
+  "status": 401,
+  "headers": {
+    "content-type": "application/json"
+  },
+  "body": {
+    "error": {
+      "code": "unauthorized",
+      "message": "the token you have provided is invalid"
+    }
+  }
+}

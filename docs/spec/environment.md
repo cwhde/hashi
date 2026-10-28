@@ -25,7 +25,7 @@ host-A firewall script. Their current configuration is reference material only, 
 
 | Service | Use | Contract captured |
 | --- | --- | --- |
-| Hetzner Cloud API (zones, RRSets) | public DNS, one zone managed | shape observed (zones, rrsets, pagination); fixtures pending |
+| Hetzner Cloud API (zones, RRSets) | public DNS, one zone managed | read side 2026-10-28: `testdata/contracts/hetzner/` (`make contract-capture PROVIDER=hetzner`); writes pending (probe plan) |
 | Google Trust Services ACME (EAB) | certificates | — |
 | AdGuard Home ×2 (+ adguardhome-sync) | internal rewrites | — |
 | Pocket ID | edge SSO | — |
@@ -36,6 +36,11 @@ host-A firewall script. Their current configuration is reference material only, 
 
 - Hetzner legacy DNS API is shut down; the Cloud API works with the existing project token.
 - Hetzner RRSets carry `labels` (key/value) and a `protection.change` flag; records carry a `comment`; `ttl: null` means zone default.
+- Hetzner Cloud DNS (captured 2026-10-28): RRSet `id` is `<name>/<TYPE>` with relative names (`@` for the apex); a zone can
+  be read by id **or** by name (`GET /v1/zones/{name}` → 200); pagination is `meta.pagination` with `next_page: null` on the
+  last page; rate limit 3600 requests per hour via `RateLimit-Limit/-Remaining/-Reset` (reset is a Unix time); errors are
+  `{"error": {"code", "message"[, "details"]}}` (`unauthorized` 401 without `details`, `not_found` 404 with `details: null`);
+  a zone's `record_count` counts records, not RRSets (64 vs 58); TXT values are stored quoted, several quoted strings per value.
 - Host B has no public IP of its own on the host: the firewall-host model needs an "external NAT" mode (05-firewall.md §1.1).
 - The current firewall script re-inserts its NetBird forward rules on every run (≈30 duplicates observed) — Hashi's check-before-insert design must not repeat this.
 - The current firewall script's chains, ipset and cron entries are removed by Hashi's first firewall apply (05-firewall.md §3.4); its MTU-route and `/etc/hosts` workarounds are obsolete and not carried over.

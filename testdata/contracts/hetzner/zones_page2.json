@@ -1,0 +1,55 @@
+{
+  "captured_at": "2026-10-28T07:58:38+00:00",
+  "docs_url": "https://docs.hetzner.cloud/reference/cloud#zones",
+  "request": "GET /v1/zones?per_page=1&page=2",
+  "status": 200,
+  "headers": {
+    "content-type": "application/json",
+    "ratelimit-limit": "3600",
+    "ratelimit-remaining": "3598",
+    "ratelimit-reset": "1793174320"
+  },
+  "body": {
+    "meta": {
+      "pagination": {
+        "last_page": 2,
+        "next_page": null,
+        "page": 2,
+        "per_page": 1,
+        "previous_page": 1,
+        "total_entries": 2
+      }
+    },
+    "zones": [
+      {
+        "id": 100002,
+        "name": "example.org",
+        "mode": "primary",
+        "ttl": 3600,
+        "labels": {},
+        "primary_nameservers": [],
+        "created": "2025-12-15T11:47:36Z",
+        "protection": {
+          "delete": false
+        },
+        "status": "ok",
+        "authoritative_nameservers": {
+          "assigned": [
+            "hydrogen.ns.hetzner.com.",
+            "oxygen.ns.hetzner.com.",
+            "helium.ns.hetzner.de."
+          ],
+          "delegated": [
+            "helium.ns.hetzner.de.",
+            "hydrogen.ns.hetzner.com.",
+            "oxygen.ns.hetzner.com."
+          ],
+          "delegation_last_check": "2026-10-26T12:24:09Z",
+          "delegation_status": "valid"
+        },
+        "record_count": 15,
+        "registrar": "other"
+      }
+    ]
+  }
+}
