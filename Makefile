@@ -9,7 +9,7 @@ VERSION   ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo de
 COMMIT    ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 LDFLAGS   := -s -w -X git.juzo.io/juzo/hashi/internal/app.Version=$(VERSION) -X git.juzo.io/juzo/hashi/internal/app.Commit=$(COMMIT)
 
-.PHONY: test-e2e contract-capture deploy-test build-config-check help image deploy rollback smoke check fmt-check lint test generate generate-check web-install web-check build-web build dev clean
+.PHONY: test-e2e contract-capture contract-drift deploy-test build-config-check help image deploy rollback smoke check fmt-check lint test generate generate-check web-install web-check build-web build dev clean
 
 help: ## list targets
 	@awk 'BEGIN{FS=":.*## "} /^[a-z-]+:.*## /{printf "  %-18s %s\n",$$1,$$2}' $(MAKEFILE_LIST)
@@ -89,6 +89,10 @@ contract-capture: ## record read-only responses from PROVIDER (hetzner) into .co
 	@test "$(PROVIDER)" = hetzner || { echo "PROVIDER=hetzner is the only one so far"; exit 2; }
 	python3 -I tools/contract-capture/hetzner.py
 	python3 -I tools/contract-capture/sanitize.py .contracts-raw/hetzner testdata/contracts/hetzner testdata/contracts/denylist.txt
+
+contract-drift: ## re-run the read-only Hetzner capture and diff response shapes against testdata/contracts (CI: weekly)
+	python3 -I tools/contract-capture/hetzner.py
+	python3 -I tools/contract-capture/shape_diff.py .contracts-raw/hetzner testdata/contracts/hetzner
 
 dev: web-install ## dev build (-tags dev) on :8080 with ./data + Vite on :5173; passkeys work on http://localhost:5173
 	@mkdir -p data && [ -s data/dev-master.key ] || go run ./cmd/hashi keygen > data/dev-master.key

@@ -1,0 +1,33 @@
+name: Contract drift
+
+# 03-dns.md §2 point 4: re-run the read-only Hetzner capture and compare response shapes with testdata/contracts.
+# Only GET requests are sent. The log shows JSON paths and types, never values (tools/contract-capture/shape_diff.py).
+# Needs the repo secret HETZNER_TOKEN, ideally a separate Read-only Cloud project token.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 6 * * 1" # Mondays 06:17 UTC
+
+concurrency:
+  group: contract-drift
+  cancel-in-progress: true
+
+jobs:
+  hetzner:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Capture (read-only)
+        env:
+          HETZNER_TOKEN: ${{ secrets.HETZNER_TOKEN }}
+        run: |
+          test -n "$HETZNER_TOKEN" || { echo "::error::repo secret HETZNER_TOKEN is not set"; exit 1; }
+          python3 -I tools/contract-capture/hetzner.py
+
+      - name: Compare shapes
+        run: python3 -I tools/contract-capture/shape_diff.py .contracts-raw/hetzner testdata/contracts/hetzner
+
+      - name: Remove the raw capture
+        if: always()
+        run: rm -rf .contracts-raw
