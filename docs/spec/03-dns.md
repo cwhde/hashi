@@ -37,7 +37,11 @@ operations returning asynchronous Actions.
 
 1. Run `make contract-capture PROVIDER=hetzner` (read-only calls: list zones, get zone, list RRSets with pagination) against the real project token.
 2. Sanitized responses land in `testdata/contracts/hetzner/` with the date and API docs URL.
-3. Write operations are captured once against a disposable test record (`_hashi-test.<zone>` TXT) in a user-approved plan.
+3. Write operations are captured against disposable **probe RRSets** in a user-approved plan. A probe RRSet's relative
+   name is `_hashi-test` or ends in `._hashi-test` (e.g. `_sip._tcp._hashi-test`), its type is a managed type (§3), and
+   its values are documentation addresses (RFC 5737/3849) or example names. The probe tool builds every write path
+   from such a name and refuses anything else, refuses to start while probe RRSets exist, and deletes what it created.
+   No real record can match the rule: a leading `_` label is not a host name, and `_hashi-test` is Hashi's own.
 4. Adapter tests replay these fixtures; a scheduled CI job (manual dispatch + weekly) re-runs the read-only capture and
    diffs response *shapes* to detect API drift.
 
@@ -54,7 +58,24 @@ Adapter requirements:
 
 ## 3. Record types and ownership
 
-Manual DNS tab minimum: A, AAAA, CNAME, MX, TXT. More types (CAA, SRV, …) only if capability discovery reports them.
+Managed types (creatable, editable, importable, prunable): **A, AAAA, CNAME, MX, TXT, SRV, CAA**. Value formats as
+the provider stores them (Hetzner, captured 2026-10-28):
+
+| Type | Value | Form fields |
+| --- | --- | --- |
+| A / AAAA | address | address or address set (§7) |
+| CNAME | `target.` | target |
+| MX | `priority target.` | priority, target |
+| TXT | one or more quoted strings, each ≤ 255 bytes, `\"` and `\\` escaped | text (Hashi quotes, escapes and splits into 255-byte strings) |
+| SRV | `priority weight port target.` (name `_service._proto.<name>`) | service, protocol, priority, weight, port, target |
+| CAA | `flags tag "value"` (tag `issue`, `issuewild`, `iodef`) | flags, tag, value |
+
+Other types the provider reports (Hetzner also has DS, HINFO, HTTPS, NS, PTR, RP, SOA, SVCB, TLSA) are read, shown and
+leave-only: the import table offers neither import nor prune for them. Adding a type means a value format, form fields
+and a probe capture; TLSA, HTTPS and SVCB are the next candidates. DS, PTR, HINFO and RP stay unmanaged (DNSSEC belongs to
+the provider, reverse DNS to the address owner). NS stays unmanaged everywhere, including delegations below the apex
+(invariant 2). Each adapter reports the managed types it supports through `Capabilities`; a type missing there is
+leave-only for that provider.
 
 Ownership (`dns_ownership`): per RRSet, origin ∈ `system` | `managed` | `imported` | `user`, plus `last_applied_hash`.
 The database is authoritative. If the provider supports an ownership marker (§1), Hashi also writes it so ownership is

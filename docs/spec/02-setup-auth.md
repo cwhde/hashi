@@ -57,7 +57,7 @@ See 03-dns.md §2–3. Collect provider type (Hetzner first), API token, default
 the zone containing the root domain from step 2 is selected automatically; if the token sees several zones and none
 matches, the user picks one from the list. Other zones the token can see are ignored. Validate read-only (list
 zones, read RRSets). Write capability is only confirmed if the user explicitly approves a probe plan that creates and
-deletes `_hashi-test.<zone>` TXT. Import table: see 03-dns.md §4.
+deletes a `_hashi-test.<zone>` TXT probe RRSet (03-dns.md §2). Import table: see 03-dns.md §4.
 
 ### 1.4 Certificate provider step
 

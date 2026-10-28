@@ -25,7 +25,7 @@ host-A firewall script. Their current configuration is reference material only, 
 
 | Service | Use | Contract captured |
 | --- | --- | --- |
-| Hetzner Cloud API (zones, RRSets) | public DNS, one zone managed | read side 2026-10-28: `testdata/contracts/hetzner/` (`make contract-capture PROVIDER=hetzner`); writes pending (probe plan) |
+| Hetzner Cloud API (zones, RRSets) | public DNS, one zone managed | read side 2026-10-28: `testdata/contracts/hetzner/` (`make contract-capture PROVIDER=hetzner`); writes 2026-10-28 with `_hashi-test` probe RRSets: `testdata/contracts/hetzner/write/` (`tools/contract-capture/hetzner_write.py`) |
 | Google Trust Services ACME (EAB) | certificates | — |
 | AdGuard Home ×2 (+ adguardhome-sync) | internal rewrites | — |
 | Pocket ID | edge SSO | — |
@@ -41,6 +41,14 @@ host-A firewall script. Their current configuration is reference material only, 
   last page; rate limit 3600 requests per hour via `RateLimit-Limit/-Remaining/-Reset` (reset is a Unix time); errors are
   `{"error": {"code", "message"[, "details"]}}` (`unauthorized` 401 without `details`, `not_found` 404 with `details: null`);
   a zone's `record_count` counts records, not RRSets (64 vs 58); TXT values are stored quoted, several quoted strings per value.
+- Hetzner Cloud DNS writes (probe capture 2026-10-28): create (`POST …/rrsets`), `set_records`, `add_records`,
+  `remove_records`, `change_ttl` (`ttl: null` restores the zone default) and `DELETE` all answer 201 with an **Action**
+  (`running` at first; poll `GET /v1/actions/{id}` until `success`/`error`); label changes are a synchronous `PUT` (200,
+  `hashi.io/owner` accepted as a key). `set_records` with unchanged records still creates an action, so Hashi must diff
+  first. Values come back exactly as sent. TXT values must be quoted (`422 invalid_input` otherwise) and no single string
+  may exceed 255 characters (422) — Hashi splits. Existing name+type → `409 uniqueness_error` with `details.fields`;
+  CNAME beside other types → 422; invalid A/SRV/CAA values → `422 invalid_input` ("invalid value '…'"); an unknown type →
+  422 on the field. Missing RRSet → 404 `not_found`.
 - Host B has no public IP of its own on the host: the firewall-host model needs an "external NAT" mode (05-firewall.md §1.1).
 - The current firewall script re-inserts its NetBird forward rules on every run (≈30 duplicates observed) — Hashi's check-before-insert design must not repeat this.
 - The current firewall script's chains, ipset and cron entries are removed by Hashi's first firewall apply (05-firewall.md §3.4); its MTU-route and `/etc/hosts` workarounds are obsolete and not carried over.
