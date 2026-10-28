@@ -8,9 +8,9 @@ import (
 	"git.juzo.io/juzo/hashi/internal/dns"
 )
 
-// 03 §5.3: challenge values are added and removed one at a time, so another client's value survives; challenge names
+// Invariant 1, 03 §5.3: challenge values are added and removed one at a time, so another client's value survives; challenge names
 // never reach the import table and cannot be entries.
-func TestChallengeValuesLeaveOtherWritersAlone(t *testing.T) {
+func TestInvariant_1_ChallengeValuesLeaveOtherWritersAlone(t *testing.T) {
 	f := newWriteFixture(t)
 	ctx := t.Context()
 	ch, err := f.svc.Challenger(ctx, f.zone)

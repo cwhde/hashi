@@ -465,3 +465,16 @@ func GenerateKey(comment string) (secrets.Value, string, error) {
 	}
 	return secrets.New(string(pem.EncodeToMemory(block))), line, nil
 }
+
+// PublicLine returns the authorized_keys line (comment "hashi") of a private key made by GenerateKey.
+func PublicLine(priv secrets.Value) (string, error) {
+	raw, err := ssh.ParseRawPrivateKey([]byte(priv.Reveal()))
+	if err != nil {
+		return "", fmt.Errorf("parse ssh key: %w", err)
+	}
+	signer, err := ssh.NewSignerFromKey(raw)
+	if err != nil {
+		return "", fmt.Errorf("ssh key: %w", err)
+	}
+	return strings.TrimSpace(string(ssh.MarshalAuthorizedKey(signer.PublicKey()))) + " hashi", nil
+}

@@ -72,9 +72,18 @@ PR A — backend
       integration with Pebble 2.10.1 (EAB required) + challtestsrv (issue, nothing due, renew now) and the real
       Traefik serving a renewed certificate without restart. Job and handlers are wired with the next item.
 - [x] Stub `GET /api/edge-auth/forward` (204) on the admin listener; health router on the edge uses it fail-open.
-- [ ] OpenAPI + handlers: setup steps 4 and 5 (`/api/setup/certificates`, `/api/setup/traefik/*`: scan host key, confirm,
-      validate, install plan), `/api/traefik/connections/*`, `POST /api/traefik/plan`, `GET /api/traefik/certificates`,
-      `POST /api/traefik/certificates/renew`. `TestInvariant_1/5/7/13_*` for the new adapters.
+- [x] OpenAPI + handlers: setup step 4 (`PUT /api/setup/certificates`: validate, seal EAB, register the account; step
+      done only when the CA accepted it; `POST /api/setup/certificates/issue`), step 5 (`/api/setup/traefik/identity`
+      (Hashi's key), `/scan` (host key shown, nothing stored), `/connection` (save with exactly the confirmed key, then
+      validate: OS, root, existing Traefik, write check in `/var/lib/hashi/traefik`), `/confirm` (ownership, step done),
+      `/plan` + `/plan/{id}/run`), admin `GET /api/traefik/connections`, `POST /api/traefik/connections/{id}/plan`,
+      `GET /api/certificates`, `POST /api/certificates/{id}/renew` (03 §7 paths). Managers and the daily
+      `certificates.renew` job wired in `internal/app`. Tests: `TestInvariant_1_ChallengeValuesLeaveOtherWritersAlone`,
+      `TestInvariant_7_TraefikChangesOnlyThroughApprovedPlans`, `TestInvariant_13_TraefikApplyIsVerified`, invariant 5
+      (EAB key and SSH password never returned, logged or stored in plain text), setup API over HTTP; Pebble test goes
+      through `Configure` (unknown EAB key ID refused by the CA). Steps 4–5 count as "built" once their wizard pages
+      exist (PR B), so the current wizard and E2E keep working. Adding further Traefik hosts after setup comes with the
+      `/traefik` page (S5 needs it, not the S4 gate).
 
 PR B — UI + deploy
 - [ ] Setup steps 4 and 5 (host-key fingerprint confirmation, Hashi's public key to copy, validation results, install plan).

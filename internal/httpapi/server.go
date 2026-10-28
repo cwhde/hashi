@@ -9,6 +9,7 @@ import (
 
 	"git.juzo.io/juzo/hashi/internal/audit"
 	"git.juzo.io/juzo/hashi/internal/auth"
+	"git.juzo.io/juzo/hashi/internal/certs"
 	"git.juzo.io/juzo/hashi/internal/clientip"
 	"git.juzo.io/juzo/hashi/internal/dns"
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
@@ -17,6 +18,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/setup"
 	"git.juzo.io/juzo/hashi/internal/store"
 	hsync "git.juzo.io/juzo/hashi/internal/sync"
+	"git.juzo.io/juzo/hashi/internal/traefik"
 	"git.juzo.io/juzo/hashi/internal/vault"
 )
 
@@ -30,6 +32,8 @@ type Server struct {
 	Setup    *setup.Service
 	Settings *settings.Service
 	DNS      *dns.Service
+	Traefik  *traefik.Manager
+	Certs    *certs.Manager
 	Sync     *hsync.Engine
 	Vault    *vault.Vault
 	Audit    *audit.Log

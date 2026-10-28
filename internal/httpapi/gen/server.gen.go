@@ -59,6 +59,147 @@ func (e AuthSessionMethod) Valid() bool {
 	}
 }
 
+// Defines values for CertificateLastRenewalResult.
+const (
+	CertificateLastRenewalResultEmpty   CertificateLastRenewalResult = ""
+	CertificateLastRenewalResultFailed  CertificateLastRenewalResult = "failed"
+	CertificateLastRenewalResultIssued  CertificateLastRenewalResult = "issued"
+	CertificateLastRenewalResultRenewed CertificateLastRenewalResult = "renewed"
+)
+
+// Valid indicates whether the value is a known member of the CertificateLastRenewalResult enum.
+func (e CertificateLastRenewalResult) Valid() bool {
+	switch e {
+	case CertificateLastRenewalResultEmpty:
+		return true
+	case CertificateLastRenewalResultFailed:
+		return true
+	case CertificateLastRenewalResultIssued:
+		return true
+	case CertificateLastRenewalResultRenewed:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CertificateLevel.
+const (
+	CertificateLevelCritical CertificateLevel = "critical"
+	CertificateLevelEmpty    CertificateLevel = ""
+	CertificateLevelExpired  CertificateLevel = "expired"
+	CertificateLevelWarning  CertificateLevel = "warning"
+)
+
+// Valid indicates whether the value is a known member of the CertificateLevel enum.
+func (e CertificateLevel) Valid() bool {
+	switch e {
+	case CertificateLevelCritical:
+		return true
+	case CertificateLevelEmpty:
+		return true
+	case CertificateLevelExpired:
+		return true
+	case CertificateLevelWarning:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CertificateDistributionState.
+const (
+	CertificateDistributionStateApplied  CertificateDistributionState = "applied"
+	CertificateDistributionStateFailed   CertificateDistributionState = "failed"
+	CertificateDistributionStatePending  CertificateDistributionState = "pending"
+	CertificateDistributionStateVerified CertificateDistributionState = "verified"
+)
+
+// Valid indicates whether the value is a known member of the CertificateDistributionState enum.
+func (e CertificateDistributionState) Valid() bool {
+	switch e {
+	case CertificateDistributionStateApplied:
+		return true
+	case CertificateDistributionStateFailed:
+		return true
+	case CertificateDistributionStatePending:
+		return true
+	case CertificateDistributionStateVerified:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CertificateProviderDirectory.
+const (
+	CertificateProviderDirectoryCustom      CertificateProviderDirectory = "custom"
+	CertificateProviderDirectoryGts         CertificateProviderDirectory = "gts"
+	CertificateProviderDirectoryLetsencrypt CertificateProviderDirectory = "letsencrypt"
+)
+
+// Valid indicates whether the value is a known member of the CertificateProviderDirectory enum.
+func (e CertificateProviderDirectory) Valid() bool {
+	switch e {
+	case CertificateProviderDirectoryCustom:
+		return true
+	case CertificateProviderDirectoryGts:
+		return true
+	case CertificateProviderDirectoryLetsencrypt:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CertificateProviderHealth.
+const (
+	CertificateProviderHealthDegraded   CertificateProviderHealth = "degraded"
+	CertificateProviderHealthFailed     CertificateProviderHealth = "failed"
+	CertificateProviderHealthHealthy    CertificateProviderHealth = "healthy"
+	CertificateProviderHealthUnknown    CertificateProviderHealth = "unknown"
+	CertificateProviderHealthValidating CertificateProviderHealth = "validating"
+)
+
+// Valid indicates whether the value is a known member of the CertificateProviderHealth enum.
+func (e CertificateProviderHealth) Valid() bool {
+	switch e {
+	case CertificateProviderHealthDegraded:
+		return true
+	case CertificateProviderHealthFailed:
+		return true
+	case CertificateProviderHealthHealthy:
+		return true
+	case CertificateProviderHealthUnknown:
+		return true
+	case CertificateProviderHealthValidating:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CertificateProviderInputDirectory.
+const (
+	CertificateProviderInputDirectoryCustom      CertificateProviderInputDirectory = "custom"
+	CertificateProviderInputDirectoryGts         CertificateProviderInputDirectory = "gts"
+	CertificateProviderInputDirectoryLetsencrypt CertificateProviderInputDirectory = "letsencrypt"
+)
+
+// Valid indicates whether the value is a known member of the CertificateProviderInputDirectory enum.
+func (e CertificateProviderInputDirectory) Valid() bool {
+	switch e {
+	case CertificateProviderInputDirectoryCustom:
+		return true
+	case CertificateProviderInputDirectoryGts:
+		return true
+	case CertificateProviderInputDirectoryLetsencrypt:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DNSDecision.
 const (
 	DNSDecisionImport DNSDecision = "import"
@@ -434,6 +575,75 @@ func (e SyncPlanItemRisk) Valid() bool {
 	}
 }
 
+// Defines values for TraefikConnectionAuth.
+const (
+	TraefikConnectionAuthHashiKey   TraefikConnectionAuth = "hashi_key"
+	TraefikConnectionAuthPassword   TraefikConnectionAuth = "password"
+	TraefikConnectionAuthPrivateKey TraefikConnectionAuth = "private_key"
+)
+
+// Valid indicates whether the value is a known member of the TraefikConnectionAuth enum.
+func (e TraefikConnectionAuth) Valid() bool {
+	switch e {
+	case TraefikConnectionAuthHashiKey:
+		return true
+	case TraefikConnectionAuthPassword:
+		return true
+	case TraefikConnectionAuthPrivateKey:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TraefikConnectionHealth.
+const (
+	TraefikConnectionHealthDegraded   TraefikConnectionHealth = "degraded"
+	TraefikConnectionHealthFailed     TraefikConnectionHealth = "failed"
+	TraefikConnectionHealthHealthy    TraefikConnectionHealth = "healthy"
+	TraefikConnectionHealthUnknown    TraefikConnectionHealth = "unknown"
+	TraefikConnectionHealthValidating TraefikConnectionHealth = "validating"
+)
+
+// Valid indicates whether the value is a known member of the TraefikConnectionHealth enum.
+func (e TraefikConnectionHealth) Valid() bool {
+	switch e {
+	case TraefikConnectionHealthDegraded:
+		return true
+	case TraefikConnectionHealthFailed:
+		return true
+	case TraefikConnectionHealthHealthy:
+		return true
+	case TraefikConnectionHealthUnknown:
+		return true
+	case TraefikConnectionHealthValidating:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TraefikConnectionInputAuth.
+const (
+	TraefikConnectionInputAuthHashiKey   TraefikConnectionInputAuth = "hashi_key"
+	TraefikConnectionInputAuthPassword   TraefikConnectionInputAuth = "password"
+	TraefikConnectionInputAuthPrivateKey TraefikConnectionInputAuth = "private_key"
+)
+
+// Valid indicates whether the value is a known member of the TraefikConnectionInputAuth enum.
+func (e TraefikConnectionInputAuth) Valid() bool {
+	switch e {
+	case TraefikConnectionInputAuthHashiKey:
+		return true
+	case TraefikConnectionInputAuthPassword:
+		return true
+	case TraefikConnectionInputAuthPrivateKey:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for VaultStateMode.
 const (
 	VaultStateModeService VaultStateMode = "service"
@@ -569,6 +779,97 @@ type CeremonyResponse struct {
 	// Name Passkey name (registration only)
 	Name *string `json:"name,omitempty"`
 }
+
+// Certificate defines model for Certificate.
+type Certificate struct {
+	Distributions []CertificateDistribution `json:"distributions"`
+
+	// Fingerprint SHA-256 of the leaf (hex)
+	Fingerprint       string                       `json:"fingerprint"`
+	Id                string                       `json:"id"`
+	Issuer            string                       `json:"issuer"`
+	LastRenewalAt     *time.Time                   `json:"last_renewal_at,omitempty"`
+	LastRenewalError  string                       `json:"last_renewal_error"`
+	LastRenewalResult CertificateLastRenewalResult `json:"last_renewal_result"`
+
+	// Level Expiry urgency (21/7 days)
+	Level     CertificateLevel `json:"level"`
+	Name      string           `json:"name"`
+	Names     []string         `json:"names"`
+	NotAfter  *time.Time       `json:"not_after,omitempty"`
+	NotBefore *time.Time       `json:"not_before,omitempty"`
+}
+
+// CertificateLastRenewalResult defines model for Certificate.LastRenewalResult.
+type CertificateLastRenewalResult string
+
+// CertificateLevel Expiry urgency (21/7 days)
+type CertificateLevel string
+
+// CertificateDistribution defines model for CertificateDistribution.
+type CertificateDistribution struct {
+	ConnectionId   string `json:"connection_id"`
+	ConnectionName string `json:"connection_name"`
+	Error          string `json:"error"`
+
+	// Fingerprint What the host served at the last check
+	Fingerprint    string                       `json:"fingerprint"`
+	LastVerifiedAt *time.Time                   `json:"last_verified_at,omitempty"`
+	State          CertificateDistributionState `json:"state"`
+}
+
+// CertificateDistributionState defines model for CertificateDistribution.State.
+type CertificateDistributionState string
+
+// CertificateList defines model for CertificateList.
+type CertificateList struct {
+	Certificates []Certificate `json:"certificates"`
+}
+
+// CertificateProvider defines model for CertificateProvider.
+type CertificateProvider struct {
+	AccountRegistered bool                         `json:"account_registered"`
+	Directory         CertificateProviderDirectory `json:"directory"`
+	DirectoryUrl      string                       `json:"directory_url"`
+	EabKid            string                       `json:"eab_kid"`
+	Email             string                       `json:"email"`
+	HasEabHmac        bool                         `json:"has_eab_hmac"`
+	Health            CertificateProviderHealth    `json:"health"`
+	LastError         string                       `json:"last_error"`
+	LastValidatedAt   *time.Time                   `json:"last_validated_at,omitempty"`
+	PropagationDelayS int                          `json:"propagation_delay_s"`
+	Resolvers         []string                     `json:"resolvers"`
+}
+
+// CertificateProviderDirectory defines model for CertificateProvider.Directory.
+type CertificateProviderDirectory string
+
+// CertificateProviderHealth defines model for CertificateProvider.Health.
+type CertificateProviderHealth string
+
+// CertificateProviderInput defines model for CertificateProviderInput.
+type CertificateProviderInput struct {
+	Directory CertificateProviderInputDirectory `json:"directory"`
+
+	// DirectoryUrl ACME directory URL (custom only)
+	DirectoryUrl *string `json:"directory_url,omitempty"`
+
+	// EabHmac EAB HMAC key (base64url); omit to keep the stored one
+	EabHmac *string `json:"eab_hmac,omitempty"`
+
+	// EabKid External Account Binding key ID (required for gts)
+	EabKid *string `json:"eab_kid,omitempty"`
+	Email  string  `json:"email"`
+
+	// PropagationDelayS Extra wait after the value is visible (default 0)
+	PropagationDelayS *int `json:"propagation_delay_s,omitempty"`
+
+	// Resolvers DNS servers to check challenge values on; empty = the zone's nameservers
+	Resolvers *[]string `json:"resolvers,omitempty"`
+}
+
+// CertificateProviderInputDirectory defines model for CertificateProviderInput.Directory.
+type CertificateProviderInputDirectory string
 
 // DNSConnectResult `provider` and `zone` are absent when no zone was chosen (nothing stored)
 type DNSConnectResult struct {
@@ -790,6 +1091,24 @@ type Health struct {
 // HealthStatus defines model for Health.Status.
 type HealthStatus string
 
+// HostKey defines model for HostKey.
+type HostKey struct {
+	// Fingerprint SHA256:… as ssh-keygen -lf shows it
+	Fingerprint string `json:"fingerprint"`
+
+	// Key Wire-format public key (base64)
+	Key []byte `json:"key"`
+
+	// Type e.g. ssh-ed25519
+	Type string `json:"type"`
+}
+
+// HostKeyScanInput defines model for HostKeyScanInput.
+type HostKeyScanInput struct {
+	Host string `json:"host"`
+	Port int    `json:"port"`
+}
+
 // Job defines model for Job.
 type Job struct {
 	Enabled         bool      `json:"enabled"`
@@ -930,15 +1249,17 @@ type SessionList struct {
 
 // SetupState defines model for SetupState.
 type SetupState struct {
-	BaseSettings *BaseSettings `json:"base_settings,omitempty"`
-	Completed    bool          `json:"completed"`
+	BaseSettings *BaseSettings        `json:"base_settings,omitempty"`
+	Certificates *CertificateProvider `json:"certificates,omitempty"`
+	Completed    bool                 `json:"completed"`
 
 	// Dns `provider` and `zone` are absent when no zone was chosen (nothing stored)
 	Dns *DNSConnectResult `json:"dns,omitempty"`
 
 	// Passkeys Registered passkeys (setup sessions only)
-	Passkeys *int        `json:"passkeys,omitempty"`
-	Steps    []SetupStep `json:"steps"`
+	Passkeys *int               `json:"passkeys,omitempty"`
+	Steps    []SetupStep        `json:"steps"`
+	Traefik  *TraefikConnection `json:"traefik,omitempty"`
 }
 
 // SetupStep defines model for SetupStep.
@@ -1041,6 +1362,88 @@ type SyncPlanResult struct {
 	Plan *SyncPlan `json:"plan,omitempty"`
 }
 
+// TraefikConnection defines model for TraefikConnection.
+type TraefikConnection struct {
+	ApiPort            int                     `json:"api_port"`
+	Arch               string                  `json:"arch"`
+	Auth               TraefikConnectionAuth   `json:"auth"`
+	ConfigDir          string                  `json:"config_dir"`
+	ExistingBinary     string                  `json:"existing_binary"`
+	ExistingConfigs    []string                `json:"existing_configs"`
+	Files              []TraefikFile           `json:"files"`
+	Health             TraefikConnectionHealth `json:"health"`
+	Host               string                  `json:"host"`
+	HostKeyFingerprint string                  `json:"host_key_fingerprint"`
+	HostKeyType        string                  `json:"host_key_type"`
+	Id                 string                  `json:"id"`
+	InitSystem         string                  `json:"init_system"`
+
+	// InstalledVersion Traefik version Hashi installed; empty before the first apply
+	InstalledVersion string     `json:"installed_version"`
+	InternalIp       string     `json:"internal_ip"`
+	LastError        string     `json:"last_error"`
+	LastValidatedAt  *time.Time `json:"last_validated_at,omitempty"`
+	Name             string     `json:"name"`
+
+	// OsFamily alpine, debian or fedora; empty until validated
+	OsFamily string `json:"os_family"`
+
+	// OsName PRETTY_NAME from os-release
+	OsName             string `json:"os_name"`
+	OwnershipConfirmed bool   `json:"ownership_confirmed"`
+	PackageManager     string `json:"package_manager"`
+	Port               int    `json:"port"`
+	TraefikBinary      string `json:"traefik_binary"`
+	User               string `json:"user"`
+}
+
+// TraefikConnectionAuth defines model for TraefikConnection.Auth.
+type TraefikConnectionAuth string
+
+// TraefikConnectionHealth defines model for TraefikConnection.Health.
+type TraefikConnectionHealth string
+
+// TraefikConnectionInput defines model for TraefikConnectionInput.
+type TraefikConnectionInput struct {
+	ApiPort   *int                       `json:"api_port,omitempty"`
+	Auth      TraefikConnectionInputAuth `json:"auth"`
+	ConfigDir *string                    `json:"config_dir,omitempty"`
+
+	// Credential Private key or password; omit to keep the stored one
+	Credential *string `json:"credential,omitempty"`
+	Host       string  `json:"host"`
+
+	// HostKey `key` from the scan the admin confirmed
+	HostKey       []byte  `json:"host_key"`
+	InternalIp    *string `json:"internal_ip,omitempty"`
+	Name          string  `json:"name"`
+	Passphrase    *string `json:"passphrase,omitempty"`
+	Port          int     `json:"port"`
+	TraefikBinary *string `json:"traefik_binary,omitempty"`
+	User          string  `json:"user"`
+}
+
+// TraefikConnectionInputAuth defines model for TraefikConnectionInput.Auth.
+type TraefikConnectionInputAuth string
+
+// TraefikConnectionList defines model for TraefikConnectionList.
+type TraefikConnectionList struct {
+	Connections []TraefikConnection `json:"connections"`
+}
+
+// TraefikFile defines model for TraefikFile.
+type TraefikFile struct {
+	AppliedAt time.Time `json:"applied_at"`
+	Path      string    `json:"path"`
+	Sha256    string    `json:"sha256"`
+}
+
+// TraefikIdentity defines model for TraefikIdentity.
+type TraefikIdentity struct {
+	// PublicKey authorized_keys line
+	PublicKey string `json:"public_key"`
+}
+
 // VaultState defines model for VaultState.
 type VaultState struct {
 	KeyVersion           int            `json:"key_version"`
@@ -1135,6 +1538,9 @@ type PutSecuritySettingsJSONRequestBody = SecuritySettings
 // PutSetupBaseSettingsJSONRequestBody defines body for PutSetupBaseSettings for application/json ContentType.
 type PutSetupBaseSettingsJSONRequestBody = BaseSettings
 
+// PutSetupCertificatesJSONRequestBody defines body for PutSetupCertificates for application/json ContentType.
+type PutSetupCertificatesJSONRequestBody = CertificateProviderInput
+
 // PutSetupDNSImportJSONRequestBody defines body for PutSetupDNSImport for application/json ContentType.
 type PutSetupDNSImportJSONRequestBody = DNSImportDecisions
 
@@ -1146,6 +1552,12 @@ type SetupPasskeyVerifyJSONRequestBody = CeremonyResponse
 
 // ConfirmRecoveryKeyJSONRequestBody defines body for ConfirmRecoveryKey for application/json ContentType.
 type ConfirmRecoveryKeyJSONRequestBody = RecoveryKeyConfirm
+
+// PutSetupTraefikConnectionJSONRequestBody defines body for PutSetupTraefikConnection for application/json ContentType.
+type PutSetupTraefikConnectionJSONRequestBody = TraefikConnectionInput
+
+// ScanSetupTraefikHostJSONRequestBody defines body for ScanSetupTraefikHost for application/json ContentType.
+type ScanSetupTraefikHostJSONRequestBody = HostKeyScanInput
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -1212,6 +1624,12 @@ type ServerInterface interface {
 	// RevokeSession Revoke one session by its correlation ID
 	// (DELETE /api/auth/sessions/{id})
 	RevokeSession(w http.ResponseWriter, r *http.Request, id string)
+	// ListCertificates Certificates with expiry, last renewal and per-host distribution
+	// (GET /api/certificates)
+	ListCertificates(w http.ResponseWriter, r *http.Request)
+	// RenewCertificate Renew now — creates a low-risk certificates plan for this certificate (apply it from Changes)
+	// (POST /api/certificates/{id}/renew)
+	RenewCertificate(w http.ResponseWriter, r *http.Request, id string)
 	// GetDNSImport Import table; rows without a decision are new since the last import
 	// (GET /api/dns/import/{zoneId})
 	GetDNSImport(w http.ResponseWriter, r *http.Request, zoneId string)
@@ -1275,6 +1693,12 @@ type ServerInterface interface {
 	// PutSetupBaseSettings Step 2 — save and validate the base settings
 	// (PUT /api/setup/base-settings)
 	PutSetupBaseSettings(w http.ResponseWriter, r *http.Request)
+	// PutSetupCertificates Step 4 — store the certificate provider and register the ACME account with the CA
+	// (PUT /api/setup/certificates)
+	PutSetupCertificates(w http.ResponseWriter, r *http.Request)
+	// IssueSetupCertificates Step 4 — issue the root and wildcard certificate now (low-risk plan, applied right away; takes a minute)
+	// (POST /api/setup/certificates/issue)
+	IssueSetupCertificates(w http.ResponseWriter, r *http.Request)
 	// CompleteSetup Step 11 — finish setup; destroys the bootstrap credentials and signs out bootstrap sessions
 	// (POST /api/setup/complete)
 	CompleteSetup(w http.ResponseWriter, r *http.Request)
@@ -1305,6 +1729,24 @@ type ServerInterface interface {
 	// ConfirmRecoveryKey Step 9 — confirm the recovery key by re-entering its last group; runs a test unlock
 	// (POST /api/setup/recovery-key/confirm)
 	ConfirmRecoveryKey(w http.ResponseWriter, r *http.Request)
+	// ConfirmSetupTraefik Step 5 — let Hashi take over the validated host (existing config is backed up first); completes the step
+	// (POST /api/setup/traefik/confirm)
+	ConfirmSetupTraefik(w http.ResponseWriter, r *http.Request)
+	// PutSetupTraefikConnection Step 5 — save the Traefik host with the confirmed host key and validate it over SSH
+	// (PUT /api/setup/traefik/connection)
+	PutSetupTraefikConnection(w http.ResponseWriter, r *http.Request)
+	// SetupTraefikIdentity Step 5 — Hashi's SSH public key (created on first call) for the host's authorized_keys
+	// (POST /api/setup/traefik/identity)
+	SetupTraefikIdentity(w http.ResponseWriter, r *http.Request)
+	// PlanSetupTraefik Step 5 — plan installing Traefik and Hashi's files on the confirmed host; nothing is written yet
+	// (POST /api/setup/traefik/plan)
+	PlanSetupTraefik(w http.ResponseWriter, r *http.Request)
+	// RunSetupTraefikPlan Step 5 — approve the shown Traefik plan and run it
+	// (POST /api/setup/traefik/plan/{id}/run)
+	RunSetupTraefikPlan(w http.ResponseWriter, r *http.Request, id string)
+	// ScanSetupTraefikHost Step 5 — read the host's SSH key for the admin to compare (nothing is stored)
+	// (POST /api/setup/traefik/scan)
+	ScanSetupTraefikHost(w http.ResponseWriter, r *http.Request)
 	// ListSyncPlans Open plans (pending, approved, applying) with items, and recently finished ones
 	// (GET /api/sync/plans)
 	ListSyncPlans(w http.ResponseWriter, r *http.Request)
@@ -1320,6 +1762,12 @@ type ServerInterface interface {
 	// DiscardSyncPlan Drop a pending or approved plan
 	// (POST /api/sync/plans/{id}/discard)
 	DiscardSyncPlan(w http.ResponseWriter, r *http.Request, id string)
+	// ListTraefikConnections Traefik hosts with their state and applied files
+	// (GET /api/traefik/connections)
+	ListTraefikConnections(w http.ResponseWriter, r *http.Request)
+	// PlanTraefikConnection Plan the host's install, files and certificates (low-risk plans apply right away)
+	// (POST /api/traefik/connections/{id}/plan)
+	PlanTraefikConnection(w http.ResponseWriter, r *http.Request, id string)
 	// GetVault Vault mode and state
 	// (GET /api/vault)
 	GetVault(w http.ResponseWriter, r *http.Request)
@@ -1730,6 +2178,46 @@ func (siw *ServerInterfaceWrapper) RevokeSession(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// ListCertificates operation middleware
+func (siw *ServerInterfaceWrapper) ListCertificates(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCertificates(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RenewCertificate operation middleware
+func (siw *ServerInterfaceWrapper) RenewCertificate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RenewCertificate(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetDNSImport operation middleware
 func (siw *ServerInterfaceWrapper) GetDNSImport(w http.ResponseWriter, r *http.Request) {
 
@@ -2125,6 +2613,34 @@ func (siw *ServerInterfaceWrapper) PutSetupBaseSettings(w http.ResponseWriter, r
 	handler.ServeHTTP(w, r)
 }
 
+// PutSetupCertificates operation middleware
+func (siw *ServerInterfaceWrapper) PutSetupCertificates(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutSetupCertificates(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// IssueSetupCertificates operation middleware
+func (siw *ServerInterfaceWrapper) IssueSetupCertificates(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.IssueSetupCertificates(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // CompleteSetup operation middleware
 func (siw *ServerInterfaceWrapper) CompleteSetup(w http.ResponseWriter, r *http.Request) {
 
@@ -2277,6 +2793,102 @@ func (siw *ServerInterfaceWrapper) ConfirmRecoveryKey(w http.ResponseWriter, r *
 	handler.ServeHTTP(w, r)
 }
 
+// ConfirmSetupTraefik operation middleware
+func (siw *ServerInterfaceWrapper) ConfirmSetupTraefik(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConfirmSetupTraefik(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutSetupTraefikConnection operation middleware
+func (siw *ServerInterfaceWrapper) PutSetupTraefikConnection(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutSetupTraefikConnection(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetupTraefikIdentity operation middleware
+func (siw *ServerInterfaceWrapper) SetupTraefikIdentity(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetupTraefikIdentity(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PlanSetupTraefik operation middleware
+func (siw *ServerInterfaceWrapper) PlanSetupTraefik(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PlanSetupTraefik(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RunSetupTraefikPlan operation middleware
+func (siw *ServerInterfaceWrapper) RunSetupTraefikPlan(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RunSetupTraefikPlan(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ScanSetupTraefikHost operation middleware
+func (siw *ServerInterfaceWrapper) ScanSetupTraefikHost(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ScanSetupTraefikHost(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListSyncPlans operation middleware
 func (siw *ServerInterfaceWrapper) ListSyncPlans(w http.ResponseWriter, r *http.Request) {
 
@@ -2386,6 +2998,46 @@ func (siw *ServerInterfaceWrapper) DiscardSyncPlan(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.DiscardSyncPlan(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListTraefikConnections operation middleware
+func (siw *ServerInterfaceWrapper) ListTraefikConnections(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListTraefikConnections(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PlanTraefikConnection operation middleware
+func (siw *ServerInterfaceWrapper) PlanTraefikConnection(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PlanTraefikConnection(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2640,6 +3292,14 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/dns/probe/{id}/run", wrapper.RunSetupDNSProbe)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/setup/dns/import", wrapper.GetSetupDNSImport)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/setup/dns/import", wrapper.PutSetupDNSImport)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/setup/certificates", wrapper.PutSetupCertificates)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/certificates/issue", wrapper.IssueSetupCertificates)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/traefik/identity", wrapper.SetupTraefikIdentity)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/traefik/scan", wrapper.ScanSetupTraefikHost)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/setup/traefik/connection", wrapper.PutSetupTraefikConnection)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/traefik/confirm", wrapper.ConfirmSetupTraefik)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/traefik/plan", wrapper.PlanSetupTraefik)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/traefik/plan/{id}/run", wrapper.RunSetupTraefikPlan)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/passkey/options", wrapper.SetupPasskeyOptions)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/passkey/verify", wrapper.SetupPasskeyVerify)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/recovery-key", wrapper.SetupRecoveryKey)
@@ -2663,6 +3323,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/dns/plan", wrapper.PlanDNS)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/dns/prune", wrapper.PlanDNSPrune)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/dns/probe", wrapper.PlanDNSProbe)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/traefik/connections", wrapper.ListTraefikConnections)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/traefik/connections/{id}/plan", wrapper.PlanTraefikConnection)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/certificates", wrapper.ListCertificates)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/certificates/{id}/renew", wrapper.RenewCertificate)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/sync/plans", wrapper.ListSyncPlans)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/sync/plans/{id}", wrapper.GetSyncPlan)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/sync/plans/{id}/approve", wrapper.ApproveSyncPlan)
@@ -3520,6 +4184,83 @@ func (response RevokeSessiondefaultApplicationProblemPlusJSONResponse) VisitRevo
 	return err
 }
 
+type ListCertificatesRequestObject struct {
+}
+
+type ListCertificatesResponseObject interface {
+	VisitListCertificatesResponse(w http.ResponseWriter) error
+}
+
+type ListCertificates200JSONResponse CertificateList
+
+func (response ListCertificates200JSONResponse) VisitListCertificatesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListCertificatesdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ListCertificatesdefaultApplicationProblemPlusJSONResponse) VisitListCertificatesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RenewCertificateRequestObject struct {
+	Id string `json:"id"`
+}
+
+type RenewCertificateResponseObject interface {
+	VisitRenewCertificateResponse(w http.ResponseWriter) error
+}
+
+type RenewCertificate200JSONResponse SyncPlanResult
+
+func (response RenewCertificate200JSONResponse) VisitRenewCertificateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RenewCertificatedefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response RenewCertificatedefaultApplicationProblemPlusJSONResponse) VisitRenewCertificateResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetDNSImportRequestObject struct {
 	ZoneId string `json:"zoneId"`
 }
@@ -4312,6 +5053,83 @@ func (response PutSetupBaseSettingsdefaultApplicationProblemPlusJSONResponse) Vi
 	return err
 }
 
+type PutSetupCertificatesRequestObject struct {
+	Body *PutSetupCertificatesJSONRequestBody
+}
+
+type PutSetupCertificatesResponseObject interface {
+	VisitPutSetupCertificatesResponse(w http.ResponseWriter) error
+}
+
+type PutSetupCertificates200JSONResponse CertificateProvider
+
+func (response PutSetupCertificates200JSONResponse) VisitPutSetupCertificatesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutSetupCertificatesdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutSetupCertificatesdefaultApplicationProblemPlusJSONResponse) VisitPutSetupCertificatesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type IssueSetupCertificatesRequestObject struct {
+}
+
+type IssueSetupCertificatesResponseObject interface {
+	VisitIssueSetupCertificatesResponse(w http.ResponseWriter) error
+}
+
+type IssueSetupCertificates200JSONResponse SyncPlanResult
+
+func (response IssueSetupCertificates200JSONResponse) VisitIssueSetupCertificatesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type IssueSetupCertificatesdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response IssueSetupCertificatesdefaultApplicationProblemPlusJSONResponse) VisitIssueSetupCertificatesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type CompleteSetupRequestObject struct {
 }
 
@@ -4697,6 +5515,237 @@ func (response ConfirmRecoveryKeydefaultApplicationProblemPlusJSONResponse) Visi
 	return err
 }
 
+type ConfirmSetupTraefikRequestObject struct {
+}
+
+type ConfirmSetupTraefikResponseObject interface {
+	VisitConfirmSetupTraefikResponse(w http.ResponseWriter) error
+}
+
+type ConfirmSetupTraefik200JSONResponse SetupState
+
+func (response ConfirmSetupTraefik200JSONResponse) VisitConfirmSetupTraefikResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConfirmSetupTraefikdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ConfirmSetupTraefikdefaultApplicationProblemPlusJSONResponse) VisitConfirmSetupTraefikResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutSetupTraefikConnectionRequestObject struct {
+	Body *PutSetupTraefikConnectionJSONRequestBody
+}
+
+type PutSetupTraefikConnectionResponseObject interface {
+	VisitPutSetupTraefikConnectionResponse(w http.ResponseWriter) error
+}
+
+type PutSetupTraefikConnection200JSONResponse TraefikConnection
+
+func (response PutSetupTraefikConnection200JSONResponse) VisitPutSetupTraefikConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutSetupTraefikConnectiondefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutSetupTraefikConnectiondefaultApplicationProblemPlusJSONResponse) VisitPutSetupTraefikConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetupTraefikIdentityRequestObject struct {
+}
+
+type SetupTraefikIdentityResponseObject interface {
+	VisitSetupTraefikIdentityResponse(w http.ResponseWriter) error
+}
+
+type SetupTraefikIdentity200JSONResponse TraefikIdentity
+
+func (response SetupTraefikIdentity200JSONResponse) VisitSetupTraefikIdentityResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetupTraefikIdentitydefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response SetupTraefikIdentitydefaultApplicationProblemPlusJSONResponse) VisitSetupTraefikIdentityResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PlanSetupTraefikRequestObject struct {
+}
+
+type PlanSetupTraefikResponseObject interface {
+	VisitPlanSetupTraefikResponse(w http.ResponseWriter) error
+}
+
+type PlanSetupTraefik200JSONResponse SyncPlanResult
+
+func (response PlanSetupTraefik200JSONResponse) VisitPlanSetupTraefikResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PlanSetupTraefikdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PlanSetupTraefikdefaultApplicationProblemPlusJSONResponse) VisitPlanSetupTraefikResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RunSetupTraefikPlanRequestObject struct {
+	Id string `json:"id"`
+}
+
+type RunSetupTraefikPlanResponseObject interface {
+	VisitRunSetupTraefikPlanResponse(w http.ResponseWriter) error
+}
+
+type RunSetupTraefikPlan200JSONResponse SyncPlan
+
+func (response RunSetupTraefikPlan200JSONResponse) VisitRunSetupTraefikPlanResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RunSetupTraefikPlandefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response RunSetupTraefikPlandefaultApplicationProblemPlusJSONResponse) VisitRunSetupTraefikPlanResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ScanSetupTraefikHostRequestObject struct {
+	Body *ScanSetupTraefikHostJSONRequestBody
+}
+
+type ScanSetupTraefikHostResponseObject interface {
+	VisitScanSetupTraefikHostResponse(w http.ResponseWriter) error
+}
+
+type ScanSetupTraefikHost200JSONResponse HostKey
+
+func (response ScanSetupTraefikHost200JSONResponse) VisitScanSetupTraefikHostResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ScanSetupTraefikHostdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ScanSetupTraefikHostdefaultApplicationProblemPlusJSONResponse) VisitScanSetupTraefikHostResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListSyncPlansRequestObject struct {
 }
 
@@ -4880,6 +5929,83 @@ type DiscardSyncPlandefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response DiscardSyncPlandefaultApplicationProblemPlusJSONResponse) VisitDiscardSyncPlanResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListTraefikConnectionsRequestObject struct {
+}
+
+type ListTraefikConnectionsResponseObject interface {
+	VisitListTraefikConnectionsResponse(w http.ResponseWriter) error
+}
+
+type ListTraefikConnections200JSONResponse TraefikConnectionList
+
+func (response ListTraefikConnections200JSONResponse) VisitListTraefikConnectionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListTraefikConnectionsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ListTraefikConnectionsdefaultApplicationProblemPlusJSONResponse) VisitListTraefikConnectionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PlanTraefikConnectionRequestObject struct {
+	Id string `json:"id"`
+}
+
+type PlanTraefikConnectionResponseObject interface {
+	VisitPlanTraefikConnectionResponse(w http.ResponseWriter) error
+}
+
+type PlanTraefikConnection200JSONResponse SyncPlanResult
+
+func (response PlanTraefikConnection200JSONResponse) VisitPlanTraefikConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PlanTraefikConnectiondefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PlanTraefikConnectiondefaultApplicationProblemPlusJSONResponse) VisitPlanTraefikConnectionResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -5148,6 +6274,12 @@ type StrictServerInterface interface {
 	// RevokeSession Revoke one session by its correlation ID
 	// (DELETE /api/auth/sessions/{id})
 	RevokeSession(ctx context.Context, request RevokeSessionRequestObject) (RevokeSessionResponseObject, error)
+	// ListCertificates Certificates with expiry, last renewal and per-host distribution
+	// (GET /api/certificates)
+	ListCertificates(ctx context.Context, request ListCertificatesRequestObject) (ListCertificatesResponseObject, error)
+	// RenewCertificate Renew now — creates a low-risk certificates plan for this certificate (apply it from Changes)
+	// (POST /api/certificates/{id}/renew)
+	RenewCertificate(ctx context.Context, request RenewCertificateRequestObject) (RenewCertificateResponseObject, error)
 	// GetDNSImport Import table; rows without a decision are new since the last import
 	// (GET /api/dns/import/{zoneId})
 	GetDNSImport(ctx context.Context, request GetDNSImportRequestObject) (GetDNSImportResponseObject, error)
@@ -5211,6 +6343,12 @@ type StrictServerInterface interface {
 	// PutSetupBaseSettings Step 2 — save and validate the base settings
 	// (PUT /api/setup/base-settings)
 	PutSetupBaseSettings(ctx context.Context, request PutSetupBaseSettingsRequestObject) (PutSetupBaseSettingsResponseObject, error)
+	// PutSetupCertificates Step 4 — store the certificate provider and register the ACME account with the CA
+	// (PUT /api/setup/certificates)
+	PutSetupCertificates(ctx context.Context, request PutSetupCertificatesRequestObject) (PutSetupCertificatesResponseObject, error)
+	// IssueSetupCertificates Step 4 — issue the root and wildcard certificate now (low-risk plan, applied right away; takes a minute)
+	// (POST /api/setup/certificates/issue)
+	IssueSetupCertificates(ctx context.Context, request IssueSetupCertificatesRequestObject) (IssueSetupCertificatesResponseObject, error)
 	// CompleteSetup Step 11 — finish setup; destroys the bootstrap credentials and signs out bootstrap sessions
 	// (POST /api/setup/complete)
 	CompleteSetup(ctx context.Context, request CompleteSetupRequestObject) (CompleteSetupResponseObject, error)
@@ -5241,6 +6379,24 @@ type StrictServerInterface interface {
 	// ConfirmRecoveryKey Step 9 — confirm the recovery key by re-entering its last group; runs a test unlock
 	// (POST /api/setup/recovery-key/confirm)
 	ConfirmRecoveryKey(ctx context.Context, request ConfirmRecoveryKeyRequestObject) (ConfirmRecoveryKeyResponseObject, error)
+	// ConfirmSetupTraefik Step 5 — let Hashi take over the validated host (existing config is backed up first); completes the step
+	// (POST /api/setup/traefik/confirm)
+	ConfirmSetupTraefik(ctx context.Context, request ConfirmSetupTraefikRequestObject) (ConfirmSetupTraefikResponseObject, error)
+	// PutSetupTraefikConnection Step 5 — save the Traefik host with the confirmed host key and validate it over SSH
+	// (PUT /api/setup/traefik/connection)
+	PutSetupTraefikConnection(ctx context.Context, request PutSetupTraefikConnectionRequestObject) (PutSetupTraefikConnectionResponseObject, error)
+	// SetupTraefikIdentity Step 5 — Hashi's SSH public key (created on first call) for the host's authorized_keys
+	// (POST /api/setup/traefik/identity)
+	SetupTraefikIdentity(ctx context.Context, request SetupTraefikIdentityRequestObject) (SetupTraefikIdentityResponseObject, error)
+	// PlanSetupTraefik Step 5 — plan installing Traefik and Hashi's files on the confirmed host; nothing is written yet
+	// (POST /api/setup/traefik/plan)
+	PlanSetupTraefik(ctx context.Context, request PlanSetupTraefikRequestObject) (PlanSetupTraefikResponseObject, error)
+	// RunSetupTraefikPlan Step 5 — approve the shown Traefik plan and run it
+	// (POST /api/setup/traefik/plan/{id}/run)
+	RunSetupTraefikPlan(ctx context.Context, request RunSetupTraefikPlanRequestObject) (RunSetupTraefikPlanResponseObject, error)
+	// ScanSetupTraefikHost Step 5 — read the host's SSH key for the admin to compare (nothing is stored)
+	// (POST /api/setup/traefik/scan)
+	ScanSetupTraefikHost(ctx context.Context, request ScanSetupTraefikHostRequestObject) (ScanSetupTraefikHostResponseObject, error)
 	// ListSyncPlans Open plans (pending, approved, applying) with items, and recently finished ones
 	// (GET /api/sync/plans)
 	ListSyncPlans(ctx context.Context, request ListSyncPlansRequestObject) (ListSyncPlansResponseObject, error)
@@ -5256,6 +6412,12 @@ type StrictServerInterface interface {
 	// DiscardSyncPlan Drop a pending or approved plan
 	// (POST /api/sync/plans/{id}/discard)
 	DiscardSyncPlan(ctx context.Context, request DiscardSyncPlanRequestObject) (DiscardSyncPlanResponseObject, error)
+	// ListTraefikConnections Traefik hosts with their state and applied files
+	// (GET /api/traefik/connections)
+	ListTraefikConnections(ctx context.Context, request ListTraefikConnectionsRequestObject) (ListTraefikConnectionsResponseObject, error)
+	// PlanTraefikConnection Plan the host's install, files and certificates (low-risk plans apply right away)
+	// (POST /api/traefik/connections/{id}/plan)
+	PlanTraefikConnection(ctx context.Context, request PlanTraefikConnectionRequestObject) (PlanTraefikConnectionResponseObject, error)
 	// GetVault Vault mode and state
 	// (GET /api/vault)
 	GetVault(ctx context.Context, request GetVaultRequestObject) (GetVaultResponseObject, error)
@@ -5878,6 +7040,56 @@ func (sh *strictHandler) RevokeSession(w http.ResponseWriter, r *http.Request, i
 	}
 }
 
+// ListCertificates operation middleware
+func (sh *strictHandler) ListCertificates(w http.ResponseWriter, r *http.Request) {
+	var request ListCertificatesRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListCertificates(ctx, request.(ListCertificatesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListCertificates")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListCertificatesResponseObject); ok {
+		if err := validResponse.VisitListCertificatesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RenewCertificate operation middleware
+func (sh *strictHandler) RenewCertificate(w http.ResponseWriter, r *http.Request, id string) {
+	var request RenewCertificateRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RenewCertificate(ctx, request.(RenewCertificateRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RenewCertificate")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RenewCertificateResponseObject); ok {
+		if err := validResponse.VisitRenewCertificateResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetDNSImport operation middleware
 func (sh *strictHandler) GetDNSImport(w http.ResponseWriter, r *http.Request, zoneId string) {
 	var request GetDNSImportRequestObject
@@ -6465,6 +7677,61 @@ func (sh *strictHandler) PutSetupBaseSettings(w http.ResponseWriter, r *http.Req
 	}
 }
 
+// PutSetupCertificates operation middleware
+func (sh *strictHandler) PutSetupCertificates(w http.ResponseWriter, r *http.Request) {
+	var request PutSetupCertificatesRequestObject
+
+	var body PutSetupCertificatesJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutSetupCertificates(ctx, request.(PutSetupCertificatesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutSetupCertificates")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutSetupCertificatesResponseObject); ok {
+		if err := validResponse.VisitPutSetupCertificatesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// IssueSetupCertificates operation middleware
+func (sh *strictHandler) IssueSetupCertificates(w http.ResponseWriter, r *http.Request) {
+	var request IssueSetupCertificatesRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.IssueSetupCertificates(ctx, request.(IssueSetupCertificatesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "IssueSetupCertificates")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(IssueSetupCertificatesResponseObject); ok {
+		if err := validResponse.VisitIssueSetupCertificatesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // CompleteSetup operation middleware
 func (sh *strictHandler) CompleteSetup(w http.ResponseWriter, r *http.Request) {
 	var request CompleteSetupRequestObject
@@ -6735,6 +8002,166 @@ func (sh *strictHandler) ConfirmRecoveryKey(w http.ResponseWriter, r *http.Reque
 	}
 }
 
+// ConfirmSetupTraefik operation middleware
+func (sh *strictHandler) ConfirmSetupTraefik(w http.ResponseWriter, r *http.Request) {
+	var request ConfirmSetupTraefikRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ConfirmSetupTraefik(ctx, request.(ConfirmSetupTraefikRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ConfirmSetupTraefik")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ConfirmSetupTraefikResponseObject); ok {
+		if err := validResponse.VisitConfirmSetupTraefikResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutSetupTraefikConnection operation middleware
+func (sh *strictHandler) PutSetupTraefikConnection(w http.ResponseWriter, r *http.Request) {
+	var request PutSetupTraefikConnectionRequestObject
+
+	var body PutSetupTraefikConnectionJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutSetupTraefikConnection(ctx, request.(PutSetupTraefikConnectionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutSetupTraefikConnection")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutSetupTraefikConnectionResponseObject); ok {
+		if err := validResponse.VisitPutSetupTraefikConnectionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetupTraefikIdentity operation middleware
+func (sh *strictHandler) SetupTraefikIdentity(w http.ResponseWriter, r *http.Request) {
+	var request SetupTraefikIdentityRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetupTraefikIdentity(ctx, request.(SetupTraefikIdentityRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetupTraefikIdentity")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetupTraefikIdentityResponseObject); ok {
+		if err := validResponse.VisitSetupTraefikIdentityResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PlanSetupTraefik operation middleware
+func (sh *strictHandler) PlanSetupTraefik(w http.ResponseWriter, r *http.Request) {
+	var request PlanSetupTraefikRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PlanSetupTraefik(ctx, request.(PlanSetupTraefikRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PlanSetupTraefik")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PlanSetupTraefikResponseObject); ok {
+		if err := validResponse.VisitPlanSetupTraefikResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RunSetupTraefikPlan operation middleware
+func (sh *strictHandler) RunSetupTraefikPlan(w http.ResponseWriter, r *http.Request, id string) {
+	var request RunSetupTraefikPlanRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RunSetupTraefikPlan(ctx, request.(RunSetupTraefikPlanRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RunSetupTraefikPlan")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RunSetupTraefikPlanResponseObject); ok {
+		if err := validResponse.VisitRunSetupTraefikPlanResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ScanSetupTraefikHost operation middleware
+func (sh *strictHandler) ScanSetupTraefikHost(w http.ResponseWriter, r *http.Request) {
+	var request ScanSetupTraefikHostRequestObject
+
+	var body ScanSetupTraefikHostJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ScanSetupTraefikHost(ctx, request.(ScanSetupTraefikHostRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ScanSetupTraefikHost")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ScanSetupTraefikHostResponseObject); ok {
+		if err := validResponse.VisitScanSetupTraefikHostResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ListSyncPlans operation middleware
 func (sh *strictHandler) ListSyncPlans(w http.ResponseWriter, r *http.Request) {
 	var request ListSyncPlansRequestObject
@@ -6856,6 +8283,56 @@ func (sh *strictHandler) DiscardSyncPlan(w http.ResponseWriter, r *http.Request,
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(DiscardSyncPlanResponseObject); ok {
 		if err := validResponse.VisitDiscardSyncPlanResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListTraefikConnections operation middleware
+func (sh *strictHandler) ListTraefikConnections(w http.ResponseWriter, r *http.Request) {
+	var request ListTraefikConnectionsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListTraefikConnections(ctx, request.(ListTraefikConnectionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListTraefikConnections")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListTraefikConnectionsResponseObject); ok {
+		if err := validResponse.VisitListTraefikConnectionsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PlanTraefikConnection operation middleware
+func (sh *strictHandler) PlanTraefikConnection(w http.ResponseWriter, r *http.Request, id string) {
+	var request PlanTraefikConnectionRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PlanTraefikConnection(ctx, request.(PlanTraefikConnectionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PlanTraefikConnection")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PlanTraefikConnectionResponseObject); ok {
+		if err := validResponse.VisitPlanTraefikConnectionResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

@@ -95,7 +95,7 @@ func itemsNotes(items []hsync.Item) string {
 func TestPlanIssuesRenewsAndForces(t *testing.T) {
 	ctx := context.Background()
 	f := newFixture(t)
-	m := NewManager(f.st, f.vault, nil, nil, slog.Default())
+	m := NewManager(f.st, f.vault, f.audit, nil, nil, slog.Default())
 	now := time.Date(2026, 10, 28, 12, 0, 0, 0, time.UTC)
 	m.now = func() time.Time { return now }
 	sub := certSub{m}

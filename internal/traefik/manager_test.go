@@ -30,9 +30,10 @@ type fakeConn struct{ *fakeHost }
 
 func (fakeConn) Close() error { return nil }
 
-// The traefik subsystem end to end through the sync engine: a validated connection is planned (high risk: first
-// install), approved, applied and verified; file hashes and health are stored; the next plan is empty.
-func TestManagerPlansAndAppliesThroughTheEngine(t *testing.T) {
+// Invariant 7, the traefik subsystem end to end through the sync engine: a validated connection is planned (high risk:
+// first install) without touching the host, approved, applied and verified; file hashes and health are stored; the
+// next plan is empty.
+func TestInvariant_7_TraefikChangesOnlyThroughApprovedPlans(t *testing.T) {
 	ctx := context.Background()
 	st := storetest.New(t)
 	v, err := vault.New(bytes.Repeat([]byte{7}, vault.KeySize), 1)
@@ -92,6 +93,9 @@ func TestManagerPlansAndAppliesThroughTheEngine(t *testing.T) {
 	}
 	if p.Risk != hsync.High || p.Status != hsync.StatusPending {
 		t.Fatalf("first install plan: risk %s status %s", p.Risk, p.Status)
+	}
+	if len(host.writes) != 0 || len(host.dirs) != 0 {
+		t.Fatalf("planning wrote to the host: %v %v", host.writes, host.dirs)
 	}
 	if dialed.Pinned.Fingerprint != ssh.FingerprintSHA256(sp) || dialed.Auth.PrivateKey.IsZero() || dialed.Addr != "192.0.2.10:22" {
 		t.Errorf("dialed %+v", dialed)

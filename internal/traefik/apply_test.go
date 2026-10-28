@@ -32,6 +32,7 @@ type fakeHost struct {
 	// startOK decides whether a start/restart command brings Traefik up (given the static file content).
 	startOK func(static []byte) bool
 	rawdata []byte
+	probe   string // what ProbeCommand prints
 }
 
 func newFakeHost() *fakeHost {
@@ -44,6 +45,8 @@ func (h *fakeHost) Run(_ context.Context, cmd string, _ io.Reader) (sshx.Result,
 	defer h.mu.Unlock()
 	h.ran = append(h.ran, cmd)
 	switch {
+	case cmd == ProbeCommand:
+		return sshx.Result{Stdout: []byte(h.probe)}, nil
 	case strings.HasSuffix(cmd, " version"):
 		if h.version == "" {
 			return sshx.Result{ExitCode: 127, Stderr: []byte("not found")}, nil

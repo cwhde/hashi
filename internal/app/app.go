@@ -19,6 +19,7 @@ import (
 
 	"git.juzo.io/juzo/hashi/internal/audit"
 	"git.juzo.io/juzo/hashi/internal/auth"
+	"git.juzo.io/juzo/hashi/internal/certs"
 	"git.juzo.io/juzo/hashi/internal/clientip"
 	"git.juzo.io/juzo/hashi/internal/dns"
 	"git.juzo.io/juzo/hashi/internal/dns/hetzner"
@@ -29,9 +30,11 @@ import (
 	"git.juzo.io/juzo/hashi/internal/secrets"
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/setup"
+	"git.juzo.io/juzo/hashi/internal/sshx"
 	"git.juzo.io/juzo/hashi/internal/store"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 	hsync "git.juzo.io/juzo/hashi/internal/sync"
+	"git.juzo.io/juzo/hashi/internal/traefik"
 	"git.juzo.io/juzo/hashi/internal/vault"
 	"git.juzo.io/juzo/hashi/internal/web"
 )
@@ -145,7 +148,16 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	if err != nil {
 		return err
 	}
-	syncEngine := hsync.New(st, al, dnsSvc.Subsystems()...)
+	// Traefik hosts over SSH (04) and Hashi-issued certificates (03 §5.3); both write only through their sync plans.
+	downloads := &http.Client{Timeout: 5 * time.Minute}
+	traefikMgr := traefik.NewManager(st, v, al,
+		func(ctx context.Context, c sshx.Config) (traefik.Conn, error) { return sshx.Dial(ctx, c) },
+		func(ctx context.Context, arch string) ([]byte, error) {
+			return traefik.Download(ctx, downloads, "", arch)
+		})
+	certMgr := certs.NewManager(st, v, al, certs.DNSSolver(st, dnsSvc), &http.Client{Timeout: time.Minute}, log)
+	subs := append(dnsSvc.Subsystems(), traefikMgr.Subsystems()...)
+	syncEngine := hsync.New(st, al, append(subs, certMgr.Subsystems()...)...)
 	if err := syncEngine.Start(ctx); err != nil {
 		return err
 	}
@@ -154,10 +166,16 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 		return err
 	}
 
+	// Daily: issue what is missing, renew 30 days ahead, then bring every Traefik host's certificate files up to date.
+	if err := runner.Register(ctx, jobs.Job{Kind: certs.JobKind, Interval: 24 * time.Hour,
+		Run: certMgr.Renew(syncEngine, traefikMgr.Distribute(syncEngine))}); err != nil {
+		return err
+	}
+
 	health := httpapi.NewHealth(map[string]httpapi.Check{"database": st.Ready})
 	api := &httpapi.Server{
 		Health: health, Version: gen.Version{Version: Version, Commit: Commit}, Store: st, Sessions: sessions,
-		Passkeys: passkeys, Setup: setupSvc, Settings: cfgSettings, DNS: dnsSvc, Sync: syncEngine, Vault: v, Audit: al, IP: ip, Logs: cfg.Logs,
+		Passkeys: passkeys, Setup: setupSvc, Settings: cfgSettings, DNS: dnsSvc, Traefik: traefikMgr, Certs: certMgr, Sync: syncEngine, Vault: v, Audit: al, IP: ip, Logs: cfg.Logs,
 		Log: log.With("component", "api"),
 	}
 	servers := []*server{{name: "admin", addr: cfg.AdminAddr, handler: adminMux(api)}}

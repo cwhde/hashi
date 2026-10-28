@@ -20,6 +20,7 @@ import (
 
 	"git.juzo.io/juzo/hashi/internal/audit"
 	"git.juzo.io/juzo/hashi/internal/itest"
+	"git.juzo.io/juzo/hashi/internal/secrets"
 	hsync "git.juzo.io/juzo/hashi/internal/sync"
 )
 
@@ -106,15 +107,29 @@ func TestIntegrationIssueAndRenewWithPebble(t *testing.T) {
 
 	ctx := context.Background()
 	f := newFixture(t)
-	f.account(t, dir, pebbleKID, pebbleHMAC, `["`+chall.Port(t, dnsPort)+`"]`)
 	solver := &challSolver{mgmt: chall.Port(t, mgmtPort), vals: map[string][]string{}}
-	m := NewManager(f.st, f.vault, func(context.Context) (Solver, []string, error) { return solver, nil, nil }, insecure, slog.Default())
+	m := NewManager(f.st, f.vault, f.audit, func(context.Context) (Solver, []string, error) { return solver, nil, nil }, insecure, slog.Default())
 	var waited []string
 	m.wait = func(ctx context.Context, servers []string, fqdn, value string) error {
 		waited = append(waited, fqdn+" @ "+strings.Join(servers, ","))
 		return WaitTXT(ctx, servers, fqdn, value, 200*time.Millisecond)
 	}
 	eng := hsync.New(f.st, f.audit, m.Subsystems()...)
+
+	// Setup step 4: the provider is stored and the account registers with EAB.
+	a, err := m.Configure(ctx, "setup", "", ProviderInput{Directory: "custom", DirectoryURL: dir, Email: "admin@example.com",
+		EABKID: pebbleKID, EABHMAC: secrets.New(pebbleHMAC), Resolvers: []string{chall.Port(t, dnsPort)}})
+	if err != nil || a.AccountUri == "" || a.Health != "healthy" {
+		t.Fatalf("configure: %+v %v", a, err)
+	}
+	if _, err := m.Configure(ctx, "setup", "", ProviderInput{Directory: "custom", DirectoryURL: dir, Email: "admin@example.com",
+		EABKID: "kid-unknown", EABHMAC: secrets.New(pebbleHMAC)}); err == nil {
+		t.Error("an unknown EAB key ID was accepted")
+	}
+	if a, err = m.Configure(ctx, "setup", "", ProviderInput{Directory: "custom", DirectoryURL: dir, Email: "admin@example.com",
+		EABKID: pebbleKID, EABHMAC: secrets.New(pebbleHMAC), Resolvers: []string{chall.Port(t, dnsPort)}}); err != nil || a.Health != "healthy" {
+		t.Fatalf("back to the valid key: %+v %v", a, err)
+	}
 
 	sum, err := m.Renew(eng, nil)(ctx)
 	if err != nil {

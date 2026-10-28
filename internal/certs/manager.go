@@ -69,6 +69,7 @@ func DNSSolver(st *store.Store, svc *dns.Service) SolverSource {
 type Manager struct {
 	st     *store.Store
 	vault  *vault.Vault
+	audit  *audit.Log
 	solver SolverSource
 	http   *http.Client
 	log    *slog.Logger
@@ -78,8 +79,8 @@ type Manager struct {
 }
 
 // NewManager returns the certificate manager. httpClient talks to the CA (nil = http.DefaultClient).
-func NewManager(st *store.Store, v *vault.Vault, solver SolverSource, httpClient *http.Client, log *slog.Logger) *Manager {
-	return &Manager{st: st, vault: v, solver: solver, http: httpClient, log: log.With("component", "certs"), now: time.Now,
+func NewManager(st *store.Store, v *vault.Vault, a *audit.Log, solver SolverSource, httpClient *http.Client, log *slog.Logger) *Manager {
+	return &Manager{st: st, vault: v, audit: a, solver: solver, http: httpClient, log: log.With("component", "certs"), now: time.Now,
 		wait: func(ctx context.Context, servers []string, fqdn, value string) error {
 			return WaitTXT(ctx, servers, fqdn, value, 5*time.Second)
 		}}
