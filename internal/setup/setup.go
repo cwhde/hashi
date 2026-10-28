@@ -40,7 +40,7 @@ const (
 	StepCert      = 4
 	StepTraefik   = 5
 	StepFirewall  = 6
-	StepSystemRes = 7
+	StepSystemSvc = 7
 	StepHTTPS     = 8
 	StepPasskey   = 9
 	StepOptional  = 10
@@ -64,7 +64,7 @@ var Steps = []Definition{
 	{StepCert, "certificates", "Certificate provider", true, "S5"},
 	{StepTraefik, "traefik", "Traefik connection", true, "S4"},
 	{StepFirewall, "firewall", "Linux firewall host", true, "S6"},
-	{StepSystemRes, "system_resource", "Hashi system resource", true, "S5"},
+	{StepSystemSvc, "system_service", "Hashi system service", true, "S5"},
 	{StepHTTPS, "https", "HTTPS reachability", true, "S5"},
 	{StepPasskey, "passkey", "Passkey and recovery key", true, "S1"},
 	{StepOptional, "integrations", "Optional integrations", false, "S8"},

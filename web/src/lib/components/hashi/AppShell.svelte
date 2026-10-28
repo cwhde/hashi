@@ -289,15 +289,13 @@
 	<Command.Input placeholder="IP, CIDR, ASN, domain or page…" />
 	<Command.List>
 		<Command.Empty>No match. Try an IP like 192.0.2.201 or a domain.</Command.Empty>
-		{#if !live}<Command.Group heading="Security subjects">
+		{#if !live}<Command.Group heading="Addresses">
+				<Command.Item onSelect={() => (searchOpen = false)}>192.0.2.201 · banned · NL</Command.Item>
 				<Command.Item onSelect={() => (searchOpen = false)}
-					>192.0.2.201 · firewall blocked · NL</Command.Item
-				>
-				<Command.Item onSelect={() => (searchOpen = false)}
-					>AS64502 Example DSL · challenged</Command.Item
+					>203.0.113.9 · challenged · DE</Command.Item
 				>
 			</Command.Group>
-			<Command.Group heading="Resources">
+			<Command.Group heading="Services">
 				<Command.Item onSelect={() => (searchOpen = false)}>git.example.com</Command.Item>
 				<Command.Item onSelect={() => (searchOpen = false)}>media.example.com</Command.Item>
 			</Command.Group>{/if}
