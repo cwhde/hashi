@@ -13,9 +13,10 @@ listed; the import table shows the real RRSets; import decisions persist; saniti
 External systems: Hetzner Cloud API (DNS zones and RRSets). No contract yet → captured first (read-only).
 
 Contract
-- [ ] `make contract-capture PROVIDER=hetzner`: list zones (paginated), get zone, list RRSets (paginated), bad token
+- [x] `make contract-capture PROVIDER=hetzner`: list zones (paginated), get zone, list RRSets (paginated), bad token
       (401), unknown zone (404); raw into `.contracts-raw/`, sanitized into `testdata/contracts/hetzner/` with
-      `captured_at` + docs URL; denylist check. Needs a Cloud project token (user).
+      `captured_at` + docs URL; denylist check. Token: V1's project token copied read-only into the keychain
+      (`hashi-hetzner-token`) on the user's request. Record names, external hosts and TXT contents are sanitized too.
 
 PR A — backend
 - [ ] Migration 00003: DNS provider connection (type, default TTL, token as vault secret), `dns_zones`,
