@@ -107,7 +107,7 @@ export const traefikHosts = [
 	}
 ];
 
-export type Resource = {
+export type Service = {
 	id: string;
 	name: string;
 	domain: string;
@@ -116,8 +116,12 @@ export type Resource = {
 	host: string;
 	origin: Origin;
 	enabled: boolean;
-	auth: 'Off' | 'SSO required' | 'Adaptive' | 'Observe';
-	waf: 'off' | 'detect' | 'block';
+	/** One-line summary of the flattened rules (06 §4); stream services show their L4 protection. */
+	access: string;
+	waf: 'enabled' | 'headers_only' | 'disabled';
+	upstreamSet?: string;
+	/** Per-service routing override: the host where traffic enters, when it differs (03-dns.md §5.1). */
+	entry?: string;
 	health: Health;
 	uptime: string;
 	latency: number;
@@ -128,7 +132,7 @@ export type Resource = {
 	port?: number;
 };
 
-export const resources: Resource[] = [
+export const services: Service[] = [
 	{
 		id: 'r0',
 		name: 'Hashi',
@@ -138,8 +142,8 @@ export const resources: Resource[] = [
 		host: 'edge-fra',
 		origin: 'system',
 		enabled: true,
-		auth: 'SSO required',
-		waf: 'block',
+		access: 'Open · admin uses its own passkey sign-in',
+		waf: 'enabled',
 		health: 'up',
 		uptime: '100%',
 		latency: 21,
@@ -157,8 +161,8 @@ export const resources: Resource[] = [
 		host: 'edge-home',
 		origin: 'user',
 		enabled: true,
-		auth: 'SSO required',
-		waf: 'detect',
+		access: 'Admins sign in · closed to others',
+		waf: 'enabled',
 		health: 'up',
 		uptime: '99.98%',
 		latency: 48,
@@ -176,8 +180,8 @@ export const resources: Resource[] = [
 		host: 'edge-fra',
 		origin: 'imported',
 		enabled: true,
-		auth: 'Adaptive',
-		waf: 'block',
+		access: 'Open · /admin signed in',
+		waf: 'headers_only',
 		health: 'up',
 		uptime: '99.95%',
 		latency: 36,
@@ -192,11 +196,13 @@ export const resources: Resource[] = [
 		domain: 'media.example.com',
 		kind: 'https',
 		target: 'https://10.20.1.102:8920',
+		upstreamSet: 'media-upstream',
+		entry: 'edge-fra',
 		host: 'edge-home',
 		origin: 'user',
 		enabled: true,
-		auth: 'Adaptive',
-		waf: 'detect',
+		access: 'CAPTCHA outside Switzerland',
+		waf: 'enabled',
 		health: 'degraded',
 		uptime: '98.71%',
 		latency: 412,
@@ -211,11 +217,13 @@ export const resources: Resource[] = [
 		domain: 'photos.example.com',
 		kind: 'http',
 		target: 'http://10.20.1.102:2283',
+		upstreamSet: 'media-upstream',
+		entry: 'edge-fra',
 		host: 'edge-home',
 		origin: 'user',
 		enabled: true,
-		auth: 'SSO required',
-		waf: 'detect',
+		access: 'My devices · /share open · closed',
+		waf: 'headers_only',
 		health: 'up',
 		uptime: '99.99%',
 		latency: 63,
@@ -233,8 +241,8 @@ export const resources: Resource[] = [
 		host: 'edge-home',
 		origin: 'imported',
 		enabled: true,
-		auth: 'SSO required',
-		waf: 'detect',
+		access: 'My devices · family signs in',
+		waf: 'enabled',
 		health: 'down',
 		uptime: '96.40%',
 		latency: 0,
@@ -252,8 +260,8 @@ export const resources: Resource[] = [
 		host: 'edge-fra',
 		origin: 'imported',
 		enabled: true,
-		auth: 'Adaptive',
-		waf: 'block',
+		access: 'Open · /admin denied',
+		waf: 'enabled',
 		health: 'up',
 		uptime: '100%',
 		latency: 29,
@@ -271,8 +279,8 @@ export const resources: Resource[] = [
 		host: 'edge-fra',
 		origin: 'user',
 		enabled: false,
-		auth: 'Observe',
-		waf: 'off',
+		access: 'Open · /admin signed in',
+		waf: 'enabled',
 		health: 'paused',
 		uptime: '—',
 		latency: 0,
@@ -290,8 +298,8 @@ export const resources: Resource[] = [
 		host: 'edge-fra',
 		origin: 'user',
 		enabled: true,
-		auth: 'Off',
-		waf: 'off',
+		access: 'Firewall sets and kernel meters',
+		waf: 'disabled',
 		health: 'up',
 		uptime: '99.99%',
 		latency: 12,
@@ -310,8 +318,8 @@ export const resources: Resource[] = [
 		host: 'edge-home',
 		origin: 'user',
 		enabled: true,
-		auth: 'Off',
-		waf: 'off',
+		access: 'Firewall sets and kernel meters',
+		waf: 'disabled',
 		health: 'unknown',
 		uptime: '—',
 		latency: 0,
@@ -330,8 +338,8 @@ export const resources: Resource[] = [
 		host: 'edge-fra',
 		origin: 'system',
 		enabled: true,
-		auth: 'Off',
-		waf: 'block',
+		access: 'Block guard only',
+		waf: 'enabled',
 		health: 'up',
 		uptime: '100%',
 		latency: 18,
@@ -494,7 +502,7 @@ export const plans = [
 	{
 		id: 'p1',
 		title: 'Add Photos at photos.example.com',
-		trigger: 'Resource saved · 3 min ago',
+		trigger: 'Service saved · 3 min ago',
 		risk: 'high' as Risk,
 		status: 'awaiting approval',
 		items: [
@@ -510,7 +518,7 @@ export const plans = [
 				action: 'write file',
 				subsystem: 'Traefik',
 				target: 'traefik-fra',
-				object: '10-hashi-http-resources.yml',
+				object: '10-hashi-http-services.yml',
 				before: 'sha256 9f2c…41ab',
 				after: 'sha256 1d07…c3e2  (+14 lines)',
 				risk: 'low'
@@ -519,7 +527,7 @@ export const plans = [
 				action: 'write file',
 				subsystem: 'Traefik',
 				target: 'traefik-home',
-				object: '10-hashi-http-resources.yml',
+				object: '10-hashi-http-services.yml',
 				before: 'sha256 9f2c…41ab',
 				after: 'sha256 1d07…c3e2  (+14 lines)',
 				risk: 'low'
@@ -546,7 +554,7 @@ export const plans = [
 	{
 		id: 'p2',
 		title: 'Open public port 19132/udp for Minecraft',
-		trigger: 'Resource saved · 1 h ago',
+		trigger: 'Service saved · 1 h ago',
 		risk: 'high' as Risk,
 		status: 'awaiting approval',
 		items: [
@@ -617,7 +625,7 @@ export const agents = [
 ];
 
 export const monitors = [
-	...resources
+	...services
 		.filter((r) => r.kind !== 'udp' || r.health !== 'unknown')
 		.map((r) => ({
 			id: 'm-' + r.id,
@@ -630,7 +638,7 @@ export const monitors = [
 			uptime24: r.uptime,
 			history: r.history,
 			public: r.dashboard,
-			source: 'Resource'
+			source: 'Service'
 		})),
 	{
 		id: 'm-fh1',
@@ -698,39 +706,39 @@ export const securityTop = {
 			count: 4812,
 			country: 'NL',
 			asn: 'AS64500 Example Hosting',
-			reason: 'Firewall block · rate',
-			until: '6 d'
+			reason: 'Ban · challenge failed (4th ban)',
+			until: '4 h'
 		},
 		{
 			v: '198.51.100.77',
 			count: 2290,
 			country: 'US',
 			asn: 'AS64501 Cloud Example',
-			reason: 'Blocklist · Spamhaus DROP',
-			until: 'while listed'
+			reason: 'Ban · L4 meter on edge-fra',
+			until: '2 d'
 		},
 		{
 			v: '203.0.113.9',
 			count: 977,
 			country: 'DE',
 			asn: 'AS64502 Example DSL',
-			reason: 'Soft block · challenge ignored',
-			until: '8 min'
+			reason: 'Challenged · L7 rate',
+			until: '26 min'
 		},
 		{
 			v: '192.0.2.18',
 			count: 611,
 			country: 'SG',
 			asn: 'AS64503 Example Transit',
-			reason: 'WAF · 942100 SQLi',
-			until: '1 h'
+			reason: 'Ban · challenge failed',
+			until: '44 min'
 		},
 		{
-			v: '2001:db8:aa::5',
+			v: '203.0.113.240',
 			count: 203,
-			country: 'FR',
-			asn: 'AS64504 Example Mobile',
-			reason: 'Manual block',
+			country: 'BR',
+			asn: 'AS64506 Example Telecom',
+			reason: 'Ban · manual',
 			until: 'permanent'
 		}
 	],
@@ -741,10 +749,20 @@ export const securityTop = {
 		{ v: 'DE', n: 990 },
 		{ v: 'BR', n: 512 }
 	],
-	resources: [
+	asns: [
+		{ v: 'AS64500 Example Hosting', n: 5110 },
+		{ v: 'AS64501 Cloud Example', n: 3650 },
+		{ v: 'AS64503 Example Transit', n: 1190 }
+	],
+	services: [
 		{ v: 'git.example.com', n: 6120 },
 		{ v: 'vault.example.com', n: 2210 },
 		{ v: 'media.example.com', n: 1450 }
+	],
+	funnel: { triggered: 1204, solved: 212, expired: 931, banned: 61 },
+	meters: [
+		{ host: 'edge-fra', tcpRate: 3, tcpConc: 1, udp: 0 },
+		{ host: 'edge-home', tcpRate: 0, tcpConc: 0, udp: 0 }
 	]
 };
 
@@ -752,17 +770,17 @@ export const securityEvents = [
 	{
 		t: '13:41:08',
 		subject: '203.0.113.9',
-		type: 'challenge ignored',
+		type: 'challenge started · 412 requests in 10 s',
 		resource: 'git.example.com',
-		decision: 'soft block',
+		decision: 'challenge',
 		sev: 'warn'
 	},
 	{
 		t: '13:40:52',
 		subject: '192.0.2.18',
-		type: 'WAF match 942100',
+		type: 'WAF match 942100 (SQL injection)',
 		resource: 'vault.example.com',
-		decision: 'deny',
+		decision: 'rejected',
 		sev: 'bad'
 	},
 	{
@@ -770,72 +788,24 @@ export const securityEvents = [
 		subject: '198.51.100.12',
 		type: 'challenge solved',
 		resource: 'media.example.com',
-		decision: 'allow',
+		decision: 'passed',
 		sev: 'ok'
 	},
 	{
 		t: '13:37:02',
 		subject: '192.0.2.201',
-		type: 'firewall block applied',
-		resource: 'all hosts',
-		decision: 'block',
+		type: 'ban 4 h (4th) · pushed to edge-fra',
+		resource: 'all services',
+		decision: 'banned',
 		sev: 'bad'
 	},
 	{
 		t: '13:35:44',
-		subject: 'AS64502',
-		type: 'rate threshold',
-		resource: 'git.example.com',
-		decision: 'challenge',
-		sev: 'warn'
-	}
-];
-
-export const blocklists = [
-	{
-		name: 'Spamhaus DROP',
-		enabled: true,
-		entries: 1192,
-		mode: 'firewall + middleware',
-		fp: 'very low',
-		updated: '2 h ago',
-		status: 'ok'
-	},
-	{
-		name: 'Spamhaus DROPv6',
-		enabled: true,
-		entries: 82,
-		mode: 'firewall + middleware',
-		fp: 'very low',
-		updated: '2 h ago',
-		status: 'ok'
-	},
-	{
-		name: 'Feodo Tracker C2',
-		enabled: true,
-		entries: 311,
-		mode: 'middleware',
-		fp: 'low',
-		updated: '41 min ago',
-		status: 'ok'
-	},
-	{
-		name: 'DShield recommended',
-		enabled: false,
-		entries: 0,
-		mode: '—',
-		fp: 'medium',
-		updated: 'never',
-		status: 'off'
-	},
-	{
-		name: 'FireHOL Level 1',
-		enabled: true,
-		entries: 4520,
-		mode: 'middleware',
-		fp: 'low',
-		updated: '3 d ago',
-		status: 'stale'
+		subject: '198.51.100.61',
+		type: 'ban skipped: in firewall allow (trusted-devices)',
+		resource: 'photos.example.com',
+		decision: 'allowed',
+		sev: 'ok'
 	}
 ];
 

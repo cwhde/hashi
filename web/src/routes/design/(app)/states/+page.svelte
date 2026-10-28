@@ -62,7 +62,7 @@
 			<AlertDialog.Root>
 				<AlertDialog.Trigger
 					>{#snippet child({ props })}<Button {...props} variant="destructive" size="sm"
-							>Delete resource…</Button
+							>Delete service…</Button
 						>{/snippet}</AlertDialog.Trigger
 				>
 				<AlertDialog.Content>

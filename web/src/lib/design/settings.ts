@@ -17,9 +17,12 @@ export const settingsCatalogue: Record<string, Field[]> = {
 		{ label: 'Edge sign-in session length', value: '7 d' },
 		{ label: 'Edge sign-in idle timeout', value: '24 h' },
 		{ label: 'Remember device', value: true, kind: 'switch' },
-		{ label: 'Default sign-in policy for new HTTP resources', value: 'Adaptive' },
-		{ label: 'Default WAF mode', value: 'detect' },
-		{ label: 'Soft block duration', value: '10 min' },
+		{ label: 'Fallback for new HTTP services', value: 'Open (None)' },
+		{ label: 'Default WAF mode', value: 'enabled' },
+		{ label: 'Challenge after requests', value: '300 in 10 s' },
+		{ label: 'Ban after requests without solving', value: '15' },
+		{ label: 'Ban length', value: '15 min × 2 per ban, max 30 d' },
+		{ label: 'Counters drop by one after', value: '7 quiet days' },
 		{ label: 'Vault mode', value: 'Service', reauth: true }
 	],
 	Monitoring: [
@@ -33,7 +36,7 @@ export const settingsCatalogue: Record<string, Field[]> = {
 	Dashboard: [
 		{ label: 'Public app dashboard', value: true, kind: 'switch' },
 		{ label: 'Default sort', value: 'Group' },
-		{ label: 'New resources visible by default', value: true, kind: 'switch' }
+		{ label: 'New services visible by default', value: true, kind: 'switch' }
 	],
 	DNS: [
 		{ label: 'Default TTL', value: '300 s' },

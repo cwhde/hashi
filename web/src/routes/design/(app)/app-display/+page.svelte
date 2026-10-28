@@ -4,7 +4,7 @@
 	import Tag from '$lib/components/hashi/Tag.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Switch } from '$lib/components/ui/switch';
-	import { resources, monitors } from '$lib/design/mock';
+	import { services, monitors } from '$lib/design/mock';
 	import { GripVertical, ExternalLink } from '@lucide/svelte';
 </script>
 
@@ -24,12 +24,12 @@
 <div class="grid gap-4 lg:grid-cols-2">
 	<Panel
 		title="App dashboard"
-		description="Port 8081 · {resources.filter((r) => r.dashboard).length} apps · sorted by group"
+		description="Port 8081 · {services.filter((r) => r.dashboard).length} apps · sorted by group"
 		flush
 	>
 		{#snippet actions()}<Switch checked aria-label="Public dashboard enabled" />{/snippet}
 		<ul class="divide-y">
-			{#each resources.filter((r) => r.origin !== 'system') as r (r.id)}
+			{#each services.filter((r) => r.origin !== 'system') as r (r.id)}
 				<li class="flex items-center gap-3 px-4 py-2 text-[13px]">
 					<GripVertical class="size-4 text-muted-foreground" />
 					<span

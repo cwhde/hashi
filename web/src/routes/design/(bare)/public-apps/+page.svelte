@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { resources } from '$lib/design/mock';
+	import { services } from '$lib/design/mock';
 	import StatusDot from '$lib/components/hashi/StatusDot.svelte';
 	import { Search } from '@lucide/svelte';
-	const apps = resources.filter((r) => r.dashboard);
+	const apps = services.filter((r) => r.dashboard);
 	const groups = Object.entries(Object.groupBy(apps, (a) => a.group));
 	const online = apps.filter((a) => a.health === 'up' || a.health === 'degraded').length;
 </script>

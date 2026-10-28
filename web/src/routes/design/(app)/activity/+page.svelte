@@ -19,15 +19,15 @@
 		[
 			'13:41:59.030',
 			'warn',
-			'blocklist',
-			'fetch failed source="FireHOL Level 1" status=503, kept last good (3 d)'
+			'feeds',
+			'fetch failed set=feed-dc-ranges status=503, kept last good (9 h)'
 		],
 		['13:41:12.552', 'info', 'auth', 'reauth ok session=•••• credential="MacBook"'],
 		[
 			'13:40:52.880',
 			'info',
 			'edge',
-			'deny subject=192.0.2.18 resource=vault.example.com reason=waf:942100'
+			'waf address=192.0.2.18 service=vault.example.com rule=942100 action=rejected'
 		]
 	];
 	const lvl = {

@@ -11,7 +11,9 @@ import {
 	SquareTerminal,
 	History,
 	Cable,
-	Settings
+	Settings,
+	Layers,
+	ListOrdered
 } from '@lucide/svelte';
 
 // Navigation grouping decided in S0b (docs/spec/10b-ui-system.md §2). `href` is the /design mock route today and
@@ -21,7 +23,7 @@ export const nav = [
 	{
 		group: 'Routing',
 		items: [
-			{ label: 'Resources', href: '/design/resources', icon: Waypoints },
+			{ label: 'Services', href: '/design/services', icon: Waypoints },
 			{ label: 'DNS', href: '/design/dns', icon: Globe },
 			{ label: 'Traefik', href: '/design/traefik', icon: Network },
 			{ label: 'Firewall hosts', href: '/design/firewall', icon: BrickWall },
@@ -29,11 +31,18 @@ export const nav = [
 		]
 	},
 	{
+		group: 'Protect',
+		items: [
+			{ label: 'Security', href: '/design/security', icon: ShieldCheck },
+			{ label: 'IP sets', href: '/design/ip-sets', icon: Layers },
+			{ label: 'Rule sets', href: '/design/rule-sets', icon: ListOrdered }
+		]
+	},
+	{
 		group: 'Watch',
 		items: [
 			{ label: 'Status', href: '/design/status', icon: Activity },
-			{ label: 'App display', href: '/design/app-display', icon: AppWindow },
-			{ label: 'Security', href: '/design/security', icon: ShieldCheck }
+			{ label: 'App display', href: '/design/app-display', icon: AppWindow }
 		]
 	},
 	{

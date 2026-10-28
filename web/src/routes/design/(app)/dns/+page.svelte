@@ -168,8 +168,8 @@
 			</div>
 		</div>
 		<p class="mt-2 text-[12.5px] text-muted-foreground">
-			NS and SOA are never changed by Hashi. Generated records (hosts, resources, ACME) are edited
-			through the resource or host that owns them.
+			NS and SOA are never changed by Hashi. Generated records (hosts, services, ACME) are edited
+			through the service or host that owns them.
 		</p>
 	</Tabs.Content>
 
