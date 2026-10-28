@@ -46,7 +46,7 @@ On first boot with no completed setup:
 6. After restart before completion, the same credentials remain valid (hash persisted); a CLI command
    `hashi bootstrap reset` regenerates them.
 
-Bootstrap sessions carry only `setup.*` scopes and are revoked when setup completes.
+Bootstrap sessions carry `setup.*` scopes plus `services.manage` and are revoked when setup completes.
 
 ### 1.2 Base settings
 
@@ -143,6 +143,7 @@ case in §1.1 which uses `hashi.bootstrap`.
 | `firewall.apply` | apply or roll back firewall state |
 | `scripts.manage` | create, modify, execute scripts |
 | `security.manage` | IP sets, rule sets, dynamic entries (ban/challenge/remove), feeds, CAPTCHA, engine settings, session revocation |
+| `services.manage` | list, add, change, enable/disable services (04 §8); deleting one also needs a reauth. Bootstrap sessions carry it too, so services can be migrated before setup completes |
 | `setup.*` | bootstrap-only setup scopes (`setup.manage`) |
 | `recovery.passkey` | register one replacement passkey (console recovery sessions only) |
 
