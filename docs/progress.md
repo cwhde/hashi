@@ -31,10 +31,11 @@ router on the edge. Deeper wildcards come with S5 services. Debian/Ubuntu (syste
 Alpine (OpenRC) is proven on a real host in S4. Forward auth is a stub that allows everything (the engine is S9/S10).
 
 PR A — backend
-- [ ] `internal/sshx`: x/crypto/ssh client, mandatory host-key pin (scan → user confirms the SHA256 fingerprint → stored),
-      key or password auth from the vault, Hashi's own ed25519 key (vault, public half shown), `Run` with capped output,
-      SFTP read/hash, atomic write (same-dir temp + chmod + rename, skipped when the hash matches), loopback `Dial` through
-      the SSH connection (Traefik API/ping without curl on the host). `make test-integration` with a real sshd container.
+- [x] `internal/sshx`: x/crypto/ssh client, mandatory host-key pin (scan → user confirms the SHA256 fingerprint → stored),
+      key or password auth, Hashi's own ed25519 key (public half as an authorized_keys line), `Run` with capped output,
+      SFTP read/hash, atomic write (same-dir temp + chmod + posix-rename, skipped when the hash matches), `Fetch` of
+      loopback URLs through the SSH connection or the host's curl/wget. `make test-integration` + CI job with a real
+      OpenSSH container (Alpine 3.23): pin, both logins, changed host key refused, atomic writes, both fetch paths.
 - [ ] Migration 00005: certificate provider (ACME email, EAB, account key ref), `traefik_connections` (target, port, user,
       credential refs, pinned host key, internal IP, OS, paths, state), `traefik_files` (per-host `last_applied_hash`),
       `certificates` (+ per-host distribution state); sync subsystems `traefik` and `certificates` in the CHECK + OpenAPI enum.
