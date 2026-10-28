@@ -53,6 +53,20 @@ jobs:
       - name: make check
         run: make check
 
+  # 11-delivery.md §4: real binaries (sshd, Traefik, Pebble) in containers on the runner's Docker.
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: make test-integration
+        run: make test-integration
+
   # 11-delivery.md §4: E2E only when the UI or the API behind it changed (always on main).
   e2e:
     runs-on: ubuntu-latest
