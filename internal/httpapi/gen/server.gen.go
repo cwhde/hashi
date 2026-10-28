@@ -61,19 +61,19 @@ func (e AuthSessionMethod) Valid() bool {
 
 // Defines values for DNSDecision.
 const (
-	Import DNSDecision = "import"
-	Leave  DNSDecision = "leave"
-	Prune  DNSDecision = "prune"
+	DNSDecisionImport DNSDecision = "import"
+	DNSDecisionLeave  DNSDecision = "leave"
+	DNSDecisionPrune  DNSDecision = "prune"
 )
 
 // Valid indicates whether the value is a known member of the DNSDecision enum.
 func (e DNSDecision) Valid() bool {
 	switch e {
-	case Import:
+	case DNSDecisionImport:
 		return true
-	case Leave:
+	case DNSDecisionLeave:
 		return true
-	case Prune:
+	case DNSDecisionPrune:
 		return true
 	default:
 		return false
@@ -164,6 +164,39 @@ func (e DNSProviderInputType) Valid() bool {
 	}
 }
 
+// Defines values for DNSRecordInputType.
+const (
+	A     DNSRecordInputType = "A"
+	AAAA  DNSRecordInputType = "AAAA"
+	CAA   DNSRecordInputType = "CAA"
+	CNAME DNSRecordInputType = "CNAME"
+	MX    DNSRecordInputType = "MX"
+	SRV   DNSRecordInputType = "SRV"
+	TXT   DNSRecordInputType = "TXT"
+)
+
+// Valid indicates whether the value is a known member of the DNSRecordInputType enum.
+func (e DNSRecordInputType) Valid() bool {
+	switch e {
+	case A:
+		return true
+	case AAAA:
+		return true
+	case CAA:
+		return true
+	case CNAME:
+		return true
+	case MX:
+		return true
+	case SRV:
+		return true
+	case TXT:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for HealthStatus.
 const (
 	Ok          HealthStatus = "ok"
@@ -242,6 +275,150 @@ func (e SetupStepStatus) Valid() bool {
 	case SetupStepStatusInProgress:
 		return true
 	case SetupStepStatusPending:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SyncPlanRisk.
+const (
+	SyncPlanRiskHigh SyncPlanRisk = "high"
+	SyncPlanRiskLow  SyncPlanRisk = "low"
+)
+
+// Valid indicates whether the value is a known member of the SyncPlanRisk enum.
+func (e SyncPlanRisk) Valid() bool {
+	switch e {
+	case SyncPlanRiskHigh:
+		return true
+	case SyncPlanRiskLow:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SyncPlanStatus.
+const (
+	SyncPlanStatusApplied    SyncPlanStatus = "applied"
+	SyncPlanStatusApplying   SyncPlanStatus = "applying"
+	SyncPlanStatusApproved   SyncPlanStatus = "approved"
+	SyncPlanStatusDiscarded  SyncPlanStatus = "discarded"
+	SyncPlanStatusFailed     SyncPlanStatus = "failed"
+	SyncPlanStatusPending    SyncPlanStatus = "pending"
+	SyncPlanStatusSuperseded SyncPlanStatus = "superseded"
+)
+
+// Valid indicates whether the value is a known member of the SyncPlanStatus enum.
+func (e SyncPlanStatus) Valid() bool {
+	switch e {
+	case SyncPlanStatusApplied:
+		return true
+	case SyncPlanStatusApplying:
+		return true
+	case SyncPlanStatusApproved:
+		return true
+	case SyncPlanStatusDiscarded:
+		return true
+	case SyncPlanStatusFailed:
+		return true
+	case SyncPlanStatusPending:
+		return true
+	case SyncPlanStatusSuperseded:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SyncPlanSubsystem.
+const (
+	DnsProbe   SyncPlanSubsystem = "dns-probe"
+	DnsPrune   SyncPlanSubsystem = "dns-prune"
+	DnsRecords SyncPlanSubsystem = "dns-records"
+)
+
+// Valid indicates whether the value is a known member of the SyncPlanSubsystem enum.
+func (e SyncPlanSubsystem) Valid() bool {
+	switch e {
+	case DnsProbe:
+		return true
+	case DnsPrune:
+		return true
+	case DnsRecords:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SyncPlanTrigger.
+const (
+	SyncPlanTriggerManual    SyncPlanTrigger = "manual"
+	SyncPlanTriggerProbe     SyncPlanTrigger = "probe"
+	SyncPlanTriggerPrune     SyncPlanTrigger = "prune"
+	SyncPlanTriggerReconcile SyncPlanTrigger = "reconcile"
+	SyncPlanTriggerSave      SyncPlanTrigger = "save"
+)
+
+// Valid indicates whether the value is a known member of the SyncPlanTrigger enum.
+func (e SyncPlanTrigger) Valid() bool {
+	switch e {
+	case SyncPlanTriggerManual:
+		return true
+	case SyncPlanTriggerProbe:
+		return true
+	case SyncPlanTriggerPrune:
+		return true
+	case SyncPlanTriggerReconcile:
+		return true
+	case SyncPlanTriggerSave:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SyncPlanItemAction.
+const (
+	Conflict SyncPlanItemAction = "conflict"
+	Create   SyncPlanItemAction = "create"
+	Delete   SyncPlanItemAction = "delete"
+	Label    SyncPlanItemAction = "label"
+	Update   SyncPlanItemAction = "update"
+)
+
+// Valid indicates whether the value is a known member of the SyncPlanItemAction enum.
+func (e SyncPlanItemAction) Valid() bool {
+	switch e {
+	case Conflict:
+		return true
+	case Create:
+		return true
+	case Delete:
+		return true
+	case Label:
+		return true
+	case Update:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SyncPlanItemRisk.
+const (
+	SyncPlanItemRiskHigh SyncPlanItemRisk = "high"
+	SyncPlanItemRiskLow  SyncPlanItemRisk = "low"
+)
+
+// Valid indicates whether the value is a known member of the SyncPlanItemRisk enum.
+func (e SyncPlanItemRisk) Valid() bool {
+	switch e {
+	case SyncPlanItemRiskHigh:
+		return true
+	case SyncPlanItemRiskLow:
 		return true
 	default:
 		return false
@@ -466,15 +643,23 @@ type DNSProviderZone struct {
 
 // DNSRRSet defines model for DNSRRSet.
 type DNSRRSet struct {
-	EffectiveTtl int    `json:"effective_ttl"`
-	Fqdn         string `json:"fqdn"`
+	EffectiveTtl int `json:"effective_ttl"`
+
+	// Entry A desired RRSet Hashi owns (manual entry or import, 03 §7)
+	Entry *DNSRecord `json:"entry,omitempty"`
+	Fqdn  string     `json:"fqdn"`
 
 	// Name Relative to the zone; `@` is the apex
-	Name       string    `json:"name"`
-	ObservedAt time.Time `json:"observed_at"`
+	Name string `json:"name"`
+
+	// ObservedAt Absent for a pending entry
+	ObservedAt *time.Time `json:"observed_at,omitempty"`
 
 	// Origin Hashi's ownership; `unmanaged` = not Hashi's
 	Origin DNSOrigin `json:"origin"`
+
+	// Pending A Hashi entry not yet created at the provider (values are the entry's)
+	Pending bool `json:"pending"`
 
 	// Protected The provider forbids changes; read-only to Hashi
 	Protected bool `json:"protected"`
@@ -493,6 +678,67 @@ type DNSRRSetList struct {
 	Zone   DNSZone    `json:"zone"`
 }
 
+// DNSRecord A desired RRSet Hashi owns (manual entry or import, 03 §7)
+type DNSRecord struct {
+	Dashboard   bool   `json:"dashboard"`
+	DisplayName string `json:"display_name"`
+	Id          string `json:"id"`
+	Monitoring  bool   `json:"monitoring"`
+	Name        string `json:"name"`
+
+	// Origin Hashi's ownership; `unmanaged` = not Hashi's
+	Origin DNSOrigin `json:"origin"`
+
+	// Ttl Absent = zone default
+	Ttl  *int   `json:"ttl,omitempty"`
+	Type string `json:"type"`
+
+	// Values TXT as plain text
+	Values []string `json:"values"`
+	ZoneId string   `json:"zone_id"`
+}
+
+// DNSRecordInput defines model for DNSRecordInput.
+type DNSRecordInput struct {
+	Dashboard   *bool   `json:"dashboard,omitempty"`
+	DisplayName *string `json:"display_name,omitempty"`
+	Monitoring  *bool   `json:"monitoring,omitempty"`
+
+	// Name Relative to the zone (`@` = apex) or absolute inside it
+	Name string `json:"name"`
+
+	// Ttl Absent = zone default
+	Ttl    *int               `json:"ttl,omitempty"`
+	Type   DNSRecordInputType `json:"type"`
+	Values []string           `json:"values"`
+	ZoneId string             `json:"zone_id"`
+}
+
+// DNSRecordInputType defines model for DNSRecordInput.Type.
+type DNSRecordInputType string
+
+// DNSRecordSaved defines model for DNSRecordSaved.
+type DNSRecordSaved struct {
+	Plan *SyncPlan `json:"plan,omitempty"`
+
+	// PlanError Planning or applying failed; the entry is saved and the next sync retries
+	PlanError *string `json:"plan_error,omitempty"`
+
+	// Record A desired RRSet Hashi owns (manual entry or import, 03 §7)
+	Record DNSRecord `json:"record"`
+}
+
+// DNSRecordUpdate Replaces TTL, values and display fields; name and type cannot change
+type DNSRecordUpdate struct {
+	Dashboard   *bool   `json:"dashboard,omitempty"`
+	DisplayName *string `json:"display_name,omitempty"`
+	Monitoring  *bool   `json:"monitoring,omitempty"`
+
+	// Ttl Absent = zone default
+	Ttl    *int     `json:"ttl,omitempty"`
+	Values []string `json:"values"`
+}
+
 // DNSZone defines model for DNSZone.
 type DNSZone struct {
 	Id               string      `json:"id"`
@@ -509,6 +755,11 @@ type DNSZone struct {
 // DNSZoneList defines model for DNSZoneList.
 type DNSZoneList struct {
 	Zones []DNSZone `json:"zones"`
+}
+
+// DNSZoneRef defines model for DNSZoneRef.
+type DNSZoneRef struct {
+	ZoneId string `json:"zone_id"`
 }
 
 // GeneralSettings defines model for GeneralSettings.
@@ -697,6 +948,90 @@ type SetupStep struct {
 // SetupStepStatus defines model for SetupStep.Status.
 type SetupStepStatus string
 
+// SyncPlan defines model for SyncPlan.
+type SyncPlan struct {
+	ApprovedAt *time.Time `json:"approved_at,omitempty"`
+
+	// ApprovedBy `auto` for low-risk plans
+	ApprovedBy string     `json:"approved_by"`
+	CreatedAt  time.Time  `json:"created_at"`
+	CreatedBy  string     `json:"created_by"`
+	Error      string     `json:"error"`
+	FinishedAt *time.Time `json:"finished_at,omitempty"`
+	Id         string     `json:"id"`
+
+	// Items Empty in the recent list
+	Items     []SyncPlanItem    `json:"items"`
+	Result    string            `json:"result"`
+	Risk      SyncPlanRisk      `json:"risk"`
+	Status    SyncPlanStatus    `json:"status"`
+	Subsystem SyncPlanSubsystem `json:"subsystem"`
+	Target    string            `json:"target"`
+
+	// TargetName e.g. the zone name
+	TargetName string          `json:"target_name"`
+	Title      string          `json:"title"`
+	Trigger    SyncPlanTrigger `json:"trigger"`
+}
+
+// SyncPlanRisk defines model for SyncPlan.Risk.
+type SyncPlanRisk string
+
+// SyncPlanStatus defines model for SyncPlan.Status.
+type SyncPlanStatus string
+
+// SyncPlanSubsystem defines model for SyncPlan.Subsystem.
+type SyncPlanSubsystem string
+
+// SyncPlanTrigger defines model for SyncPlan.Trigger.
+type SyncPlanTrigger string
+
+// SyncPlanItem defines model for SyncPlanItem.
+type SyncPlanItem struct {
+	Action SyncPlanItemAction `json:"action"`
+
+	// After Exact DNS RRSet sent and verified (TXT as plain text)
+	After *SyncPlanItemValue `json:"after,omitempty"`
+
+	// Before Exact DNS RRSet sent and verified (TXT as plain text)
+	Before *SyncPlanItemValue `json:"before,omitempty"`
+	Note   string             `json:"note"`
+
+	// Object e.g. `www A`
+	Object string           `json:"object"`
+	Risk   SyncPlanItemRisk `json:"risk"`
+}
+
+// SyncPlanItemAction defines model for SyncPlanItem.Action.
+type SyncPlanItemAction string
+
+// SyncPlanItemRisk defines model for SyncPlanItem.Risk.
+type SyncPlanItemRisk string
+
+// SyncPlanItemValue Exact DNS RRSet sent and verified (TXT as plain text)
+type SyncPlanItemValue struct {
+	Name string `json:"name"`
+
+	// Owner Ownership marker value written to the provider
+	Owner *string `json:"owner,omitempty"`
+
+	// Ttl null = zone default
+	Ttl    *int     `json:"ttl,omitempty"`
+	Type   string   `json:"type"`
+	Values []string `json:"values"`
+}
+
+// SyncPlanOverview defines model for SyncPlanOverview.
+type SyncPlanOverview struct {
+	Open   []SyncPlan `json:"open"`
+	Recent []SyncPlan `json:"recent"`
+}
+
+// SyncPlanResult defines model for SyncPlanResult.
+type SyncPlanResult struct {
+	Plan *SyncPlan `json:"plan,omitempty"`
+}
+
 // VaultState defines model for VaultState.
 type VaultState struct {
 	KeyVersion           int            `json:"key_version"`
@@ -763,6 +1098,21 @@ type RecoverPasskeyVerifyJSONRequestBody = CeremonyResponse
 
 // PutDNSImportDecisionsJSONRequestBody defines body for PutDNSImportDecisions for application/json ContentType.
 type PutDNSImportDecisionsJSONRequestBody = DNSImportDecisions
+
+// PlanDNSJSONRequestBody defines body for PlanDNS for application/json ContentType.
+type PlanDNSJSONRequestBody = DNSZoneRef
+
+// PlanDNSProbeJSONRequestBody defines body for PlanDNSProbe for application/json ContentType.
+type PlanDNSProbeJSONRequestBody = DNSZoneRef
+
+// PlanDNSPruneJSONRequestBody defines body for PlanDNSPrune for application/json ContentType.
+type PlanDNSPruneJSONRequestBody = DNSZoneRef
+
+// CreateDNSRecordJSONRequestBody defines body for CreateDNSRecord for application/json ContentType.
+type CreateDNSRecordJSONRequestBody = DNSRecordInput
+
+// UpdateDNSRecordJSONRequestBody defines body for UpdateDNSRecord for application/json ContentType.
+type UpdateDNSRecordJSONRequestBody = DNSRecordUpdate
 
 // PutAppearanceSettingsJSONRequestBody defines body for PutAppearanceSettings for application/json ContentType.
 type PutAppearanceSettingsJSONRequestBody = AppearanceSettings
@@ -859,6 +1209,24 @@ type ServerInterface interface {
 	// PutDNSImportDecisions Save import decisions (prune only marks; deleting needs a confirmed prune plan)
 	// (PUT /api/dns/import/{zoneId}/decisions)
 	PutDNSImportDecisions(w http.ResponseWriter, r *http.Request, zoneId string)
+	// PlanDNS Plan the zone's entries now ("Sync now"); low-risk plans apply
+	// (POST /api/dns/plan)
+	PlanDNS(w http.ResponseWriter, r *http.Request)
+	// PlanDNSProbe Plan the write test (create, verify and delete a `_hashi-test` TXT); runs only after approval (invariant 4)
+	// (POST /api/dns/probe)
+	PlanDNSProbe(w http.ResponseWriter, r *http.Request)
+	// PlanDNSPrune Plan the removal of every RRSet marked for prune on the import table (high risk, 03 §4)
+	// (POST /api/dns/prune)
+	PlanDNSPrune(w http.ResponseWriter, r *http.Request)
+	// CreateDNSRecord Add a manual entry; plans it right away (low risk applies, 01 §5.4)
+	// (POST /api/dns/records)
+	CreateDNSRecord(w http.ResponseWriter, r *http.Request)
+	// DeleteDNSRecord Remove an entry; the deletion at the provider is a high-risk plan awaiting approval
+	// (DELETE /api/dns/records/{id})
+	DeleteDNSRecord(w http.ResponseWriter, r *http.Request, id string)
+	// UpdateDNSRecord Change a manual or imported entry's TTL, values and display fields; plans it right away
+	// (PATCH /api/dns/records/{id})
+	UpdateDNSRecord(w http.ResponseWriter, r *http.Request, id string)
 	// ListDNSZones Managed zones with their refresh state
 	// (GET /api/dns/zones)
 	ListDNSZones(w http.ResponseWriter, r *http.Request)
@@ -904,6 +1272,12 @@ type ServerInterface interface {
 	// PutSetupDNSImport Step 3 — save import decisions; completes the step
 	// (PUT /api/setup/dns/import)
 	PutSetupDNSImport(w http.ResponseWriter, r *http.Request)
+	// PostSetupDNSProbe Step 3 — plan the write test (create and delete a `_hashi-test` TXT); nothing is written yet
+	// (POST /api/setup/dns/probe)
+	PostSetupDNSProbe(w http.ResponseWriter, r *http.Request)
+	// RunSetupDNSProbe Step 3 — approve the shown probe plan and run it (invariant 4)
+	// (POST /api/setup/dns/probe/{id}/run)
+	RunSetupDNSProbe(w http.ResponseWriter, r *http.Request, id string)
 	// PutSetupDNSProvider Step 3 — validate a DNS provider token read-only, pick the zone, store the first snapshot
 	// (PUT /api/setup/dns/provider)
 	PutSetupDNSProvider(w http.ResponseWriter, r *http.Request)
@@ -919,6 +1293,21 @@ type ServerInterface interface {
 	// ConfirmRecoveryKey Step 9 — confirm the recovery key by re-entering its last group; runs a test unlock
 	// (POST /api/setup/recovery-key/confirm)
 	ConfirmRecoveryKey(w http.ResponseWriter, r *http.Request)
+	// ListSyncPlans Open plans (pending, approved, applying) with items, and recently finished ones
+	// (GET /api/sync/plans)
+	ListSyncPlans(w http.ResponseWriter, r *http.Request)
+	// GetSyncPlan One plan with its exact items
+	// (GET /api/sync/plans/{id})
+	GetSyncPlan(w http.ResponseWriter, r *http.Request, id string)
+	// ApplySyncPlan Apply an approved plan now; it is re-planned first and returns to approval if a new high-risk item appeared
+	// (POST /api/sync/plans/{id}/apply)
+	ApplySyncPlan(w http.ResponseWriter, r *http.Request, id string)
+	// ApproveSyncPlan Approve a pending (high-risk) plan
+	// (POST /api/sync/plans/{id}/approve)
+	ApproveSyncPlan(w http.ResponseWriter, r *http.Request, id string)
+	// DiscardSyncPlan Drop a pending or approved plan
+	// (POST /api/sync/plans/{id}/discard)
+	DiscardSyncPlan(w http.ResponseWriter, r *http.Request, id string)
 	// GetVault Vault mode and state
 	// (GET /api/vault)
 	GetVault(w http.ResponseWriter, r *http.Request)
@@ -1381,6 +1770,114 @@ func (siw *ServerInterfaceWrapper) PutDNSImportDecisions(w http.ResponseWriter, 
 	handler.ServeHTTP(w, r)
 }
 
+// PlanDNS operation middleware
+func (siw *ServerInterfaceWrapper) PlanDNS(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PlanDNS(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PlanDNSProbe operation middleware
+func (siw *ServerInterfaceWrapper) PlanDNSProbe(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PlanDNSProbe(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PlanDNSPrune operation middleware
+func (siw *ServerInterfaceWrapper) PlanDNSPrune(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PlanDNSPrune(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateDNSRecord operation middleware
+func (siw *ServerInterfaceWrapper) CreateDNSRecord(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateDNSRecord(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteDNSRecord operation middleware
+func (siw *ServerInterfaceWrapper) DeleteDNSRecord(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteDNSRecord(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateDNSRecord operation middleware
+func (siw *ServerInterfaceWrapper) UpdateDNSRecord(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateDNSRecord(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListDNSZones operation middleware
 func (siw *ServerInterfaceWrapper) ListDNSZones(w http.ResponseWriter, r *http.Request) {
 
@@ -1644,6 +2141,46 @@ func (siw *ServerInterfaceWrapper) PutSetupDNSImport(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// PostSetupDNSProbe operation middleware
+func (siw *ServerInterfaceWrapper) PostSetupDNSProbe(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostSetupDNSProbe(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RunSetupDNSProbe operation middleware
+func (siw *ServerInterfaceWrapper) RunSetupDNSProbe(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RunSetupDNSProbe(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // PutSetupDNSProvider operation middleware
 func (siw *ServerInterfaceWrapper) PutSetupDNSProvider(w http.ResponseWriter, r *http.Request) {
 
@@ -1705,6 +2242,124 @@ func (siw *ServerInterfaceWrapper) ConfirmRecoveryKey(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ConfirmRecoveryKey(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListSyncPlans operation middleware
+func (siw *ServerInterfaceWrapper) ListSyncPlans(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSyncPlans(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSyncPlan operation middleware
+func (siw *ServerInterfaceWrapper) GetSyncPlan(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSyncPlan(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ApplySyncPlan operation middleware
+func (siw *ServerInterfaceWrapper) ApplySyncPlan(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ApplySyncPlan(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ApproveSyncPlan operation middleware
+func (siw *ServerInterfaceWrapper) ApproveSyncPlan(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ApproveSyncPlan(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DiscardSyncPlan operation middleware
+func (siw *ServerInterfaceWrapper) DiscardSyncPlan(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DiscardSyncPlan(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1954,6 +2609,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/setup", wrapper.GetSetup)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/setup/base-settings", wrapper.PutSetupBaseSettings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/setup/dns/provider", wrapper.PutSetupDNSProvider)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/dns/probe", wrapper.PostSetupDNSProbe)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/dns/probe/{id}/run", wrapper.RunSetupDNSProbe)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/setup/dns/import", wrapper.GetSetupDNSImport)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/setup/dns/import", wrapper.PutSetupDNSImport)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/passkey/options", wrapper.SetupPasskeyOptions)
@@ -1973,6 +2630,17 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/dns/zones/{id}/rrsets", wrapper.ListDNSRRSets)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/dns/import/{zoneId}", wrapper.GetDNSImport)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/dns/import/{zoneId}/decisions", wrapper.PutDNSImportDecisions)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/dns/records", wrapper.CreateDNSRecord)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/dns/records/{id}", wrapper.DeleteDNSRecord)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/dns/records/{id}", wrapper.UpdateDNSRecord)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/dns/plan", wrapper.PlanDNS)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/dns/prune", wrapper.PlanDNSPrune)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/dns/probe", wrapper.PlanDNSProbe)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/sync/plans", wrapper.ListSyncPlans)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/sync/plans/{id}", wrapper.GetSyncPlan)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/sync/plans/{id}/approve", wrapper.ApproveSyncPlan)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/sync/plans/{id}/apply", wrapper.ApplySyncPlan)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/sync/plans/{id}/discard", wrapper.DiscardSyncPlan)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/vault", wrapper.GetVault)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/vault/secrets", wrapper.ListSecrets)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/vault/secrets/{id}/reveal", wrapper.RevealSecret)
@@ -2904,6 +3572,241 @@ func (response PutDNSImportDecisionsdefaultApplicationProblemPlusJSONResponse) V
 	return err
 }
 
+type PlanDNSRequestObject struct {
+	Body *PlanDNSJSONRequestBody
+}
+
+type PlanDNSResponseObject interface {
+	VisitPlanDNSResponse(w http.ResponseWriter) error
+}
+
+type PlanDNS200JSONResponse SyncPlanResult
+
+func (response PlanDNS200JSONResponse) VisitPlanDNSResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PlanDNSdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PlanDNSdefaultApplicationProblemPlusJSONResponse) VisitPlanDNSResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PlanDNSProbeRequestObject struct {
+	Body *PlanDNSProbeJSONRequestBody
+}
+
+type PlanDNSProbeResponseObject interface {
+	VisitPlanDNSProbeResponse(w http.ResponseWriter) error
+}
+
+type PlanDNSProbe200JSONResponse SyncPlanResult
+
+func (response PlanDNSProbe200JSONResponse) VisitPlanDNSProbeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PlanDNSProbedefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PlanDNSProbedefaultApplicationProblemPlusJSONResponse) VisitPlanDNSProbeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PlanDNSPruneRequestObject struct {
+	Body *PlanDNSPruneJSONRequestBody
+}
+
+type PlanDNSPruneResponseObject interface {
+	VisitPlanDNSPruneResponse(w http.ResponseWriter) error
+}
+
+type PlanDNSPrune200JSONResponse SyncPlanResult
+
+func (response PlanDNSPrune200JSONResponse) VisitPlanDNSPruneResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PlanDNSPrunedefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PlanDNSPrunedefaultApplicationProblemPlusJSONResponse) VisitPlanDNSPruneResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateDNSRecordRequestObject struct {
+	Body *CreateDNSRecordJSONRequestBody
+}
+
+type CreateDNSRecordResponseObject interface {
+	VisitCreateDNSRecordResponse(w http.ResponseWriter) error
+}
+
+type CreateDNSRecord200JSONResponse DNSRecordSaved
+
+func (response CreateDNSRecord200JSONResponse) VisitCreateDNSRecordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateDNSRecorddefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response CreateDNSRecorddefaultApplicationProblemPlusJSONResponse) VisitCreateDNSRecordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteDNSRecordRequestObject struct {
+	Id string `json:"id"`
+}
+
+type DeleteDNSRecordResponseObject interface {
+	VisitDeleteDNSRecordResponse(w http.ResponseWriter) error
+}
+
+type DeleteDNSRecord200JSONResponse DNSRecordSaved
+
+func (response DeleteDNSRecord200JSONResponse) VisitDeleteDNSRecordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteDNSRecorddefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response DeleteDNSRecorddefaultApplicationProblemPlusJSONResponse) VisitDeleteDNSRecordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateDNSRecordRequestObject struct {
+	Id   string `json:"id"`
+	Body *UpdateDNSRecordJSONRequestBody
+}
+
+type UpdateDNSRecordResponseObject interface {
+	VisitUpdateDNSRecordResponse(w http.ResponseWriter) error
+}
+
+type UpdateDNSRecord200JSONResponse DNSRecordSaved
+
+func (response UpdateDNSRecord200JSONResponse) VisitUpdateDNSRecordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateDNSRecorddefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response UpdateDNSRecorddefaultApplicationProblemPlusJSONResponse) VisitUpdateDNSRecordResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListDNSZonesRequestObject struct {
 }
 
@@ -3482,6 +4385,83 @@ func (response PutSetupDNSImportdefaultApplicationProblemPlusJSONResponse) Visit
 	return err
 }
 
+type PostSetupDNSProbeRequestObject struct {
+}
+
+type PostSetupDNSProbeResponseObject interface {
+	VisitPostSetupDNSProbeResponse(w http.ResponseWriter) error
+}
+
+type PostSetupDNSProbe200JSONResponse SyncPlan
+
+func (response PostSetupDNSProbe200JSONResponse) VisitPostSetupDNSProbeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PostSetupDNSProbedefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PostSetupDNSProbedefaultApplicationProblemPlusJSONResponse) VisitPostSetupDNSProbeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RunSetupDNSProbeRequestObject struct {
+	Id string `json:"id"`
+}
+
+type RunSetupDNSProbeResponseObject interface {
+	VisitRunSetupDNSProbeResponse(w http.ResponseWriter) error
+}
+
+type RunSetupDNSProbe200JSONResponse SyncPlan
+
+func (response RunSetupDNSProbe200JSONResponse) VisitRunSetupDNSProbeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RunSetupDNSProbedefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response RunSetupDNSProbedefaultApplicationProblemPlusJSONResponse) VisitRunSetupDNSProbeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type PutSetupDNSProviderRequestObject struct {
 	Body *PutSetupDNSProviderJSONRequestBody
 }
@@ -3664,6 +4644,200 @@ type ConfirmRecoveryKeydefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response ConfirmRecoveryKeydefaultApplicationProblemPlusJSONResponse) VisitConfirmRecoveryKeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListSyncPlansRequestObject struct {
+}
+
+type ListSyncPlansResponseObject interface {
+	VisitListSyncPlansResponse(w http.ResponseWriter) error
+}
+
+type ListSyncPlans200JSONResponse SyncPlanOverview
+
+func (response ListSyncPlans200JSONResponse) VisitListSyncPlansResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListSyncPlansdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ListSyncPlansdefaultApplicationProblemPlusJSONResponse) VisitListSyncPlansResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetSyncPlanRequestObject struct {
+	Id string `json:"id"`
+}
+
+type GetSyncPlanResponseObject interface {
+	VisitGetSyncPlanResponse(w http.ResponseWriter) error
+}
+
+type GetSyncPlan200JSONResponse SyncPlan
+
+func (response GetSyncPlan200JSONResponse) VisitGetSyncPlanResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetSyncPlandefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetSyncPlandefaultApplicationProblemPlusJSONResponse) VisitGetSyncPlanResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApplySyncPlanRequestObject struct {
+	Id string `json:"id"`
+}
+
+type ApplySyncPlanResponseObject interface {
+	VisitApplySyncPlanResponse(w http.ResponseWriter) error
+}
+
+type ApplySyncPlan200JSONResponse SyncPlan
+
+func (response ApplySyncPlan200JSONResponse) VisitApplySyncPlanResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApplySyncPlandefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ApplySyncPlandefaultApplicationProblemPlusJSONResponse) VisitApplySyncPlanResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApproveSyncPlanRequestObject struct {
+	Id string `json:"id"`
+}
+
+type ApproveSyncPlanResponseObject interface {
+	VisitApproveSyncPlanResponse(w http.ResponseWriter) error
+}
+
+type ApproveSyncPlan200JSONResponse SyncPlan
+
+func (response ApproveSyncPlan200JSONResponse) VisitApproveSyncPlanResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApproveSyncPlandefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ApproveSyncPlandefaultApplicationProblemPlusJSONResponse) VisitApproveSyncPlanResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DiscardSyncPlanRequestObject struct {
+	Id string `json:"id"`
+}
+
+type DiscardSyncPlanResponseObject interface {
+	VisitDiscardSyncPlanResponse(w http.ResponseWriter) error
+}
+
+type DiscardSyncPlan200JSONResponse SyncPlan
+
+func (response DiscardSyncPlan200JSONResponse) VisitDiscardSyncPlanResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DiscardSyncPlandefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response DiscardSyncPlandefaultApplicationProblemPlusJSONResponse) VisitDiscardSyncPlanResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -3938,6 +5112,24 @@ type StrictServerInterface interface {
 	// PutDNSImportDecisions Save import decisions (prune only marks; deleting needs a confirmed prune plan)
 	// (PUT /api/dns/import/{zoneId}/decisions)
 	PutDNSImportDecisions(ctx context.Context, request PutDNSImportDecisionsRequestObject) (PutDNSImportDecisionsResponseObject, error)
+	// PlanDNS Plan the zone's entries now ("Sync now"); low-risk plans apply
+	// (POST /api/dns/plan)
+	PlanDNS(ctx context.Context, request PlanDNSRequestObject) (PlanDNSResponseObject, error)
+	// PlanDNSProbe Plan the write test (create, verify and delete a `_hashi-test` TXT); runs only after approval (invariant 4)
+	// (POST /api/dns/probe)
+	PlanDNSProbe(ctx context.Context, request PlanDNSProbeRequestObject) (PlanDNSProbeResponseObject, error)
+	// PlanDNSPrune Plan the removal of every RRSet marked for prune on the import table (high risk, 03 §4)
+	// (POST /api/dns/prune)
+	PlanDNSPrune(ctx context.Context, request PlanDNSPruneRequestObject) (PlanDNSPruneResponseObject, error)
+	// CreateDNSRecord Add a manual entry; plans it right away (low risk applies, 01 §5.4)
+	// (POST /api/dns/records)
+	CreateDNSRecord(ctx context.Context, request CreateDNSRecordRequestObject) (CreateDNSRecordResponseObject, error)
+	// DeleteDNSRecord Remove an entry; the deletion at the provider is a high-risk plan awaiting approval
+	// (DELETE /api/dns/records/{id})
+	DeleteDNSRecord(ctx context.Context, request DeleteDNSRecordRequestObject) (DeleteDNSRecordResponseObject, error)
+	// UpdateDNSRecord Change a manual or imported entry's TTL, values and display fields; plans it right away
+	// (PATCH /api/dns/records/{id})
+	UpdateDNSRecord(ctx context.Context, request UpdateDNSRecordRequestObject) (UpdateDNSRecordResponseObject, error)
 	// ListDNSZones Managed zones with their refresh state
 	// (GET /api/dns/zones)
 	ListDNSZones(ctx context.Context, request ListDNSZonesRequestObject) (ListDNSZonesResponseObject, error)
@@ -3983,6 +5175,12 @@ type StrictServerInterface interface {
 	// PutSetupDNSImport Step 3 — save import decisions; completes the step
 	// (PUT /api/setup/dns/import)
 	PutSetupDNSImport(ctx context.Context, request PutSetupDNSImportRequestObject) (PutSetupDNSImportResponseObject, error)
+	// PostSetupDNSProbe Step 3 — plan the write test (create and delete a `_hashi-test` TXT); nothing is written yet
+	// (POST /api/setup/dns/probe)
+	PostSetupDNSProbe(ctx context.Context, request PostSetupDNSProbeRequestObject) (PostSetupDNSProbeResponseObject, error)
+	// RunSetupDNSProbe Step 3 — approve the shown probe plan and run it (invariant 4)
+	// (POST /api/setup/dns/probe/{id}/run)
+	RunSetupDNSProbe(ctx context.Context, request RunSetupDNSProbeRequestObject) (RunSetupDNSProbeResponseObject, error)
 	// PutSetupDNSProvider Step 3 — validate a DNS provider token read-only, pick the zone, store the first snapshot
 	// (PUT /api/setup/dns/provider)
 	PutSetupDNSProvider(ctx context.Context, request PutSetupDNSProviderRequestObject) (PutSetupDNSProviderResponseObject, error)
@@ -3998,6 +5196,21 @@ type StrictServerInterface interface {
 	// ConfirmRecoveryKey Step 9 — confirm the recovery key by re-entering its last group; runs a test unlock
 	// (POST /api/setup/recovery-key/confirm)
 	ConfirmRecoveryKey(ctx context.Context, request ConfirmRecoveryKeyRequestObject) (ConfirmRecoveryKeyResponseObject, error)
+	// ListSyncPlans Open plans (pending, approved, applying) with items, and recently finished ones
+	// (GET /api/sync/plans)
+	ListSyncPlans(ctx context.Context, request ListSyncPlansRequestObject) (ListSyncPlansResponseObject, error)
+	// GetSyncPlan One plan with its exact items
+	// (GET /api/sync/plans/{id})
+	GetSyncPlan(ctx context.Context, request GetSyncPlanRequestObject) (GetSyncPlanResponseObject, error)
+	// ApplySyncPlan Apply an approved plan now; it is re-planned first and returns to approval if a new high-risk item appeared
+	// (POST /api/sync/plans/{id}/apply)
+	ApplySyncPlan(ctx context.Context, request ApplySyncPlanRequestObject) (ApplySyncPlanResponseObject, error)
+	// ApproveSyncPlan Approve a pending (high-risk) plan
+	// (POST /api/sync/plans/{id}/approve)
+	ApproveSyncPlan(ctx context.Context, request ApproveSyncPlanRequestObject) (ApproveSyncPlanResponseObject, error)
+	// DiscardSyncPlan Drop a pending or approved plan
+	// (POST /api/sync/plans/{id}/discard)
+	DiscardSyncPlan(ctx context.Context, request DiscardSyncPlanRequestObject) (DiscardSyncPlanResponseObject, error)
 	// GetVault Vault mode and state
 	// (GET /api/vault)
 	GetVault(ctx context.Context, request GetVaultRequestObject) (GetVaultResponseObject, error)
@@ -4679,6 +5892,189 @@ func (sh *strictHandler) PutDNSImportDecisions(w http.ResponseWriter, r *http.Re
 	}
 }
 
+// PlanDNS operation middleware
+func (sh *strictHandler) PlanDNS(w http.ResponseWriter, r *http.Request) {
+	var request PlanDNSRequestObject
+
+	var body PlanDNSJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PlanDNS(ctx, request.(PlanDNSRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PlanDNS")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PlanDNSResponseObject); ok {
+		if err := validResponse.VisitPlanDNSResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PlanDNSProbe operation middleware
+func (sh *strictHandler) PlanDNSProbe(w http.ResponseWriter, r *http.Request) {
+	var request PlanDNSProbeRequestObject
+
+	var body PlanDNSProbeJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PlanDNSProbe(ctx, request.(PlanDNSProbeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PlanDNSProbe")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PlanDNSProbeResponseObject); ok {
+		if err := validResponse.VisitPlanDNSProbeResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PlanDNSPrune operation middleware
+func (sh *strictHandler) PlanDNSPrune(w http.ResponseWriter, r *http.Request) {
+	var request PlanDNSPruneRequestObject
+
+	var body PlanDNSPruneJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PlanDNSPrune(ctx, request.(PlanDNSPruneRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PlanDNSPrune")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PlanDNSPruneResponseObject); ok {
+		if err := validResponse.VisitPlanDNSPruneResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateDNSRecord operation middleware
+func (sh *strictHandler) CreateDNSRecord(w http.ResponseWriter, r *http.Request) {
+	var request CreateDNSRecordRequestObject
+
+	var body CreateDNSRecordJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateDNSRecord(ctx, request.(CreateDNSRecordRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateDNSRecord")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateDNSRecordResponseObject); ok {
+		if err := validResponse.VisitCreateDNSRecordResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteDNSRecord operation middleware
+func (sh *strictHandler) DeleteDNSRecord(w http.ResponseWriter, r *http.Request, id string) {
+	var request DeleteDNSRecordRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteDNSRecord(ctx, request.(DeleteDNSRecordRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteDNSRecord")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteDNSRecordResponseObject); ok {
+		if err := validResponse.VisitDeleteDNSRecordResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateDNSRecord operation middleware
+func (sh *strictHandler) UpdateDNSRecord(w http.ResponseWriter, r *http.Request, id string) {
+	var request UpdateDNSRecordRequestObject
+
+	request.Id = id
+
+	var body UpdateDNSRecordJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateDNSRecord(ctx, request.(UpdateDNSRecordRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateDNSRecord")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateDNSRecordResponseObject); ok {
+		if err := validResponse.VisitUpdateDNSRecordResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ListDNSZones operation middleware
 func (sh *strictHandler) ListDNSZones(w http.ResponseWriter, r *http.Request) {
 	var request ListDNSZonesRequestObject
@@ -5079,6 +6475,56 @@ func (sh *strictHandler) PutSetupDNSImport(w http.ResponseWriter, r *http.Reques
 	}
 }
 
+// PostSetupDNSProbe operation middleware
+func (sh *strictHandler) PostSetupDNSProbe(w http.ResponseWriter, r *http.Request) {
+	var request PostSetupDNSProbeRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PostSetupDNSProbe(ctx, request.(PostSetupDNSProbeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostSetupDNSProbe")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PostSetupDNSProbeResponseObject); ok {
+		if err := validResponse.VisitPostSetupDNSProbeResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RunSetupDNSProbe operation middleware
+func (sh *strictHandler) RunSetupDNSProbe(w http.ResponseWriter, r *http.Request, id string) {
+	var request RunSetupDNSProbeRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RunSetupDNSProbe(ctx, request.(RunSetupDNSProbeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RunSetupDNSProbe")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RunSetupDNSProbeResponseObject); ok {
+		if err := validResponse.VisitRunSetupDNSProbeResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // PutSetupDNSProvider operation middleware
 func (sh *strictHandler) PutSetupDNSProvider(w http.ResponseWriter, r *http.Request) {
 	var request PutSetupDNSProviderRequestObject
@@ -5213,6 +6659,134 @@ func (sh *strictHandler) ConfirmRecoveryKey(w http.ResponseWriter, r *http.Reque
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ConfirmRecoveryKeyResponseObject); ok {
 		if err := validResponse.VisitConfirmRecoveryKeyResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListSyncPlans operation middleware
+func (sh *strictHandler) ListSyncPlans(w http.ResponseWriter, r *http.Request) {
+	var request ListSyncPlansRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListSyncPlans(ctx, request.(ListSyncPlansRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListSyncPlans")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListSyncPlansResponseObject); ok {
+		if err := validResponse.VisitListSyncPlansResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetSyncPlan operation middleware
+func (sh *strictHandler) GetSyncPlan(w http.ResponseWriter, r *http.Request, id string) {
+	var request GetSyncPlanRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetSyncPlan(ctx, request.(GetSyncPlanRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetSyncPlan")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetSyncPlanResponseObject); ok {
+		if err := validResponse.VisitGetSyncPlanResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ApplySyncPlan operation middleware
+func (sh *strictHandler) ApplySyncPlan(w http.ResponseWriter, r *http.Request, id string) {
+	var request ApplySyncPlanRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ApplySyncPlan(ctx, request.(ApplySyncPlanRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ApplySyncPlan")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ApplySyncPlanResponseObject); ok {
+		if err := validResponse.VisitApplySyncPlanResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ApproveSyncPlan operation middleware
+func (sh *strictHandler) ApproveSyncPlan(w http.ResponseWriter, r *http.Request, id string) {
+	var request ApproveSyncPlanRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ApproveSyncPlan(ctx, request.(ApproveSyncPlanRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ApproveSyncPlan")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ApproveSyncPlanResponseObject); ok {
+		if err := validResponse.VisitApproveSyncPlanResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DiscardSyncPlan operation middleware
+func (sh *strictHandler) DiscardSyncPlan(w http.ResponseWriter, r *http.Request, id string) {
+	var request DiscardSyncPlanRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DiscardSyncPlan(ctx, request.(DiscardSyncPlanRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DiscardSyncPlan")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DiscardSyncPlanResponseObject); ok {
+		if err := validResponse.VisitDiscardSyncPlanResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

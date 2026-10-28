@@ -402,6 +402,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/setup/dns/probe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Step 3 — plan the write test (create and delete a `_hashi-test` TXT); nothing is written yet */
+        post: operations["postSetupDNSProbe"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/setup/dns/probe/{id}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Step 3 — approve the shown probe plan and run it (invariant 4) */
+        post: operations["runSetupDNSProbe"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/setup/dns/import": {
         parameters: {
             query?: never;
@@ -650,6 +684,177 @@ export interface paths {
         /** Save import decisions (prune only marks; deleting needs a confirmed prune plan) */
         put: operations["putDNSImportDecisions"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dns/records": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add a manual entry; plans it right away (low risk applies, 01 §5.4) */
+        post: operations["createDNSRecord"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dns/records/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove an entry; the deletion at the provider is a high-risk plan awaiting approval */
+        delete: operations["deleteDNSRecord"];
+        options?: never;
+        head?: never;
+        /** Change a manual or imported entry's TTL, values and display fields; plans it right away */
+        patch: operations["updateDNSRecord"];
+        trace?: never;
+    };
+    "/api/dns/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Plan the zone's entries now ("Sync now"); low-risk plans apply */
+        post: operations["planDNS"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dns/prune": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Plan the removal of every RRSet marked for prune on the import table (high risk, 03 §4) */
+        post: operations["planDNSPrune"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/dns/probe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Plan the write test (create, verify and delete a `_hashi-test` TXT); runs only after approval (invariant 4) */
+        post: operations["planDNSProbe"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sync/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Open plans (pending, approved, applying) with items, and recently finished ones */
+        get: operations["listSyncPlans"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sync/plans/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One plan with its exact items */
+        get: operations["getSyncPlan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sync/plans/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve a pending (high-risk) plan */
+        post: operations["approveSyncPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sync/plans/{id}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Apply an approved plan now; it is re-planned first and returns to approval if a new high-risk item appeared */
+        post: operations["applySyncPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sync/plans/{id}/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Drop a pending or approved plan */
+        post: operations["discardSyncPlan"];
         delete?: never;
         options?: never;
         head?: never;
@@ -932,8 +1137,14 @@ export interface components {
             /** @description The provider forbids changes; read-only to Hashi */
             protected: boolean;
             origin: components["schemas"]["DNSOrigin"];
-            /** Format: date-time */
-            observed_at: string;
+            /**
+             * Format: date-time
+             * @description Absent for a pending entry
+             */
+            observed_at?: string;
+            /** @description A Hashi entry not yet created at the provider (values are the entry's) */
+            pending: boolean;
+            entry?: components["schemas"]["DNSRecord"];
         };
         DNSRRSetList: {
             zone: components["schemas"]["DNSZone"];
@@ -956,6 +1167,108 @@ export interface components {
         };
         DNSImportDecisions: {
             decisions: components["schemas"]["DNSImportDecision"][];
+        };
+        DNSZoneRef: {
+            zone_id: string;
+        };
+        /** @description A desired RRSet Hashi owns (manual entry or import, 03 §7) */
+        DNSRecord: {
+            id: string;
+            zone_id: string;
+            name: string;
+            type: string;
+            /** @description Absent = zone default */
+            ttl?: number;
+            /** @description TXT as plain text */
+            values: string[];
+            origin: components["schemas"]["DNSOrigin"];
+            display_name: string;
+            dashboard: boolean;
+            monitoring: boolean;
+        };
+        DNSRecordInput: {
+            zone_id: string;
+            /** @description Relative to the zone (`@` = apex) or absolute inside it */
+            name: string;
+            /** @enum {string} */
+            type: "A" | "AAAA" | "CNAME" | "MX" | "TXT" | "SRV" | "CAA";
+            /** @description Absent = zone default */
+            ttl?: number;
+            values: string[];
+            display_name?: string;
+            dashboard?: boolean;
+            monitoring?: boolean;
+        };
+        /** @description Replaces TTL, values and display fields; name and type cannot change */
+        DNSRecordUpdate: {
+            /** @description Absent = zone default */
+            ttl?: number;
+            values: string[];
+            display_name?: string;
+            dashboard?: boolean;
+            monitoring?: boolean;
+        };
+        DNSRecordSaved: {
+            record: components["schemas"]["DNSRecord"];
+            plan?: components["schemas"]["SyncPlan"];
+            /** @description Planning or applying failed; the entry is saved and the next sync retries */
+            plan_error?: string;
+        };
+        /** @description Exact DNS RRSet sent and verified (TXT as plain text) */
+        SyncPlanItemValue: {
+            name: string;
+            type: string;
+            /** @description null = zone default */
+            ttl?: number | null;
+            values: string[];
+            /** @description Ownership marker value written to the provider */
+            owner?: string;
+        };
+        SyncPlanItem: {
+            /** @enum {string} */
+            action: "create" | "update" | "delete" | "label" | "conflict";
+            /** @description e.g. `www A` */
+            object: string;
+            before?: components["schemas"]["SyncPlanItemValue"];
+            after?: components["schemas"]["SyncPlanItemValue"];
+            /** @enum {string} */
+            risk: "low" | "high";
+            note: string;
+        };
+        SyncPlan: {
+            id: string;
+            /** @enum {string} */
+            subsystem: "dns-records" | "dns-prune" | "dns-probe";
+            target: string;
+            /** @description e.g. the zone name */
+            target_name: string;
+            title: string;
+            /** @enum {string} */
+            trigger: "save" | "reconcile" | "manual" | "probe" | "prune";
+            /** @enum {string} */
+            risk: "low" | "high";
+            /** @enum {string} */
+            status: "pending" | "approved" | "applying" | "applied" | "failed" | "discarded" | "superseded";
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+            /** @description `auto` for low-risk plans */
+            approved_by: string;
+            /** Format: date-time */
+            approved_at?: string;
+            /** Format: date-time */
+            finished_at?: string;
+            result: string;
+            error: string;
+            /** @description Empty in the recent list */
+            items: components["schemas"]["SyncPlanItem"][];
+        };
+        SyncPlanResult: {
+            plan?: components["schemas"]["SyncPlan"];
+        };
+        SyncPlanOverview: {
+            open: components["schemas"]["SyncPlan"][];
+            recent: components["schemas"]["SyncPlan"][];
         };
         BaseSettings: {
             root_domain: string;
@@ -1664,6 +1977,50 @@ export interface operations {
             default: components["responses"]["Problem"];
         };
     };
+    postSetupDNSProbe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The pending probe plan */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncPlan"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    runSetupDNSProbe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The plan after the run */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncPlan"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
     getSetupDNSImport: {
         parameters: {
             query?: never;
@@ -2099,6 +2456,269 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DNSImportTable"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createDNSRecord: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DNSRecordInput"];
+            };
+        };
+        responses: {
+            /** @description Saved, with the plan it caused (absent when nothing changes) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DNSRecordSaved"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    deleteDNSRecord: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The removed entry and the plan it caused */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DNSRecordSaved"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    updateDNSRecord: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DNSRecordUpdate"];
+            };
+        };
+        responses: {
+            /** @description Saved, with the plan it caused */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DNSRecordSaved"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    planDNS: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DNSZoneRef"];
+            };
+        };
+        responses: {
+            /** @description The plan, absent when the zone is in sync */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncPlanResult"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    planDNSPrune: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DNSZoneRef"];
+            };
+        };
+        responses: {
+            /** @description The pending plan, absent when nothing is marked */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncPlanResult"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    planDNSProbe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DNSZoneRef"];
+            };
+        };
+        responses: {
+            /** @description The pending probe plan */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncPlanResult"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listSyncPlans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Plans */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncPlanOverview"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getSyncPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The plan */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncPlan"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    approveSyncPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Approved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncPlan"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    applySyncPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The plan that ran (applied or failed), or the new plan awaiting approval */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncPlan"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    discardSyncPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Discarded */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncPlan"];
                 };
             };
             default: components["responses"]["Problem"];

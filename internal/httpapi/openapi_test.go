@@ -2,9 +2,12 @@ package httpapi
 
 import (
 	"os"
+	"slices"
 	"testing"
 
 	"go.yaml.in/yaml/v3"
+
+	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
 )
 
 // 01-platform.md §7: an endpoint without a declared scope fails CI.
@@ -41,5 +44,17 @@ func TestEveryOperationDeclaresScopes(t *testing.T) {
 	}
 	if n == 0 {
 		t.Fatal("no operations found; is the path right?")
+	}
+}
+
+// 01 §5.1 step 2: approving a plan needs sync.apply and a fresh passkey; every plan action needs sync.apply.
+func TestPlanApprovalNeedsReauth(t *testing.T) {
+	if r := gen.Requirements["ApproveSyncPlan"]; !r.Reauth || !slices.Contains(r.Scopes, "sync.apply") {
+		t.Errorf("approve: %+v", r)
+	}
+	for _, op := range []string{"ApplySyncPlan", "DiscardSyncPlan"} {
+		if r := gen.Requirements[op]; !slices.Contains(r.Scopes, "sync.apply") {
+			t.Errorf("%s: %+v", op, r)
+		}
 	}
 }
