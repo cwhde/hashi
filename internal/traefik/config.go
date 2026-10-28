@@ -77,31 +77,60 @@ type dynamicConfig struct {
 }
 
 type httpConfig struct {
-	Routers     map[string]router     `yaml:"routers,omitempty"`
-	Middlewares map[string]middleware `yaml:"middlewares,omitempty"`
-	Services    map[string]service    `yaml:"services,omitempty"`
+	Routers           map[string]router           `yaml:"routers,omitempty"`
+	Middlewares       map[string]middleware       `yaml:"middlewares,omitempty"`
+	Services          map[string]service          `yaml:"services,omitempty"`
+	ServersTransports map[string]serversTransport `yaml:"serversTransports,omitempty"`
+}
+
+// serversTransport is how Traefik talks TLS to an https upstream (04 §1 kind semantics).
+type serversTransport struct {
+	ServerName         string `yaml:"serverName,omitempty"`
+	InsecureSkipVerify bool   `yaml:"insecureSkipVerify,omitempty"`
 }
 
 type router struct {
-	Rule        string    `yaml:"rule"`
-	EntryPoints []string  `yaml:"entryPoints"`
-	Middlewares []string  `yaml:"middlewares,omitempty"`
-	Service     string    `yaml:"service"`
-	Priority    int       `yaml:"priority,omitempty"`
-	TLS         *struct{} `yaml:"tls,omitempty"`
+	Rule        string     `yaml:"rule"`
+	EntryPoints []string   `yaml:"entryPoints"`
+	Middlewares []string   `yaml:"middlewares,omitempty"`
+	Service     string     `yaml:"service"`
+	Priority    int        `yaml:"priority,omitempty"`
+	TLS         *routerTLS `yaml:"tls,omitempty"`
+}
+
+// routerTLS marshals as {} when no options are named: certificates come from the file provider's store.
+type routerTLS struct {
+	Options string `yaml:"options,omitempty"`
 }
 
 type middleware struct {
-	Headers     *headers     `yaml:"headers,omitempty"`
-	Compress    *struct{}    `yaml:"compress,omitempty"`
-	ForwardAuth *forwardAuth `yaml:"forwardAuth,omitempty"`
+	Headers          *headers          `yaml:"headers,omitempty"`
+	Compress         *struct{}         `yaml:"compress,omitempty"`
+	ForwardAuth      *forwardAuth      `yaml:"forwardAuth,omitempty"`
+	StripPrefix      *stripPrefix      `yaml:"stripPrefix,omitempty"`
+	ReplacePath      *replacePath      `yaml:"replacePath,omitempty"`
+	ReplacePathRegex *replacePathRegex `yaml:"replacePathRegex,omitempty"`
+}
+
+type stripPrefix struct {
+	Prefixes []string `yaml:"prefixes"`
+}
+
+type replacePath struct {
+	Path string `yaml:"path"`
+}
+
+type replacePathRegex struct {
+	Regex       string `yaml:"regex"`
+	Replacement string `yaml:"replacement"`
 }
 
 type headers struct {
-	STSSeconds           int    `yaml:"stsSeconds,omitempty"`
-	STSIncludeSubdomains bool   `yaml:"stsIncludeSubdomains,omitempty"`
-	ContentTypeNosniff   bool   `yaml:"contentTypeNosniff,omitempty"`
-	ReferrerPolicy       string `yaml:"referrerPolicy,omitempty"`
+	CustomRequestHeaders map[string]string `yaml:"customRequestHeaders,omitempty"`
+	STSSeconds           int               `yaml:"stsSeconds,omitempty"`
+	STSIncludeSubdomains bool              `yaml:"stsIncludeSubdomains,omitempty"`
+	ContentTypeNosniff   bool              `yaml:"contentTypeNosniff,omitempty"`
+	ReferrerPolicy       string            `yaml:"referrerPolicy,omitempty"`
 }
 
 type forwardAuth struct {
@@ -115,12 +144,14 @@ type service struct {
 }
 
 type loadBalancer struct {
-	Servers     []server     `yaml:"servers"`
-	HealthCheck *healthCheck `yaml:"healthCheck,omitempty"`
+	Servers          []server     `yaml:"servers"`
+	HealthCheck      *healthCheck `yaml:"healthCheck,omitempty"`
+	ServersTransport string       `yaml:"serversTransport,omitempty"`
 }
 
 type server struct {
-	URL string `yaml:"url"`
+	URL    string `yaml:"url"`
+	Weight *int   `yaml:"weight,omitempty"`
 }
 
 type healthCheck struct {
@@ -135,7 +166,12 @@ type failover struct {
 }
 
 type tlsConfig struct {
-	Certificates []certFile `yaml:"certificates"`
+	Certificates []certFile           `yaml:"certificates,omitempty"`
+	Options      map[string]tlsOption `yaml:"options,omitempty"`
+}
+
+type tlsOption struct {
+	MinVersion string `yaml:"minVersion"`
 }
 
 type certFile struct {

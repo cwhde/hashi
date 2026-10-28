@@ -9,6 +9,8 @@ import (
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
 	"go.yaml.in/yaml/v3"
+
+	"git.juzo.io/juzo/hashi/internal/secrets"
 )
 
 // 04 §9: every rendered dynamic file, parsed back, validates against the pinned Traefik v3 file-provider schema
@@ -33,6 +35,8 @@ func TestDynamicFilesMatchTraefikSchema(t *testing.T) {
 	}
 	o := testOptions()
 	o.TrustedIPs = []string{"192.0.2.1"}
+	o.Services = testServices()
+	o.EdgeToken = secrets.New("edge-token-for-tests")
 	files, err := Render(o)
 	if err != nil {
 		t.Fatal(err)
@@ -60,8 +64,8 @@ func TestDynamicFilesMatchTraefikSchema(t *testing.T) {
 		}
 		n++
 	}
-	if n != 4 {
-		t.Errorf("validated %d dynamic files, want 4", n)
+	if n != 5 {
+		t.Errorf("validated %d dynamic files, want 5", n)
 	}
 	// The schema is strict enough to catch a misspelt key.
 	bad, _ := jsonschema.UnmarshalJSON(bytes.NewReader([]byte(`{"http":{"middlewares":{"x":{"forwardAuht":{"address":"http://a"}}}}}`)))

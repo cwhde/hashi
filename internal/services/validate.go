@@ -148,9 +148,11 @@ func validateRoute(field string, r Route) error {
 			return err
 		}
 	}
-	if strings.ContainsAny(r.PathValue, "`\n") || strings.ContainsAny(r.RewritePattern, "`\n") ||
-		strings.ContainsAny(r.RewriteValue, "`\n") {
-		return invalid(field, "paths and patterns cannot contain backticks or line breaks")
+	// Traefik's file provider runs dynamic files through Go templates: "{{" in a value would be executed there.
+	for _, v := range []string{r.PathValue, r.RewritePattern, r.RewriteValue} {
+		if strings.ContainsAny(v, "`\n") || strings.Contains(v, "{{") || strings.Contains(v, "}}") {
+			return invalid(field, "paths and patterns cannot contain backticks, line breaks, {{ or }}")
+		}
 	}
 	switch r.PathMatch {
 	case MatchPrefix, MatchExact:

@@ -3,6 +3,7 @@
 package clientip
 
 import (
+	"crypto/subtle"
 	"errors"
 	"net"
 	"net/http"
@@ -17,6 +18,29 @@ var ErrUnresolvable = errors.New("client IP cannot be determined")
 // Resolver honours forwarding headers only when the direct peer is a trusted proxy.
 type Resolver struct {
 	trusted atomic.Pointer[[]netip.Prefix]
+	edge    atomic.Pointer[string]
+}
+
+// EdgeHeader carries the edge token Hashi-managed Traefik sets on requests it sends to Hashi (01 §8).
+const EdgeHeader = "X-Hashi-Edge"
+
+// SetEdgeToken sets the token that marks a request as coming through Hashi-managed Traefik. Empty disables it.
+func (r *Resolver) SetEdgeToken(token string) { r.edge.Store(&token) }
+
+// FromEdge reports whether the request carries the valid edge token: it passed through Hashi-managed Traefik, whatever
+// address it arrives from (the edge may sit behind NAT, 01 §8).
+func (r *Resolver) FromEdge(req *http.Request) bool {
+	want := r.edge.Load()
+	if want == nil || *want == "" {
+		return false
+	}
+	got := req.Header.Values(EdgeHeader)
+	return len(got) == 1 && subtle.ConstantTimeCompare([]byte(got[0]), []byte(*want)) == 1
+}
+
+// peerTrusted: the direct peer is a trusted proxy by address or by edge token.
+func (r *Resolver) peerTrusted(req *http.Request, peer netip.Addr) bool {
+	return r.isTrusted(peer) || r.FromEdge(req)
 }
 
 // New returns a resolver trusting the given proxy prefixes.
@@ -69,7 +93,7 @@ func (r *Resolver) Resolve(req *http.Request) (netip.Addr, error) {
 	if !ok {
 		return netip.Addr{}, ErrUnresolvable
 	}
-	if !r.isTrusted(peer) {
+	if !r.peerTrusted(req, peer) {
 		return peer, nil
 	}
 	chain, err := forwardedChain(req.Header)
@@ -100,7 +124,7 @@ func (r *Resolver) IsTLS(req *http.Request) bool {
 		return true
 	}
 	peer, ok := Canonical(req.RemoteAddr)
-	return ok && r.isTrusted(peer) && strings.EqualFold(req.Header.Get("X-Forwarded-Proto"), "https")
+	return ok && r.peerTrusted(req, peer) && strings.EqualFold(req.Header.Get("X-Forwarded-Proto"), "https")
 }
 
 // forwardedChain returns the hops a trusted proxy reported, oldest first.

@@ -169,6 +169,7 @@ func TestValidate(t *testing.T) {
 		"no slash":      route(func(r *Route) { r.PathValue = "x" }),
 		"bad regex":     route(func(r *Route) { r.PathMatch, r.PathValue = MatchRegex, "(" }),
 		"backtick":      route(func(r *Route) { r.PathValue = "/a`)||Host(`evil" }),
+		"template":      route(func(r *Route) { r.RewriteValue, r.RewriteMode = `/{{ env "HOME" }}`, RewriteExact }),
 		"no targets":    route(func(r *Route) { r.Targets = nil }),
 		"strip regex":   route(func(r *Route) { r.PathMatch, r.PathValue, r.RewriteMode = MatchRegex, "^/a", RewriteStripPrefix }),
 		"rewrite empty": route(func(r *Route) { r.RewriteMode = RewriteRegex; r.RewritePattern = "^/x(.*)" }),
