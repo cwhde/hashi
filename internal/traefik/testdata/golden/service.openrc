@@ -1,0 +1,20 @@
+#!/sbin/openrc-run
+# Managed by Hashi. Changes are overwritten.
+supervisor=supervise-daemon
+
+name="Traefik (Hashi)"
+description="Traefik reverse proxy managed by Hashi"
+
+command="/usr/local/bin/traefik"
+command_args="--configFile=/etc/hashi/traefik/traefik.yaml"
+
+healthcheck_timer=30
+
+depend() {
+	need net
+	after firewall
+}
+
+healthcheck() {
+	$command healthcheck $command_args >/dev/null
+}

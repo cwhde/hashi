@@ -41,11 +41,14 @@ PR A — backend
 - [x] Migration 00005: certificate provider (ACME email, EAB, account key ref), `traefik_connections` (target, port, user,
       credential refs, pinned host key, internal IP, OS, paths, state), `traefik_files` (per-host `last_applied_hash`),
       `certificates` (+ per-host distribution state); sync subsystems `traefik` and `certificates` in the CHECK + OpenAPI enum.
-- [ ] `internal/traefik`: OS probe parser (fixtures), install items (Hashi downloads the pinned release, checks the
-      embedded SHA-256, uploads the binary over SFTP; directories; OpenRC script / systemd unit; existing-config discovery +
-      backup + explicit ownership), static config and dynamic files as Go structs → YAML (`00-hashi-core`,
-      `40-hashi-security` with the captured fail-open/closed construct, `90-hashi-health`, `hashi-certs` with hashes).
-- [ ] Apply + Verify (04 §6): host hashes over SFTP, atomic writes, static change → restart + wait for ping + restore on
+- [x] `internal/traefik`: OS probe parser (all four fixtures; family from tools, never versions), pinned release
+      (embedded SHA-256, asset per arch, binary extracted only after the checksum matches), Hashi's directories,
+      `hashi-traefik` OpenRC script (shape of Alpine's own, captured) / systemd unit, static config and dynamic files as
+      Go structs → YAML (`00-hashi-core`, `40-hashi-security` with the fail-open/closed construct, `90-hashi-health`,
+      `hashi-certs.yaml` with certificate hashes), golden tests. Rendered files loaded into a real Traefik v3.7.16
+      container: every router/middleware/service `enabled`, no errors, health `/open` 200 and `/closed` 500 with Hashi absent.
+- [ ] Apply + Verify (04 §6): install plan items (download → checksum → SFTP upload, directories, service, existing-config
+      backup to `/var/lib/hashi/traefik/backup/<ts>/` + explicit ownership confirmation), host hashes over SFTP, atomic writes, static change → restart + wait for ping + restore on
       failure, Verify = `/api/rawdata` through the SSH tunnel (every expected router/service/middleware present, none
       disabled), `last_applied_hash`. Golden render tests, JSON-schema check, `TestInvariant_8_*` (identical render → no write),
       integration: real Traefik v3.7.16 container loads the files, API reports no errors, request reaches a stub upstream.
@@ -330,6 +333,12 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-10-28 — S4 `internal/traefik`: Traefik runs as root under service name `hashi-traefik` (never collides with a
+  distribution's `traefik` service; a dedicated user is a later hardening step). Health routers answer
+  `/.well-known/hashi/health/{open,closed}` on every host name (priority 100000) with `ping@internal`. Traefik v3.7.16
+  warns at start about `aliasHeadersStrategy` (entry points), `maxResponseBodySize` (forward auth) and encoded-character
+  defaults: capture and decide in S5 with the service routers. Fail-closed forward auth to an unreachable (not refusing)
+  Hashi host waits for the TCP timeout before the 500.
 - 2026-10-28 — S4: two more temporary dev targets on host B, `hashi-edge-debian` (Debian 13) and `hashi-edge-fedora`
   (Fedora 44, template downloaded for it), same size, no autostart, sshd with the laptop key, reachable from the Hashi
   container. Fedora (dnf + systemd) added to the supported host OS list at the user's request.
