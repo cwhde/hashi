@@ -15,7 +15,7 @@ produced or checked by the real `nft` binary.
 | --- | --- | --- | --- |
 | Debian 13 container, own netns (`--cap-add NET_ADMIN`) | 1.1.3 | 6.8 | `nft -c -f shapes.nft` ok; loaded; JSON dump re-checked with `nft -c -j -f` ok, also from stdin (`-f -`) |
 | Debian 13 dev target (unprivileged LXC) | 1.1.3 | 7.0.6-pve | `nft -c` (check mode, no commit) of text, JSON and the apply batch: ok |
-| First real firewall host | 1.1.3 | 7.0.2-pve | pending the user's OK (check mode only) |
+| First real firewall host (user OK 2026-10-29) | 1.1.3 | 7.0.2-pve | `nft -c` of text, JSON and the apply batch from stdin: ok; nothing committed (`nft list ruleset` empty, `iptables-legacy-save` and `ipset save` hashes equal before/after) |
 
 ## Findings
 

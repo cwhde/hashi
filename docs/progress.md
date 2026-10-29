@@ -5,7 +5,7 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
-**S6 — IP sets + firewall + streams** · status: **entry gate** (started 2026-10-29).
+**S6 — IP sets + firewall + streams** · status: **in progress** (started 2026-10-29; entry gate passed the same day). Next: PR A.
 
 Scope and gate: 11-delivery.md §3 row S6: 05a-ip-sets.md (`ip`, `cidr`, `host`, `dns`, set references, system sets,
 compiler, IP sets pages, address page without dynamic state), 05-firewall.md (nftables table, folding, bindings, host
@@ -27,7 +27,10 @@ Entry gate (05 §10) — before any renderer code:
 - [x] NetBird backend after a restart with a foreign nft table: NetBird's own selection code (v0.81.3, same libraries)
       replayed in a netns → stays on iptables with `table inet hashi`; only a table named `filter` would switch it.
       **Coexistence holds; plan B (ADR 0002) not needed.** Replay kept in `testdata/contracts/netbird/backend_check/`.
-- [ ] `nft -c -j -f -` (check mode, nothing committed) of the shapes on the first real host — needs the user's OK.
+- [x] `nft -c` (check mode, nothing committed) of the shapes, their JSON and the apply batch on the first real host
+      (user OK 2026-10-29): all ok; `nft list ruleset` still empty, `iptables-legacy-save` + `ipset save` hashes equal
+      before/after (a first attempt overlapped the old script's 15-minute run, which adds its duplicate rules: 559 now).
+      **Entry gate passed.**
 
 Found on the first real host (read-only), for the takeover plan (05 §3.4):
 - The old script adds rules to built-in chains besides its `CUSTOM_*` chains: MSS clamp (mangle FORWARD), three
@@ -565,7 +568,7 @@ Decisions made in S0:
 
 - 2026-10-29 — S6 started with its entry gate. nft/NetBird coexistence holds (NetBird's own backend choice replayed:
   Hashi's table never switches it); plan B not needed. All rule shapes pass the real `nft` 1.1.3 in check mode on a
-  container and the Debian dev target; the check on the first real host waits for the user's OK. Plan written (3 PRs).
+  container and the Debian dev target; the check on the first real host passed with the user's OK (nothing committed). Plan written (3 PRs).
 
 - 2026-10-29 — S5 gate, step 8 with the user (Firefox/Floorp on the home LAN): the first link was refused ("nonce",
   probably altered on the way to the browser); with a fresh copied link the proof succeeded through the edge
