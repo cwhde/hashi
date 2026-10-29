@@ -5,7 +5,7 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
-**S6 — IP sets + firewall + streams** · status: **in progress** (started 2026-10-29; entry gate passed the same day). PR A merged (#36), PR B merged (#37). Next: PR C (DNS records, address-set targets), then PR D (streams, takeover), PR E (UI, deploy).
+**S6 — IP sets + firewall + streams** · status: **in progress** (started 2026-10-29; entry gate passed the same day). PR A merged (#36), PR B merged (#37), PR C merged (#38). Next: PR D (streams, takeover), then PR E (UI, deploy).
 
 Scope and gate: 11-delivery.md §3 row S6: 05a-ip-sets.md (`ip`, `cidr`, `host`, `dns`, set references, system sets,
 compiler, IP sets pages, address page without dynamic state), 05-firewall.md (nftables table, folding, bindings, host
@@ -647,6 +647,9 @@ Decisions made in S0:
   only short-SHA deploys exist so far.
 
 ## Log
+
+- 2026-10-29 — S6 PR C merged (#38): CI green on the first run after the full local suite. Host A pool 85.3 % → 78 %
+  (`lxc-fstrim.service`).
 
 - 2026-10-29 — S6 PR C (DNS records, address-set targets) built on `s6-records-streams`; `make check`, the Traefik,
   firewall and DNS integration tests and the E2E suite all run locally before the push (agreed working mode).
