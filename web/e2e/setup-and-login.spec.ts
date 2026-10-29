@@ -14,6 +14,16 @@ const state = JSON.parse(readFileSync(statePath, 'utf8')) as {
 	password: string;
 };
 
+// CI keeps no traces: on a failure, print where the page was and what it showed.
+test.afterEach(async ({ page }, info) => {
+	if (info.status === info.expectedStatus) return;
+	const text = await page
+		.locator('body')
+		.innerText()
+		.catch(() => '');
+	console.log(`failed at ${page.url()}\n${text.slice(0, 2000)}`);
+});
+
 async function virtualAuthenticator(page: Page, transport: 'internal' | 'usb' = 'internal') {
 	const cdp = await page.context().newCDPSession(page);
 	await cdp.send('WebAuthn.enable');
