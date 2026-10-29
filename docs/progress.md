@@ -5,7 +5,7 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
-**S6 — IP sets + firewall + streams** · status: **in progress** (started 2026-10-29; entry gate passed the same day). Next: PR A.
+**S6 — IP sets + firewall + streams** · status: **in progress** (started 2026-10-29; entry gate passed the same day). PR A merged (#36). PR B in progress on `s6-firewall`.
 
 Scope and gate: 11-delivery.md §3 row S6: 05a-ip-sets.md (`ip`, `cidr`, `host`, `dns`, set references, system sets,
 compiler, IP sets pages, address page without dynamic state), 05-firewall.md (nftables table, folding, bindings, host
@@ -78,10 +78,10 @@ PR B — Firewall hosts
 - [ ] Validation over SSH (05 §2, OS probe reuse): kernel, nft ≥ 1.0 + JSON, iptables backend, NetBird detection +
       backend, `nftables.service` and a `filter` nft table reported, firewalld reported, public IP, subnets, the
       existing ruleset captured (`nft -j list ruleset`, `iptables(-legacy)-save`, `ipset save`).
-- [ ] Folding (05 §4.2) with the table-driven cases and the brute-force property test; `TestInvariant_20` (kernel side).
-- [ ] Renderer: Go structs → libnftables JSON matching `testdata/contracts/nft/`; golden files per host shape; every
+- [x] Folding (05 §4.2) with the table-driven cases and the brute-force property test; `TestInvariant_20` (kernel side).
+- [x] Renderer: Go structs → libnftables JSON matching `testdata/contracts/nft/`; golden files per host shape; every
       golden passes `nft -c -j -f` in the integration container; meters rendered but off.
-- [ ] Apply + rescue (05 §3.3, §7): save previous table, `rollback.sh` before arming, `systemd-run` timer (Alpine: PID
+- [~] Apply + rescue (05 §3.3, §7): save previous table, `rollback.sh` before arming, `systemd-run` timer (Alpine: PID
       file + sleep), apply, verify over a **new** SSH connection + NetBird status, disarm; boot unit
       `hashi-firewall` (systemd/OpenRC), sysctl file. Takeover of an existing script as explicit plan items (exact
       rule specs, all duplicates, cron lines in the live crontab and `crontab.txt`). Integration in a privileged
@@ -90,6 +90,19 @@ PR B — Firewall hosts
 - [ ] DNS host records (`<host>`, `via.`, `on.`, `ovr`) and service records (03 §5.1–5.2); `hashi-hosts` populated.
 - [ ] Address sets as targets: service upstreams and DNS A/AAAA values (`TestInvariant_21` for both).
 - [ ] OpenAPI + handlers (05 §9), setup step 6 (validated host linked to a Traefik connection → minimums met).
+
+Done in PR B so far (not yet a PR): contracts `testdata/contracts/firewall/` (probe of the real host and the Debian
+dev target, takeover objects, rescue timer), probe parser, folding, renderer, apply/verify/rescue with integration
+tests in containers (nft check of every shape; NetBird-like legacy chains and a foreign table byte-identical; NetBird's
+backend replay; DNAT to a Traefik stand-in; a failed confirmation rolled back by the timer). Takeover items (§3.4) and
+Alpine/OpenRC firewall hosts are still open.
+
+Decisions made in PR B so far:
+- NetBird's routing-peer rules already accept and masquerade overlay traffic (capture), so Hashi renders no NetBird
+  NAT; only the MSS clamp. Hairpin DNAT matches the public address from non-WAN interfaces (not `fib daddr local`,
+  which would also catch the bridge address).
+- Risk is computed from the rendered file on the host vs the new one; Verify compares set coverage (nft may list
+  merged ranges). A failed `sysctl -p` is accepted when the wanted value is already in effect (containers, LXCs).
 
 PR C — Streams + firewall UI + deploy
 - [ ] TCP/UDP services: model, `20-hashi-stream-services.yml` + `tcp-<port>`/`udp-<port>` entry points (static
@@ -577,6 +590,10 @@ Decisions made in S0:
   only short-SHA deploys exist so far.
 
 ## Log
+
+- 2026-10-29 — S6 PR A merged (#36; CI needed the E2E journey's timeout raised to 120 s: it outgrew Playwright's 30 s
+  default on the runners). Host A pool was 85.6 % after the CI runs: `lxc-fstrim.service` run → 75 %. PR B: firewall
+  contracts captured, folding/renderer/apply/rescue built and tested in containers.
 
 - 2026-10-29 — S6 started with its entry gate. nft/NetBird coexistence holds (NetBird's own backend choice replayed:
   Hashi's table never switches it); plan B not needed. All rule shapes pass the real `nft` 1.1.3 in check mode on a
