@@ -10,7 +10,7 @@ valid networks and an address keeps its network across the file). The rule shape
 | `probe_debian13_lxc.txt` | Debian 13 dev target (unprivileged LXC, no NetBird) | kernel 7.0.6-pve, nftables 1.1.3, systemd 257 |
 | `takeover_iptables_legacy.txt` | First real host: `iptables-legacy-save`, `ip6tables-legacy-save`, `ipset save`, root's crontab | — |
 
-Commands in the probe files, each framed by `### <command>` and `### rc=<exit code>`: `uname -r`, `/etc/os-release`,
+`probe.sh` is the exact probe (`firewall.ProbeCommand`; a test keeps them equal). Commands in the probe files, each framed by `### <command>` and `### rc=<exit code>`: `uname -r`, `/etc/os-release`,
 `nft --version`, `nft -j list ruleset`, `iptables -V`, `ip -j addr show`, `ip -j route show default` (and `-6`),
 `ip -j link show`, `ss -Hlntup`, `systemctl is-enabled|is-active nftables`, `systemctl is-active firewalld`,
 `netbird status --json`, `netbird status`, `sysctl -n net.ipv4.ip_forward net.ipv6.conf.all.forwarding`,
@@ -24,7 +24,7 @@ Commands in the probe files, each framed by `### <command>` and `### rc=<exit co
 3. `netbird status --json` exists in 0.81.3: `fqdn`, `netbirdIp` (with prefix: the overlay network), `netbirdIpv6`,
    `usesKernelInterface`, `wireguardPort`, `daemonStatus`, `management.connected`, `signal.connected`, `networks`
    (routes this peer uses, **not** the networks it routes for others: those appear only as `Networks:` in the text
-   output, together with the default routes). It names no interface; the kernel interface is found in `ip -j link`
+   output, together with the default routes)). It prints no final newline, so the probe's `### rc=` marker lands at the end of the JSON line. It names no interface; the kernel interface is found in `ip -j link`
    (`wt0` here) by the overlay address. Without NetBird: `sh: 1: netbird: not found`, rc 127.
 4. `systemctl is-active` exit codes: 0 active, 3 inactive, 4 unknown unit (firewalld absent). `is-enabled`: 1 when
    disabled.
