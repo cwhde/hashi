@@ -103,8 +103,10 @@ These hold in every slice. Each has at least one automated test named `TestInvar
 
 Tracked here until answered; answers move into the relevant area file.
 
-- Does NetBird (v0.81, iptables-legacy backend on the first firewall host) switch its firewall backend after a restart
-  when a foreign nftables table exists? Answered by the S6 entry gate (05-firewall.md §10); plan B in ADR 0002.
+(none open)
+
+Answered by the S6 entry gate (2026-10-29): NetBird v0.81 does not switch its firewall backend because of a foreign
+nftables table; it switches only when an nft table named `filter` exists (05-firewall.md §5, `testdata/contracts/nft/`).
 
 Answered by the 2026-10-27 survey: Hashi replaces Pangolin, both current Traefik instances, Gatus, adguardhome-sync and the
 host firewall script with its own installs (11-delivery.md §7); the home host is an `external_nat` edge host (05-firewall.md §1.1).

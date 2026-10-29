@@ -32,7 +32,8 @@ Traefik target, optional WAN interface / bridge / public IP overrides.
 
 Validate: SSH login + host-key pin; OS detection; kernel version; `nft` present and its version (≥ 1.0 required, JSON
 support checked with `nft -j list tables`); which iptables backend is active (`iptables -V` → `legacy` or `nf_tables`)
-and which firewall backend NetBird uses (its chains/sets in iptables-legacy or its nftables tables); whether Debian's
+and which firewall backend NetBird uses (its chains/sets in iptables-legacy or its nftables tables); whether an nft table named `filter` exists (NetBird ≥ 0.81 switches to
+its nftables backend at its next restart when it finds one; Hashi's table is never named so); whether Debian's
 `nftables.service` is enabled (warning: its `/etc/nftables.conf` normally starts with `flush ruleset` and would wipe
 NetBird, Proxmox and Docker rules at boot — Hashi never uses it); public IP detection (from the host, cross-checked with
 Hashi's view); managed subnets valid, non-overlapping, containing the internal Traefik IP; NetBird detection (§5).
