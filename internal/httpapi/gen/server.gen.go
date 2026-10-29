@@ -340,16 +340,220 @@ func (e DNSRecordInputType) Valid() bool {
 
 // Defines values for HealthStatus.
 const (
-	Ok          HealthStatus = "ok"
-	Unavailable HealthStatus = "unavailable"
+	HealthStatusOk          HealthStatus = "ok"
+	HealthStatusUnavailable HealthStatus = "unavailable"
 )
 
 // Valid indicates whether the value is a known member of the HealthStatus enum.
 func (e HealthStatus) Valid() bool {
 	switch e {
-	case Ok:
+	case HealthStatusOk:
 		return true
-	case Unavailable:
+	case HealthStatusUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for IPItemCIDRType.
+const (
+	Cidr IPItemCIDRType = "cidr"
+)
+
+// Valid indicates whether the value is a known member of the IPItemCIDRType enum.
+func (e IPItemCIDRType) Valid() bool {
+	switch e {
+	case Cidr:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for IPItemDNSType.
+const (
+	Dns IPItemDNSType = "dns"
+)
+
+// Valid indicates whether the value is a known member of the IPItemDNSType enum.
+func (e IPItemDNSType) Valid() bool {
+	switch e {
+	case Dns:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for IPItemHostScope.
+const (
+	All      IPItemHostScope = "all"
+	Internal IPItemHostScope = "internal"
+	Public   IPItemHostScope = "public"
+)
+
+// Valid indicates whether the value is a known member of the IPItemHostScope enum.
+func (e IPItemHostScope) Valid() bool {
+	switch e {
+	case All:
+		return true
+	case Internal:
+		return true
+	case Public:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for IPItemHostType.
+const (
+	Host IPItemHostType = "host"
+)
+
+// Valid indicates whether the value is a known member of the IPItemHostType enum.
+func (e IPItemHostType) Valid() bool {
+	switch e {
+	case Host:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for IPItemIPType.
+const (
+	Ip IPItemIPType = "ip"
+)
+
+// Valid indicates whether the value is a known member of the IPItemIPType enum.
+func (e IPItemIPType) Valid() bool {
+	switch e {
+	case Ip:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for IPItemSetType.
+const (
+	Set IPItemSetType = "set"
+)
+
+// Valid indicates whether the value is a known member of the IPItemSetType enum.
+func (e IPItemSetType) Valid() bool {
+	switch e {
+	case Set:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for IPSetKind.
+const (
+	IPSetKindDynamic IPSetKind = "dynamic"
+	IPSetKindFeed    IPSetKind = "feed"
+	IPSetKindSystem  IPSetKind = "system"
+	IPSetKindUser    IPSetKind = "user"
+)
+
+// Valid indicates whether the value is a known member of the IPSetKind enum.
+func (e IPSetKind) Valid() bool {
+	switch e {
+	case IPSetKindDynamic:
+		return true
+	case IPSetKindFeed:
+		return true
+	case IPSetKindSystem:
+		return true
+	case IPSetKindUser:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for IPSetOrigin.
+const (
+	IPSetOriginImported IPSetOrigin = "imported"
+	IPSetOriginManaged  IPSetOrigin = "managed"
+	IPSetOriginSystem   IPSetOrigin = "system"
+	IPSetOriginUser     IPSetOrigin = "user"
+)
+
+// Valid indicates whether the value is a known member of the IPSetOrigin enum.
+func (e IPSetOrigin) Valid() bool {
+	switch e {
+	case IPSetOriginImported:
+		return true
+	case IPSetOriginManaged:
+		return true
+	case IPSetOriginSystem:
+		return true
+	case IPSetOriginUser:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for IPSetResolutionStatus.
+const (
+	IPSetResolutionStatusEmpty   IPSetResolutionStatus = "empty"
+	IPSetResolutionStatusOk      IPSetResolutionStatus = "ok"
+	IPSetResolutionStatusPartial IPSetResolutionStatus = "partial"
+)
+
+// Valid indicates whether the value is a known member of the IPSetResolutionStatus enum.
+func (e IPSetResolutionStatus) Valid() bool {
+	switch e {
+	case IPSetResolutionStatusEmpty:
+		return true
+	case IPSetResolutionStatusOk:
+		return true
+	case IPSetResolutionStatusPartial:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for IPSetConsumerPosition.
+const (
+	Match  IPSetConsumerPosition = "match"
+	Target IPSetConsumerPosition = "target"
+)
+
+// Valid indicates whether the value is a known member of the IPSetConsumerPosition enum.
+func (e IPSetConsumerPosition) Valid() bool {
+	switch e {
+	case Match:
+		return true
+	case Target:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for IPSetResolvedStatus.
+const (
+	IPSetResolvedStatusEmpty   IPSetResolvedStatus = "empty"
+	IPSetResolvedStatusOk      IPSetResolvedStatus = "ok"
+	IPSetResolvedStatusPartial IPSetResolvedStatus = "partial"
+)
+
+// Valid indicates whether the value is a known member of the IPSetResolvedStatus enum.
+func (e IPSetResolvedStatus) Valid() bool {
+	switch e {
+	case IPSetResolvedStatusEmpty:
+		return true
+	case IPSetResolvedStatusOk:
+		return true
+	case IPSetResolvedStatusPartial:
 		return true
 	default:
 		return false
@@ -887,6 +1091,71 @@ func (e ListDNSRRSetsParamsOrigin) Valid() bool {
 	}
 }
 
+// Defines values for ListIPSetsParamsKind.
+const (
+	ListIPSetsParamsKindDynamic ListIPSetsParamsKind = "dynamic"
+	ListIPSetsParamsKindFeed    ListIPSetsParamsKind = "feed"
+	ListIPSetsParamsKindSystem  ListIPSetsParamsKind = "system"
+	ListIPSetsParamsKindUser    ListIPSetsParamsKind = "user"
+)
+
+// Valid indicates whether the value is a known member of the ListIPSetsParamsKind enum.
+func (e ListIPSetsParamsKind) Valid() bool {
+	switch e {
+	case ListIPSetsParamsKindDynamic:
+		return true
+	case ListIPSetsParamsKindFeed:
+		return true
+	case ListIPSetsParamsKindSystem:
+		return true
+	case ListIPSetsParamsKindUser:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetIPSetResolvedParamsFamily.
+const (
+	N4 GetIPSetResolvedParamsFamily = "4"
+	N6 GetIPSetResolvedParamsFamily = "6"
+)
+
+// Valid indicates whether the value is a known member of the GetIPSetResolvedParamsFamily enum.
+func (e GetIPSetResolvedParamsFamily) Valid() bool {
+	switch e {
+	case N4:
+		return true
+	case N6:
+		return true
+	default:
+		return false
+	}
+}
+
+// AddressLookup defines model for AddressLookup.
+type AddressLookup struct {
+	// Address Normalized (IPv4-mapped IPv6 shown as IPv4)
+	Address string            `json:"address"`
+	Sets    []AddressSetMatch `json:"sets"`
+}
+
+// AddressMatch defines model for AddressMatch.
+type AddressMatch struct {
+	ElementId string `json:"element_id"`
+	Label     string `json:"label"`
+
+	// Path Slugs from the set down to the set holding the element
+	Path  []string `json:"path"`
+	SetId string   `json:"set_id"`
+}
+
+// AddressSetMatch defines model for AddressSetMatch.
+type AddressSetMatch struct {
+	Matches []AddressMatch `json:"matches"`
+	Set     IPSet          `json:"set"`
+}
+
 // AllSettings defines model for AllSettings.
 type AllSettings struct {
 	Appearance AppearanceSettings `json:"appearance"`
@@ -1306,6 +1575,197 @@ type HostKeyScanInput struct {
 	Host string `json:"host"`
 	Port int    `json:"port"`
 }
+
+// IPItem One IP item or a set reference (05a §2)
+type IPItem struct {
+	union json.RawMessage
+}
+
+// IPItemCIDR defines model for IPItemCIDR.
+type IPItemCIDR struct {
+	// Prefix Host bits are zeroed; a single-address prefix is stored as ip
+	Prefix string         `json:"prefix"`
+	Type   IPItemCIDRType `json:"type"`
+}
+
+// IPItemCIDRType defines model for IPItemCIDR.Type.
+type IPItemCIDRType string
+
+// IPItemDNS defines model for IPItemDNS.
+type IPItemDNS struct {
+	Fqdn string        `json:"fqdn"`
+	Type IPItemDNSType `json:"type"`
+}
+
+// IPItemDNSType defines model for IPItemDNS.Type.
+type IPItemDNSType string
+
+// IPItemHost defines model for IPItemHost.
+type IPItemHost struct {
+	HostId string          `json:"host_id"`
+	Scope  IPItemHostScope `json:"scope"`
+	Type   IPItemHostType  `json:"type"`
+}
+
+// IPItemHostScope defines model for IPItemHost.Scope.
+type IPItemHostScope string
+
+// IPItemHostType defines model for IPItemHost.Type.
+type IPItemHostType string
+
+// IPItemIP defines model for IPItemIP.
+type IPItemIP struct {
+	// Address IPv4 or IPv6; a /32 or /128 prefix is accepted on input
+	Address string       `json:"address"`
+	Type    IPItemIPType `json:"type"`
+}
+
+// IPItemIPType defines model for IPItemIP.Type.
+type IPItemIPType string
+
+// IPItemSet defines model for IPItemSet.
+type IPItemSet struct {
+	SetId string        `json:"set_id"`
+	Type  IPItemSetType `json:"type"`
+}
+
+// IPItemSetType defines model for IPItemSet.Type.
+type IPItemSetType string
+
+// IPSet defines model for IPSet.
+type IPSet struct {
+	// AddressSet Every leaf is ip, host or dns: usable in target positions
+	AddressSet  bool      `json:"address_set"`
+	CreatedAt   time.Time `json:"created_at"`
+	Description string    `json:"description"`
+
+	// Editable Elements and metadata can be changed by the user (user sets only)
+	Editable         bool                  `json:"editable"`
+	ElementCount     int                   `json:"element_count"`
+	Id               string                `json:"id"`
+	Kind             IPSetKind             `json:"kind"`
+	Name             string                `json:"name"`
+	Origin           IPSetOrigin           `json:"origin"`
+	Problems         []IPSetProblem        `json:"problems"`
+	ResolutionStatus IPSetResolutionStatus `json:"resolution_status"`
+	Slug             string                `json:"slug"`
+
+	// SystemKey all, hashi_hosts, private_networks, …; empty for user sets
+	SystemKey string    `json:"system_key"`
+	UpdatedAt time.Time `json:"updated_at"`
+
+	// V4Count Merged IPv4 prefixes
+	V4Count int `json:"v4_count"`
+
+	// V6Count Merged IPv6 prefixes
+	V6Count int `json:"v6_count"`
+}
+
+// IPSetKind defines model for IPSet.Kind.
+type IPSetKind string
+
+// IPSetOrigin defines model for IPSet.Origin.
+type IPSetOrigin string
+
+// IPSetResolutionStatus defines model for IPSet.ResolutionStatus.
+type IPSetResolutionStatus string
+
+// IPSetConsumer defines model for IPSetConsumer.
+type IPSetConsumer struct {
+	Id       string                `json:"id"`
+	Name     string                `json:"name"`
+	Position IPSetConsumerPosition `json:"position"`
+
+	// Type ip_set, firewall_binding, dns_record, service, …
+	Type string `json:"type"`
+}
+
+// IPSetConsumerPosition defines model for IPSetConsumer.Position.
+type IPSetConsumerPosition string
+
+// IPSetConsumerList defines model for IPSetConsumerList.
+type IPSetConsumerList struct {
+	Consumers []IPSetConsumer `json:"consumers"`
+}
+
+// IPSetElement defines model for IPSetElement.
+type IPSetElement struct {
+	CreatedAt time.Time  `json:"created_at"`
+	CreatedBy string     `json:"created_by"`
+	ExpiresAt *time.Time `json:"expires_at"`
+	Id        string     `json:"id"`
+
+	// Item One IP item or a set reference (05a §2)
+	Item IPItem `json:"item"`
+
+	// Label Short human form, e.g. "192.0.2.0/24 (cidr)" or "office (set)"
+	Label    string `json:"label"`
+	Locked   bool   `json:"locked"`
+	Note     string `json:"note"`
+	Origin   string `json:"origin"`
+	Position int    `json:"position"`
+}
+
+// IPSetElementInput defines model for IPSetElementInput.
+type IPSetElementInput struct {
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+
+	// Item One IP item or a set reference (05a §2)
+	Item IPItem  `json:"item"`
+	Note *string `json:"note,omitempty"`
+}
+
+// IPSetElementPage defines model for IPSetElementPage.
+type IPSetElementPage struct {
+	Elements []IPSetElement `json:"elements"`
+
+	// NextCursor Empty on the last page
+	NextCursor string `json:"next_cursor"`
+
+	// Total Matching elements on all pages
+	Total int `json:"total"`
+}
+
+// IPSetInput defines model for IPSetInput.
+type IPSetInput struct {
+	Description *string `json:"description,omitempty"`
+	Name        string  `json:"name"`
+	Slug        string  `json:"slug"`
+}
+
+// IPSetList defines model for IPSetList.
+type IPSetList struct {
+	Sets []IPSet `json:"sets"`
+}
+
+// IPSetProblem defines model for IPSetProblem.
+type IPSetProblem struct {
+	ElementId string `json:"element_id"`
+	Message   string `json:"message"`
+
+	// Path Slugs from the compiled set to the failing item's set
+	Path  []string `json:"path"`
+	SetId string   `json:"set_id"`
+}
+
+// IPSetResolved defines model for IPSetResolved.
+type IPSetResolved struct {
+	AddressSet bool `json:"address_set"`
+
+	// Addresses Single addresses in item order (target positions; first is primary)
+	Addresses  []string `json:"addresses"`
+	NextCursor string   `json:"next_cursor"`
+
+	// Prefixes One page of merged prefixes (v4 first)
+	Prefixes []string            `json:"prefixes"`
+	Problems []IPSetProblem      `json:"problems"`
+	Status   IPSetResolvedStatus `json:"status"`
+	V4Count  int                 `json:"v4_count"`
+	V6Count  int                 `json:"v6_count"`
+}
+
+// IPSetResolvedStatus defines model for IPSetResolved.Status.
+type IPSetResolvedStatus string
 
 // Job defines model for Job.
 type Job struct {
@@ -1826,6 +2286,9 @@ type Version struct {
 type ListAuditEventsParams struct {
 	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Limit  *int    `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Target Only events for this target, e.g. ip_set:<id>
+	Target *string `form:"target,omitempty" json:"target,omitempty"`
 }
 
 // ListLogLinesParams defines parameters for ListLogLines.
@@ -1844,6 +2307,34 @@ type ListDNSRRSetsParams struct {
 
 // ListDNSRRSetsParamsOrigin defines parameters for ListDNSRRSets.
 type ListDNSRRSetsParamsOrigin string
+
+// ListIPSetsParams defines parameters for ListIPSets.
+type ListIPSetsParams struct {
+	Kind *ListIPSetsParamsKind `form:"kind,omitempty" json:"kind,omitempty"`
+
+	// Q Slug, name or description text
+	Q *string `form:"q,omitempty" json:"q,omitempty"`
+}
+
+// ListIPSetsParamsKind defines parameters for ListIPSets.
+type ListIPSetsParamsKind string
+
+// ListIPSetElementsParams defines parameters for ListIPSetElements.
+type ListIPSetElementsParams struct {
+	Q *string `form:"q,omitempty" json:"q,omitempty"`
+
+	// Cursor next_cursor of the previous page
+	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// GetIPSetResolvedParams defines parameters for GetIPSetResolved.
+type GetIPSetResolvedParams struct {
+	Family *GetIPSetResolvedParamsFamily `form:"family,omitempty" json:"family,omitempty"`
+	Cursor *string                       `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// GetIPSetResolvedParamsFamily defines parameters for GetIPSetResolved.
+type GetIPSetResolvedParamsFamily string
 
 // BootstrapLoginJSONRequestBody defines body for BootstrapLogin for application/json ContentType.
 type BootstrapLoginJSONRequestBody = BootstrapLogin
@@ -1883,6 +2374,18 @@ type CreateDNSRecordJSONRequestBody = DNSRecordInput
 
 // UpdateDNSRecordJSONRequestBody defines body for UpdateDNSRecord for application/json ContentType.
 type UpdateDNSRecordJSONRequestBody = DNSRecordUpdate
+
+// CreateIPSetJSONRequestBody defines body for CreateIPSet for application/json ContentType.
+type CreateIPSetJSONRequestBody = IPSetInput
+
+// UpdateIPSetJSONRequestBody defines body for UpdateIPSet for application/json ContentType.
+type UpdateIPSetJSONRequestBody = IPSetInput
+
+// AddIPSetElementJSONRequestBody defines body for AddIPSetElement for application/json ContentType.
+type AddIPSetElementJSONRequestBody = IPSetElementInput
+
+// UpdateIPSetElementJSONRequestBody defines body for UpdateIPSetElement for application/json ContentType.
+type UpdateIPSetElementJSONRequestBody = IPSetElementInput
 
 // CreateServiceJSONRequestBody defines body for CreateService for application/json ContentType.
 type CreateServiceJSONRequestBody = ServiceInput
@@ -1926,6 +2429,215 @@ type PutSetupTraefikConnectionJSONRequestBody = TraefikConnectionInput
 // ScanSetupTraefikHostJSONRequestBody defines body for ScanSetupTraefikHost for application/json ContentType.
 type ScanSetupTraefikHostJSONRequestBody = HostKeyScanInput
 
+// AsIPItemIP returns the union data inside the IPItem as a IPItemIP
+func (t IPItem) AsIPItemIP() (IPItemIP, error) {
+	var body IPItemIP
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromIPItemIP overwrites any union data inside the IPItem as the provided IPItemIP
+func (t *IPItem) FromIPItemIP(v IPItemIP) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"ip"}`))
+	t.union = b
+	return err
+}
+
+// MergeIPItemIP performs a merge with any union data inside the IPItem, using the provided IPItemIP
+func (t *IPItem) MergeIPItemIP(v IPItemIP) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"ip"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsIPItemCIDR returns the union data inside the IPItem as a IPItemCIDR
+func (t IPItem) AsIPItemCIDR() (IPItemCIDR, error) {
+	var body IPItemCIDR
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromIPItemCIDR overwrites any union data inside the IPItem as the provided IPItemCIDR
+func (t *IPItem) FromIPItemCIDR(v IPItemCIDR) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"cidr"}`))
+	t.union = b
+	return err
+}
+
+// MergeIPItemCIDR performs a merge with any union data inside the IPItem, using the provided IPItemCIDR
+func (t *IPItem) MergeIPItemCIDR(v IPItemCIDR) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"cidr"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsIPItemHost returns the union data inside the IPItem as a IPItemHost
+func (t IPItem) AsIPItemHost() (IPItemHost, error) {
+	var body IPItemHost
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromIPItemHost overwrites any union data inside the IPItem as the provided IPItemHost
+func (t *IPItem) FromIPItemHost(v IPItemHost) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"host"}`))
+	t.union = b
+	return err
+}
+
+// MergeIPItemHost performs a merge with any union data inside the IPItem, using the provided IPItemHost
+func (t *IPItem) MergeIPItemHost(v IPItemHost) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"host"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsIPItemDNS returns the union data inside the IPItem as a IPItemDNS
+func (t IPItem) AsIPItemDNS() (IPItemDNS, error) {
+	var body IPItemDNS
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromIPItemDNS overwrites any union data inside the IPItem as the provided IPItemDNS
+func (t *IPItem) FromIPItemDNS(v IPItemDNS) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"dns"}`))
+	t.union = b
+	return err
+}
+
+// MergeIPItemDNS performs a merge with any union data inside the IPItem, using the provided IPItemDNS
+func (t *IPItem) MergeIPItemDNS(v IPItemDNS) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"dns"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsIPItemSet returns the union data inside the IPItem as a IPItemSet
+func (t IPItem) AsIPItemSet() (IPItemSet, error) {
+	var body IPItemSet
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromIPItemSet overwrites any union data inside the IPItem as the provided IPItemSet
+func (t *IPItem) FromIPItemSet(v IPItemSet) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"set"}`))
+	t.union = b
+	return err
+}
+
+// MergeIPItemSet performs a merge with any union data inside the IPItem, using the provided IPItemSet
+func (t *IPItem) MergeIPItemSet(v IPItemSet) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"set"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t IPItem) Discriminator() (string, error) {
+	var discriminator struct {
+		Discriminator string `json:"type"`
+	}
+	err := json.Unmarshal(t.union, &discriminator)
+	return discriminator.Discriminator, err
+}
+
+func (t IPItem) ValueByDiscriminator() (interface{}, error) {
+	discriminator, err := t.Discriminator()
+	if err != nil {
+		return nil, err
+	}
+	switch discriminator {
+	case "cidr":
+		return t.AsIPItemCIDR()
+	case "dns":
+		return t.AsIPItemDNS()
+	case "host":
+		return t.AsIPItemHost()
+	case "ip":
+		return t.AsIPItemIP()
+	case "set":
+		return t.AsIPItemSet()
+	default:
+		return nil, errors.New("unknown discriminator value: " + discriminator)
+	}
+}
+
+func (t IPItem) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *IPItem) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// ListAuditEvents Audit log, newest first
@@ -1937,6 +2649,9 @@ type ServerInterface interface {
 	// ListLogLines Recent log lines (already redacted), after a sequence number
 	// (GET /api/activity/logs)
 	ListLogLines(w http.ResponseWriter, r *http.Request, params ListLogLinesParams)
+	// LookupAddress Every set that contains the address, with the nesting path to the element that holds it
+	// (GET /api/addresses/{address})
+	LookupAddress(w http.ResponseWriter, r *http.Request, address string)
 	// BootstrapLogin Sign in with the one-time bootstrap credentials (private networks only, before setup completes)
 	// (POST /api/auth/bootstrap/login)
 	BootstrapLogin(w http.ResponseWriter, r *http.Request)
@@ -2033,6 +2748,39 @@ type ServerInterface interface {
 	// GetEdgeAuthForward Traefik forward auth for every edge service
 	// (GET /api/edge-auth/forward)
 	GetEdgeAuthForward(w http.ResponseWriter, r *http.Request)
+	// ListIPSets Every IP set with its last compile summary, system sets first
+	// (GET /api/ip-sets)
+	ListIPSets(w http.ResponseWriter, r *http.Request, params ListIPSetsParams)
+	// CreateIPSet Add a user IP set (empty; add elements next)
+	// (POST /api/ip-sets)
+	CreateIPSet(w http.ResponseWriter, r *http.Request)
+	// DeleteIPSet Delete a user set that nothing uses (409 lists what still uses it)
+	// (DELETE /api/ip-sets/{id})
+	DeleteIPSet(w http.ResponseWriter, r *http.Request, id string)
+	// GetIPSet One IP set
+	// (GET /api/ip-sets/{id})
+	GetIPSet(w http.ResponseWriter, r *http.Request, id string)
+	// UpdateIPSet Change a user set's slug, name and description
+	// (PUT /api/ip-sets/{id})
+	UpdateIPSet(w http.ResponseWriter, r *http.Request, id string)
+	// GetIPSetConsumers What uses the set (parent sets, firewall bindings, DNS records, service targets)
+	// (GET /api/ip-sets/{id}/consumers)
+	GetIPSetConsumers(w http.ResponseWriter, r *http.Request, id string)
+	// ListIPSetElements A set's own elements, filtered by address (containing), prefix (overlapping) or text
+	// (GET /api/ip-sets/{id}/elements)
+	ListIPSetElements(w http.ResponseWriter, r *http.Request, id string, params ListIPSetElementsParams)
+	// AddIPSetElement Append an element to a user set
+	// (POST /api/ip-sets/{id}/elements)
+	AddIPSetElement(w http.ResponseWriter, r *http.Request, id string)
+	// DeleteIPSetElement Remove an element from a user set
+	// (DELETE /api/ip-sets/{id}/elements/{elementId})
+	DeleteIPSetElement(w http.ResponseWriter, r *http.Request, id string, elementId string)
+	// UpdateIPSetElement Replace an element's item, note and expiry
+	// (PATCH /api/ip-sets/{id}/elements/{elementId})
+	UpdateIPSetElement(w http.ResponseWriter, r *http.Request, id string, elementId string)
+	// GetIPSetResolved The set compiled now (prefixes merged per family, single addresses for target positions, problems)
+	// (GET /api/ip-sets/{id}/resolved)
+	GetIPSetResolved(w http.ResponseWriter, r *http.Request, id string, params GetIPSetResolvedParams)
 	// ListServices Every service, system services first, with the reason when one cannot be rendered
 	// (GET /api/services)
 	ListServices(w http.ResponseWriter, r *http.Request)
@@ -2238,6 +2986,19 @@ func (siw *ServerInterfaceWrapper) ListAuditEvents(w http.ResponseWriter, r *htt
 		return
 	}
 
+	// ------------- Optional query parameter "target" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "target", r.URL.Query(), &params.Target, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "target"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "target", Err: err})
+		}
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListAuditEvents(w, r, params)
 	}))
@@ -2287,6 +3048,32 @@ func (siw *ServerInterfaceWrapper) ListLogLines(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListLogLines(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// LookupAddress operation middleware
+func (siw *ServerInterfaceWrapper) LookupAddress(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "address" -------------
+	var address string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "address", r.PathValue("address"), &address, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "address", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.LookupAddress(w, r, address)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2884,6 +3671,376 @@ func (siw *ServerInterfaceWrapper) GetEdgeAuthForward(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetEdgeAuthForward(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListIPSets operation middleware
+func (siw *ServerInterfaceWrapper) ListIPSets(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListIPSetsParams
+
+	// ------------- Optional query parameter "kind" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "kind", r.URL.Query(), &params.Kind, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "kind"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "kind", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListIPSets(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateIPSet operation middleware
+func (siw *ServerInterfaceWrapper) CreateIPSet(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateIPSet(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteIPSet operation middleware
+func (siw *ServerInterfaceWrapper) DeleteIPSet(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteIPSet(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetIPSet operation middleware
+func (siw *ServerInterfaceWrapper) GetIPSet(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetIPSet(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateIPSet operation middleware
+func (siw *ServerInterfaceWrapper) UpdateIPSet(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateIPSet(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetIPSetConsumers operation middleware
+func (siw *ServerInterfaceWrapper) GetIPSetConsumers(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetIPSetConsumers(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListIPSetElements operation middleware
+func (siw *ServerInterfaceWrapper) ListIPSetElements(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListIPSetElementsParams
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListIPSetElements(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddIPSetElement operation middleware
+func (siw *ServerInterfaceWrapper) AddIPSetElement(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddIPSetElement(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteIPSetElement operation middleware
+func (siw *ServerInterfaceWrapper) DeleteIPSetElement(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "elementId" -------------
+	var elementId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "elementId", r.PathValue("elementId"), &elementId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "elementId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteIPSetElement(w, r, id, elementId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateIPSetElement operation middleware
+func (siw *ServerInterfaceWrapper) UpdateIPSetElement(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "elementId" -------------
+	var elementId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "elementId", r.PathValue("elementId"), &elementId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "elementId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateIPSetElement(w, r, id, elementId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetIPSetResolved operation middleware
+func (siw *ServerInterfaceWrapper) GetIPSetResolved(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetIPSetResolvedParams
+
+	// ------------- Optional query parameter "family" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "family", r.URL.Query(), &params.Family, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "family"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "family", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetIPSetResolved(w, r, id, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4010,6 +5167,18 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/services/{id}/disable", wrapper.DisableService)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/services/{id}/effective", wrapper.GetServiceEffective)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/traefik/plan", wrapper.PlanTraefik)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/ip-sets", wrapper.ListIPSets)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/ip-sets", wrapper.CreateIPSet)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/ip-sets/{id}", wrapper.DeleteIPSet)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/ip-sets/{id}", wrapper.GetIPSet)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/ip-sets/{id}", wrapper.UpdateIPSet)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/ip-sets/{id}/elements", wrapper.ListIPSetElements)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/ip-sets/{id}/elements", wrapper.AddIPSetElement)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/ip-sets/{id}/elements/{elementId}", wrapper.DeleteIPSetElement)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/ip-sets/{id}/elements/{elementId}", wrapper.UpdateIPSetElement)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/ip-sets/{id}/resolved", wrapper.GetIPSetResolved)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/ip-sets/{id}/consumers", wrapper.GetIPSetConsumers)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/addresses/{address}", wrapper.LookupAddress)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/certificates", wrapper.ListCertificates)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/certificates/{id}/renew", wrapper.RenewCertificate)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/sync/plans", wrapper.ListSyncPlans)
@@ -4134,6 +5303,45 @@ type ListLogLinesdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response ListLogLinesdefaultApplicationProblemPlusJSONResponse) VisitListLogLinesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LookupAddressRequestObject struct {
+	Address string `json:"address"`
+}
+
+type LookupAddressResponseObject interface {
+	VisitLookupAddressResponse(w http.ResponseWriter) error
+}
+
+type LookupAddress200JSONResponse AddressLookup
+
+func (response LookupAddress200JSONResponse) VisitLookupAddressResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type LookupAddressdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response LookupAddressdefaultApplicationProblemPlusJSONResponse) VisitLookupAddressResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -5390,6 +6598,430 @@ type GetEdgeAuthForward204Response struct {
 func (response GetEdgeAuthForward204Response) VisitGetEdgeAuthForwardResponse(w http.ResponseWriter) error {
 	w.WriteHeader(204)
 	return nil
+}
+
+type ListIPSetsRequestObject struct {
+	Params ListIPSetsParams
+}
+
+type ListIPSetsResponseObject interface {
+	VisitListIPSetsResponse(w http.ResponseWriter) error
+}
+
+type ListIPSets200JSONResponse IPSetList
+
+func (response ListIPSets200JSONResponse) VisitListIPSetsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListIPSetsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ListIPSetsdefaultApplicationProblemPlusJSONResponse) VisitListIPSetsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateIPSetRequestObject struct {
+	Body *CreateIPSetJSONRequestBody
+}
+
+type CreateIPSetResponseObject interface {
+	VisitCreateIPSetResponse(w http.ResponseWriter) error
+}
+
+type CreateIPSet200JSONResponse IPSet
+
+func (response CreateIPSet200JSONResponse) VisitCreateIPSetResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateIPSetdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response CreateIPSetdefaultApplicationProblemPlusJSONResponse) VisitCreateIPSetResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteIPSetRequestObject struct {
+	Id string `json:"id"`
+}
+
+type DeleteIPSetResponseObject interface {
+	VisitDeleteIPSetResponse(w http.ResponseWriter) error
+}
+
+type DeleteIPSet204Response struct {
+}
+
+func (response DeleteIPSet204Response) VisitDeleteIPSetResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteIPSetdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response DeleteIPSetdefaultApplicationProblemPlusJSONResponse) VisitDeleteIPSetResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetIPSetRequestObject struct {
+	Id string `json:"id"`
+}
+
+type GetIPSetResponseObject interface {
+	VisitGetIPSetResponse(w http.ResponseWriter) error
+}
+
+type GetIPSet200JSONResponse IPSet
+
+func (response GetIPSet200JSONResponse) VisitGetIPSetResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetIPSetdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetIPSetdefaultApplicationProblemPlusJSONResponse) VisitGetIPSetResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateIPSetRequestObject struct {
+	Id   string `json:"id"`
+	Body *UpdateIPSetJSONRequestBody
+}
+
+type UpdateIPSetResponseObject interface {
+	VisitUpdateIPSetResponse(w http.ResponseWriter) error
+}
+
+type UpdateIPSet200JSONResponse IPSet
+
+func (response UpdateIPSet200JSONResponse) VisitUpdateIPSetResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateIPSetdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response UpdateIPSetdefaultApplicationProblemPlusJSONResponse) VisitUpdateIPSetResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetIPSetConsumersRequestObject struct {
+	Id string `json:"id"`
+}
+
+type GetIPSetConsumersResponseObject interface {
+	VisitGetIPSetConsumersResponse(w http.ResponseWriter) error
+}
+
+type GetIPSetConsumers200JSONResponse IPSetConsumerList
+
+func (response GetIPSetConsumers200JSONResponse) VisitGetIPSetConsumersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetIPSetConsumersdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetIPSetConsumersdefaultApplicationProblemPlusJSONResponse) VisitGetIPSetConsumersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListIPSetElementsRequestObject struct {
+	Id     string `json:"id"`
+	Params ListIPSetElementsParams
+}
+
+type ListIPSetElementsResponseObject interface {
+	VisitListIPSetElementsResponse(w http.ResponseWriter) error
+}
+
+type ListIPSetElements200JSONResponse IPSetElementPage
+
+func (response ListIPSetElements200JSONResponse) VisitListIPSetElementsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListIPSetElementsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ListIPSetElementsdefaultApplicationProblemPlusJSONResponse) VisitListIPSetElementsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddIPSetElementRequestObject struct {
+	Id   string `json:"id"`
+	Body *AddIPSetElementJSONRequestBody
+}
+
+type AddIPSetElementResponseObject interface {
+	VisitAddIPSetElementResponse(w http.ResponseWriter) error
+}
+
+type AddIPSetElement200JSONResponse IPSetElement
+
+func (response AddIPSetElement200JSONResponse) VisitAddIPSetElementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddIPSetElementdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response AddIPSetElementdefaultApplicationProblemPlusJSONResponse) VisitAddIPSetElementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteIPSetElementRequestObject struct {
+	Id        string `json:"id"`
+	ElementId string `json:"elementId"`
+}
+
+type DeleteIPSetElementResponseObject interface {
+	VisitDeleteIPSetElementResponse(w http.ResponseWriter) error
+}
+
+type DeleteIPSetElement204Response struct {
+}
+
+func (response DeleteIPSetElement204Response) VisitDeleteIPSetElementResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteIPSetElementdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response DeleteIPSetElementdefaultApplicationProblemPlusJSONResponse) VisitDeleteIPSetElementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateIPSetElementRequestObject struct {
+	Id        string `json:"id"`
+	ElementId string `json:"elementId"`
+	Body      *UpdateIPSetElementJSONRequestBody
+}
+
+type UpdateIPSetElementResponseObject interface {
+	VisitUpdateIPSetElementResponse(w http.ResponseWriter) error
+}
+
+type UpdateIPSetElement200JSONResponse IPSetElement
+
+func (response UpdateIPSetElement200JSONResponse) VisitUpdateIPSetElementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateIPSetElementdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response UpdateIPSetElementdefaultApplicationProblemPlusJSONResponse) VisitUpdateIPSetElementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetIPSetResolvedRequestObject struct {
+	Id     string `json:"id"`
+	Params GetIPSetResolvedParams
+}
+
+type GetIPSetResolvedResponseObject interface {
+	VisitGetIPSetResolvedResponse(w http.ResponseWriter) error
+}
+
+type GetIPSetResolved200JSONResponse IPSetResolved
+
+func (response GetIPSetResolved200JSONResponse) VisitGetIPSetResolvedResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetIPSetResolveddefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetIPSetResolveddefaultApplicationProblemPlusJSONResponse) VisitGetIPSetResolvedResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
 }
 
 type ListServicesRequestObject struct {
@@ -7419,6 +9051,9 @@ type StrictServerInterface interface {
 	// ListLogLines Recent log lines (already redacted), after a sequence number
 	// (GET /api/activity/logs)
 	ListLogLines(ctx context.Context, request ListLogLinesRequestObject) (ListLogLinesResponseObject, error)
+	// LookupAddress Every set that contains the address, with the nesting path to the element that holds it
+	// (GET /api/addresses/{address})
+	LookupAddress(ctx context.Context, request LookupAddressRequestObject) (LookupAddressResponseObject, error)
 	// BootstrapLogin Sign in with the one-time bootstrap credentials (private networks only, before setup completes)
 	// (POST /api/auth/bootstrap/login)
 	BootstrapLogin(ctx context.Context, request BootstrapLoginRequestObject) (BootstrapLoginResponseObject, error)
@@ -7515,6 +9150,39 @@ type StrictServerInterface interface {
 	// GetEdgeAuthForward Traefik forward auth for every edge service
 	// (GET /api/edge-auth/forward)
 	GetEdgeAuthForward(ctx context.Context, request GetEdgeAuthForwardRequestObject) (GetEdgeAuthForwardResponseObject, error)
+	// ListIPSets Every IP set with its last compile summary, system sets first
+	// (GET /api/ip-sets)
+	ListIPSets(ctx context.Context, request ListIPSetsRequestObject) (ListIPSetsResponseObject, error)
+	// CreateIPSet Add a user IP set (empty; add elements next)
+	// (POST /api/ip-sets)
+	CreateIPSet(ctx context.Context, request CreateIPSetRequestObject) (CreateIPSetResponseObject, error)
+	// DeleteIPSet Delete a user set that nothing uses (409 lists what still uses it)
+	// (DELETE /api/ip-sets/{id})
+	DeleteIPSet(ctx context.Context, request DeleteIPSetRequestObject) (DeleteIPSetResponseObject, error)
+	// GetIPSet One IP set
+	// (GET /api/ip-sets/{id})
+	GetIPSet(ctx context.Context, request GetIPSetRequestObject) (GetIPSetResponseObject, error)
+	// UpdateIPSet Change a user set's slug, name and description
+	// (PUT /api/ip-sets/{id})
+	UpdateIPSet(ctx context.Context, request UpdateIPSetRequestObject) (UpdateIPSetResponseObject, error)
+	// GetIPSetConsumers What uses the set (parent sets, firewall bindings, DNS records, service targets)
+	// (GET /api/ip-sets/{id}/consumers)
+	GetIPSetConsumers(ctx context.Context, request GetIPSetConsumersRequestObject) (GetIPSetConsumersResponseObject, error)
+	// ListIPSetElements A set's own elements, filtered by address (containing), prefix (overlapping) or text
+	// (GET /api/ip-sets/{id}/elements)
+	ListIPSetElements(ctx context.Context, request ListIPSetElementsRequestObject) (ListIPSetElementsResponseObject, error)
+	// AddIPSetElement Append an element to a user set
+	// (POST /api/ip-sets/{id}/elements)
+	AddIPSetElement(ctx context.Context, request AddIPSetElementRequestObject) (AddIPSetElementResponseObject, error)
+	// DeleteIPSetElement Remove an element from a user set
+	// (DELETE /api/ip-sets/{id}/elements/{elementId})
+	DeleteIPSetElement(ctx context.Context, request DeleteIPSetElementRequestObject) (DeleteIPSetElementResponseObject, error)
+	// UpdateIPSetElement Replace an element's item, note and expiry
+	// (PATCH /api/ip-sets/{id}/elements/{elementId})
+	UpdateIPSetElement(ctx context.Context, request UpdateIPSetElementRequestObject) (UpdateIPSetElementResponseObject, error)
+	// GetIPSetResolved The set compiled now (prefixes merged per family, single addresses for target positions, problems)
+	// (GET /api/ip-sets/{id}/resolved)
+	GetIPSetResolved(ctx context.Context, request GetIPSetResolvedRequestObject) (GetIPSetResolvedResponseObject, error)
 	// ListServices Every service, system services first, with the reason when one cannot be rendered
 	// (GET /api/services)
 	ListServices(ctx context.Context, request ListServicesRequestObject) (ListServicesResponseObject, error)
@@ -7784,6 +9452,32 @@ func (sh *strictHandler) ListLogLines(w http.ResponseWriter, r *http.Request, pa
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ListLogLinesResponseObject); ok {
 		if err := validResponse.VisitListLogLinesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// LookupAddress operation middleware
+func (sh *strictHandler) LookupAddress(w http.ResponseWriter, r *http.Request, address string) {
+	var request LookupAddressRequestObject
+
+	request.Address = address
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.LookupAddress(ctx, request.(LookupAddressRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "LookupAddress")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(LookupAddressResponseObject); ok {
+		if err := validResponse.VisitLookupAddressResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -8664,6 +10358,322 @@ func (sh *strictHandler) GetEdgeAuthForward(w http.ResponseWriter, r *http.Reque
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetEdgeAuthForwardResponseObject); ok {
 		if err := validResponse.VisitGetEdgeAuthForwardResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListIPSets operation middleware
+func (sh *strictHandler) ListIPSets(w http.ResponseWriter, r *http.Request, params ListIPSetsParams) {
+	var request ListIPSetsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListIPSets(ctx, request.(ListIPSetsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListIPSets")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListIPSetsResponseObject); ok {
+		if err := validResponse.VisitListIPSetsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateIPSet operation middleware
+func (sh *strictHandler) CreateIPSet(w http.ResponseWriter, r *http.Request) {
+	var request CreateIPSetRequestObject
+
+	var body CreateIPSetJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateIPSet(ctx, request.(CreateIPSetRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateIPSet")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateIPSetResponseObject); ok {
+		if err := validResponse.VisitCreateIPSetResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteIPSet operation middleware
+func (sh *strictHandler) DeleteIPSet(w http.ResponseWriter, r *http.Request, id string) {
+	var request DeleteIPSetRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteIPSet(ctx, request.(DeleteIPSetRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteIPSet")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteIPSetResponseObject); ok {
+		if err := validResponse.VisitDeleteIPSetResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetIPSet operation middleware
+func (sh *strictHandler) GetIPSet(w http.ResponseWriter, r *http.Request, id string) {
+	var request GetIPSetRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetIPSet(ctx, request.(GetIPSetRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetIPSet")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetIPSetResponseObject); ok {
+		if err := validResponse.VisitGetIPSetResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateIPSet operation middleware
+func (sh *strictHandler) UpdateIPSet(w http.ResponseWriter, r *http.Request, id string) {
+	var request UpdateIPSetRequestObject
+
+	request.Id = id
+
+	var body UpdateIPSetJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateIPSet(ctx, request.(UpdateIPSetRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateIPSet")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateIPSetResponseObject); ok {
+		if err := validResponse.VisitUpdateIPSetResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetIPSetConsumers operation middleware
+func (sh *strictHandler) GetIPSetConsumers(w http.ResponseWriter, r *http.Request, id string) {
+	var request GetIPSetConsumersRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetIPSetConsumers(ctx, request.(GetIPSetConsumersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetIPSetConsumers")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetIPSetConsumersResponseObject); ok {
+		if err := validResponse.VisitGetIPSetConsumersResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListIPSetElements operation middleware
+func (sh *strictHandler) ListIPSetElements(w http.ResponseWriter, r *http.Request, id string, params ListIPSetElementsParams) {
+	var request ListIPSetElementsRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListIPSetElements(ctx, request.(ListIPSetElementsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListIPSetElements")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListIPSetElementsResponseObject); ok {
+		if err := validResponse.VisitListIPSetElementsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AddIPSetElement operation middleware
+func (sh *strictHandler) AddIPSetElement(w http.ResponseWriter, r *http.Request, id string) {
+	var request AddIPSetElementRequestObject
+
+	request.Id = id
+
+	var body AddIPSetElementJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AddIPSetElement(ctx, request.(AddIPSetElementRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AddIPSetElement")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AddIPSetElementResponseObject); ok {
+		if err := validResponse.VisitAddIPSetElementResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteIPSetElement operation middleware
+func (sh *strictHandler) DeleteIPSetElement(w http.ResponseWriter, r *http.Request, id string, elementId string) {
+	var request DeleteIPSetElementRequestObject
+
+	request.Id = id
+	request.ElementId = elementId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteIPSetElement(ctx, request.(DeleteIPSetElementRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteIPSetElement")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteIPSetElementResponseObject); ok {
+		if err := validResponse.VisitDeleteIPSetElementResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateIPSetElement operation middleware
+func (sh *strictHandler) UpdateIPSetElement(w http.ResponseWriter, r *http.Request, id string, elementId string) {
+	var request UpdateIPSetElementRequestObject
+
+	request.Id = id
+	request.ElementId = elementId
+
+	var body UpdateIPSetElementJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateIPSetElement(ctx, request.(UpdateIPSetElementRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateIPSetElement")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateIPSetElementResponseObject); ok {
+		if err := validResponse.VisitUpdateIPSetElementResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetIPSetResolved operation middleware
+func (sh *strictHandler) GetIPSetResolved(w http.ResponseWriter, r *http.Request, id string, params GetIPSetResolvedParams) {
+	var request GetIPSetResolvedRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetIPSetResolved(ctx, request.(GetIPSetResolvedRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetIPSetResolved")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetIPSetResolvedResponseObject); ok {
+		if err := validResponse.VisitGetIPSetResolvedResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

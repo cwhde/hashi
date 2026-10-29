@@ -173,6 +173,47 @@ type DnsZone struct {
 	CreatedAt        int64
 }
 
+type IpSet struct {
+	ID                     string
+	Slug                   string
+	Name                   string
+	Description            string
+	Kind                   string
+	Origin                 string
+	SystemKey              sql.NullString
+	CompiledHash           string
+	ResolutionStatus       string
+	ResolutionProblemsJson string
+	CompiledAt             sql.NullInt64
+	CreatedAt              int64
+	UpdatedAt              int64
+}
+
+type IpSetElement struct {
+	ID           string
+	IpSetID      string
+	Position     int64
+	Type         string
+	Origin       string
+	Locked       int64
+	Address      sql.NullString
+	Prefix       sql.NullString
+	Family       sql.NullInt64
+	PulseAgentID sql.NullString
+	HostID       sql.NullString
+	Scope        sql.NullString
+	Selector     sql.NullString
+	Fqdn         sql.NullString
+	GeoKind      sql.NullString
+	GeoValue     sql.NullString
+	ChildSetID   sql.NullString
+	Note         string
+	ExpiresAt    sql.NullInt64
+	CreatedBy    string
+	CreatedAt    int64
+	UpdatedAt    int64
+}
+
 type Job struct {
 	Kind            string
 	IntervalSeconds int64

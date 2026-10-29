@@ -47,17 +47,29 @@ Found on the first real host (read-only), for the takeover plan (05 §3.4):
 Plan (three PRs: S6 is the largest slice; each PR is one coherent layer, ~1,500 hand-written lines):
 
 PR A — IP sets
-- [ ] Migration 00007: `ip_sets` (kind user/system, origin, locked, name, description) + `ip_set_elements` (typed rows
+- [x] Migration 00007: `ip_sets` (kind user/system, origin, locked, name, description) + `ip_set_elements` (typed rows
       `ip`/`cidr`/`host`/`dns`/`set` with CHECKs, note, expires_at); system sets `all`, `hashi-hosts`,
       `private-networks` seeded; sqlc.
-- [ ] `internal/ipsets`: sealed item variants, normalization, cycle check (DFS, path in the error), compiler
+- [x] `internal/ipsets`: sealed item variants, normalization, cycle check (DFS, path in the error), compiler
       (v4/v6 interval lists, merged; status ok/partial/empty + problems; expiry drop-out), address-set capability,
       DNS item resolver (TTL-bounded refresh), reverse dependency graph with debounced consumer notification.
       Tests incl. `TestInvariant_22_SetGraphsAcyclic` (IP sets part) and property tests of the merge.
-- [ ] OpenAPI + handlers: `/api/ip-sets` CRUD, elements, resolved, consumers, `GET /api/addresses/{address}`
+- [x] OpenAPI + handlers: `/api/ip-sets` CRUD, elements, resolved, consumers, `GET /api/addresses/{address}`
       (containing sets + nesting path; firewall verdict once PR B lands).
-- [ ] UI from the mocks: IP sets list, set page (elements, resolved, consumers), address page (no dynamic state);
+- [x] UI from the mocks: IP sets list, set page (elements, resolved, consumers), address page (no dynamic state);
       shared IP set picker + item editor. E2E against the dev fakes.
+
+Decisions made in PR A:
+- Reactivity is "recompile every set, compare hashes, notify consumers of the changed ones" instead of a stored reverse
+  dependency graph: same notifications, far less state at homelab size. Consumers subscribe with the changed set IDs.
+- dns items use the Go resolver and refresh every 5 minutes (it exposes no TTLs; spec c58229d). Expired items are
+  deleted by the `ipsets.refresh` job (every minute) with one `ip_set.element.expired` audit entry each.
+- `host_id`/`pulse_agent_id` carry no foreign key (their tables arrive later); their owners refuse deletes while
+  referenced. Host items are refused until a firewall host exists (PR B wires the host lookup).
+- A cycle answers 400 with its path; other item errors 422; locked sets 409. The audit list takes a `target` filter
+  (a set's History tab). The ⌘K address lookup stays a mock until the palette is built for real.
+- Review of PR A: the set page now pages past 200 items ("Show more"); ⌘K lookup and a test of the 2 s debounce are
+  not done (noted, not reproduced as faults).
 
 PR B — Firewall hosts
 - [ ] Migration 00008: `firewall_hosts` (05 §1 fields, edge mode, NetBird mode, pinned host key, credential refs,

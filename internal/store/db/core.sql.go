@@ -52,18 +52,20 @@ func (q *Queries) InsertAuditEvent(ctx context.Context, arg InsertAuditEventPara
 const listAuditEvents = `-- name: ListAuditEvents :many
 SELECT id, at, actor, "action", target, outcome, ip, detail_json FROM audit_events
 WHERE (CAST(?1 AS TEXT) = '' OR id < CAST(?1 AS TEXT))
+  AND (CAST(?2 AS TEXT) = '' OR target = CAST(?2 AS TEXT))
 ORDER BY id DESC
-LIMIT ?2
+LIMIT ?3
 `
 
 type ListAuditEventsParams struct {
 	Cursor string
+	Target string
 	Lim    int64
 }
 
 // Newest first; cursor is the last seen id (ULIDs sort by time).
 func (q *Queries) ListAuditEvents(ctx context.Context, arg ListAuditEventsParams) ([]AuditEvent, error) {
-	rows, err := q.db.QueryContext(ctx, listAuditEvents, arg.Cursor, arg.Lim)
+	rows, err := q.db.QueryContext(ctx, listAuditEvents, arg.Cursor, arg.Target, arg.Lim)
 	if err != nil {
 		return nil, err
 	}

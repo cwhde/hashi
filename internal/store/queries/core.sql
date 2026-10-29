@@ -5,6 +5,7 @@ INSERT INTO audit_events (id, at, actor, action, target, outcome, ip, detail_jso
 -- name: ListAuditEvents :many
 SELECT * FROM audit_events
 WHERE (CAST(sqlc.arg(cursor) AS TEXT) = '' OR id < CAST(sqlc.arg(cursor) AS TEXT))
+  AND (CAST(sqlc.arg(target) AS TEXT) = '' OR target = CAST(sqlc.arg(target) AS TEXT))
 ORDER BY id DESC
 LIMIT sqlc.arg(lim);
 

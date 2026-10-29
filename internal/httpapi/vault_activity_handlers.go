@@ -82,7 +82,7 @@ func (s *Server) ListAuditEvents(ctx context.Context, req gen.ListAuditEventsReq
 	if req.Params.Cursor != nil {
 		cursor = *req.Params.Cursor
 	}
-	rows, err := s.Store.R.ListAuditEvents(ctx, db.ListAuditEventsParams{Cursor: cursor, Lim: int64(limit)})
+	rows, err := s.Store.R.ListAuditEvents(ctx, db.ListAuditEventsParams{Cursor: cursor, Target: deref(req.Params.Target), Lim: int64(limit)})
 	if err != nil {
 		return nil, err
 	}

@@ -42,7 +42,7 @@ func TestReadyz(t *testing.T) {
 			}
 		case gen.GetReadyz503JSONResponse:
 			body = gen.Health(r)
-			if c.want != "503" || body.Status != gen.Unavailable {
+			if c.want != "503" || body.Status != gen.HealthStatusUnavailable {
 				t.Errorf("%s: got 503 status=%s", c.name, body.Status)
 			}
 		}
