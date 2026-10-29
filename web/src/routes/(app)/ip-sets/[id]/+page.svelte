@@ -62,13 +62,16 @@
 	let q = $state('');
 	const usedAsTarget = $derived(consumers.some((c) => c.position === 'target'));
 
-	async function loadElements() {
-		const r = await api.GET('/api/ip-sets/{id}/elements', {
-			params: { path: { id }, query: q.trim() ? { q: q.trim() } : {} }
-		});
+	let nextCursor = $state('');
+	// more = true appends the next page (05a §6: large sets are paginated).
+	async function loadElements(more = false) {
+		const query: { q?: string; cursor?: string } = q.trim() ? { q: q.trim() } : {};
+		if (more) query.cursor = nextCursor;
+		const r = await api.GET('/api/ip-sets/{id}/elements', { params: { path: { id }, query } });
 		if (r.error || !r.data) throw r.error;
-		elements = r.data.elements;
+		elements = more ? [...elements, ...r.data.elements] : r.data.elements;
 		total = r.data.total;
+		nextCursor = r.data.next_cursor;
 	}
 
 	async function load() {
@@ -350,6 +353,16 @@
 							</li>
 						{/each}
 					</ul>
+					{#if nextCursor}
+						<div class="border-t px-4 py-2.5 text-center">
+							<Button
+								variant="ghost"
+								size="sm"
+								onclick={() => loadElements(true).catch((e) => (loadError = problemText(e)))}
+								>Show more</Button
+							>
+						</div>
+					{/if}
 				{:else}
 					<div class="px-4 py-10 text-center text-[13px] text-muted-foreground">
 						{#if q}Nothing in this set matches “{q}”.{:else}This set is empty, so it matches nobody.
