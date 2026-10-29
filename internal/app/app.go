@@ -23,6 +23,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/clientip"
 	"git.juzo.io/juzo/hashi/internal/dns"
 	"git.juzo.io/juzo/hashi/internal/dns/hetzner"
+	"git.juzo.io/juzo/hashi/internal/firewall"
 	"git.juzo.io/juzo/hashi/internal/httpapi"
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
 	"git.juzo.io/juzo/hashi/internal/ipsets"
@@ -160,7 +161,12 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	if err := devEdge(cfg, traefikMgr, certMgr); err != nil {
 		return err
 	}
+	// IP sets (05a) and firewall hosts (05): host items resolve through the firewall manager.
+	ipSets := ipsets.NewService(st, al, log.With("component", "ipsets"), nil)
+	fwMgr := firewall.NewManager(st, v, al, ipSets,
+		func(ctx context.Context, c sshx.Config) (firewall.Conn, error) { return sshx.Dial(ctx, c) })
 	subs := append(dnsSvc.Subsystems(), traefikMgr.Subsystems()...)
+	subs = append(subs, fwMgr.Subsystems()...)
 	syncEngine := hsync.New(st, al, append(subs, certMgr.Subsystems()...)...)
 	if err := syncEngine.Start(ctx); err != nil {
 		return err
@@ -170,11 +176,16 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 		return err
 	}
 
-	// IP sets (05a): dns answers refresh and expired elements drop out every minute; edits recompile at once.
-	ipSets := ipsets.NewService(st, al, log.With("component", "ipsets"), nil)
+	// dns answers refresh and expired elements drop out every minute; a changed compiled set re-plans every managed
+	// firewall host (low-risk element changes apply, the rest waits for approval, 05 §4.4).
 	if err := runner.Register(ctx, jobs.Job{Kind: ipsets.JobKind, Interval: ipsets.JobInterval, Run: ipSets.Refresh}); err != nil {
 		return err
 	}
+	ipSets.Subscribe(func(ctx context.Context, _ []string) {
+		if _, err := fwMgr.PlanAll(ctx, syncEngine, audit.System); err != nil {
+			log.Warn("firewall plans after an IP set change", "err", err)
+		}
+	})
 
 	// Hourly: issue what is missing, renew 30 days ahead (a failure waits certs.RetryAfter), then bring every Traefik
 	// host's certificate files up to date.
@@ -196,7 +207,7 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	health := httpapi.NewHealth(map[string]httpapi.Check{"database": st.Ready})
 	api := &httpapi.Server{
 		Health: health, Version: gen.Version{Version: Version, Commit: Commit}, Store: st, Sessions: sessions,
-		Passkeys: passkeys, Setup: setupSvc, Settings: cfgSettings, DNS: dnsSvc, Traefik: traefikMgr, Certs: certMgr, IPSets: ipSets, Sync: syncEngine, Vault: v, Audit: al, IP: ip, Logs: cfg.Logs,
+		Passkeys: passkeys, Setup: setupSvc, Settings: cfgSettings, DNS: dnsSvc, Traefik: traefikMgr, Certs: certMgr, IPSets: ipSets, Firewall: fwMgr, Sync: syncEngine, Vault: v, Audit: al, IP: ip, Logs: cfg.Logs,
 		CertsSoon: func(ctx context.Context) error { return runner.Soon(ctx, certs.JobKind) },
 		Log:       log.With("component", "api"),
 	}

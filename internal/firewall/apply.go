@@ -47,8 +47,8 @@ type Host interface {
 
 // Guard names the addresses a change must never lock out (05 §4.4).
 type Guard struct {
-	AdminIP  netip.Addr // the current admin session's address
-	RescueIP netip.Addr // the address Hashi reaches the host's SSH from
+	AdminIPs []netip.Addr // addresses of the active admin sessions
+	RescueIP netip.Addr   // the address the host sees Hashi's SSH from
 }
 
 // Desired is everything Hashi wants on one managed host.
@@ -528,7 +528,7 @@ func TableRisk(old, new []byte, g Guard) []string {
 		}
 	}
 	for _, set := range []string{"allow", "host_access"} {
-		for _, a := range []netip.Addr{g.AdminIP, g.RescueIP} {
+		for _, a := range append(slices.Clone(g.AdminIPs), g.RescueIP) {
 			if !a.IsValid() {
 				continue
 			}

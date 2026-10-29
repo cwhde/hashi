@@ -35,6 +35,9 @@ valid networks and an address keeps its network across the file). The rule shape
    `wt0`↔bridge ACCEPT pairs), the ipset `trusted_hosts`, and two `@reboot` + two `*/15` crontab lines. NetBird's own
    objects are the `NETBIRD-*` chains, their jumps and CONNMARK rules, and the `nb…` ipsets.
 
+7. `$SSH_CONNECTION` in a login (checked on the dev target) is `<client ip> <client port> <server ip> <server port>`:
+   validation stores the client address as the rescue source.
+
 ## Rescue timer (`systemd-run`, Debian dev target, systemd 257)
 
 - `systemd-run --on-active=N --unit=hashi-fw-rescue <cmd>` creates `hashi-fw-rescue.timer` + `.service`; exit 0.

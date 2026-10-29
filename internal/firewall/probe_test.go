@@ -52,6 +52,9 @@ func TestParseProbeNetBirdHost(t *testing.T) {
 	if !wg || len(f.Listeners) < 10 {
 		t.Fatalf("listeners %+v", f.Listeners)
 	}
+	if f.NftPath != "/usr/sbin/nft" {
+		t.Fatalf("nft path %q", f.NftPath)
+	}
 	if f.FilterTable() || f.HashiTable() {
 		t.Fatal("no nft tables on this host")
 	}

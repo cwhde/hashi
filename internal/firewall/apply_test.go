@@ -160,7 +160,7 @@ func TestTableRisk(t *testing.T) {
 		return b
 	}
 	old := render(func(*Spec) {})
-	g := Guard{AdminIP: netip.MustParseAddr("198.51.100.7"), RescueIP: netip.MustParseAddr("198.51.100.3")}
+	g := Guard{AdminIPs: []netip.Addr{netip.MustParseAddr("198.51.100.7")}, RescueIP: netip.MustParseAddr("198.51.100.3")}
 	cases := map[string]struct {
 		mut  func(*Spec)
 		want string

@@ -65,7 +65,11 @@ type Facts struct {
 	IPForward, IP6Forward  bool
 	Systemd                bool // systemd-run present: the rescue timer works (05 §7)
 	Missing                []string
+	NftPath                string // from the tools section; the boot unit runs it
 	Ruleset                string // nft -j list ruleset as read
+	// SSHFrom is the address the host sees Hashi's SSH connection from ($SSH_CONNECTION): the rescue path that a
+	// change must never block (05 §4.4). Set by validation, not by the probe.
+	SSHFrom netip.Addr
 }
 
 // FilterTable reports an nft table named "filter" in any family: NetBird switches to nftables when it finds one.
@@ -204,8 +208,12 @@ func ParseProbe(out string) (Facts, error) {
 	f.IPForward = len(fw) > 0 && fw[0] == "1"
 	f.IP6Forward = len(fw) > 1 && fw[1] == "1"
 	for _, line := range strings.Split(s["tools"].out, "\n") {
-		if t, ok := strings.CutPrefix(strings.TrimSpace(line), "missing:"); ok {
+		line = strings.TrimSpace(line)
+		if t, ok := strings.CutPrefix(line, "missing:"); ok {
 			f.Missing = append(f.Missing, t)
+		}
+		if strings.HasPrefix(line, "/") && strings.HasSuffix(line, "/nft") && f.NftPath == "" {
+			f.NftPath = line
 		}
 	}
 	f.Systemd = !slices.Contains(f.Missing, "systemd-run")
