@@ -523,6 +523,13 @@ Decisions made in S0:
 - Deploy targets live in gitignored `deploy/targets/<env>.env` (example in `deploy/targets.example/`).
 - `make dev`, `make image`, `make deploy` exist now; `make test-integration`, `make test-e2e`, `make contract-capture` arrive with the slices that need them.
 
+## Agenda with the user
+
+- **Before S7 starts (after S6's prod-proof): stop and talk with the user** about running checks locally first instead
+  of iterating through remote CI. Remote CI rounds are slow and cost compute and tokens; the plan is to run the full
+  checks (`make check`, the affected `make test-integration` packages, `make test-e2e`) on the laptop before pushing,
+  and use CI as the final confirmation, not as the place where failures are found. Requested by the user 2026-10-29.
+
 ## Slices
 
 | Slice | Status | Prod-proof (date · version · evidence) |
