@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"math/rand/v2"
 	"net/netip"
 	"os"
 	"os/exec"
@@ -146,33 +147,38 @@ func TestIntegrationCoexistsWithNetBirdAndForeignTables(t *testing.T) {
 // firewall ↔ LAN ↔ "Traefik" (whose default route is the firewall).
 func TestIntegrationDNATReachesTraefik(t *testing.T) {
 	itest.Build(t, fwImage, filepath.Join("testdata", "itest"))
-	itest.Network(t, "hashi-fw-wan", "198.18.10.0/24")
-	itest.Network(t, "hashi-fw-lan", "10.77.0.0/24")
-	fw := itest.RunOn(t, "hashi-fw-wan", "198.18.10.2", []string{"--cap-add", "NET_ADMIN", "--cap-add", "NET_RAW",
+	// Fresh names and ranges per run: CI runners share one Docker daemon, and a failed run may leave a network behind.
+	n := 10 + rand.IntN(240)
+	wanNet, lanNet := fmt.Sprintf("hashi-fw-wan-%d-%d", n, os.Getpid()), fmt.Sprintf("hashi-fw-lan-%d-%d", n, os.Getpid())
+	w := func(h int) string { return fmt.Sprintf("198.18.%d.%d", n, h) }
+	l := func(h int) string { return fmt.Sprintf("10.77.%d.%d", n, h) }
+	itest.Network(t, wanNet, w(0)+"/24")
+	itest.Network(t, lanNet, l(0)+"/24")
+	fw := itest.RunOn(t, wanNet, w(2), []string{"--cap-add", "NET_ADMIN", "--cap-add", "NET_RAW",
 		"--sysctl", "net.ipv4.ip_forward=1"}, fwImage)
-	fw.Connect(t, "hashi-fw-lan", "10.77.0.2")
-	traefik := itest.RunOn(t, "hashi-fw-lan", "10.77.0.10", []string{"--cap-add", "NET_ADMIN"}, stub,
+	fw.Connect(t, lanNet, l(2))
+	traefik := itest.RunOn(t, lanNet, l(10), []string{"--cap-add", "NET_ADMIN"}, stub,
 		"sh", "-c", "mkdir -p /www && echo entrypoint > /www/index.html && httpd -f -p 8443 -h /www")
-	client := itest.RunOn(t, "hashi-fw-wan", "198.18.10.3", nil, stub,
+	client := itest.RunOn(t, wanNet, w(3), nil, stub,
 		"sh", "-c", "mkdir -p /www && echo outside > /www/index.html && httpd -f -p 8080 -h /www")
-	traefik.Exec(t, "ip", "route", "replace", "default", "via", "10.77.0.2")
+	traefik.Exec(t, "ip", "route", "replace", "default", "via", l(2))
 
-	wan := strings.TrimSpace(fw.Exec(t, "sh", "-c", "ip -o -4 addr show | awk '/198.18.10.2/ {print $2}'"))
-	s := Spec{WAN: wan, PublicIP: netip.MustParseAddr("198.18.10.2"), Subnets: pfx("10.77.0.0/24"),
-		TraefikIP: netip.MustParseAddr("10.77.0.10"), Ports: []Port{{Proto: "tcp", Port: 443, TargetPort: 8443}},
+	wan := strings.TrimSpace(fw.Exec(t, "sh", "-c", "ip -o -4 addr show | awk '/"+w(2)+"\\// {print $2}'"))
+	s := Spec{WAN: wan, PublicIP: netip.MustParseAddr(w(2)), Subnets: pfx(l(0) + "/24"),
+		TraefikIP: netip.MustParseAddr(l(10)), Ports: []Port{{Proto: "tcp", Port: 443, TargetPort: 8443}},
 		Folded: Fold(nil, pfx("203.0.113.0/24")), NetBird: NetBird{Mode: NetBirdDisabled}, Meters: DefaultMeters}
 	apply(t, fw, s, false)
 
 	var got string
 	itest.WaitFor(t, 20*time.Second, "DNAT to the entry point", func() bool {
-		got, _ = client.Try("wget", "-qO-", "-T", "2", "http://198.18.10.2:443/")
+		got, _ = client.Try("wget", "-qO-", "-T", "2", "http://"+w(2)+":443/")
 		return strings.Contains(got, "entrypoint")
 	})
-	if out, err := traefik.Try("wget", "-qO-", "-T", "3", "http://198.18.10.3:8080/"); err != nil || !strings.Contains(out, "outside") {
+	if out, err := traefik.Try("wget", "-qO-", "-T", "3", "http://"+w(3)+":8080/"); err != nil || !strings.Contains(out, "outside") {
 		t.Fatalf("managed subnet egress through the firewall: %v %s", err, out)
 	}
 	// Nothing else is published: another port on the WAN address does not reach the stand-in.
-	if out, err := client.Try("wget", "-qO-", "-T", "2", "http://198.18.10.2:8443/"); err == nil {
+	if out, err := client.Try("wget", "-qO-", "-T", "2", "http://"+w(2)+":8443/"); err == nil {
 		t.Fatalf("unpublished port reached something: %s", out)
 	}
 }
