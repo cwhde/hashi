@@ -156,3 +156,76 @@ func SSHBanner(addr string) bool {
 	n, _ := c.Read(b)
 	return n == 4 && string(b) == "SSH-"
 }
+
+// Build builds the Dockerfile in dir as tag (layers are cached between runs) and skips the test without docker.
+func Build(t testing.TB, tag, dir string) {
+	t.Helper()
+	if _, err := exec.LookPath("docker"); err != nil {
+		t.Skip("docker not available")
+	}
+	if out, err := docker("build", "-q", "-t", tag, dir).CombinedOutput(); err != nil {
+		t.Fatalf("docker build %s: %v\n%s", dir, err, out)
+	}
+}
+
+// CopyTo copies a local file into the container.
+func (c Container) CopyTo(t testing.TB, src, dst string) {
+	t.Helper()
+	if out, err := docker("cp", src, c.ID+":"+dst).CombinedOutput(); err != nil {
+		t.Fatalf("docker cp %s: %v\n%s", src, err, out)
+	}
+}
+
+// Try runs a command inside the container and returns its output and error without failing the test.
+func (c Container) Try(cmd ...string) (string, error) {
+	out, err := docker(append([]string{"exec", c.ID}, cmd...)...).CombinedOutput()
+	return string(out), err
+}
+
+// Arch is the Docker server's architecture as GOARCH (amd64, arm64).
+func Arch(t testing.TB) string {
+	t.Helper()
+	out, err := docker("info", "-f", "{{.Architecture}}").Output()
+	if err != nil {
+		t.Fatalf("docker info: %v", err)
+	}
+	switch a := strings.TrimSpace(string(out)); a {
+	case "x86_64":
+		return "amd64"
+	case "aarch64":
+		return "arm64"
+	default:
+		return a
+	}
+}
+
+// RunIsolated starts image in its own network namespace on Docker's default bridge, never the test runner's: firewall
+// tests change the namespace's netfilter state.
+func RunIsolated(t testing.TB, flags []string, image string, cmd ...string) Container {
+	t.Helper()
+	return start(t, append([]string{"run", "-d", "--rm", "--network", "bridge"}, flags...), image, cmd...)
+}
+
+// Network creates a Docker bridge network with subnet and removes it when the test ends.
+func Network(t testing.TB, name, subnet string) {
+	t.Helper()
+	_ = docker("network", "rm", name).Run()
+	if out, err := docker("network", "create", "--subnet", subnet, name).CombinedOutput(); err != nil {
+		t.Fatalf("docker network create %s: %v\n%s", name, err, out)
+	}
+	t.Cleanup(func() { _ = docker("network", "rm", name).Run() })
+}
+
+// Connect attaches a running container to a network with a fixed address.
+func (c Container) Connect(t testing.TB, network, ip string) {
+	t.Helper()
+	if out, err := docker("network", "connect", "--ip", ip, network, c.ID).CombinedOutput(); err != nil {
+		t.Fatalf("docker network connect %s: %v\n%s", network, err, out)
+	}
+}
+
+// RunOn starts image on a network created with Network, at a fixed address.
+func RunOn(t testing.TB, network, ip string, flags []string, image string, cmd ...string) Container {
+	t.Helper()
+	return start(t, append([]string{"run", "-d", "--rm", "--network", network, "--ip", ip}, flags...), image, cmd...)
+}

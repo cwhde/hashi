@@ -134,11 +134,9 @@ func foldFamily(allow, block []netip.Prefix) (allowed, blocked []netip.Prefix) {
 	a, b := newSide(allow), newSide(block)
 	var ab, bb netipx.IPSetBuilder
 	for i, x := range points {
-		last := netip.Addr{}
+		last := maxAddr(x)
 		if i+1 < len(points) {
 			last = points[i+1].Prev()
-		} else {
-			last = maxAddr(x)
 		}
 		la, lb := a.at(x), b.at(x)
 		r := netipx.IPRangeFrom(x, last)
