@@ -1620,7 +1620,10 @@ type DNSRecord struct {
 	Ttl  *int   `json:"ttl,omitempty"`
 	Type string `json:"type"`
 
-	// Values TXT as plain text
+	// ValueSetId The address set the values follow (03 §7)
+	ValueSetId *string `json:"value_set_id,omitempty"`
+
+	// Values TXT as plain text; empty for an address-set entry
 	Values []string `json:"values"`
 	ZoneId string   `json:"zone_id"`
 }
@@ -1635,10 +1638,15 @@ type DNSRecordInput struct {
 	Name string `json:"name"`
 
 	// Ttl Absent = zone default
-	Ttl    *int               `json:"ttl,omitempty"`
-	Type   DNSRecordInputType `json:"type"`
-	Values []string           `json:"values"`
-	ZoneId string             `json:"zone_id"`
+	Ttl  *int               `json:"ttl,omitempty"`
+	Type DNSRecordInputType `json:"type"`
+
+	// ValueSetId A and AAAA only: an address set whose addresses of the record's family are the values (03 §7)
+	ValueSetId *string `json:"value_set_id,omitempty"`
+
+	// Values Empty when value_set_id is set
+	Values []string `json:"values"`
+	ZoneId string   `json:"zone_id"`
 }
 
 // DNSRecordInputType defines model for DNSRecordInput.Type.
@@ -1662,7 +1670,12 @@ type DNSRecordUpdate struct {
 	Monitoring  *bool   `json:"monitoring,omitempty"`
 
 	// Ttl Absent = zone default
-	Ttl    *int     `json:"ttl,omitempty"`
+	Ttl *int `json:"ttl,omitempty"`
+
+	// ValueSetId A and AAAA only: an address set whose addresses of the record's family are the values (03 §7)
+	ValueSetId *string `json:"value_set_id,omitempty"`
+
+	// Values Empty when value_set_id is set
 	Values []string `json:"values"`
 }
 
@@ -2215,8 +2228,11 @@ type Service struct {
 	DashboardVisible bool              `json:"dashboard_visible"`
 	DomainMode       ServiceDomainMode `json:"domain_mode"`
 	Enabled          bool              `json:"enabled"`
-	HostName         string            `json:"host_name"`
-	Id               string            `json:"id"`
+
+	// EntryHostId Service routing override (03 §5.1); empty = none
+	EntryHostId *string `json:"entry_host_id,omitempty"`
+	HostName    string  `json:"host_name"`
+	Id          string  `json:"id"`
 
 	// InvalidReason Why the service is left out of the rendered files; empty when valid
 	InvalidReason     string        `json:"invalid_reason"`
@@ -2261,7 +2277,10 @@ type ServiceInput struct {
 	DomainMode       ServiceInputDomainMode `json:"domain_mode"`
 
 	// Enabled On create only (default true); enable/disable have their own calls
-	Enabled           *bool                      `json:"enabled,omitempty"`
+	Enabled *bool `json:"enabled,omitempty"`
+
+	// EntryHostId Service routing override: the firewall host public traffic enters through (03 §5.1)
+	EntryHostId       *string                    `json:"entry_host_id,omitempty"`
 	HostName          string                     `json:"host_name"`
 	Kind              ServiceInputKind           `json:"kind"`
 	MonitoringVisible *bool                      `json:"monitoring_visible,omitempty"`
@@ -2331,9 +2350,12 @@ type ServiceSaveResult struct {
 
 // ServiceTarget defines model for ServiceTarget.
 type ServiceTarget struct {
-	// Address IP address or host name (address sets arrive with S6)
+	// Address IP address or host name; empty when set_id names an address set
 	Address string `json:"address"`
 	Port    int    `json:"port"`
+
+	// SetId An address set (05a §5.2) whose addresses are load-balanced; instead of address
+	SetId *string `json:"set_id,omitempty"`
 
 	// Weight Load-balancing weight; 0 or absent = 1
 	Weight *int `json:"weight,omitempty"`

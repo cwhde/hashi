@@ -15,6 +15,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/dns/hetzner"
 	"git.juzo.io/juzo/hashi/internal/dns/hetzner/hetznertest"
 	"git.juzo.io/juzo/hashi/internal/secrets"
+	"git.juzo.io/juzo/hashi/internal/store"
 	"git.juzo.io/juzo/hashi/internal/store/storetest"
 	hsync "git.juzo.io/juzo/hashi/internal/sync"
 	"git.juzo.io/juzo/hashi/internal/vault"
@@ -26,6 +27,7 @@ type writeFixture struct {
 	sim  *hetznertest.Sim
 	url  string // the fake's adapter base URL
 	zone string
+	st   *store.Store
 }
 
 func newWriteFixture(t *testing.T) writeFixture {
@@ -47,7 +49,7 @@ func newWriteFixture(t *testing.T) writeFixture {
 		t.Fatal(err)
 	}
 	eng := hsync.New(st, a, svc.Subsystems()...)
-	return writeFixture{svc: svc, eng: eng, sim: sim, url: srv.URL + "/v1", zone: res.Zone.ID}
+	return writeFixture{svc: svc, eng: eng, sim: sim, url: srv.URL + "/v1", zone: res.Zone.ID, st: st}
 }
 
 func (f writeFixture) auto(t *testing.T, sub string) *hsync.Plan {

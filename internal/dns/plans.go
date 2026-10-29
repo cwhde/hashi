@@ -102,6 +102,7 @@ type conn struct {
 	zone   Zone // the provider's zone
 	p      Provider
 	caps   Capabilities
+	ttl    int // the provider connection's TTL for RRSets Hashi creates (setup step 3)
 }
 
 // connect opens the zone's provider. It reads nothing.
@@ -126,7 +127,8 @@ func (s *Service) connect(ctx context.Context, zoneID string) (conn, error) {
 	if err != nil {
 		return conn{}, err
 	}
-	return conn{zoneID: zoneID, zone: Zone{ID: zrow.ProviderZoneID, Name: zrow.Name, TTL: int(zrow.ZoneTtl)}, p: p, caps: caps}, nil
+	return conn{zoneID: zoneID, zone: Zone{ID: zrow.ProviderZoneID, Name: zrow.Name, TTL: int(zrow.ZoneTtl)}, p: p, caps: caps,
+		ttl: int(prow.DefaultTtl)}, nil
 }
 
 // fresh refreshes the snapshot from the provider (a plan always starts from fresh observed state, 01 §5.1) and returns
@@ -192,6 +194,10 @@ func (r recordsSub) Plan(ctx context.Context, zoneID string) (hsync.Draft, error
 	for _, o := range obs {
 		byKey[rrsetKey{o.Name, o.Type}] = o
 	}
+	gens, err := s.generated(ctx, c.zone.Name)
+	if err != nil {
+		return hsync.Draft{}, err
+	}
 	wanted := map[rrsetKey]bool{}
 	var desired, observedOwned []RRSet
 	var conflicts []hsync.Item
@@ -199,11 +205,49 @@ func (r recordsSub) Plan(ctx context.Context, zoneID string) (hsync.Draft, error
 		conflicts = append(conflicts, hsync.Item{Action: hsync.ActionConflict, Object: r.Name + " " + r.Type, After: toItemJSON(&r),
 			Risk: hsync.Low, Note: note})
 	}
+	// A manual entry at a generated name wins (the admin decided); an imported one is taken over by the generated
+	// record (a migrated service record, 11-delivery §7).
+	userAt, genAt := map[string]bool{}, map[string][]string{} // name → generated types
 	for _, rec := range recs {
-		wanted[rrsetKey{rec.RRSet.Name, rec.RRSet.Type}] = true
+		if rec.Origin == OriginUser {
+			userAt[rec.RRSet.Name] = true
+		}
+	}
+	var wants []RRSet
+	for _, g := range gens {
+		if userAt[g.RRSet.Name] {
+			conflict(g.RRSet, "a manual DNS entry has this name; "+g.Source+" gets its record once that entry is deleted")
+			continue
+		}
+		genAt[g.RRSet.Name] = append(genAt[g.RRSet.Name], g.RRSet.Type)
+		// A record taken over keeps its TTL (a migration changes nothing but ownership); a new one gets the
+		// connection's TTL.
+		d := g.RRSet
+		if o, ok := byKey[rrsetKey{d.Name, d.Type}]; ok {
+			d.TTL = o.TTL
+		} else {
+			d.TTL = &c.ttl
+		}
+		wants = append(wants, d)
 	}
 	for _, rec := range recs {
-		d := rec.RRSet
+		if rec.Origin == OriginImported && supersedes(genAt[rec.RRSet.Name], rec.RRSet.Type) {
+			continue
+		}
+		d, ok, err := s.entryValues(ctx, rec, byKey)
+		if err != nil {
+			return hsync.Draft{}, err
+		}
+		if ok {
+			wants = append(wants, d)
+		} else {
+			wanted[rrsetKey{d.Name, d.Type}] = true // unresolved and not at the provider yet: nothing to keep or delete
+		}
+	}
+	for _, d := range wants {
+		wanted[rrsetKey{d.Name, d.Type}] = true
+	}
+	for _, d := range wants {
 		d.Owner = inst
 		k := rrsetKey{d.Name, d.Type}
 		o, exists := byKey[k]
@@ -219,6 +263,9 @@ func (r recordsSub) Plan(ctx context.Context, zoneID string) (hsync.Draft, error
 		default:
 			desired = append(desired, d)
 		}
+	}
+	if err := s.ownGenerated(ctx, zoneID, gens, desired, owned, byKey); err != nil {
+		return hsync.Draft{}, err
 	}
 	for _, o := range obs {
 		k := rrsetKey{o.Name, o.Type}
@@ -239,17 +286,26 @@ func (r recordsSub) Plan(ctx context.Context, zoneID string) (hsync.Draft, error
 	}
 	items := make([]hsync.Item, 0, len(plan.Changes)+len(conflicts))
 	for _, ch := range plan.Changes {
-		if (ch.Op == OpDelete) != r.deletes {
+		name, typ := ch.Key()
+		// A routing override record (03 §5.1) leaves in the same plan as the service record change that dropped it.
+		ovr := ch.Op == OpDelete && overrideName(name) && owned[rrsetKey{name, typ}].origin == OriginManaged
+		if (ch.Op == OpDelete && !ovr) != r.deletes {
 			continue
 		}
 		note := ""
-		switch ch.Op {
-		case OpDelete:
+		switch {
+		case ovr:
+			note = "routing override record no service uses any more"
+		case ch.Op == OpDelete:
 			note = "no longer a Hashi entry"
-		case OpLabel:
+		case ch.Op == OpLabel:
 			note = "marks the record as Hashi's in the provider console"
 		}
-		items = append(items, changeItem(ch, note))
+		it := changeItem(ch, note)
+		if ovr {
+			it.Risk = hsync.Low // a generated indirection: nothing points at it any more
+		}
+		items = append(items, it)
 	}
 	if r.deletes {
 		return hsync.Draft{Title: "Delete DNS records in " + c.zone.Name, Items: items}, nil
@@ -313,14 +369,32 @@ func (r recordsSub) Apply(ctx context.Context, zoneID string, items []hsync.Item
 			return "", fmt.Errorf("%w: %s %s is not Hashi's", ErrForbiddenChange, name, typ)
 		}
 	}
+	gen, err := s.generatedKeys(ctx, zoneID)
+	if err != nil {
+		return "", err
+	}
 	return s.applyChanges(ctx, zoneID, changes, func(q *db.Queries, now int64, done []Change) error {
 		for _, ch := range done {
 			name, typ := ch.Key()
+			k := db.DeleteImportedDNSRecordParams{ZoneID: zoneID, Name: name, Type: typ}
 			if ch.Op == OpDelete {
 				if err := q.DeleteDNSOwnership(ctx, db.DeleteDNSOwnershipParams{ZoneID: zoneID, Name: name, Type: typ}); err != nil {
 					return err
 				}
+				// An imported entry is deleted only when a generated record took its name over (it is never
+				// unwanted otherwise): its row goes with it.
+				if err := q.DeleteImportedDNSRecord(ctx, k); err != nil {
+					return err
+				}
 				continue
+			}
+			if gen[rrsetKey{name, typ}] {
+				if err := q.SetDNSOwnershipManaged(ctx, db.SetDNSOwnershipManagedParams{UpdatedAt: now, ZoneID: zoneID, Name: name, Type: typ}); err != nil {
+					return err
+				}
+				if err := q.DeleteImportedDNSRecord(ctx, k); err != nil {
+					return err
+				}
 			}
 			if err := q.SetDNSOwnershipApplied(ctx, db.SetDNSOwnershipAppliedParams{LastAppliedHash: ch.After.Hash(), UpdatedAt: now,
 				ZoneID: zoneID, Name: name, Type: typ}); err != nil {
@@ -580,4 +654,131 @@ func (s *Service) Reconcile(eng *hsync.Engine) func(ctx context.Context) (string
 		}
 		return strings.Join(sums, "; "), errors.Join(errs...)
 	}
+}
+
+// overrideName reports a service routing override record name, <entry>.ovr.on.<home> (03 §5.1).
+func overrideName(name string) bool { return strings.Contains("."+name+".", ".ovr.on.") }
+
+// supersedes reports whether generated types at a name take over an imported entry of type typ: the same type, or
+// every type when either side is a CNAME (it cannot share its name, 03 §3). Other types at the name stay.
+func supersedes(gen []string, typ string) bool {
+	return slices.Contains(gen, typ) || len(gen) > 0 && (typ == "CNAME" || slices.Contains(gen, "CNAME"))
+}
+
+// genRecord is a generated record in zone-relative form.
+type genRecord struct {
+	RRSet  RRSet
+	Source string
+}
+
+// generated returns the generator's records inside zone, normalized; nil without a generator.
+func (s *Service) generated(ctx context.Context, zone string) ([]genRecord, error) {
+	if s.generate == nil {
+		return nil, nil
+	}
+	gs, err := s.generate(ctx, zone)
+	if err != nil {
+		return nil, fmt.Errorf("generated records: %w", err)
+	}
+	out := make([]genRecord, 0, len(gs))
+	seen := map[rrsetKey]bool{}
+	for _, g := range gs {
+		name, err := relativeName(g.Name, zone)
+		if err != nil {
+			continue // outside the managed zone
+		}
+		vals := make([]string, 0, len(g.Values))
+		for _, v := range g.Values {
+			nv, err := normalizeValue(g.Type, name, v)
+			if err != nil {
+				return nil, fmt.Errorf("generated %s %s: %w", g.Name, g.Type, err)
+			}
+			vals = append(vals, nv)
+		}
+		r := Normalize(RRSet{Name: name, Type: g.Type, Values: vals})
+		if k := (rrsetKey{r.Name, r.Type}); !seen[k] {
+			seen[k] = true
+			out = append(out, genRecord{RRSet: r, Source: g.Source})
+		}
+	}
+	return out, nil
+}
+
+// generatedKeys is the set of generated name/type pairs of a zone, for Apply.
+func (s *Service) generatedKeys(ctx context.Context, zoneID string) (map[rrsetKey]bool, error) {
+	z, err := s.st.R.GetDNSZone(ctx, zoneID)
+	if err != nil {
+		return nil, err
+	}
+	gens, err := s.generated(ctx, z.Name)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[rrsetKey]bool, len(gens))
+	for _, g := range gens {
+		out[rrsetKey{g.RRSet.Name, g.RRSet.Type}] = true
+	}
+	return out, nil
+}
+
+// entryValues returns the RRSet an entry wants. An address-set entry takes the set's addresses of its family; when
+// there are none (invariant 21) it keeps what the provider holds, and ok is false when the provider holds nothing.
+func (s *Service) entryValues(ctx context.Context, rec Record, byKey map[rrsetKey]Observed) (RRSet, bool, error) {
+	d := rec.RRSet
+	if rec.ValueSetID == "" {
+		return d, true, nil
+	}
+	if s.targets == nil {
+		return d, false, errors.New("address-set values are not wired")
+	}
+	t, err := s.targets(ctx, "dns_record:"+rec.ID, rec.ValueSetID)
+	if err != nil {
+		return d, false, fmt.Errorf("%s %s: %w", d.Name, d.Type, err)
+	}
+	d.Values = nil
+	for _, a := range t.Addresses {
+		if a.Is4() == (d.Type == "A") {
+			d.Values = append(d.Values, a.Unmap().String())
+		}
+	}
+	if len(d.Values) > 0 {
+		return Normalize(d), true, nil
+	}
+	o, ok := byKey[rrsetKey{d.Name, d.Type}]
+	if !ok {
+		return d, false, nil
+	}
+	d.Values = o.Values
+	return Normalize(d), true, nil
+}
+
+// ownGenerated records ownership (origin managed) for generated RRSets about to be created, so Apply's backstop
+// accepts them, and drops managed rows that were never applied and are no longer wanted. An RRSet that exists at the
+// provider is never claimed here: only an apply makes it Hashi's (invariant 1).
+func (s *Service) ownGenerated(ctx context.Context, zoneID string, gens []genRecord, desired []RRSet, owned map[rrsetKey]owner, byKey map[rrsetKey]Observed) error {
+	want := map[rrsetKey]bool{}
+	for _, d := range desired {
+		want[rrsetKey{d.Name, d.Type}] = true
+	}
+	return s.st.Tx(ctx, func(q *db.Queries) error {
+		now := s.now().UnixMilli()
+		for _, g := range gens {
+			k := rrsetKey{g.RRSet.Name, g.RRSet.Type}
+			if _, exists := byKey[k]; !want[k] || exists || owned[k].present {
+				continue
+			}
+			if err := q.InsertManagedDNSOwnership(ctx, db.InsertManagedDNSOwnershipParams{ZoneID: zoneID, Name: k.name, Type: k.typ,
+				CreatedAt: now, UpdatedAt: now}); err != nil {
+				return err
+			}
+		}
+		for k, o := range owned {
+			if o.origin == OriginManaged && o.appliedHash == "" && !want[k] {
+				if err := q.DeleteStaleManagedOwnership(ctx, db.DeleteStaleManagedOwnershipParams{ZoneID: zoneID, Name: k.name, Type: k.typ}); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	})
 }

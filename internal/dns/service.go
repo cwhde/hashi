@@ -13,6 +13,7 @@ import (
 	"github.com/oklog/ulid/v2"
 
 	"git.juzo.io/juzo/hashi/internal/audit"
+	"git.juzo.io/juzo/hashi/internal/ipsets"
 	"git.juzo.io/juzo/hashi/internal/secrets"
 	"git.juzo.io/juzo/hashi/internal/store"
 	"git.juzo.io/juzo/hashi/internal/store/db"
@@ -44,7 +45,32 @@ type Service struct {
 	audit *audit.Log
 	open  Factory
 	now   func() time.Time
+	// targets resolves address-set values (05a §5.2); generate derives host and service records (03 §5.1–5.2).
+	// Both are wired by the app; nil means none.
+	targets  func(ctx context.Context, consumer, setID string) (ipsets.Target, error)
+	generate Generator
 }
+
+// Generated is one record Hashi derives from firewall hosts and services (origin managed, 03 §5.1–5.2). Name is a
+// fully qualified name; records outside the zone are ignored.
+type Generated struct {
+	Name   string
+	Type   string
+	Values []string
+	// Source names what wants it ("host edge-a", "service Wiki") for plan notes.
+	Source string
+}
+
+// Generator returns every generated record of the managed zone named zone.
+type Generator func(ctx context.Context, zone string) ([]Generated, error)
+
+// UseTargets wires address-set values to the IP set compiler.
+func (s *Service) UseTargets(f func(ctx context.Context, consumer, setID string) (ipsets.Target, error)) {
+	s.targets = f
+}
+
+// UseGenerator wires the host and service record generator.
+func (s *Service) UseGenerator(g Generator) { s.generate = g }
 
 // NewService returns the DNS service.
 func NewService(st *store.Store, v *vault.Vault, a *audit.Log, open Factory) *Service {

@@ -382,3 +382,11 @@ func (s *Server) PlanTraefikConnection(ctx context.Context, req gen.PlanTraefikC
 	}
 	return gen.PlanTraefikConnection200JSONResponse(s.planResult(ctx, p)), nil
 }
+
+// strPtr is nil for an empty string (optional response fields).
+func strPtr(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}

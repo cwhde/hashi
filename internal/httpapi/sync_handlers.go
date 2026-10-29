@@ -215,7 +215,7 @@ func (s *Server) DiscardSyncPlan(ctx context.Context, req gen.DiscardSyncPlanReq
 
 func dnsRecordBody(r dns.Record) gen.DNSRecord {
 	return gen.DNSRecord{Id: r.ID, ZoneId: r.ZoneID, Name: r.RRSet.Name, Type: r.RRSet.Type, Ttl: r.RRSet.TTL, Values: r.RRSet.Values,
-		Origin: gen.DNSOrigin(r.Origin), DisplayName: r.DisplayName, Dashboard: r.Dashboard, Monitoring: r.Monitoring}
+		ValueSetId: strPtr(r.ValueSetID), Origin: gen.DNSOrigin(r.Origin), DisplayName: r.DisplayName, Dashboard: r.Dashboard, Monitoring: r.Monitoring}
 }
 
 // saved plans the zone after an entry changed: safe changes apply, a delete waits for approval. The entry stays saved
@@ -240,6 +240,33 @@ func (s *Server) saved(ctx context.Context, actor string, r dns.Record, deleted 
 	return out
 }
 
+// syncRecords plans every zone's entries and generated records after something they derive from changed (a firewall
+// host, a service): low-risk changes apply, deletes wait for approval. Failures are logged; the next sync retries.
+func (s *Server) syncRecords(ctx context.Context) []gen.SyncPlan {
+	if s.DNS == nil {
+		return nil
+	}
+	zones, err := s.Store.R.ListDNSZones(ctx)
+	if err != nil {
+		s.Log.Warn("DNS plans after a change", "err", err)
+		return nil
+	}
+	var out []gen.SyncPlan
+	for _, z := range zones {
+		for _, sub := range dns.EntrySubsystems {
+			p, err := s.Sync.Auto(ctx, sub, z.ID, hsync.TriggerSave, s.actor(info(ctx)))
+			if err != nil && !errors.Is(err, hsync.ErrReplanned) {
+				s.Log.Warn("DNS plans after a change", "zone", z.Name, "err", err)
+				break
+			}
+			if p != nil {
+				out = append(out, s.planBody(ctx, p))
+			}
+		}
+	}
+	return out
+}
+
 // proposePrune plans the removals marked on the import table (03 §4: a separate high-risk plan). A failure is not the
 // save's failure: the decisions are stored and the admin can plan again from the Import tab.
 func (s *Server) proposePrune(ctx context.Context, zoneID, actor string) {
@@ -248,8 +275,8 @@ func (s *Server) proposePrune(ctx context.Context, zoneID, actor string) {
 	}
 }
 
-func recordInput(name, typ string, ttl *int, values []string, display *string, dashboard, monitoring *bool) dns.RecordInput {
-	in := dns.RecordInput{Name: name, Type: typ, TTL: ttl, Values: values}
+func recordInput(name, typ string, ttl *int, values []string, set, display *string, dashboard, monitoring *bool) dns.RecordInput {
+	in := dns.RecordInput{Name: name, Type: typ, TTL: ttl, Values: values, ValueSetID: str(set)}
 	if display != nil {
 		in.DisplayName = *display
 	}
@@ -266,7 +293,7 @@ func (s *Server) CreateDNSRecord(ctx context.Context, req gen.CreateDNSRecordReq
 	ri := info(ctx)
 	b := req.Body
 	r, err := s.DNS.CreateRecord(ctx, s.actor(ri), ri.ipString(), b.ZoneId,
-		recordInput(b.Name, string(b.Type), b.Ttl, b.Values, b.DisplayName, b.Dashboard, b.Monitoring))
+		recordInput(b.Name, string(b.Type), b.Ttl, b.Values, b.ValueSetId, b.DisplayName, b.Dashboard, b.Monitoring))
 	if err != nil {
 		return nil, syncError(err)
 	}
@@ -277,7 +304,7 @@ func (s *Server) UpdateDNSRecord(ctx context.Context, req gen.UpdateDNSRecordReq
 	ri := info(ctx)
 	b := req.Body
 	r, err := s.DNS.UpdateRecord(ctx, s.actor(ri), ri.ipString(), req.Id,
-		recordInput("", "", b.Ttl, b.Values, b.DisplayName, b.Dashboard, b.Monitoring))
+		recordInput("", "", b.Ttl, b.Values, b.ValueSetId, b.DisplayName, b.Dashboard, b.Monitoring))
 	if err != nil {
 		return nil, syncError(err)
 	}

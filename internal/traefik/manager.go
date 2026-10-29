@@ -86,7 +86,12 @@ type Manager struct {
 	tlsTimeout time.Duration
 	// scan reads a host's SSH key before it is pinned (sshx.Scan).
 	scan func(ctx context.Context, addr string, timeout time.Duration) (sshx.HostKey, error)
+	// targets resolves address-set upstreams (05a §5.2); nil renders literal targets only.
+	targets services.TargetResolver
 }
+
+// UseTargets wires address-set upstreams to the IP set compiler (app wiring).
+func (m *Manager) UseTargets(r services.TargetResolver) { m.targets = r }
 
 // UseFakes replaces SSH, the release download, host-key scanning and the TLS check (the dev build's in-memory edge;
 // never in production builds).
@@ -298,6 +303,11 @@ func (m *Manager) desired(ctx context.Context, connID string) (db.TraefikConnect
 	if err != nil {
 		return row, Desired{}, err
 	}
+	if m.targets != nil {
+		if svcs, err = services.Resolve(ctx, svcs, m.targets); err != nil {
+			return row, Desired{}, err
+		}
+	}
 	edge, err := EnsureEdgeToken(ctx, m.st, m.vault)
 	if err != nil {
 		return row, Desired{}, fmt.Errorf("edge token: %w", err)
@@ -455,4 +465,24 @@ func (m *Manager) Distribute(eng *hsync.Engine) func(ctx context.Context) (strin
 		}
 		return strings.Join(parts, ", "), errors.Join(errs...)
 	}
+}
+
+// PlanAll plans every confirmed, installed Traefik host after a change its rendered files follow (an address set
+// behind an upstream, 05a §4.2). Low-risk plans apply; the rest wait for approval.
+func (m *Manager) PlanAll(ctx context.Context, eng *hsync.Engine, actor string) error {
+	conns, err := m.st.R.ListTraefikConnections(ctx)
+	if err != nil {
+		return err
+	}
+	var errs []error
+	for _, c := range conns {
+		if !c.OwnershipConfirmedAt.Valid || c.InstalledVersion == "" {
+			continue
+		}
+		if _, err := eng.Auto(ctx, Subsystem, c.ID, hsync.TriggerReconcile, actor); err != nil &&
+			!errors.Is(err, ErrNotReady) && !errors.Is(err, hsync.ErrReplanned) {
+			errs = append(errs, fmt.Errorf("%s: %w", c.Name, err))
+		}
+	}
+	return errors.Join(errs...)
 }

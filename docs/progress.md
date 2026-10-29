@@ -5,7 +5,7 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
-**S6 — IP sets + firewall + streams** · status: **in progress** (started 2026-10-29; entry gate passed the same day). PR A merged (#36), PR B merged (#37). Next: PR C (DNS records, address-set targets, streams, takeover).
+**S6 — IP sets + firewall + streams** · status: **in progress** (started 2026-10-29; entry gate passed the same day). PR A merged (#36), PR B merged (#37). Next: PR C (DNS records, address-set targets), then PR D (streams, takeover), PR E (UI, deploy).
 
 Scope and gate: 11-delivery.md §3 row S6: 05a-ip-sets.md (`ip`, `cidr`, `host`, `dns`, set references, system sets,
 compiler, IP sets pages, address page without dynamic state), 05-firewall.md (nftables table, folding, bindings, host
@@ -87,9 +87,18 @@ PR B — Firewall hosts (backend + API)
       lock-out guard (active admin sessions + rescue source).
 - [x] OpenAPI + handlers (05 §9 without kernel-sets/rollback, which come with the host link in S10), setup step 6 API.
 
-PR C — DNS records, address-set targets, streams, takeover
-- [ ] DNS host records (`<host>`, `via.`, `on.`, `ovr`) and service records (03 §5.1–5.2).
-- [ ] Address sets as targets: service upstreams and DNS A/AAAA values (`TestInvariant_21` for both).
+PR C — DNS records and address-set targets (split from the old PR C on 2026-10-29: four layers were too much for
+one review; streams and the takeover follow as PR D, the UI as PR E)
+- [x] Migration 00009: service target set + entry host override, route targets with sets, DNS entry value set,
+      per-consumer target state (last good resolution, unresolved reason).
+- [x] `ipsets.ResolveTarget`: one place for target resolution and invariant 21 (empty → last good addresses + reason).
+- [x] Service upstreams as address sets (simple target and route targets), rendered as load-balanced servers.
+- [x] DNS entries with an address-set A/AAAA value.
+- [x] Generated host records (`<host>`, `via.`, `on.`, host override) and service records (`on.<host>`, `ovr`
+      pairs, A fallback, apex flattening) through the normal DNS plan; imported entries at a generated name are
+      taken over, user entries win (conflict item); `TestInvariant_21` for DNS values and upstreams.
+
+PR D — streams and takeover
 - [ ] TCP/UDP services: model, `20-hashi-stream-services.yml` + `tcp-<port>`/`udp-<port>` entry points (static
       change, high risk), DNAT to the entry-point port; golden + Traefik integration with stub TCP/UDP upstreams.
 - [ ] Takeover of an existing firewall script (05 §3.4) as explicit plan items: exact rule specs incl. all
@@ -99,11 +108,31 @@ PR C — DNS records, address-set targets, streams, takeover
       keeps Proxmox :8006 or sshd closed to the public); its trusted addresses move into a host access set.
       Hashi's SSH public key is added to root on the first real host by Claude (user OK 2026-10-29), at the gate.
 
-PR D — UI + deploy
+PR E — UI + deploy
 - [ ] Firewall pages from the mocks (hosts, host page with observed ruleset, rendered table, bindings, host access),
-      setup step 6 page (step becomes built), stream fields on the service page; dev fakes (`firewalltest`); E2E.
+      setup step 6 page (step becomes built), stream fields and target sets on the service page, set values on DNS
+      entries; dev fakes (`firewalltest`); E2E.
 - [ ] Prod-proof first on a dev target (Debian LXC on host B, snapshot `clean`), then deploy (user runs `/deploy`) and
       the gate on the first real host with the user's OK for the first apply.
+
+Decisions made in PR C:
+- Invariant 21 keeps the *last good resolution* per target position (`ip_set_targets`), stored when a position
+  resolves, not when its consumer applied; DNS values additionally keep exactly what the provider holds. A position
+  that never resolved is not created (DNS) or leaves its service out of the render (Traefik), with the reason.
+- Generated records run through the normal entry plan: ownership `managed` is recorded at plan time only for RRSets
+  that are not at the provider yet; an RRSet that exists and is not Hashi's stays a conflict until imported. An imported
+  entry at a generated name is taken over (its TTL kept, so a migrated record only gets the owner label; the entry row
+  goes at apply); another type at that name is deleted first (high risk). A manual entry at a generated name wins.
+  New generated RRSets use the provider connection's TTL.
+- The home host of a service is the first target (in order, simple target first, then enabled routes) inside a
+  host's managed subnets or equal to one of its addresses or its own name; a service named like a host record leaves
+  the name to the host. NetBird-routed CIDRs count through the host's managed subnets.
+- sqlc mangles queries whose comments hold non-ASCII characters (`§`): query comments stay ASCII.
+- Review of PR C (reproduced, fixed with regression tests): a generated record took over every imported type at its
+  name (a flattened apex A would have deleted the apex MX and TXT); a host override to a host without a public
+  address left `on.<host>` dangling (it now waits); an unresolved set on a disabled route took the whole service out
+  (only rendered routes resolve; a rendered one that never resolved is left out, the service keeps serving); an
+  unused `ovr` record went to a separate delete plan (now in the same plan as the service change, low risk).
 
 Decisions made in PR B:
 - NetBird's routing-peer rules already accept and masquerade overlay traffic (capture), so Hashi renders no NetBird
@@ -581,6 +610,12 @@ Decisions made in S0:
 
 (Review findings that were not reproduced. Not worked on unless promoted.)
 
+- S6 PR C review (#38): the service CNAME update and the unused `ovr` delete are one plan, but the provider may apply
+  the delete first, so the old chain could miss its middle record for the seconds between the two writes. Not
+  observed; the Hetzner adapter's change order was not checked. Not tested either: generated service records keep
+  their last applied target through the shared last good resolution (only DNS entry values and upstreams have
+  `TestInvariant_21` tests); "Pulse IP matching → CNAME" (03 §10) waits for Pulse items (S8).
+
 - S6 PR B review (#37), acceptance points not built yet: public IP cross-check with Hashi's view (05 §2); per-host
   verdicts on the address page and per-set counts / "allow wider than /24" warning in the plan preview (05 §4.3);
   reconnect after a rescue window to report the rollback (05 §7 step 6); listening ports vs published ports (05 §8,
@@ -612,6 +647,9 @@ Decisions made in S0:
   only short-SHA deploys exist so far.
 
 ## Log
+
+- 2026-10-29 — S6 PR C (DNS records, address-set targets) built on `s6-records-streams`; `make check`, the Traefik,
+  firewall and DNS integration tests and the E2E suite all run locally before the push (agreed working mode).
 
 - 2026-10-29 — S6 PR B merged (#37) after four CI rounds: an uncommitted generated file, the container ID read from
   `docker run` output that included a first image pull, a test network left by a failed run, and the DNAT test on the

@@ -355,6 +355,12 @@ func (m *Manager) Delete(ctx context.Context, actor, ip, id string) error {
 				return fmt.Errorf("%w: %s routes through %s", ErrInUse, o.Name, h.Name)
 			}
 		}
+		if svcs, err := q.ListServicesByEntryHost(ctx, sql.NullString{String: id, Valid: true}); err != nil || len(svcs) > 0 {
+			if err == nil {
+				err = fmt.Errorf("%w: service %s enters through %s (routing override)", ErrInUse, svcs[0].Name, h.Name)
+			}
+			return err
+		}
 		// The hashi-hosts element is Hashi's own; every other reference blocks the delete.
 		if err := q.DeleteFirewallHost(ctx, id); err != nil {
 			return err

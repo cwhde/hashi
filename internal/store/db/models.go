@@ -159,6 +159,7 @@ type DnsRecord struct {
 	Monitoring  int64
 	CreatedAt   int64
 	UpdatedAt   int64
+	ValueSetID  sql.NullString
 }
 
 type DnsZone struct {
@@ -267,6 +268,15 @@ type IpSetElement struct {
 	UpdatedAt    int64
 }
 
+type IpSetTarget struct {
+	Consumer         string
+	IpSetID          string
+	AddressesJson    string
+	UnresolvedReason string
+	ResolvedAt       sql.NullInt64
+	UpdatedAt        int64
+}
+
 type Job struct {
 	Kind            string
 	IntervalSeconds int64
@@ -348,6 +358,8 @@ type Service struct {
 	AdguardRewrite    int64
 	CreatedAt         int64
 	UpdatedAt         int64
+	TargetSetID       sql.NullString
+	EntryHostID       sql.NullString
 }
 
 type ServiceRoute struct {

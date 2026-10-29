@@ -42,9 +42,15 @@ func TestServicesAPI(t *testing.T) {
 	r := c.mustStatus(c.do(http.MethodPost, "/api/services", search), 200)
 	svc := r.body["service"].(map[string]any)
 	id := svc["id"].(string)
-	if svc["origin"] != "user" || svc["enabled"] != true || r.body["certificate_pending"] != true ||
-		len(r.body["plans"].([]any)) != 0 || len(svc["routes"].([]any)) != 1 {
+	if svc["origin"] != "user" || svc["enabled"] != true || r.body["certificate_pending"] != true || len(svc["routes"].([]any)) != 1 {
 		t.Fatalf("create: %s", r.raw)
+	}
+	// No firewall host covers the upstreams: the service record is an A with their public addresses (03 §5.2),
+	// applied through the normal DNS plan.
+	plans := r.body["plans"].([]any)
+	if len(plans) != 1 || plans[0].(map[string]any)["subsystem"] != "dns-records" || plans[0].(map[string]any)["status"] != "applied" ||
+		!strings.Contains(r.raw, `"values":["192.0.2.20","192.0.2.21"]`) {
+		t.Fatalf("create plans: %s", r.raw)
 	}
 
 	bad := func(mut func(m map[string]any)) map[string]any {

@@ -26,7 +26,7 @@ func serviceError(err error) error {
 
 func serviceBody(s services.Service) gen.Service {
 	target := func(t services.Target) gen.ServiceTarget {
-		out := gen.ServiceTarget{Address: t.Address, Port: t.Port}
+		out := gen.ServiceTarget{Address: t.Address, SetId: strPtr(t.SetID), Port: t.Port}
 		if t.Weight > 0 {
 			out.Weight = ptr(t.Weight)
 		}
@@ -47,7 +47,7 @@ func serviceBody(s services.Service) gen.Service {
 		Target: target(s.Target), TlsSkipVerify: s.TLSSkipVerify, TlsServerName: s.TLSServerName,
 		TlsMinVersion: gen.ServiceTlsMinVersion(s.TLSMinVersion), AdvancedRoutes: s.AdvancedRoutes, Routes: routes,
 		DashboardVisible: s.DashboardVisible, MonitoringVisible: s.MonitoringVisible, AdguardRewrite: s.AdGuardRewrite,
-		InvalidReason: s.InvalidReason, CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt}
+		EntryHostId: strPtr(s.EntryHostID), InvalidReason: s.InvalidReason, CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt}
 }
 
 // serviceFromInput maps the request onto a service; flags absent from the input default to on (dashboard,
@@ -60,7 +60,7 @@ func serviceFromInput(in gen.ServiceInput) services.Service {
 		return *p
 	}
 	target := func(t gen.ServiceTarget) services.Target {
-		out := services.Target{Address: t.Address, Port: t.Port}
+		out := services.Target{Address: t.Address, SetID: str(t.SetId), Port: t.Port}
 		if t.Weight != nil {
 			out.Weight = *t.Weight
 		}
@@ -70,7 +70,7 @@ func serviceFromInput(in gen.ServiceInput) services.Service {
 		HostName: in.HostName, Enabled: b(in.Enabled, true), Target: target(in.Target), TLSSkipVerify: b(in.TlsSkipVerify, false),
 		TLSServerName: str(in.TlsServerName), AdvancedRoutes: b(in.AdvancedRoutes, false),
 		DashboardVisible: b(in.DashboardVisible, true), MonitoringVisible: b(in.MonitoringVisible, true),
-		AdGuardRewrite: b(in.AdguardRewrite, true)}
+		AdGuardRewrite: b(in.AdguardRewrite, true), EntryHostID: str(in.EntryHostId)}
 	if in.TlsMinVersion != nil {
 		s.TLSMinVersion = string(*in.TlsMinVersion)
 	}
@@ -121,6 +121,8 @@ func (s *Server) syncServices(ctx context.Context) ([]gen.SyncPlan, bool, error)
 			plans = append(plans, s.planBody(ctx, p))
 		}
 	}
+	// Service records follow the service's name, targets and routing override (03 §5.2).
+	plans = append(plans, s.syncRecords(ctx)...)
 	pending := false
 	if s.Certs != nil {
 		if pending, err = s.Certs.Pending(ctx); err != nil {
@@ -251,6 +253,15 @@ func (s *Server) GetServiceEffective(ctx context.Context, req gen.GetServiceEffe
 	}
 	if sv.InvalidReason != "" {
 		return nil, conflict("This service is not rendered: " + sv.InvalidReason)
+	}
+	if s.IPSets != nil {
+		r, err := services.Resolve(ctx, []services.Service{sv}, s.IPSets.ResolveTarget)
+		if err != nil {
+			return nil, err
+		}
+		if sv = r[0]; sv.InvalidReason != "" {
+			return nil, conflict("This service is not rendered: " + sv.InvalidReason)
+		}
 	}
 	b, err := traefik.EffectiveYAML(sv)
 	if err != nil {

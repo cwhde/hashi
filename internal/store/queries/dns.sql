@@ -77,11 +77,14 @@ SELECT * FROM dns_records WHERE id = ?;
 SELECT * FROM dns_records WHERE zone_id = ? AND name = ? AND type = ?;
 
 -- name: InsertDNSRecord :exec
-INSERT INTO dns_records (id, zone_id, name, type, ttl, values_json, origin, display_name, dashboard, monitoring, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO dns_records (id, zone_id, name, type, ttl, values_json, value_set_id, origin, display_name, dashboard, monitoring, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: UpdateDNSRecord :exec
-UPDATE dns_records SET ttl = ?, values_json = ?, display_name = ?, dashboard = ?, monitoring = ?, updated_at = ? WHERE id = ?;
+UPDATE dns_records SET ttl = ?, values_json = ?, value_set_id = ?, display_name = ?, dashboard = ?, monitoring = ?, updated_at = ? WHERE id = ?;
+
+-- name: ListDNSRecordsBySet :many
+SELECT * FROM dns_records WHERE value_set_id = ?;
 
 -- name: DeleteDNSRecord :exec
 DELETE FROM dns_records WHERE id = ?;
@@ -97,3 +100,16 @@ UPDATE dns_ownership SET last_applied_hash = ?, updated_at = ? WHERE zone_id = ?
 
 -- name: DeleteImportDecision :exec
 DELETE FROM dns_import_decisions WHERE zone_id = ? AND name = ? AND type = ?;
+
+-- name: InsertManagedDNSOwnership :exec
+-- A generated RRSet Hashi is about to create (03 5.1): owned before the plan, adopted only once applied.
+INSERT INTO dns_ownership (zone_id, name, type, origin, created_at, updated_at) VALUES (?, ?, ?, 'managed', ?, ?)
+ON CONFLICT (zone_id, name, type) DO NOTHING;
+
+-- name: SetDNSOwnershipManaged :exec
+-- A generated record took over an imported RRSet (a migrated service record).
+UPDATE dns_ownership SET origin = 'managed', updated_at = ? WHERE zone_id = ? AND name = ? AND type = ? AND origin = 'imported';
+
+-- name: DeleteStaleManagedOwnership :exec
+-- A generated RRSet that was never applied and is no longer wanted.
+DELETE FROM dns_ownership WHERE zone_id = ? AND name = ? AND type = ? AND origin = 'managed' AND last_applied_hash = '';

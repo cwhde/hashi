@@ -120,6 +120,7 @@ func (s *Server) saveFirewall(ctx context.Context, id string, b gen.FirewallHost
 			return gen.FirewallHost{}, err
 		}
 	}
+	s.syncRecords(ctx) // host records follow the name, public address and host override (03 §5.1)
 	return firewallBody(row), nil
 }
 
@@ -314,6 +315,7 @@ func (s *Server) DeleteFirewallHost(ctx context.Context, req gen.DeleteFirewallH
 	if err := s.Firewall.Delete(ctx, s.actor(ri), ri.ipString(), req.Id); err != nil {
 		return nil, firewallError(err)
 	}
+	s.syncRecords(ctx)
 	return gen.DeleteFirewallHost204Response{}, nil
 }
 

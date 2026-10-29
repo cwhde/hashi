@@ -10,11 +10,14 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/oklog/ulid/v2"
 
+	"git.juzo.io/juzo/hashi/internal/ipsets"
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 )
@@ -69,9 +72,11 @@ var (
 	ErrTaken  = errors.New("another service already uses this slug or host name")
 )
 
-// Target is one upstream address. Until S6 brings address sets it is a single IP literal or host name.
+// Target is one upstream: a literal address (an IP or a host name) or an address set (05a §5.2) whose resolved
+// addresses are load-balanced. Exactly one of Address and SetID is set.
 type Target struct {
-	Address string `json:"address"`
+	Address string `json:"address,omitempty"`
+	SetID   string `json:"set_id,omitempty"`
 	Port    int    `json:"port"`
 	Weight  int    `json:"weight,omitempty"`
 }
@@ -108,9 +113,13 @@ type Service struct {
 	DashboardVisible  bool
 	MonitoringVisible bool
 	AdGuardRewrite    bool
-	Routes            []Route
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
+	// EntryHostID is the service routing override (03 §5.1): the firewall host public traffic enters through.
+	EntryHostID string
+	Routes      []Route
+	// Targets is the simple target with its address set resolved (set by Resolve for rendering; nil otherwise).
+	Targets   []Target
+	CreatedAt time.Time
+	UpdatedAt time.Time
 	// InvalidReason is set when the service no longer validates against the current root domain and zone; such a
 	// service is left out of every render and never stops the others (04 §1.5).
 	InvalidReason string
@@ -203,13 +212,17 @@ func insert(ctx context.Context, q *db.Queries, s Service, now time.Time) error 
 	if err := taken(ctx, q, s); err != nil {
 		return err
 	}
+	if err := references(ctx, q, s); err != nil {
+		return err
+	}
 	ms := now.UnixMilli()
 	if err := q.InsertService(ctx, db.InsertServiceParams{ID: s.ID, Name: s.Name, Slug: s.Slug, Kind: s.Kind,
 		DomainMode: s.DomainMode, HostName: s.HostName, Enabled: b2i(s.Enabled), Origin: s.Origin, OwnerFeature: s.OwnerFeature,
 		TargetAddress: s.Target.Address, TargetPort: int64(s.Target.Port), TlsSkipVerify: b2i(s.TLSSkipVerify),
 		TlsServerName: s.TLSServerName, TlsMinVersion: s.TLSMinVersion, AdvancedRoutes: b2i(s.AdvancedRoutes),
 		DashboardVisible: b2i(s.DashboardVisible), MonitoringVisible: b2i(s.MonitoringVisible),
-		AdguardRewrite: b2i(s.AdGuardRewrite), CreatedAt: ms, UpdatedAt: ms}); err != nil {
+		AdguardRewrite: b2i(s.AdGuardRewrite), TargetSetID: nullStr(s.Target.SetID), EntryHostID: nullStr(s.EntryHostID),
+		CreatedAt: ms, UpdatedAt: ms}); err != nil {
 		return fmt.Errorf("store service: %w", err)
 	}
 	return putRoutes(ctx, q, s, ms)
@@ -240,12 +253,16 @@ func update(ctx context.Context, q *db.Queries, s Service, now time.Time) error 
 	if err := taken(ctx, q, s); err != nil {
 		return err
 	}
+	if err := references(ctx, q, s); err != nil {
+		return err
+	}
 	ms := now.UnixMilli()
 	if err := q.UpdateService(ctx, db.UpdateServiceParams{Name: s.Name, Slug: s.Slug, Kind: s.Kind, DomainMode: s.DomainMode,
 		HostName: s.HostName, TargetAddress: s.Target.Address, TargetPort: int64(s.Target.Port),
 		TlsSkipVerify: b2i(s.TLSSkipVerify), TlsServerName: s.TLSServerName, TlsMinVersion: s.TLSMinVersion,
 		AdvancedRoutes: b2i(s.AdvancedRoutes), DashboardVisible: b2i(s.DashboardVisible),
-		MonitoringVisible: b2i(s.MonitoringVisible), AdguardRewrite: b2i(s.AdGuardRewrite), UpdatedAt: ms, ID: s.ID}); err != nil {
+		MonitoringVisible: b2i(s.MonitoringVisible), AdguardRewrite: b2i(s.AdGuardRewrite),
+		TargetSetID: nullStr(s.Target.SetID), EntryHostID: nullStr(s.EntryHostID), UpdatedAt: ms, ID: s.ID}); err != nil {
 		return fmt.Errorf("update service: %w", err)
 	}
 	if err := q.DeleteServiceRoutes(ctx, s.ID); err != nil {
@@ -394,7 +411,8 @@ func putRoutes(ctx context.Context, q *db.Queries, s Service, ms int64) error {
 func fromRow(r db.Service, routes []db.ServiceRoute) (Service, error) {
 	s := Service{ID: r.ID, Name: r.Name, Slug: r.Slug, Kind: r.Kind, DomainMode: r.DomainMode, HostName: r.HostName,
 		Enabled: r.Enabled == 1, Origin: r.Origin, OwnerFeature: r.OwnerFeature,
-		Target:        Target{Address: r.TargetAddress, Port: int(r.TargetPort)},
+		Target:        Target{Address: r.TargetAddress, SetID: r.TargetSetID.String, Port: int(r.TargetPort)},
+		EntryHostID:   r.EntryHostID.String,
 		TLSSkipVerify: r.TlsSkipVerify == 1, TLSServerName: r.TlsServerName, TLSMinVersion: r.TlsMinVersion,
 		AdvancedRoutes: r.AdvancedRoutes == 1, DashboardVisible: r.DashboardVisible == 1,
 		MonitoringVisible: r.MonitoringVisible == 1, AdGuardRewrite: r.AdguardRewrite == 1,
@@ -411,6 +429,61 @@ func fromRow(r db.Service, routes []db.ServiceRoute) (Service, error) {
 	return s, nil
 }
 
+// references checks what a service points at outside its own row: target sets must be address sets (05a §5.2) and
+// the entry host must exist.
+func references(ctx context.Context, q *db.Queries, s Service) error {
+	check := func(field string, t Target) error {
+		if t.SetID == "" {
+			return nil
+		}
+		if err := ipsets.CheckTarget(ctx, q, t.SetID); err != nil {
+			if errors.Is(err, ipsets.ErrNotFound) {
+				return invalid(field+".set_id", "no IP set %s", t.SetID)
+			}
+			return invalid(field+".set_id", "%s", strings.TrimPrefix(err.Error(), ipsets.ErrInvalid.Error()+": "))
+		}
+		return nil
+	}
+	if err := check("target", s.Target); err != nil {
+		return err
+	}
+	for i, r := range s.Routes {
+		for j, t := range r.Targets {
+			if err := check(fmt.Sprintf("routes[%d].targets[%d]", i, j), t); err != nil {
+				return err
+			}
+		}
+	}
+	if s.EntryHostID != "" {
+		if _, err := q.GetFirewallHost(ctx, s.EntryHostID); err != nil {
+			return invalid("entry_host_id", "no firewall host %s", s.EntryHostID)
+		}
+	}
+	return nil
+}
+
+// Uses lists the services whose targets reference set id (05a §5.2 consumers).
+func Uses(svcs []Service, id string) []Service {
+	var out []Service
+	for _, s := range svcs {
+		if slices.ContainsFunc(s.AllTargets(), func(t Target) bool { return t.SetID == id }) {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// AllTargets is the simple target followed by every route target.
+func (s Service) AllTargets() []Target {
+	out := []Target{s.Target}
+	for _, r := range s.Routes {
+		out = append(out, r.Targets...)
+	}
+	return out
+}
+
+func nullStr(s string) sql.NullString { return sql.NullString{String: s, Valid: s != ""} }
+
 // HostPort formats an upstream as host:port, bracketing IPv6 (04 §1.5).
 func (t Target) HostPort() string { return net.JoinHostPort(t.Address, strconv.Itoa(t.Port)) }
 
@@ -419,4 +492,78 @@ func b2i(b bool) int64 {
 		return 1
 	}
 	return 0
+}
+
+// TargetResolver resolves the address set of one target position (ipsets.Service.ResolveTarget).
+type TargetResolver func(ctx context.Context, consumer, setID string) (ipsets.Target, error)
+
+// Resolve replaces every address-set target with one literal target per resolved address (same port and weight, in
+// the set's order), for rendering. A set that resolves to nothing now keeps its last good addresses (invariant 21); a
+// position that never resolved leaves the service out of the render with the reason, like any invalid service.
+func Resolve(ctx context.Context, svcs []Service, resolve TargetResolver) ([]Service, error) {
+	out := make([]Service, len(svcs))
+	for i, s := range svcs {
+		// expand returns the literal targets and, when none of the set targets ever resolved, the reason.
+		expand := func(consumer string, ts []Target) ([]Target, string, error) {
+			var res []Target
+			reason := ""
+			for j, t := range ts {
+				if t.SetID == "" {
+					res = append(res, t)
+					continue
+				}
+				got, err := resolve(ctx, fmt.Sprintf("%s:%d", consumer, j), t.SetID)
+				if err != nil {
+					return nil, "", err
+				}
+				if len(got.Addresses) == 0 && reason == "" {
+					reason = got.Unresolved
+				}
+				for _, a := range got.Addresses {
+					res = append(res, Target{Address: a.String(), Port: t.Port, Weight: t.Weight})
+				}
+			}
+			if len(res) > 0 {
+				reason = ""
+			}
+			return res, reason, nil
+		}
+		simple, reason, err := expand("service:"+s.ID+":target", []Target{s.Target})
+		if err != nil {
+			return nil, fmt.Errorf("service %s: %w", s.Slug, err)
+		}
+		if reason != "" && s.InvalidReason == "" {
+			s.InvalidReason = reason // nothing to serve
+		}
+		s.Targets = simple
+		routes := make([]Route, len(s.Routes))
+		for k, r := range s.Routes {
+			if s.AdvancedRoutes && r.Enabled { // only rendered routes resolve (05a §5.2); the rest stay as stored
+				if r.Targets, reason, err = expand("service:"+s.ID+":route:"+r.ID, r.Targets); err != nil {
+					return nil, fmt.Errorf("service %s: %w", s.Slug, err)
+				}
+				// A route that never resolved is left out; its paths fall to the main router (invariant 21: the
+				// service itself keeps serving).
+				r.Enabled = reason == ""
+			}
+			routes[k] = r
+		}
+		s.Routes = routes
+		out[i] = s
+	}
+	return out, nil
+}
+
+// Consumers lists the services whose upstreams use set id (05a §5.2: target positions), for the IP set pages and
+// the address-set checks on edit and delete.
+func Consumers(ctx context.Context, q *db.Queries, id string) ([]ipsets.Consumer, error) {
+	svcs, err := List(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	var out []ipsets.Consumer
+	for _, s := range Uses(svcs, id) {
+		out = append(out, ipsets.Consumer{Type: "service", ID: s.ID, Name: "Service " + s.Name, Position: ipsets.PositionTarget})
+	}
+	return out, nil
 }

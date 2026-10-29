@@ -30,6 +30,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/jobs"
 	"git.juzo.io/juzo/hashi/internal/logring"
 	"git.juzo.io/juzo/hashi/internal/secrets"
+	"git.juzo.io/juzo/hashi/internal/services"
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/setup"
 	"git.juzo.io/juzo/hashi/internal/sshx"
@@ -165,6 +166,12 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	ipSets := ipsets.NewService(st, al, log.With("component", "ipsets"), nil)
 	fwMgr := firewall.NewManager(st, v, al, ipSets,
 		func(ctx context.Context, c sshx.Config) (firewall.Conn, error) { return sshx.Dial(ctx, c) })
+	// Address sets in target positions (05a §5.2): upstreams, DNS values; generated host and service records (03 §5).
+	ipSets.AddConsumers(services.Consumers)
+	ipSets.AddConsumers(dns.Consumers)
+	traefikMgr.UseTargets(ipSets.ResolveTarget)
+	dnsSvc.UseTargets(ipSets.ResolveTarget)
+	dnsSvc.UseGenerator(fwMgr.Records(ipSets.ResolveTarget))
 	subs := append(dnsSvc.Subsystems(), traefikMgr.Subsystems()...)
 	subs = append(subs, fwMgr.Subsystems()...)
 	syncEngine := hsync.New(st, al, append(subs, certMgr.Subsystems()...)...)
@@ -192,6 +199,13 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	ipSets.Subscribe(func(ctx context.Context, _ []string) {
 		if _, err := fwMgr.PlanAll(ctx, syncEngine, audit.System); err != nil {
 			log.Warn("firewall plans after an IP set change", "err", err)
+		}
+		// Upstreams and DNS values that follow a set (05a §4.2): every Traefik host and zone is planned again.
+		if err := traefikMgr.PlanAll(ctx, syncEngine, audit.System); err != nil {
+			log.Warn("Traefik plans after an IP set change", "err", err)
+		}
+		if _, err := dnsSvc.Reconcile(syncEngine)(ctx); err != nil {
+			log.Warn("DNS plans after an IP set change", "err", err)
 		}
 	})
 

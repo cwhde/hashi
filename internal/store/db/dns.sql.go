@@ -110,6 +110,22 @@ func (q *Queries) DeleteObservedRRSets(ctx context.Context, zoneID string) error
 	return err
 }
 
+const deleteStaleManagedOwnership = `-- name: DeleteStaleManagedOwnership :exec
+DELETE FROM dns_ownership WHERE zone_id = ? AND name = ? AND type = ? AND origin = 'managed' AND last_applied_hash = ''
+`
+
+type DeleteStaleManagedOwnershipParams struct {
+	ZoneID string
+	Name   string
+	Type   string
+}
+
+// A generated RRSet that was never applied and is no longer wanted.
+func (q *Queries) DeleteStaleManagedOwnership(ctx context.Context, arg DeleteStaleManagedOwnershipParams) error {
+	_, err := q.db.ExecContext(ctx, deleteStaleManagedOwnership, arg.ZoneID, arg.Name, arg.Type)
+	return err
+}
+
 const getDNSProvider = `-- name: GetDNSProvider :one
 SELECT id, name, type, enabled, default_ttl, token_secret_id, health, last_validated_at, last_validation_error, deletion_policy, created_at, updated_at FROM dns_providers WHERE id = ?
 `
@@ -135,7 +151,7 @@ func (q *Queries) GetDNSProvider(ctx context.Context, id string) (DnsProvider, e
 }
 
 const getDNSRecord = `-- name: GetDNSRecord :one
-SELECT id, zone_id, name, type, ttl, values_json, origin, display_name, dashboard, monitoring, created_at, updated_at FROM dns_records WHERE id = ?
+SELECT id, zone_id, name, type, ttl, values_json, origin, display_name, dashboard, monitoring, created_at, updated_at, value_set_id FROM dns_records WHERE id = ?
 `
 
 func (q *Queries) GetDNSRecord(ctx context.Context, id string) (DnsRecord, error) {
@@ -154,12 +170,13 @@ func (q *Queries) GetDNSRecord(ctx context.Context, id string) (DnsRecord, error
 		&i.Monitoring,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ValueSetID,
 	)
 	return i, err
 }
 
 const getDNSRecordByKey = `-- name: GetDNSRecordByKey :one
-SELECT id, zone_id, name, type, ttl, values_json, origin, display_name, dashboard, monitoring, created_at, updated_at FROM dns_records WHERE zone_id = ? AND name = ? AND type = ?
+SELECT id, zone_id, name, type, ttl, values_json, origin, display_name, dashboard, monitoring, created_at, updated_at, value_set_id FROM dns_records WHERE zone_id = ? AND name = ? AND type = ?
 `
 
 type GetDNSRecordByKeyParams struct {
@@ -184,6 +201,7 @@ func (q *Queries) GetDNSRecordByKey(ctx context.Context, arg GetDNSRecordByKeyPa
 		&i.Monitoring,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ValueSetID,
 	)
 	return i, err
 }
@@ -268,8 +286,8 @@ func (q *Queries) InsertDNSProvider(ctx context.Context, arg InsertDNSProviderPa
 }
 
 const insertDNSRecord = `-- name: InsertDNSRecord :exec
-INSERT INTO dns_records (id, zone_id, name, type, ttl, values_json, origin, display_name, dashboard, monitoring, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO dns_records (id, zone_id, name, type, ttl, values_json, value_set_id, origin, display_name, dashboard, monitoring, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertDNSRecordParams struct {
@@ -279,6 +297,7 @@ type InsertDNSRecordParams struct {
 	Type        string
 	Ttl         sql.NullInt64
 	ValuesJson  string
+	ValueSetID  sql.NullString
 	Origin      string
 	DisplayName string
 	Dashboard   int64
@@ -295,6 +314,7 @@ func (q *Queries) InsertDNSRecord(ctx context.Context, arg InsertDNSRecordParams
 		arg.Type,
 		arg.Ttl,
 		arg.ValuesJson,
+		arg.ValueSetID,
 		arg.Origin,
 		arg.DisplayName,
 		arg.Dashboard,
@@ -326,6 +346,31 @@ func (q *Queries) InsertDNSZone(ctx context.Context, arg InsertDNSZoneParams) er
 		arg.Name,
 		arg.ZoneTtl,
 		arg.CreatedAt,
+	)
+	return err
+}
+
+const insertManagedDNSOwnership = `-- name: InsertManagedDNSOwnership :exec
+INSERT INTO dns_ownership (zone_id, name, type, origin, created_at, updated_at) VALUES (?, ?, ?, 'managed', ?, ?)
+ON CONFLICT (zone_id, name, type) DO NOTHING
+`
+
+type InsertManagedDNSOwnershipParams struct {
+	ZoneID    string
+	Name      string
+	Type      string
+	CreatedAt int64
+	UpdatedAt int64
+}
+
+// A generated RRSet Hashi is about to create (03 5.1): owned before the plan, adopted only once applied.
+func (q *Queries) InsertManagedDNSOwnership(ctx context.Context, arg InsertManagedDNSOwnershipParams) error {
+	_, err := q.db.ExecContext(ctx, insertManagedDNSOwnership,
+		arg.ZoneID,
+		arg.Name,
+		arg.Type,
+		arg.CreatedAt,
+		arg.UpdatedAt,
 	)
 	return err
 }
@@ -440,7 +485,7 @@ func (q *Queries) ListDNSProviders(ctx context.Context) ([]DnsProvider, error) {
 }
 
 const listDNSRecords = `-- name: ListDNSRecords :many
-SELECT id, zone_id, name, type, ttl, values_json, origin, display_name, dashboard, monitoring, created_at, updated_at FROM dns_records WHERE zone_id = ? ORDER BY name, type
+SELECT id, zone_id, name, type, ttl, values_json, origin, display_name, dashboard, monitoring, created_at, updated_at, value_set_id FROM dns_records WHERE zone_id = ? ORDER BY name, type
 `
 
 func (q *Queries) ListDNSRecords(ctx context.Context, zoneID string) ([]DnsRecord, error) {
@@ -465,6 +510,48 @@ func (q *Queries) ListDNSRecords(ctx context.Context, zoneID string) ([]DnsRecor
 			&i.Monitoring,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ValueSetID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDNSRecordsBySet = `-- name: ListDNSRecordsBySet :many
+SELECT id, zone_id, name, type, ttl, values_json, origin, display_name, dashboard, monitoring, created_at, updated_at, value_set_id FROM dns_records WHERE value_set_id = ?
+`
+
+func (q *Queries) ListDNSRecordsBySet(ctx context.Context, valueSetID sql.NullString) ([]DnsRecord, error) {
+	rows, err := q.db.QueryContext(ctx, listDNSRecordsBySet, valueSetID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DnsRecord{}
+	for rows.Next() {
+		var i DnsRecord
+		if err := rows.Scan(
+			&i.ID,
+			&i.ZoneID,
+			&i.Name,
+			&i.Type,
+			&i.Ttl,
+			&i.ValuesJson,
+			&i.Origin,
+			&i.DisplayName,
+			&i.Dashboard,
+			&i.Monitoring,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ValueSetID,
 		); err != nil {
 			return nil, err
 		}
@@ -610,6 +697,28 @@ func (q *Queries) SetDNSOwnershipApplied(ctx context.Context, arg SetDNSOwnershi
 	return err
 }
 
+const setDNSOwnershipManaged = `-- name: SetDNSOwnershipManaged :exec
+UPDATE dns_ownership SET origin = 'managed', updated_at = ? WHERE zone_id = ? AND name = ? AND type = ? AND origin = 'imported'
+`
+
+type SetDNSOwnershipManagedParams struct {
+	UpdatedAt int64
+	ZoneID    string
+	Name      string
+	Type      string
+}
+
+// A generated record took over an imported RRSet (a migrated service record).
+func (q *Queries) SetDNSOwnershipManaged(ctx context.Context, arg SetDNSOwnershipManagedParams) error {
+	_, err := q.db.ExecContext(ctx, setDNSOwnershipManaged,
+		arg.UpdatedAt,
+		arg.ZoneID,
+		arg.Name,
+		arg.Type,
+	)
+	return err
+}
+
 const setDNSProviderHealth = `-- name: SetDNSProviderHealth :exec
 UPDATE dns_providers SET health = ?, last_validated_at = ?, last_validation_error = ?, updated_at = ? WHERE id = ?
 `
@@ -698,12 +807,13 @@ func (q *Queries) UpdateDNSProvider(ctx context.Context, arg UpdateDNSProviderPa
 }
 
 const updateDNSRecord = `-- name: UpdateDNSRecord :exec
-UPDATE dns_records SET ttl = ?, values_json = ?, display_name = ?, dashboard = ?, monitoring = ?, updated_at = ? WHERE id = ?
+UPDATE dns_records SET ttl = ?, values_json = ?, value_set_id = ?, display_name = ?, dashboard = ?, monitoring = ?, updated_at = ? WHERE id = ?
 `
 
 type UpdateDNSRecordParams struct {
 	Ttl         sql.NullInt64
 	ValuesJson  string
+	ValueSetID  sql.NullString
 	DisplayName string
 	Dashboard   int64
 	Monitoring  int64
@@ -715,6 +825,7 @@ func (q *Queries) UpdateDNSRecord(ctx context.Context, arg UpdateDNSRecordParams
 	_, err := q.db.ExecContext(ctx, updateDNSRecord,
 		arg.Ttl,
 		arg.ValuesJson,
+		arg.ValueSetID,
 		arg.DisplayName,
 		arg.Dashboard,
 		arg.Monitoring,

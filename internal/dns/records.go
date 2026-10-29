@@ -15,6 +15,7 @@ import (
 	"github.com/oklog/ulid/v2"
 
 	"git.juzo.io/juzo/hashi/internal/audit"
+	"git.juzo.io/juzo/hashi/internal/ipsets"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 )
 
@@ -30,10 +31,12 @@ var (
 // is accepted). TTL nil = zone default. Values are what the record holds: TXT as plain text (Hashi quotes and splits),
 // CNAME/MX/SRV targets with or without the trailing dot.
 type RecordInput struct {
-	Name        string
-	Type        string
-	TTL         *int
-	Values      []string
+	Name   string
+	Type   string
+	TTL    *int
+	Values []string
+	// ValueSetID makes an A/AAAA entry follow an address set (03 §7) instead of literal values.
+	ValueSetID  string
 	DisplayName string
 	Dashboard   bool
 	Monitoring  bool
@@ -41,10 +44,12 @@ type RecordInput struct {
 
 // Record is a desired RRSet Hashi owns.
 type Record struct {
-	ID          string
-	ZoneID      string
-	RRSet       RRSet
-	Origin      string
+	ID     string
+	ZoneID string
+	RRSet  RRSet
+	Origin string
+	// ValueSetID: the RRSet's values are the set's addresses of its family, resolved at every plan.
+	ValueSetID  string
 	DisplayName string
 	Dashboard   bool
 	Monitoring  bool
@@ -95,6 +100,15 @@ func normalizeInput(in RecordInput, zone string, caps Capabilities) (RRSet, erro
 	}
 	if in.TTL != nil && (*in.TTL < 60 || *in.TTL > 86400) {
 		return RRSet{}, fmt.Errorf("%w: TTL must be between 60 and 86400 seconds", ErrInvalid)
+	}
+	if in.ValueSetID != "" {
+		if typ != "A" && typ != "AAAA" {
+			return RRSet{}, fmt.Errorf("%w: only A and AAAA records take an address set as value", ErrInvalid)
+		}
+		if len(in.Values) > 0 {
+			return RRSet{}, fmt.Errorf("%w: give either values or an address set", ErrInvalid)
+		}
+		return Normalize(RRSet{Name: name, Type: typ, TTL: in.TTL}), nil
 	}
 	if len(in.Values) == 0 {
 		return RRSet{}, fmt.Errorf("%w: a record needs at least one value", ErrInvalid)
@@ -292,6 +306,9 @@ func (s *Service) CreateRecord(ctx context.Context, actor, ip, zoneID string, in
 				return fmt.Errorf("%w: %s has a %s entry; a CNAME cannot share its name with other types", ErrConflict, r.Name, rec.Type)
 			}
 		}
+		if err := checkValueSet(ctx, q, in.ValueSetID); err != nil {
+			return err
+		}
 		now := s.now().UnixMilli()
 		if err := q.InsertDNSRecord(ctx, recordParams(id, zoneID, r, OriginUser, in, now)); err != nil {
 			return err
@@ -333,8 +350,11 @@ func (s *Service) UpdateRecord(ctx context.Context, actor, ip, id string, in Rec
 		return Record{}, err
 	}
 	err = s.st.Tx(ctx, func(q *db.Queries) error {
+		if err := checkValueSet(ctx, q, in.ValueSetID); err != nil {
+			return err
+		}
 		p := recordParams(id, cur.ZoneID, r, cur.Origin, in, s.now().UnixMilli())
-		if err := q.UpdateDNSRecord(ctx, db.UpdateDNSRecordParams{Ttl: p.Ttl, ValuesJson: p.ValuesJson, DisplayName: p.DisplayName,
+		if err := q.UpdateDNSRecord(ctx, db.UpdateDNSRecordParams{Ttl: p.Ttl, ValuesJson: p.ValuesJson, ValueSetID: p.ValueSetID, DisplayName: p.DisplayName,
 			Dashboard: p.Dashboard, Monitoring: p.Monitoring, UpdatedAt: p.UpdatedAt, ID: id}); err != nil {
 			return err
 		}
@@ -374,6 +394,33 @@ func (s *Service) DeleteRecord(ctx context.Context, actor, ip, id string) (Recor
 			Detail: map[string]any{"name": cur.RRSet.Name, "type": cur.RRSet.Type}})
 	})
 	return cur, err
+}
+
+// checkValueSet refuses a value set that is missing or holds more than single addresses (05a §5.2).
+func checkValueSet(ctx context.Context, q *db.Queries, id string) error {
+	if id == "" {
+		return nil
+	}
+	if err := ipsets.CheckTarget(ctx, q, id); err != nil {
+		if errors.Is(err, ipsets.ErrNotFound) {
+			return fmt.Errorf("%w: no IP set %s", ErrInvalid, id)
+		}
+		return fmt.Errorf("%w: %s", ErrInvalid, strings.TrimPrefix(err.Error(), ipsets.ErrInvalid.Error()+": "))
+	}
+	return nil
+}
+
+// Consumers lists the DNS entries whose value is set id (05a §5.2 target positions).
+func Consumers(ctx context.Context, q *db.Queries, id string) ([]ipsets.Consumer, error) {
+	rows, err := q.ListDNSRecordsBySet(ctx, sql.NullString{String: id, Valid: true})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]ipsets.Consumer, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, ipsets.Consumer{Type: "dns_record", ID: r.ID, Name: "DNS " + r.Type + " " + r.Name, Position: ipsets.PositionTarget})
+	}
+	return out, nil
 }
 
 func editable(r Record) error {
@@ -422,7 +469,7 @@ func recordFromRow(r db.DnsRecord) (Record, error) {
 	if err := json.Unmarshal([]byte(r.ValuesJson), &rr.Values); err != nil {
 		return Record{}, fmt.Errorf("decode values of %s %s: %w", r.Name, r.Type, err)
 	}
-	return Record{ID: r.ID, ZoneID: r.ZoneID, RRSet: Normalize(rr), Origin: r.Origin, DisplayName: r.DisplayName,
+	return Record{ID: r.ID, ZoneID: r.ZoneID, RRSet: Normalize(rr), Origin: r.Origin, ValueSetID: r.ValueSetID.String, DisplayName: r.DisplayName,
 		Dashboard: r.Dashboard == 1, Monitoring: r.Monitoring == 1, CreatedAt: time.UnixMilli(r.CreatedAt).UTC(),
 		UpdatedAt: time.UnixMilli(r.UpdatedAt).UTC()}, nil
 }
@@ -433,7 +480,11 @@ func recordParams(id, zoneID string, r RRSet, origin string, in RecordInput, now
 	if r.TTL != nil {
 		ttl = sql.NullInt64{Int64: int64(*r.TTL), Valid: true}
 	}
-	return db.InsertDNSRecordParams{ID: id, ZoneID: zoneID, Name: r.Name, Type: r.Type, Ttl: ttl, ValuesJson: string(vals), Origin: origin,
+	if in.ValueSetID != "" {
+		vals = []byte("[]")
+	}
+	return db.InsertDNSRecordParams{ID: id, ZoneID: zoneID, Name: r.Name, Type: r.Type, Ttl: ttl, ValuesJson: string(vals),
+		ValueSetID: sql.NullString{String: in.ValueSetID, Valid: in.ValueSetID != ""}, Origin: origin,
 		DisplayName: strings.TrimSpace(in.DisplayName), Dashboard: boolInt(in.Dashboard), Monitoring: boolInt(in.Monitoring),
 		CreatedAt: now, UpdatedAt: now}
 }

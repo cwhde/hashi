@@ -112,6 +112,29 @@ func (q *Queries) GetIPSetElement(ctx context.Context, id string) (IpSetElement,
 	return i, err
 }
 
+const getIPSetTarget = `-- name: GetIPSetTarget :one
+SELECT consumer, ip_set_id, addresses_json, unresolved_reason, resolved_at, updated_at FROM ip_set_targets WHERE consumer = ? AND ip_set_id = ?
+`
+
+type GetIPSetTargetParams struct {
+	Consumer string
+	IpSetID  string
+}
+
+func (q *Queries) GetIPSetTarget(ctx context.Context, arg GetIPSetTargetParams) (IpSetTarget, error) {
+	row := q.db.QueryRowContext(ctx, getIPSetTarget, arg.Consumer, arg.IpSetID)
+	var i IpSetTarget
+	err := row.Scan(
+		&i.Consumer,
+		&i.IpSetID,
+		&i.AddressesJson,
+		&i.UnresolvedReason,
+		&i.ResolvedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const insertIPSet = `-- name: InsertIPSet :exec
 INSERT INTO ip_sets (id, slug, name, description, kind, origin, system_key, created_at, updated_at)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -377,6 +400,90 @@ func (q *Queries) ListIPSets(ctx context.Context) ([]IpSet, error) {
 	return items, nil
 }
 
+const listServicesBySet = `-- name: ListServicesBySet :many
+SELECT id, name, slug, kind, domain_mode, host_name, enabled, origin, owner_feature, target_address, target_port, tls_skip_verify, tls_server_name, tls_min_version, advanced_routes, dashboard_visible, monitoring_visible, adguard_rewrite, created_at, updated_at, target_set_id, entry_host_id FROM services WHERE target_set_id = ?
+`
+
+func (q *Queries) ListServicesBySet(ctx context.Context, targetSetID sql.NullString) ([]Service, error) {
+	rows, err := q.db.QueryContext(ctx, listServicesBySet, targetSetID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Service{}
+	for rows.Next() {
+		var i Service
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Slug,
+			&i.Kind,
+			&i.DomainMode,
+			&i.HostName,
+			&i.Enabled,
+			&i.Origin,
+			&i.OwnerFeature,
+			&i.TargetAddress,
+			&i.TargetPort,
+			&i.TlsSkipVerify,
+			&i.TlsServerName,
+			&i.TlsMinVersion,
+			&i.AdvancedRoutes,
+			&i.DashboardVisible,
+			&i.MonitoringVisible,
+			&i.AdguardRewrite,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.TargetSetID,
+			&i.EntryHostID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUnresolvedIPSetTargets = `-- name: ListUnresolvedIPSetTargets :many
+SELECT consumer, ip_set_id, addresses_json, unresolved_reason, resolved_at, updated_at FROM ip_set_targets WHERE unresolved_reason != '' ORDER BY consumer
+`
+
+func (q *Queries) ListUnresolvedIPSetTargets(ctx context.Context) ([]IpSetTarget, error) {
+	rows, err := q.db.QueryContext(ctx, listUnresolvedIPSetTargets)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []IpSetTarget{}
+	for rows.Next() {
+		var i IpSetTarget
+		if err := rows.Scan(
+			&i.Consumer,
+			&i.IpSetID,
+			&i.AddressesJson,
+			&i.UnresolvedReason,
+			&i.ResolvedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const nextIPSetElementPosition = `-- name: NextIPSetElementPosition :one
 SELECT CAST(COALESCE(MAX(position), 0) + 1 AS INTEGER) AS next FROM ip_set_elements WHERE ip_set_id = ?
 `
@@ -386,6 +493,54 @@ func (q *Queries) NextIPSetElementPosition(ctx context.Context, ipSetID string) 
 	var next int64
 	err := row.Scan(&next)
 	return next, err
+}
+
+const putIPSetTargetResolved = `-- name: PutIPSetTargetResolved :exec
+INSERT INTO ip_set_targets (consumer, ip_set_id, addresses_json, unresolved_reason, resolved_at, updated_at)
+VALUES (?, ?, ?, '', ?, ?)
+ON CONFLICT (consumer, ip_set_id) DO UPDATE SET addresses_json = excluded.addresses_json, unresolved_reason = '',
+    resolved_at = excluded.resolved_at, updated_at = excluded.updated_at
+`
+
+type PutIPSetTargetResolvedParams struct {
+	Consumer      string
+	IpSetID       string
+	AddressesJson string
+	ResolvedAt    sql.NullInt64
+	UpdatedAt     int64
+}
+
+func (q *Queries) PutIPSetTargetResolved(ctx context.Context, arg PutIPSetTargetResolvedParams) error {
+	_, err := q.db.ExecContext(ctx, putIPSetTargetResolved,
+		arg.Consumer,
+		arg.IpSetID,
+		arg.AddressesJson,
+		arg.ResolvedAt,
+		arg.UpdatedAt,
+	)
+	return err
+}
+
+const putIPSetTargetUnresolved = `-- name: PutIPSetTargetUnresolved :exec
+INSERT INTO ip_set_targets (consumer, ip_set_id, unresolved_reason, updated_at) VALUES (?, ?, ?, ?)
+ON CONFLICT (consumer, ip_set_id) DO UPDATE SET unresolved_reason = excluded.unresolved_reason, updated_at = excluded.updated_at
+`
+
+type PutIPSetTargetUnresolvedParams struct {
+	Consumer         string
+	IpSetID          string
+	UnresolvedReason string
+	UpdatedAt        int64
+}
+
+func (q *Queries) PutIPSetTargetUnresolved(ctx context.Context, arg PutIPSetTargetUnresolvedParams) error {
+	_, err := q.db.ExecContext(ctx, putIPSetTargetUnresolved,
+		arg.Consumer,
+		arg.IpSetID,
+		arg.UnresolvedReason,
+		arg.UpdatedAt,
+	)
+	return err
 }
 
 const setIPSetCompiled = `-- name: SetIPSetCompiled :exec

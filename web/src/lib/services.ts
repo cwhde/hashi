@@ -92,7 +92,7 @@ export function newRoute(routes: Route[], target: Target): Route {
 	};
 }
 
-/** Plain text for what a save did on the Traefik hosts. */
+/** Plain text for what a save did on the Traefik hosts, the DNS zone and the firewall hosts. */
 export function saveText(r: { plans: Schemas['SyncPlan'][]; certificate_pending: boolean }): {
 	text: string;
 	review: boolean;
@@ -101,9 +101,11 @@ export function saveText(r: { plans: Schemas['SyncPlan'][]; certificate_pending:
 	const failed = r.plans.filter((p) => p.status === 'failed');
 	const waiting = r.plans.filter((p) => p.status === 'pending');
 	const applied = r.plans.filter((p) => p.status === 'applied');
+	const onHosts = applied.filter((p) => p.subsystem === 'traefik').length;
 	const parts: string[] = [];
-	if (applied.length)
-		parts.push(`applied on ${applied.length} Traefik host${applied.length === 1 ? '' : 's'}`);
+	if (onHosts) parts.push(`applied on ${onHosts} Traefik host${onHosts === 1 ? '' : 's'}`);
+	if (applied.some((p) => p.subsystem.startsWith('dns-'))) parts.push('DNS record updated');
+	if (applied.some((p) => p.subsystem === 'firewall')) parts.push('firewall updated');
 	if (waiting.length) parts.push(`${waiting.length} plan(s) need your approval`);
 	if (failed.length) parts.push(`failed on ${failed.length}: ${failed[0]?.error}`);
 	if (!r.plans.length) parts.push('nothing to change on the Traefik hosts');

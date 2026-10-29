@@ -53,7 +53,11 @@ func httpServices(svcs []services.Service, edge bool) dynamicConfig {
 		host := "Host(`" + s.HostName + "`)"
 		h.Routers[base] = router{Rule: host, EntryPoints: []string{"websecure"}, Middlewares: chain(s, edge), Service: base,
 			Priority: mainPriority, TLS: rt}
-		h.Services[base] = service{LoadBalancer: balancer(s.Kind, []services.Target{s.Target}, transport)}
+		targets := s.Targets
+		if targets == nil {
+			targets = []services.Target{s.Target}
+		}
+		h.Services[base] = service{LoadBalancer: balancer(s.Kind, targets, transport)}
 		if !s.AdvancedRoutes {
 			continue
 		}

@@ -2126,8 +2126,10 @@ export interface components {
             type: string;
             /** @description Absent = zone default */
             ttl?: number;
-            /** @description TXT as plain text */
+            /** @description TXT as plain text; empty for an address-set entry */
             values: string[];
+            /** @description The address set the values follow (03 §7) */
+            value_set_id?: string;
             origin: components["schemas"]["DNSOrigin"];
             display_name: string;
             dashboard: boolean;
@@ -2141,7 +2143,10 @@ export interface components {
             type: "A" | "AAAA" | "CNAME" | "MX" | "TXT" | "SRV" | "CAA";
             /** @description Absent = zone default */
             ttl?: number;
+            /** @description Empty when value_set_id is set */
             values: string[];
+            /** @description A and AAAA only: an address set whose addresses of the record's family are the values (03 §7) */
+            value_set_id?: string;
             display_name?: string;
             dashboard?: boolean;
             monitoring?: boolean;
@@ -2150,7 +2155,10 @@ export interface components {
         DNSRecordUpdate: {
             /** @description Absent = zone default */
             ttl?: number;
+            /** @description Empty when value_set_id is set */
             values: string[];
+            /** @description A and AAAA only: an address set whose addresses of the record's family are the values (03 §7) */
+            value_set_id?: string;
             display_name?: string;
             dashboard?: boolean;
             monitoring?: boolean;
@@ -2222,8 +2230,10 @@ export interface components {
             recent: components["schemas"]["SyncPlan"][];
         };
         ServiceTarget: {
-            /** @description IP address or host name (address sets arrive with S6) */
+            /** @description IP address or host name; empty when set_id names an address set */
             address: string;
+            /** @description An address set (05a §5.2) whose addresses are load-balanced; instead of address */
+            set_id?: string;
             port: number;
             /** @description Load-balancing weight; 0 or absent = 1 */
             weight?: number;
@@ -2260,6 +2270,8 @@ export interface components {
             /** @enum {string} */
             tls_min_version?: "" | "VersionTLS12" | "VersionTLS13";
             advanced_routes?: boolean;
+            /** @description Service routing override: the firewall host public traffic enters through (03 §5.1) */
+            entry_host_id?: string;
             routes?: components["schemas"]["ServiceRoute"][];
             dashboard_visible?: boolean;
             monitoring_visible?: boolean;
@@ -2285,6 +2297,8 @@ export interface components {
             /** @enum {string} */
             tls_min_version: "" | "VersionTLS12" | "VersionTLS13";
             advanced_routes: boolean;
+            /** @description Service routing override (03 §5.1); empty = none */
+            entry_host_id?: string;
             routes: components["schemas"]["ServiceRoute"][];
             dashboard_visible: boolean;
             monitoring_visible: boolean;
