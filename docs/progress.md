@@ -5,6 +5,87 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
+**S6 — IP sets + firewall + streams** · status: **entry gate** (started 2026-10-29).
+
+Scope and gate: 11-delivery.md §3 row S6: 05a-ip-sets.md (`ip`, `cidr`, `host`, `dns`, set references, system sets,
+compiler, IP sets pages, address page without dynamic state), 05-firewall.md (nftables table, folding, bindings, host
+access, rescue; meters rendered but off), TCP/UDP services, DNS host and service records (03 §5.1–5.2), setup step 6.
+Gate: first apply with the rescue timer on a real host; foreign + NetBird rules unchanged (diff of `nft list ruleset`
+minus Hashi's table and of `iptables-legacy-save` before/after); NetBird connected after apply and after a NetBird
+restart; a blocked address dropped and an allowed /32 inside it passing (real test sources); a public TCP/UDP port
+reaching its upstream; Hashi's table surviving a `hashi-firewall` restart; a DNS record with an address-set value
+applied; setup completed on the real install, sign-in with the S5 passkey, the S3 record path repeated with it; a
+migrated service's generated CNAME applied.
+
+Entry gate (05 §10) — before any renderer code:
+- [x] Versions on the first real host (read-only): kernel 7.0.2-pve, nftables 1.1.3, `iptables` = legacy 1.8.11,
+      NetBird 0.81.3 (kernel WireGuard, port 51820, connected), no nft tables, `nftables.service` disabled (its
+      `/etc/nftables.conf` starts with `flush ruleset`). NetBird lives in iptables-legacy chains (`NETBIRD-*`) + ipsets.
+- [x] Every §3.2 shape written as nft text and checked by the real binary: Debian 13 container (nft 1.1.3, kernel 6.8)
+      and the Debian dev target (kernel 7.0.6-pve) with `nft -c`; the §3.3 transaction applied twice keeps `dyn` and
+      `staging` elements (`testdata/contracts/nft/`).
+- [x] NetBird backend after a restart with a foreign nft table: NetBird's own selection code (v0.81.3, same libraries)
+      replayed in a netns → stays on iptables with `table inet hashi`; only a table named `filter` would switch it.
+      **Coexistence holds; plan B (ADR 0002) not needed.** Replay kept in `testdata/contracts/netbird/backend_check/`.
+- [ ] `nft -c -j -f -` (check mode, nothing committed) of the shapes on the first real host — needs the user's OK.
+
+Found on the first real host (read-only), for the takeover plan (05 §3.4):
+- The old script adds rules to built-in chains besides its `CUSTOM_*` chains: MSS clamp (mangle FORWARD), three
+  MASQUERADE rules (nat POSTROUTING), two `wt0`↔bridge ACCEPTs (filter FORWARD), the `trusted_hosts` ipset ACCEPT.
+  Its cleanup deletes the two ACCEPTs in a different form than it inserts them, so every 15-minute run adds another
+  copy: 555 of each today. Harmless (same verdict) but the takeover must remove all copies.
+- It re-installs root's crontab from `/scripts/crontab.txt` every 15 minutes (`sync_and_apply.sh`), so cron changes
+  must go into that file too. The same crontab carries unrelated jobs (log shrink, rclone mount) that stay.
+- It also does non-firewall work: pins `mesh.<root>` in `/etc/hosts` and sets cluster MTU routes. Removing the script
+  stops those; decided with the user at the takeover plan.
+- Its `CUSTOM_INPUT` ends in DROP: today all other inbound traffic is already blocked. Keeping that posture after the
+  takeover means enabling Hashi's "block all other inbound" for that host (user decision at the takeover plan).
+
+Plan (three PRs: S6 is the largest slice; each PR is one coherent layer, ~1,500 hand-written lines):
+
+PR A — IP sets
+- [ ] Migration 00007: `ip_sets` (kind user/system, origin, locked, name, description) + `ip_set_elements` (typed rows
+      `ip`/`cidr`/`host`/`dns`/`set` with CHECKs, note, expires_at); system sets `all`, `hashi-hosts`,
+      `private-networks` seeded; sqlc.
+- [ ] `internal/ipsets`: sealed item variants, normalization, cycle check (DFS, path in the error), compiler
+      (v4/v6 interval lists, merged; status ok/partial/empty + problems; expiry drop-out), address-set capability,
+      DNS item resolver (TTL-bounded refresh), reverse dependency graph with debounced consumer notification.
+      Tests incl. `TestInvariant_22_SetGraphsAcyclic` (IP sets part) and property tests of the merge.
+- [ ] OpenAPI + handlers: `/api/ip-sets` CRUD, elements, resolved, consumers, `GET /api/addresses/{address}`
+      (containing sets + nesting path; firewall verdict once PR B lands).
+- [ ] UI from the mocks: IP sets list, set page (elements, resolved, consumers), address page (no dynamic state);
+      shared IP set picker + item editor. E2E against the dev fakes.
+
+PR B — Firewall hosts
+- [ ] Migration 00008: `firewall_hosts` (05 §1 fields, edge mode, NetBird mode, pinned host key, credential refs,
+      detected facts), bindings (global allow/block set lists), host access, per-host applied state; sync subsystem
+      `firewall`.
+- [ ] Validation over SSH (05 §2, OS probe reuse): kernel, nft ≥ 1.0 + JSON, iptables backend, NetBird detection +
+      backend, `nftables.service` and a `filter` nft table reported, firewalld reported, public IP, subnets, the
+      existing ruleset captured (`nft -j list ruleset`, `iptables(-legacy)-save`, `ipset save`).
+- [ ] Folding (05 §4.2) with the table-driven cases and the brute-force property test; `TestInvariant_20` (kernel side).
+- [ ] Renderer: Go structs → libnftables JSON matching `testdata/contracts/nft/`; golden files per host shape; every
+      golden passes `nft -c -j -f` in the integration container; meters rendered but off.
+- [ ] Apply + rescue (05 §3.3, §7): save previous table, `rollback.sh` before arming, `systemd-run` timer (Alpine: PID
+      file + sleep), apply, verify over a **new** SSH connection + NetBird status, disarm; boot unit
+      `hashi-firewall` (systemd/OpenRC), sysctl file. Takeover of an existing script as explicit plan items (exact
+      rule specs, all duplicates, cron lines in the live crontab and `crontab.txt`). Integration in a privileged
+      netns with NetBird-like legacy chains: foreign rules byte-identical, DNAT + legacy MASQUERADE both work,
+      rescue restores on a failed verification.
+- [ ] DNS host records (`<host>`, `via.`, `on.`, `ovr`) and service records (03 §5.1–5.2); `hashi-hosts` populated.
+- [ ] Address sets as targets: service upstreams and DNS A/AAAA values (`TestInvariant_21` for both).
+- [ ] OpenAPI + handlers (05 §9), setup step 6 (validated host linked to a Traefik connection → minimums met).
+
+PR C — Streams + firewall UI + deploy
+- [ ] TCP/UDP services: model, `20-hashi-stream-services.yml` + `tcp-<port>`/`udp-<port>` entry points (static
+      change, high risk), DNAT to the entry-point port; golden + Traefik integration with stub TCP/UDP upstreams.
+- [ ] Firewall pages from the mocks (hosts, host page with observed ruleset, rendered table, bindings, host access),
+      setup step 6 page, stream fields on the service page. E2E against the dev fakes.
+- [ ] Prod-proof first on a dev target (Debian LXC on host B, snapshot `clean`), then deploy (user runs `/deploy`) and
+      the gate on the first real host with the user's OK for the first apply.
+
+## Previous slice
+
 **S5 — HTTP services** · status: **done** 2026-10-29, deployed `3c4504e` (#34, #35 + gate fixes), prod-proof passed. Next: S6.
 
 Scope and gate: 11-delivery.md §3 row S5 (amended 77ca773 with the user, 2026-10-28): 04 §1, §7–8 for the HTTP kinds,
@@ -97,7 +178,38 @@ Decisions made in PR B:
   options, regex rewrites and weights (golden files and the Traefik integration test cover their rendering).
 - A flaky S3 E2E check had a UI cause: `/dns` said "Decisions saved." before its follow-up plans finished, and a
   reload on that text cancelled the records plan. Fixed in the page.
-## Previous slice
+## Side step: security model (branch `security-model`)
+
+Status: **done** (signed off 2026-10-28, mocks merged). S2 is next.
+
+The user replaced the security design with a model built on two shared primitives: IP sets (the one address primitive,
+also for DNS values, upstreams and connection targets, so anything can be "set via Pulse") and rule sets (global,
+reusable and service-root rule sets are one type), a two-stage edge engine (Stage A abuse engine before Stage B rules),
+one ban function, and nftables with folded allow/block sets and kernel meters. Original input archived in
+`docs/archive/` (not for implementation); decisions, corrections and rejected alternatives in ADR 0002.
+
+Done on the branch:
+- [x] ADR 0002; spec rewritten: 05-firewall, new 05a-ip-sets, 06-edge-security, 06a (object model §0: what is shared,
+      what is compiled per layer, deliberate deviations); updated 01, 02, 03, 04 (renamed `04-traefik-services.md`),
+      07, 08, 09, 10, 10b, 11, README (invariants 7, 10, 12 amended; 20–22 added), environment, CLAUDE.md.
+- [x] Read-only survey of the first firewall host: kernel 7.0, nft 1.1.3, iptables **legacy**; NetBird uses legacy
+      chains + ipsets; old script chains still present; Proxmox firewall disabled; no nftables tables;
+      `nftables.service` disabled with the stock `flush ruleset` config.
+- [x] Counters view (ban + challenge counter, filters, edit/reset).
+- [x] Review round 2026-10-28: step decay for both counters; an SSO session satisfies `pass_captcha`; observe/detect
+      modes stay out; host link stays SSH (ADR 0002 "Host link vs host agent"); Pulse footprint targets (08 §1).
+
+After sign-off (phase 2):
+- [x] Merge the spec branch (docs → `main`).
+- [x] Redo the affected S0b mocks (Services, Security incl. Counters, address page, IP sets, rule sets, Firewall) —
+      branch `s0b-security-mocks`.
+- [x] Redone mocks approved by the user (2026-10-28), plus host and per-service routing (03-dns.md §5.1 `ovr` records).
+- [x] Mocks PR #27 merged.
+- [x] Built code checked: only setup step 7's key/title and the palette mock said "resource"/subjects; renamed.
+- [ ] Then continue with S2.
+
+## Finished slices (detail)
+
 
 **S4 — SSH + Traefik** · status: **done** 2026-10-28, deployed `2868d0e` (#32, #33), prod-proof passed. Next: S5.
 
@@ -211,37 +323,6 @@ the job's 4-hour wait does not swallow the click (`TestIssueNowRetriesAfterFaile
       on `hashi-edge-debian` and `hashi-edge-fedora`: host key pinned, install plan applied (Traefik under OpenRC/systemd), files applied, Verify from the real API, real certificate issued + distributed + fingerprint matches, Hashi
       stopped → fail-open route 200 / fail-closed 500 on the edge, Hashi back → normal; live Traefik instances untouched.
 
-## Side step: security model (branch `security-model`)
-
-Status: **done** (signed off 2026-10-28, mocks merged). S2 is next.
-
-The user replaced the security design with a model built on two shared primitives: IP sets (the one address primitive,
-also for DNS values, upstreams and connection targets, so anything can be "set via Pulse") and rule sets (global,
-reusable and service-root rule sets are one type), a two-stage edge engine (Stage A abuse engine before Stage B rules),
-one ban function, and nftables with folded allow/block sets and kernel meters. Original input archived in
-`docs/archive/` (not for implementation); decisions, corrections and rejected alternatives in ADR 0002.
-
-Done on the branch:
-- [x] ADR 0002; spec rewritten: 05-firewall, new 05a-ip-sets, 06-edge-security, 06a (object model §0: what is shared,
-      what is compiled per layer, deliberate deviations); updated 01, 02, 03, 04 (renamed `04-traefik-services.md`),
-      07, 08, 09, 10, 10b, 11, README (invariants 7, 10, 12 amended; 20–22 added), environment, CLAUDE.md.
-- [x] Read-only survey of the first firewall host: kernel 7.0, nft 1.1.3, iptables **legacy**; NetBird uses legacy
-      chains + ipsets; old script chains still present; Proxmox firewall disabled; no nftables tables;
-      `nftables.service` disabled with the stock `flush ruleset` config.
-- [x] Counters view (ban + challenge counter, filters, edit/reset).
-- [x] Review round 2026-10-28: step decay for both counters; an SSO session satisfies `pass_captcha`; observe/detect
-      modes stay out; host link stays SSH (ADR 0002 "Host link vs host agent"); Pulse footprint targets (08 §1).
-
-After sign-off (phase 2):
-- [x] Merge the spec branch (docs → `main`).
-- [x] Redo the affected S0b mocks (Services, Security incl. Counters, address page, IP sets, rule sets, Firewall) —
-      branch `s0b-security-mocks`.
-- [x] Redone mocks approved by the user (2026-10-28), plus host and per-service routing (03-dns.md §5.1 `ovr` records).
-- [x] Mocks PR juzo/hashi#27 merged.
-- [x] Built code checked: only setup step 7's key/title and the palette mock said "resource"/subjects; renamed.
-- [ ] Then continue with S2.
-
-## Finished slices (detail)
 
 **S3 — DNS write** · status: **done** 2026-10-28, deployed `94d60ad` (#30, #31), prod-proof passed.
 
@@ -481,6 +562,10 @@ Decisions made in S0:
   only short-SHA deploys exist so far.
 
 ## Log
+
+- 2026-10-29 — S6 started with its entry gate. nft/NetBird coexistence holds (NetBird's own backend choice replayed:
+  Hashi's table never switches it); plan B not needed. All rule shapes pass the real `nft` 1.1.3 in check mode on a
+  container and the Debian dev target; the check on the first real host waits for the user's OK. Plan written (3 PRs).
 
 - 2026-10-29 — S5 gate, step 8 with the user (Firefox/Floorp on the home LAN): the first link was refused ("nonce",
   probably altered on the way to the browser); with a fresh copied link the proof succeeded through the edge

@@ -1,0 +1,92 @@
+table inet hashi {
+	set allow4 { type ipv4_addr; flags interval; auto-merge; elements = { 192.0.2.0/24, 198.51.100.7 } }
+	set allow6 { type ipv6_addr; flags interval; auto-merge; elements = { 2001:db8:1::/48 } }
+	set block4 { type ipv4_addr; flags interval; auto-merge; elements = { 203.0.113.0/24 } }
+	set block6 { type ipv6_addr; flags interval; auto-merge; elements = { 2001:db8:2::/48 } }
+	set dyn4 { type ipv4_addr; flags timeout; elements = { 203.0.113.9 timeout 10m } }
+	set dyn6 { type ipv6_addr; flags interval, timeout; elements = { 2001:db8:3::/64 timeout 10m } }
+	set staging4 { type ipv4_addr; flags dynamic, timeout; timeout 5m; }
+	set staging6 { type ipv6_addr; flags dynamic, timeout; timeout 5m; }
+	set host_access4 { type ipv4_addr; flags interval; auto-merge; elements = { 198.51.100.0/28 } }
+	set host_access6 { type ipv6_addr; flags interval; auto-merge; }
+	set pub_tcp { type inet_service; elements = { 80, 443, 2022 } }
+	set pub_udp { type inet_service; elements = { 443, 19132 } }
+	set metered_udp { type inet_service; elements = { 19132 } }
+	set m_tcp_new4 { type ipv4_addr; flags dynamic, timeout; timeout 1m; }
+	set m_tcp_new6 { type ipv6_addr; flags dynamic, timeout; timeout 1m; }
+	set m_tcp_conc4 { type ipv4_addr; flags dynamic; size 65535; }
+	set m_tcp_conc6 { type ipv6_addr; flags dynamic; size 65535; }
+	set m_udp_new4 { type ipv4_addr; flags dynamic, timeout; timeout 1m; }
+	set m_udp_new6 { type ipv6_addr; flags dynamic, timeout; timeout 1m; }
+	set m_udp_pps4 { type ipv4_addr; flags dynamic, timeout; timeout 1m; }
+	set m_udp_pps6 { type ipv6_addr; flags dynamic, timeout; timeout 1m; }
+
+	chain pre_guard {
+		type filter hook prerouting priority raw; policy accept;
+		iifname != "vmbr0" return
+		udp dport 51820 return
+		ip saddr @allow4 return
+		ip6 saddr @allow6 return
+		ip saddr @block4 drop
+		ip6 saddr @block6 drop
+		ip saddr @dyn4 drop
+		ip6 saddr @dyn6 drop
+		ip saddr @staging4 drop
+		ip6 saddr @staging6 drop
+	}
+
+	chain pre_meter {
+		type filter hook prerouting priority -150; policy accept;
+		iifname != "vmbr0" return
+		ip saddr @allow4 return
+		ip6 saddr @allow6 return
+		tcp dport @pub_tcp tcp flags syn ct state new update @m_tcp_new4 { ip saddr limit rate over 60/minute burst 20 packets } add @staging4 { ip saddr } drop
+		tcp dport @pub_tcp tcp flags syn ct state new update @m_tcp_new6 { ip6 saddr limit rate over 60/minute burst 20 packets } add @staging6 { ip6 saddr } drop
+		tcp dport @pub_tcp ct state new add @m_tcp_conc4 { ip saddr ct count over 100 } add @staging4 { ip saddr } drop
+		tcp dport @pub_tcp ct state new add @m_tcp_conc6 { ip6 saddr ct count over 100 } add @staging6 { ip6 saddr } drop
+		udp dport @metered_udp ct state new update @m_udp_new4 { ip saddr limit rate over 120/minute burst 40 packets } add @staging4 { ip saddr } drop
+		udp dport @metered_udp ct state new update @m_udp_new6 { ip6 saddr limit rate over 120/minute burst 40 packets } add @staging6 { ip6 saddr } drop
+		udp dport @metered_udp update @m_udp_pps4 { ip saddr limit rate over 2000/second burst 500 packets } add @staging4 { ip saddr } drop
+		udp dport @metered_udp update @m_udp_pps6 { ip6 saddr limit rate over 2000/second burst 500 packets } add @staging6 { ip6 saddr } drop
+	}
+
+	chain nat_pre {
+		type nat hook prerouting priority dstnat; policy accept;
+		iifname "vmbr0" tcp dport 443 dnat ip to 10.20.0.10:443
+		iifname "vmbr0" tcp dport 2022 dnat ip to 10.20.0.10:2022
+		iifname "vmbr0" udp dport 19132 dnat ip to 10.20.0.10:19132
+		fib daddr type local tcp dport 80 ip saddr 10.20.0.0/24 dnat ip to 10.20.0.10:80
+	}
+
+	chain input {
+		type filter hook input priority filter; policy accept;
+		iifname "lo" accept
+		ct state established,related accept
+		ip saddr 10.20.0.0/24 accept
+		iifname "wt0" accept
+		udp dport 51820 accept
+		ip saddr @host_access4 accept
+		ip6 saddr @host_access6 accept
+		ct state new drop
+	}
+
+	chain forward {
+		type filter hook forward priority filter; policy accept;
+		ct status dnat accept
+		ip saddr 10.20.0.0/24 oifname "vmbr0" accept
+		ct state established,related accept
+	}
+
+	chain nat_post {
+		type nat hook postrouting priority srcnat; policy accept;
+		ip saddr 10.20.0.0/24 oifname "vmbr0" masquerade
+		ip saddr 10.20.0.0/24 ip daddr 10.20.0.10 ct status dnat masquerade
+		iifname "wt0" ip daddr 10.20.0.0/24 masquerade
+	}
+
+	chain mangle_fwd {
+		type filter hook forward priority mangle; policy accept;
+		iifname "wt0" tcp flags syn tcp option maxseg size set rt mtu
+		oifname "wt0" tcp flags syn tcp option maxseg size set rt mtu
+	}
+}
