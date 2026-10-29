@@ -93,8 +93,11 @@ PR C — DNS records, address-set targets, streams, takeover
 - [ ] TCP/UDP services: model, `20-hashi-stream-services.yml` + `tcp-<port>`/`udp-<port>` entry points (static
       change, high risk), DNAT to the entry-point port; golden + Traefik integration with stub TCP/UDP upstreams.
 - [ ] Takeover of an existing firewall script (05 §3.4) as explicit plan items: exact rule specs incl. all
-      duplicates, the ipset, cron lines in the live crontab and `crontab.txt`; rollback restores them. Product
-      decisions with the user first: the script's non-firewall duties, "block all other inbound".
+      duplicates, the ipset, cron lines in the live crontab and `crontab.txt`; rollback restores them.
+      User decisions 2026-10-29: the script's non-firewall duties (`/etc/hosts` pin, cluster MTU routes) are dropped
+      with it; the first real host gets "block all other inbound" (today's `CUSTOM_INPUT` ends in DROP and nothing else
+      keeps Proxmox :8006 or sshd closed to the public); its trusted addresses move into a host access set.
+      Hashi's SSH public key is added to root on the first real host by Claude (user OK 2026-10-29), at the gate.
 
 PR D — UI + deploy
 - [ ] Firewall pages from the mocks (hosts, host page with observed ruleset, rendered table, bindings, host access),
