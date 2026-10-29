@@ -698,24 +698,11 @@ func (m *Manager) validate(ctx context.Context, row db.FirewallHost) (Facts, err
 				UpdatedAt: m.now().UnixMilli(), ID: row.ID})
 		}
 	}
-	var problems []string
 	if !f.Systemd {
-		problems = append(problems, "systemd-run is missing: the rescue timer needs systemd (Alpine/OpenRC firewall hosts arrive later)")
+		return f, fmt.Errorf("%w: %s", ErrInvalid, strings.Join(f.Warnings(), "; "))
 	}
-	if f.FilterTable() {
-		problems = append(problems, "an nftables table named \"filter\" exists: NetBird switches to its nftables backend at its next restart")
-	}
-	if f.NftablesUnitEnabled {
-		problems = append(problems, "nftables.service is enabled: its config usually starts with \"flush ruleset\" and would wipe NetBird's and Proxmox's rules at boot; disable it")
-	}
-	if f.FirewalldActive {
-		problems = append(problems, "firewalld is active: it keeps its own table and may drop forwarded traffic")
-	}
-	if !f.Systemd {
-		return f, fmt.Errorf("%w: %s", ErrInvalid, strings.Join(problems, "; "))
-	}
-	if len(problems) > 0 {
-		return f, fmt.Errorf("check before the first apply: %s", strings.Join(problems, "; "))
+	if w := f.Warnings(); len(w) > 0 {
+		return f, fmt.Errorf("check before the first apply: %s", strings.Join(w, "; "))
 	}
 	return f, nil
 }
@@ -805,6 +792,11 @@ func (m *Manager) dial(ctx context.Context, row db.FirewallHost) (Conn, error) {
 
 // desired builds what the host should hold.
 func (m *Manager) desired(ctx context.Context, id string) (db.FirewallHost, Desired, error) {
+	return m.build(ctx, id, true)
+}
+
+// build is desired; preview skips the ownership confirmation (the rendered tab before the first apply).
+func (m *Manager) build(ctx context.Context, id string, owned bool) (db.FirewallHost, Desired, error) {
 	row, err := m.st.R.GetFirewallHost(ctx, id)
 	if err != nil {
 		return row, Desired{}, ErrNotFound
@@ -812,7 +804,7 @@ func (m *Manager) desired(ctx context.Context, id string) (db.FirewallHost, Desi
 	if row.EdgeMode != ModeManaged {
 		return row, Desired{}, fmt.Errorf("%w: %s is an external_nat host: Hashi writes no firewall there", ErrNotReady, row.Name)
 	}
-	if !row.OwnershipConfirmedAt.Valid {
+	if owned && !row.OwnershipConfirmedAt.Valid {
 		return row, Desired{}, fmt.Errorf("%w: confirm that Hashi manages %s's firewall first", ErrNotReady, row.Name)
 	}
 	e := EffectiveOf(row)
@@ -988,4 +980,31 @@ func (m *Manager) PlanAll(ctx context.Context, eng *hsync.Engine, actor string) 
 		}
 	}
 	return out, errors.Join(errs...)
+}
+
+// Rendered is the table Hashi would load on the host now.
+func (m *Manager) Rendered(ctx context.Context, id string) (Desired, error) {
+	_, d, err := m.build(ctx, id, false)
+	return d, err
+}
+
+// Ruleset reads everything on the host now (all nft tables, iptables in every backend, ipsets); read-only.
+func (m *Manager) Ruleset(ctx context.Context, id string) (now, atSetup string, err error) {
+	row, err := m.st.R.GetFirewallHost(ctx, id)
+	if err != nil {
+		return "", "", ErrNotFound
+	}
+	if row.EdgeMode != ModeManaged {
+		return "", row.SetupRuleset, nil
+	}
+	c, err := m.dial(ctx, row)
+	if err != nil {
+		return "", row.SetupRuleset, err
+	}
+	defer func() { _ = c.Close() }()
+	r, err := c.Run(ctx, SetupRulesetCommand, nil)
+	if err != nil {
+		return "", row.SetupRuleset, err
+	}
+	return string(r.Stdout), row.SetupRuleset, nil
 }

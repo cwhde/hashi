@@ -97,6 +97,24 @@ func (f Facts) Candidates() []netip.Prefix {
 	return out
 }
 
+// Warnings are the findings the admin must resolve or accept before the first apply (05 §2).
+func (f Facts) Warnings() []string {
+	var w []string
+	if !f.Systemd {
+		w = append(w, "systemd-run is missing: the rescue timer needs systemd (Alpine/OpenRC firewall hosts arrive later)")
+	}
+	if f.FilterTable() {
+		w = append(w, "an nftables table named \"filter\" exists: NetBird switches to its nftables backend at its next restart")
+	}
+	if f.NftablesUnitEnabled {
+		w = append(w, "nftables.service is enabled: its config usually starts with \"flush ruleset\" and would wipe NetBird's and Proxmox's rules at boot; disable it")
+	}
+	if f.FirewalldActive {
+		w = append(w, "firewalld is active: it keeps its own table and may drop forwarded traffic")
+	}
+	return w
+}
+
 // ErrNoNft means the host lacks nft ≥ 1.0 with JSON support (05 §2); the apply plan installs it.
 var ErrNoNft = errors.New("nftables 1.0 or newer with JSON support is required")
 

@@ -501,6 +501,73 @@ paths:
           description: The plan after the run
           content: { application/json: { schema: { $ref: "#/components/schemas/SyncPlan" } } }
         default: { $ref: "#/components/responses/Problem" }
+  /api/setup/firewall/scan:
+    post:
+      operationId: scanSetupFirewallHost
+      summary: Step 6 — read the firewall host's SSH key for the admin to compare (nothing is stored)
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/HostKeyScanInput" } } }
+      responses:
+        "200":
+          description: The host key
+          content: { application/json: { schema: { $ref: "#/components/schemas/HostKey" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/setup/firewall/host:
+    put:
+      operationId: putSetupFirewallHost
+      summary: Step 6 — save the first firewall host and validate it over SSH (read-only)
+      description: |
+        Saves the host (credentials sealed, the confirmed host key pinned) and, for a managed host, logs in and reads
+        kernel, nftables, the iptables backend, NetBird, interfaces and the existing ruleset. Nothing on the host changes.
+        A failed validation answers 200 with `health: failed` and `last_error`; invalid input answers 422.
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/FirewallHostInput" } } }
+      responses:
+        "200":
+          description: Saved and validated
+          content: { application/json: { schema: { $ref: "#/components/schemas/FirewallHost" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/setup/firewall/confirm:
+    post:
+      operationId: confirmSetupFirewall
+      summary: Step 6 — let Hashi manage the validated host's firewall (its table only); completes the step
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      responses:
+        "200":
+          description: Confirmed
+          content: { application/json: { schema: { $ref: "#/components/schemas/SetupState" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/setup/firewall/plan:
+    post:
+      operationId: planSetupFirewall
+      summary: Step 6 — plan Hashi's first firewall apply on the confirmed host; nothing is written yet
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      responses:
+        "200":
+          description: The plan (absent when the host already matches)
+          content: { application/json: { schema: { $ref: "#/components/schemas/SyncPlanResult" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/setup/firewall/plan/{id}/run:
+    post:
+      operationId: runSetupFirewallPlan
+      summary: Step 6 — approve the shown firewall plan and run it under the rescue timer
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The plan after the run
+          content: { application/json: { schema: { $ref: "#/components/schemas/SyncPlan" } } }
+        default: { $ref: "#/components/responses/Problem" }
   /api/setup/system-service:
     post:
       operationId: createSetupSystemService
@@ -991,6 +1058,200 @@ paths:
         "200":
           description: One plan per host that needed changes
           content: { application/json: { schema: { $ref: "#/components/schemas/ServicePlans" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/firewall/hosts:
+    get:
+      operationId: listFirewallHosts
+      summary: Every firewall host with its detected facts
+      tags: [firewall]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Hosts
+          content: { application/json: { schema: { $ref: "#/components/schemas/FirewallHostList" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    post:
+      operationId: createFirewallHost
+      summary: Add a firewall host (validated right away when managed)
+      tags: [firewall]
+      x-hashi-scopes: [firewall.apply]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/FirewallHostInput" } } }
+      responses:
+        "200":
+          description: Saved
+          content: { application/json: { schema: { $ref: "#/components/schemas/FirewallHost" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/firewall/scan:
+    post:
+      operationId: scanFirewallHost
+      summary: Read a host's SSH key for the admin to compare (nothing is stored)
+      tags: [firewall]
+      x-hashi-scopes: [firewall.apply]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/HostKeyScanInput" } } }
+      responses:
+        "200":
+          description: The host key
+          content: { application/json: { schema: { $ref: "#/components/schemas/HostKey" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/firewall/hosts/{id}:
+    get:
+      operationId: getFirewallHost
+      summary: One firewall host
+      tags: [firewall]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The host
+          content: { application/json: { schema: { $ref: "#/components/schemas/FirewallHost" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      operationId: updateFirewallHost
+      summary: Change a host's settings (a changed SSH address or host key needs a new host)
+      tags: [firewall]
+      x-hashi-scopes: [firewall.apply]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/FirewallHostInput" } } }
+      responses:
+        "200":
+          description: Saved
+          content: { application/json: { schema: { $ref: "#/components/schemas/FirewallHost" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    delete:
+      operationId: deleteFirewallHost
+      summary: Delete a host that nothing references (Hashi's table on it stays until removed by hand)
+      tags: [firewall]
+      x-hashi-scopes: [firewall.apply]
+      x-hashi-reauth: true
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "204": { description: Deleted }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/firewall/hosts/{id}/validate:
+    post:
+      operationId: validateFirewallHost
+      summary: Read the host again over SSH (read-only)
+      tags: [firewall]
+      x-hashi-scopes: [firewall.apply]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The host with fresh facts (see `health`)
+          content: { application/json: { schema: { $ref: "#/components/schemas/FirewallHost" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/firewall/hosts/{id}/confirm:
+    post:
+      operationId: confirmFirewallHost
+      summary: Let Hashi manage the validated host's firewall (its own table only)
+      tags: [firewall]
+      x-hashi-scopes: [firewall.apply]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Confirmed
+          content: { application/json: { schema: { $ref: "#/components/schemas/FirewallHost" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/firewall/hosts/{id}/plan:
+    post:
+      operationId: planFirewallHost
+      summary: Plan the host now; low-risk plans apply, high-risk ones wait on Pending changes
+      tags: [firewall]
+      x-hashi-scopes: [firewall.apply]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The plan (absent when the host already matches)
+          content: { application/json: { schema: { $ref: "#/components/schemas/SyncPlanResult" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/firewall/hosts/{id}/rendered:
+    get:
+      operationId: getFirewallRendered
+      summary: The table Hashi would load on the host now (libnftables JSON) and the folded counts
+      tags: [firewall]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Rendered table
+          content: { application/json: { schema: { $ref: "#/components/schemas/FirewallRendered" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/firewall/hosts/{id}/ruleset:
+    get:
+      operationId: getFirewallRuleset
+      summary: The host's ruleset read now over SSH (all tables, iptables and ipsets), and the one read at setup
+      tags: [firewall]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Observed ruleset
+          content: { application/json: { schema: { $ref: "#/components/schemas/FirewallRuleset" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/firewall/hosts/{id}/host-access:
+    get:
+      operationId: getFirewallHostAccess
+      summary: The IP sets allowed to reach the host itself
+      tags: [firewall]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Set IDs
+          content: { application/json: { schema: { $ref: "#/components/schemas/IPSetIDs" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      operationId: putFirewallHostAccess
+      summary: Replace the host's access sets and plan the host
+      tags: [firewall]
+      x-hashi-scopes: [firewall.apply]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/IPSetIDs" } } }
+      responses:
+        "200":
+          description: Saved, with the plans it caused
+          content: { application/json: { schema: { $ref: "#/components/schemas/FirewallPlans" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/firewall/bindings:
+    get:
+      operationId: getFirewallBindings
+      summary: The IP sets bound to global firewall allow and block
+      tags: [firewall]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Bindings
+          content: { application/json: { schema: { $ref: "#/components/schemas/FirewallBindings" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      operationId: putFirewallBindings
+      summary: Replace the global bindings and plan every managed host
+      tags: [firewall]
+      x-hashi-scopes: [firewall.apply]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/FirewallBindings" } } }
+      responses:
+        "200":
+          description: Saved, with the plans it caused
+          content: { application/json: { schema: { $ref: "#/components/schemas/FirewallPlans" } } }
         default: { $ref: "#/components/responses/Problem" }
   /api/ip-sets:
     get:
@@ -1770,7 +2031,7 @@ components:
       required: [id, subsystem, target, target_name, title, trigger, risk, status, created_by, created_at, approved_by, result, error, items]
       properties:
         id: { type: string }
-        subsystem: { type: string, enum: [dns-records, dns-record-deletes, dns-prune, dns-probe, traefik, certificates] }
+        subsystem: { type: string, enum: [dns-records, dns-record-deletes, dns-prune, dns-probe, traefik, certificates, firewall] }
         target: { type: string }
         target_name: { type: string, description: "e.g. the zone name" }
         title: { type: string }
@@ -2215,3 +2476,123 @@ components:
         set_id: { type: string }
         element_id: { type: string }
         label: { type: string }
+    FirewallHostInput:
+      type: object
+      required: [name, edge_mode]
+      properties:
+        name: { type: string, description: "Becomes <name>.<root>: lowercase letters, digits, dashes" }
+        edge_mode: { type: string, enum: [managed, external_nat] }
+        host: { type: string, description: "SSH address (managed)" }
+        port: { type: integer, minimum: 1, maximum: 65535 }
+        user: { type: string }
+        auth: { type: string, enum: [hashi_key, private_key, password] }
+        credential: { type: string, writeOnly: true }
+        passphrase: { type: string, writeOnly: true }
+        host_key: { type: string, format: byte, description: "`key` from the scan the admin confirmed" }
+        traefik_connection_id: { type: string }
+        internal_traefik_ip: { type: string, description: "The linked Traefik's address in a managed subnet: the DNAT target" }
+        route_via_host_id: { type: string, description: "Entry host for this host's services (on. → via.<entry>)" }
+        public_ip_override: { type: string }
+        public_ip6_override: { type: string }
+        wan_iface_override: { type: string }
+        subnets: { type: array, items: { type: string } }
+        netbird_mode: { type: string, enum: [disabled, peer, routing] }
+        netbird_iface: { type: string }
+        netbird_port: { type: integer }
+        drop_other_inbound: { type: boolean, description: "The admin accepted dropping every other new inbound connection" }
+    FirewallNetBird:
+      type: object
+      required: [version, connected, overlay, port, kernel_interface, iface, routed]
+      properties:
+        version: { type: string }
+        connected: { type: boolean }
+        overlay: { type: string }
+        port: { type: integer }
+        kernel_interface: { type: boolean }
+        iface: { type: string }
+        routed: { type: array, items: { type: string } }
+    FirewallFacts:
+      type: object
+      required: [kernel, os, nft_version, iptables_backend, tables, wan, candidates, ssh_from, netbird, warnings]
+      properties:
+        kernel: { type: string }
+        os: { type: string }
+        nft_version: { type: string }
+        iptables_backend: { type: string }
+        tables: { type: array, items: { type: string }, description: "Existing nft tables (family name)" }
+        wan: { type: string }
+        candidates: { type: array, items: { type: string }, description: "Networks on non-WAN interfaces: managed subnet proposals" }
+        ssh_from: { type: string, description: "The address the host sees Hashi from (rescue path)" }
+        netbird: { oneOf: [{ $ref: "#/components/schemas/FirewallNetBird" }, { type: "null" }] }
+        warnings: { type: array, items: { type: string } }
+    FirewallHost:
+      type: object
+      required: [id, name, edge_mode, host, port, user, auth, host_key_fingerprint, traefik_connection_id,
+        internal_traefik_ip, route_via_host_id, public_ip, public_ip6, public_ip_override, public_ip6_override, wan_iface,
+        wan_iface_override, subnets, netbird_mode, netbird_iface, netbird_port, drop_other_inbound, ownership_confirmed,
+        health, last_error, last_validated_at, last_applied_at, facts]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        edge_mode: { type: string, enum: [managed, external_nat] }
+        host: { type: string }
+        port: { type: integer }
+        user: { type: string }
+        auth: { type: string, enum: [hashi_key, private_key, password] }
+        host_key_fingerprint: { type: string }
+        traefik_connection_id: { type: string }
+        internal_traefik_ip: { type: string }
+        route_via_host_id: { type: string }
+        public_ip: { type: string, description: "Effective (override, else detected)" }
+        public_ip6: { type: string }
+        public_ip_override: { type: string }
+        public_ip6_override: { type: string }
+        wan_iface: { type: string, description: "Effective (override, else detected)" }
+        wan_iface_override: { type: string }
+        subnets: { type: array, items: { type: string } }
+        netbird_mode: { type: string, enum: [disabled, peer, routing] }
+        netbird_iface: { type: string }
+        netbird_port: { type: integer }
+        drop_other_inbound: { type: boolean }
+        ownership_confirmed: { type: boolean }
+        health: { type: string, enum: [unknown, validating, healthy, degraded, failed] }
+        last_error: { type: string }
+        last_validated_at: { type: [string, "null"], format: date-time }
+        last_applied_at: { type: [string, "null"], format: date-time }
+        facts: { oneOf: [{ $ref: "#/components/schemas/FirewallFacts" }, { type: "null" }] }
+    FirewallHostList:
+      type: object
+      required: [hosts]
+      properties:
+        hosts: { type: array, items: { $ref: "#/components/schemas/FirewallHost" } }
+    FirewallRendered:
+      type: object
+      required: [table, allow, block, host_access, ports]
+      properties:
+        table: { type: string, description: "The libnftables JSON transaction" }
+        allow: { type: integer, description: "Folded allow ranges (IPv4 + IPv6)" }
+        block: { type: integer }
+        host_access: { type: integer }
+        ports: { type: array, items: { type: string }, description: "proto/port → target port" }
+    FirewallRuleset:
+      type: object
+      required: [now, at_setup]
+      properties:
+        now: { type: string, description: "nft -j list ruleset, iptables(-legacy/-nft)-save, ipset save read now" }
+        at_setup: { type: string, description: "The same read before Hashi's first apply" }
+    FirewallBindings:
+      type: object
+      required: [allow, block]
+      properties:
+        allow: { type: array, items: { type: string }, description: "IP set IDs (hashi-hosts is always allowed in addition)" }
+        block: { type: array, items: { type: string } }
+    IPSetIDs:
+      type: object
+      required: [sets]
+      properties:
+        sets: { type: array, items: { type: string } }
+    FirewallPlans:
+      type: object
+      required: [plans]
+      properties:
+        plans: { type: array, items: { $ref: "#/components/schemas/SyncPlan" } }
