@@ -114,6 +114,10 @@ Decisions made in PR B:
 - Step 6 completes at "confirm" (validated, linked to a Traefik connection), like step 5; the first apply is planned
   and run from the step but is not required to finish it. An external_nat host completes it without SSH.
 - The step's page, dev fakes and E2E come with PR D, so the step stays unbuilt in dev builds until then.
+- Review of PR B (reproduced, fixed with regression tests): folding used merged set prefixes (a /32 inside a /16 of the
+  same allow set lost to a /24 block); a carved /16 block counted as low risk; the last host was deletable after setup
+  (invariant 11); bindings, host access and edits of firewall-bound sets lacked the passkey confirmation (02 §2).
+  Added: hourly `firewall.reconcile`, service changes re-plan firewall hosts.
 
 ## Previous slice
 
@@ -566,6 +570,11 @@ Decisions made in S0:
 ## Unverified
 
 (Review findings that were not reproduced. Not worked on unless promoted.)
+
+- S6 PR B review (#37), acceptance points not built yet: public IP cross-check with Hashi's view (05 §2); per-host
+  verdicts on the address page and per-set counts / "allow wider than /24" warning in the plan preview (05 §4.3);
+  reconnect after a rescue window to report the rollback (05 §7 step 6); listening ports vs published ports (05 §8,
+  matters for the takeover in PR C); `TestInvariant_20_ManualAllowBeatsDynamic` as a kernel test (meters are off).
 
 - S4 PR B review (#33): on an Alpine host where Hashi has to install logrotate, rotation depends on `crond` running
   (`/etc/periodic/daily`); the plan neither checks nor starts it. The Alpine dev target runs `crond` (default runlevel).
