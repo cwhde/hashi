@@ -71,46 +71,49 @@ Decisions made in PR A:
 - Review of PR A: the set page now pages past 200 items ("Show more"); ⌘K lookup and a test of the 2 s debounce are
   not done (noted, not reproduced as faults).
 
-PR B — Firewall hosts
-- [ ] Migration 00008: `firewall_hosts` (05 §1 fields, edge mode, NetBird mode, pinned host key, credential refs,
-      detected facts), bindings (global allow/block set lists), host access, per-host applied state; sync subsystem
-      `firewall`.
-- [ ] Validation over SSH (05 §2, OS probe reuse): kernel, nft ≥ 1.0 + JSON, iptables backend, NetBird detection +
-      backend, `nftables.service` and a `filter` nft table reported, firewalld reported, public IP, subnets, the
-      existing ruleset captured (`nft -j list ruleset`, `iptables(-legacy)-save`, `ipset save`).
-- [x] Folding (05 §4.2) with the table-driven cases and the brute-force property test; `TestInvariant_20` (kernel side).
+PR B — Firewall hosts (backend + API)
+- [x] Migration 00008: `firewall_hosts` (05 §1 fields, edge mode, NetBird mode, pinned host key, credential refs,
+      detected facts, setup ruleset), bindings, host access; sync subsystem `firewall` (sync tables rebuilt).
+- [x] Validation over SSH (05 §2): one captured probe (kernel, nft + JSON, iptables backend, NetBird from `status
+      --json` + routed networks, a `filter` table, `nftables.service`, firewalld, WAN/public address, listeners),
+      `$SSH_CONNECTION` as the rescue source, the full existing ruleset kept once.
+- [x] Folding (05 §4.2) with the table-driven cases and the brute-force property test.
 - [x] Renderer: Go structs → libnftables JSON matching `testdata/contracts/nft/`; golden files per host shape; every
-      golden passes `nft -c -j -f` in the integration container; meters rendered but off.
-- [~] Apply + rescue (05 §3.3, §7): save previous table, `rollback.sh` before arming, `systemd-run` timer (Alpine: PID
-      file + sleep), apply, verify over a **new** SSH connection + NetBird status, disarm; boot unit
-      `hashi-firewall` (systemd/OpenRC), sysctl file. Takeover of an existing script as explicit plan items (exact
-      rule specs, all duplicates, cron lines in the live crontab and `crontab.txt`). Integration in a privileged
-      netns with NetBird-like legacy chains: foreign rules byte-identical, DNAT + legacy MASQUERADE both work,
-      rescue restores on a failed verification.
-- [ ] DNS host records (`<host>`, `via.`, `on.`, `ovr`) and service records (03 §5.1–5.2); `hashi-hosts` populated.
+      golden passes `nft -c -j -f` in the integration container; meters rendered but off; `TestInvariant_20` (kernel).
+- [x] Apply + rescue (05 §3.3, §7): §4.4 risk, previous table + file saved, `rollback.sh`, `systemd-run` timer with
+      `AccuracySec=1s`, verify by set coverage, rescue over a new SSH connection + NetBird status, boot unit, sysctl.
+      Integration: foreign + NetBird-like rules byte-identical, DNAT to a Traefik stand-in, timer rollback.
+- [x] Manager + engine subsystem, `hashi-hosts` maintained, host items resolve, bindings/host access re-plan, the
+      lock-out guard (active admin sessions + rescue source).
+- [x] OpenAPI + handlers (05 §9 without kernel-sets/rollback, which come with the host link in S10), setup step 6 API.
+
+PR C — DNS records, address-set targets, streams, takeover
+- [ ] DNS host records (`<host>`, `via.`, `on.`, `ovr`) and service records (03 §5.1–5.2).
 - [ ] Address sets as targets: service upstreams and DNS A/AAAA values (`TestInvariant_21` for both).
-- [ ] OpenAPI + handlers (05 §9), setup step 6 (validated host linked to a Traefik connection → minimums met).
+- [ ] TCP/UDP services: model, `20-hashi-stream-services.yml` + `tcp-<port>`/`udp-<port>` entry points (static
+      change, high risk), DNAT to the entry-point port; golden + Traefik integration with stub TCP/UDP upstreams.
+- [ ] Takeover of an existing firewall script (05 §3.4) as explicit plan items: exact rule specs incl. all
+      duplicates, the ipset, cron lines in the live crontab and `crontab.txt`; rollback restores them. Product
+      decisions with the user first: the script's non-firewall duties, "block all other inbound".
 
-Done in PR B so far (not yet a PR): contracts `testdata/contracts/firewall/` (probe of the real host and the Debian
-dev target, takeover objects, rescue timer), probe parser, folding, renderer, apply/verify/rescue with integration
-tests in containers (nft check of every shape; NetBird-like legacy chains and a foreign table byte-identical; NetBird's
-backend replay; DNAT to a Traefik stand-in; a failed confirmation rolled back by the timer). Takeover items (§3.4) and
-Alpine/OpenRC firewall hosts are still open.
+PR D — UI + deploy
+- [ ] Firewall pages from the mocks (hosts, host page with observed ruleset, rendered table, bindings, host access),
+      setup step 6 page (step becomes built), stream fields on the service page; dev fakes (`firewalltest`); E2E.
+- [ ] Prod-proof first on a dev target (Debian LXC on host B, snapshot `clean`), then deploy (user runs `/deploy`) and
+      the gate on the first real host with the user's OK for the first apply.
 
-Decisions made in PR B so far:
+Decisions made in PR B:
 - NetBird's routing-peer rules already accept and masquerade overlay traffic (capture), so Hashi renders no NetBird
   NAT; only the MSS clamp. Hairpin DNAT matches the public address from non-WAN interfaces (not `fib daddr local`,
   which would also catch the bridge address).
 - Risk is computed from the rendered file on the host vs the new one; Verify compares set coverage (nft may list
   merged ranges). A failed `sysctl -p` is accepted when the wanted value is already in effect (containers, LXCs).
-
-PR C — Streams + firewall UI + deploy
-- [ ] TCP/UDP services: model, `20-hashi-stream-services.yml` + `tcp-<port>`/`udp-<port>` entry points (static
-      change, high risk), DNAT to the entry-point port; golden + Traefik integration with stub TCP/UDP upstreams.
-- [ ] Firewall pages from the mocks (hosts, host page with observed ruleset, rendered table, bindings, host access),
-      setup step 6 page, stream fields on the service page. E2E against the dev fakes.
-- [ ] Prod-proof first on a dev target (Debian LXC on host B, snapshot `clean`), then deploy (user runs `/deploy`) and
-      the gate on the first real host with the user's OK for the first apply.
+- Firewall hosts log in like Traefik hosts (Hashi's key, a private key or a password); SSH and DNAT targets are
+  literal addresses until connection targets become address sets with Pulse (S8). nft must already be installed
+  (Proxmox has it; validation says so otherwise); Alpine/OpenRC firewall hosts (no systemd-run) come later.
+- Step 6 completes at "confirm" (validated, linked to a Traefik connection), like step 5; the first apply is planned
+  and run from the step but is not required to finish it. An external_nat host completes it without SSH.
+- The step's page, dev fakes and E2E come with PR D, so the step stays unbuilt in dev builds until then.
 
 ## Previous slice
 
