@@ -362,7 +362,7 @@ func (ed Editor) keepsTargets(ctx context.Context, q *db.Queries, g Graph, s *Se
 		changed.Elements = append(changed.Elements, e)
 	}
 	next[s.ID] = &changed
-	for id := range ancestors(g, s.ID) {
+	for id := range Ancestors(g, s.ID) {
 		if !g.Compile(id, nil, time.Time{}).AddressSet || next.Compile(id, nil, time.Time{}).AddressSet {
 			continue
 		}
@@ -384,8 +384,8 @@ func (ed Editor) keepsTargets(ctx context.Context, q *db.Queries, g Graph, s *Se
 	return nil
 }
 
-// ancestors returns id and every set that includes it, directly or through nesting.
-func ancestors(g Graph, id string) map[string]bool {
+// Ancestors returns id and every set that includes it, directly or through nesting.
+func Ancestors(g Graph, id string) map[string]bool {
 	out := map[string]bool{id: true}
 	for changed := true; changed; {
 		changed = false

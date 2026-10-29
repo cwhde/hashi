@@ -111,6 +111,16 @@ func (s *Server) syncServices(ctx context.Context) ([]gen.SyncPlan, bool, error)
 			plans = append(plans, s.planBody(ctx, p))
 		}
 	}
+	// Ports 80/443 follow whether any HTTP service is served (05 §8): firewall hosts are planned too.
+	if s.Firewall != nil {
+		fw, err := s.Firewall.PlanAll(ctx, s.Sync, s.actor(info(ctx)))
+		if err != nil {
+			s.Log.Warn("firewall plans after a service change", "err", err)
+		}
+		for _, p := range fw {
+			plans = append(plans, s.planBody(ctx, p))
+		}
+	}
 	pending := false
 	if s.Certs != nil {
 		if pending, err = s.Certs.Pending(ctx); err != nil {

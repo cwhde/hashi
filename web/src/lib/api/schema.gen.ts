@@ -619,6 +619,96 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/setup/firewall/scan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Step 6 — read the firewall host's SSH key for the admin to compare (nothing is stored) */
+        post: operations["scanSetupFirewallHost"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/setup/firewall/host": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Step 6 — save the first firewall host and validate it over SSH (read-only)
+         * @description Saves the host (credentials sealed, the confirmed host key pinned) and, for a managed host, logs in and reads
+         *     kernel, nftables, the iptables backend, NetBird, interfaces and the existing ruleset. Nothing on the host changes.
+         *     A failed validation answers 200 with `health: failed` and `last_error`; invalid input answers 422.
+         */
+        put: operations["putSetupFirewallHost"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/setup/firewall/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Step 6 — let Hashi manage the validated host's firewall (its table only); completes the step */
+        post: operations["confirmSetupFirewall"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/setup/firewall/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Step 6 — plan Hashi's first firewall apply on the confirmed host; nothing is written yet */
+        post: operations["planSetupFirewall"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/setup/firewall/plan/{id}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Step 6 — approve the shown firewall plan and run it under the rescue timer */
+        post: operations["runSetupFirewallPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/setup/system-service": {
         parameters: {
             query?: never;
@@ -1148,6 +1238,181 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/firewall/hosts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every firewall host with its detected facts */
+        get: operations["listFirewallHosts"];
+        put?: never;
+        /** Add a firewall host (validated right away when managed) */
+        post: operations["createFirewallHost"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/firewall/scan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Read a host's SSH key for the admin to compare (nothing is stored) */
+        post: operations["scanFirewallHost"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/firewall/hosts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One firewall host */
+        get: operations["getFirewallHost"];
+        /** Change a host's settings (a changed SSH address or host key needs a new host) */
+        put: operations["updateFirewallHost"];
+        post?: never;
+        /** Delete a host that nothing references (Hashi's table on it stays until removed by hand) */
+        delete: operations["deleteFirewallHost"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/firewall/hosts/{id}/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Read the host again over SSH (read-only) */
+        post: operations["validateFirewallHost"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/firewall/hosts/{id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Let Hashi manage the validated host's firewall (its own table only) */
+        post: operations["confirmFirewallHost"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/firewall/hosts/{id}/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Plan the host now; low-risk plans apply, high-risk ones wait on Pending changes */
+        post: operations["planFirewallHost"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/firewall/hosts/{id}/rendered": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The table Hashi would load on the host now (libnftables JSON) and the folded counts */
+        get: operations["getFirewallRendered"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/firewall/hosts/{id}/ruleset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The host's ruleset read now over SSH (all tables, iptables and ipsets), and the one read at setup */
+        get: operations["getFirewallRuleset"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/firewall/hosts/{id}/host-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The IP sets allowed to reach the host itself */
+        get: operations["getFirewallHostAccess"];
+        /** Replace the host's access sets and plan the host */
+        put: operations["putFirewallHostAccess"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/firewall/bindings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The IP sets bound to global firewall allow and block */
+        get: operations["getFirewallBindings"];
+        /** Replace the global bindings and plan every managed host */
+        put: operations["putFirewallBindings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ip-sets": {
         parameters: {
             query?: never;
@@ -1195,7 +1460,7 @@ export interface paths {
         /** A set's own elements, filtered by address (containing), prefix (overlapping) or text */
         get: operations["listIPSetElements"];
         put?: never;
-        /** Append an element to a user set */
+        /** Append an element to a user set (a set the firewall uses needs a fresh passkey confirmation, 02 §2) */
         post: operations["addIPSetElement"];
         delete?: never;
         options?: never;
@@ -1924,7 +2189,7 @@ export interface components {
         SyncPlan: {
             id: string;
             /** @enum {string} */
-            subsystem: "dns-records" | "dns-record-deletes" | "dns-prune" | "dns-probe" | "traefik" | "certificates";
+            subsystem: "dns-records" | "dns-record-deletes" | "dns-prune" | "dns-probe" | "traefik" | "certificates" | "firewall";
             target: string;
             /** @description e.g. the zone name */
             target_name: string;
@@ -2353,6 +2618,132 @@ export interface components {
             set_id: string;
             element_id: string;
             label: string;
+        };
+        FirewallHostInput: {
+            /** @description Becomes <name>.<root>: lowercase letters, digits, dashes */
+            name: string;
+            /** @enum {string} */
+            edge_mode: "managed" | "external_nat";
+            /** @description SSH address (managed) */
+            host?: string;
+            port?: number;
+            user?: string;
+            /** @enum {string} */
+            auth?: "hashi_key" | "private_key" | "password";
+            credential?: string;
+            passphrase?: string;
+            /**
+             * Format: byte
+             * @description `key` from the scan the admin confirmed
+             */
+            host_key?: string;
+            traefik_connection_id?: string;
+            /** @description The linked Traefik's address in a managed subnet: the DNAT target */
+            internal_traefik_ip?: string;
+            /** @description Entry host for this host's services (on. → via.<entry>) */
+            route_via_host_id?: string;
+            public_ip_override?: string;
+            public_ip6_override?: string;
+            wan_iface_override?: string;
+            subnets?: string[];
+            /** @enum {string} */
+            netbird_mode?: "disabled" | "peer" | "routing";
+            netbird_iface?: string;
+            netbird_port?: number;
+            /** @description The admin accepted dropping every other new inbound connection */
+            drop_other_inbound?: boolean;
+        };
+        FirewallNetBird: {
+            version: string;
+            connected: boolean;
+            overlay: string;
+            port: number;
+            kernel_interface: boolean;
+            iface: string;
+            routed: string[];
+        };
+        FirewallFacts: {
+            kernel: string;
+            os: string;
+            nft_version: string;
+            iptables_backend: string;
+            /** @description Existing nft tables (family name) */
+            tables: string[];
+            wan: string;
+            /** @description Networks on non-WAN interfaces: managed subnet proposals */
+            candidates: string[];
+            /** @description The address the host sees Hashi from (rescue path) */
+            ssh_from: string;
+            netbird: components["schemas"]["FirewallNetBird"] | null;
+            warnings: string[];
+        };
+        FirewallHost: {
+            id: string;
+            name: string;
+            /** @enum {string} */
+            edge_mode: "managed" | "external_nat";
+            host: string;
+            port: number;
+            user: string;
+            /** @enum {string} */
+            auth: "hashi_key" | "private_key" | "password";
+            host_key_fingerprint: string;
+            traefik_connection_id: string;
+            internal_traefik_ip: string;
+            route_via_host_id: string;
+            /** @description Effective (override, else detected) */
+            public_ip: string;
+            public_ip6: string;
+            public_ip_override: string;
+            public_ip6_override: string;
+            /** @description Effective (override, else detected) */
+            wan_iface: string;
+            wan_iface_override: string;
+            subnets: string[];
+            /** @enum {string} */
+            netbird_mode: "disabled" | "peer" | "routing";
+            netbird_iface: string;
+            netbird_port: number;
+            drop_other_inbound: boolean;
+            ownership_confirmed: boolean;
+            /** @enum {string} */
+            health: "unknown" | "validating" | "healthy" | "degraded" | "failed";
+            last_error: string;
+            /** Format: date-time */
+            last_validated_at: string | null;
+            /** Format: date-time */
+            last_applied_at: string | null;
+            facts: components["schemas"]["FirewallFacts"] | null;
+        };
+        FirewallHostList: {
+            hosts: components["schemas"]["FirewallHost"][];
+        };
+        FirewallRendered: {
+            /** @description The libnftables JSON transaction */
+            table: string;
+            /** @description Folded allow ranges (IPv4 + IPv6) */
+            allow: number;
+            block: number;
+            host_access: number;
+            /** @description proto/port → target port */
+            ports: string[];
+        };
+        FirewallRuleset: {
+            /** @description nft -j list ruleset, iptables(-legacy/-nft)-save, ipset save read now */
+            now: string;
+            /** @description The same read before Hashi's first apply */
+            at_setup: string;
+        };
+        FirewallBindings: {
+            /** @description IP set IDs (hashi-hosts is always allowed in addition) */
+            allow: string[];
+            block: string[];
+        };
+        IPSetIDs: {
+            sets: string[];
+        };
+        FirewallPlans: {
+            plans: components["schemas"]["SyncPlan"][];
         };
     };
     responses: {
@@ -3195,6 +3586,121 @@ export interface operations {
         };
     };
     runSetupTraefikPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The plan after the run */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncPlan"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    scanSetupFirewallHost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HostKeyScanInput"];
+            };
+        };
+        responses: {
+            /** @description The host key */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostKey"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putSetupFirewallHost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FirewallHostInput"];
+            };
+        };
+        responses: {
+            /** @description Saved and validated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirewallHost"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    confirmSetupFirewall: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Confirmed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupState"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    planSetupFirewall: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The plan (absent when the host already matches) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncPlanResult"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    runSetupFirewallPlan: {
         parameters: {
             query?: never;
             header?: never;
@@ -4100,6 +4606,359 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ServicePlans"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listFirewallHosts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Hosts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirewallHostList"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createFirewallHost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FirewallHostInput"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirewallHost"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    scanFirewallHost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HostKeyScanInput"];
+            };
+        };
+        responses: {
+            /** @description The host key */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostKey"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getFirewallHost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The host */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirewallHost"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    updateFirewallHost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FirewallHostInput"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirewallHost"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    deleteFirewallHost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    validateFirewallHost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The host with fresh facts (see `health`) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirewallHost"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    confirmFirewallHost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Confirmed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirewallHost"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    planFirewallHost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The plan (absent when the host already matches) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SyncPlanResult"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getFirewallRendered: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rendered table */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirewallRendered"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getFirewallRuleset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Observed ruleset */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirewallRuleset"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getFirewallHostAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Set IDs */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IPSetIDs"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putFirewallHostAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IPSetIDs"];
+            };
+        };
+        responses: {
+            /** @description Saved, with the plans it caused */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirewallPlans"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getFirewallBindings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bindings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirewallBindings"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putFirewallBindings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FirewallBindings"];
+            };
+        };
+        responses: {
+            /** @description Saved, with the plans it caused */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirewallPlans"];
                 };
             };
             default: components["responses"]["Problem"];

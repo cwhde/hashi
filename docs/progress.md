@@ -5,7 +5,7 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
-**S6 — IP sets + firewall + streams** · status: **in progress** (started 2026-10-29; entry gate passed the same day). Next: PR A.
+**S6 — IP sets + firewall + streams** · status: **in progress** (started 2026-10-29; entry gate passed the same day). PR A merged (#36). PR B in progress on `s6-firewall`.
 
 Scope and gate: 11-delivery.md §3 row S6: 05a-ip-sets.md (`ip`, `cidr`, `host`, `dns`, set references, system sets,
 compiler, IP sets pages, address page without dynamic state), 05-firewall.md (nftables table, folding, bindings, host
@@ -71,33 +71,56 @@ Decisions made in PR A:
 - Review of PR A: the set page now pages past 200 items ("Show more"); ⌘K lookup and a test of the 2 s debounce are
   not done (noted, not reproduced as faults).
 
-PR B — Firewall hosts
-- [ ] Migration 00008: `firewall_hosts` (05 §1 fields, edge mode, NetBird mode, pinned host key, credential refs,
-      detected facts), bindings (global allow/block set lists), host access, per-host applied state; sync subsystem
-      `firewall`.
-- [ ] Validation over SSH (05 §2, OS probe reuse): kernel, nft ≥ 1.0 + JSON, iptables backend, NetBird detection +
-      backend, `nftables.service` and a `filter` nft table reported, firewalld reported, public IP, subnets, the
-      existing ruleset captured (`nft -j list ruleset`, `iptables(-legacy)-save`, `ipset save`).
-- [ ] Folding (05 §4.2) with the table-driven cases and the brute-force property test; `TestInvariant_20` (kernel side).
-- [ ] Renderer: Go structs → libnftables JSON matching `testdata/contracts/nft/`; golden files per host shape; every
-      golden passes `nft -c -j -f` in the integration container; meters rendered but off.
-- [ ] Apply + rescue (05 §3.3, §7): save previous table, `rollback.sh` before arming, `systemd-run` timer (Alpine: PID
-      file + sleep), apply, verify over a **new** SSH connection + NetBird status, disarm; boot unit
-      `hashi-firewall` (systemd/OpenRC), sysctl file. Takeover of an existing script as explicit plan items (exact
-      rule specs, all duplicates, cron lines in the live crontab and `crontab.txt`). Integration in a privileged
-      netns with NetBird-like legacy chains: foreign rules byte-identical, DNAT + legacy MASQUERADE both work,
-      rescue restores on a failed verification.
-- [ ] DNS host records (`<host>`, `via.`, `on.`, `ovr`) and service records (03 §5.1–5.2); `hashi-hosts` populated.
-- [ ] Address sets as targets: service upstreams and DNS A/AAAA values (`TestInvariant_21` for both).
-- [ ] OpenAPI + handlers (05 §9), setup step 6 (validated host linked to a Traefik connection → minimums met).
+PR B — Firewall hosts (backend + API)
+- [x] Migration 00008: `firewall_hosts` (05 §1 fields, edge mode, NetBird mode, pinned host key, credential refs,
+      detected facts, setup ruleset), bindings, host access; sync subsystem `firewall` (sync tables rebuilt).
+- [x] Validation over SSH (05 §2): one captured probe (kernel, nft + JSON, iptables backend, NetBird from `status
+      --json` + routed networks, a `filter` table, `nftables.service`, firewalld, WAN/public address, listeners),
+      `$SSH_CONNECTION` as the rescue source, the full existing ruleset kept once.
+- [x] Folding (05 §4.2) with the table-driven cases and the brute-force property test.
+- [x] Renderer: Go structs → libnftables JSON matching `testdata/contracts/nft/`; golden files per host shape; every
+      golden passes `nft -c -j -f` in the integration container; meters rendered but off; `TestInvariant_20` (kernel).
+- [x] Apply + rescue (05 §3.3, §7): §4.4 risk, previous table + file saved, `rollback.sh`, `systemd-run` timer with
+      `AccuracySec=1s`, verify by set coverage, rescue over a new SSH connection + NetBird status, boot unit, sysctl.
+      Integration: foreign + NetBird-like rules byte-identical, DNAT to a Traefik stand-in, timer rollback.
+- [x] Manager + engine subsystem, `hashi-hosts` maintained, host items resolve, bindings/host access re-plan, the
+      lock-out guard (active admin sessions + rescue source).
+- [x] OpenAPI + handlers (05 §9 without kernel-sets/rollback, which come with the host link in S10), setup step 6 API.
 
-PR C — Streams + firewall UI + deploy
+PR C — DNS records, address-set targets, streams, takeover
+- [ ] DNS host records (`<host>`, `via.`, `on.`, `ovr`) and service records (03 §5.1–5.2).
+- [ ] Address sets as targets: service upstreams and DNS A/AAAA values (`TestInvariant_21` for both).
 - [ ] TCP/UDP services: model, `20-hashi-stream-services.yml` + `tcp-<port>`/`udp-<port>` entry points (static
       change, high risk), DNAT to the entry-point port; golden + Traefik integration with stub TCP/UDP upstreams.
+- [ ] Takeover of an existing firewall script (05 §3.4) as explicit plan items: exact rule specs incl. all
+      duplicates, the ipset, cron lines in the live crontab and `crontab.txt`; rollback restores them.
+      User decisions 2026-10-29: the script's non-firewall duties (`/etc/hosts` pin, cluster MTU routes) are dropped
+      with it; the first real host gets "block all other inbound" (today's `CUSTOM_INPUT` ends in DROP and nothing else
+      keeps Proxmox :8006 or sshd closed to the public); its trusted addresses move into a host access set.
+      Hashi's SSH public key is added to root on the first real host by Claude (user OK 2026-10-29), at the gate.
+
+PR D — UI + deploy
 - [ ] Firewall pages from the mocks (hosts, host page with observed ruleset, rendered table, bindings, host access),
-      setup step 6 page, stream fields on the service page. E2E against the dev fakes.
+      setup step 6 page (step becomes built), stream fields on the service page; dev fakes (`firewalltest`); E2E.
 - [ ] Prod-proof first on a dev target (Debian LXC on host B, snapshot `clean`), then deploy (user runs `/deploy`) and
       the gate on the first real host with the user's OK for the first apply.
+
+Decisions made in PR B:
+- NetBird's routing-peer rules already accept and masquerade overlay traffic (capture), so Hashi renders no NetBird
+  NAT; only the MSS clamp. Hairpin DNAT matches the public address from non-WAN interfaces (not `fib daddr local`,
+  which would also catch the bridge address).
+- Risk is computed from the rendered file on the host vs the new one; Verify compares set coverage (nft may list
+  merged ranges). A failed `sysctl -p` is accepted when the wanted value is already in effect (containers, LXCs).
+- Firewall hosts log in like Traefik hosts (Hashi's key, a private key or a password); SSH and DNAT targets are
+  literal addresses until connection targets become address sets with Pulse (S8). nft must already be installed
+  (Proxmox has it; validation says so otherwise); Alpine/OpenRC firewall hosts (no systemd-run) come later.
+- Step 6 completes at "confirm" (validated, linked to a Traefik connection), like step 5; the first apply is planned
+  and run from the step but is not required to finish it. An external_nat host completes it without SSH.
+- The step's page, dev fakes and E2E come with PR D, so the step stays unbuilt in dev builds until then.
+- Review of PR B (reproduced, fixed with regression tests): folding used merged set prefixes (a /32 inside a /16 of the
+  same allow set lost to a /24 block); a carved /16 block counted as low risk; the last host was deletable after setup
+  (invariant 11); bindings, host access and edits of firewall-bound sets lacked the passkey confirmation (02 §2).
+  Added: hourly `firewall.reconcile`, service changes re-plan firewall hosts.
 
 ## Previous slice
 
@@ -558,6 +581,11 @@ Decisions made in S0:
 
 (Review findings that were not reproduced. Not worked on unless promoted.)
 
+- S6 PR B review (#37), acceptance points not built yet: public IP cross-check with Hashi's view (05 §2); per-host
+  verdicts on the address page and per-set counts / "allow wider than /24" warning in the plan preview (05 §4.3);
+  reconnect after a rescue window to report the rollback (05 §7 step 6); listening ports vs published ports (05 §8,
+  matters for the takeover in PR C); `TestInvariant_20_ManualAllowBeatsDynamic` as a kernel test (meters are off).
+
 - S4 PR B review (#33): on an Alpine host where Hashi has to install logrotate, rotation depends on `crond` running
   (`/etc/periodic/daily`); the plan neither checks nor starts it. The Alpine dev target runs `crond` (default runlevel).
 
@@ -584,6 +612,10 @@ Decisions made in S0:
   only short-SHA deploys exist so far.
 
 ## Log
+
+- 2026-10-29 — S6 PR A merged (#36; CI needed the E2E journey's timeout raised to 120 s: it outgrew Playwright's 30 s
+  default on the runners). Host A pool was 85.6 % after the CI runs: `lxc-fstrim.service` run → 75 %. PR B: firewall
+  contracts captured, folding/renderer/apply/rescue built and tested in containers.
 
 - 2026-10-29 — S6 started with its entry gate. nft/NetBird coexistence holds (NetBird's own backend choice replayed:
   Hashi's table never switches it); plan B not needed. All rule shapes pass the real `nft` 1.1.3 in check mode on a

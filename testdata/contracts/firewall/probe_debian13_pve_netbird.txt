@@ -1,0 +1,109 @@
+### uname -r
+7.0.2-6-pve
+### rc=0
+### cat /etc/os-release
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+NAME="Debian GNU/Linux"
+VERSION_ID="13"
+VERSION="13 (trixie)"
+VERSION_CODENAME=trixie
+DEBIAN_VERSION_FULL=13.7
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+### rc=0
+### nft --version
+nftables v1.1.3 (Commodore Bullmoose #4)
+### rc=0
+### nft -j list ruleset
+{"nftables": [{"metainfo": {"version": "1.1.3", "release_name": "Commodore Bullmoose #4", "json_schema_version": 1}}]}
+### rc=0
+### iptables -V
+iptables v1.8.11 (legacy)
+### rc=0
+### ip -j addr show
+[{"ifindex":1,"ifname":"lo","flags":["LOOPBACK","UP","LOWER_UP"],"mtu":65536,"qdisc":"noqueue","operstate":"UNKNOWN","group":"default","txqlen":1000,"link_type":"loopback","address":"02:00:00:00:00:00","broadcast":"02:00:00:00:00:00","addr_info":[{"family":"inet","local":"127.0.0.1","prefixlen":8,"scope":"host","label":"lo","valid_life_time":4294967295,"preferred_life_time":4294967295},{"family":"inet6","local":"::1","prefixlen":128,"scope":"host","noprefixroute":true,"valid_life_time":4294967295,"preferred_life_time":4294967295}]},{"ifindex":2,"ifname":"nic0","flags":["BROADCAST","MULTICAST","UP","LOWER_UP"],"mtu":1500,"qdisc":"fq_codel","master":"vmbr0","operstate":"UP","group":"default","txqlen":1000,"link_type":"ether","address":"02:00:00:00:00:01","broadcast":"02:00:00:00:00:02","altnames":["enp0s18","enx4e6507273222"],"addr_info":[]},{"ifindex":3,"ifname":"vmbr0","flags":["BROADCAST","MULTICAST","UP","LOWER_UP"],"mtu":1500,"qdisc":"noqueue","operstate":"UP","group":"default","txqlen":1000,"link_type":"ether","address":"02:00:00:00:00:01","broadcast":"02:00:00:00:00:02","addr_info":[{"family":"inet","local":"198.18.3.1","prefixlen":24,"scope":"global","label":"vmbr0","valid_life_time":4294967295,"preferred_life_time":4294967295},{"family":"inet6","local":"fe80::1","prefixlen":64,"scope":"link","protocol":"kernel_ll","valid_life_time":4294967295,"preferred_life_time":4294967295}]},{"ifindex":4,"ifname":"vmbr1","flags":["BROADCAST","MULTICAST","UP","LOWER_UP"],"mtu":1280,"qdisc":"noqueue","operstate":"UP","group":"default","txqlen":1000,"link_type":"ether","address":"02:00:00:00:00:03","broadcast":"02:00:00:00:00:02","addr_info":[{"family":"inet","local":"10.32.0.1","prefixlen":24,"scope":"global","label":"vmbr1","valid_life_time":4294967295,"preferred_life_time":4294967295},{"family":"inet6","local":"fe80::2","prefixlen":64,"scope":"link","protocol":"kernel_ll","valid_life_time":4294967295,"preferred_life_time":4294967295}]},{"ifindex":6,"link_index":2,"ifname":"veth100i0","flags":["BROADCAST","MULTICAST","UP","LOWER_UP"],"mtu":1280,"qdisc":"noqueue","master":"vmbr1","operstate":"UP","group":"default","txqlen":1000,"link_type":"ether","address":"02:00:00:00:00:03","broadcast":"02:00:00:00:00:02","link_netnsid":1,"addr_info":[]},{"ifindex":8,"link_index":2,"ifname":"veth105i0","flags":["BROADCAST","MULTICAST","UP","LOWER_UP"],"mtu":1280,"qdisc":"noqueue","master":"vmbr1","operstate":"UP","group":"default","txqlen":1000,"link_type":"ether","address":"02:00:00:00:00:04","broadcast":"02:00:00:00:00:02","link_netnsid":0,"addr_info":[]},{"ifindex":10,"ifname":"wt0","flags":["POINTOPOINT","NOARP","UP","LOWER_UP"],"mtu":1280,"qdisc":"noqueue","operstate":"UNKNOWN","group":"default","txqlen":1000,"link_type":"none","addr_info":[{"family":"inet","local":"10.31.0.1","prefixlen":16,"broadcast":"10.31.0.2","scope":"global","label":"wt0","valid_life_time":4294967295,"preferred_life_time":4294967295},{"family":"inet6","local":"fd00::1","prefixlen":64,"scope":"global","valid_life_time":4294967295,"preferred_life_time":4294967295}]},{"ifindex":11,"link_index":2,"ifname":"veth106i0","flags":["BROADCAST","MULTICAST","UP","LOWER_UP"],"mtu":1280,"qdisc":"noqueue","master":"vmbr1","operstate":"UP","group":"default","txqlen":1000,"link_type":"ether","address":"02:00:00:00:00:05","broadcast":"02:00:00:00:00:02","link_netnsid":2,"addr_info":[]}]
+### rc=0
+### ip -j route show default
+[{"dst":"default","gateway":"198.18.3.2","dev":"vmbr0","protocol":"kernel","flags":["onlink"]}]
+### rc=0
+### ip -j -6 route show default
+[]
+### rc=0
+### ip -j link show
+[{"ifindex":1,"ifname":"lo","flags":["LOOPBACK","UP","LOWER_UP"],"mtu":65536,"qdisc":"noqueue","operstate":"UNKNOWN","linkmode":"DEFAULT","group":"default","txqlen":1000,"link_type":"loopback","address":"02:00:00:00:00:00","broadcast":"02:00:00:00:00:00"},{"ifindex":2,"ifname":"nic0","flags":["BROADCAST","MULTICAST","UP","LOWER_UP"],"mtu":1500,"qdisc":"fq_codel","master":"vmbr0","operstate":"UP","linkmode":"DEFAULT","group":"default","txqlen":1000,"link_type":"ether","address":"02:00:00:00:00:01","broadcast":"02:00:00:00:00:02","altnames":["enp0s18","enx4e6507273222"]},{"ifindex":3,"ifname":"vmbr0","flags":["BROADCAST","MULTICAST","UP","LOWER_UP"],"mtu":1500,"qdisc":"noqueue","operstate":"UP","linkmode":"DEFAULT","group":"default","txqlen":1000,"link_type":"ether","address":"02:00:00:00:00:01","broadcast":"02:00:00:00:00:02"},{"ifindex":4,"ifname":"vmbr1","flags":["BROADCAST","MULTICAST","UP","LOWER_UP"],"mtu":1280,"qdisc":"noqueue","operstate":"UP","linkmode":"DEFAULT","group":"default","txqlen":1000,"link_type":"ether","address":"02:00:00:00:00:03","broadcast":"02:00:00:00:00:02"},{"ifindex":6,"link_index":2,"ifname":"veth100i0","flags":["BROADCAST","MULTICAST","UP","LOWER_UP"],"mtu":1280,"qdisc":"noqueue","master":"vmbr1","operstate":"UP","linkmode":"DEFAULT","group":"default","txqlen":1000,"link_type":"ether","address":"02:00:00:00:00:03","broadcast":"02:00:00:00:00:02","link_netnsid":1},{"ifindex":8,"link_index":2,"ifname":"veth105i0","flags":["BROADCAST","MULTICAST","UP","LOWER_UP"],"mtu":1280,"qdisc":"noqueue","master":"vmbr1","operstate":"UP","linkmode":"DEFAULT","group":"default","txqlen":1000,"link_type":"ether","address":"02:00:00:00:00:04","broadcast":"02:00:00:00:00:02","link_netnsid":0},{"ifindex":10,"ifname":"wt0","flags":["POINTOPOINT","NOARP","UP","LOWER_UP"],"mtu":1280,"qdisc":"noqueue","operstate":"UNKNOWN","linkmode":"DEFAULT","group":"default","txqlen":1000,"link_type":"none"},{"ifindex":11,"link_index":2,"ifname":"veth106i0","flags":["BROADCAST","MULTICAST","UP","LOWER_UP"],"mtu":1280,"qdisc":"noqueue","master":"vmbr1","operstate":"UP","linkmode":"DEFAULT","group":"default","txqlen":1000,"link_type":"ether","address":"02:00:00:00:00:05","broadcast":"02:00:00:00:00:02","link_netnsid":2}]
+### rc=0
+### ss -Hlntup
+udp UNCONN 0      0         0.0.0.0:51820 0.0.0.0:*                                                                                                                                                  
+udp UNCONN 0      0      0.0.0.0%lo:3128  0.0.0.0:* users:(("netbird",pid=94720,fd=12))                                                                                                              
+udp UNCONN 0      0         0.0.0.0:111   0.0.0.0:* users:(("rpcbind",pid=554,fd=5),("systemd",pid=1,fd=98))                                                                                         
+udp UNCONN 0      0       127.0.0.1:323   0.0.0.0:* users:(("chronyd",pid=96251,fd=4))                                                                                                               
+udp UNCONN 0      0            [::]:51820    [::]:*                                                                                                                                                  
+udp UNCONN 0      0            [::]:111      [::]:* users:(("rpcbind",pid=554,fd=7),("systemd",pid=1,fd=100))                                                                                        
+udp UNCONN 0      0           [::1]:323      [::]:* users:(("chronyd",pid=96251,fd=5))                                                                                                               
+tcp LISTEN 0      4096    127.0.0.1:85    0.0.0.0:* users:(("pvedaemon worke",pid=2610749,fd=6),("pvedaemon worke",pid=2609779,fd=6),("pvedaemon worke",pid=110137,fd=6),("pvedaemon",pid=1273,fd=6))
+tcp LISTEN 0      100     127.0.0.1:25    0.0.0.0:* users:(("master",pid=116210,fd=13))                                                                                                              
+tcp LISTEN 0      128       0.0.0.0:22    0.0.0.0:* users:(("sshd",pid=902,fd=6))                                                                                                                    
+tcp LISTEN 0      4096      0.0.0.0:111   0.0.0.0:* users:(("rpcbind",pid=554,fd=4),("systemd",pid=1,fd=95))                                                                                         
+tcp LISTEN 0      100         [::1]:25       [::]:* users:(("master",pid=116210,fd=14))                                                                                                              
+tcp LISTEN 0      4096            *:8006        *:* users:(("pveproxy worker",pid=2822620,fd=6),("pveproxy worker",pid=2822619,fd=6),("pveproxy worker",pid=2822618,fd=6),("pveproxy",pid=1610,fd=6))
+tcp LISTEN 0      128          [::]:22       [::]:* users:(("sshd",pid=902,fd=7))                                                                                                                    
+tcp LISTEN 0      4096         [::]:111      [::]:* users:(("rpcbind",pid=554,fd=6),("systemd",pid=1,fd=99))                                                                                         
+tcp LISTEN 0      4096            *:3128        *:* users:(("spiceproxy work",pid=2822593,fd=6),("spiceproxy",pid=1618,fd=6))                                                                        
+### rc=0
+### systemctl is-enabled nftables
+disabled
+### rc=1
+### systemctl is-active nftables
+inactive
+### rc=3
+### systemctl is-active firewalld
+inactive
+### rc=4
+### netbird status --json
+{"peers":{"total":4,"connected":1,"details":[{"fqdn":"peer1.netbird.selfhosted","netbirdIp":"10.31.0.3","netbirdIpv6":"fd00::2","publicKey":"wgkey1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=","status":"Idle","lastStatusUpdate":"2026-10-28T23:24:08.680820874+01:00","connectionType":"-","iceCandidateType":{"local":"","remote":""},"iceCandidateEndpoint":{"local":"","remote":""},"relayAddress":"","lastWireguardHandshake":"0001-01-01T00:00:00Z","transferReceived":0,"transferSent":0,"latency":0,"quantumResistance":false,"networks":null},{"fqdn":"peer2.netbird.selfhosted","netbirdIp":"10.31.0.4","netbirdIpv6":"fd00::3","publicKey":"wgkey2AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=","status":"Connecting","lastStatusUpdate":"2026-10-23T14:56:02.260119161+02:00","connectionType":"-","iceCandidateType":{"local":"","remote":""},"iceCandidateEndpoint":{"local":"","remote":""},"relayAddress":"","lastWireguardHandshake":"0001-01-01T00:00:00Z","transferReceived":0,"transferSent":0,"latency":0,"quantumResistance":false,"networks":null},{"fqdn":"peer3.netbird.selfhosted","netbirdIp":"10.31.0.5","netbirdIpv6":"fd00::4","publicKey":"wgkey3AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=","status":"Connected","lastStatusUpdate":"2026-10-28T23:24:38.479227403+01:00","connectionType":"P2P","iceCandidateType":{"local":"host","remote":"prflx"},"iceCandidateEndpoint":{"local":"198.18.3.1:51820","remote":"192.0.2.1:51820"},"relayAddress":"rels://host1.example.com:443","lastWireguardHandshake":"2026-10-29T09:21:24.260892593+01:00","transferReceived":495148436,"transferSent":273943260,"latency":15187089,"quantumResistance":false,"networks":["10.30.0.0/22"]},{"fqdn":"peer4.netbird.selfhosted","netbirdIp":"10.31.0.6","netbirdIpv6":"fd00::5","publicKey":"wgkey4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=","status":"Idle","lastStatusUpdate":"2026-10-28T23:24:08.680822194+01:00","connectionType":"-","iceCandidateType":{"local":"","remote":""},"iceCandidateEndpoint":{"local":"","remote":""},"relayAddress":"","lastWireguardHandshake":"0001-01-01T00:00:00Z","transferReceived":0,"transferSent":0,"latency":0,"quantumResistance":false,"networks":null}]},"cliVersion":"0.81.3","daemonVersion":"0.81.3","daemonStatus":"Connected","management":{"url":"https://host1.example.com:443","connected":true,"error":""},"signal":{"url":"https://host1.example.com:443","connected":true,"error":""},"relays":{"total":2,"available":1,"details":[{"uri":"stun:host1.example.com:3478","available":false,"error":"probe check is already in progress"},{"uri":"rels://host1.example.com:443","available":true,"error":"","transport":"ws"}]},"netbirdIp":"10.31.0.1/16","netbirdIpv6":"fd00::1/64","publicKey":"wgkey5AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=","usesKernelInterface":true,"wireguardPort":51820,"fqdn":"edge-a.netbird.selfhosted","quantumResistance":false,"quantumResistancePermissive":false,"networks":["0.0.0.0/0","::/0","10.32.0.0/24"],"dnsServers":[],"events":[{"id":"eb69453b-6432-4ea4-b543-d0aa937f37d5","severity":"INFO","category":"SYSTEM","message":"daemon config changed (source=startup)","userMessage":"","timestamp":"2026-10-23T11:59:20.400767014Z","metadata":{"source":"startup","type":"config_changed"}},{"id":"4e87a2a8-47b0-4381-8ed1-71ff46f442c8","severity":"INFO","category":"SYSTEM","message":"Network map updated","userMessage":"","timestamp":"2026-10-23T12:56:02.261937365Z","metadata":null},{"id":"0e505c03-45a5-4a26-86df-372b6a20f981","severity":"INFO","category":"SYSTEM","message":"Network map updated","userMessage":"","timestamp":"2026-10-23T16:36:22.446781909Z","metadata":null},{"id":"49163022-8b97-4797-87ec-a114c49d737f","severity":"INFO","category":"SYSTEM","message":"Network map updated","userMessage":"","timestamp":"2026-10-23T16:38:46.510604099Z","metadata":null},{"id":"c3b32073-ab62-4844-957d-e7c892a37437","severity":"INFO","category":"SYSTEM","message":"Network map updated","userMessage":"","timestamp":"2026-10-23T16:38:51.267902792Z","metadata":null},{"id":"673d4a3c-9430-4820-99e4-9a6fc5f47d46","severity":"INFO","category":"SYSTEM","message":"Network map updated","userMessage":"","timestamp":"2026-10-24T15:01:20.763244791Z","metadata":null},{"id":"19100b30-c95d-406a-bf66-1fa91a038dd9","severity":"INFO","category":"SYSTEM","message":"Network map updated","userMessage":"","timestamp":"2026-10-26T15:01:04.114627468Z","metadata":null},{"id":"a4c05419-cc67-4530-b3bb-c34787c1b4fe","severity":"INFO","category":"SYSTEM","message":"Network map updated","userMessage":"","timestamp":"2026-10-27T00:02:06.560916811Z","metadata":null},{"id":"2756b96f-8794-492e-bf6d-ce4b1842b7a2","severity":"INFO","category":"SYSTEM","message":"Network map updated","userMessage":"","timestamp":"2026-10-28T22:24:01.119066844Z","metadata":null},{"id":"91cabe4a-f555-4be0-bfd3-2658bbf60a93","severity":"INFO","category":"SYSTEM","message":"Network map updated","userMessage":"","timestamp":"2026-10-28T22:24:11.687378814Z","metadata":null}],"lazyConnectionEnabled":false,"profileName":"default","sshServer":{"enabled":false,"sessions":[]}}### rc=0
+### netbird status
+OS: linux/amd64
+Daemon version: 0.81.3
+CLI version: 0.81.3
+Profile: default
+Management: Connected
+Signal: Connected
+Relays: 1/2 Available
+Nameservers: 0/0 Available
+FQDN: edge-a.netbird.selfhosted
+NetBird IP: 10.31.0.1/16
+NetBird IPv6: fd00::1/64
+Interface type: Kernel
+Wireguard port: 51820
+Quantum resistance: false
+Lazy connection: false
+SSH Server: Disabled
+Networks: 0.0.0.0/0, 10.32.0.0/24, ::/0
+Peers count: 1/4 Connected
+### rc=0
+### sysctl -n net.ipv4.ip_forward net.ipv6.conf.all.forwarding
+1
+1
+### rc=0
+### systemd-run --version
+systemd 257 (257.13-1~deb13u1)
++PAM +AUDIT +SELINUX +APPARMOR +IMA +IPE +SMACK +SECCOMP +GCRYPT -GNUTLS +OPENSSL +ACL +BLKID +CURL +ELFUTILS +FIDO2 +IDN2 -IDN +IPTC +KMOD +LIBCRYPTSETUP +LIBCRYPTSETUP_PLUGINS +LIBFDISK +PCRE2 +PWQUALITY +P11KIT +QRENCODE +TPM2 +BZIP2 +LZ4 +XZ +ZLIB +ZSTD +BPF_FRAMEWORK +BTF -XKBCOMMON -UTMP +SYSVINIT +LIBARCHIVE
+### rc=0
+### tools
+/usr/sbin/nft
+/usr/sbin/iptables
+/usr/sbin/iptables-legacy
+/usr/sbin/iptables-nft
+/usr/sbin/iptables-save
+/usr/sbin/iptables-legacy-save
+/usr/sbin/ipset
+/usr/bin/netbird
+/usr/bin/systemd-run
+/usr/bin/systemctl
+missing:rc-service
+/usr/bin/at
+/usr/bin/crontab
+/usr/bin/curl
+### rc=0

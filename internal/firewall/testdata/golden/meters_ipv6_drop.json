@@ -1,0 +1,2523 @@
+{
+ "nftables": [
+  {
+   "add": {
+    "table": {
+     "family": "inet",
+     "name": "hashi"
+    }
+   }
+  },
+  {
+   "add": {
+    "set": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "allow4",
+     "type": "ipv4_addr",
+     "flags": [
+      "interval"
+     ],
+     "auto-merge": true
+    }
+   }
+  },
+  {
+   "add": {
+    "set": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "allow6",
+     "type": "ipv6_addr",
+     "flags": [
+      "interval"
+     ],
+     "auto-merge": true
+    }
+   }
+  },
+  {
+   "add": {
+    "set": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "block4",
+     "type": "ipv4_addr",
+     "flags": [
+      "interval"
+     ],
+     "auto-merge": true
+    }
+   }
+  },
+  {
+   "add": {
+    "set": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "block6",
+     "type": "ipv6_addr",
+     "flags": [
+      "interval"
+     ],
+     "auto-merge": true
+    }
+   }
+  },
+  {
+   "add": {
+    "set": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "dyn4",
+     "type": "ipv4_addr",
+     "flags": [
+      "timeout"
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "set": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "dyn6",
+     "type": "ipv6_addr",
+     "flags": [
+      "interval",
+      "timeout"
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "set": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "staging4",
+     "type": "ipv4_addr",
+     "flags": [
+      "timeout",
+      "dynamic"
+     ],
+     "timeout": 300,
+     "size": 65535
+    }
+   }
+  },
+  {
+   "add": {
+    "set": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "staging6",
+     "type": "ipv6_addr",
+     "flags": [
+      "timeout",
+      "dynamic"
+     ],
+     "timeout": 300,
+     "size": 65535
+    }
+   }
+  },
+  {
+   "add": {
+    "set": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "host_access4",
+     "type": "ipv4_addr",
+     "flags": [
+      "interval"
+     ],
+     "auto-merge": true
+    }
+   }
+  },
+  {
+   "add": {
+    "set": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "host_access6",
+     "type": "ipv6_addr",
+     "flags": [
+      "interval"
+     ],
+     "auto-merge": true
+    }
+   }
+  },
+  {
+   "add": {
+    "set": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "pub_tcp",
+     "type": "inet_service"
+    }
+   }
+  },
+  {
+   "add": {
+    "set": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "pub_udp",
+     "type": "inet_service"
+    }
+   }
+  },
+  {
+   "add": {
+    "set": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "metered_udp",
+     "type": "inet_service"
+    }
+   }
+  },
+  {
+   "add": {
+    "set": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "m_tcp_new4",
+     "type": "ipv4_addr",
+     "flags": [
+      "timeout",
+      "dynamic"
+     ],
+     "timeout": 60,
+     "size": 65535
+    }
+   }
+  },
+  {
+   "add": {
+    "set": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "m_tcp_new6",
+     "type": "ipv6_addr",
+     "flags": [
+      "timeout",
+      "dynamic"
+     ],
+     "timeout": 60,
+     "size": 65535
+    }
+   }
+  },
+  {
+   "add": {
+    "set": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "m_tcp_conc4",
+     "type": "ipv4_addr",
+     "flags": [
+      "dynamic"
+     ],
+     "size": 65535
+    }
+   }
+  },
+  {
+   "add": {
+    "set": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "m_tcp_conc6",
+     "type": "ipv6_addr",
+     "flags": [
+      "dynamic"
+     ],
+     "size": 65535
+    }
+   }
+  },
+  {
+   "add": {
+    "set": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "m_udp_new4",
+     "type": "ipv4_addr",
+     "flags": [
+      "timeout",
+      "dynamic"
+     ],
+     "timeout": 60,
+     "size": 65535
+    }
+   }
+  },
+  {
+   "add": {
+    "set": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "m_udp_new6",
+     "type": "ipv6_addr",
+     "flags": [
+      "timeout",
+      "dynamic"
+     ],
+     "timeout": 60,
+     "size": 65535
+    }
+   }
+  },
+  {
+   "add": {
+    "set": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "m_udp_pps4",
+     "type": "ipv4_addr",
+     "flags": [
+      "timeout",
+      "dynamic"
+     ],
+     "timeout": 60,
+     "size": 65535
+    }
+   }
+  },
+  {
+   "add": {
+    "set": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "m_udp_pps6",
+     "type": "ipv6_addr",
+     "flags": [
+      "timeout",
+      "dynamic"
+     ],
+     "timeout": 60,
+     "size": 65535
+    }
+   }
+  },
+  {
+   "add": {
+    "chain": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "pre_guard",
+     "type": "filter",
+     "hook": "prerouting",
+     "prio": -300,
+     "policy": "accept"
+    }
+   }
+  },
+  {
+   "flush": {
+    "chain": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "pre_guard"
+    }
+   }
+  },
+  {
+   "add": {
+    "chain": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "pre_meter",
+     "type": "filter",
+     "hook": "prerouting",
+     "prio": -150,
+     "policy": "accept"
+    }
+   }
+  },
+  {
+   "flush": {
+    "chain": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "pre_meter"
+    }
+   }
+  },
+  {
+   "add": {
+    "chain": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "nat_pre",
+     "type": "nat",
+     "hook": "prerouting",
+     "prio": -100,
+     "policy": "accept"
+    }
+   }
+  },
+  {
+   "flush": {
+    "chain": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "nat_pre"
+    }
+   }
+  },
+  {
+   "add": {
+    "chain": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "input",
+     "type": "filter",
+     "hook": "input",
+     "prio": 0,
+     "policy": "accept"
+    }
+   }
+  },
+  {
+   "flush": {
+    "chain": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "input"
+    }
+   }
+  },
+  {
+   "add": {
+    "chain": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "forward",
+     "type": "filter",
+     "hook": "forward",
+     "prio": 0,
+     "policy": "accept"
+    }
+   }
+  },
+  {
+   "flush": {
+    "chain": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "forward"
+    }
+   }
+  },
+  {
+   "add": {
+    "chain": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "nat_post",
+     "type": "nat",
+     "hook": "postrouting",
+     "prio": 100,
+     "policy": "accept"
+    }
+   }
+  },
+  {
+   "flush": {
+    "chain": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "nat_post"
+    }
+   }
+  },
+  {
+   "add": {
+    "chain": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "mangle_fwd",
+     "type": "filter",
+     "hook": "forward",
+     "prio": -150,
+     "policy": "accept"
+    }
+   }
+  },
+  {
+   "flush": {
+    "chain": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "mangle_fwd"
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "pre_guard",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "meta": {
+          "key": "iifname"
+         }
+        },
+        "op": "!=",
+        "right": "vmbr0"
+       }
+      },
+      {
+       "return": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "pre_guard",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 51820
+       }
+      },
+      {
+       "return": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "pre_guard",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "@allow4"
+       }
+      },
+      {
+       "return": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "pre_guard",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip6"
+         }
+        },
+        "op": "==",
+        "right": "@allow6"
+       }
+      },
+      {
+       "return": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "pre_guard",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "@block4"
+       }
+      },
+      {
+       "drop": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "pre_guard",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip6"
+         }
+        },
+        "op": "==",
+        "right": "@block6"
+       }
+      },
+      {
+       "drop": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "pre_guard",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "@dyn4"
+       }
+      },
+      {
+       "drop": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "pre_guard",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip6"
+         }
+        },
+        "op": "==",
+        "right": "@dyn6"
+       }
+      },
+      {
+       "drop": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "pre_guard",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "@staging4"
+       }
+      },
+      {
+       "drop": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "pre_guard",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip6"
+         }
+        },
+        "op": "==",
+        "right": "@staging6"
+       }
+      },
+      {
+       "drop": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "pre_meter",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "meta": {
+          "key": "iifname"
+         }
+        },
+        "op": "!=",
+        "right": "vmbr0"
+       }
+      },
+      {
+       "return": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "pre_meter",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "@allow4"
+       }
+      },
+      {
+       "return": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "pre_meter",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip6"
+         }
+        },
+        "op": "==",
+        "right": "@allow6"
+       }
+      },
+      {
+       "return": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "pre_meter",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": "@pub_tcp"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "flags",
+          "protocol": "tcp"
+         }
+        },
+        "op": "in",
+        "right": "syn"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "ct": {
+          "key": "state"
+         }
+        },
+        "op": "in",
+        "right": "new"
+       }
+      },
+      {
+       "set": {
+        "elem": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "update",
+        "set": "@m_tcp_new4",
+        "stmt": [
+         {
+          "limit": {
+           "burst": 30,
+           "inv": true,
+           "per": "minute",
+           "rate": 150
+          }
+         }
+        ]
+       }
+      },
+      {
+       "set": {
+        "elem": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "add",
+        "set": "@staging4"
+       }
+      },
+      {
+       "drop": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "pre_meter",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": "@pub_tcp"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "ct": {
+          "key": "state"
+         }
+        },
+        "op": "in",
+        "right": "new"
+       }
+      },
+      {
+       "set": {
+        "elem": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "add",
+        "set": "@m_tcp_conc4",
+        "stmt": [
+         {
+          "ct count": {
+           "inv": true,
+           "val": 250
+          }
+         }
+        ]
+       }
+      },
+      {
+       "set": {
+        "elem": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "add",
+        "set": "@staging4"
+       }
+      },
+      {
+       "drop": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "pre_meter",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": "@metered_udp"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "ct": {
+          "key": "state"
+         }
+        },
+        "op": "in",
+        "right": "new"
+       }
+      },
+      {
+       "set": {
+        "elem": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "update",
+        "set": "@m_udp_new4",
+        "stmt": [
+         {
+          "limit": {
+           "burst": 50,
+           "inv": true,
+           "per": "minute",
+           "rate": 200
+          }
+         }
+        ]
+       }
+      },
+      {
+       "set": {
+        "elem": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "add",
+        "set": "@staging4"
+       }
+      },
+      {
+       "drop": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "pre_meter",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": "@metered_udp"
+       }
+      },
+      {
+       "set": {
+        "elem": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "update",
+        "set": "@m_udp_pps4",
+        "stmt": [
+         {
+          "limit": {
+           "burst": 1000,
+           "inv": true,
+           "per": "second",
+           "rate": 5000
+          }
+         }
+        ]
+       }
+      },
+      {
+       "set": {
+        "elem": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "add",
+        "set": "@staging4"
+       }
+      },
+      {
+       "drop": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "pre_meter",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": "@pub_tcp"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "flags",
+          "protocol": "tcp"
+         }
+        },
+        "op": "in",
+        "right": "syn"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "ct": {
+          "key": "state"
+         }
+        },
+        "op": "in",
+        "right": "new"
+       }
+      },
+      {
+       "set": {
+        "elem": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip6"
+         }
+        },
+        "op": "update",
+        "set": "@m_tcp_new6",
+        "stmt": [
+         {
+          "limit": {
+           "burst": 30,
+           "inv": true,
+           "per": "minute",
+           "rate": 150
+          }
+         }
+        ]
+       }
+      },
+      {
+       "set": {
+        "elem": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip6"
+         }
+        },
+        "op": "add",
+        "set": "@staging6"
+       }
+      },
+      {
+       "drop": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "pre_meter",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": "@pub_tcp"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "ct": {
+          "key": "state"
+         }
+        },
+        "op": "in",
+        "right": "new"
+       }
+      },
+      {
+       "set": {
+        "elem": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip6"
+         }
+        },
+        "op": "add",
+        "set": "@m_tcp_conc6",
+        "stmt": [
+         {
+          "ct count": {
+           "inv": true,
+           "val": 250
+          }
+         }
+        ]
+       }
+      },
+      {
+       "set": {
+        "elem": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip6"
+         }
+        },
+        "op": "add",
+        "set": "@staging6"
+       }
+      },
+      {
+       "drop": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "pre_meter",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": "@metered_udp"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "ct": {
+          "key": "state"
+         }
+        },
+        "op": "in",
+        "right": "new"
+       }
+      },
+      {
+       "set": {
+        "elem": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip6"
+         }
+        },
+        "op": "update",
+        "set": "@m_udp_new6",
+        "stmt": [
+         {
+          "limit": {
+           "burst": 50,
+           "inv": true,
+           "per": "minute",
+           "rate": 200
+          }
+         }
+        ]
+       }
+      },
+      {
+       "set": {
+        "elem": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip6"
+         }
+        },
+        "op": "add",
+        "set": "@staging6"
+       }
+      },
+      {
+       "drop": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "pre_meter",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": "@metered_udp"
+       }
+      },
+      {
+       "set": {
+        "elem": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip6"
+         }
+        },
+        "op": "update",
+        "set": "@m_udp_pps6",
+        "stmt": [
+         {
+          "limit": {
+           "burst": 1000,
+           "inv": true,
+           "per": "second",
+           "rate": 5000
+          }
+         }
+        ]
+       }
+      },
+      {
+       "set": {
+        "elem": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip6"
+         }
+        },
+        "op": "add",
+        "set": "@staging6"
+       }
+      },
+      {
+       "drop": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_pre",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "meta": {
+          "key": "iifname"
+         }
+        },
+        "op": "==",
+        "right": "vmbr0"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 80
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 80
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_pre",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "meta": {
+          "key": "iifname"
+         }
+        },
+        "op": "!=",
+        "right": "vmbr0"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 80
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 80
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_pre",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "meta": {
+          "key": "iifname"
+         }
+        },
+        "op": "==",
+        "right": "vmbr0"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 443
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 443
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_pre",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "meta": {
+          "key": "iifname"
+         }
+        },
+        "op": "!=",
+        "right": "vmbr0"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 443
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 443
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_pre",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "meta": {
+          "key": "iifname"
+         }
+        },
+        "op": "==",
+        "right": "vmbr0"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 2022
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 2022
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_pre",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "meta": {
+          "key": "iifname"
+         }
+        },
+        "op": "!=",
+        "right": "vmbr0"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 2022
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 2022
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_pre",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "meta": {
+          "key": "iifname"
+         }
+        },
+        "op": "==",
+        "right": "vmbr0"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 19132
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 19132
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_pre",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "meta": {
+          "key": "iifname"
+         }
+        },
+        "op": "!=",
+        "right": "vmbr0"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 19132
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 19132
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "input",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "meta": {
+          "key": "iifname"
+         }
+        },
+        "op": "==",
+        "right": "lo"
+       }
+      },
+      {
+       "accept": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "input",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "ct": {
+          "key": "state"
+         }
+        },
+        "op": "in",
+        "right": [
+         "established",
+         "related"
+        ]
+       }
+      },
+      {
+       "accept": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "input",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": {
+         "prefix": {
+          "addr": "10.20.0.0",
+          "len": 24
+         }
+        }
+       }
+      },
+      {
+       "accept": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "input",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip6"
+         }
+        },
+        "op": "==",
+        "right": {
+         "prefix": {
+          "addr": "fd00:20::",
+          "len": 64
+         }
+        }
+       }
+      },
+      {
+       "accept": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "input",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "meta": {
+          "key": "iifname"
+         }
+        },
+        "op": "==",
+        "right": "wt0"
+       }
+      },
+      {
+       "accept": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "input",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 51820
+       }
+      },
+      {
+       "accept": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "input",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "@host_access4"
+       }
+      },
+      {
+       "accept": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "input",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip6"
+         }
+        },
+        "op": "==",
+        "right": "@host_access6"
+       }
+      },
+      {
+       "accept": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "input",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "ct": {
+          "key": "state"
+         }
+        },
+        "op": "in",
+        "right": "new"
+       }
+      },
+      {
+       "drop": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "forward",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "ct": {
+          "key": "status"
+         }
+        },
+        "op": "in",
+        "right": "dnat"
+       }
+      },
+      {
+       "accept": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "forward",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": {
+         "prefix": {
+          "addr": "10.20.0.0",
+          "len": 24
+         }
+        }
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "meta": {
+          "key": "oifname"
+         }
+        },
+        "op": "==",
+        "right": "vmbr0"
+       }
+      },
+      {
+       "accept": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "forward",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip6"
+         }
+        },
+        "op": "==",
+        "right": {
+         "prefix": {
+          "addr": "fd00:20::",
+          "len": 64
+         }
+        }
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "meta": {
+          "key": "oifname"
+         }
+        },
+        "op": "==",
+        "right": "vmbr0"
+       }
+      },
+      {
+       "accept": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "forward",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "ct": {
+          "key": "state"
+         }
+        },
+        "op": "in",
+        "right": [
+         "established",
+         "related"
+        ]
+       }
+      },
+      {
+       "accept": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_post",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": {
+         "prefix": {
+          "addr": "10.20.0.0",
+          "len": 24
+         }
+        }
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "meta": {
+          "key": "oifname"
+         }
+        },
+        "op": "==",
+        "right": "vmbr0"
+       }
+      },
+      {
+       "masquerade": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_post",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": {
+         "prefix": {
+          "addr": "10.20.0.0",
+          "len": 24
+         }
+        }
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "10.20.0.10"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "ct": {
+          "key": "status"
+         }
+        },
+        "op": "in",
+        "right": "dnat"
+       }
+      },
+      {
+       "masquerade": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "flush": {
+    "set": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "allow4"
+    }
+   }
+  },
+  {
+   "add": {
+    "element": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "allow4",
+     "elem": [
+      "198.51.100.7"
+     ]
+    }
+   }
+  },
+  {
+   "flush": {
+    "set": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "allow6"
+    }
+   }
+  },
+  {
+   "add": {
+    "element": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "allow6",
+     "elem": [
+      {
+       "prefix": {
+        "addr": "2001:db8:1::",
+        "len": 48
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "flush": {
+    "set": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "block4"
+    }
+   }
+  },
+  {
+   "add": {
+    "element": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "block4",
+     "elem": [
+      {
+       "prefix": {
+        "addr": "203.0.113.0",
+        "len": 24
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "flush": {
+    "set": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "block6"
+    }
+   }
+  },
+  {
+   "add": {
+    "element": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "block6",
+     "elem": [
+      {
+       "prefix": {
+        "addr": "2001:db8::",
+        "len": 48
+       }
+      },
+      {
+       "prefix": {
+        "addr": "2001:db8:2::",
+        "len": 47
+       }
+      },
+      {
+       "prefix": {
+        "addr": "2001:db8:4::",
+        "len": 46
+       }
+      },
+      {
+       "prefix": {
+        "addr": "2001:db8:8::",
+        "len": 45
+       }
+      },
+      {
+       "prefix": {
+        "addr": "2001:db8:10::",
+        "len": 44
+       }
+      },
+      {
+       "prefix": {
+        "addr": "2001:db8:20::",
+        "len": 43
+       }
+      },
+      {
+       "prefix": {
+        "addr": "2001:db8:40::",
+        "len": 42
+       }
+      },
+      {
+       "prefix": {
+        "addr": "2001:db8:80::",
+        "len": 41
+       }
+      },
+      {
+       "prefix": {
+        "addr": "2001:db8:100::",
+        "len": 40
+       }
+      },
+      {
+       "prefix": {
+        "addr": "2001:db8:200::",
+        "len": 39
+       }
+      },
+      {
+       "prefix": {
+        "addr": "2001:db8:400::",
+        "len": 38
+       }
+      },
+      {
+       "prefix": {
+        "addr": "2001:db8:800::",
+        "len": 37
+       }
+      },
+      {
+       "prefix": {
+        "addr": "2001:db8:1000::",
+        "len": 36
+       }
+      },
+      {
+       "prefix": {
+        "addr": "2001:db8:2000::",
+        "len": 35
+       }
+      },
+      {
+       "prefix": {
+        "addr": "2001:db8:4000::",
+        "len": 34
+       }
+      },
+      {
+       "prefix": {
+        "addr": "2001:db8:8000::",
+        "len": 33
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "flush": {
+    "set": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "host_access4"
+    }
+   }
+  },
+  {
+   "add": {
+    "element": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "host_access4",
+     "elem": [
+      {
+       "prefix": {
+        "addr": "198.51.100.0",
+        "len": 28
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "flush": {
+    "set": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "host_access6"
+    }
+   }
+  },
+  {
+   "add": {
+    "element": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "host_access6",
+     "elem": [
+      {
+       "prefix": {
+        "addr": "2001:db8:5::",
+        "len": 48
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "flush": {
+    "set": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "pub_tcp"
+    }
+   }
+  },
+  {
+   "add": {
+    "element": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "pub_tcp",
+     "elem": [
+      80,
+      443,
+      2022
+     ]
+    }
+   }
+  },
+  {
+   "flush": {
+    "set": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "pub_udp"
+    }
+   }
+  },
+  {
+   "add": {
+    "element": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "pub_udp",
+     "elem": [
+      19132
+     ]
+    }
+   }
+  },
+  {
+   "flush": {
+    "set": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "metered_udp"
+    }
+   }
+  },
+  {
+   "add": {
+    "element": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "metered_udp",
+     "elem": [
+      19132
+     ]
+    }
+   }
+  }
+ ]
+}

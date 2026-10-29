@@ -18,7 +18,8 @@ const subsystems: Record<Plan['subsystem'], PlanItem['subsystem']> = {
 	'dns-prune': 'DNS',
 	'dns-probe': 'DNS',
 	traefik: 'Traefik',
-	certificates: 'Certificates'
+	certificates: 'Certificates',
+	firewall: 'Firewall'
 };
 
 export function reviewItems(p: Plan): PlanItem[] {

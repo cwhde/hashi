@@ -151,6 +151,27 @@ func (s *Server) ipSetSummary(ctx context.Context, q *db.Queries, id string) (ge
 	return ipSetBody(*set, g.Compile(id, s.IPSets.Resolver(ctx), s.now())), nil
 }
 
+// firewallReauth refuses an element change to a set the firewall uses (bound to global allow/block or host access,
+// directly or through a parent set) without a passkey confirmation from the last five minutes (02 §2).
+func (s *Server) firewallReauth(ctx context.Context, setID string) error {
+	g, err := ipsets.LoadGraph(ctx, s.Store.R)
+	if err != nil {
+		return err
+	}
+	for id := range ipsets.Ancestors(g, setID) {
+		cons, err := ipsets.Consumers(ctx, s.Store.R, id, s.IPSets.Sources())
+		if err != nil {
+			return err
+		}
+		for _, c := range cons {
+			if sess := info(ctx).session; strings.HasPrefix(c.Type, "firewall_") && (sess == nil || !sess.ReauthValid(s.now())) {
+				return reauthRequired()
+			}
+		}
+	}
+	return nil
+}
+
 // changeIPSet runs one change with its audit entry in a transaction, then schedules the recompile that tells the
 // set's consumers (05a §4.2).
 func (s *Server) changeIPSet(ctx context.Context, action string, setID func() string, f func(q *db.Queries) (map[string]any, error)) error {
@@ -238,6 +259,9 @@ func (s *Server) ListIPSetElements(ctx context.Context, req gen.ListIPSetElement
 }
 
 func (s *Server) AddIPSetElement(ctx context.Context, req gen.AddIPSetElementRequestObject) (gen.AddIPSetElementResponseObject, error) {
+	if err := s.firewallReauth(ctx, req.Id); err != nil {
+		return nil, err
+	}
 	in, err := elementInput(*req.Body)
 	if err != nil {
 		return nil, ipSetError(err)
@@ -256,6 +280,9 @@ func (s *Server) AddIPSetElement(ctx context.Context, req gen.AddIPSetElementReq
 }
 
 func (s *Server) UpdateIPSetElement(ctx context.Context, req gen.UpdateIPSetElementRequestObject) (gen.UpdateIPSetElementResponseObject, error) {
+	if err := s.firewallReauth(ctx, req.Id); err != nil {
+		return nil, err
+	}
 	in, err := elementInput(*req.Body)
 	if err != nil {
 		return nil, ipSetError(err)
@@ -274,6 +301,9 @@ func (s *Server) UpdateIPSetElement(ctx context.Context, req gen.UpdateIPSetElem
 }
 
 func (s *Server) DeleteIPSetElement(ctx context.Context, req gen.DeleteIPSetElementRequestObject) (gen.DeleteIPSetElementResponseObject, error) {
+	if err := s.firewallReauth(ctx, req.Id); err != nil {
+		return nil, err
+	}
 	err := s.changeIPSet(ctx, "ip_set.element.removed", func() string { return req.Id }, func(q *db.Queries) (map[string]any, error) {
 		e, err := s.IPSets.Editor().DeleteElement(ctx, q, req.Id, req.ElementId, s.now())
 		if err != nil {

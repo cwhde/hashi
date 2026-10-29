@@ -173,6 +173,59 @@ type DnsZone struct {
 	CreatedAt        int64
 }
 
+type FirewallBinding struct {
+	Position  string
+	IpSetID   string
+	Ord       int64
+	CreatedAt int64
+}
+
+type FirewallHost struct {
+	ID                    string
+	Name                  string
+	EdgeMode              string
+	SshHost               string
+	SshPort               int64
+	SshUser               string
+	Auth                  string
+	CredentialSecretID    sql.NullString
+	PassphraseSecretID    sql.NullString
+	HostKeyType           string
+	HostKey               []byte
+	HostKeyFingerprint    string
+	TraefikConnectionID   sql.NullString
+	InternalTraefikIp     string
+	RouteViaHostID        sql.NullString
+	PublicIp              string
+	PublicIp6             string
+	PublicIpOverride      string
+	PublicIp6Override     string
+	WanIface              string
+	WanIfaceOverride      string
+	SubnetsJson           string
+	InternalIpsJson       string
+	NetbirdMode           string
+	NetbirdIface          string
+	NetbirdPort           int64
+	DropInboundAcceptedAt sql.NullInt64
+	FactsJson             string
+	SetupRuleset          string
+	OwnershipConfirmedAt  sql.NullInt64
+	Health                string
+	LastValidatedAt       sql.NullInt64
+	LastValidationError   string
+	LastAppliedHash       string
+	LastAppliedAt         sql.NullInt64
+	CreatedAt             int64
+	UpdatedAt             int64
+}
+
+type FirewallHostAccess struct {
+	HostID    string
+	IpSetID   string
+	CreatedAt int64
+}
+
 type IpSet struct {
 	ID                     string
 	Slug                   string

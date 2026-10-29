@@ -11,6 +11,7 @@ import (
 
 	"git.juzo.io/juzo/hashi/internal/certs"
 	"git.juzo.io/juzo/hashi/internal/dns"
+	"git.juzo.io/juzo/hashi/internal/firewall"
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
 	hsync "git.juzo.io/juzo/hashi/internal/sync"
 	"git.juzo.io/juzo/hashi/internal/traefik"
@@ -40,6 +41,10 @@ func (s *Server) planBody(ctx context.Context, p *hsync.Plan) gen.SyncPlan {
 		if c, err := s.Store.R.GetTraefikConnection(ctx, p.Target); err == nil {
 			name = c.Name
 		}
+	case firewall.Subsystem:
+		if h, err := s.Store.R.GetFirewallHost(ctx, p.Target); err == nil {
+			name = h.Name
+		}
 	case certs.Subsystem:
 		if c, err := s.Store.R.GetCertificate(ctx, p.Target); err == nil {
 			name = c.Name
@@ -55,7 +60,7 @@ func (s *Server) planBody(ctx context.Context, p *hsync.Plan) gen.SyncPlan {
 		Trigger: gen.SyncPlanTrigger(p.Trigger), Risk: gen.SyncPlanRisk(p.Risk), Status: gen.SyncPlanStatus(p.Status),
 		CreatedBy: p.CreatedBy, CreatedAt: p.CreatedAt, ApprovedBy: p.ApprovedBy, ApprovedAt: p.ApprovedAt, FinishedAt: p.FinishedAt,
 		Result: p.Result, Error: p.Error, Items: make([]gen.SyncPlanItem, len(p.Items))}
-	dnsItems := p.Subsystem != traefik.Subsystem && p.Subsystem != certs.Subsystem
+	dnsItems := p.Subsystem != traefik.Subsystem && p.Subsystem != certs.Subsystem && p.Subsystem != firewall.Subsystem
 	for i, it := range p.Items {
 		out.Items[i] = gen.SyncPlanItem{Action: gen.SyncPlanItemAction(it.Action), Object: it.Object, Risk: gen.SyncPlanItemRisk(it.Risk),
 			Note: it.Note}
