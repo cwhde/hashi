@@ -1460,7 +1460,7 @@ export interface paths {
         /** A set's own elements, filtered by address (containing), prefix (overlapping) or text */
         get: operations["listIPSetElements"];
         put?: never;
-        /** Append an element to a user set */
+        /** Append an element to a user set (a set the firewall uses needs a fresh passkey confirmation, 02 §2) */
         post: operations["addIPSetElement"];
         delete?: never;
         options?: never;

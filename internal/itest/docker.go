@@ -103,7 +103,9 @@ func start(t testing.TB, args []string, image string, cmd ...string) Container {
 	if err != nil {
 		t.Fatalf("docker run %s: %v\n%s", image, err, out)
 	}
-	id := strings.TrimSpace(string(out))
+	// docker run prints pull progress before the ID when the image is new on the runner: the ID is the last line.
+	lines := strings.Fields(strings.TrimSpace(string(out)))
+	id := lines[len(lines)-1]
 	t.Cleanup(func() {
 		if t.Failed() {
 			logs, _ := docker("logs", "--tail", "50", id).CombinedOutput()
