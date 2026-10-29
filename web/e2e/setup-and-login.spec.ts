@@ -311,6 +311,50 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await expect(page).toHaveURL(/\/services$/);
 	await expect(page.getByRole('link', { name: /^Search/ })).toHaveCount(0);
 
+	// IP sets (05a): system sets are read-only; a user set with a first item, a nested set, a refused loop, the
+	// address page's path through nesting, and delete refused while another set still includes it.
+	await page.getByRole('link', { name: 'IP sets' }).first().click();
+	await expect(page).toHaveURL(/\/ip-sets$/);
+	await expect(page.getByRole('link', { name: /^private-networks/ })).toBeVisible();
+	await page.getByRole('button', { name: 'Add set' }).click();
+	await page.getByLabel('Name', { exact: true }).fill('home');
+	await page.getByLabel('Address (IPv4 or IPv6)').fill('192.0.2.44');
+	await page.getByRole('button', { name: 'Create set' }).click();
+	await expect(page).toHaveURL(/\/ip-sets\/[0-9A-Z]+$/);
+	await expect(page.getByRole('heading', { name: 'home' })).toBeVisible();
+	await page.getByRole('button', { name: 'Add item' }).first().click();
+	await page.getByRole('radio', { name: 'CIDR' }).click();
+	await page.getByLabel('Prefix').fill('198.51.100.9/24');
+	await page.getByRole('button', { name: 'Add item' }).last().click();
+	await expect(page.getByRole('status')).toContainText('Item added.');
+	await expect(
+		page.getByRole('tabpanel', { name: 'Items' }).getByText('198.51.100.0/24')
+	).toBeVisible(); // host bits cleared
+	const homeURL = page.url();
+	await page.getByRole('link', { name: 'IP sets' }).first().click();
+	await page.getByRole('button', { name: 'Add set' }).click();
+	await page.getByLabel('Name', { exact: true }).fill('office');
+	await page.getByRole('radio', { name: 'Other set' }).click();
+	await page.getByLabel('Set to include').click();
+	await page.getByRole('option', { name: /^home/ }).click();
+	await page.getByRole('button', { name: 'Create set' }).click();
+	await expect(page.getByRole('heading', { name: 'office' })).toBeVisible();
+	await page.goto(homeURL);
+	await page.getByRole('button', { name: 'Add item' }).first().click();
+	await page.getByRole('radio', { name: 'Other set' }).click();
+	await page.getByLabel('Set to include').click();
+	await page.getByRole('option', { name: /^office/ }).click();
+	await page.getByRole('button', { name: 'Add item' }).last().click();
+	await expect(page.getByRole('alert')).toContainText('home → office → home');
+	await page.getByRole('button', { name: 'Cancel' }).click();
+	await page.goto(`${state.baseURL}/ip-sets/address?ip=192.0.2.44`);
+	await expect(page.getByRole('heading', { name: '192.0.2.44' })).toBeVisible();
+	await expect(page.getByText('office › home › 192.0.2.44 (ip)')).toBeVisible();
+	await page.goto(homeURL);
+	await page.getByRole('tab', { name: 'Used by' }).click();
+	await expect(page.getByRole('link', { name: 'office' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Delete set' })).toBeDisabled();
+
 	// Account: the passkey and this session; the last passkey cannot be deleted.
 	await page.goto(`${state.baseURL}/settings?category=account`);
 	await expect(page.getByText('E2E authenticator')).toBeVisible();

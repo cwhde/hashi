@@ -1294,6 +1294,7 @@ paths:
       parameters:
         - { name: cursor, in: query, schema: { type: string } }
         - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 500, default: 100 } }
+        - { name: target, in: query, schema: { type: string }, description: "Only events for this target, e.g. ip_set:<id>" }
       responses:
         "200":
           description: Events

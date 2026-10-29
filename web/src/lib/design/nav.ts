@@ -62,7 +62,7 @@ export const nav = [
 ];
 
 // Real pages that exist so far (feature slices add theirs). The live shell shows only these, at their real paths.
-const built = new Set(['/services', '/dns', '/traefik', '/activity', '/settings']);
+const built = new Set(['/services', '/dns', '/traefik', '/ip-sets', '/activity', '/settings']);
 export const liveNav = nav
 	.map((g) => ({
 		...g,

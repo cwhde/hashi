@@ -4629,6 +4629,8 @@ export interface operations {
             query?: {
                 cursor?: string;
                 limit?: number;
+                /** @description Only events for this target, e.g. ip_set:<id> */
+                target?: string;
             };
             header?: never;
             path?: never;
