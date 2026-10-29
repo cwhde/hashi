@@ -1972,7 +1972,8 @@ components:
         name: { type: string }
         type: { type: string }
         ttl: { type: integer, description: Absent = zone default }
-        values: { type: array, items: { type: string }, description: TXT as plain text }
+        values: { type: array, items: { type: string }, description: "TXT as plain text; empty for an address-set entry" }
+        value_set_id: { type: string, description: "The address set the values follow (03 §7)" }
         origin: { $ref: "#/components/schemas/DNSOrigin" }
         display_name: { type: string }
         dashboard: { type: boolean }
@@ -1985,7 +1986,8 @@ components:
         name: { type: string, maxLength: 253, description: "Relative to the zone (`@` = apex) or absolute inside it" }
         type: { type: string, enum: [A, AAAA, CNAME, MX, TXT, SRV, CAA] }
         ttl: { type: integer, minimum: 60, maximum: 86400, description: Absent = zone default }
-        values: { type: array, minItems: 1, maxItems: 100, items: { type: string, maxLength: 4000 } }
+        values: { type: array, maxItems: 100, items: { type: string, maxLength: 4000 }, description: "Empty when value_set_id is set" }
+        value_set_id: { type: string, description: "A and AAAA only: an address set whose addresses of the record's family are the values (03 §7)" }
         display_name: { type: string, maxLength: 200 }
         dashboard: { type: boolean }
         monitoring: { type: boolean }
@@ -1995,7 +1997,8 @@ components:
       required: [values]
       properties:
         ttl: { type: integer, minimum: 60, maximum: 86400, description: Absent = zone default }
-        values: { type: array, minItems: 1, maxItems: 100, items: { type: string, maxLength: 4000 } }
+        values: { type: array, maxItems: 100, items: { type: string, maxLength: 4000 }, description: "Empty when value_set_id is set" }
+        value_set_id: { type: string, description: "A and AAAA only: an address set whose addresses of the record's family are the values (03 §7)" }
         display_name: { type: string, maxLength: 200 }
         dashboard: { type: boolean }
         monitoring: { type: boolean }
@@ -2062,7 +2065,8 @@ components:
       type: object
       required: [address, port]
       properties:
-        address: { type: string, description: "IP address or host name (address sets arrive with S6)" }
+        address: { type: string, description: "IP address or host name; empty when set_id names an address set" }
+        set_id: { type: string, description: "An address set (05a §5.2) whose addresses are load-balanced; instead of address" }
         port: { type: integer, minimum: 1, maximum: 65535 }
         weight: { type: integer, minimum: 0, maximum: 1000, description: "Load-balancing weight; 0 or absent = 1" }
     ServiceRoute:
@@ -2093,6 +2097,7 @@ components:
         tls_server_name: { type: string }
         tls_min_version: { type: string, enum: ["", VersionTLS12, VersionTLS13] }
         advanced_routes: { type: boolean }
+        entry_host_id: { type: string, description: "Service routing override: the firewall host public traffic enters through (03 §5.1)" }
         routes: { type: array, items: { $ref: "#/components/schemas/ServiceRoute" } }
         dashboard_visible: { type: boolean }
         monitoring_visible: { type: boolean }
@@ -2117,6 +2122,7 @@ components:
         tls_server_name: { type: string }
         tls_min_version: { type: string, enum: ["", VersionTLS12, VersionTLS13] }
         advanced_routes: { type: boolean }
+        entry_host_id: { type: string, description: "Service routing override (03 §5.1); empty = none" }
         routes: { type: array, items: { $ref: "#/components/schemas/ServiceRoute" } }
         dashboard_visible: { type: boolean }
         monitoring_visible: { type: boolean }

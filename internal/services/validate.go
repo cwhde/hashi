@@ -122,6 +122,12 @@ func validateTarget(field string, t Target) error {
 	if t.Weight < 0 || t.Weight > 1000 {
 		return invalid(field+".weight", "must be 0–1000")
 	}
+	if (t.Address == "") == (t.SetID == "") {
+		return invalid(field+".address", "give either an address or an address set")
+	}
+	if t.SetID != "" {
+		return nil
+	}
 	if _, err := netip.ParseAddr(t.Address); err == nil {
 		if strings.Contains(t.Address, "%") {
 			return invalid(field+".address", "zoned IPv6 addresses are not supported")

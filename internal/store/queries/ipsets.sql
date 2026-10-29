@@ -48,3 +48,22 @@ DELETE FROM ip_set_elements WHERE id = ?;
 
 -- name: ListIPSetParents :many
 SELECT DISTINCT s.* FROM ip_sets s JOIN ip_set_elements e ON e.ip_set_id = s.id WHERE e.child_set_id = ? ORDER BY s.name;
+
+-- name: GetIPSetTarget :one
+SELECT * FROM ip_set_targets WHERE consumer = ? AND ip_set_id = ?;
+
+-- name: PutIPSetTargetResolved :exec
+INSERT INTO ip_set_targets (consumer, ip_set_id, addresses_json, unresolved_reason, resolved_at, updated_at)
+VALUES (?, ?, ?, '', ?, ?)
+ON CONFLICT (consumer, ip_set_id) DO UPDATE SET addresses_json = excluded.addresses_json, unresolved_reason = '',
+    resolved_at = excluded.resolved_at, updated_at = excluded.updated_at;
+
+-- name: PutIPSetTargetUnresolved :exec
+INSERT INTO ip_set_targets (consumer, ip_set_id, unresolved_reason, updated_at) VALUES (?, ?, ?, ?)
+ON CONFLICT (consumer, ip_set_id) DO UPDATE SET unresolved_reason = excluded.unresolved_reason, updated_at = excluded.updated_at;
+
+-- name: ListUnresolvedIPSetTargets :many
+SELECT * FROM ip_set_targets WHERE unresolved_reason != '' ORDER BY consumer;
+
+-- name: ListServicesBySet :many
+SELECT * FROM services WHERE target_set_id = ?;
