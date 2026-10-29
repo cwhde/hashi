@@ -174,7 +174,9 @@ the warning "allow covers more than a /24 (IPv4) / /48 (IPv6) or a whole country
 
 All firewall hosts run NetBird; it is often the rescue path. NetBird support is first-class.
 
-Detection: `netbird` installed and service active; `netbird status` output; interface (default `wt0`, overridable);
+Detection: `netbird` installed and service active; `netbird status --json` (overlay address with its prefix, WireGuard
+port, kernel or userspace interface, management/signal connected) plus the text output's `Networks:` line for routed
+networks; interface (default `wt0`, overridable);
 WireGuard listen port; overlay CIDRs (detected or entered, e.g. `100.110.0.0/16`); routed-network CIDRs; NetBird's
 firewall backend (iptables-legacy chains/ipsets or its own nftables tables). Optional NetBird management API connection
 for display/validation of peers, groups and network resources; without it, SSH detection + user CIDRs suffice.
@@ -209,7 +211,10 @@ Host link state (connected, last poll, last push, lag) is shown on the firewall 
    apply also saves `iptables-save`/`iptables-legacy-save`, `ip6tables-save` and `ipset save` of the takeover objects (§3.4).
 2. Write `rollback.sh` with mode 0700 **before** arming: delete `table inet hashi`, load `previous.nft.json` if present;
    on the first apply also restore the saved takeover objects.
-3. Arm a transient timer: `systemd-run --on-active=180 --unit=hashi-fw-rescue /opt/hashi/firewall/rollback.sh`
+3. Arm a transient timer: `systemd-run --on-active=180 --timer-property=AccuracySec=1s --unit=hashi-fw-rescue
+   /opt/hashi/firewall/rollback.sh`, after `systemctl stop hashi-fw-rescue.timer` and `systemctl reset-failed
+   hashi-fw-rescue.service` (systemd's default timer accuracy is one minute, and a leftover or failed unit of that name
+   blocks arming; captured in `testdata/contracts/firewall/`)
    (Alpine: `at` or a backgrounded `sleep 180 && rollback` with a PID file).
 4. Apply.
 5. Hashi opens a **new** SSH connection (not the existing one) over the address it uses as the host's rescue path,
