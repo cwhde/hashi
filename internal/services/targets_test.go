@@ -63,3 +63,27 @@ func TestAddressSetTargets(t *testing.T) {
 		t.Fatalf("delete of a target set: %v", err)
 	}
 }
+
+// Review of PR C: only rendered positions count. A disabled route (or any route while advanced routes are off) whose
+// set never resolved changes nothing; an enabled one that never resolved is left out, the service keeps serving.
+func TestResolveIgnoresUnrenderedRoutes(t *testing.T) {
+	never := func(context.Context, string, string) (ipsets.Target, error) {
+		return ipsets.Target{Unresolved: "agent never seen"}, nil
+	}
+	s := web()
+	s.ID = "s1"
+	s.Routes = []Route{{ID: "r1", Enabled: false, Targets: []Target{{SetID: "x", Port: 80}}}}
+	got, err := Resolve(context.Background(), []Service{s}, never)
+	if err != nil || !got[0].Renderable() {
+		t.Fatalf("a disabled route took the service out: %v %q", err, got[0].InvalidReason)
+	}
+	s.AdvancedRoutes, s.Routes[0].Enabled = true, true
+	got, _ = Resolve(context.Background(), []Service{s}, never)
+	if !got[0].Renderable() || got[0].Routes[0].Enabled {
+		t.Fatalf("an unresolved route must be left out, not the service: %q %+v", got[0].InvalidReason, got[0].Routes)
+	}
+	s.Target = Target{SetID: "x", Port: 80}
+	if got, _ = Resolve(context.Background(), []Service{s}, never); got[0].Renderable() {
+		t.Fatal("an unresolved simple target has nothing to serve")
+	}
+}

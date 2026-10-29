@@ -146,3 +146,12 @@ func TestGeneratedRecordsIPv4Only(t *testing.T) {
 		}
 	}
 }
+
+// Review of PR C: a host override to a host without a public IPv4 address would leave on.<host> dangling; the host
+// keeps entering through itself until the override target has an address.
+func TestHostOverrideToUnpublishedHost(t *testing.T) {
+	a := via(host("a", "edge-a", "192.0.2.1", "10.0.4.0/24"), "c")
+	c := host("c", "edge-c", "")
+	got := lines(GenerateRecords("example.com", []Effective{a, c}, []services.Service{svc("wiki", "wiki.example.com", "10.0.4.20")}))
+	has(t, got, "on.edge-a.example.com. CNAME via.edge-a.example.com.", "wiki.example.com. CNAME on.edge-a.example.com.")
+}

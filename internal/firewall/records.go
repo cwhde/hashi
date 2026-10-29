@@ -49,9 +49,10 @@ func GenerateRecords(root string, hosts []Effective, svcs []services.Service) []
 	for _, h := range hosts {
 		byID[h.Row.ID] = h
 	}
-	// entry is the host whose via. record on.<h> points at (the host override, else the host itself).
+	// entry is the host whose via. record on.<h> points at: the host override, else the host itself. An override to
+	// a host without a public IPv4 address (not validated yet) would leave on.<h> dangling, so it waits.
 	entry := func(h Effective) Effective {
-		if v, ok := byID[h.Row.RouteViaHostID.String]; ok && h.Row.RouteViaHostID.Valid {
+		if v, ok := byID[h.Row.RouteViaHostID.String]; ok && h.Row.RouteViaHostID.Valid && v.PublicIP.Is4() {
 			return v
 		}
 		return h

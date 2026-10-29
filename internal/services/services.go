@@ -503,8 +503,10 @@ type TargetResolver func(ctx context.Context, consumer, setID string) (ipsets.Ta
 func Resolve(ctx context.Context, svcs []Service, resolve TargetResolver) ([]Service, error) {
 	out := make([]Service, len(svcs))
 	for i, s := range svcs {
-		expand := func(consumer string, ts []Target) ([]Target, error) {
+		// expand returns the literal targets and, when none of the set targets ever resolved, the reason.
+		expand := func(consumer string, ts []Target) ([]Target, string, error) {
 			var res []Target
+			reason := ""
 			for j, t := range ts {
 				if t.SetID == "" {
 					res = append(res, t)
@@ -512,26 +514,37 @@ func Resolve(ctx context.Context, svcs []Service, resolve TargetResolver) ([]Ser
 				}
 				got, err := resolve(ctx, fmt.Sprintf("%s:%d", consumer, j), t.SetID)
 				if err != nil {
-					return nil, err
+					return nil, "", err
 				}
-				if len(got.Addresses) == 0 && s.InvalidReason == "" {
-					s.InvalidReason = got.Unresolved
+				if len(got.Addresses) == 0 && reason == "" {
+					reason = got.Unresolved
 				}
 				for _, a := range got.Addresses {
 					res = append(res, Target{Address: a.String(), Port: t.Port, Weight: t.Weight})
 				}
 			}
-			return res, nil
+			if len(res) > 0 {
+				reason = ""
+			}
+			return res, reason, nil
 		}
-		simple, err := expand("service:"+s.ID+":target", []Target{s.Target})
+		simple, reason, err := expand("service:"+s.ID+":target", []Target{s.Target})
 		if err != nil {
 			return nil, fmt.Errorf("service %s: %w", s.Slug, err)
+		}
+		if reason != "" && s.InvalidReason == "" {
+			s.InvalidReason = reason // nothing to serve
 		}
 		s.Targets = simple
 		routes := make([]Route, len(s.Routes))
 		for k, r := range s.Routes {
-			if r.Targets, err = expand("service:"+s.ID+":route:"+r.ID, r.Targets); err != nil {
-				return nil, fmt.Errorf("service %s: %w", s.Slug, err)
+			if s.AdvancedRoutes && r.Enabled { // only rendered routes resolve (05a §5.2); the rest stay as stored
+				if r.Targets, reason, err = expand("service:"+s.ID+":route:"+r.ID, r.Targets); err != nil {
+					return nil, fmt.Errorf("service %s: %w", s.Slug, err)
+				}
+				// A route that never resolved is left out; its paths fall to the main router (invariant 21: the
+				// service itself keeps serving).
+				r.Enabled = reason == ""
 			}
 			routes[k] = r
 		}

@@ -177,3 +177,43 @@ func addressSet(t *testing.T, f writeFixture) string {
 	}
 	return s.ID
 }
+
+// Review of PR C: a generated record takes over only an imported entry of its own type (and, as a CNAME, every type
+// at its name); the apex MX and TXT next to a flattened apex A stay.
+func TestGeneratedRecordKeepsOtherImportedTypes(t *testing.T) {
+	f := newWriteFixture(t)
+	ctx := t.Context()
+	if err := f.svc.SaveDecisions(ctx, "admin", "", f.zone, []dns.DecisionInput{{Name: "@", Type: "A", Decision: dns.Import},
+		{Name: "@", Type: "MX", Decision: dns.Import}, {Name: "@", Type: "TXT", Decision: dns.Import}}); err != nil {
+		t.Fatal(err)
+	}
+	f.svc.UseGenerator((&gen{recs: []dns.Generated{{Name: "example.com", Type: "A", Values: []string{"192.0.2.1"}, Source: "service Root"}}}).fn)
+	f.auto(t, dns.SubsystemRecords)
+	if p := f.auto(t, dns.SubsystemRecordDeletes); p != nil {
+		t.Fatalf("other imported types at a generated name must stay: %v", items(p))
+	}
+}
+
+// Review of PR C, 03 §5.1: the ovr record no service uses any more is deleted in the same plan as the service record
+// change (a routing indirection Hashi generated: low risk); it is not left to a separate delete plan.
+func TestUnusedOverrideRecordGoesWithTheServiceChange(t *testing.T) {
+	f := newWriteFixture(t)
+	const ovr = "edge-a.ovr.on.edge-b"
+	g := &gen{recs: []dns.Generated{cname(ovr, "via.edge-a", "service X"), cname("x-new", ovr, "service X")}}
+	f.svc.UseGenerator(g.fn)
+	if p := f.auto(t, dns.SubsystemRecords); p == nil || p.Status != hsync.StatusApplied {
+		t.Fatalf("first plan %v", items(p))
+	}
+	g.recs = []dns.Generated{cname("x-new", "on.edge-b", "service X")}
+	p := f.auto(t, dns.SubsystemRecords)
+	got := items(p)
+	if p.Status != hsync.StatusApplied || !slices.Contains(got, "update x-new CNAME") || !slices.Contains(got, "delete "+ovr+" CNAME") {
+		t.Fatalf("override drop plan %s %v", p.Status, got)
+	}
+	if d := f.auto(t, dns.SubsystemRecordDeletes); d != nil {
+		t.Fatalf("separate delete plan %v", items(d))
+	}
+	if _, _, _, ok := f.sim.RRSet("100001", ovr, "CNAME"); ok {
+		t.Fatal("ovr record still there")
+	}
+}

@@ -207,7 +207,7 @@ func (r recordsSub) Plan(ctx context.Context, zoneID string) (hsync.Draft, error
 	}
 	// A manual entry at a generated name wins (the admin decided); an imported one is taken over by the generated
 	// record (a migrated service record, 11-delivery §7).
-	userAt, genAt := map[string]bool{}, map[string]bool{}
+	userAt, genAt := map[string]bool{}, map[string][]string{} // name → generated types
 	for _, rec := range recs {
 		if rec.Origin == OriginUser {
 			userAt[rec.RRSet.Name] = true
@@ -219,7 +219,7 @@ func (r recordsSub) Plan(ctx context.Context, zoneID string) (hsync.Draft, error
 			conflict(g.RRSet, "a manual DNS entry has this name; "+g.Source+" gets its record once that entry is deleted")
 			continue
 		}
-		genAt[g.RRSet.Name] = true
+		genAt[g.RRSet.Name] = append(genAt[g.RRSet.Name], g.RRSet.Type)
 		// A record taken over keeps its TTL (a migration changes nothing but ownership); a new one gets the
 		// connection's TTL.
 		d := g.RRSet
@@ -231,7 +231,7 @@ func (r recordsSub) Plan(ctx context.Context, zoneID string) (hsync.Draft, error
 		wants = append(wants, d)
 	}
 	for _, rec := range recs {
-		if rec.Origin == OriginImported && genAt[rec.RRSet.Name] {
+		if rec.Origin == OriginImported && supersedes(genAt[rec.RRSet.Name], rec.RRSet.Type) {
 			continue
 		}
 		d, ok, err := s.entryValues(ctx, rec, byKey)
@@ -286,17 +286,26 @@ func (r recordsSub) Plan(ctx context.Context, zoneID string) (hsync.Draft, error
 	}
 	items := make([]hsync.Item, 0, len(plan.Changes)+len(conflicts))
 	for _, ch := range plan.Changes {
-		if (ch.Op == OpDelete) != r.deletes {
+		name, typ := ch.Key()
+		// A routing override record (03 §5.1) leaves in the same plan as the service record change that dropped it.
+		ovr := ch.Op == OpDelete && overrideName(name) && owned[rrsetKey{name, typ}].origin == OriginManaged
+		if (ch.Op == OpDelete && !ovr) != r.deletes {
 			continue
 		}
 		note := ""
-		switch ch.Op {
-		case OpDelete:
+		switch {
+		case ovr:
+			note = "routing override record no service uses any more"
+		case ch.Op == OpDelete:
 			note = "no longer a Hashi entry"
-		case OpLabel:
+		case ch.Op == OpLabel:
 			note = "marks the record as Hashi's in the provider console"
 		}
-		items = append(items, changeItem(ch, note))
+		it := changeItem(ch, note)
+		if ovr {
+			it.Risk = hsync.Low // a generated indirection: nothing points at it any more
+		}
+		items = append(items, it)
 	}
 	if r.deletes {
 		return hsync.Draft{Title: "Delete DNS records in " + c.zone.Name, Items: items}, nil
@@ -645,6 +654,15 @@ func (s *Service) Reconcile(eng *hsync.Engine) func(ctx context.Context) (string
 		}
 		return strings.Join(sums, "; "), errors.Join(errs...)
 	}
+}
+
+// overrideName reports a service routing override record name, <entry>.ovr.on.<home> (03 §5.1).
+func overrideName(name string) bool { return strings.Contains("."+name+".", ".ovr.on.") }
+
+// supersedes reports whether generated types at a name take over an imported entry of type typ: the same type, or
+// every type when either side is a CNAME (it cannot share its name, 03 §3). Other types at the name stay.
+func supersedes(gen []string, typ string) bool {
+	return slices.Contains(gen, typ) || len(gen) > 0 && (typ == "CNAME" || slices.Contains(gen, "CNAME"))
 }
 
 // genRecord is a generated record in zone-relative form.

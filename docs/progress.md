@@ -128,6 +128,11 @@ Decisions made in PR C:
   host's managed subnets or equal to one of its addresses or its own name; a service named like a host record leaves
   the name to the host. NetBird-routed CIDRs count through the host's managed subnets.
 - sqlc mangles queries whose comments hold non-ASCII characters (`§`): query comments stay ASCII.
+- Review of PR C (reproduced, fixed with regression tests): a generated record took over every imported type at its
+  name (a flattened apex A would have deleted the apex MX and TXT); a host override to a host without a public
+  address left `on.<host>` dangling (it now waits); an unresolved set on a disabled route took the whole service out
+  (only rendered routes resolve; a rendered one that never resolved is left out, the service keeps serving); an
+  unused `ovr` record went to a separate delete plan (now in the same plan as the service change, low risk).
 
 Decisions made in PR B:
 - NetBird's routing-peer rules already accept and masquerade overlay traffic (capture), so Hashi renders no NetBird
@@ -226,20 +231,6 @@ PR B — UI + deploy
       the real install, real browser opens `https://dev.hashi.<root>` with the issued wildcard, first passkey
       registered by the user, SearXNG served through `hashi-edge-test` (request with the real host name), V1 untouched.
 
-
-Decisions made in PR C:
-- Invariant 21 keeps the *last good resolution* per target position (`ip_set_targets`), stored when a position
-  resolves, not when its consumer applied; DNS values additionally keep exactly what the provider holds. A position
-  that never resolved is not created (DNS) or leaves its service out of the render (Traefik), with the reason.
-- Generated records run through the normal entry plan: ownership `managed` is recorded at plan time only for RRSets
-  that are not at the provider yet; an RRSet that exists and is not Hashi's stays a conflict until imported. An imported
-  entry at a generated name is taken over (its TTL kept, so a migrated record only gets the owner label; the entry row
-  goes at apply); another type at that name is deleted first (high risk). A manual entry at a generated name wins.
-  New generated RRSets use the provider connection's TTL.
-- The home host of a service is the first target (in order, simple target first, then enabled routes) inside a
-  host's managed subnets or equal to one of its addresses or its own name; a service named like a host record leaves
-  the name to the host. NetBird-routed CIDRs count through the host's managed subnets.
-- sqlc mangles queries whose comments hold non-ASCII characters (`§`): query comments stay ASCII.
 
 Decisions made in PR B:
 - A setup session reaches the services pages (and nothing else of the admin app) while setup is open, so the gate's
@@ -461,20 +452,6 @@ PR B — UI + deploy
 - [x] Deploy (user OK, `/deploy 94d60ad`) and prod-proof on the deployed install: write test through setup step 3's
       approved plan (probe TXT created + deleted); NS/SOA unchanged.
 
-Decisions made in PR C:
-- Invariant 21 keeps the *last good resolution* per target position (`ip_set_targets`), stored when a position
-  resolves, not when its consumer applied; DNS values additionally keep exactly what the provider holds. A position
-  that never resolved is not created (DNS) or leaves its service out of the render (Traefik), with the reason.
-- Generated records run through the normal entry plan: ownership `managed` is recorded at plan time only for RRSets
-  that are not at the provider yet; an RRSet that exists and is not Hashi's stays a conflict until imported. An imported
-  entry at a generated name is taken over (its TTL kept, so a migrated record only gets the owner label; the entry row
-  goes at apply); another type at that name is deleted first (high risk). A manual entry at a generated name wins.
-  New generated RRSets use the provider connection's TTL.
-- The home host of a service is the first target (in order, simple target first, then enabled routes) inside a
-  host's managed subnets or equal to one of its addresses or its own name; a service named like a host record leaves
-  the name to the host. NetBird-routed CIDRs count through the host's managed subnets.
-- sqlc mangles queries whose comments hold non-ASCII characters (`§`): query comments stay ASCII.
-
 Decisions made in PR B:
 - RRSets Hashi created (origin user/system/managed) are left off the import table: there is nothing to import.
 - The setup write test shows its plan and runs on "Approve and run" (no passkey exists in setup yet).
@@ -529,20 +506,6 @@ PR B — UI + deploy
 - [x] Contract drift job (03 §2 point 4): `.gitea/workflows/contract-drift.yml` (manual dispatch + Mondays) and
       `make contract-drift`; compares JSON paths/types only. Repo secret `HETZNER_TOKEN` set (the existing project token, user's choice).
 - [x] Deploy (user OK) and prod-proof: real zone listed, import table matches the zone, decisions survive a restart.
-
-Decisions made in PR C:
-- Invariant 21 keeps the *last good resolution* per target position (`ip_set_targets`), stored when a position
-  resolves, not when its consumer applied; DNS values additionally keep exactly what the provider holds. A position
-  that never resolved is not created (DNS) or leaves its service out of the render (Traefik), with the reason.
-- Generated records run through the normal entry plan: ownership `managed` is recorded at plan time only for RRSets
-  that are not at the provider yet; an RRSet that exists and is not Hashi's stays a conflict until imported. An imported
-  entry at a generated name is taken over (its TTL kept, so a migrated record only gets the owner label; the entry row
-  goes at apply); another type at that name is deleted first (high risk). A manual entry at a generated name wins.
-  New generated RRSets use the provider connection's TTL.
-- The home host of a service is the first target (in order, simple target first, then enabled routes) inside a
-  host's managed subnets or equal to one of its addresses or its own name; a service named like a host record leaves
-  the name to the host. NetBird-routed CIDRs count through the host's managed subnets.
-- sqlc mangles queries whose comments hold non-ASCII characters (`§`): query comments stay ASCII.
 
 Decisions made in PR B:
 - `-tags dev` builds serve recorded fixtures in-process when `HASHI_DEV_DNS_FIXTURES` is set (`make dev`, E2E; token
@@ -646,6 +609,12 @@ Decisions made in S0:
 ## Unverified
 
 (Review findings that were not reproduced. Not worked on unless promoted.)
+
+- S6 PR C review (#38): the service CNAME update and the unused `ovr` delete are one plan, but the provider may apply
+  the delete first, so the old chain could miss its middle record for the seconds between the two writes. Not
+  observed; the Hetzner adapter's change order was not checked. Not tested either: generated service records keep
+  their last applied target through the shared last good resolution (only DNS entry values and upstreams have
+  `TestInvariant_21` tests); "Pulse IP matching → CNAME" (03 §10) waits for Pulse items (S8).
 
 - S6 PR B review (#37), acceptance points not built yet: public IP cross-check with Hashi's view (05 §2); per-host
   verdicts on the address page and per-set counts / "allow wider than /24" warning in the plan preview (05 §4.3);
