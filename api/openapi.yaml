@@ -1219,6 +1219,7 @@ paths:
       summary: Replace the host's access sets and plan the host
       tags: [firewall]
       x-hashi-scopes: [firewall.apply]
+      x-hashi-reauth: true
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
       requestBody:
@@ -1245,6 +1246,7 @@ paths:
       summary: Replace the global bindings and plan every managed host
       tags: [firewall]
       x-hashi-scopes: [firewall.apply]
+      x-hashi-reauth: true
       requestBody:
         required: true
         content: { application/json: { schema: { $ref: "#/components/schemas/FirewallBindings" } } }
@@ -1335,7 +1337,7 @@ paths:
         default: { $ref: "#/components/responses/Problem" }
     post:
       operationId: addIPSetElement
-      summary: Append an element to a user set
+      summary: Append an element to a user set (a set the firewall uses needs a fresh passkey confirmation, 02 §2)
       tags: [ip-sets]
       x-hashi-scopes: [security.manage]
       parameters:

@@ -3153,7 +3153,7 @@ type ServerInterface interface {
 	// ListIPSetElements A set's own elements, filtered by address (containing), prefix (overlapping) or text
 	// (GET /api/ip-sets/{id}/elements)
 	ListIPSetElements(w http.ResponseWriter, r *http.Request, id string, params ListIPSetElementsParams)
-	// AddIPSetElement Append an element to a user set
+	// AddIPSetElement Append an element to a user set (a set the firewall uses needs a fresh passkey confirmation, 02 §2)
 	// (POST /api/ip-sets/{id}/elements)
 	AddIPSetElement(w http.ResponseWriter, r *http.Request, id string)
 	// DeleteIPSetElement Remove an element from a user set
@@ -10819,7 +10819,7 @@ type StrictServerInterface interface {
 	// ListIPSetElements A set's own elements, filtered by address (containing), prefix (overlapping) or text
 	// (GET /api/ip-sets/{id}/elements)
 	ListIPSetElements(ctx context.Context, request ListIPSetElementsRequestObject) (ListIPSetElementsResponseObject, error)
-	// AddIPSetElement Append an element to a user set
+	// AddIPSetElement Append an element to a user set (a set the firewall uses needs a fresh passkey confirmation, 02 §2)
 	// (POST /api/ip-sets/{id}/elements)
 	AddIPSetElement(ctx context.Context, request AddIPSetElementRequestObject) (AddIPSetElementResponseObject, error)
 	// DeleteIPSetElement Remove an element from a user set

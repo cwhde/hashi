@@ -181,6 +181,14 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	if err := runner.Register(ctx, jobs.Job{Kind: ipsets.JobKind, Interval: ipsets.JobInterval, Run: ipSets.Refresh}); err != nil {
 		return err
 	}
+	// Hourly: every managed firewall host is read and planned again; a lost table (a reboot without the boot unit, a
+	// flush by hand) comes back through a plan (invariants 15, 16).
+	if err := runner.Register(ctx, jobs.Job{Kind: "firewall.reconcile", Interval: time.Hour, Run: func(ctx context.Context) (string, error) {
+		plans, err := fwMgr.PlanAll(ctx, syncEngine, audit.System)
+		return fmt.Sprintf("%d firewall plan(s)", len(plans)), err
+	}}); err != nil {
+		return err
+	}
 	ipSets.Subscribe(func(ctx context.Context, _ []string) {
 		if _, err := fwMgr.PlanAll(ctx, syncEngine, audit.System); err != nil {
 			log.Warn("firewall plans after an IP set change", "err", err)

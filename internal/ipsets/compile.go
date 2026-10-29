@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/netip"
+	"slices"
 	"strings"
 	"time"
 
@@ -56,6 +57,9 @@ type Problem struct {
 // Result is a compiled set (05a §4.1).
 type Result struct {
 	V4, V6 []netip.Prefix
+	// Leaves are the prefixes of the leaves before merging (deduplicated, sorted). Longest-prefix decisions
+	// (firewall folding, 05 §4.2) need them: merging absorbs a /32 inside a /16 of the same set.
+	Leaves []netip.Prefix
 	// Addresses are the single addresses every target-capable leaf resolved to, in item order (first = primary,
 	// 05a §5.2), without duplicates. Only meaningful when AddressSet is true.
 	Addresses []netip.Addr
@@ -157,7 +161,7 @@ func (g Graph) Compile(id string, r Resolver, now time.Time) Result {
 		b.AddPrefix(pre)
 	}
 	ips, _ := b.IPSet() // the builder only errors on invalid input, which normalization excludes
-	res := Result{AddressSet: p.addressSet, Problems: p.problems, Addresses: dedup(p.addresses)}
+	res := Result{AddressSet: p.addressSet, Problems: p.problems, Addresses: dedup(p.addresses), Leaves: leaves(p.prefixes)}
 	for _, pre := range ips.Prefixes() {
 		if pre.Addr().Is4() {
 			res.V4 = append(res.V4, pre)
@@ -261,6 +265,17 @@ func (c *compiler) leaf(out *partial, e Element, fail func(Element, string), res
 		out.prefixes = append(out.prefixes, netip.PrefixFrom(a, a.BitLen()))
 		out.addresses = append(out.addresses, a)
 	}
+}
+
+func leaves(in []netip.Prefix) []netip.Prefix {
+	out := slices.Clone(in)
+	slices.SortFunc(out, func(a, b netip.Prefix) int {
+		if c := a.Addr().Compare(b.Addr()); c != 0 {
+			return c
+		}
+		return a.Bits() - b.Bits()
+	})
+	return slices.Compact(out)
 }
 
 func dedup(in []netip.Addr) []netip.Addr {

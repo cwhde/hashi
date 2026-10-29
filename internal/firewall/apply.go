@@ -49,6 +49,9 @@ type Host interface {
 type Guard struct {
 	AdminIPs []netip.Addr // addresses of the active admin sessions
 	RescueIP netip.Addr   // the address the host sees Hashi's SSH from
+	// Blocks are the block side's prefixes as bound, before folding carves allowed addresses out of them: a /16
+	// block stays a /16 for the risk rule even when an allowed address sits inside it.
+	Blocks []netip.Prefix
 }
 
 // Desired is everything Hashi wants on one managed host.
@@ -547,11 +550,20 @@ func TableRisk(old, new []byte, g Guard) []string {
 		if name == "block6" {
 			limit = 32
 		}
+		wide := ""
 		for _, p := range s.Prefixes() {
 			if p.Bits() <= limit {
-				why = append(why, fmt.Sprintf("%s newly blocks %s", name, p))
+				wide = p.String()
 				break
 			}
+		}
+		for _, p := range g.Blocks {
+			if wide == "" && p.Addr().Is4() == (name == "block4") && p.Bits() <= limit && s.OverlapsPrefix(p) {
+				wide = p.String()
+			}
+		}
+		if wide != "" {
+			why = append(why, fmt.Sprintf("%s newly blocks %s", name, wide))
 		}
 	}
 	return why

@@ -134,6 +134,15 @@ func TestSetupStep6FirewallAPI(t *testing.T) {
 	if !strings.Contains(string(host.Loaded()), `"203.0.113.0"`) {
 		t.Fatal("the block binding is not in the loaded table")
 	}
+	// The block set is bound now: changing its elements needs a passkey confirmation (02 §2), like the binding itself.
+	var more gen.IPItem
+	_ = more.FromIPItemCIDR(gen.IPItemCIDR{Type: gen.Cidr, Prefix: "198.51.100.0/24"})
+	if _, err := s.AddIPSetElement(ctx, gen.AddIPSetElementRequestObject{Id: block.ID, Body: &gen.IPSetElementInput{Item: more}}); status(err) != http.StatusForbidden {
+		t.Fatalf("edit of a bound set without reauth: %v", err)
+	}
+	if req := gen.Requirements["PutFirewallBindings"]; !req.Reauth || !gen.Requirements["PutFirewallHostAccess"].Reauth {
+		t.Fatal("putFirewallBindings must require reauth")
+	}
 	bad := in
 	bad.Name = "ovr"
 	if _, err := s.CreateFirewallHost(ctx, gen.CreateFirewallHostRequestObject{Body: &bad}); status(err) != http.StatusUnprocessableEntity {

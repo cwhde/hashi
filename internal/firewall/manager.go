@@ -339,6 +339,17 @@ func (m *Manager) Delete(ctx context.Context, actor, ip, id string) error {
 		if err != nil {
 			return err
 		}
+		if len(hosts) == 1 {
+			steps, err := q.ListSetupSteps(ctx)
+			if err != nil {
+				return err
+			}
+			for _, st := range steps {
+				if st.Step == 11 && st.Status == "done" {
+					return fmt.Errorf("%w: %s is the last firewall host; Hashi needs at least one (invariant 11): add another first", ErrInUse, h.Name)
+				}
+			}
+		}
 		for _, o := range hosts {
 			if o.RouteViaHostID.String == id {
 				return fmt.Errorf("%w: %s routes through %s", ErrInUse, o.Name, h.Name)
@@ -613,8 +624,7 @@ func (m *Manager) Folded(ctx context.Context, q *db.Queries) (Folded, []netip.Pr
 	union := func(ids []string) []netip.Prefix {
 		var out []netip.Prefix
 		for _, id := range ids {
-			res := g.Compile(id, r, now)
-			out = append(append(out, res.V4...), res.V6...)
+			out = append(out, g.Compile(id, r, now).Leaves...) // unmerged: longest prefix per side (05 §4.2)
 		}
 		return out
 	}
@@ -811,7 +821,7 @@ func (m *Manager) build(ctx context.Context, id string, owned bool) (db.Firewall
 	if e.Facts.NftPath == "" {
 		return row, Desired{}, fmt.Errorf("%w: validate %s first", ErrNotReady, row.Name)
 	}
-	folded, _, _, err := m.Folded(ctx, m.st.R)
+	folded, _, blocks, err := m.Folded(ctx, m.st.R)
 	if err != nil {
 		return row, Desired{}, err
 	}
@@ -840,7 +850,7 @@ func (m *Manager) build(ctx context.Context, id string, owned bool) (db.Firewall
 	if err != nil {
 		return row, Desired{}, fmt.Errorf("%w: %w", ErrNotReady, err)
 	}
-	guard := Guard{RescueIP: e.Facts.SSHFrom}
+	guard := Guard{RescueIP: e.Facts.SSHFrom, Blocks: blocks}
 	sessions, err := m.st.R.ListActiveSessions(ctx, m.now().UnixMilli())
 	if err != nil {
 		return row, Desired{}, err
