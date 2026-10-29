@@ -159,9 +159,24 @@ func TestIntegrationDNATReachesTraefik(t *testing.T) {
 	fw.Connect(t, lanNet, l(2))
 	traefik := itest.RunOn(t, lanNet, l(10), []string{"--cap-add", "NET_ADMIN"}, stub,
 		"sh", "-c", "mkdir -p /www && echo entrypoint > /www/index.html && httpd -f -p 8443 -h /www")
-	client := itest.RunOn(t, wanNet, w(3), nil, stub,
+	client := itest.RunOn(t, wanNet, w(3), []string{"--cap-add", "NET_ADMIN"}, stub,
 		"sh", "-c", "mkdir -p /www && echo outside > /www/index.html && httpd -f -p 8080 -h /www")
 	traefik.Exec(t, "ip", "route", "replace", "default", "via", l(2))
+	// Precondition, before any Hashi rule: plain routing client → firewall container → stand-in. Some Docker hosts
+	// filter traffic routed between their bridges (br_netfilter); there the test cannot say anything about DNAT.
+	client.Exec(t, "ip", "route", "add", l(0)+"/24", "via", w(2))
+	routed := false
+	for range 10 {
+		if out, err := client.Try("wget", "-qO-", "-T", "1", "http://"+l(10)+":8443/"); err == nil && strings.Contains(out, "entrypoint") {
+			routed = true
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	if !routed {
+		t.Skip("this Docker host drops traffic routed between its bridges; DNAT is proven on a local Docker and at the S6 gate")
+	}
+	client.Exec(t, "ip", "route", "del", l(0)+"/24")
 
 	wan := strings.TrimSpace(fw.Exec(t, "sh", "-c", "ip -o -4 addr show | awk '/"+w(2)+"\\// {print $2}'"))
 	s := Spec{WAN: wan, PublicIP: netip.MustParseAddr(w(2)), Subnets: pfx(l(0) + "/24"),
