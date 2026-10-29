@@ -3,6 +3,11 @@
 package firewall
 
 import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"io/fs"
 	"net/netip"
 	"os"
 	"os/exec"
@@ -13,6 +18,7 @@ import (
 	"time"
 
 	"git.juzo.io/juzo/hashi/internal/itest"
+	"git.juzo.io/juzo/hashi/internal/sshx"
 )
 
 const (
@@ -168,5 +174,101 @@ func TestIntegrationDNATReachesTraefik(t *testing.T) {
 	// Nothing else is published: another port on the WAN address does not reach the stand-in.
 	if out, err := client.Try("wget", "-qO-", "-T", "2", "http://198.18.10.2:8443/"); err == nil {
 		t.Fatalf("unpublished port reached something: %s", out)
+	}
+}
+
+// containerHost is a Host over docker exec.
+type containerHost struct{ c itest.Container }
+
+func (h containerHost) Run(_ context.Context, cmd string, stdin io.Reader) (sshx.Result, error) {
+	var in []byte
+	if stdin != nil {
+		in, _ = io.ReadAll(stdin)
+	}
+	o, e, code, err := h.c.Shell(cmd, in)
+	return sshx.Result{Stdout: o, Stderr: e, ExitCode: code}, err
+}
+
+func (h containerHost) ReadFile(p string) ([]byte, error) {
+	o, _, code, err := h.c.Shell("cat "+p, nil)
+	if err != nil {
+		return nil, err
+	}
+	if code != 0 {
+		return nil, fs.ErrNotExist
+	}
+	return o, nil
+}
+
+func (h containerHost) WriteFileAtomic(p string, data []byte, mode fs.FileMode) (bool, error) {
+	_, e, code, err := h.c.Shell(fmt.Sprintf("cat > %[1]s.tmp && chmod %[2]o %[1]s.tmp && mv %[1]s.tmp %[1]s", p, mode), data)
+	if err == nil && code != 0 {
+		err = fmt.Errorf("write %s: %s", p, e)
+	}
+	return true, err
+}
+
+func (h containerHost) MkdirAll(p string, mode fs.FileMode) error {
+	_, _, _, err := h.c.Shell(fmt.Sprintf("mkdir -p %s && chmod %o %s", p, mode, p), nil)
+	return err
+}
+
+// 05 §7 end to end: a first apply confirmed by rescue disarms the timer; a risky change whose confirmation fails is
+// rolled back by the timer to the previous table, and foreign rules stay untouched throughout.
+func TestIntegrationRescueRollback(t *testing.T) {
+	old := RescueWindow
+	RescueWindow = 3 * time.Second
+	t.Cleanup(func() { RescueWindow = old })
+	c := fwContainer(t, "--sysctl", "net.ipv4.ip_forward=1")
+	c.Exec(t, "sh", "-c", "iptables -N NETBIRD-ACL-INPUT && iptables -A INPUT -j NETBIRD-ACL-INPUT && nft 'add table inet foreign'")
+	before := strings.ReplaceAll(foreign(t, c), "nft list table inet foreign", "")
+	h := containerHost{c}
+	ctx := context.Background()
+
+	s := shapes()["netbird_routing.json"]
+	s.WAN = "eth0"
+	plan := func(s Spec) (Desired, Diff) {
+		d := desired(t, s)
+		d.NftPath = "/usr/sbin/nft"
+		diff, err := Observe(ctx, h, d)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return d, diff
+	}
+	d, diff := plan(s)
+	if !diff.First {
+		t.Fatalf("not a first apply: %+v", diff)
+	}
+	if err := Apply(ctx, h, d, diff, func(context.Context) error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+	confirmed := d
+	time.Sleep(RescueWindow + 2*time.Second)
+	if out := c.Exec(t, "nft", "list", "set", "inet", "hashi", "pub_tcp"); !strings.Contains(out, "2022") {
+		t.Fatalf("confirmed first apply was rolled back:\n%s", out)
+	}
+
+	s.Ports = append(s.Ports, Port{Proto: "tcp", Port: 25565, TargetPort: 25565})
+	d, diff = plan(s)
+	if diff.Risk != "high" {
+		t.Fatalf("opening a port is %s", diff.Risk)
+	}
+	err := Apply(ctx, h, d, diff, func(context.Context) error { return errors.New("no route to host") })
+	if !errors.Is(err, ErrRescuePending) {
+		t.Fatalf("err %v", err)
+	}
+	if out := c.Exec(t, "nft", "list", "set", "inet", "hashi", "pub_tcp"); !strings.Contains(out, "25565") {
+		t.Fatalf("the change was not applied before the window:\n%s", out)
+	}
+	itest.WaitFor(t, RescueWindow+10*time.Second, "the rescue timer restores the previous table", func() bool {
+		out, _ := c.Try("nft", "list", "set", "inet", "hashi", "pub_tcp")
+		return strings.Contains(out, "2022") && !strings.Contains(out, "25565")
+	})
+	if cur, _ := h.ReadFile(TableFile); string(cur) != string(confirmed.Table) {
+		t.Fatal("the rendered file on the host is not the confirmed one again (the boot unit would load the rolled-back table)")
+	}
+	if after := strings.ReplaceAll(foreign(t, c), "nft list table inet foreign", ""); after != before {
+		t.Fatalf("foreign state changed:\n%s\n---\n%s", before, after)
 	}
 }

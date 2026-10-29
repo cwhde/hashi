@@ -9,6 +9,7 @@ package itest
 
 import (
 	"context"
+	"errors"
 	"net"
 	"os"
 	"os/exec"
@@ -228,4 +229,21 @@ func (c Container) Connect(t testing.TB, network, ip string) {
 func RunOn(t testing.TB, network, ip string, flags []string, image string, cmd ...string) Container {
 	t.Helper()
 	return start(t, append([]string{"run", "-d", "--rm", "--network", network, "--ip", ip}, flags...), image, cmd...)
+}
+
+// Shell runs sh -c cmd in the container with stdin and returns stdout, stderr and the exit code; only a failure to
+// reach Docker is an error.
+func (c Container) Shell(cmd string, stdin []byte) (stdout, stderr []byte, code int, err error) {
+	x := docker("exec", "-i", c.ID, "sh", "-c", cmd)
+	var o, e strings.Builder
+	x.Stdout, x.Stderr = &o, &e
+	if stdin != nil {
+		x.Stdin = strings.NewReader(string(stdin))
+	}
+	err = x.Run()
+	var ee *exec.ExitError
+	if errors.As(err, &ee) {
+		return []byte(o.String()), []byte(e.String()), ee.ExitCode(), nil
+	}
+	return []byte(o.String()), []byte(e.String()), 0, err
 }
