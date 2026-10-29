@@ -28,7 +28,7 @@ set at the next compile; an Activity event records it), `created_at`, `created_b
 | `cidr` | prefix (normalized: host bits zero; `/32`, `/128` stored as `ip`) | that prefix | yes | no |
 | `pulse` | agent, scope `public` \| `internal` \| `all`, optional internal selector (interface name or CIDR) | `public`: the heartbeat's source address; `internal`: the agent's private candidates, selected one first (selector narrows); `all`: both | yes | yes |
 | `host` | firewall/edge host, scope `public` \| `internal` \| `all` | `public`: the host's detected (or overridden) public IPv4/IPv6; `internal`: its NetBird and bridge addresses detected at validation | yes | yes |
-| `dns` | FQDN | its A/AAAA answers via Hashi's resolver, refreshed at the record TTL (min 60 s, max 1 h) | yes | yes |
+| `dns` | FQDN | its A/AAAA answers via the system resolver, refreshed every 5 minutes (the Go resolver does not expose record TTLs) | yes | yes |
 | `geo` | kind `country` (ISO 3166-1) \| `region` (ISO 3166-2, needs a City database) \| `asn` | L7: GeoIP lookup of the request address. Firewall: the database's prefix list for that value (§4.3) | yes | no |
 
 A set element of kind `set` references another IP set (by ID). References are acyclic: every save that adds a
