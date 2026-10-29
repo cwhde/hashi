@@ -5,7 +5,7 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
-**S6 — IP sets + firewall + streams** · status: **in progress** (started 2026-10-29; entry gate passed the same day). PR A merged (#36). PR B in progress on `s6-firewall`.
+**S6 — IP sets + firewall + streams** · status: **in progress** (started 2026-10-29; entry gate passed the same day). PR A merged (#36), PR B merged (#37). Next: PR C (DNS records, address-set targets, streams, takeover).
 
 Scope and gate: 11-delivery.md §3 row S6: 05a-ip-sets.md (`ip`, `cidr`, `host`, `dns`, set references, system sets,
 compiler, IP sets pages, address page without dynamic state), 05-firewall.md (nftables table, folding, bindings, host
@@ -612,6 +612,11 @@ Decisions made in S0:
   only short-SHA deploys exist so far.
 
 ## Log
+
+- 2026-10-29 — S6 PR B merged (#37) after four CI rounds: an uncommitted generated file, the container ID read from
+  `docker run` output that included a first image pull, a test network left by a failed run, and the DNAT test on the
+  runners' Docker (it now checks plain routing first and skips where the host filters routed bridge traffic; whether CI
+  skipped it is not visible without `-v`). Host A pool trimmed twice (85.4 % → 76 %, 84.9 % → 78 %).
 
 - 2026-10-29 — S6 PR A merged (#36; CI needed the E2E journey's timeout raised to 120 s: it outgrew Playwright's 30 s
   default on the runners). Host A pool was 85.6 % after the CI runs: `lxc-fstrim.service` run → 75 %. PR B: firewall
