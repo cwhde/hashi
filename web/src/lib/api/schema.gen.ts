@@ -1148,6 +1148,130 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ip-sets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every IP set with its last compile summary, system sets first */
+        get: operations["listIPSets"];
+        put?: never;
+        /** Add a user IP set (empty; add elements next) */
+        post: operations["createIPSet"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ip-sets/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One IP set */
+        get: operations["getIPSet"];
+        /** Change a user set's slug, name and description */
+        put: operations["updateIPSet"];
+        post?: never;
+        /** Delete a user set that nothing uses (409 lists what still uses it) */
+        delete: operations["deleteIPSet"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ip-sets/{id}/elements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A set's own elements, filtered by address (containing), prefix (overlapping) or text */
+        get: operations["listIPSetElements"];
+        put?: never;
+        /** Append an element to a user set */
+        post: operations["addIPSetElement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ip-sets/{id}/elements/{elementId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove an element from a user set */
+        delete: operations["deleteIPSetElement"];
+        options?: never;
+        head?: never;
+        /** Replace an element's item, note and expiry */
+        patch: operations["updateIPSetElement"];
+        trace?: never;
+    };
+    "/api/ip-sets/{id}/resolved": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The set compiled now (prefixes merged per family, single addresses for target positions, problems) */
+        get: operations["getIPSetResolved"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ip-sets/{id}/consumers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What uses the set (parent sets, firewall bindings, DNS records, service targets) */
+        get: operations["getIPSetConsumers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/addresses/{address}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every set that contains the address, with the nesting path to the element that holds it */
+        get: operations["lookupAddress"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/certificates": {
         parameters: {
             query?: never;
@@ -2072,6 +2196,163 @@ export interface components {
              */
             version: string;
             commit: string;
+        };
+        IPSet: {
+            id: string;
+            slug: string;
+            name: string;
+            description: string;
+            /** @enum {string} */
+            kind: "user" | "system" | "feed" | "dynamic";
+            /** @enum {string} */
+            origin: "system" | "managed" | "imported" | "user";
+            /** @description all, hashi_hosts, private_networks, …; empty for user sets */
+            system_key: string;
+            /** @description Elements and metadata can be changed by the user (user sets only) */
+            editable: boolean;
+            element_count: number;
+            /** @enum {string} */
+            resolution_status: "ok" | "partial" | "empty";
+            problems: components["schemas"]["IPSetProblem"][];
+            /** @description Every leaf is ip, host or dns: usable in target positions */
+            address_set: boolean;
+            /** @description Merged IPv4 prefixes */
+            v4_count: number;
+            /** @description Merged IPv6 prefixes */
+            v6_count: number;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        IPSetList: {
+            sets: components["schemas"]["IPSet"][];
+        };
+        IPSetInput: {
+            slug: string;
+            name: string;
+            description?: string;
+        };
+        IPSetProblem: {
+            set_id: string;
+            element_id: string;
+            /** @description Slugs from the compiled set to the failing item's set */
+            path: string[];
+            message: string;
+        };
+        /** @description One IP item or a set reference (05a §2) */
+        IPItem: components["schemas"]["IPItemIP"] | components["schemas"]["IPItemCIDR"] | components["schemas"]["IPItemHost"] | components["schemas"]["IPItemDNS"] | components["schemas"]["IPItemSet"];
+        IPItemIP: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "ip";
+            /** @description IPv4 or IPv6; a /32 or /128 prefix is accepted on input */
+            address: string;
+        };
+        IPItemCIDR: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "cidr";
+            /** @description Host bits are zeroed; a single-address prefix is stored as ip */
+            prefix: string;
+        };
+        IPItemHost: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "host";
+            host_id: string;
+            /** @enum {string} */
+            scope: "public" | "internal" | "all";
+        };
+        IPItemDNS: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "dns";
+            fqdn: string;
+        };
+        IPItemSet: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "set";
+            set_id: string;
+        };
+        IPSetElement: {
+            id: string;
+            position: number;
+            origin: string;
+            locked: boolean;
+            item: components["schemas"]["IPItem"];
+            /** @description Short human form, e.g. "192.0.2.0/24 (cidr)" or "office (set)" */
+            label: string;
+            note: string;
+            /** Format: date-time */
+            expires_at: string | null;
+            created_by: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        IPSetElementInput: {
+            item: components["schemas"]["IPItem"];
+            note?: string;
+            /** Format: date-time */
+            expires_at?: string | null;
+        };
+        IPSetElementPage: {
+            elements: components["schemas"]["IPSetElement"][];
+            /** @description Matching elements on all pages */
+            total: number;
+            /** @description Empty on the last page */
+            next_cursor: string;
+        };
+        IPSetResolved: {
+            /** @enum {string} */
+            status: "ok" | "partial" | "empty";
+            problems: components["schemas"]["IPSetProblem"][];
+            address_set: boolean;
+            v4_count: number;
+            v6_count: number;
+            /** @description One page of merged prefixes (v4 first) */
+            prefixes: string[];
+            /** @description Single addresses in item order (target positions; first is primary) */
+            addresses: string[];
+            next_cursor: string;
+        };
+        IPSetConsumer: {
+            /** @description ip_set, firewall_binding, dns_record, service, … */
+            type: string;
+            id: string;
+            name: string;
+            /** @enum {string} */
+            position: "match" | "target";
+        };
+        IPSetConsumerList: {
+            consumers: components["schemas"]["IPSetConsumer"][];
+        };
+        AddressLookup: {
+            /** @description Normalized (IPv4-mapped IPv6 shown as IPv4) */
+            address: string;
+            sets: components["schemas"]["AddressSetMatch"][];
+        };
+        AddressSetMatch: {
+            set: components["schemas"]["IPSet"];
+            matches: components["schemas"]["AddressMatch"][];
+        };
+        AddressMatch: {
+            /** @description Slugs from the set down to the set holding the element */
+            path: string[];
+            set_id: string;
+            element_id: string;
+            label: string;
         };
     };
     responses: {
@@ -3819,6 +4100,303 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ServicePlans"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listIPSets: {
+        parameters: {
+            query?: {
+                kind?: "user" | "system" | "feed" | "dynamic";
+                /** @description Slug, name or description text */
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description IP sets */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IPSetList"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createIPSet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IPSetInput"];
+            };
+        };
+        responses: {
+            /** @description The new set */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IPSet"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getIPSet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The set */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IPSet"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    updateIPSet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IPSetInput"];
+            };
+        };
+        responses: {
+            /** @description The set */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IPSet"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    deleteIPSet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listIPSetElements: {
+        parameters: {
+            query?: {
+                q?: string;
+                /** @description next_cursor of the previous page */
+                cursor?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of elements in position order */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IPSetElementPage"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    addIPSetElement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IPSetElementInput"];
+            };
+        };
+        responses: {
+            /** @description The new element */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IPSetElement"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    deleteIPSetElement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                elementId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    updateIPSetElement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                elementId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IPSetElementInput"];
+            };
+        };
+        responses: {
+            /** @description The element */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IPSetElement"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getIPSetResolved: {
+        parameters: {
+            query?: {
+                family?: "4" | "6";
+                cursor?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The compiled set (prefixes paginated) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IPSetResolved"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getIPSetConsumers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Consumers */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IPSetConsumerList"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    lookupAddress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                address: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The lookup */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AddressLookup"];
                 };
             };
             default: components["responses"]["Problem"];

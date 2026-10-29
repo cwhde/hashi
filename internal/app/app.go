@@ -25,6 +25,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/dns/hetzner"
 	"git.juzo.io/juzo/hashi/internal/httpapi"
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
+	"git.juzo.io/juzo/hashi/internal/ipsets"
 	"git.juzo.io/juzo/hashi/internal/jobs"
 	"git.juzo.io/juzo/hashi/internal/logring"
 	"git.juzo.io/juzo/hashi/internal/secrets"
@@ -169,6 +170,12 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 		return err
 	}
 
+	// IP sets (05a): dns answers refresh and expired elements drop out every minute; edits recompile at once.
+	ipSets := ipsets.NewService(st, al, log.With("component", "ipsets"), nil)
+	if err := runner.Register(ctx, jobs.Job{Kind: ipsets.JobKind, Interval: ipsets.JobInterval, Run: ipSets.Refresh}); err != nil {
+		return err
+	}
+
 	// Hourly: issue what is missing, renew 30 days ahead (a failure waits certs.RetryAfter), then bring every Traefik
 	// host's certificate files up to date.
 	if err := runner.Register(ctx, jobs.Job{Kind: certs.JobKind, Interval: certs.JobInterval,
@@ -189,7 +196,7 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	health := httpapi.NewHealth(map[string]httpapi.Check{"database": st.Ready})
 	api := &httpapi.Server{
 		Health: health, Version: gen.Version{Version: Version, Commit: Commit}, Store: st, Sessions: sessions,
-		Passkeys: passkeys, Setup: setupSvc, Settings: cfgSettings, DNS: dnsSvc, Traefik: traefikMgr, Certs: certMgr, Sync: syncEngine, Vault: v, Audit: al, IP: ip, Logs: cfg.Logs,
+		Passkeys: passkeys, Setup: setupSvc, Settings: cfgSettings, DNS: dnsSvc, Traefik: traefikMgr, Certs: certMgr, IPSets: ipSets, Sync: syncEngine, Vault: v, Audit: al, IP: ip, Logs: cfg.Logs,
 		CertsSoon: func(ctx context.Context) error { return runner.Soon(ctx, certs.JobKind) },
 		Log:       log.With("component", "api"),
 	}

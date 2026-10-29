@@ -42,15 +42,15 @@ func (h *Health) ready(ctx context.Context) (gen.Health, bool) {
 			checks[name] = "ok"
 		}
 	}
-	status := gen.Ok
+	status := gen.HealthStatusOk
 	if !ok {
-		status = gen.Unavailable
+		status = gen.HealthStatusUnavailable
 	}
 	return gen.Health{Status: status, Checks: &checks}, ok
 }
 
 func (s *Server) GetHealthz(context.Context, gen.GetHealthzRequestObject) (gen.GetHealthzResponseObject, error) {
-	return gen.GetHealthz200JSONResponse{Status: gen.Ok}, nil
+	return gen.GetHealthz200JSONResponse{Status: gen.HealthStatusOk}, nil
 }
 
 func (s *Server) GetReadyz(ctx context.Context, _ gen.GetReadyzRequestObject) (gen.GetReadyzResponseObject, error) {

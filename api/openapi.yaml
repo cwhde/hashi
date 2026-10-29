@@ -992,6 +992,170 @@ paths:
           description: One plan per host that needed changes
           content: { application/json: { schema: { $ref: "#/components/schemas/ServicePlans" } } }
         default: { $ref: "#/components/responses/Problem" }
+  /api/ip-sets:
+    get:
+      operationId: listIPSets
+      summary: Every IP set with its last compile summary, system sets first
+      tags: [ip-sets]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: kind, in: query, required: false, schema: { type: string, enum: [user, system, feed, dynamic] } }
+        - { name: q, in: query, required: false, schema: { type: string }, description: "Slug, name or description text" }
+      responses:
+        "200":
+          description: IP sets
+          content: { application/json: { schema: { $ref: "#/components/schemas/IPSetList" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    post:
+      operationId: createIPSet
+      summary: Add a user IP set (empty; add elements next)
+      tags: [ip-sets]
+      x-hashi-scopes: [security.manage]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/IPSetInput" } } }
+      responses:
+        "200":
+          description: The new set
+          content: { application/json: { schema: { $ref: "#/components/schemas/IPSet" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/ip-sets/{id}:
+    get:
+      operationId: getIPSet
+      summary: One IP set
+      tags: [ip-sets]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The set
+          content: { application/json: { schema: { $ref: "#/components/schemas/IPSet" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      operationId: updateIPSet
+      summary: Change a user set's slug, name and description
+      tags: [ip-sets]
+      x-hashi-scopes: [security.manage]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/IPSetInput" } } }
+      responses:
+        "200":
+          description: The set
+          content: { application/json: { schema: { $ref: "#/components/schemas/IPSet" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    delete:
+      operationId: deleteIPSet
+      summary: Delete a user set that nothing uses (409 lists what still uses it)
+      tags: [ip-sets]
+      x-hashi-scopes: [security.manage]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "204": { description: Deleted }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/ip-sets/{id}/elements:
+    get:
+      operationId: listIPSetElements
+      summary: A set's own elements, filtered by address (containing), prefix (overlapping) or text
+      tags: [ip-sets]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: q, in: query, required: false, schema: { type: string } }
+        - { name: cursor, in: query, required: false, schema: { type: string }, description: "next_cursor of the previous page" }
+      responses:
+        "200":
+          description: One page of elements in position order
+          content: { application/json: { schema: { $ref: "#/components/schemas/IPSetElementPage" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    post:
+      operationId: addIPSetElement
+      summary: Append an element to a user set
+      tags: [ip-sets]
+      x-hashi-scopes: [security.manage]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/IPSetElementInput" } } }
+      responses:
+        "200":
+          description: The new element
+          content: { application/json: { schema: { $ref: "#/components/schemas/IPSetElement" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/ip-sets/{id}/elements/{elementId}:
+    patch:
+      operationId: updateIPSetElement
+      summary: Replace an element's item, note and expiry
+      tags: [ip-sets]
+      x-hashi-scopes: [security.manage]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: elementId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/IPSetElementInput" } } }
+      responses:
+        "200":
+          description: The element
+          content: { application/json: { schema: { $ref: "#/components/schemas/IPSetElement" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    delete:
+      operationId: deleteIPSetElement
+      summary: Remove an element from a user set
+      tags: [ip-sets]
+      x-hashi-scopes: [security.manage]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: elementId, in: path, required: true, schema: { type: string } }
+      responses:
+        "204": { description: Removed }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/ip-sets/{id}/resolved:
+    get:
+      operationId: getIPSetResolved
+      summary: The set compiled now (prefixes merged per family, single addresses for target positions, problems)
+      tags: [ip-sets]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: family, in: query, required: false, schema: { type: string, enum: ["4", "6"] } }
+        - { name: cursor, in: query, required: false, schema: { type: string } }
+      responses:
+        "200":
+          description: The compiled set (prefixes paginated)
+          content: { application/json: { schema: { $ref: "#/components/schemas/IPSetResolved" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/ip-sets/{id}/consumers:
+    get:
+      operationId: getIPSetConsumers
+      summary: What uses the set (parent sets, firewall bindings, DNS records, service targets)
+      tags: [ip-sets]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Consumers
+          content: { application/json: { schema: { $ref: "#/components/schemas/IPSetConsumerList" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/addresses/{address}:
+    get:
+      operationId: lookupAddress
+      summary: Every set that contains the address, with the nesting path to the element that holds it
+      tags: [ip-sets]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: address, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The lookup
+          content: { application/json: { schema: { $ref: "#/components/schemas/AddressLookup" } } }
+        default: { $ref: "#/components/responses/Problem" }
   /api/certificates:
     get:
       operationId: listCertificates
@@ -1889,3 +2053,164 @@ components:
       properties:
         version: { type: string, examples: ["v0.1.0", "8b4bf95"] }
         commit: { type: string }
+    IPSet:
+      type: object
+      required: [id, slug, name, description, kind, origin, system_key, editable, element_count, resolution_status,
+        problems, address_set, v4_count, v6_count, created_at, updated_at]
+      properties:
+        id: { type: string }
+        slug: { type: string }
+        name: { type: string }
+        description: { type: string }
+        kind: { type: string, enum: [user, system, feed, dynamic] }
+        origin: { type: string, enum: [system, managed, imported, user] }
+        system_key: { type: string, description: "all, hashi_hosts, private_networks, …; empty for user sets" }
+        editable: { type: boolean, description: "Elements and metadata can be changed by the user (user sets only)" }
+        element_count: { type: integer }
+        resolution_status: { type: string, enum: [ok, partial, empty] }
+        problems: { type: array, items: { $ref: "#/components/schemas/IPSetProblem" } }
+        address_set: { type: boolean, description: "Every leaf is ip, host or dns: usable in target positions" }
+        v4_count: { type: integer, description: "Merged IPv4 prefixes" }
+        v6_count: { type: integer, description: "Merged IPv6 prefixes" }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    IPSetList:
+      type: object
+      required: [sets]
+      properties:
+        sets: { type: array, items: { $ref: "#/components/schemas/IPSet" } }
+    IPSetInput:
+      type: object
+      required: [slug, name]
+      properties:
+        slug: { type: string }
+        name: { type: string }
+        description: { type: string }
+    IPSetProblem:
+      type: object
+      required: [set_id, element_id, path, message]
+      properties:
+        set_id: { type: string }
+        element_id: { type: string }
+        path: { type: array, items: { type: string }, description: "Slugs from the compiled set to the failing item's set" }
+        message: { type: string }
+    IPItem:
+      description: One IP item or a set reference (05a §2)
+      oneOf:
+        - $ref: "#/components/schemas/IPItemIP"
+        - $ref: "#/components/schemas/IPItemCIDR"
+        - $ref: "#/components/schemas/IPItemHost"
+        - $ref: "#/components/schemas/IPItemDNS"
+        - $ref: "#/components/schemas/IPItemSet"
+      discriminator:
+        propertyName: type
+        mapping:
+          ip: "#/components/schemas/IPItemIP"
+          cidr: "#/components/schemas/IPItemCIDR"
+          host: "#/components/schemas/IPItemHost"
+          dns: "#/components/schemas/IPItemDNS"
+          set: "#/components/schemas/IPItemSet"
+    IPItemIP:
+      type: object
+      required: [type, address]
+      properties:
+        type: { type: string, enum: [ip] }
+        address: { type: string, description: "IPv4 or IPv6; a /32 or /128 prefix is accepted on input" }
+    IPItemCIDR:
+      type: object
+      required: [type, prefix]
+      properties:
+        type: { type: string, enum: [cidr] }
+        prefix: { type: string, description: "Host bits are zeroed; a single-address prefix is stored as ip" }
+    IPItemHost:
+      type: object
+      required: [type, host_id, scope]
+      properties:
+        type: { type: string, enum: [host] }
+        host_id: { type: string }
+        scope: { type: string, enum: [public, internal, all] }
+    IPItemDNS:
+      type: object
+      required: [type, fqdn]
+      properties:
+        type: { type: string, enum: [dns] }
+        fqdn: { type: string }
+    IPItemSet:
+      type: object
+      required: [type, set_id]
+      properties:
+        type: { type: string, enum: [set] }
+        set_id: { type: string }
+    IPSetElement:
+      type: object
+      required: [id, position, origin, locked, item, label, note, expires_at, created_by, created_at]
+      properties:
+        id: { type: string }
+        position: { type: integer }
+        origin: { type: string }
+        locked: { type: boolean }
+        item: { $ref: "#/components/schemas/IPItem" }
+        label: { type: string, description: "Short human form, e.g. \"192.0.2.0/24 (cidr)\" or \"office (set)\"" }
+        note: { type: string }
+        expires_at: { type: [string, "null"], format: date-time }
+        created_by: { type: string }
+        created_at: { type: string, format: date-time }
+    IPSetElementInput:
+      type: object
+      required: [item]
+      properties:
+        item: { $ref: "#/components/schemas/IPItem" }
+        note: { type: string }
+        expires_at: { type: [string, "null"], format: date-time }
+    IPSetElementPage:
+      type: object
+      required: [elements, total, next_cursor]
+      properties:
+        elements: { type: array, items: { $ref: "#/components/schemas/IPSetElement" } }
+        total: { type: integer, description: "Matching elements on all pages" }
+        next_cursor: { type: string, description: "Empty on the last page" }
+    IPSetResolved:
+      type: object
+      required: [status, problems, address_set, v4_count, v6_count, prefixes, addresses, next_cursor]
+      properties:
+        status: { type: string, enum: [ok, partial, empty] }
+        problems: { type: array, items: { $ref: "#/components/schemas/IPSetProblem" } }
+        address_set: { type: boolean }
+        v4_count: { type: integer }
+        v6_count: { type: integer }
+        prefixes: { type: array, items: { type: string }, description: "One page of merged prefixes (v4 first)" }
+        addresses: { type: array, items: { type: string }, description: "Single addresses in item order (target positions; first is primary)" }
+        next_cursor: { type: string }
+    IPSetConsumer:
+      type: object
+      required: [type, id, name, position]
+      properties:
+        type: { type: string, description: "ip_set, firewall_binding, dns_record, service, …" }
+        id: { type: string }
+        name: { type: string }
+        position: { type: string, enum: [match, target] }
+    IPSetConsumerList:
+      type: object
+      required: [consumers]
+      properties:
+        consumers: { type: array, items: { $ref: "#/components/schemas/IPSetConsumer" } }
+    AddressLookup:
+      type: object
+      required: [address, sets]
+      properties:
+        address: { type: string, description: "Normalized (IPv4-mapped IPv6 shown as IPv4)" }
+        sets: { type: array, items: { $ref: "#/components/schemas/AddressSetMatch" } }
+    AddressSetMatch:
+      type: object
+      required: [set, matches]
+      properties:
+        set: { $ref: "#/components/schemas/IPSet" }
+        matches: { type: array, items: { $ref: "#/components/schemas/AddressMatch" } }
+    AddressMatch:
+      type: object
+      required: [path, set_id, element_id, label]
+      properties:
+        path: { type: array, items: { type: string }, description: "Slugs from the set down to the set holding the element" }
+        set_id: { type: string }
+        element_id: { type: string }
+        label: { type: string }
