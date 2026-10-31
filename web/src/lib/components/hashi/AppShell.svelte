@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Snippet } from 'svelte';
+	import { onMount, type Snippet } from 'svelte';
 	import { page } from '$app/state';
 	import { afterNavigate, goto } from '$app/navigation';
 	import { pendingPlans } from '$lib/sync-pending.svelte';
@@ -27,9 +27,16 @@
 	// live: the real admin app (session from the server, only built pages). Without it the shell shows mock data (/design).
 	let { children, live }: { children: Snippet; live?: { onSignOut: () => void } } = $props();
 	const nav = $derived(live ? (setupServices(session.current) ? setupNav : liveNav) : designNav);
-	// The pending-changes count follows every navigation in the live app (plans appear from saves and background sync).
-	afterNavigate(() => {
+	// The pending-changes count in the live app: on load (the shell mounts after the first navigation has finished), on
+	// every navigation, and every 30 s, because plans also appear from background sync while a page stays open.
+	const refreshPending = () => {
 		if (live) pendingPlans.refresh().catch(() => {});
+	};
+	afterNavigate(refreshPending);
+	onMount(() => {
+		refreshPending();
+		const timer = setInterval(refreshPending, 30_000);
+		return () => clearInterval(timer);
 	});
 	const s = $derived(session.current);
 

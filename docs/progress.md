@@ -696,6 +696,11 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-10-31 — S6 gate: user signed in with the S5 passkey and approved the port 222 plan. Through the test edge's Traefik, `10.0.1.x:222` answers with the
+  upstream's SSH banner (TCP path on a real edge, not public yet). Test TXT `gate._hashi-test` created by the user, at the provider with Hashi's owner
+  label; its delete is still to be approved. Fix: the pending-changes count stayed 0 after a fresh load (the shell mounts after the first navigation's
+  callback; reproduced in the E2E journey), it now also loads on mount and every 30 s. Not deployed yet.
+
 - 2026-10-31 — S6 gate: outsider check **passed** (user's phone on mobile data: the host's management port does not load, a public service does).
   Setup completed on the real install, bootstrap session revoked. User decisions: Gitea SSH may stay offline during the dev phase (the laptop uses
   HTTPS), so the public TCP/UDP check waits for the traffic move; the NetBird/Traefik loop is accepted for now; the home IP stays hand-entered until

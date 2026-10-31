@@ -280,6 +280,9 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByRole('button', { name: 'Delete record' }).click();
 	await expect(page.getByRole('status')).toContainText('needs your approval');
 	await expect(page.getByRole('link', { name: /1 pending change/ })).toBeVisible();
+	// The count is there on a fresh load too, without navigating anywhere first.
+	await page.reload();
+	await expect(page.getByRole('link', { name: /1 pending change/ })).toBeVisible();
 	// Another save while that delete waits reports its own result, not the waiting delete.
 	await page.getByRole('button', { name: 'Add record' }).click();
 	await page.getByLabel('Name', { exact: true }).fill('b._hashi-test');
