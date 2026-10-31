@@ -104,7 +104,7 @@ func (q *Queries) GetCertificate(ctx context.Context, id string) (Certificate, e
 }
 
 const getTraefikConnection = `-- name: GetTraefikConnection :one
-SELECT id, name, ssh_host, ssh_port, ssh_user, auth, credential_secret_id, passphrase_secret_id, host_key_type, host_key, host_key_fingerprint, internal_ip, os_family, package_manager, init_system, os_probe, traefik_binary, config_dir, api_port, discovery_json, ownership_confirmed_at, installed_version, health, last_validated_at, last_validation_error, created_at, updated_at FROM traefik_connections WHERE id = ?
+SELECT id, name, ssh_host, ssh_port, ssh_user, auth, credential_secret_id, passphrase_secret_id, host_key_type, host_key, host_key_fingerprint, internal_ip, os_family, package_manager, init_system, os_probe, traefik_binary, config_dir, api_port, discovery_json, ownership_confirmed_at, installed_version, health, last_validated_at, last_validation_error, created_at, updated_at, ssh_target_set_id FROM traefik_connections WHERE id = ?
 `
 
 func (q *Queries) GetTraefikConnection(ctx context.Context, id string) (TraefikConnection, error) {
@@ -138,6 +138,7 @@ func (q *Queries) GetTraefikConnection(ctx context.Context, id string) (TraefikC
 		&i.LastValidationError,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SshTargetSetID,
 	)
 	return i, err
 }
@@ -286,7 +287,7 @@ func (q *Queries) ListCertificates(ctx context.Context) ([]Certificate, error) {
 }
 
 const listTraefikConnections = `-- name: ListTraefikConnections :many
-SELECT id, name, ssh_host, ssh_port, ssh_user, auth, credential_secret_id, passphrase_secret_id, host_key_type, host_key, host_key_fingerprint, internal_ip, os_family, package_manager, init_system, os_probe, traefik_binary, config_dir, api_port, discovery_json, ownership_confirmed_at, installed_version, health, last_validated_at, last_validation_error, created_at, updated_at FROM traefik_connections ORDER BY name
+SELECT id, name, ssh_host, ssh_port, ssh_user, auth, credential_secret_id, passphrase_secret_id, host_key_type, host_key, host_key_fingerprint, internal_ip, os_family, package_manager, init_system, os_probe, traefik_binary, config_dir, api_port, discovery_json, ownership_confirmed_at, installed_version, health, last_validated_at, last_validation_error, created_at, updated_at, ssh_target_set_id FROM traefik_connections ORDER BY name
 `
 
 func (q *Queries) ListTraefikConnections(ctx context.Context) ([]TraefikConnection, error) {
@@ -326,7 +327,40 @@ func (q *Queries) ListTraefikConnections(ctx context.Context) ([]TraefikConnecti
 			&i.LastValidationError,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.SshTargetSetID,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTraefikConnectionsBySSHTarget = `-- name: ListTraefikConnectionsBySSHTarget :many
+SELECT id, name FROM traefik_connections WHERE ssh_target_set_id = ? ORDER BY name
+`
+
+type ListTraefikConnectionsBySSHTargetRow struct {
+	ID   string
+	Name string
+}
+
+func (q *Queries) ListTraefikConnectionsBySSHTarget(ctx context.Context, sshTargetSetID sql.NullString) ([]ListTraefikConnectionsBySSHTargetRow, error) {
+	rows, err := q.db.QueryContext(ctx, listTraefikConnectionsBySSHTarget, sshTargetSetID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTraefikConnectionsBySSHTargetRow{}
+	for rows.Next() {
+		var i ListTraefikConnectionsBySSHTargetRow
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -522,6 +556,20 @@ func (q *Queries) SetTraefikConnectionPaths(ctx context.Context, arg SetTraefikC
 		arg.UpdatedAt,
 		arg.ID,
 	)
+	return err
+}
+
+const setTraefikConnectionSSHTarget = `-- name: SetTraefikConnectionSSHTarget :exec
+UPDATE traefik_connections SET ssh_target_set_id = ? WHERE id = ?
+`
+
+type SetTraefikConnectionSSHTargetParams struct {
+	SshTargetSetID sql.NullString
+	ID             string
+}
+
+func (q *Queries) SetTraefikConnectionSSHTarget(ctx context.Context, arg SetTraefikConnectionSSHTargetParams) error {
+	_, err := q.db.ExecContext(ctx, setTraefikConnectionSSHTarget, arg.SshTargetSetID, arg.ID)
 	return err
 }
 

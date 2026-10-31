@@ -64,7 +64,7 @@ func (q *Queries) DeleteFirewallHostAccess(ctx context.Context, hostID string) e
 }
 
 const getFirewallHost = `-- name: GetFirewallHost :one
-SELECT id, name, edge_mode, ssh_host, ssh_port, ssh_user, auth, credential_secret_id, passphrase_secret_id, host_key_type, host_key, host_key_fingerprint, traefik_connection_id, internal_traefik_ip, route_via_host_id, public_ip, public_ip6, public_ip_override, public_ip6_override, wan_iface, wan_iface_override, subnets_json, internal_ips_json, netbird_mode, netbird_iface, netbird_port, drop_inbound_accepted_at, facts_json, setup_ruleset, ownership_confirmed_at, health, last_validated_at, last_validation_error, last_applied_hash, last_applied_at, created_at, updated_at, takeover_json FROM firewall_hosts WHERE id = ?
+SELECT id, name, edge_mode, ssh_host, ssh_port, ssh_user, auth, credential_secret_id, passphrase_secret_id, host_key_type, host_key, host_key_fingerprint, traefik_connection_id, internal_traefik_ip, route_via_host_id, public_ip, public_ip6, public_ip_override, public_ip6_override, wan_iface, wan_iface_override, subnets_json, internal_ips_json, netbird_mode, netbird_iface, netbird_port, drop_inbound_accepted_at, facts_json, setup_ruleset, ownership_confirmed_at, health, last_validated_at, last_validation_error, last_applied_hash, last_applied_at, created_at, updated_at, takeover_json, ssh_target_set_id FROM firewall_hosts WHERE id = ?
 `
 
 func (q *Queries) GetFirewallHost(ctx context.Context, id string) (FirewallHost, error) {
@@ -109,6 +109,7 @@ func (q *Queries) GetFirewallHost(ctx context.Context, id string) (FirewallHost,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.TakeoverJson,
+		&i.SshTargetSetID,
 	)
 	return i, err
 }
@@ -301,7 +302,7 @@ func (q *Queries) ListFirewallHostAccess(ctx context.Context, hostID string) ([]
 }
 
 const listFirewallHosts = `-- name: ListFirewallHosts :many
-SELECT id, name, edge_mode, ssh_host, ssh_port, ssh_user, auth, credential_secret_id, passphrase_secret_id, host_key_type, host_key, host_key_fingerprint, traefik_connection_id, internal_traefik_ip, route_via_host_id, public_ip, public_ip6, public_ip_override, public_ip6_override, wan_iface, wan_iface_override, subnets_json, internal_ips_json, netbird_mode, netbird_iface, netbird_port, drop_inbound_accepted_at, facts_json, setup_ruleset, ownership_confirmed_at, health, last_validated_at, last_validation_error, last_applied_hash, last_applied_at, created_at, updated_at, takeover_json FROM firewall_hosts ORDER BY name
+SELECT id, name, edge_mode, ssh_host, ssh_port, ssh_user, auth, credential_secret_id, passphrase_secret_id, host_key_type, host_key, host_key_fingerprint, traefik_connection_id, internal_traefik_ip, route_via_host_id, public_ip, public_ip6, public_ip_override, public_ip6_override, wan_iface, wan_iface_override, subnets_json, internal_ips_json, netbird_mode, netbird_iface, netbird_port, drop_inbound_accepted_at, facts_json, setup_ruleset, ownership_confirmed_at, health, last_validated_at, last_validation_error, last_applied_hash, last_applied_at, created_at, updated_at, takeover_json, ssh_target_set_id FROM firewall_hosts ORDER BY name
 `
 
 func (q *Queries) ListFirewallHosts(ctx context.Context) ([]FirewallHost, error) {
@@ -352,7 +353,40 @@ func (q *Queries) ListFirewallHosts(ctx context.Context) ([]FirewallHost, error)
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.TakeoverJson,
+			&i.SshTargetSetID,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFirewallHostsBySSHTarget = `-- name: ListFirewallHostsBySSHTarget :many
+SELECT id, name FROM firewall_hosts WHERE ssh_target_set_id = ? ORDER BY name
+`
+
+type ListFirewallHostsBySSHTargetRow struct {
+	ID   string
+	Name string
+}
+
+func (q *Queries) ListFirewallHostsBySSHTarget(ctx context.Context, sshTargetSetID sql.NullString) ([]ListFirewallHostsBySSHTargetRow, error) {
+	rows, err := q.db.QueryContext(ctx, listFirewallHostsBySSHTarget, sshTargetSetID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListFirewallHostsBySSHTargetRow{}
+	for rows.Next() {
+		var i ListFirewallHostsBySSHTargetRow
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -441,6 +475,20 @@ func (q *Queries) SetFirewallHostHealth(ctx context.Context, arg SetFirewallHost
 		arg.UpdatedAt,
 		arg.ID,
 	)
+	return err
+}
+
+const setFirewallHostSSHTarget = `-- name: SetFirewallHostSSHTarget :exec
+UPDATE firewall_hosts SET ssh_target_set_id = ? WHERE id = ?
+`
+
+type SetFirewallHostSSHTargetParams struct {
+	SshTargetSetID sql.NullString
+	ID             string
+}
+
+func (q *Queries) SetFirewallHostSSHTarget(ctx context.Context, arg SetFirewallHostSSHTargetParams) error {
+	_, err := q.db.ExecContext(ctx, setFirewallHostSSHTarget, arg.SshTargetSetID, arg.ID)
 	return err
 }
 

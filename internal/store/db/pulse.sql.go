@@ -20,7 +20,7 @@ func (q *Queries) DeletePulseAgent(ctx context.Context, id string) error {
 }
 
 const getPulseAgent = `-- name: GetPulseAgent :one
-SELECT id, name, token_hash, install_type, interval_seconds, last_seen_at, public_ip, candidates_json, selected_ip, hostname, version, revoked_at, dns_enabled, dns_name, created_at, updated_at, trust_reported_ip, public_ip_source FROM pulse_agents WHERE id = ?
+SELECT id, name, token_hash, install_type, interval_seconds, last_seen_at, public_ip, candidates_json, selected_ip, hostname, version, revoked_at, dns_enabled, dns_name, created_at, updated_at, trust_reported_ip, public_ip_source, reach_port, reach_ok FROM pulse_agents WHERE id = ?
 `
 
 func (q *Queries) GetPulseAgent(ctx context.Context, id string) (PulseAgent, error) {
@@ -45,6 +45,8 @@ func (q *Queries) GetPulseAgent(ctx context.Context, id string) (PulseAgent, err
 		&i.UpdatedAt,
 		&i.TrustReportedIp,
 		&i.PublicIpSource,
+		&i.ReachPort,
+		&i.ReachOk,
 	)
 	return i, err
 }
@@ -122,7 +124,7 @@ func (q *Queries) ListIPSetsUsingAgent(ctx context.Context, pulseAgentID sql.Nul
 }
 
 const listPulseAgents = `-- name: ListPulseAgents :many
-SELECT id, name, token_hash, install_type, interval_seconds, last_seen_at, public_ip, candidates_json, selected_ip, hostname, version, revoked_at, dns_enabled, dns_name, created_at, updated_at, trust_reported_ip, public_ip_source FROM pulse_agents ORDER BY name
+SELECT id, name, token_hash, install_type, interval_seconds, last_seen_at, public_ip, candidates_json, selected_ip, hostname, version, revoked_at, dns_enabled, dns_name, created_at, updated_at, trust_reported_ip, public_ip_source, reach_port, reach_ok FROM pulse_agents ORDER BY name
 `
 
 func (q *Queries) ListPulseAgents(ctx context.Context) ([]PulseAgent, error) {
@@ -153,6 +155,8 @@ func (q *Queries) ListPulseAgents(ctx context.Context) ([]PulseAgent, error) {
 			&i.UpdatedAt,
 			&i.TrustReportedIp,
 			&i.PublicIpSource,
+			&i.ReachPort,
+			&i.ReachOk,
 		); err != nil {
 			return nil, err
 		}
@@ -183,7 +187,7 @@ func (q *Queries) RevokePulseAgent(ctx context.Context, arg RevokePulseAgentPara
 }
 
 const setPulseDNS = `-- name: SetPulseDNS :exec
-UPDATE pulse_agents SET name = ?, dns_enabled = ?, dns_name = ?, trust_reported_ip = ?, updated_at = ? WHERE id = ?
+UPDATE pulse_agents SET name = ?, dns_enabled = ?, dns_name = ?, trust_reported_ip = ?, reach_port = ?, updated_at = ? WHERE id = ?
 `
 
 type SetPulseDNSParams struct {
@@ -191,6 +195,7 @@ type SetPulseDNSParams struct {
 	DnsEnabled      int64
 	DnsName         string
 	TrustReportedIp int64
+	ReachPort       int64
 	UpdatedAt       int64
 	ID              string
 }
@@ -201,6 +206,7 @@ func (q *Queries) SetPulseDNS(ctx context.Context, arg SetPulseDNSParams) error 
 		arg.DnsEnabled,
 		arg.DnsName,
 		arg.TrustReportedIp,
+		arg.ReachPort,
 		arg.UpdatedAt,
 		arg.ID,
 	)
@@ -235,6 +241,20 @@ func (q *Queries) SetPulseHeartbeat(ctx context.Context, arg SetPulseHeartbeatPa
 		arg.UpdatedAt,
 		arg.ID,
 	)
+	return err
+}
+
+const setPulseReach = `-- name: SetPulseReach :exec
+UPDATE pulse_agents SET reach_ok = ? WHERE id = ?
+`
+
+type SetPulseReachParams struct {
+	ReachOk sql.NullInt64
+	ID      string
+}
+
+func (q *Queries) SetPulseReach(ctx context.Context, arg SetPulseReachParams) error {
+	_, err := q.db.ExecContext(ctx, setPulseReach, arg.ReachOk, arg.ID)
 	return err
 }
 

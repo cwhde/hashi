@@ -31,6 +31,22 @@
 			busy = false;
 		}
 	}
+	let preview = $state<{ domain: string; answer: string }[] | null>(null);
+	async function showPreview() {
+		error = '';
+		const r = await api.POST('/api/settings/internal-agent-dns/preview-sync');
+		if (r.data) preview = r.data.rewrites;
+		else error = problemText(r.error);
+	}
+	async function apply() {
+		error = notice = '';
+		busy = true;
+		const r = await api.POST('/api/settings/internal-agent-dns/apply-sync');
+		busy = false;
+		if (r.error) error = problemText(r.error);
+		else
+			notice = 'Planned. Active AdGuard connections are up to date; removals wait under Changes.';
+	}
 	const modes = { selected: "The agent's selected internal address", public: 'Its public address' };
 </script>
 
@@ -66,8 +82,22 @@
 			</div>
 			<div class="flex items-center justify-end gap-3">
 				{#if notice}<span role="status" class="text-ok-text">{notice}</span>{/if}
+				<Button variant="outline" size="sm" onclick={showPreview} disabled={busy}
+					>Preview names</Button
+				>
+				<Button variant="outline" size="sm" onclick={apply} disabled={busy}>Sync now</Button>
 				<Button size="sm" onclick={save} disabled={busy}>Save</Button>
 			</div>
+			{#if preview}
+				{#if preview.length === 0}<p class="text-muted-foreground">No names right now.</p>{/if}
+				<ul class="space-y-1">
+					{#each preview as p (p.domain)}
+						<li class="flex justify-between gap-3">
+							<span>{p.domain}</span><span class="text-muted-foreground">{p.answer}</span>
+						</li>
+					{/each}
+				</ul>
+			{/if}
 		</div>
 	</Panel>
 {/if}

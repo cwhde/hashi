@@ -95,3 +95,9 @@ ON CONFLICT (certificate_id, connection_id) DO UPDATE SET
 
 -- name: ListCertificateDistributions :many
 SELECT * FROM certificate_distributions ORDER BY certificate_id, connection_id;
+
+-- name: SetTraefikConnectionSSHTarget :exec
+UPDATE traefik_connections SET ssh_target_set_id = ? WHERE id = ?;
+
+-- name: ListTraefikConnectionsBySSHTarget :many
+SELECT id, name FROM traefik_connections WHERE ssh_target_set_id = ? ORDER BY name;

@@ -1674,6 +1674,14 @@ type AddressSetMatch struct {
 	Set     IPSet          `json:"set"`
 }
 
+// AgentDNSPreview defines model for AgentDNSPreview.
+type AgentDNSPreview struct {
+	Rewrites []struct {
+		Answer string `json:"answer"`
+		Domain string `json:"domain"`
+	} `json:"rewrites"`
+}
+
 // AgentDNSSettings defines model for AgentDNSSettings.
 type AgentDNSSettings struct {
 	Domain  string                 `json:"domain"`
@@ -2128,11 +2136,14 @@ type FirewallHost struct {
 	Port               int                     `json:"port"`
 
 	// PublicIp Effective (override, else detected)
-	PublicIp            string   `json:"public_ip"`
-	PublicIp6           string   `json:"public_ip6"`
-	PublicIp6Override   string   `json:"public_ip6_override"`
-	PublicIpOverride    string   `json:"public_ip_override"`
-	RouteViaHostId      string   `json:"route_via_host_id"`
+	PublicIp          string `json:"public_ip"`
+	PublicIp6         string `json:"public_ip6"`
+	PublicIp6Override string `json:"public_ip6_override"`
+	PublicIpOverride  string `json:"public_ip_override"`
+	RouteViaHostId    string `json:"route_via_host_id"`
+
+	// SshTargetSetId Address set SSH tries before the literal address
+	SshTargetSetId      *string  `json:"ssh_target_set_id,omitempty"`
 	Subnets             []string `json:"subnets"`
 	TraefikConnectionId string   `json:"traefik_connection_id"`
 	User                string   `json:"user"`
@@ -2832,10 +2843,14 @@ type PulseAgent struct {
 	Name            string                   `json:"name"`
 	PublicIp        string                   `json:"public_ip"`
 	PublicIpSource  PulseAgentPublicIpSource `json:"public_ip_source"`
-	SelectedIp      string                   `json:"selected_ip"`
-	Status          PulseAgentStatus         `json:"status"`
-	TrustReportedIp bool                     `json:"trust_reported_ip"`
-	Version         string                   `json:"version"`
+	ReachPort       int                      `json:"reach_port"`
+
+	// Reachable Left out until a port is set and checked
+	Reachable       *bool            `json:"reachable,omitempty"`
+	SelectedIp      string           `json:"selected_ip"`
+	Status          PulseAgentStatus `json:"status"`
+	TrustReportedIp bool             `json:"trust_reported_ip"`
+	Version         string           `json:"version"`
 }
 
 // PulseAgentPublicIpSource defines model for PulseAgent.PublicIpSource.
@@ -2869,10 +2884,13 @@ type PulseAgentToken struct {
 
 // PulseAgentUpdate defines model for PulseAgentUpdate.
 type PulseAgentUpdate struct {
-	DnsEnabled      bool    `json:"dns_enabled"`
-	DnsName         *string `json:"dns_name,omitempty"`
-	Name            string  `json:"name"`
-	TrustReportedIp bool    `json:"trust_reported_ip"`
+	DnsEnabled bool    `json:"dns_enabled"`
+	DnsName    *string `json:"dns_name,omitempty"`
+	Name       string  `json:"name"`
+
+	// ReachPort Port Hashi tries on the selected address; 0 turns the check off
+	ReachPort       *int `json:"reach_port,omitempty"`
+	TrustReportedIp bool `json:"trust_reported_ip"`
 }
 
 // PulseHeartbeat defines model for PulseHeartbeat.
@@ -2919,6 +2937,12 @@ type RevealedSecret struct {
 // RevokedCount defines model for RevokedCount.
 type RevokedCount struct {
 	Revoked int `json:"revoked"`
+}
+
+// SSHTarget defines model for SSHTarget.
+type SSHTarget struct {
+	// SetId Address set; empty for the literal address
+	SetId string `json:"set_id"`
 }
 
 // SecretList defines model for SecretList.
@@ -3312,8 +3336,11 @@ type TraefikConnection struct {
 	OwnershipConfirmed bool   `json:"ownership_confirmed"`
 	PackageManager     string `json:"package_manager"`
 	Port               int    `json:"port"`
-	TraefikBinary      string `json:"traefik_binary"`
-	User               string `json:"user"`
+
+	// SshTargetSetId Address set SSH tries before the literal address
+	SshTargetSetId *string `json:"ssh_target_set_id,omitempty"`
+	TraefikBinary  string  `json:"traefik_binary"`
+	User           string  `json:"user"`
 }
 
 // TraefikConnectionAuth defines model for TraefikConnection.Auth.
@@ -3512,6 +3539,9 @@ type UpdateFirewallHostJSONRequestBody = FirewallHostInput
 // PutFirewallHostAccessJSONRequestBody defines body for PutFirewallHostAccess for application/json ContentType.
 type PutFirewallHostAccessJSONRequestBody = IPSetIDs
 
+// PutFirewallHostSSHTargetJSONRequestBody defines body for PutFirewallHostSSHTarget for application/json ContentType.
+type PutFirewallHostSSHTargetJSONRequestBody = SSHTarget
+
 // PutFirewallTakeoverJSONRequestBody defines body for PutFirewallTakeover for application/json ContentType.
 type PutFirewallTakeoverJSONRequestBody = FirewallTakeover
 
@@ -3625,6 +3655,9 @@ type InstallKeySetupEdgeJSONRequestBody = KeyInstallInput
 
 // ScanSetupTraefikHostJSONRequestBody defines body for ScanSetupTraefikHost for application/json ContentType.
 type ScanSetupTraefikHostJSONRequestBody = HostKeyScanInput
+
+// PutTraefikSSHTargetJSONRequestBody defines body for PutTraefikSSHTarget for application/json ContentType.
+type PutTraefikSSHTargetJSONRequestBody = SSHTarget
 
 // AsIPItemIP returns the union data inside the IPItem as a IPItemIP
 func (t IPItem) AsIPItemIP() (IPItemIP, error) {
@@ -4038,6 +4071,9 @@ type ServerInterface interface {
 	// GetFirewallRuleset The host's ruleset read now over SSH (all tables, iptables and ipsets), and the one read at setup
 	// (GET /api/firewall/hosts/{id}/ruleset)
 	GetFirewallRuleset(w http.ResponseWriter, r *http.Request, id string)
+	// PutFirewallHostSSHTarget Reach the host through an address set; empty goes back to its literal address
+	// (PUT /api/firewall/hosts/{id}/ssh-target)
+	PutFirewallHostSSHTarget(w http.ResponseWriter, r *http.Request, id string)
 	// GetFirewallTakeover What Hashi removes of the host's old firewall script
 	// (GET /api/firewall/hosts/{id}/takeover)
 	GetFirewallTakeover(w http.ResponseWriter, r *http.Request, id string)
@@ -4206,6 +4242,12 @@ type ServerInterface interface {
 
 	// (PUT /api/settings/internal-agent-dns)
 	PutAgentDNSSettings(w http.ResponseWriter, r *http.Request)
+	// ApplyAgentDNS Plan every active AdGuard connection now; low-risk plans apply, the rest wait for approval
+	// (POST /api/settings/internal-agent-dns/apply-sync)
+	ApplyAgentDNS(w http.ResponseWriter, r *http.Request)
+	// PreviewAgentDNS The rewrites agent DNS wants right now; changes nothing
+	// (POST /api/settings/internal-agent-dns/preview-sync)
+	PreviewAgentDNS(w http.ResponseWriter, r *http.Request)
 
 	// (GET /api/settings/security)
 	GetSecuritySettings(w http.ResponseWriter, r *http.Request)
@@ -4335,6 +4377,9 @@ type ServerInterface interface {
 	// PlanTraefikConnection Plan the host's install, files and certificates (low-risk plans apply right away)
 	// (POST /api/traefik/connections/{id}/plan)
 	PlanTraefikConnection(w http.ResponseWriter, r *http.Request, id string)
+	// PutTraefikSSHTarget Reach the Traefik host through an address set; empty goes back to its literal address
+	// (PUT /api/traefik/connections/{id}/ssh-target)
+	PutTraefikSSHTarget(w http.ResponseWriter, r *http.Request, id string)
 	// PlanTraefik Plan every Traefik host (low-risk plans apply right away)
 	// (POST /api/traefik/plan)
 	PlanTraefik(w http.ResponseWriter, r *http.Request)
@@ -5509,6 +5554,32 @@ func (siw *ServerInterfaceWrapper) GetFirewallRuleset(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetFirewallRuleset(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutFirewallHostSSHTarget operation middleware
+func (siw *ServerInterfaceWrapper) PutFirewallHostSSHTarget(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutFirewallHostSSHTarget(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6814,6 +6885,34 @@ func (siw *ServerInterfaceWrapper) PutAgentDNSSettings(w http.ResponseWriter, r 
 	handler.ServeHTTP(w, r)
 }
 
+// ApplyAgentDNS operation middleware
+func (siw *ServerInterfaceWrapper) ApplyAgentDNS(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ApplyAgentDNS(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PreviewAgentDNS operation middleware
+func (siw *ServerInterfaceWrapper) PreviewAgentDNS(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PreviewAgentDNS(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetSecuritySettings operation middleware
 func (siw *ServerInterfaceWrapper) GetSecuritySettings(w http.ResponseWriter, r *http.Request) {
 
@@ -7524,6 +7623,32 @@ func (siw *ServerInterfaceWrapper) PlanTraefikConnection(w http.ResponseWriter, 
 	handler.ServeHTTP(w, r)
 }
 
+// PutTraefikSSHTarget operation middleware
+func (siw *ServerInterfaceWrapper) PutTraefikSSHTarget(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutTraefikSSHTarget(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // PlanTraefik operation middleware
 func (siw *ServerInterfaceWrapper) PlanTraefik(w http.ResponseWriter, r *http.Request) {
 
@@ -7841,6 +7966,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/pulse/agents/{id}", wrapper.UpdatePulseAgent)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/pulse/agents/{id}/rotate-token", wrapper.RotatePulseToken)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/pulse/agents/{id}/revoke", wrapper.RevokePulseAgent)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/firewall/hosts/{id}/ssh-target", wrapper.PutFirewallHostSSHTarget)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/traefik/connections/{id}/ssh-target", wrapper.PutTraefikSSHTarget)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/settings/internal-agent-dns/preview-sync", wrapper.PreviewAgentDNS)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/settings/internal-agent-dns/apply-sync", wrapper.ApplyAgentDNS)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings/internal-agent-dns", wrapper.GetAgentDNSSettings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/settings/internal-agent-dns", wrapper.PutAgentDNSSettings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/adguard/connections", wrapper.ListAdGuardConnections)
@@ -10052,6 +10181,40 @@ func (response GetFirewallRulesetdefaultApplicationProblemPlusJSONResponse) Visi
 	return err
 }
 
+type PutFirewallHostSSHTargetRequestObject struct {
+	Id   string `json:"id"`
+	Body *PutFirewallHostSSHTargetJSONRequestBody
+}
+
+type PutFirewallHostSSHTargetResponseObject interface {
+	VisitPutFirewallHostSSHTargetResponse(w http.ResponseWriter) error
+}
+
+type PutFirewallHostSSHTarget204Response struct {
+}
+
+func (response PutFirewallHostSSHTarget204Response) VisitPutFirewallHostSSHTargetResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type PutFirewallHostSSHTargetdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutFirewallHostSSHTargetdefaultApplicationProblemPlusJSONResponse) VisitPutFirewallHostSSHTargetResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetFirewallTakeoverRequestObject struct {
 	Id string `json:"id"`
 }
@@ -12191,6 +12354,76 @@ func (response PutAgentDNSSettingsdefaultApplicationProblemPlusJSONResponse) Vis
 	return err
 }
 
+type ApplyAgentDNSRequestObject struct {
+}
+
+type ApplyAgentDNSResponseObject interface {
+	VisitApplyAgentDNSResponse(w http.ResponseWriter) error
+}
+
+type ApplyAgentDNS204Response struct {
+}
+
+func (response ApplyAgentDNS204Response) VisitApplyAgentDNSResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type ApplyAgentDNSdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ApplyAgentDNSdefaultApplicationProblemPlusJSONResponse) VisitApplyAgentDNSResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PreviewAgentDNSRequestObject struct {
+}
+
+type PreviewAgentDNSResponseObject interface {
+	VisitPreviewAgentDNSResponse(w http.ResponseWriter) error
+}
+
+type PreviewAgentDNS200JSONResponse AgentDNSPreview
+
+func (response PreviewAgentDNS200JSONResponse) VisitPreviewAgentDNSResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PreviewAgentDNSdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PreviewAgentDNSdefaultApplicationProblemPlusJSONResponse) VisitPreviewAgentDNSResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetSecuritySettingsRequestObject struct {
 }
 
@@ -13854,6 +14087,40 @@ func (response PlanTraefikConnectiondefaultApplicationProblemPlusJSONResponse) V
 	return err
 }
 
+type PutTraefikSSHTargetRequestObject struct {
+	Id   string `json:"id"`
+	Body *PutTraefikSSHTargetJSONRequestBody
+}
+
+type PutTraefikSSHTargetResponseObject interface {
+	VisitPutTraefikSSHTargetResponse(w http.ResponseWriter) error
+}
+
+type PutTraefikSSHTarget204Response struct {
+}
+
+func (response PutTraefikSSHTarget204Response) VisitPutTraefikSSHTargetResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type PutTraefikSSHTargetdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutTraefikSSHTargetdefaultApplicationProblemPlusJSONResponse) VisitPutTraefikSSHTargetResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type PlanTraefikRequestObject struct {
 }
 
@@ -14251,6 +14518,9 @@ type StrictServerInterface interface {
 	// GetFirewallRuleset The host's ruleset read now over SSH (all tables, iptables and ipsets), and the one read at setup
 	// (GET /api/firewall/hosts/{id}/ruleset)
 	GetFirewallRuleset(ctx context.Context, request GetFirewallRulesetRequestObject) (GetFirewallRulesetResponseObject, error)
+	// PutFirewallHostSSHTarget Reach the host through an address set; empty goes back to its literal address
+	// (PUT /api/firewall/hosts/{id}/ssh-target)
+	PutFirewallHostSSHTarget(ctx context.Context, request PutFirewallHostSSHTargetRequestObject) (PutFirewallHostSSHTargetResponseObject, error)
 	// GetFirewallTakeover What Hashi removes of the host's old firewall script
 	// (GET /api/firewall/hosts/{id}/takeover)
 	GetFirewallTakeover(ctx context.Context, request GetFirewallTakeoverRequestObject) (GetFirewallTakeoverResponseObject, error)
@@ -14419,6 +14689,12 @@ type StrictServerInterface interface {
 
 	// (PUT /api/settings/internal-agent-dns)
 	PutAgentDNSSettings(ctx context.Context, request PutAgentDNSSettingsRequestObject) (PutAgentDNSSettingsResponseObject, error)
+	// ApplyAgentDNS Plan every active AdGuard connection now; low-risk plans apply, the rest wait for approval
+	// (POST /api/settings/internal-agent-dns/apply-sync)
+	ApplyAgentDNS(ctx context.Context, request ApplyAgentDNSRequestObject) (ApplyAgentDNSResponseObject, error)
+	// PreviewAgentDNS The rewrites agent DNS wants right now; changes nothing
+	// (POST /api/settings/internal-agent-dns/preview-sync)
+	PreviewAgentDNS(ctx context.Context, request PreviewAgentDNSRequestObject) (PreviewAgentDNSResponseObject, error)
 
 	// (GET /api/settings/security)
 	GetSecuritySettings(ctx context.Context, request GetSecuritySettingsRequestObject) (GetSecuritySettingsResponseObject, error)
@@ -14548,6 +14824,9 @@ type StrictServerInterface interface {
 	// PlanTraefikConnection Plan the host's install, files and certificates (low-risk plans apply right away)
 	// (POST /api/traefik/connections/{id}/plan)
 	PlanTraefikConnection(ctx context.Context, request PlanTraefikConnectionRequestObject) (PlanTraefikConnectionResponseObject, error)
+	// PutTraefikSSHTarget Reach the Traefik host through an address set; empty goes back to its literal address
+	// (PUT /api/traefik/connections/{id}/ssh-target)
+	PutTraefikSSHTarget(ctx context.Context, request PutTraefikSSHTargetRequestObject) (PutTraefikSSHTargetResponseObject, error)
 	// PlanTraefik Plan every Traefik host (low-risk plans apply right away)
 	// (POST /api/traefik/plan)
 	PlanTraefik(ctx context.Context, request PlanTraefikRequestObject) (PlanTraefikResponseObject, error)
@@ -16109,6 +16388,39 @@ func (sh *strictHandler) GetFirewallRuleset(w http.ResponseWriter, r *http.Reque
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetFirewallRulesetResponseObject); ok {
 		if err := validResponse.VisitGetFirewallRulesetResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutFirewallHostSSHTarget operation middleware
+func (sh *strictHandler) PutFirewallHostSSHTarget(w http.ResponseWriter, r *http.Request, id string) {
+	var request PutFirewallHostSSHTargetRequestObject
+
+	request.Id = id
+
+	var body PutFirewallHostSSHTargetJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutFirewallHostSSHTarget(ctx, request.(PutFirewallHostSSHTargetRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutFirewallHostSSHTarget")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutFirewallHostSSHTargetResponseObject); ok {
+		if err := validResponse.VisitPutFirewallHostSSHTargetResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -17682,6 +17994,54 @@ func (sh *strictHandler) PutAgentDNSSettings(w http.ResponseWriter, r *http.Requ
 	}
 }
 
+// ApplyAgentDNS operation middleware
+func (sh *strictHandler) ApplyAgentDNS(w http.ResponseWriter, r *http.Request) {
+	var request ApplyAgentDNSRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ApplyAgentDNS(ctx, request.(ApplyAgentDNSRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ApplyAgentDNS")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ApplyAgentDNSResponseObject); ok {
+		if err := validResponse.VisitApplyAgentDNSResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PreviewAgentDNS operation middleware
+func (sh *strictHandler) PreviewAgentDNS(w http.ResponseWriter, r *http.Request) {
+	var request PreviewAgentDNSRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PreviewAgentDNS(ctx, request.(PreviewAgentDNSRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PreviewAgentDNS")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PreviewAgentDNSResponseObject); ok {
+		if err := validResponse.VisitPreviewAgentDNSResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetSecuritySettings operation middleware
 func (sh *strictHandler) GetSecuritySettings(w http.ResponseWriter, r *http.Request) {
 	var request GetSecuritySettingsRequestObject
@@ -18837,6 +19197,39 @@ func (sh *strictHandler) PlanTraefikConnection(w http.ResponseWriter, r *http.Re
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(PlanTraefikConnectionResponseObject); ok {
 		if err := validResponse.VisitPlanTraefikConnectionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutTraefikSSHTarget operation middleware
+func (sh *strictHandler) PutTraefikSSHTarget(w http.ResponseWriter, r *http.Request, id string) {
+	var request PutTraefikSSHTargetRequestObject
+
+	request.Id = id
+
+	var body PutTraefikSSHTargetJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutTraefikSSHTarget(ctx, request.(PutTraefikSSHTargetRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutTraefikSSHTarget")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutTraefikSSHTargetResponseObject); ok {
+		if err := validResponse.VisitPutTraefikSSHTargetResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

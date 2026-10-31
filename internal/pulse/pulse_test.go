@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"log/slog"
+	"net"
 	"net/netip"
 	"strings"
 	"testing"
@@ -274,7 +275,7 @@ func TestPublicAddressSources(t *testing.T) {
 	if beat("10.0.0.1", "203.0.113.5") || public() != "/" {
 		t.Fatalf("untrusted report used: %s", public())
 	}
-	if _, err := s.SetDNS(ctx, a.ID, "home", true, "", true); err != nil {
+	if _, err := s.SetDNS(ctx, a.ID, "home", true, "", true, 0); err != nil {
 		t.Fatal(err)
 	}
 	if !beat("10.0.0.1", "") {
@@ -292,5 +293,44 @@ func TestPublicAddressSources(t *testing.T) {
 	}
 	if beat("198.51.100.8", "203.0.113.5") || public() != "198.51.100.8/connection" {
 		t.Fatalf("the connection must win and needs no check: %s", public())
+	}
+}
+
+func TestCheckReach(t *testing.T) {
+	s, now := fixture(t)
+	ctx := t.Context()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = ln.Close() }()
+	port := ln.Addr().(*net.TCPAddr).Port
+	a, _, err := s.Create(ctx, "box", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.st.Q.SetPulseHeartbeat(ctx, db.SetPulseHeartbeatParams{CandidatesJson: "[]", SelectedIp: "127.0.0.1", UpdatedAt: now.UnixMilli(), ID: a.ID}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.SetDNS(ctx, a.ID, "box", true, "", false, port); err != nil {
+		t.Fatal(err)
+	}
+	reach := func() sql.NullInt64 {
+		t.Helper()
+		if _, err := s.CheckReach(ctx); err != nil {
+			t.Fatal(err)
+		}
+		r, err := s.st.R.GetPulseAgent(ctx, a.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r.ReachOk
+	}
+	if r := reach(); !r.Valid || r.Int64 != 1 {
+		t.Fatalf("open port: %+v", r)
+	}
+	_ = ln.Close()
+	if r := reach(); !r.Valid || r.Int64 != 0 {
+		t.Fatalf("closed port: %+v", r)
 	}
 }

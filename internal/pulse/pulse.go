@@ -13,9 +13,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/netip"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -216,7 +218,10 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 }
 
 // SetDNS changes an agent's name and its internal DNS entry.
-func (s *Service) SetDNS(ctx context.Context, id, name string, enabled bool, dnsName string, trustReported bool) (db.PulseAgent, error) {
+func (s *Service) SetDNS(ctx context.Context, id, name string, enabled bool, dnsName string, trustReported bool, reachPort int) (db.PulseAgent, error) {
+	if reachPort < 0 || reachPort > 65535 {
+		return db.PulseAgent{}, fmt.Errorf("%w: port must be between 0 and 65535", ErrInvalid)
+	}
 	if _, err := s.get(ctx, id); err != nil {
 		return db.PulseAgent{}, err
 	}
@@ -232,7 +237,7 @@ func (s *Service) SetDNS(ctx context.Context, id, name string, enabled bool, dns
 	if trustReported {
 		trust = 1
 	}
-	if err := s.st.Q.SetPulseDNS(ctx, db.SetPulseDNSParams{Name: name, DnsEnabled: on, DnsName: dnsName, TrustReportedIp: trust, UpdatedAt: s.now().UnixMilli(), ID: id}); err != nil {
+	if err := s.st.Q.SetPulseDNS(ctx, db.SetPulseDNSParams{Name: name, DnsEnabled: on, DnsName: dnsName, TrustReportedIp: trust, ReachPort: int64(reachPort), UpdatedAt: s.now().UnixMilli(), ID: id}); err != nil {
 		return db.PulseAgent{}, err
 	}
 	return s.get(ctx, id)
@@ -448,6 +453,40 @@ func addrsOf(r db.PulseAgent, scope, selector string) []netip.Addr {
 		out = append(out, rest...)
 	}
 	return out
+}
+
+// Reachability job (08 §2).
+const (
+	ReachJobKind  = "pulse.reachability"
+	ReachInterval = time.Minute
+)
+
+// CheckReach tries each agent's selected address on its configured port, so the page can tell "Hashi can reach this"
+// from "the agent only reports it". Agents without a port are left alone.
+func (s *Service) CheckReach(ctx context.Context) (string, error) {
+	rows, err := s.st.R.ListPulseAgents(ctx)
+	if err != nil {
+		return "", err
+	}
+	checked := 0
+	for _, r := range rows {
+		if r.ReachPort == 0 || r.SelectedIp == "" || r.RevokedAt.Valid {
+			continue
+		}
+		dctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+		conn, err := (&net.Dialer{}).DialContext(dctx, "tcp", net.JoinHostPort(r.SelectedIp, strconv.FormatInt(r.ReachPort, 10)))
+		cancel()
+		ok := int64(0)
+		if err == nil {
+			_ = conn.Close()
+			ok = 1
+		}
+		if err := s.st.Q.SetPulseReach(ctx, db.SetPulseReachParams{ReachOk: sql.NullInt64{Int64: ok, Valid: true}, ID: r.ID}); err != nil {
+			return "", err
+		}
+		checked++
+	}
+	return strconv.Itoa(checked) + " agents checked", nil
 }
 
 var slugBad = regexp.MustCompile(`[^a-z0-9-]+`)

@@ -172,7 +172,7 @@ func (s *Server) RenewCertificate(ctx context.Context, req gen.RenewCertificateR
 // ---- traefik ----
 
 func (s *Server) connectionBody(ctx context.Context, r db.TraefikConnection) (gen.TraefikConnection, error) {
-	out := gen.TraefikConnection{Id: r.ID, Name: r.Name, Host: r.SshHost, Port: int(r.SshPort), User: r.SshUser,
+	out := gen.TraefikConnection{SshTargetSetId: emptyNil(r.SshTargetSetID.String), Id: r.ID, Name: r.Name, Host: r.SshHost, Port: int(r.SshPort), User: r.SshUser,
 		Auth: gen.TraefikConnectionAuth(r.Auth), HostKeyType: r.HostKeyType, HostKeyFingerprint: r.HostKeyFingerprint,
 		InternalIp: r.InternalIp, OsFamily: r.OsFamily, PackageManager: r.PackageManager, InitSystem: r.InitSystem,
 		ExistingConfigs: []string{}, TraefikBinary: r.TraefikBinary, ConfigDir: r.ConfigDir, ApiPort: int(r.ApiPort),

@@ -13,6 +13,8 @@ import (
 
 	"github.com/oklog/ulid/v2"
 
+	"git.juzo.io/juzo/hashi/internal/adguard"
+	"git.juzo.io/juzo/hashi/internal/pulse"
 	"git.juzo.io/juzo/hashi/internal/services"
 	"git.juzo.io/juzo/hashi/internal/store"
 	"git.juzo.io/juzo/hashi/internal/store/db"
@@ -37,6 +39,8 @@ const (
 	SourceTraefik  = "traefik"
 	SourceHashi    = "hashi"
 	SourceUser     = "user"
+	SourceAdGuard  = "adguard"
+	SourcePulse    = "pulse"
 )
 
 // Errors the API maps.
@@ -65,7 +69,19 @@ type Service struct {
 
 // New returns the service. self answers Hashi's own endpoint.
 func New(st *store.Store, self func(context.Context) error, resolve services.TargetResolver, n Notifier) *Service {
-	return &Service{st: st, exec: Executor{Self: self}, resolve: resolve, notifier: n, now: time.Now}
+	return &Service{st: st, exec: Executor{Self: self, Agent: func(ctx context.Context, id string) error { return agentFresh(ctx, st, time.Now(), id) }}, resolve: resolve, notifier: n, now: time.Now}
+}
+
+// agentFresh fails when an agent stopped sending heartbeats (08 §2).
+func agentFresh(ctx context.Context, st *store.Store, now time.Time, id string) error {
+	r, err := st.R.GetPulseAgent(ctx, id)
+	if err != nil {
+		return fmt.Errorf("Pulse agent: %w", err) //nolint:staticcheck // a name
+	}
+	if pulse.Status(r, now) != "fresh" {
+		return errors.New("no recent heartbeat")
+	}
+	return nil
 }
 
 // CheckSpec is what a source wants checked.
@@ -85,7 +101,7 @@ type Desired struct {
 	Keep bool
 }
 
-// Sources derives the endpoints from what Hashi manages (07 §1). AdGuard and Pulse sources arrive with S8.
+// Sources derives the endpoints from what Hashi manages (07 §1).
 func (s *Service) Sources(ctx context.Context) ([]Desired, error) {
 	out := []Desired{{SourceType: SourceHashi, Name: "Hashi", Group: "Hashi", Checks: []CheckSpec{{Type: TypeSelf, Target: "self", Required: true}}}}
 	svcs, err := services.List(ctx, s.st.R)
@@ -134,6 +150,35 @@ func (s *Service) Sources(ctx context.Context) ([]Desired, error) {
 	for _, h := range hosts {
 		out = append(out, Desired{SourceType: SourceFirewall, SourceID: h.ID, Name: h.Name, Group: "Firewall hosts", Checks: []CheckSpec{
 			{Type: TypeTCP, Target: net.JoinHostPort(h.SshHost, strconv.FormatInt(h.SshPort, 10)), Required: true},
+		}})
+	}
+	guards, err := s.st.R.ListAdGuardConnections(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, g := range guards {
+		if g.Mode == adguard.ModeDisabled || s.resolve == nil {
+			continue
+		}
+		t, err := s.resolve(ctx, "adguard:"+g.ID, g.TargetSetID)
+		if err != nil || len(t.Addresses) == 0 {
+			out = append(out, Desired{SourceType: SourceAdGuard, SourceID: g.ID, Name: g.Name, Keep: true})
+			continue
+		}
+		out = append(out, Desired{SourceType: SourceAdGuard, SourceID: g.ID, Name: g.Name, Group: "AdGuard", Checks: []CheckSpec{
+			{Type: TypeTCP, Target: net.JoinHostPort(t.Addresses[0].String(), strconv.FormatInt(g.Port, 10)), Required: true},
+		}})
+	}
+	agents, err := s.st.R.ListPulseAgents(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, a := range agents {
+		if a.RevokedAt.Valid || !a.LastSeenAt.Valid {
+			continue // revoked on purpose, or not installed yet: neither is an outage
+		}
+		out = append(out, Desired{SourceType: SourcePulse, SourceID: a.ID, Name: a.Name, Group: "Pulse agents", Checks: []CheckSpec{
+			{Type: TypeSelf, Target: PulseTargetPrefix + a.ID, Required: true},
 		}})
 	}
 	conns, err := s.st.R.ListTraefikConnections(ctx)

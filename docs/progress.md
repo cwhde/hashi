@@ -11,7 +11,7 @@ Contracts: AdGuard's rewrite API captured from throwaway containers of both runn
 
 Plan, two PRs:
 
-Next, by the user's decision, before S8 closes: the reachability check, preview/apply for agent DNS, AdGuard and Pulse monitoring sources, SSH connection targets as address sets. An agent behind a private path can now report its public address when the admin trusts it (08 §4), so the hand-entered home address can go after the gate, with the user's OK.
+An agent behind a private path can now report its public address when the admin trusts it (08 §4), so the hand-entered home address can go after the gate, with the user's OK.
 
 PR A, AdGuard (#44):
 - [x] Client from the fixtures with integration tests against a real container
@@ -25,7 +25,7 @@ PR B, Pulse:
 - [x] `pulse` items resolve; a heartbeat change reaches firewall, DNS, Traefik and connection consumers
 - [x] Agent DNS under the internal domain, DNS only
 - [x] Public address self-report, off by default; Gitea release job prepared (runs on the first tag)
-- [ ] Reachability check; AdGuard and Pulse monitoring sources; agent DNS preview/apply; SSH connection targets as address sets
+- [x] Reachability check; AdGuard and Pulse monitoring sources; agent DNS preview/apply; SSH connection targets as address sets (literal address stays as fallback)
 - [ ] Gate on a real host: an address change propagates with no manual step; idle memory measured; hand-entered home address replaced after the user's OK
 
 **S7 — Monitoring + public pages** · status: **done** 2026-10-31, deployed `71e79b9`, PR #42. Next: S8 (the V1 cutover now follows S9, see Log). Gate: all migrated services monitored; public status + dashboard served on their ports; a real outage produces a notification and recovery.
@@ -727,6 +727,10 @@ Decisions made in S0:
   only short-SHA deploys exist so far.
 
 ## Log
+
+- 2026-10-31 — Installer's Hashi path proven against a running server by a test, and the binaries confirmed in the built image stage. Version scheme set (11-delivery §6). Rest of S8 built locally: reachability, AdGuard and Pulse monitoring, agent DNS preview, SSH through address sets.
+
+- 2026-10-31 — CI runner action caches trimmed with the user's OK: entries older than 3 days removed, cloned actions and the cache database kept.
 
 - 2026-10-31 — CI on `main` after #44 and #45 failed on a timeout fetching actions from GitHub, not on code; both had passed on their PRs. #46's first run hit a race in `TestRealSSHD`: the old sshd answered the banner, then went away. The test now proves the restart with a full login.
 

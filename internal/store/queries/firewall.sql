@@ -65,3 +65,9 @@ SELECT COUNT(*) FROM ip_set_elements WHERE host_id = ?;
 
 -- name: SetFirewallHostTakeover :exec
 UPDATE firewall_hosts SET takeover_json = ?, updated_at = ? WHERE id = ?;
+
+-- name: SetFirewallHostSSHTarget :exec
+UPDATE firewall_hosts SET ssh_target_set_id = ? WHERE id = ?;
+
+-- name: ListFirewallHostsBySSHTarget :many
+SELECT id, name FROM firewall_hosts WHERE ssh_target_set_id = ? ORDER BY name;

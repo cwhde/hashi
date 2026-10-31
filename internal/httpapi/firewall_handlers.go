@@ -73,7 +73,7 @@ func firewallBody(row db.FirewallHost) gen.FirewallHost {
 	for _, p := range e.Subnets {
 		subnets = append(subnets, p.String())
 	}
-	out := gen.FirewallHost{Id: row.ID, Name: row.Name, EdgeMode: gen.FirewallHostEdgeMode(row.EdgeMode), Host: row.SshHost,
+	out := gen.FirewallHost{SshTargetSetId: emptyNil(row.SshTargetSetID.String), Id: row.ID, Name: row.Name, EdgeMode: gen.FirewallHostEdgeMode(row.EdgeMode), Host: row.SshHost,
 		Port: int(row.SshPort), User: row.SshUser, Auth: gen.FirewallHostAuth(row.Auth), HostKeyFingerprint: row.HostKeyFingerprint,
 		TraefikConnectionId: row.TraefikConnectionID.String, InternalTraefikIp: row.InternalTraefikIp,
 		RouteViaHostId: row.RouteViaHostID.String, PublicIp: addr(e.PublicIP), PublicIp6: addr(e.PublicIP6),
