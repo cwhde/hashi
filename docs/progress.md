@@ -696,6 +696,10 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-10-31 — S6 gate: NetBird restart repeated with the user's OK, **passed**: reconnected within 10 s, its rules and sets identical before and
+  after (39 lines), Hashi's table unchanged, home route both ways, LXC internet and public HTTPS fine. Still open: outsider check, public 222 (no
+  TCP route in the running Traefik), DNS set value, setup completion and passkey sign-in, migrated CNAME.
+
 - 2026-10-31 — Deployed `8be6473`; `nat_out` applied on the first real host (user pre-approved), confirmed, 2 items; hosts pin removed
   with the user's OK. NetBird restart still to be repeated. Open question for the user: NetBird's management path depends on a Traefik.
 
