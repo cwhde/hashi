@@ -120,6 +120,13 @@ executed under the rescue timer): its iptables chains (e.g. `CUSTOM_DNAT`, `CUST
 rules, its ipsets and its cron/systemd entries. Rules and sets owned by NetBird, Docker or Proxmox are never part of
 this cleanup, in any backend.
 
+What belongs to the script is an explicit list per host (`PUT /api/firewall/hosts/{id}/takeover`: chains, rules in built-in
+chains, ipsets, cron match strings, cron files), never a guess; names of NetBird, Docker or Proxmox objects are refused.
+Every copy of a listed rule goes, plus rules that jump to a listed chain or match a listed ipset. Cron lines go first, so
+the script cannot run again mid-apply; its other objects go after Hashi's table is loaded. Rollback restores them with
+`iptables-legacy-restore --noflush`, which appends: restored rules may sit after rules added since, until the script's own
+next run. Only iptables-legacy scripts are supported (the captured backend).
+
 ## 4. Folding: global allow and block
 
 ### 4.1 Inputs
