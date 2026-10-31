@@ -8,6 +8,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/pulse"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"git.juzo.io/juzo/hashi/internal/audit"
@@ -68,7 +69,19 @@ func (s *Server) Handler(mux *http.ServeMux) http.Handler {
 		ResponseErrorHandlerFunc: s.writeError,
 	})
 	gen.HandlerFromMux(strict, mux)
-	return s.withRequest(mux)
+	return s.withRequest(limitHeartbeat(mux))
+}
+
+// maxHeartbeat bounds what an unauthenticated caller can make Hashi read: the token is checked after decoding (08 §3).
+const maxHeartbeat = 64 << 10
+
+func limitHeartbeat(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/api/pulse/") && strings.HasSuffix(r.URL.Path, "/heartbeat") {
+			r.Body = http.MaxBytesReader(w, r.Body, maxHeartbeat)
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // writeError renders handler errors: *Problem as-is, anything else as an opaque 500 (details only in the log).

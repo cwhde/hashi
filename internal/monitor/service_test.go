@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"net/netip"
 	"testing"
@@ -177,5 +178,46 @@ func TestRetentionBatches(t *testing.T) {
 	}
 	if n, err := s.retain(ctx); err != nil || n != 12000 {
 		t.Fatalf("removed %d %v", n, err)
+	}
+}
+
+// AdGuard and Pulse are watched too (07 §1): a revoked or never-seen agent is no outage, a silent one is.
+func TestAdGuardAndPulseSources(t *testing.T) {
+	s, st, _, _ := fixture(t)
+	ctx := t.Context()
+	now := time.Now().UnixMilli()
+	if err := st.Q.InsertPulseAgent(ctx, db.InsertPulseAgentParams{ID: "new", Name: "new", TokenHash: []byte("x"), InstallType: "linux", CreatedAt: now, UpdatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Q.InsertPulseAgent(ctx, db.InsertPulseAgentParams{ID: "seen", Name: "seen", TokenHash: []byte("y"), InstallType: "linux", CreatedAt: now, UpdatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	beat := func(at time.Time) {
+		t.Helper()
+		if err := st.Q.SetPulseHeartbeat(ctx, db.SetPulseHeartbeatParams{LastSeenAt: sql.NullInt64{Int64: at.UnixMilli(), Valid: true}, CandidatesJson: "[]", IntervalSeconds: 60, UpdatedAt: now, ID: "seen"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	beat(time.Now())
+	got, err := s.Sources(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var agents []string
+	for _, d := range got {
+		if d.SourceType == SourcePulse {
+			agents = append(agents, d.SourceID)
+		}
+	}
+	if len(agents) != 1 || agents[0] != "seen" {
+		t.Fatalf("%v", agents)
+	}
+	check := Check{Type: TypeSelf, Target: PulseTargetPrefix + "seen"}
+	if r := s.exec.Run(ctx, check, time.Second); !r.OK {
+		t.Fatalf("fresh agent: %+v", r)
+	}
+	beat(time.Now().Add(-time.Hour))
+	if r := s.exec.Run(ctx, check, time.Second); r.OK {
+		t.Fatal("a silent agent must fail its check")
 	}
 }

@@ -1134,6 +1134,56 @@ paths:
           description: Revoked
           content: { application/json: { schema: { $ref: "#/components/schemas/PulseAgent" } } }
         default: { $ref: "#/components/responses/Problem" }
+  /api/firewall/hosts/{id}/ssh-target:
+    put:
+      operationId: putFirewallHostSSHTarget
+      summary: Reach the host through an address set; empty goes back to its literal address
+      tags: [firewall]
+      x-hashi-scopes: [admin.write]
+      x-hashi-reauth: true
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/SSHTarget" } } }
+      responses:
+        "204": { description: Saved }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/traefik/connections/{id}/ssh-target:
+    put:
+      operationId: putTraefikSSHTarget
+      summary: Reach the Traefik host through an address set; empty goes back to its literal address
+      tags: [traefik]
+      x-hashi-scopes: [admin.write]
+      x-hashi-reauth: true
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/SSHTarget" } } }
+      responses:
+        "204": { description: Saved }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/settings/internal-agent-dns/preview-sync:
+    post:
+      operationId: previewAgentDNS
+      summary: The rewrites agent DNS wants right now; changes nothing
+      tags: [settings]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Wanted rewrites
+          content: { application/json: { schema: { $ref: "#/components/schemas/AgentDNSPreview" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/settings/internal-agent-dns/apply-sync:
+    post:
+      operationId: applyAgentDNS
+      summary: Plan every active AdGuard connection now; low-risk plans apply, the rest wait for approval
+      tags: [settings]
+      x-hashi-scopes: [admin.write]
+      responses:
+        "204": { description: Planned }
+        default: { $ref: "#/components/responses/Problem" }
   /api/settings/internal-agent-dns:
     get:
       operationId: getAgentDNSSettings
@@ -2345,6 +2395,7 @@ components:
         version: { type: string }
         hostname: { type: string }
         selected_interface: { type: string }
+        interval_seconds: { type: integer }
         reported_public_ip: { type: string, description: "Sent only after Hashi asked; used only for an agent the admin trusts for it" }
         candidates:
           type: array
@@ -2361,7 +2412,7 @@ components:
         check_public_ip: { type: boolean }
     PulseAgent:
       type: object
-      required: [id, name, status, install_type, public_ip, selected_ip, candidates, hostname, version, interval_seconds, dns_enabled, dns_name, trust_reported_ip, public_ip_source]
+      required: [id, name, status, install_type, public_ip, selected_ip, candidates, hostname, version, interval_seconds, dns_enabled, dns_name, trust_reported_ip, public_ip_source, reach_port]
       properties:
         id: { type: string }
         name: { type: string }
@@ -2374,6 +2425,8 @@ components:
         version: { type: string }
         interval_seconds: { type: integer }
         last_seen_at: { type: string, format: date-time }
+        reach_port: { type: integer }
+        reachable: { type: boolean, description: "Left out until a port is set and checked" }
         dns_enabled: { type: boolean }
         dns_name: { type: string }
         trust_reported_ip: { type: boolean }
@@ -2398,12 +2451,30 @@ components:
         dns_enabled: { type: boolean }
         dns_name: { type: string }
         trust_reported_ip: { type: boolean }
+        reach_port: { type: integer, description: "Port Hashi tries on the selected address; 0 turns the check off" }
     PulseAgentToken:
       type: object
       required: [agent, token]
       properties:
         agent: { $ref: "#/components/schemas/PulseAgent" }
         token: { type: string, format: password }
+    SSHTarget:
+      type: object
+      required: [set_id]
+      properties:
+        set_id: { type: string, description: "Address set; empty for the literal address" }
+    AgentDNSPreview:
+      type: object
+      required: [rewrites]
+      properties:
+        rewrites:
+          type: array
+          items:
+            type: object
+            required: [domain, answer]
+            properties:
+              domain: { type: string }
+              answer: { type: string }
     AgentDNSSettings:
       type: object
       required: [enabled, domain, ip_mode]
@@ -2699,6 +2770,7 @@ components:
         init_system, os_name, arch, existing_binary, existing_configs, traefik_binary, config_dir, api_port, installed_version,
         ownership_confirmed, health, last_error, files]
       properties:
+        ssh_target_set_id: { type: string, description: "Address set SSH tries before the literal address" }
         id: { type: string }
         name: { type: string }
         host: { type: string }
@@ -3480,6 +3552,7 @@ components:
         wan_iface_override, subnets, netbird_mode, netbird_iface, netbird_port, drop_other_inbound, ownership_confirmed,
         health, last_error, last_validated_at, last_applied_at, facts]
       properties:
+        ssh_target_set_id: { type: string, description: "Address set SSH tries before the literal address" }
         id: { type: string }
         name: { type: string }
         edge_mode: { type: string, enum: [managed, external_nat] }

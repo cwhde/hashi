@@ -1,6 +1,7 @@
 package firewall
 
 import (
+	"context"
 	"database/sql"
 	"net/netip"
 	"slices"
@@ -8,6 +9,7 @@ import (
 	"testing"
 
 	"git.juzo.io/juzo/hashi/internal/dns"
+	"git.juzo.io/juzo/hashi/internal/ipsets"
 	"git.juzo.io/juzo/hashi/internal/services"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 )
@@ -178,5 +180,20 @@ func TestDesiredRewrites(t *testing.T) {
 	got := DesiredRewrites("example.com", hosts, []services.Service{svc("in", "10.20.0.9", true), svc("off", "10.20.0.9", false), svc("out", "192.0.2.1", true)})
 	if len(got) != 1 || got[0].Domain != "in.example.com" || got[0].Answer != "10.20.0.5" {
 		t.Fatalf("%+v", got)
+	}
+}
+
+// SSH tries the address set in order, then the literal address, without repeating it (08 §5).
+func TestSSHAddrs(t *testing.T) {
+	row := db.FirewallHost{ID: "h", SshHost: "10.0.0.1", SshPort: 22, SshTargetSetID: sql.NullString{String: "s", Valid: true}}
+	m := &Manager{}
+	if got := m.sshAddrs(t.Context(), row); len(got) != 1 || got[0] != "10.0.0.1:22" {
+		t.Fatalf("no resolver: %v", got)
+	}
+	m.UseSSHTargets(func(context.Context, string, string) (ipsets.Target, error) {
+		return ipsets.Target{Addresses: []netip.Addr{netip.MustParseAddr("10.0.0.9"), netip.MustParseAddr("10.0.0.1")}}, nil
+	})
+	if got := strings.Join(m.sshAddrs(t.Context(), row), ","); got != "10.0.0.9:22,10.0.0.1:22" {
+		t.Fatal(got)
 	}
 }

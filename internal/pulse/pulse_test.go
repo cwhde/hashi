@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"log/slog"
+	"net"
 	"net/netip"
 	"strings"
 	"testing"
@@ -274,7 +275,7 @@ func TestPublicAddressSources(t *testing.T) {
 	if beat("10.0.0.1", "203.0.113.5") || public() != "/" {
 		t.Fatalf("untrusted report used: %s", public())
 	}
-	if _, err := s.SetDNS(ctx, a.ID, "home", true, "", true); err != nil {
+	if _, err := s.SetDNS(ctx, a.ID, "home", true, "", true, 0); err != nil {
 		t.Fatal(err)
 	}
 	if !beat("10.0.0.1", "") {
@@ -292,5 +293,111 @@ func TestPublicAddressSources(t *testing.T) {
 	}
 	if beat("198.51.100.8", "203.0.113.5") || public() != "198.51.100.8/connection" {
 		t.Fatalf("the connection must win and needs no check: %s", public())
+	}
+}
+
+func TestCheckReach(t *testing.T) {
+	s, now := fixture(t)
+	ctx := t.Context()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = ln.Close() }()
+	port := ln.Addr().(*net.TCPAddr).Port
+	a, _, err := s.Create(ctx, "box", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.st.Q.SetPulseHeartbeat(ctx, db.SetPulseHeartbeatParams{CandidatesJson: "[]", SelectedIp: "127.0.0.1", IntervalSeconds: 60, UpdatedAt: now.UnixMilli(), ID: a.ID}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.SetDNS(ctx, a.ID, "box", true, "", false, port); err != nil {
+		t.Fatal(err)
+	}
+	reach := func() sql.NullInt64 {
+		t.Helper()
+		if _, err := s.CheckReach(ctx); err != nil {
+			t.Fatal(err)
+		}
+		r, err := s.st.R.GetPulseAgent(ctx, a.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r.ReachOk
+	}
+	if r := reach(); !r.Valid || r.Int64 != 1 {
+		t.Fatalf("open port: %+v", r)
+	}
+	_ = ln.Close()
+	if r := reach(); !r.Valid || r.Int64 != 0 {
+		t.Fatalf("closed port: %+v", r)
+	}
+}
+
+// Review of S8.
+func TestTrustFollowsTheCurrentConnection(t *testing.T) {
+	s, now := fixture(t)
+	ctx := t.Context()
+	a, tok, err := s.Create(ctx, "home", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.SetDNS(ctx, a.ID, "home", true, "", true, 0); err != nil {
+		t.Fatal(err)
+	}
+	beat := func(source, reported string) bool {
+		t.Helper()
+		*now = now.Add(time.Minute)
+		check, err := s.Heartbeat(ctx, a.ID, tok.Reveal(), Beat{ReportedPublic: reported}, netip.MustParseAddr(source))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return check
+	}
+	// Moving from a public path to a private one must start the checks, or the old address stays frozen.
+	if beat("198.51.100.7", "") {
+		t.Fatal("a public connection needs no check")
+	}
+	if !beat("10.0.0.1", "") {
+		t.Fatal("after moving to a private path the agent must be asked")
+	}
+	beat("10.0.0.1", "203.0.113.66")
+	// Distrusting the agent removes what it said, and the sets follow.
+	changes := make(chan struct{}, 1)
+	s.OnChange(func(context.Context) { changes <- struct{}{} })
+	if _, err := s.SetDNS(ctx, a.ID, "home", true, "", false, 0); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := s.Addrs(ctx, s.st.R, a.ID, ipsets.ScopePublic, ""); err != nil || len(got) != 0 {
+		t.Fatalf("distrusted address still resolves: %v %v", got, err)
+	}
+	select {
+	case <-changes:
+	case <-time.After(time.Second):
+		t.Fatal("the sets must recompile")
+	}
+}
+
+// An agent on a longer interval is not stale between its heartbeats.
+func TestStaleFollowsTheAgentsInterval(t *testing.T) {
+	s, now := fixture(t)
+	ctx := t.Context()
+	a, tok, err := s.Create(ctx, "slow", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Heartbeat(ctx, a.ID, tok.Reveal(), Beat{IntervalSeconds: 300}, netip.Addr{}); err != nil {
+		t.Fatal(err)
+	}
+	r, err := s.st.R.GetPulseAgent(ctx, a.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := Status(r, now.Add(200*time.Second)); got != "fresh" {
+		t.Fatal(got)
+	}
+	if got := Status(r, now.Add(901*time.Second)); got != "stale" {
+		t.Fatal(got)
 	}
 }

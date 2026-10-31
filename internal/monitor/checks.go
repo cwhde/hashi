@@ -25,6 +25,9 @@ const (
 	TypeDNS   = "dns"
 	TypeTLS   = "tls"
 	TypeSelf  = "self"
+
+	// PulseTargetPrefix marks a self check that asks about a Pulse agent: Hashi knows the answer without touching the network.
+	PulseTargetPrefix = "pulse:"
 )
 
 // Certificate thresholds (07 §2).
@@ -57,7 +60,9 @@ type Result struct {
 // Executor runs checks. Self answers TypeSelf.
 type Executor struct {
 	Self func(context.Context) error
-	now  func() time.Time
+	// Agent answers a Pulse agent's freshness; a self check with a target "pulse:<id>" asks it.
+	Agent func(ctx context.Context, id string) error
+	now   func() time.Time
 }
 
 // Run executes c within timeout. It never panics on bad targets: they are failed results.
@@ -88,6 +93,15 @@ func (e Executor) run(ctx context.Context, c Check) Result {
 	case TypeTLS:
 		return e.runTLS(ctx, c)
 	case TypeSelf:
+		if id, ok := strings.CutPrefix(c.Target, PulseTargetPrefix); ok {
+			if e.Agent == nil {
+				return Result{Detail: "no Pulse check configured"}
+			}
+			if err := e.Agent(ctx, id); err != nil {
+				return failed(err)
+			}
+			return Result{OK: true}
+		}
 		if e.Self == nil {
 			return Result{Detail: "no readiness check configured"}
 		}

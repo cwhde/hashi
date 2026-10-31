@@ -1,4 +1,5 @@
 <script lang="ts">
+	import SshTarget from '$lib/components/hashi/SshTarget.svelte';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
@@ -189,6 +190,7 @@
 							<Button size="sm" variant="outline" onclick={() => plan(c)} disabled={!!busy}
 								><RefreshCw />{busy === 'plan:' + c.id ? 'Checking…' : 'Check and sync'}</Button
 							>
+							<SshTarget kind="traefik" id={c.id} value={c.ssh_target_set_id} />
 						</div>
 						<div class="min-w-0">
 							<div class="mb-1.5 text-[12px] font-medium text-muted-foreground">

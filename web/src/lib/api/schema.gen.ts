@@ -1276,6 +1276,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/firewall/hosts/{id}/ssh-target": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Reach the host through an address set; empty goes back to its literal address */
+        put: operations["putFirewallHostSSHTarget"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/traefik/connections/{id}/ssh-target": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Reach the Traefik host through an address set; empty goes back to its literal address */
+        put: operations["putTraefikSSHTarget"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/internal-agent-dns/preview-sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The rewrites agent DNS wants right now; changes nothing */
+        post: operations["previewAgentDNS"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/internal-agent-dns/apply-sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Plan every active AdGuard connection now; low-risk plans apply, the rest wait for approval */
+        post: operations["applyAgentDNS"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/settings/internal-agent-dns": {
         parameters: {
             query?: never;
@@ -2460,6 +2528,7 @@ export interface components {
             version: string;
             hostname: string;
             selected_interface?: string;
+            interval_seconds?: number;
             /** @description Sent only after Hashi asked; used only for an agent the admin trusts for it */
             reported_public_ip?: string;
             candidates: {
@@ -2484,6 +2553,9 @@ export interface components {
             interval_seconds: number;
             /** Format: date-time */
             last_seen_at?: string;
+            reach_port: number;
+            /** @description Left out until a port is set and checked */
+            reachable?: boolean;
             dns_enabled: boolean;
             dns_name: string;
             trust_reported_ip: boolean;
@@ -2505,11 +2577,23 @@ export interface components {
             dns_enabled: boolean;
             dns_name?: string;
             trust_reported_ip: boolean;
+            /** @description Port Hashi tries on the selected address; 0 turns the check off */
+            reach_port?: number;
         };
         PulseAgentToken: {
             agent: components["schemas"]["PulseAgent"];
             /** Format: password */
             token: string;
+        };
+        SSHTarget: {
+            /** @description Address set; empty for the literal address */
+            set_id: string;
+        };
+        AgentDNSPreview: {
+            rewrites: {
+                domain: string;
+                answer: string;
+            }[];
         };
         AgentDNSSettings: {
             enabled: boolean;
@@ -2785,6 +2869,8 @@ export interface components {
             applied_at: string;
         };
         TraefikConnection: {
+            /** @description Address set SSH tries before the literal address */
+            ssh_target_set_id?: string;
             id: string;
             name: string;
             host: string;
@@ -3575,6 +3661,8 @@ export interface components {
             warnings: string[];
         };
         FirewallHost: {
+            /** @description Address set SSH tries before the literal address */
+            ssh_target_set_id?: string;
             id: string;
             name: string;
             /** @enum {string} */
@@ -5660,6 +5748,96 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PulseAgent"];
                 };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putFirewallHostSSHTarget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SSHTarget"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putTraefikSSHTarget: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SSHTarget"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    previewAgentDNS: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Wanted rewrites */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentDNSPreview"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    applyAgentDNS: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Planned */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             default: components["responses"]["Problem"];
         };

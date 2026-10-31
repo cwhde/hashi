@@ -67,6 +67,40 @@ type Manager struct {
 	connect Connector
 	scan    func(ctx context.Context, addr string, timeout time.Duration) (sshx.HostKey, error)
 	now     func() time.Time
+	// sshTargets resolves a host's SSH address set (08 §5); nil uses the literal address.
+	sshTargets services.TargetResolver
+}
+
+// UseSSHTargets wires SSH address sets.
+func (m *Manager) UseSSHTargets(r services.TargetResolver) { m.sshTargets = r }
+
+// SetSSHTarget makes the host reachable through an address set, or back through its literal address with "".
+func (m *Manager) SetSSHTarget(ctx context.Context, id, setID string) error {
+	if setID != "" {
+		if err := ipsets.CheckTarget(ctx, m.st.R, setID); err != nil {
+			return err
+		}
+	}
+	if _, err := m.st.R.GetFirewallHost(ctx, id); err != nil {
+		return ErrNotFound
+	}
+	return m.st.Q.SetFirewallHostSSHTarget(ctx, db.SetFirewallHostSSHTargetParams{SshTargetSetID: sql.NullString{String: setID, Valid: setID != ""}, ID: id})
+}
+
+// sshAddrs lists where to reach a host, in order: its address set, then its literal address. The pinned host key is checked on each.
+func (m *Manager) sshAddrs(ctx context.Context, row db.FirewallHost) []string {
+	var out []string
+	if row.SshTargetSetID.Valid && m.sshTargets != nil {
+		if t, err := m.sshTargets(ctx, "firewall_ssh:"+row.ID, row.SshTargetSetID.String); err == nil {
+			for _, a := range t.Addresses {
+				out = append(out, sshx.Addr(a.String(), int(row.SshPort)))
+			}
+		}
+	}
+	if lit := sshx.Addr(row.SshHost, int(row.SshPort)); !slices.Contains(out, lit) {
+		out = append(out, lit)
+	}
+	return out
 }
 
 // NewManager returns the manager and wires host items of IP sets to it (05a §2 `host`).
@@ -77,6 +111,7 @@ func NewManager(st *store.Store, v *vault.Vault, a *audit.Log, sets *ipsets.Serv
 		return h.Name, err
 	})
 	sets.AddConsumers(m.consumers)
+	sets.AddConsumers(sshConsumers)
 	return m
 }
 
@@ -927,12 +962,15 @@ func (m *Manager) dial(ctx context.Context, row db.FirewallHost) (Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	addr := sshx.Addr(row.SshHost, int(row.SshPort))
-	c, err := m.connect(ctx, sshx.Config{Addr: addr, Auth: a, Pinned: hk, Timeout: 15 * time.Second})
-	if err != nil {
-		return nil, fmt.Errorf("connect to %s (%s): %w", row.Name, addr, err)
+	var last error
+	for _, addr := range m.sshAddrs(ctx, row) {
+		c, err := m.connect(ctx, sshx.Config{Addr: addr, Auth: a, Pinned: hk, Timeout: 15 * time.Second})
+		if err == nil {
+			return c, nil
+		}
+		last = fmt.Errorf("connect to %s (%s): %w", row.Name, addr, err)
 	}
-	return c, nil
+	return nil, last
 }
 
 // ---- plan / apply ----
@@ -1198,4 +1236,17 @@ func (m *Manager) Ruleset(ctx context.Context, id string) (now, atSetup string, 
 		return "", row.SetupRuleset, err
 	}
 	return string(r.Stdout), row.SetupRuleset, nil
+}
+
+// sshConsumers lists the hosts reached through set id.
+func sshConsumers(ctx context.Context, q *db.Queries, id string) ([]ipsets.Consumer, error) {
+	rows, err := q.ListFirewallHostsBySSHTarget(ctx, sql.NullString{String: id, Valid: true})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]ipsets.Consumer, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, ipsets.Consumer{Type: "firewall_ssh", ID: r.ID, Name: "SSH to " + r.Name, Position: ipsets.PositionTarget})
+	}
+	return out, nil
 }

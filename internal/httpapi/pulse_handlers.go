@@ -30,13 +30,21 @@ func pulseError(err error) error {
 	return err
 }
 
+func reachable(r db.PulseAgent) *bool {
+	if r.ReachPort == 0 || !r.ReachOk.Valid {
+		return nil
+	}
+	v := r.ReachOk.Int64 == 1
+	return &v
+}
+
 func pulseBody(r db.PulseAgent) gen.PulseAgent {
 	cands := []string{}
 	for _, c := range pulse.Candidates(r) {
 		cands = append(cands, c.Address)
 	}
 	return gen.PulseAgent{Id: r.ID, Name: r.Name, Status: gen.PulseAgentStatus(pulse.Status(r, time.Now())), InstallType: r.InstallType, PublicIp: r.PublicIp, SelectedIp: r.SelectedIp,
-		Candidates: cands, Hostname: r.Hostname, Version: r.Version, IntervalSeconds: int(r.IntervalSeconds), LastSeenAt: millis(r.LastSeenAt), DnsEnabled: r.DnsEnabled == 1, DnsName: r.DnsName, TrustReportedIp: r.TrustReportedIp == 1, PublicIpSource: gen.PulseAgentPublicIpSource(r.PublicIpSource)}
+		Candidates: cands, Hostname: r.Hostname, Version: r.Version, IntervalSeconds: int(r.IntervalSeconds), LastSeenAt: millis(r.LastSeenAt), DnsEnabled: r.DnsEnabled == 1, DnsName: r.DnsName, TrustReportedIp: r.TrustReportedIp == 1, PublicIpSource: gen.PulseAgentPublicIpSource(r.PublicIpSource), ReachPort: int(r.ReachPort), Reachable: reachable(r)}
 }
 
 // PulseHeartbeat takes an agent's report. It needs the agent's token and nothing else (08 §3).
@@ -51,6 +59,9 @@ func (s *Server) PulseHeartbeat(ctx context.Context, req gen.PulseHeartbeatReque
 	}
 	for _, c := range req.Body.Candidates {
 		b.Candidates = append(b.Candidates, pulse.Candidate{Interface: c.Interface, Address: c.Address})
+	}
+	if req.Body.IntervalSeconds != nil {
+		b.IntervalSeconds = *req.Body.IntervalSeconds
 	}
 	if req.Body.ReportedPublicIp != nil {
 		b.ReportedPublic = *req.Body.ReportedPublicIp
@@ -103,9 +114,18 @@ func (s *Server) UpdatePulseAgent(ctx context.Context, req gen.UpdatePulseAgentR
 	if req.Body.DnsName != nil {
 		name = *req.Body.DnsName
 	}
-	row, err := s.Pulse.SetDNS(ctx, req.Id, req.Body.Name, req.Body.DnsEnabled, name, req.Body.TrustReportedIp)
+	port := 0
+	if req.Body.ReachPort != nil {
+		port = *req.Body.ReachPort
+	}
+	row, err := s.Pulse.SetDNS(ctx, req.Id, req.Body.Name, req.Body.DnsEnabled, name, req.Body.TrustReportedIp, port)
 	if err != nil {
 		return nil, pulseError(err)
+	}
+	ri := info(ctx)
+	if err := s.Audit.Record(ctx, s.Store.Q, audit.Event{Actor: s.actor(ri), Action: "pulse.agent.updated", Target: row.ID, IP: ri.ipString(),
+		Detail: map[string]any{"trust_reported_ip": req.Body.TrustReportedIp, "dns_enabled": req.Body.DnsEnabled}}); err != nil {
+		return nil, err
 	}
 	return gen.UpdatePulseAgent200JSONResponse(pulseBody(row)), nil
 }
@@ -159,4 +179,52 @@ func (s *Server) PutAgentDNSSettings(ctx context.Context, req gen.PutAgentDNSSet
 		return nil, err
 	}
 	return gen.PutAgentDNSSettings200JSONResponse{Enabled: v.Enabled, Domain: v.Domain, IpMode: gen.AgentDNSSettingsIpMode(v.IPMode)}, nil
+}
+
+func (s *Server) PreviewAgentDNS(ctx context.Context, _ gen.PreviewAgentDNSRequestObject) (gen.PreviewAgentDNSResponseObject, error) {
+	want, err := s.Pulse.Rewrites(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := gen.PreviewAgentDNS200JSONResponse{}
+	out.Rewrites = make([]struct {
+		Answer string `json:"answer"`
+		Domain string `json:"domain"`
+	}, 0, len(want))
+	for _, d := range want {
+		out.Rewrites = append(out.Rewrites, struct {
+			Answer string `json:"answer"`
+			Domain string `json:"domain"`
+		}{d.Answer, d.Domain})
+	}
+	return out, nil
+}
+
+func (s *Server) ApplyAgentDNS(ctx context.Context, _ gen.ApplyAgentDNSRequestObject) (gen.ApplyAgentDNSResponseObject, error) {
+	if _, err := s.AdGuard.Reconcile(s.Sync)(ctx); err != nil {
+		return nil, invalid(err.Error())
+	}
+	return gen.ApplyAgentDNS204Response{}, nil
+}
+
+func (s *Server) PutFirewallHostSSHTarget(ctx context.Context, req gen.PutFirewallHostSSHTargetRequestObject) (gen.PutFirewallHostSSHTargetResponseObject, error) {
+	ri := info(ctx)
+	if err := s.Firewall.SetSSHTarget(ctx, req.Id, req.Body.SetId); err != nil {
+		return nil, invalid(err.Error())
+	}
+	if err := s.Audit.Record(ctx, s.Store.Q, audit.Event{Actor: s.actor(ri), Action: "firewall.host.ssh_target", Target: req.Id, IP: ri.ipString(), Detail: map[string]any{"set": req.Body.SetId}}); err != nil {
+		return nil, err
+	}
+	return gen.PutFirewallHostSSHTarget204Response{}, nil
+}
+
+func (s *Server) PutTraefikSSHTarget(ctx context.Context, req gen.PutTraefikSSHTargetRequestObject) (gen.PutTraefikSSHTargetResponseObject, error) {
+	ri := info(ctx)
+	if err := s.Traefik.SetSSHTarget(ctx, req.Id, req.Body.SetId); err != nil {
+		return nil, invalid(err.Error())
+	}
+	if err := s.Audit.Record(ctx, s.Store.Q, audit.Event{Actor: s.actor(ri), Action: "traefik.connection.ssh_target", Target: req.Id, IP: ri.ipString(), Detail: map[string]any{"set": req.Body.SetId}}); err != nil {
+		return nil, err
+	}
+	return gen.PutTraefikSSHTarget204Response{}, nil
 }

@@ -8,6 +8,8 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags 
 
 FROM scratch
 COPY --from=go /out/hashi-pulse /hashi-pulse
+# scratch has no CA bundle, and the agent talks TLS to Hashi and to its public address check.
+COPY --from=go /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 ENTRYPOINT ["/hashi-pulse"]
 LABEL org.opencontainers.image.source=https://git.juzo.io/juzo/hashi \
       org.opencontainers.image.licenses=MIT

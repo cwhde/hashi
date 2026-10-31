@@ -112,6 +112,10 @@ Tokens, IDs that embed account data, IPs and domains are replaced deterministica
 - `release.yml` — on main and `v*` tags: multi-arch images `git.juzo.io/juzo/hashi` and `git.juzo.io/juzo/hashi-pulse` (linux/amd64 + linux/arm64), tags `latest` (main), short SHA, semver; Pulse binaries + SHA-256 checksums attached to tag releases.
 - `v1-docker-build.yml` — legacy V1 image (paths `legacy/v1/**`), kept multi-arch until cutover, then removed with `legacy/`.
 
+Versions: `v0.<step>.<patch>` until `v1.0.0` (S12). The middle number is the slice that passed its gate (`v0.8.0` when S8
+passes), the last counts fixes after it. While a slice's gate is open, `v0.8.0-beta.1`, `-beta.2`, … are pre-releases. The
+V1 cutover is released on the slice it follows. Every other image stays tagged by its short commit.
+
 ### 6.2 Build performance (from V2 addendum, still required)
 
 - Dockerfiles use BuildKit syntax with cache mounts; build stages pinned to `$BUILDPLATFORM`; Go cross-compiles with

@@ -39,15 +39,17 @@ func TestDiff(t *testing.T) {
 		remote  []Rewrite
 		expect  []string
 	}{
-		"new":                {want, nil, nil, []string{"create a.example.com"}},
-		"in place":           {want, []db.AdguardRewritesOwned{own("a.example.com", "192.0.2.1")}, []Rewrite{{Domain: "a.example.com", Answer: "192.0.2.1"}}, []string{}},
-		"removed by hand":    {want, []db.AdguardRewritesOwned{own("a.example.com", "192.0.2.1")}, nil, []string{"create a.example.com"}},
-		"owned duplicate":    {want, []db.AdguardRewritesOwned{own("a.example.com", "192.0.2.1")}, []Rewrite{{Domain: "a.example.com", Answer: "192.0.2.1"}, {Domain: "a.example.com", Answer: "192.0.2.1"}}, []string{"delete a.example.com"}},
-		"address changed":    {want, []db.AdguardRewritesOwned{own("a.example.com", "192.0.2.9")}, []Rewrite{{Domain: "a.example.com", Answer: "192.0.2.9"}}, []string{"update a.example.com"}},
-		"no longer wanted":   {nil, []db.AdguardRewritesOwned{own("a.example.com", "192.0.2.1")}, []Rewrite{{Domain: "a.example.com", Answer: "192.0.2.1"}}, []string{"delete a.example.com"}},
-		"manual same value":  {want, nil, []Rewrite{{Domain: "a.example.com", Answer: "192.0.2.1"}}, []string{"conflict a.example.com"}},
-		"manual other value": {want, nil, []Rewrite{{Domain: "a.example.com", Answer: "192.0.2.7"}}, []string{"conflict a.example.com"}},
-		"unrelated manual":   {nil, nil, []Rewrite{{Domain: "m.example.com", Answer: "192.0.2.7"}}, []string{}},
+		"new":                 {want, nil, nil, []string{"create a.example.com"}},
+		"in place":            {want, []db.AdguardRewritesOwned{own("a.example.com", "192.0.2.1")}, []Rewrite{{Domain: "a.example.com", Answer: "192.0.2.1"}}, []string{}},
+		"removed by hand":     {want, []db.AdguardRewritesOwned{own("a.example.com", "192.0.2.1")}, nil, []string{"create a.example.com"}},
+		"owned duplicate":     {want, []db.AdguardRewritesOwned{own("a.example.com", "192.0.2.1")}, []Rewrite{{Domain: "a.example.com", Answer: "192.0.2.1"}, {Domain: "a.example.com", Answer: "192.0.2.1"}}, []string{"delete a.example.com"}},
+		"address changed":     {want, []db.AdguardRewritesOwned{own("a.example.com", "192.0.2.9")}, []Rewrite{{Domain: "a.example.com", Answer: "192.0.2.9"}}, []string{"update a.example.com"}},
+		"no longer wanted":    {nil, []db.AdguardRewritesOwned{own("a.example.com", "192.0.2.1")}, []Rewrite{{Domain: "a.example.com", Answer: "192.0.2.1"}}, []string{"delete a.example.com"}},
+		"retired with a copy": {nil, []db.AdguardRewritesOwned{own("a.example.com", "192.0.2.1")}, []Rewrite{{Domain: "a.example.com", Answer: "192.0.2.1"}, {Domain: "a.example.com", Answer: "192.0.2.1"}}, []string{"delete a.example.com", "delete a.example.com"}},
+		"changed with a copy": {want, []db.AdguardRewritesOwned{own("a.example.com", "192.0.2.9")}, []Rewrite{{Domain: "a.example.com", Answer: "192.0.2.9"}, {Domain: "a.example.com", Answer: "192.0.2.9"}}, []string{"update a.example.com", "delete a.example.com"}},
+		"manual same value":   {want, nil, []Rewrite{{Domain: "a.example.com", Answer: "192.0.2.1"}}, []string{"conflict a.example.com"}},
+		"manual other value":  {want, nil, []Rewrite{{Domain: "a.example.com", Answer: "192.0.2.7"}}, []string{"conflict a.example.com"}},
+		"unrelated manual":    {nil, nil, []Rewrite{{Domain: "m.example.com", Answer: "192.0.2.7"}}, []string{}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			if got := actions(Diff(c.desired, c.owned, c.remote)); !same(got, c.expect) {

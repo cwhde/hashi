@@ -174,7 +174,9 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	// Address sets in target positions (05a §5.2): upstreams, DNS values; generated host and service records (03 §5).
 	ipSets.AddConsumers(services.Consumers)
 	ipSets.AddConsumers(dns.Consumers)
+	ipSets.AddConsumers(traefik.SSHConsumers)
 	traefikMgr.UseTargets(ipSets.ResolveTarget)
+	fwMgr.UseSSHTargets(ipSets.ResolveTarget)
 	dnsSvc.UseTargets(ipSets.ResolveTarget)
 	dnsSvc.UseGenerator(fwMgr.Records(ipSets.ResolveTarget))
 	if err := devFirewall(cfg, fwMgr); err != nil {
@@ -214,6 +216,9 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 		return err
 	}
 
+	if err := runner.Register(ctx, jobs.Job{Kind: pulse.ReachJobKind, Interval: pulse.ReachInterval, Run: pulseSvc.CheckReach}); err != nil {
+		return err
+	}
 	if err := runner.Register(ctx, jobs.Job{Kind: adguard.JobKind, Interval: adguard.JobInterval, Run: adguardSvc.Reconcile(syncEngine)}); err != nil {
 		return err
 	}

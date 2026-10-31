@@ -98,6 +98,7 @@
 		dns_enabled: boolean;
 		dns_name: string;
 		trust_reported_ip: boolean;
+		reach_port: number;
 	} | null>(null);
 	let editError = $state('');
 	async function saveEdit() {
@@ -154,6 +155,7 @@
 				<Table.Head>Selected IP</Table.Head>
 				<Table.Head class="hidden md:table-cell">Public IP</Table.Head>
 				<Table.Head class="hidden lg:table-cell">Other candidates</Table.Head>
+				<Table.Head class="hidden sm:table-cell">Reachable from Hashi</Table.Head>
 				<Table.Head>Last seen</Table.Head>
 				<Table.Head><span class="sr-only">Actions</span></Table.Head>
 			</Table.Row>
@@ -178,6 +180,11 @@
 						><Mono>{a.candidates.filter((c) => c !== a.selected_ip).join(', ') || '—'}</Mono
 						></Table.Cell
 					>
+					<Table.Cell class="hidden sm:table-cell">
+						{#if a.reachable === true}<Tag tone="ok">yes</Tag>
+						{:else if a.reachable === false}<Tag tone="warn">no</Tag>
+						{:else}<span class="text-muted-foreground">—</span>{/if}
+					</Table.Cell>
 					<Table.Cell>
 						{#if a.status === 'revoked'}<Tag tone="bad">revoked</Tag>
 						{:else if a.status === 'waiting'}<Tag>waiting</Tag>
@@ -198,7 +205,8 @@
 									name: a.name,
 									dns_enabled: a.dns_enabled,
 									dns_name: a.dns_name,
-									trust_reported_ip: a.trust_reported_ip
+									trust_reported_ip: a.trust_reported_ip,
+									reach_port: a.reach_port
 								};
 							}}
 							disabled={busy}><Pencil /></Button
@@ -228,7 +236,7 @@
 				</Table.Row>
 			{:else}
 				<Table.Row>
-					<Table.Cell colspan={6} class="px-4 py-4 text-[13px] text-muted-foreground"
+					<Table.Cell colspan={7} class="px-4 py-4 text-[13px] text-muted-foreground"
 						>No agents yet. Add one to a machine whose address can change.</Table.Cell
 					>
 				</Table.Row>
@@ -322,6 +330,18 @@
 						placeholder="Uses the agent's name"
 					/>
 					<p class="text-[12px] text-muted-foreground">Needed only if two agents would clash.</p>
+				</div>
+				<div class="space-y-1.5">
+					<Label for="edit-reach">Port to test from Hashi (optional)</Label><Input
+						id="edit-reach"
+						type="number"
+						min="0"
+						max="65535"
+						bind:value={editing.reach_port}
+					/>
+					<p class="text-[12px] text-muted-foreground">
+						Hashi tries this port on the selected address every minute. 0 turns it off.
+					</p>
 				</div>
 				<label class="flex items-center justify-between gap-3">
 					<span>Trust its own report of its public address</span><Switch

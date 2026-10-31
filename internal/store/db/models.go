@@ -248,6 +248,7 @@ type FirewallHost struct {
 	CreatedAt             int64
 	UpdatedAt             int64
 	TakeoverJson          string
+	SshTargetSetID        sql.NullString
 }
 
 type FirewallHostAccess struct {
@@ -457,6 +458,8 @@ type PulseAgent struct {
 	UpdatedAt       int64
 	TrustReportedIp int64
 	PublicIpSource  string
+	ReachPort       int64
+	ReachOk         sql.NullInt64
 }
 
 type PulseConfig struct {
@@ -617,6 +620,7 @@ type TraefikConnection struct {
 	LastValidationError  string
 	CreatedAt            int64
 	UpdatedAt            int64
+	SshTargetSetID       sql.NullString
 }
 
 type TraefikFile struct {

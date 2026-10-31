@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"git.juzo.io/juzo/hashi/internal/audit"
+	"git.juzo.io/juzo/hashi/internal/ipsets"
 	"git.juzo.io/juzo/hashi/internal/secrets"
 	"git.juzo.io/juzo/hashi/internal/services"
 	"git.juzo.io/juzo/hashi/internal/settings"
@@ -92,6 +93,48 @@ type Manager struct {
 
 // UseTargets wires address-set upstreams to the IP set compiler (app wiring).
 func (m *Manager) UseTargets(r services.TargetResolver) { m.targets = r }
+
+// SetSSHTarget makes the connection reachable through an address set, or back through its literal address with "".
+func (m *Manager) SetSSHTarget(ctx context.Context, id, setID string) error {
+	if setID != "" {
+		if err := ipsets.CheckTarget(ctx, m.st.R, setID); err != nil {
+			return err
+		}
+	}
+	if _, err := m.st.R.GetTraefikConnection(ctx, id); err != nil {
+		return fmt.Errorf("%w: no such connection", ErrInvalid)
+	}
+	return m.st.Q.SetTraefikConnectionSSHTarget(ctx, db.SetTraefikConnectionSSHTargetParams{SshTargetSetID: sql.NullString{String: setID, Valid: setID != ""}, ID: id})
+}
+
+// sshAddrs lists where to reach a connection (08 §5), in order: its address set, then its literal address. The pinned host key is checked on each.
+func (m *Manager) sshAddrs(ctx context.Context, row db.TraefikConnection) []string {
+	var out []string
+	if row.SshTargetSetID.Valid && m.targets != nil {
+		if t, err := m.targets(ctx, "traefik_ssh:"+row.ID, row.SshTargetSetID.String); err == nil {
+			for _, a := range t.Addresses {
+				out = append(out, sshx.Addr(a.String(), int(row.SshPort)))
+			}
+		}
+	}
+	if lit := sshx.Addr(row.SshHost, int(row.SshPort)); !slices.Contains(out, lit) {
+		out = append(out, lit)
+	}
+	return out
+}
+
+// SSHConsumers lists the connections reached through set id.
+func SSHConsumers(ctx context.Context, q *db.Queries, id string) ([]ipsets.Consumer, error) {
+	rows, err := q.ListTraefikConnectionsBySSHTarget(ctx, sql.NullString{String: id, Valid: true})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]ipsets.Consumer, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, ipsets.Consumer{Type: "traefik_ssh", ID: r.ID, Name: "SSH to " + r.Name, Position: ipsets.PositionTarget})
+	}
+	return out, nil
+}
 
 // UseFakes replaces SSH, the release download, host-key scanning and the TLS check (the dev build's in-memory edge;
 // never in production builds).
@@ -409,12 +452,15 @@ func (m *Manager) dial(ctx context.Context, row db.TraefikConnection) (Conn, err
 	if err != nil {
 		return nil, err
 	}
-	addr := sshx.Addr(row.SshHost, int(row.SshPort))
-	c, err := m.connect(ctx, sshx.Config{Addr: addr, Auth: auth, Pinned: hk, Timeout: 15 * time.Second})
-	if err != nil {
-		return nil, fmt.Errorf("connect to %s (%s): %w", row.Name, addr, err)
+	var last error
+	for _, addr := range m.sshAddrs(ctx, row) {
+		c, err := m.connect(ctx, sshx.Config{Addr: addr, Auth: auth, Pinned: hk, Timeout: 15 * time.Second})
+		if err == nil {
+			return c, nil
+		}
+		last = fmt.Errorf("connect to %s (%s): %w", row.Name, addr, err)
 	}
-	return c, nil
+	return nil, last
 }
 
 // Distribute plans every installed connection whose certificates lag behind: an issued certificate without a verified

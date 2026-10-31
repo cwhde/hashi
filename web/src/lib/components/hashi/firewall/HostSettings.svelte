@@ -6,6 +6,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import Mono from '$lib/components/hashi/Mono.svelte';
+	import SshTarget from '$lib/components/hashi/SshTarget.svelte';
 	import { Check, CircleAlert, TriangleAlert } from '@lucide/svelte';
 	import { firewallInput, lines, type FirewallHost, type FirewallInput } from '$lib/firewall';
 
@@ -99,3 +100,7 @@
 	</label>
 	<Button type="submit" variant="outline" disabled={busy}>Save settings</Button>
 </form>
+
+<div class="mt-4">
+	<SshTarget kind="firewall" id={host.id} value={host.ssh_target_set_id} />
+</div>

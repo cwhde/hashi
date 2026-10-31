@@ -63,7 +63,7 @@ func Diff(desired []Desired, owned []db.AdguardRewritesOwned, remote []Rewrite) 
 	}
 	duplicates := func(o db.AdguardRewritesOwned) []hsync.Item {
 		var items []hsync.Item
-		for range count[key{o.Domain, o.Answer}] - 1 {
+		for range max(count[key{o.Domain, o.Answer}]-1, 0) {
 			items = append(items, hsync.Item{Action: hsync.ActionDelete, Object: o.Domain, Risk: hsync.High, Note: "duplicate of a rewrite Hashi owns",
 				Before: value(itemValue{Domain: o.Domain, Answer: o.Answer, Duplicate: true})})
 		}
@@ -101,6 +101,7 @@ func Diff(desired []Desired, owned []db.AdguardRewritesOwned, remote []Rewrite) 
 			replaced[key{stale.Domain, stale.Answer}] = true
 			items = append(items, hsync.Item{Action: hsync.ActionUpdate, Object: d.Domain, Risk: hsync.Low,
 				Before: value(itemValue{Domain: stale.Domain, Answer: stale.Answer}), After: after})
+			items = append(items, duplicates(*stale)...)
 		default:
 			items = append(items, hsync.Item{Action: hsync.ActionCreate, Object: d.Domain, After: after, Risk: hsync.Low})
 		}
@@ -114,6 +115,7 @@ func Diff(desired []Desired, owned []db.AdguardRewritesOwned, remote []Rewrite) 
 		if count[k] == 0 {
 			it.Risk, it.Note = hsync.Low, "already gone from AdGuard"
 		}
+		items = append(items, duplicates(o)...) // a delete removes one copy: the extras go first, then ownership
 		items = append(items, it)
 	}
 	slices.SortStableFunc(items, func(a, b hsync.Item) int { return cmp.Compare(a.Object, b.Object) })
