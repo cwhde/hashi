@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ServiceExtras from '$lib/components/hashi/services/ServiceExtras.svelte';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
@@ -19,6 +20,7 @@
 	import { pendingPlans } from '$lib/sync-pending.svelte';
 	import {
 		domainMode,
+		isStream,
 		kinds,
 		kindText,
 		rootDomain,
@@ -92,6 +94,10 @@
 		full: '',
 		custom: false,
 		address: '',
+		setId: '',
+		publicPort: '',
+		proxy: false,
+		entryHost: '',
 		port: '',
 		dashboard: true,
 		monitoring: true,
@@ -112,6 +118,10 @@
 			full: '',
 			custom: false,
 			address: '',
+			setId: '',
+			publicPort: '',
+			proxy: false,
+			entryHost: '',
 			port: '',
 			dashboard: true,
 			monitoring: true,
@@ -132,7 +142,12 @@
 					kind: form.kind,
 					domain_mode: domainMode(host, root),
 					host_name: host,
-					target: { address: form.address.trim(), port: Number(form.port) },
+					target: form.setId
+						? { address: '', set_id: form.setId, port: Number(form.port) }
+						: { address: form.address.trim(), port: Number(form.port) },
+					public_port: isStream(form.kind) ? Number(form.publicPort) : undefined,
+					proxy_protocol: form.kind === 'tcp' ? form.proxy : undefined,
+					entry_host_id: form.entryHost || undefined,
 					dashboard_visible: form.dashboard,
 					monitoring_visible: form.monitoring,
 					adguard_rewrite: form.adguard
@@ -343,7 +358,13 @@
 							{#each kinds as k (k)}<Select.Item value={k}>{kindText[k]}</Select.Item>{/each}
 						</Select.Content>
 					</Select.Root>
-					<Input bind:value={form.address} aria-label="Address" placeholder="192.0.2.20" required />
+					<Input
+						bind:value={form.address}
+						aria-label="Address"
+						placeholder="192.0.2.20"
+						required={!form.setId}
+						disabled={!!form.setId}
+					/>
 					<Input
 						bind:value={form.port}
 						aria-label="Port"
@@ -353,10 +374,16 @@
 					/>
 				</div>
 				<p class="text-[12.5px] text-muted-foreground">
-					An IP address or host name the Traefik hosts can reach. Following a machine through IP
-					sets comes later.
+					An IP address or host name the Traefik hosts can reach.
 				</p>
 			</fieldset>
+			<ServiceExtras
+				kind={form.kind}
+				bind:setId={form.setId}
+				bind:publicPort={form.publicPort}
+				bind:proxy={form.proxy}
+				bind:entryHost={form.entryHost}
+			/>
 			<div class="space-y-3 rounded-xl border p-3">
 				<div class="flex items-center justify-between gap-3">
 					<Label for="f1">Show on the app dashboard</Label><Switch

@@ -24,6 +24,7 @@
 	const admin = $derived(setup.base_settings?.admin_domain ?? '');
 	let certPlan = $state<Plan | null>(null);
 	let plan = $state<Plan | null>(null);
+	let fwPlan = $state<Plan | null>(null);
 	let busy = $state('');
 	let error = $state(untrack(() => (step?.status === 'failed' ? (step.last_error ?? '') : '')));
 
@@ -45,6 +46,7 @@
 			if (res.error || !res.data) throw res.error;
 			certPlan = res.data.certificate_plan ?? null;
 			plan = res.data.traefik_plan ?? null;
+			fwPlan = res.data.firewall_plan ?? null;
 			onupdate(res.data.state);
 			if (certPlan?.status === 'failed') error = outcomeText(certPlan);
 		});
@@ -56,9 +58,23 @@
 			});
 			if (res.error || !res.data) throw res.error;
 			plan = res.data.traefik_plan ?? null;
+			fwPlan = res.data.firewall_plan ?? null;
 			onupdate(res.data.state);
 			const st = res.data.state.steps.find((s) => s.n === 7);
 			if (st?.status === 'failed' && st.last_error) error = st.last_error;
+		});
+
+	// Opening the ports is high risk and guarded by the rescue timer; afterwards the step checks everything again.
+	const runFirewall = (id: string) =>
+		act('firewall', async () => {
+			const res = await api.POST('/api/setup/firewall/plan/{id}/run', { params: { path: { id } } });
+			if (res.error || !res.data) throw res.error;
+			fwPlan = res.data;
+			if (res.data.status !== 'applied') return;
+			const again = await api.POST('/api/setup/system-service');
+			if (again.error || !again.data) throw again.error;
+			fwPlan = again.data.firewall_plan ?? null;
+			onupdate(again.data.state);
 		});
 </script>
 
@@ -90,7 +106,7 @@
 			</li>
 		{/if}
 	</ul>
-	{#if !plan && step?.status !== 'done'}
+	{#if !plan && !fwPlan && step?.status !== 'done'}
 		<p class="mt-4 max-w-[62ch] text-[12.5px] text-muted-foreground">
 			A name a level deeper than the root (like <Mono>dev.hashi.example.com</Mono>) needs a new
 			wildcard certificate first; that takes about a minute.
@@ -137,6 +153,33 @@
 					{#if plan.status === 'failed'}<Button size="sm" variant="outline" onclick={publish}
 							>Plan again</Button
 						>{/if}
+				{/if}
+			{/snippet}
+		</PlanReview>
+	</section>
+{/if}
+
+{#if fwPlan}
+	<section class="mt-6">
+		<PlanReview
+			title={fwPlan.title}
+			trigger={triggerText(fwPlan)}
+			risk={fwPlan.risk}
+			items={reviewItems(fwPlan)}
+		>
+			{#snippet footer()}
+				{#if fwPlan?.status === 'pending' || fwPlan?.status === 'approved'}
+					<p class="mr-auto text-[12.5px] text-muted-foreground">
+						Opens the public ports. If Hashi cannot log in again within 3 minutes, the host goes
+						back to how it was.
+					</p>
+					<Button size="sm" disabled={!!busy} onclick={() => fwPlan && runFirewall(fwPlan.id)}
+						>{busy === 'firewall' ? 'Applying…' : 'Approve and run'}</Button
+					>
+				{:else if fwPlan}
+					<p class="mr-auto text-[12.5px] text-muted-foreground">{outcomeText(fwPlan)}</p>
+					<Button size="sm" variant="outline" onclick={publish} disabled={!!busy}>Plan again</Button
+					>
 				{/if}
 			{/snippet}
 		</PlanReview>

@@ -209,14 +209,21 @@ func (m *Manager) Save(ctx context.Context, actor, ip, id string, in HostInput) 
 		if !slices.ContainsFunc(subnets, func(p netip.Prefix) bool { return p.Contains(netip.MustParseAddr(traefikIP)) }) {
 			return db.FirewallHost{}, fmt.Errorf("%w: the internal Traefik address %s is in none of the managed subnets", ErrInvalid, traefikIP)
 		}
-		if hk, err = sshx.ParseHostKey(in.HostKey); err != nil {
-			return db.FirewallHost{}, fmt.Errorf("%w: scan and confirm the host key first: %w", ErrInvalid, err)
-		}
 	}
 	var cur db.FirewallHost
 	if id != "" {
 		if cur, err = m.st.R.GetFirewallHost(ctx, id); err != nil {
 			return cur, ErrNotFound
+		}
+	}
+	if in.EdgeMode == ModeManaged {
+		// Editing a host keeps its pinned key; only a new one needs the key the admin confirmed.
+		key := in.HostKey
+		if len(key) == 0 && id != "" {
+			key = cur.HostKey
+		}
+		if hk, err = sshx.ParseHostKey(key); err != nil {
+			return db.FirewallHost{}, fmt.Errorf("%w: scan and confirm the host key first: %w", ErrInvalid, err)
 		}
 	}
 	if in.RouteViaHostID != "" {
@@ -268,7 +275,9 @@ func (m *Manager) Save(ctx context.Context, actor, ip, id string, in HostInput) 
 			dropAt = cur.DropInboundAcceptedAt
 		}
 	}
-	moved := !isNew && (cur.SshHost != in.Host || cur.SshPort != int64(in.Port) || string(cur.HostKey) != string(hk.Key))
+	// The login is part of a host's identity here: the update has no columns for it, and saving must not pretend.
+	moved := !isNew && (cur.SshHost != in.Host || cur.SshPort != int64(in.Port) || string(cur.HostKey) != string(hk.Key) ||
+		cur.SshUser != in.User || cur.Auth != in.Auth || !in.Credential.IsZero() || !in.Passphrase.IsZero())
 	err = m.st.Tx(ctx, func(q *db.Queries) error {
 		for _, r := range recs {
 			if err := q.InsertSecret(ctx, r); err != nil {
@@ -298,7 +307,7 @@ func (m *Manager) Save(ctx context.Context, actor, ip, id string, in HostInput) 
 				return err
 			}
 			if moved {
-				return fmt.Errorf("%w: the SSH address or host key changed: delete the host and add it again", ErrInvalid)
+				return fmt.Errorf("%w: the SSH address, login or host key changed: delete the host and add it again", ErrInvalid)
 			}
 		}
 		action := "firewall.host.updated"

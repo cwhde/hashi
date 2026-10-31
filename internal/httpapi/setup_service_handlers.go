@@ -8,6 +8,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/auth"
 	"git.juzo.io/juzo/hashi/internal/certs"
 	"git.juzo.io/juzo/hashi/internal/clientip"
+	"git.juzo.io/juzo/hashi/internal/firewall"
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
 	"git.juzo.io/juzo/hashi/internal/services"
 	"git.juzo.io/juzo/hashi/internal/settings"
@@ -20,13 +21,16 @@ import (
 // ---- step 7: Hashi system service ----
 
 // systemServiceBody is the step 7 response: the service, the plans shown, and the state after any step change.
-func (s *Server) systemServiceBody(ctx context.Context, sv services.Service, certPlan, traefikPlan *hsync.Plan) (gen.SetupSystemService, error) {
+func (s *Server) systemServiceBody(ctx context.Context, sv services.Service, certPlan, traefikPlan, firewallPlan *hsync.Plan) (gen.SetupSystemService, error) {
 	out := gen.SetupSystemService{Service: serviceBody(sv)}
 	if certPlan != nil {
 		out.CertificatePlan = ptr(s.planBody(ctx, certPlan))
 	}
 	if traefikPlan != nil {
 		out.TraefikPlan = ptr(s.planBody(ctx, traefikPlan))
+	}
+	if firewallPlan != nil {
+		out.FirewallPlan = ptr(s.planBody(ctx, firewallPlan))
 	}
 	st, err := s.setupBody(ctx)
 	out.State = st
@@ -58,21 +62,39 @@ func (s *Server) systemServiceServed(ctx context.Context, connID, host string) (
 	return false, "No certificate covers " + host + " yet.", nil
 }
 
-// finishSystemService marks step 7 done once the host serves the admin domain, or records why not.
-func (s *Server) finishSystemService(ctx context.Context, connID, host string) error {
+// finishSystemService marks step 7 done once the host serves the admin domain and the DNS and firewall plans are
+// through (02 §1): generated records apply on their own; opening the ports is shown for approval, and the step stays
+// open until then, because step 8 needs them and no one can approve it elsewhere before a passkey exists.
+func (s *Server) finishSystemService(ctx context.Context, connID, host string) (*hsync.Plan, error) {
 	ok, why, err := s.systemServiceServed(ctx, connID, host)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !ok {
-		return s.Setup.MarkFailed(ctx, s.Store.Q, setup.StepSystemSvc, why)
+		return nil, s.Setup.MarkFailed(ctx, s.Store.Q, setup.StepSystemSvc, why)
 	}
-	return s.Setup.MarkDone(ctx, s.Store.Q, setup.StepSystemSvc, map[string]any{"host_name": host})
+	s.syncRecords(ctx)
+	if s.Firewall != nil {
+		row, exists, err := s.setupFirewallHost(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if exists && row.EdgeMode == firewall.ModeManaged && row.OwnershipConfirmedAt.Valid {
+			p, err := s.Sync.Propose(ctx, firewall.Subsystem, row.ID, hsync.TriggerManual, s.actor(info(ctx)))
+			if err != nil {
+				return nil, firewallError(err)
+			}
+			if p != nil {
+				return p, nil
+			}
+		}
+	}
+	return nil, s.Setup.MarkDone(ctx, s.Store.Q, setup.StepSystemSvc, map[string]any{"host_name": host})
 }
 
 // CreateSetupSystemService is step 7 (02 §1.6): the admin service from the base settings, a certificate that covers
 // the admin domain (issued now when a deeper name needs a new wildcard, about a minute) and the Traefik plan for the
-// setup host. Firewall and DNS parts of this step arrive with S6.
+// setup host, then the DNS and firewall plans (finishSystemService).
 func (s *Server) CreateSetupSystemService(ctx context.Context, _ gen.CreateSetupSystemServiceRequestObject) (gen.CreateSetupSystemServiceResponseObject, error) {
 	ri := info(ctx)
 	if err := s.requireSetupOpen(ctx); err != nil {
@@ -108,7 +130,7 @@ func (s *Server) CreateSetupSystemService(ctx context.Context, _ gen.CreateSetup
 			return nil, traefikError(err)
 		}
 		if certPlan != nil && certPlan.Status != hsync.StatusApplied {
-			body, err := s.systemServiceBody(ctx, sv, certPlan, nil)
+			body, err := s.systemServiceBody(ctx, sv, certPlan, nil, nil)
 			if err != nil {
 				return nil, err
 			}
@@ -119,12 +141,13 @@ func (s *Server) CreateSetupSystemService(ctx context.Context, _ gen.CreateSetup
 	if err != nil {
 		return nil, traefikError(err)
 	}
+	var fw *hsync.Plan
 	if p == nil {
-		if err := s.finishSystemService(ctx, row.ID, sv.HostName); err != nil {
+		if fw, err = s.finishSystemService(ctx, row.ID, sv.HostName); err != nil {
 			return nil, err
 		}
 	}
-	body, err := s.systemServiceBody(ctx, sv, certPlan, p)
+	body, err := s.systemServiceBody(ctx, sv, certPlan, p, fw)
 	if err != nil {
 		return nil, err
 	}
@@ -167,8 +190,9 @@ func (s *Server) RunSetupSystemServicePlan(ctx context.Context, req gen.RunSetup
 			return nil, syncError(err)
 		}
 	}
+	var fw *hsync.Plan
 	if ran.Status == hsync.StatusApplied {
-		if err := s.finishSystemService(ctx, row.ID, sysRow.HostName); err != nil {
+		if fw, err = s.finishSystemService(ctx, row.ID, sysRow.HostName); err != nil {
 			return nil, err
 		}
 	} else {
@@ -178,7 +202,7 @@ func (s *Server) RunSetupSystemServicePlan(ctx context.Context, req gen.RunSetup
 	if err != nil {
 		return nil, err
 	}
-	body, err := s.systemServiceBody(ctx, sv, nil, ran)
+	body, err := s.systemServiceBody(ctx, sv, nil, ran, fw)
 	if err != nil {
 		return nil, err
 	}

@@ -78,6 +78,21 @@ func TestSetupStep6FirewallAPI(t *testing.T) {
 	if _, err := s.ConfirmSetupFirewall(ctx, gen.ConfirmSetupFirewallRequestObject{}); status(err) != http.StatusConflict {
 		t.Fatalf("confirm before save: %v", err)
 	}
+	// A mistake can be undone before the host is confirmed; a changed login on a saved host is refused, not dropped.
+	if _, err := s.PutSetupFirewallHost(ctx, gen.PutSetupFirewallHostRequestObject{Body: &in}); err != nil {
+		t.Fatal(err)
+	}
+	wrong := in
+	wrong.User = ptr("other")
+	if _, err := s.PutSetupFirewallHost(ctx, gen.PutSetupFirewallHostRequestObject{Body: &wrong}); status(err) != http.StatusUnprocessableEntity {
+		t.Fatalf("changed login: %v", err)
+	}
+	if _, err := s.DeleteSetupFirewallHost(ctx, gen.DeleteSetupFirewallHostRequestObject{}); err != nil {
+		t.Fatal(err)
+	}
+	if rows, _ := st.R.ListFirewallHosts(ctx); len(rows) != 0 {
+		t.Fatalf("start over left %d hosts", len(rows))
+	}
 	saved, err := s.PutSetupFirewallHost(ctx, gen.PutSetupFirewallHostRequestObject{Body: &in})
 	if err != nil {
 		t.Fatal(err)
@@ -108,6 +123,9 @@ func TestSetupStep6FirewallAPI(t *testing.T) {
 	}
 	if st6 := state.(gen.ConfirmSetupFirewall200JSONResponse).Steps[5]; st6.Status != "done" {
 		t.Fatalf("step 6: %+v", st6)
+	}
+	if _, err := s.DeleteSetupFirewallHost(ctx, gen.DeleteSetupFirewallHostRequestObject{}); status(err) != http.StatusConflict {
+		t.Fatalf("start over after confirm: %v", err)
 	}
 	planned, err := s.PlanSetupFirewall(ctx, gen.PlanSetupFirewallRequestObject{})
 	if err != nil {

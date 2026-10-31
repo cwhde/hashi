@@ -6,7 +6,10 @@ export type ServiceInput = Schemas['ServiceInput'];
 export type Route = Schemas['ServiceRoute'];
 export type Target = Schemas['ServiceTarget'];
 
-export const kinds = ['http', 'https', 'h2c'] as const;
+export const kinds = ['http', 'https', 'h2c', 'tcp', 'udp'] as const;
+
+/** Streams have their own public port and no routes or TLS options. */
+export const isStream = (k: string) => k === 'tcp' || k === 'udp';
 
 export const kindText: Record<Service['kind'], string> = {
 	http: 'HTTP upstream',
@@ -34,6 +37,7 @@ export function domainMode(host: string, root: string): Service['domain_mode'] {
 
 /** "192.0.2.5:8080" or "[2001:db8::5]:8080", with "×3" for a weight. */
 export function targetText(t: Target): string {
+	if (t.set_id) return `@${t.set_id}:${t.port}`;
 	const host = t.address.includes(':') ? `[${t.address}]` : t.address;
 	return `${host}:${t.port}${t.weight && t.weight > 1 ? ` ×${t.weight}` : ''}`;
 }
@@ -42,6 +46,11 @@ export function targetText(t: Target): string {
 export function parseTargets(text: string): { targets: Target[]; bad?: string } {
 	const targets: Target[] = [];
 	for (const raw of text.split(/[\s,]+/).filter(Boolean)) {
+		const set = /^@([0-9A-Za-z]+):(\d{1,5})$/.exec(raw); // an address set, as targetText writes it
+		if (set) {
+			targets.push({ address: '', set_id: set[1], port: Number(set[2]) });
+			continue;
+		}
 		const m = /^(\[[^\]]+\]|[^:[\]*]+):(\d{1,5})(?:\*(\d{1,4}))?$/.exec(raw);
 		if (!m) return { targets, bad: raw };
 		const t: Target = { address: (m[1] ?? '').replace(/^\[|\]$/g, ''), port: Number(m[2]) };
@@ -67,7 +76,10 @@ export function toInput(s: Service): ServiceInput {
 		routes: s.routes.map((r) => ({ ...r, targets: r.targets.map((t) => ({ ...t })) })),
 		dashboard_visible: s.dashboard_visible,
 		monitoring_visible: s.monitoring_visible,
-		adguard_rewrite: s.adguard_rewrite
+		adguard_rewrite: s.adguard_rewrite,
+		public_port: s.public_port,
+		proxy_protocol: s.proxy_protocol,
+		entry_host_id: s.entry_host_id
 	};
 }
 

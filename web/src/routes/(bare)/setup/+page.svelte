@@ -16,6 +16,7 @@
 	import ImportTable from '$lib/components/hashi/dns/ImportTable.svelte';
 	import CertificateStep from '$lib/components/hashi/setup/CertificateStep.svelte';
 	import TraefikStep from '$lib/components/hashi/setup/TraefikStep.svelte';
+	import FirewallStep from '$lib/components/hashi/setup/FirewallStep.svelte';
 	import SystemServiceStep from '$lib/components/hashi/setup/SystemServiceStep.svelte';
 	import HttpsStep from '$lib/components/hashi/setup/HttpsStep.svelte';
 	import PlanReview from '$lib/components/hashi/PlanReview.svelte';
@@ -630,6 +631,12 @@
 				/>
 			{:else if step.n === 5}
 				<TraefikStep
+					{setup}
+					onupdate={(s) => (setup = s)}
+					oncontinue={() => setup && (selected = firstOpen(setup))}
+				/>
+			{:else if step.n === 6}
+				<FirewallStep
 					{setup}
 					onupdate={(s) => (setup = s)}
 					oncontinue={() => setup && (selected = firstOpen(setup))}

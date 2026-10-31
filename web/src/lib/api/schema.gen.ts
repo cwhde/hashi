@@ -652,7 +652,8 @@ export interface paths {
          */
         put: operations["putSetupFirewallHost"];
         post?: never;
-        delete?: never;
+        /** Step 6 — start over with another address or login, before the host is confirmed */
+        delete: operations["deleteSetupFirewallHost"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1884,6 +1885,7 @@ export interface components {
             dns?: components["schemas"]["DNSConnectResult"];
             certificates?: components["schemas"]["CertificateProvider"];
             traefik?: components["schemas"]["TraefikConnection"];
+            firewall?: components["schemas"]["FirewallHost"];
             system_service?: components["schemas"]["Service"];
         };
         CertificateProviderInput: {
@@ -2369,6 +2371,7 @@ export interface components {
             service: components["schemas"]["Service"];
             certificate_plan?: components["schemas"]["SyncPlan"];
             traefik_plan?: components["schemas"]["SyncPlan"];
+            firewall_plan?: components["schemas"]["SyncPlan"];
             state: components["schemas"]["SetupState"];
         };
         SetupHTTPSLink: {
@@ -3705,6 +3708,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FirewallHost"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    deleteSetupFirewallHost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupState"];
                 };
             };
             default: components["responses"]["Problem"];

@@ -2437,7 +2437,8 @@ type SetupState struct {
 	Completed    bool                 `json:"completed"`
 
 	// Dns `provider` and `zone` are absent when no zone was chosen (nothing stored)
-	Dns *DNSConnectResult `json:"dns,omitempty"`
+	Dns      *DNSConnectResult `json:"dns,omitempty"`
+	Firewall *FirewallHost     `json:"firewall,omitempty"`
 
 	// Passkeys Registered passkeys (setup sessions only)
 	Passkeys      *int               `json:"passkeys,omitempty"`
@@ -2465,6 +2466,7 @@ type SetupStepStatus string
 // SetupSystemService defines model for SetupSystemService.
 type SetupSystemService struct {
 	CertificatePlan *SyncPlan  `json:"certificate_plan,omitempty"`
+	FirewallPlan    *SyncPlan  `json:"firewall_plan,omitempty"`
 	Service         Service    `json:"service"`
 	State           SetupState `json:"state"`
 	TraefikPlan     *SyncPlan  `json:"traefik_plan,omitempty"`
@@ -3314,6 +3316,9 @@ type ServerInterface interface {
 	// ConfirmSetupFirewall Step 6 — let Hashi manage the validated host's firewall (its table only); completes the step
 	// (POST /api/setup/firewall/confirm)
 	ConfirmSetupFirewall(w http.ResponseWriter, r *http.Request)
+	// DeleteSetupFirewallHost Step 6 — start over with another address or login, before the host is confirmed
+	// (DELETE /api/setup/firewall/host)
+	DeleteSetupFirewallHost(w http.ResponseWriter, r *http.Request)
 	// PutSetupFirewallHost Step 6 — save the first firewall host and validate it over SSH (read-only)
 	// (PUT /api/setup/firewall/host)
 	PutSetupFirewallHost(w http.ResponseWriter, r *http.Request)
@@ -5350,6 +5355,20 @@ func (siw *ServerInterfaceWrapper) ConfirmSetupFirewall(w http.ResponseWriter, r
 	handler.ServeHTTP(w, r)
 }
 
+// DeleteSetupFirewallHost operation middleware
+func (siw *ServerInterfaceWrapper) DeleteSetupFirewallHost(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteSetupFirewallHost(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // PutSetupFirewallHost operation middleware
 func (siw *ServerInterfaceWrapper) PutSetupFirewallHost(w http.ResponseWriter, r *http.Request) {
 
@@ -6064,6 +6083,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/traefik/plan", wrapper.PlanSetupTraefik)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/traefik/plan/{id}/run", wrapper.RunSetupTraefikPlan)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/firewall/scan", wrapper.ScanSetupFirewallHost)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/setup/firewall/host", wrapper.DeleteSetupFirewallHost)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/setup/firewall/host", wrapper.PutSetupFirewallHost)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/firewall/confirm", wrapper.ConfirmSetupFirewall)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/firewall/plan", wrapper.PlanSetupFirewall)
@@ -9642,6 +9662,44 @@ func (response ConfirmSetupFirewalldefaultApplicationProblemPlusJSONResponse) Vi
 	return err
 }
 
+type DeleteSetupFirewallHostRequestObject struct {
+}
+
+type DeleteSetupFirewallHostResponseObject interface {
+	VisitDeleteSetupFirewallHostResponse(w http.ResponseWriter) error
+}
+
+type DeleteSetupFirewallHost200JSONResponse SetupState
+
+func (response DeleteSetupFirewallHost200JSONResponse) VisitDeleteSetupFirewallHostResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteSetupFirewallHostdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response DeleteSetupFirewallHostdefaultApplicationProblemPlusJSONResponse) VisitDeleteSetupFirewallHostResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type PutSetupFirewallHostRequestObject struct {
 	Body *PutSetupFirewallHostJSONRequestBody
 }
@@ -11119,6 +11177,9 @@ type StrictServerInterface interface {
 	// ConfirmSetupFirewall Step 6 — let Hashi manage the validated host's firewall (its table only); completes the step
 	// (POST /api/setup/firewall/confirm)
 	ConfirmSetupFirewall(ctx context.Context, request ConfirmSetupFirewallRequestObject) (ConfirmSetupFirewallResponseObject, error)
+	// DeleteSetupFirewallHost Step 6 — start over with another address or login, before the host is confirmed
+	// (DELETE /api/setup/firewall/host)
+	DeleteSetupFirewallHost(ctx context.Context, request DeleteSetupFirewallHostRequestObject) (DeleteSetupFirewallHostResponseObject, error)
 	// PutSetupFirewallHost Step 6 — save the first firewall host and validate it over SSH (read-only)
 	// (PUT /api/setup/firewall/host)
 	PutSetupFirewallHost(ctx context.Context, request PutSetupFirewallHostRequestObject) (PutSetupFirewallHostResponseObject, error)
@@ -13722,6 +13783,30 @@ func (sh *strictHandler) ConfirmSetupFirewall(w http.ResponseWriter, r *http.Req
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ConfirmSetupFirewallResponseObject); ok {
 		if err := validResponse.VisitConfirmSetupFirewallResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteSetupFirewallHost operation middleware
+func (sh *strictHandler) DeleteSetupFirewallHost(w http.ResponseWriter, r *http.Request) {
+	var request DeleteSetupFirewallHostRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteSetupFirewallHost(ctx, request.(DeleteSetupFirewallHostRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteSetupFirewallHost")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteSetupFirewallHostResponseObject); ok {
+		if err := validResponse.VisitDeleteSetupFirewallHostResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

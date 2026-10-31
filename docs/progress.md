@@ -109,15 +109,38 @@ PR D — streams and takeover
       Hashi's SSH public key is added to root on the first real host by Claude (user OK 2026-10-29), at the gate.
 
 PR E — UI + deploy
-- [ ] Firewall pages from the mocks (hosts, host page with observed ruleset, rendered table, bindings, host access),
+- [x] Firewall pages from the mocks (hosts, host page with observed ruleset, rendered table, bindings, host access),
       setup step 6 page (step becomes built), stream fields and target sets on the service page, set values on DNS
       entries; dev fakes (`firewalltest`); E2E.
 - [ ] Prod-proof first on a dev target (Debian LXC on host B, snapshot `clean`), then deploy (user runs `/deploy`) and
       the gate on the first real host with the user's OK for the first apply.
 
+Found by E2E while building PR E (PR C bug): any changed IP set re-planned Traefik, so saving a firewall host (it changes
+`hashi-hosts`) applied the waiting step 7 service change unreviewed. Traefik and DNS now re-plan only for sets a target uses.
+
+Dev-target proof (2026-10-31, Debian 13 LXC on host B, real systemd, kernel 7.0.6-pve): `TestRealFirewallOnDevTarget` passes.
+An unconfirmed first apply with takeover was rolled back by the real `hashi-fw-rescue` timer (iptables, ipsets, crontab and
+cron file identical to before, no Hashi table); a confirmed one over a new SSH login removed the script's objects, kept
+NetBird-like ones, the other cron job and the foreign `table inet filter`; the table survived a `hashi-firewall` restart; a
+second plan was empty; a later unconfirmed change went back to the previous table without the script. Machine rolled back to `clean`.
+
+Decisions made in PR E:
+- Host page tabs from the mock without Host link, Kernel sets and meter panels: their data arrives with the engine (S9). An
+  "Old script" tab edits the takeover list. Editing a host keeps its pinned key.
+- The first save of a host has NetBird off: only validation finds its interface and port; the admin turns it on from what
+  was found. Setup step 6 is built, so a production setup now needs it.
+
+- Review of PR E (reproduced, fixed): step 7 finished with the firewall ports unopened, and nobody could approve that plan
+  before a passkey exists (step 8 would be stuck): the step now shows the firewall plan and stays open until it is through, and
+  applies DNS; a wrong login or address could not be corrected (`Start over`; a changed login on a saved host is now refused, it
+  was silently dropped); a private key could not be entered (no multi-line field, no passphrase). Also fixed: host delete asks
+  for the passkey, a DNS entry can stop following a set, failed list loads stop the page, the Generated tab reloads after a save.
+- Deferred: takeover discovery (the list is entered by hand), `POST …/rollback` and `at_setup` display, overrides for WAN/public
+  address in the UI (API only), external NAT port list, folded counts on `/firewall`. None blocks the gate.
+
 Decisions made in PR D:
 - The takeover is an explicit per-host list (spec edit), never detected; rules naming NetBird, Docker or Proxmox, and NetBird's
-  unnamed rules (its marks, conntrack or DROP on its interface), are refused. Discovery and a page for it come with PR E.
+  unnamed rules (its marks, conntrack or DROP on its interface), are refused. The page for it came with PR E.
 - Removal is one `iptables-legacy-restore --noflush` input per family: 1,122 deletes in one commit, no shell quoting.
 - A stream's public port equals its entry point's port. Ports on a firewall host's listeners, NetBird's port, SSH and
   Traefik's own API ports are refused at save; one that collides later waits, the rest of the host goes on.

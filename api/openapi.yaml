@@ -533,6 +533,16 @@ paths:
           description: Saved and validated
           content: { application/json: { schema: { $ref: "#/components/schemas/FirewallHost" } } }
         default: { $ref: "#/components/responses/Problem" }
+    delete:
+      operationId: deleteSetupFirewallHost
+      summary: Step 6 — start over with another address or login, before the host is confirmed
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      responses:
+        "200":
+          description: Removed
+          content: { application/json: { schema: { $ref: "#/components/schemas/SetupState" } } }
+        default: { $ref: "#/components/responses/Problem" }
   /api/setup/firewall/confirm:
     post:
       operationId: confirmSetupFirewall
@@ -1744,6 +1754,7 @@ components:
         dns: { $ref: "#/components/schemas/DNSConnectResult" }
         certificates: { $ref: "#/components/schemas/CertificateProvider" }
         traefik: { $ref: "#/components/schemas/TraefikConnection" }
+        firewall: { $ref: "#/components/schemas/FirewallHost" }
         system_service: { $ref: "#/components/schemas/Service" }
     CertificateProviderInput:
       type: object
@@ -2203,6 +2214,7 @@ components:
         service: { $ref: "#/components/schemas/Service" }
         certificate_plan: { $ref: "#/components/schemas/SyncPlan" }
         traefik_plan: { $ref: "#/components/schemas/SyncPlan" }
+        firewall_plan: { $ref: "#/components/schemas/SyncPlan" }
         state: { $ref: "#/components/schemas/SetupState" }
     SetupHTTPSLink:
       type: object

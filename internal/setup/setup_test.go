@@ -71,8 +71,8 @@ func TestFreshStateListsElevenSteps(t *testing.T) {
 			builtSteps = append(builtSteps, ss.N)
 		}
 	}
-	if len(builtSteps) != 9 {
-		t.Fatalf("built steps %v, want 1, 2, 3, 4, 5, 7, 8, 9, 11", builtSteps)
+	if len(builtSteps) != 10 {
+		t.Fatalf("built steps %v, want 1–9, 11", builtSteps)
 	}
 }
 
@@ -120,7 +120,7 @@ func TestInvariant_14_CompleteRequiresPasskeyAndRecoveryKey(t *testing.T) {
 	st := storetest.Open(t, path)
 	s := newService(t, st)
 	s.SkipUnbuilt = true // isolate the passkey/recovery rule from steps of later slices
-	markDone(t, s, st, StepBootstrap, StepBase, StepDNS, StepCert, StepTraefik, StepSystemSvc, StepHTTPS)
+	markDone(t, s, st, StepBootstrap, StepBase, StepDNS, StepCert, StepTraefik, StepFirewall, StepSystemSvc, StepHTTPS)
 	// Even a forged "done" flag on step 9 does not complete setup without the data behind it.
 	markDone(t, s, st, StepPasskey)
 	if err := s.Complete(ctx, "test", ""); !errors.Is(err, ErrNotReady) {
@@ -191,7 +191,7 @@ func TestCompleteDestroysBootstrapAndRevokesBootstrapSessions(t *testing.T) {
 		}
 	}
 	addPasskey(t, st)
-	markDone(t, s, st, StepBootstrap, StepBase, StepDNS, StepCert, StepTraefik, StepSystemSvc, StepHTTPS)
+	markDone(t, s, st, StepBootstrap, StepBase, StepDNS, StepCert, StepTraefik, StepFirewall, StepSystemSvc, StepHTTPS)
 	d, _ := s.GenerateRecoveryKey(ctx, owner)
 	if err := s.ConfirmRecoveryKey(ctx, owner, lastGroup(d.Reveal())); err != nil {
 		t.Fatal(err)
