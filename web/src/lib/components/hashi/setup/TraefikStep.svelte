@@ -6,10 +6,14 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import Mono from '$lib/components/hashi/Mono.svelte';
+	import KeyAccess, {
+		accessBody,
+		newAccess
+	} from '$lib/components/hashi/firewall/KeyAccess.svelte';
 	import PlanReview from '$lib/components/hashi/PlanReview.svelte';
 	import Tag from '$lib/components/hashi/Tag.svelte';
 	import { cn } from '$lib/utils';
-	import { Check, CircleAlert, Copy, ShieldCheck } from '@lucide/svelte';
+	import { Check, CircleAlert, ShieldCheck } from '@lucide/svelte';
 	import { api, problemText, type Schemas } from '$lib/api/client';
 	import { outcomeText, reviewItems, triggerText, type Plan } from '$lib/sync';
 
@@ -37,7 +41,7 @@
 		}))
 	);
 	let publicKey = $state('');
-	let copied = $state(false);
+	let access = $state(newAccess());
 	let scanned = $state<Schemas['HostKey'] | null>(null);
 	let rejected = $state(false);
 	let editing = $state(untrack(() => !setup.traefik));
@@ -81,6 +85,20 @@
 	const pin = () =>
 		act('pin', async () => {
 			if (!scanned) return;
+			if (form.auth === 'hashi_key' && access.mode === 'install') {
+				const inst = await api.POST('/api/setup/traefik/install-key', {
+					body: {
+						host: form.host.trim(),
+						port: Number(form.port),
+						user: form.user.trim(),
+						host_key: scanned.key,
+						...accessBody(access)
+					}
+				});
+				if (inst.error) throw inst.error;
+				// Installed: a retry after a failed save must not ask for the credential again.
+				access = { ...access, mode: 'manual', credential: '', passphrase: '' };
+			}
 			const res = await api.PUT('/api/setup/traefik/connection', {
 				body: {
 					name: form.name.trim(),
@@ -127,11 +145,6 @@
 	// The host offers one of its keys (often ECDSA, captured at the S4 gate); name the file that holds that one.
 	const keyFile = (type: string) =>
 		type.startsWith('ecdsa') ? 'ecdsa' : type === 'ssh-rsa' ? 'rsa' : type.replace(/^ssh-/, '');
-
-	async function copyKey() {
-		await navigator.clipboard.writeText(publicKey);
-		copied = true;
-	}
 
 	const credentialLabel = $derived(form.auth === 'password' ? 'Password' : 'Private key');
 	const canScan = $derived(
@@ -222,19 +235,7 @@
 				</div>
 			</fieldset>
 			{#if form.auth === 'hashi_key'}
-				<div class="md:col-span-2">
-					<p class="text-[12.5px] text-muted-foreground">
-						Add this line to <Mono>/root/.ssh/authorized_keys</Mono> on the host, then continue.
-					</p>
-					<div class="mt-2 flex items-start gap-2">
-						<Mono class="block flex-1 rounded-lg bg-surface-2 px-3 py-2 break-all"
-							><span data-testid="hashi-public-key">{publicKey || '…'}</span></Mono
-						>
-						<Button variant="outline" size="sm" onclick={copyKey} disabled={!publicKey}
-							><Copy />{copied ? 'Copied' : 'Copy'}</Button
-						>
-					</div>
-				</div>
+				<KeyAccess bind:access {publicKey} user={form.user} />
 			{:else}
 				<div class="space-y-1.5 md:col-span-2">
 					<Label for="tc">{credentialLabel}</Label>

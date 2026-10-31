@@ -434,6 +434,20 @@ paths:
           description: The public key line
           content: { application/json: { schema: { $ref: "#/components/schemas/TraefikIdentity" } } }
         default: { $ref: "#/components/responses/Problem" }
+  /api/setup/traefik/install-key:
+    post:
+      operationId: installKeySetupEdge
+      summary: Step 5 — add Hashi's key to the host, with the admin's permission and a credential given once
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/KeyInstallInput" } } }
+      responses:
+        "200":
+          description: Installed; Hashi logged in with its key
+          content: { application/json: { schema: { $ref: "#/components/schemas/TraefikIdentity" } } }
+        default: { $ref: "#/components/responses/Problem" }
   /api/setup/traefik/scan:
     post:
       operationId: scanSetupTraefikHost
@@ -500,6 +514,20 @@ paths:
         "200":
           description: The plan after the run
           content: { application/json: { schema: { $ref: "#/components/schemas/SyncPlan" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/setup/firewall/install-key:
+    post:
+      operationId: installKeySetupFw
+      summary: Step 6 — add Hashi's key to the host, with the admin's permission and a credential given once
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/KeyInstallInput" } } }
+      responses:
+        "200":
+          description: Installed; Hashi logged in with its key
+          content: { application/json: { schema: { $ref: "#/components/schemas/TraefikIdentity" } } }
         default: { $ref: "#/components/responses/Problem" }
   /api/setup/firewall/scan:
     post:
@@ -1092,6 +1120,32 @@ paths:
         "200":
           description: Saved
           content: { application/json: { schema: { $ref: "#/components/schemas/FirewallHost" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/firewall/install-key:
+    post:
+      operationId: installKeyFirewall
+      summary: Add Hashi's key to a new host, with the admin's permission and a credential given once
+      tags: [firewall]
+      x-hashi-scopes: [firewall.apply]
+      x-hashi-reauth: true
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/KeyInstallInput" } } }
+      responses:
+        "200":
+          description: Installed; Hashi logged in with its key
+          content: { application/json: { schema: { $ref: "#/components/schemas/TraefikIdentity" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/firewall/identity:
+    post:
+      operationId: firewallIdentity
+      summary: Hashi's SSH public key for a host's authorized_keys
+      tags: [firewall]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: The public key line
+          content: { application/json: { schema: { $ref: "#/components/schemas/TraefikIdentity" } } }
         default: { $ref: "#/components/responses/Problem" }
   /api/firewall/scan:
     post:
@@ -1793,6 +1847,18 @@ components:
       properties:
         host: { type: string }
         port: { type: integer, minimum: 1, maximum: 65535 }
+    KeyInstallInput:
+      type: object
+      description: Used for this one call and never stored
+      required: [host, port, user, host_key]
+      properties:
+        host: { type: string }
+        port: { type: integer, minimum: 1, maximum: 65535 }
+        user: { type: string }
+        host_key: { type: string, format: byte, description: "`key` from the scan the admin confirmed" }
+        password: { type: string, writeOnly: true }
+        private_key: { type: string, writeOnly: true }
+        passphrase: { type: string, writeOnly: true }
     HostKey:
       type: object
       required: [type, fingerprint, key]

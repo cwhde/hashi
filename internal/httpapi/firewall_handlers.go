@@ -11,6 +11,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
 	"git.juzo.io/juzo/hashi/internal/secrets"
 	"git.juzo.io/juzo/hashi/internal/setup"
+	"git.juzo.io/juzo/hashi/internal/sshx"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 	hsync "git.juzo.io/juzo/hashi/internal/sync"
 )
@@ -488,4 +489,96 @@ func list(s []string) []string {
 		return []string{}
 	}
 	return s
+}
+
+// keyInstallConfig is the one-time login of a key install; nothing of it is stored.
+func keyInstallConfig(b *gen.KeyInstallInput) (sshx.Config, error) {
+	hk, err := sshx.ParseHostKey(b.HostKey)
+	if err != nil {
+		return sshx.Config{}, invalid("Read and confirm the host key first.")
+	}
+	a := sshx.Auth{User: b.User}
+	if b.Password != nil {
+		a.Password = secrets.New(*b.Password) // hashi:allow-secret-pattern
+	}
+	if b.PrivateKey != nil {
+		a.PrivateKey = secrets.New(*b.PrivateKey)
+	}
+	if b.Passphrase != nil {
+		a.Passphrase = secrets.New(*b.Passphrase)
+	}
+	if a.Password.IsZero() == a.PrivateKey.IsZero() {
+		return sshx.Config{}, invalid("Give a password or a private key.")
+	}
+	return sshx.Config{Addr: sshx.Addr(b.Host, b.Port), Pinned: hk, Auth: a}, nil
+}
+
+func keyInstallError(err error) error {
+	switch {
+	case errors.Is(err, sshx.ErrInstall):
+		return invalid(strings.TrimPrefix(err.Error(), sshx.ErrInstall.Error()+": "))
+	case errors.Is(err, sshx.ErrHostKeyMismatch):
+		return conflict("The host presented another key than the one you confirmed. Check the address and read the key again.")
+	}
+	return providerFailed("Could not reach the host: " + err.Error())
+}
+
+func (s *Server) installKey(ctx context.Context, b *gen.KeyInstallInput, onFirewall bool) (string, error) {
+	ri := info(ctx)
+	c, err := keyInstallConfig(b)
+	if err != nil {
+		return "", err
+	}
+	line, err := s.Traefik.Identity(ctx, s.actor(ri), ri.ipString())
+	if err != nil {
+		return "", err
+	}
+	if onFirewall {
+		err = s.Firewall.InstallKey(ctx, s.actor(ri), ri.ipString(), c, line)
+	} else {
+		err = s.Traefik.InstallKey(ctx, s.actor(ri), ri.ipString(), c, line)
+	}
+	if err != nil {
+		return "", keyInstallError(err)
+	}
+	return line, nil
+}
+
+func (s *Server) InstallKeySetupEdge(ctx context.Context, req gen.InstallKeySetupEdgeRequestObject) (gen.InstallKeySetupEdgeResponseObject, error) {
+	if err := s.requireSetupOpen(ctx); err != nil {
+		return nil, err
+	}
+	line, err := s.installKey(ctx, req.Body, false)
+	if err != nil {
+		return nil, err
+	}
+	return gen.InstallKeySetupEdge200JSONResponse{PublicKey: line}, nil
+}
+
+func (s *Server) InstallKeySetupFw(ctx context.Context, req gen.InstallKeySetupFwRequestObject) (gen.InstallKeySetupFwResponseObject, error) {
+	if err := s.requireSetupOpen(ctx); err != nil {
+		return nil, err
+	}
+	line, err := s.installKey(ctx, req.Body, true)
+	if err != nil {
+		return nil, err
+	}
+	return gen.InstallKeySetupFw200JSONResponse{PublicKey: line}, nil
+}
+
+func (s *Server) InstallKeyFirewall(ctx context.Context, req gen.InstallKeyFirewallRequestObject) (gen.InstallKeyFirewallResponseObject, error) {
+	line, err := s.installKey(ctx, req.Body, true)
+	if err != nil {
+		return nil, err
+	}
+	return gen.InstallKeyFirewall200JSONResponse{PublicKey: line}, nil
+}
+
+func (s *Server) FirewallIdentity(ctx context.Context, _ gen.FirewallIdentityRequestObject) (gen.FirewallIdentityResponseObject, error) {
+	ri := info(ctx)
+	line, err := s.Traefik.Identity(ctx, s.actor(ri), ri.ipString())
+	if err != nil {
+		return nil, err
+	}
+	return gen.FirewallIdentity200JSONResponse{PublicKey: line}, nil
 }

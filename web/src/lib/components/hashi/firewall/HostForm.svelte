@@ -7,6 +7,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import Mono from '$lib/components/hashi/Mono.svelte';
 	import { ShieldCheck } from '@lucide/svelte';
+	import KeyAccess, { accessBody, newAccess } from './KeyAccess.svelte';
 	import type { Schemas } from '$lib/api/client';
 	import { lines, subnetOf, type FirewallInput } from '$lib/firewall';
 
@@ -16,8 +17,12 @@
 		busy: boolean;
 		scan: (host: string, port: number) => Promise<Schemas['HostKey'] | undefined>;
 		save: (body: FirewallInput) => Promise<void>;
+		publicKey: string;
+		/** Adds Hashi's key with a one-time credential; false when it failed and the parent shows why. */
+		install: (body: Schemas['KeyInstallInput']) => Promise<boolean>;
 	};
-	let { traefikId, traefikHost, busy, scan, save }: Props = $props();
+	let { traefikId, traefikHost, busy, scan, save, publicKey, install }: Props = $props();
+	let access = $state(newAccess());
 
 	let form = $state({
 		name: '',
@@ -54,6 +59,25 @@
 		public_ip_override: form.publicIp.trim() || undefined,
 		netbird_mode: 'disabled'
 	});
+
+	// The confirmed key is pinned first: a credential only goes to the machine the admin compared.
+	async function pin() {
+		const key = scanned?.key;
+		if (!key) return;
+		if (form.auth === 'hashi_key' && access.mode === 'install') {
+			const ok = await install({
+				host: form.host.trim(),
+				port: Number(form.port),
+				user: form.user.trim(),
+				host_key: key,
+				...accessBody(access)
+			});
+			if (!ok) return;
+			// Installed: a retry after a failed save must not ask for the credential again.
+			access = { ...access, mode: 'manual', credential: '', passphrase: '' };
+		}
+		await save(body(key));
+	}
 
 	async function submit(e: Event) {
 		e.preventDefault();
@@ -107,7 +131,9 @@
 				<option value="password">A password</option>
 			</select>
 		</div>
-		{#if form.auth === 'password'}
+		{#if form.auth === 'hashi_key'}
+			<KeyAccess bind:access {publicKey} user={form.user} />
+		{:else if form.auth === 'password'}
 			<div class="space-y-1.5">
 				<Label for="fw-cred">Password</Label>
 				<Input
@@ -181,7 +207,7 @@
 			>{scanned.type} {scanned.fingerprint}</Mono
 		>
 		<div class="mt-3 flex gap-2">
-			<Button size="sm" disabled={busy} onclick={() => save(body(scanned?.key))}>
+			<Button size="sm" disabled={busy} onclick={pin}>
 				{busy ? 'Checking the host…' : 'It matches, pin it'}
 			</Button>
 			<Button size="sm" variant="ghost" onclick={() => ((scanned = null), (rejected = true))}

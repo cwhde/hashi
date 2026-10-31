@@ -116,6 +116,7 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 
 	// Step 5: Traefik host (dev build: an in-memory Debian 13 host). Key shown, compared, pinned; checks; takeover; install.
 	await expect(page.getByRole('heading', { name: 'Connect a Traefik host' })).toBeVisible();
+	await page.getByRole('radio', { name: "I'll do it myself" }).check();
 	await expect(page.getByTestId('hashi-public-key')).toContainText('ssh-ed25519 ');
 	await page.getByLabel('Host or IP').fill('192.0.2.10');
 	await page.getByRole('button', { name: 'Read the host key' }).click();
@@ -146,12 +147,14 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await expect(page.getByRole('heading', { name: 'Connect a firewall host' })).toBeVisible();
 	await page.getByLabel('Name').fill('edge-a');
 	await page.getByLabel('SSH address').fill('198.18.3.1');
+	await page.getByLabel(/^Password for/).fill('once');
 	await page.getByRole('button', { name: 'Read the host key' }).click();
 	await page.getByRole('button', { name: 'It matches, pin it' }).click();
 	// Start over works before the host is confirmed; the second try keeps going.
 	await page.getByRole('button', { name: /Start over/ }).click();
 	await page.getByLabel('Name').fill('edge-a');
 	await page.getByLabel('SSH address').fill('198.18.3.1');
+	await page.getByRole('radio', { name: "I'll do it myself" }).check();
 	await page.getByRole('button', { name: 'Read the host key' }).click();
 	await page.getByRole('button', { name: 'It matches, pin it' }).click();
 	const fwChecks = page.getByRole('list', { name: 'Checks' });
@@ -416,17 +419,14 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await expect(page.getByText('Passkey added.')).toBeVisible();
 	await expect(page.getByText('Second key')).toBeVisible();
 
-	// Firewall pages (05): the host from step 6 with its rendered table; an old script list naming NetBird is refused;
+	// Firewall pages (05): the host from step 6 with its rendered table; no old script, no mention;
 	// a UDP service opens its port, which waits for approval.
 	await page.getByRole('link', { name: 'Firewall hosts' }).first().click();
 	await page.getByRole('link', { name: 'Open edge-a' }).click();
 	await expect(page.getByRole('heading', { name: 'edge-a' })).toBeVisible();
 	await page.getByRole('tab', { name: 'Generated' }).click();
 	await expect(page.getByText('"name": "hashi"').first()).toBeVisible();
-	await page.getByRole('tab', { name: 'Old script' }).click();
-	await page.getByLabel('Its chains').fill('NETBIRD-ACL-INPUT');
-	await page.getByRole('button', { name: 'Save and plan' }).click();
-	await expect(page.getByRole('alert')).toContainText('cannot be taken over');
+	await expect(page.getByRole('tab', { name: 'Old script' })).toHaveCount(0); // no script: no mention
 	await page.getByRole('link', { name: 'Services' }).first().click();
 	await page
 		.getByRole('button', { name: /Add service/ })

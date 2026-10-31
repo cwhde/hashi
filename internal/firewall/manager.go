@@ -80,6 +80,25 @@ func NewManager(st *store.Store, v *vault.Vault, a *audit.Log, sets *ipsets.Serv
 	return m
 }
 
+// InstallKey adds Hashi's key to a host with a credential given once (never stored), at the admin's request.
+func (m *Manager) InstallKey(ctx context.Context, actor, ip string, c sshx.Config, line string) error {
+	rec, err := m.st.R.GetSecretByPurpose(ctx, IdentityPurpose)
+	if err != nil {
+		return fmt.Errorf("the Hashi SSH key: %w", err)
+	}
+	own, err := m.vault.Open(rec)
+	if err != nil {
+		return err
+	}
+	err = sshx.InstallKey(ctx, func(ctx context.Context, c sshx.Config) (sshx.Runner, error) { return m.connect(ctx, c) }, c, line,
+		sshx.Auth{User: c.Auth.User, PrivateKey: own})
+	if err != nil && !errors.Is(err, sshx.ErrKeyAdded) {
+		return err
+	}
+	return errors.Join(err, m.audit.Record(ctx, m.st.Q, audit.Event{Actor: actor, Action: "ssh.key.installed", IP: ip, Target: "host:" + c.Addr,
+		Outcome: audit.Success, Detail: map[string]any{"user": c.Auth.User, "host_key": c.Pinned.Fingerprint, "login_proved": err == nil}}))
+}
+
 // UseFakes replaces SSH and host-key scanning (tests and the dev build).
 func (m *Manager) UseFakes(connect Connector, scan func(ctx context.Context, addr string, timeout time.Duration) (sshx.HostKey, error)) {
 	m.connect, m.scan = connect, scan
