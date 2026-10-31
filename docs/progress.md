@@ -124,6 +124,9 @@ cron file identical to before, no Hashi table); a confirmed one over a new SSH l
 NetBird-like ones, the other cron job and the foreign `table inet filter`; the table survived a `hashi-firewall` restart; a
 second plan was empty; a later unconfirmed change went back to the previous table without the script. Machine rolled back to `clean`.
 
+User request 2026-10-31: setup asks permission to install Hashi's SSH key itself, using a password or key given once (not
+stored); copy-paste stays as the alternative. Feasible: Hashi already logs in with those. Not built yet.
+
 Decisions made in PR E:
 - Host page tabs from the mock without Host link, Kernel sets and meter panels: their data arrives with the engine (S9). An
   "Old script" tab edits the takeover list. Editing a host keeps its pinned key.
@@ -685,6 +688,11 @@ Decisions made in S0:
   only short-SHA deploys exist so far.
 
 ## Log
+
+- 2026-10-31 — S6 gate started: Hashi's key added to root on the first real host (user OK), host connected through setup step 6
+  (read-only; host key compared with the host's own). Healthy, NetBird 0.81.3 connected, no warnings, ruleset hashes unchanged.
+  Not confirmed, nothing planned. DNAT target for now: the running Traefik, so public traffic does not move. To settle before
+  the first apply: the seven non-web public ports exist only in the old script, so they need stream services or they close.
 
 - 2026-10-31 — Deployed `f2b189b` (`make deploy ENV=prod`): readyz ok, version matches, SPA and public pages 200. Next: the S6 gate.
 
