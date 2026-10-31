@@ -20,3 +20,4 @@ Review them together before the V1 cutover; visual and later entries wait until 
 | 3 | visual | reported | Several pages, e.g. a "Choose a set" selector | Items in a row aren't level: the selector sits at a different height from its neighbour. Seen in several sections; find them all when fixing. | 2026-10-31 |
 | 4 | later | reported | Top bar search | Search results are generally not that good. | 2026-10-31 |
 | 5 | later | reported | Browser tab, logo | No favicon yet; the current icon is a good placeholder but should be replaced. | 2026-10-31 |
+| 6 | visual | reported | IP sets → add an item | The options of the first field (type) wrap onto two rows, which breaks the layout. | 2026-10-31 |

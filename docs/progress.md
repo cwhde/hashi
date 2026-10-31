@@ -696,6 +696,8 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-10-31 — S6 gate: DNS record with an address-set value **passed**: `set._hashi-test` A created by the user, at the provider with the set's address and Hashi's owner label.
+
 - 2026-10-31 — Deployed `bbe9511` (`make deploy ENV=prod`): readyz ok, version matches, SPA and public pages 200. S6 gate: S3 record path **passed** on the
   deployed install with the real passkey (test TXT created, verified at the provider, its delete approved and gone at the provider; zone back to 73 RRSets).
   Setup completion and passkey sign-in **passed**. New `docs/bugs.md` holds the user's first visual reports, not to be fixed yet.
