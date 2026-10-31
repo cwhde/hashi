@@ -17,6 +17,48 @@ import (
 	"github.com/oapi-codegen/runtime"
 )
 
+// Defines values for AdGuardConnectionMode.
+const (
+	AdGuardConnectionModeActive   AdGuardConnectionMode = "active"
+	AdGuardConnectionModeDisabled AdGuardConnectionMode = "disabled"
+	AdGuardConnectionModeReadOnly AdGuardConnectionMode = "read_only"
+)
+
+// Valid indicates whether the value is a known member of the AdGuardConnectionMode enum.
+func (e AdGuardConnectionMode) Valid() bool {
+	switch e {
+	case AdGuardConnectionModeActive:
+		return true
+	case AdGuardConnectionModeDisabled:
+		return true
+	case AdGuardConnectionModeReadOnly:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AdGuardConnectionInputMode.
+const (
+	AdGuardConnectionInputModeActive   AdGuardConnectionInputMode = "active"
+	AdGuardConnectionInputModeDisabled AdGuardConnectionInputMode = "disabled"
+	AdGuardConnectionInputModeReadOnly AdGuardConnectionInputMode = "read_only"
+)
+
+// Valid indicates whether the value is a known member of the AdGuardConnectionInputMode enum.
+func (e AdGuardConnectionInputMode) Valid() bool {
+	switch e {
+	case AdGuardConnectionInputModeActive:
+		return true
+	case AdGuardConnectionInputModeDisabled:
+		return true
+	case AdGuardConnectionInputModeReadOnly:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AuditEventOutcome.
 const (
 	Denied  AuditEventOutcome = "denied"
@@ -1428,6 +1470,68 @@ func (e GetMonitorEndpointParamsRange) Valid() bool {
 	default:
 		return false
 	}
+}
+
+// AdGuardConnection defines model for AdGuardConnection.
+type AdGuardConnection struct {
+	HasPassword   bool                  `json:"has_password"`
+	Id            string                `json:"id"`
+	LastCheckedAt *time.Time            `json:"last_checked_at,omitempty"`
+	LastError     string                `json:"last_error"`
+	LastVersion   string                `json:"last_version"`
+	Mode          AdGuardConnectionMode `json:"mode"`
+	Name          string                `json:"name"`
+	PathPrefix    string                `json:"path_prefix"`
+	Port          int                   `json:"port"`
+	Scheme        string                `json:"scheme"`
+	ServerName    string                `json:"server_name"`
+	TargetSetId   string                `json:"target_set_id"`
+	TlsVerify     bool                  `json:"tls_verify"`
+	Username      string                `json:"username"`
+}
+
+// AdGuardConnectionMode defines model for AdGuardConnection.Mode.
+type AdGuardConnectionMode string
+
+// AdGuardConnectionInput defines model for AdGuardConnectionInput.
+type AdGuardConnectionInput struct {
+	Mode *AdGuardConnectionInputMode `json:"mode,omitempty"`
+	Name string                      `json:"name"`
+
+	// Password Left out keeps the stored one
+	Password    *string `json:"password,omitempty"`
+	PathPrefix  *string `json:"path_prefix,omitempty"`
+	Port        int     `json:"port"`
+	Scheme      string  `json:"scheme"`
+	ServerName  *string `json:"server_name,omitempty"`
+	TargetSetId string  `json:"target_set_id"`
+	TlsVerify   bool    `json:"tls_verify"`
+	Username    *string `json:"username,omitempty"`
+}
+
+// AdGuardConnectionInputMode defines model for AdGuardConnectionInput.Mode.
+type AdGuardConnectionInputMode string
+
+// AdGuardConnectionList defines model for AdGuardConnectionList.
+type AdGuardConnectionList struct {
+	Connections []AdGuardConnection `json:"connections"`
+}
+
+// AdGuardRewrites defines model for AdGuardRewrites.
+type AdGuardRewrites struct {
+	Planned []struct {
+		Action string  `json:"action"`
+		Answer *string `json:"answer,omitempty"`
+		Domain string  `json:"domain"`
+		Note   *string `json:"note,omitempty"`
+		Risk   string  `json:"risk"`
+	} `json:"planned"`
+	Rewrites []struct {
+		Answer  string `json:"answer"`
+		Domain  string `json:"domain"`
+		Enabled bool   `json:"enabled"`
+		Owned   bool   `json:"owned"`
+	} `json:"rewrites"`
 }
 
 // AddressLookup defines model for AddressLookup.
@@ -3128,6 +3232,12 @@ type PutServiceDashboardJSONBody struct {
 	Visible bool `json:"visible"`
 }
 
+// CreateAdGuardConnectionJSONRequestBody defines body for CreateAdGuardConnection for application/json ContentType.
+type CreateAdGuardConnectionJSONRequestBody = AdGuardConnectionInput
+
+// UpdateAdGuardConnectionJSONRequestBody defines body for UpdateAdGuardConnection for application/json ContentType.
+type UpdateAdGuardConnectionJSONRequestBody = AdGuardConnectionInput
+
 // BootstrapLoginJSONRequestBody defines body for BootstrapLogin for application/json ContentType.
 type BootstrapLoginJSONRequestBody = BootstrapLogin
 
@@ -3504,6 +3614,24 @@ type ServerInterface interface {
 	// LookupAddress Every set that contains the address, with the nesting path to the element that holds it
 	// (GET /api/addresses/{address})
 	LookupAddress(w http.ResponseWriter, r *http.Request, address string)
+	// ListAdGuardConnections AdGuard connections, never with their passwords
+	// (GET /api/adguard/connections)
+	ListAdGuardConnections(w http.ResponseWriter, r *http.Request)
+	// CreateAdGuardConnection Add a connection; it starts read-only unless a mode is given
+	// (POST /api/adguard/connections)
+	CreateAdGuardConnection(w http.ResponseWriter, r *http.Request)
+	// DeleteAdGuardConnection Forget a connection; rewrites stay on the instance
+	// (DELETE /api/adguard/connections/{id})
+	DeleteAdGuardConnection(w http.ResponseWriter, r *http.Request, id string)
+	// UpdateAdGuardConnection Change a connection; leave the password out to keep it
+	// (PUT /api/adguard/connections/{id})
+	UpdateAdGuardConnection(w http.ResponseWriter, r *http.Request, id string)
+	// GetAdGuardRewrites What the instance holds and what Hashi would change; changes nothing
+	// (GET /api/adguard/connections/{id}/rewrites)
+	GetAdGuardRewrites(w http.ResponseWriter, r *http.Request, id string)
+	// TestAdGuardConnection Connect now and record the result
+	// (POST /api/adguard/connections/{id}/test)
+	TestAdGuardConnection(w http.ResponseWriter, r *http.Request, id string)
 	// BootstrapLogin Sign in with the one-time bootstrap credentials (private networks only, before setup completes)
 	// (POST /api/auth/bootstrap/login)
 	BootstrapLogin(w http.ResponseWriter, r *http.Request)
@@ -4064,6 +4192,138 @@ func (siw *ServerInterfaceWrapper) LookupAddress(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.LookupAddress(w, r, address)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAdGuardConnections operation middleware
+func (siw *ServerInterfaceWrapper) ListAdGuardConnections(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAdGuardConnections(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateAdGuardConnection operation middleware
+func (siw *ServerInterfaceWrapper) CreateAdGuardConnection(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateAdGuardConnection(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteAdGuardConnection operation middleware
+func (siw *ServerInterfaceWrapper) DeleteAdGuardConnection(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteAdGuardConnection(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateAdGuardConnection operation middleware
+func (siw *ServerInterfaceWrapper) UpdateAdGuardConnection(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateAdGuardConnection(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAdGuardRewrites operation middleware
+func (siw *ServerInterfaceWrapper) GetAdGuardRewrites(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAdGuardRewrites(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TestAdGuardConnection operation middleware
+func (siw *ServerInterfaceWrapper) TestAdGuardConnection(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TestAdGuardConnection(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -7062,6 +7322,12 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/settings/security", wrapper.PutSecuritySettings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings/appearance", wrapper.GetAppearanceSettings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/settings/appearance", wrapper.PutAppearanceSettings)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/adguard/connections", wrapper.ListAdGuardConnections)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/adguard/connections", wrapper.CreateAdGuardConnection)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/adguard/connections/{id}", wrapper.DeleteAdGuardConnection)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/adguard/connections/{id}", wrapper.UpdateAdGuardConnection)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/adguard/connections/{id}/test", wrapper.TestAdGuardConnection)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/adguard/connections/{id}/rewrites", wrapper.GetAdGuardRewrites)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/dns/zones", wrapper.ListDNSZones)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/dns/zones/{id}/refresh", wrapper.RefreshDNSZone)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/dns/zones/{id}/rrsets", wrapper.ListDNSRRSets)
@@ -7278,6 +7544,234 @@ type LookupAddressdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response LookupAddressdefaultApplicationProblemPlusJSONResponse) VisitLookupAddressResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdGuardConnectionsRequestObject struct {
+}
+
+type ListAdGuardConnectionsResponseObject interface {
+	VisitListAdGuardConnectionsResponse(w http.ResponseWriter) error
+}
+
+type ListAdGuardConnections200JSONResponse AdGuardConnectionList
+
+func (response ListAdGuardConnections200JSONResponse) VisitListAdGuardConnectionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListAdGuardConnectionsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ListAdGuardConnectionsdefaultApplicationProblemPlusJSONResponse) VisitListAdGuardConnectionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAdGuardConnectionRequestObject struct {
+	Body *CreateAdGuardConnectionJSONRequestBody
+}
+
+type CreateAdGuardConnectionResponseObject interface {
+	VisitCreateAdGuardConnectionResponse(w http.ResponseWriter) error
+}
+
+type CreateAdGuardConnection201JSONResponse AdGuardConnection
+
+func (response CreateAdGuardConnection201JSONResponse) VisitCreateAdGuardConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateAdGuardConnectiondefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response CreateAdGuardConnectiondefaultApplicationProblemPlusJSONResponse) VisitCreateAdGuardConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteAdGuardConnectionRequestObject struct {
+	Id string `json:"id"`
+}
+
+type DeleteAdGuardConnectionResponseObject interface {
+	VisitDeleteAdGuardConnectionResponse(w http.ResponseWriter) error
+}
+
+type DeleteAdGuardConnection204Response struct {
+}
+
+func (response DeleteAdGuardConnection204Response) VisitDeleteAdGuardConnectionResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteAdGuardConnectiondefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response DeleteAdGuardConnectiondefaultApplicationProblemPlusJSONResponse) VisitDeleteAdGuardConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdGuardConnectionRequestObject struct {
+	Id   string `json:"id"`
+	Body *UpdateAdGuardConnectionJSONRequestBody
+}
+
+type UpdateAdGuardConnectionResponseObject interface {
+	VisitUpdateAdGuardConnectionResponse(w http.ResponseWriter) error
+}
+
+type UpdateAdGuardConnection200JSONResponse AdGuardConnection
+
+func (response UpdateAdGuardConnection200JSONResponse) VisitUpdateAdGuardConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateAdGuardConnectiondefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response UpdateAdGuardConnectiondefaultApplicationProblemPlusJSONResponse) VisitUpdateAdGuardConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdGuardRewritesRequestObject struct {
+	Id string `json:"id"`
+}
+
+type GetAdGuardRewritesResponseObject interface {
+	VisitGetAdGuardRewritesResponse(w http.ResponseWriter) error
+}
+
+type GetAdGuardRewrites200JSONResponse AdGuardRewrites
+
+func (response GetAdGuardRewrites200JSONResponse) VisitGetAdGuardRewritesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAdGuardRewritesdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetAdGuardRewritesdefaultApplicationProblemPlusJSONResponse) VisitGetAdGuardRewritesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestAdGuardConnectionRequestObject struct {
+	Id string `json:"id"`
+}
+
+type TestAdGuardConnectionResponseObject interface {
+	VisitTestAdGuardConnectionResponse(w http.ResponseWriter) error
+}
+
+type TestAdGuardConnection200JSONResponse AdGuardConnection
+
+func (response TestAdGuardConnection200JSONResponse) VisitTestAdGuardConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestAdGuardConnectiondefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response TestAdGuardConnectiondefaultApplicationProblemPlusJSONResponse) VisitTestAdGuardConnectionResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -12737,6 +13231,24 @@ type StrictServerInterface interface {
 	// LookupAddress Every set that contains the address, with the nesting path to the element that holds it
 	// (GET /api/addresses/{address})
 	LookupAddress(ctx context.Context, request LookupAddressRequestObject) (LookupAddressResponseObject, error)
+	// ListAdGuardConnections AdGuard connections, never with their passwords
+	// (GET /api/adguard/connections)
+	ListAdGuardConnections(ctx context.Context, request ListAdGuardConnectionsRequestObject) (ListAdGuardConnectionsResponseObject, error)
+	// CreateAdGuardConnection Add a connection; it starts read-only unless a mode is given
+	// (POST /api/adguard/connections)
+	CreateAdGuardConnection(ctx context.Context, request CreateAdGuardConnectionRequestObject) (CreateAdGuardConnectionResponseObject, error)
+	// DeleteAdGuardConnection Forget a connection; rewrites stay on the instance
+	// (DELETE /api/adguard/connections/{id})
+	DeleteAdGuardConnection(ctx context.Context, request DeleteAdGuardConnectionRequestObject) (DeleteAdGuardConnectionResponseObject, error)
+	// UpdateAdGuardConnection Change a connection; leave the password out to keep it
+	// (PUT /api/adguard/connections/{id})
+	UpdateAdGuardConnection(ctx context.Context, request UpdateAdGuardConnectionRequestObject) (UpdateAdGuardConnectionResponseObject, error)
+	// GetAdGuardRewrites What the instance holds and what Hashi would change; changes nothing
+	// (GET /api/adguard/connections/{id}/rewrites)
+	GetAdGuardRewrites(ctx context.Context, request GetAdGuardRewritesRequestObject) (GetAdGuardRewritesResponseObject, error)
+	// TestAdGuardConnection Connect now and record the result
+	// (POST /api/adguard/connections/{id}/test)
+	TestAdGuardConnection(ctx context.Context, request TestAdGuardConnectionRequestObject) (TestAdGuardConnectionResponseObject, error)
 	// BootstrapLogin Sign in with the one-time bootstrap credentials (private networks only, before setup completes)
 	// (POST /api/auth/bootstrap/login)
 	BootstrapLogin(ctx context.Context, request BootstrapLoginRequestObject) (BootstrapLoginResponseObject, error)
@@ -13299,6 +13811,172 @@ func (sh *strictHandler) LookupAddress(w http.ResponseWriter, r *http.Request, a
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(LookupAddressResponseObject); ok {
 		if err := validResponse.VisitLookupAddressResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListAdGuardConnections operation middleware
+func (sh *strictHandler) ListAdGuardConnections(w http.ResponseWriter, r *http.Request) {
+	var request ListAdGuardConnectionsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListAdGuardConnections(ctx, request.(ListAdGuardConnectionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListAdGuardConnections")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListAdGuardConnectionsResponseObject); ok {
+		if err := validResponse.VisitListAdGuardConnectionsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateAdGuardConnection operation middleware
+func (sh *strictHandler) CreateAdGuardConnection(w http.ResponseWriter, r *http.Request) {
+	var request CreateAdGuardConnectionRequestObject
+
+	var body CreateAdGuardConnectionJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateAdGuardConnection(ctx, request.(CreateAdGuardConnectionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateAdGuardConnection")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateAdGuardConnectionResponseObject); ok {
+		if err := validResponse.VisitCreateAdGuardConnectionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteAdGuardConnection operation middleware
+func (sh *strictHandler) DeleteAdGuardConnection(w http.ResponseWriter, r *http.Request, id string) {
+	var request DeleteAdGuardConnectionRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteAdGuardConnection(ctx, request.(DeleteAdGuardConnectionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteAdGuardConnection")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteAdGuardConnectionResponseObject); ok {
+		if err := validResponse.VisitDeleteAdGuardConnectionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateAdGuardConnection operation middleware
+func (sh *strictHandler) UpdateAdGuardConnection(w http.ResponseWriter, r *http.Request, id string) {
+	var request UpdateAdGuardConnectionRequestObject
+
+	request.Id = id
+
+	var body UpdateAdGuardConnectionJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateAdGuardConnection(ctx, request.(UpdateAdGuardConnectionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateAdGuardConnection")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateAdGuardConnectionResponseObject); ok {
+		if err := validResponse.VisitUpdateAdGuardConnectionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAdGuardRewrites operation middleware
+func (sh *strictHandler) GetAdGuardRewrites(w http.ResponseWriter, r *http.Request, id string) {
+	var request GetAdGuardRewritesRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAdGuardRewrites(ctx, request.(GetAdGuardRewritesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAdGuardRewrites")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAdGuardRewritesResponseObject); ok {
+		if err := validResponse.VisitGetAdGuardRewritesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// TestAdGuardConnection operation middleware
+func (sh *strictHandler) TestAdGuardConnection(w http.ResponseWriter, r *http.Request, id string) {
+	var request TestAdGuardConnectionRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.TestAdGuardConnection(ctx, request.(TestAdGuardConnectionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "TestAdGuardConnection")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(TestAdGuardConnectionResponseObject); ok {
+		if err := validResponse.VisitTestAdGuardConnectionResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

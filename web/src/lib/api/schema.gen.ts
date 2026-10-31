@@ -1190,6 +1190,76 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/adguard/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** AdGuard connections, never with their passwords */
+        get: operations["listAdGuardConnections"];
+        put?: never;
+        /** Add a connection; it starts read-only unless a mode is given */
+        post: operations["createAdGuardConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/adguard/connections/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change a connection; leave the password out to keep it */
+        put: operations["updateAdGuardConnection"];
+        post?: never;
+        /** Forget a connection; rewrites stay on the instance */
+        delete: operations["deleteAdGuardConnection"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/adguard/connections/{id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Connect now and record the result */
+        post: operations["testAdGuardConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/adguard/connections/{id}/rewrites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What the instance holds and what Hashi would change; changes nothing */
+        get: operations["getAdGuardRewrites"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/dns/zones": {
         parameters: {
             query?: never;
@@ -2230,6 +2300,59 @@ export interface components {
              */
             bot_token?: string;
             chat_id?: string;
+        };
+        AdGuardConnection: {
+            id: string;
+            name: string;
+            target_set_id: string;
+            port: number;
+            scheme: string;
+            path_prefix: string;
+            tls_verify: boolean;
+            server_name: string;
+            username: string;
+            has_password: boolean;
+            /** @enum {string} */
+            mode: "active" | "read_only" | "disabled";
+            /** Format: date-time */
+            last_checked_at?: string;
+            last_version: string;
+            last_error: string;
+        };
+        AdGuardConnectionList: {
+            connections: components["schemas"]["AdGuardConnection"][];
+        };
+        AdGuardConnectionInput: {
+            name: string;
+            target_set_id: string;
+            port: number;
+            scheme: string;
+            path_prefix?: string;
+            tls_verify: boolean;
+            server_name?: string;
+            username?: string;
+            /**
+             * Format: password
+             * @description Left out keeps the stored one
+             */
+            password?: string;
+            /** @enum {string} */
+            mode?: "active" | "read_only" | "disabled";
+        };
+        AdGuardRewrites: {
+            rewrites: {
+                domain: string;
+                answer: string;
+                enabled: boolean;
+                owned: boolean;
+            }[];
+            planned: {
+                action: string;
+                domain: string;
+                answer?: string;
+                risk: string;
+                note?: string;
+            }[];
         };
         TelegramDiscover: {
             /** Format: password */
@@ -5192,6 +5315,146 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AppearanceSettings"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listAdGuardConnections: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Connections */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdGuardConnectionList"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createAdGuardConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdGuardConnectionInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdGuardConnection"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    updateAdGuardConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdGuardConnectionInput"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdGuardConnection"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    deleteAdGuardConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    testAdGuardConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The connection with its latest result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdGuardConnection"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getAdGuardRewrites: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rewrites */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdGuardRewrites"];
                 };
             };
             default: components["responses"]["Problem"];

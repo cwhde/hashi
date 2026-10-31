@@ -27,6 +27,34 @@ type AcmeAccount struct {
 	UpdatedAt           int64
 }
 
+type AdguardConnection struct {
+	ID            string
+	Name          string
+	TargetSetID   string
+	Port          int64
+	Scheme        string
+	PathPrefix    string
+	TlsVerify     int64
+	ServerName    string
+	Username      string
+	SecretID      sql.NullString
+	Mode          string
+	LastCheckedAt sql.NullInt64
+	LastVersion   string
+	LastError     string
+	CreatedAt     int64
+	UpdatedAt     int64
+}
+
+type AdguardRewritesOwned struct {
+	ConnectionID string
+	Domain       string
+	Answer       string
+	Origin       string
+	Hash         string
+	CreatedAt    int64
+}
+
 type AdminSession struct {
 	IDHash            []byte
 	AuthMethod        string

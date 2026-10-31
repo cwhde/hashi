@@ -1038,6 +1038,87 @@ paths:
           content: { application/json: { schema: { $ref: "#/components/schemas/AppearanceSettings" } } }
         default: { $ref: "#/components/responses/Problem" }
 
+  # ---- adguard (03-dns.md §8) ----
+  /api/adguard/connections:
+    get:
+      operationId: listAdGuardConnections
+      summary: AdGuard connections, never with their passwords
+      tags: [adguard]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Connections
+          content: { application/json: { schema: { $ref: "#/components/schemas/AdGuardConnectionList" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    post:
+      operationId: createAdGuardConnection
+      summary: Add a connection; it starts read-only unless a mode is given
+      tags: [adguard]
+      x-hashi-scopes: [admin.write]
+      x-hashi-reauth: true
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/AdGuardConnectionInput" } } }
+      responses:
+        "201":
+          description: Created
+          content: { application/json: { schema: { $ref: "#/components/schemas/AdGuardConnection" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/adguard/connections/{id}:
+    put:
+      operationId: updateAdGuardConnection
+      summary: Change a connection; leave the password out to keep it
+      tags: [adguard]
+      x-hashi-scopes: [admin.write]
+      x-hashi-reauth: true
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/AdGuardConnectionInput" } } }
+      responses:
+        "200":
+          description: Saved
+          content: { application/json: { schema: { $ref: "#/components/schemas/AdGuardConnection" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    delete:
+      operationId: deleteAdGuardConnection
+      summary: Forget a connection; rewrites stay on the instance
+      tags: [adguard]
+      x-hashi-scopes: [admin.write]
+      x-hashi-reauth: true
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "204": { description: Removed }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/adguard/connections/{id}/test:
+    post:
+      operationId: testAdGuardConnection
+      summary: Connect now and record the result
+      tags: [adguard]
+      x-hashi-scopes: [admin.write]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The connection with its latest result
+          content: { application/json: { schema: { $ref: "#/components/schemas/AdGuardConnection" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/adguard/connections/{id}/rewrites:
+    get:
+      operationId: getAdGuardRewrites
+      summary: What the instance holds and what Hashi would change; changes nothing
+      tags: [adguard]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Rewrites
+          content: { application/json: { schema: { $ref: "#/components/schemas/AdGuardRewrites" } } }
+        default: { $ref: "#/components/responses/Problem" }
+
   # ---- dns (03-dns.md §7) ----
   /api/dns/zones:
     get:
@@ -2075,6 +2156,68 @@ components:
         to: { type: string }
         bot_token: { type: string, format: password, description: "New bot token; left out keeps the stored one" }
         chat_id: { type: string }
+    AdGuardConnection:
+      type: object
+      required: [id, name, target_set_id, port, scheme, path_prefix, tls_verify, server_name, username, has_password, mode, last_version, last_error]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        target_set_id: { type: string }
+        port: { type: integer }
+        scheme: { type: string }
+        path_prefix: { type: string }
+        tls_verify: { type: boolean }
+        server_name: { type: string }
+        username: { type: string }
+        has_password: { type: boolean }
+        mode: { type: string, enum: [active, read_only, disabled] }
+        last_checked_at: { type: string, format: date-time }
+        last_version: { type: string }
+        last_error: { type: string }
+    AdGuardConnectionList:
+      type: object
+      required: [connections]
+      properties:
+        connections: { type: array, items: { $ref: "#/components/schemas/AdGuardConnection" } }
+    AdGuardConnectionInput:
+      type: object
+      required: [name, target_set_id, port, scheme, tls_verify]
+      properties:
+        name: { type: string }
+        target_set_id: { type: string }
+        port: { type: integer }
+        scheme: { type: string }
+        path_prefix: { type: string }
+        tls_verify: { type: boolean }
+        server_name: { type: string }
+        username: { type: string }
+        password: { type: string, format: password, description: "Left out keeps the stored one" }
+        mode: { type: string, enum: [active, read_only, disabled] }
+    AdGuardRewrites:
+      type: object
+      required: [rewrites, planned]
+      properties:
+        rewrites:
+          type: array
+          items:
+            type: object
+            required: [domain, answer, enabled, owned]
+            properties:
+              domain: { type: string }
+              answer: { type: string }
+              enabled: { type: boolean }
+              owned: { type: boolean }
+        planned:
+          type: array
+          items:
+            type: object
+            required: [action, domain, risk]
+            properties:
+              action: { type: string }
+              domain: { type: string }
+              answer: { type: string }
+              risk: { type: string }
+              note: { type: string }
     TelegramDiscover:
       type: object
       required: [bot_token]

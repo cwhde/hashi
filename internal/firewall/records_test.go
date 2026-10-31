@@ -165,3 +165,18 @@ func TestStreamWithoutNameHasNoRecord(t *testing.T) {
 		t.Fatalf("%+v", lines(got))
 	}
 }
+
+// A service behind a host answers internally with that host's Traefik address; the public routing override plays no
+// part, and a service without a host, or with its rewrite off, gets none (03 §8).
+func TestDesiredRewrites(t *testing.T) {
+	sub := netip.MustParsePrefix("10.20.0.0/24")
+	hosts := []Effective{{Row: db.FirewallHost{ID: "h", Name: "a", InternalTraefikIp: "10.20.0.5"}, Subnets: []netip.Prefix{sub}}}
+	svc := func(name, addr string, rewrite bool) services.Service {
+		return services.Service{ID: name, Name: name, HostName: name + ".example.com", Enabled: true, AdGuardRewrite: rewrite, EntryHostID: "other",
+			Target: services.Target{Address: addr, Port: 80}}
+	}
+	got := DesiredRewrites("example.com", hosts, []services.Service{svc("in", "10.20.0.9", true), svc("off", "10.20.0.9", false), svc("out", "192.0.2.1", true)})
+	if len(got) != 1 || got[0].Domain != "in.example.com" || got[0].Answer != "10.20.0.5" {
+		t.Fatalf("%+v", got)
+	}
+}

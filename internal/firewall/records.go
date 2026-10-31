@@ -2,6 +2,7 @@ package firewall
 
 import (
 	"context"
+	"git.juzo.io/juzo/hashi/internal/adguard"
 	"net/netip"
 	"slices"
 	"strings"
@@ -38,6 +39,52 @@ func (m *Manager) Records(resolve services.TargetResolver) dns.Generator {
 		}
 		return GenerateRecords(g.RootDomain, hosts, svcs), nil
 	}
+}
+
+// Rewrites lists the internal DNS rewrites services want (03 §8): each service behind a firewall host answers with that
+// host's internal Traefik address. The routing override is public-only and never applies here.
+func (m *Manager) Rewrites(resolve services.TargetResolver) func(ctx context.Context) ([]adguard.Desired, error) {
+	return func(ctx context.Context) ([]adguard.Desired, error) {
+		g, err := settings.Get[settings.General](ctx, m.st.R)
+		if err != nil || g.RootDomain == "" {
+			return nil, err
+		}
+		rows, err := m.st.R.ListFirewallHosts(ctx)
+		if err != nil {
+			return nil, err
+		}
+		hosts := make([]Effective, 0, len(rows))
+		for _, r := range rows {
+			hosts = append(hosts, EffectiveOf(r))
+		}
+		svcs, err := services.List(ctx, m.st.R)
+		if err != nil {
+			return nil, err
+		}
+		if svcs, err = services.Resolve(ctx, svcs, resolve); err != nil {
+			return nil, err
+		}
+		return DesiredRewrites(strings.TrimSuffix(strings.ToLower(g.RootDomain), "."), hosts, svcs), nil
+	}
+}
+
+// DesiredRewrites derives rewrites from hosts and services whose targets are resolved. A host without a known internal
+// Traefik address yields none: there is nothing true to answer with.
+func DesiredRewrites(root string, hosts []Effective, svcs []services.Service) []adguard.Desired {
+	var out []adguard.Desired
+	for _, s := range svcs {
+		if !s.Renderable() || !s.AdGuardRewrite || s.HostName == "" || s.Stream() {
+			continue
+		}
+		home, ok := homeHost(s, hosts, root)
+		if !ok {
+			continue
+		}
+		if a, err := netip.ParseAddr(home.Row.InternalTraefikIp); err == nil {
+			out = append(out, adguard.Desired{Domain: strings.TrimSuffix(s.HostName, "."), Answer: a.String(), Origin: "service " + s.ID})
+		}
+	}
+	return out
 }
 
 // GenerateRecords derives the records from hosts and services whose address-set targets are already resolved
