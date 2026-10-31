@@ -1,0 +1,37 @@
+{
+  "_contract": {
+    "captured_at": "2026-10-31",
+    "docs_url": "https://core.telegram.org/bots/api"
+  },
+  "ok": true,
+  "result": [
+    {
+      "update_id": 100000002,
+      "message": {
+        "message_id": 1593,
+        "from": {
+          "id": 100000001,
+          "is_bot": false,
+          "first_name": "Example",
+          "username": "example_user",
+          "language_code": "en"
+        },
+        "chat": {
+          "id": 100000001,
+          "first_name": "Example",
+          "username": "example_user",
+          "type": "private"
+        },
+        "date": 1793442048,
+        "text": "/start",
+        "entities": [
+          {
+            "offset": 0,
+            "length": 6,
+            "type": "bot_command"
+          }
+        ]
+      }
+    }
+  ]
+}

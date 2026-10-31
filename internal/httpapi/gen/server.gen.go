@@ -731,6 +731,111 @@ func (e JobRunStatus) Valid() bool {
 	}
 }
 
+// Defines values for MonitorState.
+const (
+	MonitorStateDegraded MonitorState = "degraded"
+	MonitorStateDown     MonitorState = "down"
+	MonitorStatePaused   MonitorState = "paused"
+	MonitorStateUnknown  MonitorState = "unknown"
+	MonitorStateUp       MonitorState = "up"
+)
+
+// Valid indicates whether the value is a known member of the MonitorState enum.
+func (e MonitorState) Valid() bool {
+	switch e {
+	case MonitorStateDegraded:
+		return true
+	case MonitorStateDown:
+		return true
+	case MonitorStatePaused:
+		return true
+	case MonitorStateUnknown:
+		return true
+	case MonitorStateUp:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MonitorStripSampleVerdict.
+const (
+	MonitorStripSampleVerdictDegraded MonitorStripSampleVerdict = "degraded"
+	MonitorStripSampleVerdictDown     MonitorStripSampleVerdict = "down"
+	MonitorStripSampleVerdictUp       MonitorStripSampleVerdict = "up"
+)
+
+// Valid indicates whether the value is a known member of the MonitorStripSampleVerdict enum.
+func (e MonitorStripSampleVerdict) Valid() bool {
+	switch e {
+	case MonitorStripSampleVerdictDegraded:
+		return true
+	case MonitorStripSampleVerdictDown:
+		return true
+	case MonitorStripSampleVerdictUp:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NotificationDeliveryStatus.
+const (
+	NotificationDeliveryStatusDelivered NotificationDeliveryStatus = "delivered"
+	NotificationDeliveryStatusFailed    NotificationDeliveryStatus = "failed"
+	NotificationDeliveryStatusPending   NotificationDeliveryStatus = "pending"
+)
+
+// Valid indicates whether the value is a known member of the NotificationDeliveryStatus enum.
+func (e NotificationDeliveryStatus) Valid() bool {
+	switch e {
+	case NotificationDeliveryStatusDelivered:
+		return true
+	case NotificationDeliveryStatusFailed:
+		return true
+	case NotificationDeliveryStatusPending:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NotificationProviderCreateType.
+const (
+	Smtp     NotificationProviderCreateType = "smtp"
+	Telegram NotificationProviderCreateType = "telegram"
+)
+
+// Valid indicates whether the value is a known member of the NotificationProviderCreateType enum.
+func (e NotificationProviderCreateType) Valid() bool {
+	switch e {
+	case Smtp:
+		return true
+	case Telegram:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for NotificationRouteMinSeverity.
+const (
+	NotificationRouteMinSeverityDegraded NotificationRouteMinSeverity = "degraded"
+	NotificationRouteMinSeverityDown     NotificationRouteMinSeverity = "down"
+)
+
+// Valid indicates whether the value is a known member of the NotificationRouteMinSeverity enum.
+func (e NotificationRouteMinSeverity) Valid() bool {
+	switch e {
+	case NotificationRouteMinSeverityDegraded:
+		return true
+	case NotificationRouteMinSeverityDown:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SecretMetaClass.
 const (
 	SecretMetaClassAdmin   SecretMetaClass = "admin"
@@ -1295,6 +1400,30 @@ func (e GetIPSetResolvedParamsFamily) Valid() bool {
 	case N4:
 		return true
 	case N6:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetMonitorEndpointParamsRange.
+const (
+	N1h  GetMonitorEndpointParamsRange = "1h"
+	N24h GetMonitorEndpointParamsRange = "24h"
+	N30d GetMonitorEndpointParamsRange = "30d"
+	N7d  GetMonitorEndpointParamsRange = "7d"
+)
+
+// Valid indicates whether the value is a known member of the GetMonitorEndpointParamsRange enum.
+func (e GetMonitorEndpointParamsRange) Valid() bool {
+	switch e {
+	case N1h:
+		return true
+	case N24h:
+		return true
+	case N30d:
+		return true
+	case N7d:
 		return true
 	default:
 		return false
@@ -2186,6 +2315,178 @@ type LogPage struct {
 	Lines   []LogLine `json:"lines"`
 }
 
+// MonitorCheck defines model for MonitorCheck.
+type MonitorCheck struct {
+	Id        string  `json:"id"`
+	LastError *string `json:"last_error,omitempty"`
+	Required  bool    `json:"required"`
+	Role      string  `json:"role"`
+	Target    string  `json:"target"`
+	Type      string  `json:"type"`
+}
+
+// MonitorEndpoint defines model for MonitorEndpoint.
+type MonitorEndpoint struct {
+	Checks          []MonitorCheck       `json:"checks"`
+	DegradedMs      int64                `json:"degraded_ms"`
+	Group           string               `json:"group"`
+	Id              string               `json:"id"`
+	IntervalSeconds int64                `json:"interval_seconds"`
+	LastCheckAt     *time.Time           `json:"last_check_at,omitempty"`
+	LastLatencyMs   *int64               `json:"last_latency_ms,omitempty"`
+	Name            string               `json:"name"`
+	Paused          bool                 `json:"paused"`
+	Public          bool                 `json:"public"`
+	RouteProviderId *string              `json:"route_provider_id,omitempty"`
+	SourceType      string               `json:"source_type"`
+	State           MonitorState         `json:"state"`
+	StateSince      *time.Time           `json:"state_since,omitempty"`
+	Strip           []MonitorStripSample `json:"strip"`
+	TimeoutSeconds  int64                `json:"timeout_seconds"`
+	Uptime24h       *float64             `json:"uptime_24h,omitempty"`
+}
+
+// MonitorEndpointCreate defines model for MonitorEndpointCreate.
+type MonitorEndpointCreate struct {
+	Expect *string `json:"expect,omitempty"`
+	Group  *string `json:"group,omitempty"`
+	Name   string  `json:"name"`
+	Probe  *string `json:"probe,omitempty"`
+	Target string  `json:"target"`
+	Type   string  `json:"type"`
+}
+
+// MonitorEndpointDetail defines model for MonitorEndpointDetail.
+type MonitorEndpointDetail struct {
+	AvgMs     *int64          `json:"avg_ms,omitempty"`
+	Endpoint  MonitorEndpoint `json:"endpoint"`
+	Events    []MonitorEvent  `json:"events"`
+	MaxMs     *int64          `json:"max_ms,omitempty"`
+	MinMs     *int64          `json:"min_ms,omitempty"`
+	Series    []MonitorPoint  `json:"series"`
+	Uptime1h  *float64        `json:"uptime_1h,omitempty"`
+	Uptime30d *float64        `json:"uptime_30d,omitempty"`
+	Uptime7d  *float64        `json:"uptime_7d,omitempty"`
+}
+
+// MonitorEndpointList defines model for MonitorEndpointList.
+type MonitorEndpointList struct {
+	Endpoints []MonitorEndpoint `json:"endpoints"`
+}
+
+// MonitorEndpointSettings defines model for MonitorEndpointSettings.
+type MonitorEndpointSettings struct {
+	DegradedMs      int64   `json:"degraded_ms"`
+	Group           string  `json:"group"`
+	IntervalSeconds int64   `json:"interval_seconds"`
+	Paused          bool    `json:"paused"`
+	Public          bool    `json:"public"`
+	RouteProviderId *string `json:"route_provider_id,omitempty"`
+	TimeoutSeconds  int64   `json:"timeout_seconds"`
+}
+
+// MonitorEvent defines model for MonitorEvent.
+type MonitorEvent struct {
+	At      time.Time    `json:"at"`
+	From    string       `json:"from"`
+	Id      string       `json:"id"`
+	Message string       `json:"message"`
+	To      MonitorState `json:"to"`
+}
+
+// MonitorPoint defines model for MonitorPoint.
+type MonitorPoint struct {
+	At           time.Time `json:"at"`
+	Availability float64   `json:"availability"`
+	GapMs        *int64    `json:"gap_ms,omitempty"`
+	LatencyMs    int64     `json:"latency_ms"`
+}
+
+// MonitorState defines model for MonitorState.
+type MonitorState string
+
+// MonitorStripSample defines model for MonitorStripSample.
+type MonitorStripSample struct {
+	At      time.Time                 `json:"at"`
+	Verdict MonitorStripSampleVerdict `json:"verdict"`
+}
+
+// MonitorStripSampleVerdict defines model for MonitorStripSample.Verdict.
+type MonitorStripSampleVerdict string
+
+// NotificationDelivery defines model for NotificationDelivery.
+type NotificationDelivery struct {
+	Attempts      int64                      `json:"attempts"`
+	CreatedAt     time.Time                  `json:"created_at"`
+	DeliveredAt   *time.Time                 `json:"delivered_at,omitempty"`
+	Id            string                     `json:"id"`
+	Kind          string                     `json:"kind"`
+	LastError     *string                    `json:"last_error,omitempty"`
+	NextAttemptAt *time.Time                 `json:"next_attempt_at,omitempty"`
+	Provider      string                     `json:"provider"`
+	Status        NotificationDeliveryStatus `json:"status"`
+	Subject       string                     `json:"subject"`
+}
+
+// NotificationDeliveryStatus defines model for NotificationDelivery.Status.
+type NotificationDeliveryStatus string
+
+// NotificationDeliveryList defines model for NotificationDeliveryList.
+type NotificationDeliveryList struct {
+	Deliveries []NotificationDelivery `json:"deliveries"`
+}
+
+// NotificationProvider defines model for NotificationProvider.
+type NotificationProvider struct {
+	ChatId    *string `json:"chat_id,omitempty"`
+	From      *string `json:"from,omitempty"`
+	HasSecret bool    `json:"has_secret"`
+	Host      *string `json:"host,omitempty"`
+	Id        string  `json:"id"`
+	Name      string  `json:"name"`
+	Port      *int    `json:"port,omitempty"`
+	Tls       *string `json:"tls,omitempty"`
+	To        *string `json:"to,omitempty"`
+	Type      string  `json:"type"`
+	Username  *string `json:"username,omitempty"`
+}
+
+// NotificationProviderCreate defines model for NotificationProviderCreate.
+type NotificationProviderCreate struct {
+	BotToken *string `json:"bot_token,omitempty"`
+	ChatId   *string `json:"chat_id,omitempty"`
+	From     *string `json:"from,omitempty"`
+	Host     *string `json:"host,omitempty"`
+	Name     string  `json:"name"`
+
+	// Password SMTP password
+	Password *string                        `json:"password,omitempty"`
+	Port     *int                           `json:"port,omitempty"`
+	Tls      *string                        `json:"tls,omitempty"`
+	To       *string                        `json:"to,omitempty"`
+	Type     NotificationProviderCreateType `json:"type"`
+	Username *string                        `json:"username,omitempty"`
+}
+
+// NotificationProviderCreateType defines model for NotificationProviderCreate.Type.
+type NotificationProviderCreateType string
+
+// NotificationProviderList defines model for NotificationProviderList.
+type NotificationProviderList struct {
+	Providers []NotificationProvider `json:"providers"`
+}
+
+// NotificationRoute defines model for NotificationRoute.
+type NotificationRoute struct {
+	CooldownSeconds int64                        `json:"cooldown_seconds"`
+	MinSeverity     NotificationRouteMinSeverity `json:"min_severity"`
+	ProviderId      *string                      `json:"provider_id,omitempty"`
+	Recovery        bool                         `json:"recovery"`
+}
+
+// NotificationRouteMinSeverity defines model for NotificationRoute.MinSeverity.
+type NotificationRouteMinSeverity string
+
 // Passkey defines model for Passkey.
 type Passkey struct {
 	CreatedAt time.Time `json:"created_at"`
@@ -2215,6 +2516,43 @@ type Problem struct {
 
 	// Type Stable URI per error kind, e.g. `/problems/reauth-required`
 	Type string `json:"type"`
+}
+
+// PublicApp defines model for PublicApp.
+type PublicApp struct {
+	Group string       `json:"group"`
+	Name  string       `json:"name"`
+	State MonitorState `json:"state"`
+	Url   string       `json:"url"`
+}
+
+// PublicApps defines model for PublicApps.
+type PublicApps struct {
+	Apps           []PublicApp `json:"apps"`
+	FirewallOnline int         `json:"firewall_online"`
+	FirewallTotal  int         `json:"firewall_total"`
+	HostsOnline    int         `json:"hosts_online"`
+	HostsTotal     int         `json:"hosts_total"`
+	Theme          string      `json:"theme"`
+	Title          string      `json:"title"`
+	UpdatedAt      *time.Time  `json:"updated_at,omitempty"`
+}
+
+// PublicEndpoint defines model for PublicEndpoint.
+type PublicEndpoint struct {
+	Group     string               `json:"group"`
+	Name      string               `json:"name"`
+	State     MonitorState         `json:"state"`
+	Strip     []MonitorStripSample `json:"strip"`
+	Uptime24h *float64             `json:"uptime_24h,omitempty"`
+}
+
+// PublicStatus defines model for PublicStatus.
+type PublicStatus struct {
+	Endpoints []PublicEndpoint `json:"endpoints"`
+	Theme     string           `json:"theme"`
+	Title     string           `json:"title"`
+	UpdatedAt *time.Time       `json:"updated_at,omitempty"`
 }
 
 // RecoverLogin defines model for RecoverLogin.
@@ -2591,6 +2929,19 @@ type SyncPlanResult struct {
 	Plan *SyncPlan `json:"plan,omitempty"`
 }
 
+// TelegramChats defines model for TelegramChats.
+type TelegramChats struct {
+	Chats []struct {
+		Id    string `json:"id"`
+		Title string `json:"title"`
+	} `json:"chats"`
+}
+
+// TelegramDiscover defines model for TelegramDiscover.
+type TelegramDiscover struct {
+	BotToken string `json:"bot_token"`
+}
+
 // TraefikConnection defines model for TraefikConnection.
 type TraefikConnection struct {
 	ApiPort            int                     `json:"api_port"`
@@ -2747,6 +3098,19 @@ type GetIPSetResolvedParams struct {
 // GetIPSetResolvedParamsFamily defines parameters for GetIPSetResolved.
 type GetIPSetResolvedParamsFamily string
 
+// GetMonitorEndpointParams defines parameters for GetMonitorEndpoint.
+type GetMonitorEndpointParams struct {
+	Range *GetMonitorEndpointParamsRange `form:"range,omitempty" json:"range,omitempty"`
+}
+
+// GetMonitorEndpointParamsRange defines parameters for GetMonitorEndpoint.
+type GetMonitorEndpointParamsRange string
+
+// PutServiceDashboardJSONBody defines parameters for PutServiceDashboard.
+type PutServiceDashboardJSONBody struct {
+	Visible bool `json:"visible"`
+}
+
 // BootstrapLoginJSONRequestBody defines body for BootstrapLogin for application/json ContentType.
 type BootstrapLoginJSONRequestBody = BootstrapLogin
 
@@ -2819,11 +3183,29 @@ type AddIPSetElementJSONRequestBody = IPSetElementInput
 // UpdateIPSetElementJSONRequestBody defines body for UpdateIPSetElement for application/json ContentType.
 type UpdateIPSetElementJSONRequestBody = IPSetElementInput
 
+// CreateMonitorEndpointJSONRequestBody defines body for CreateMonitorEndpoint for application/json ContentType.
+type CreateMonitorEndpointJSONRequestBody = MonitorEndpointCreate
+
+// PutMonitorEndpointJSONRequestBody defines body for PutMonitorEndpoint for application/json ContentType.
+type PutMonitorEndpointJSONRequestBody = MonitorEndpointSettings
+
+// CreateNotificationProviderJSONRequestBody defines body for CreateNotificationProvider for application/json ContentType.
+type CreateNotificationProviderJSONRequestBody = NotificationProviderCreate
+
+// PutNotificationRouteJSONRequestBody defines body for PutNotificationRoute for application/json ContentType.
+type PutNotificationRouteJSONRequestBody = NotificationRoute
+
+// DiscoverTelegramChatsJSONRequestBody defines body for DiscoverTelegramChats for application/json ContentType.
+type DiscoverTelegramChatsJSONRequestBody = TelegramDiscover
+
 // CreateServiceJSONRequestBody defines body for CreateService for application/json ContentType.
 type CreateServiceJSONRequestBody = ServiceInput
 
 // UpdateServiceJSONRequestBody defines body for UpdateService for application/json ContentType.
 type UpdateServiceJSONRequestBody = ServiceInput
+
+// PutServiceDashboardJSONRequestBody defines body for PutServiceDashboard for application/json ContentType.
+type PutServiceDashboardJSONRequestBody PutServiceDashboardJSONBody
 
 // PutAppearanceSettingsJSONRequestBody defines body for PutAppearanceSettings for application/json ContentType.
 type PutAppearanceSettingsJSONRequestBody = AppearanceSettings
@@ -3288,6 +3670,51 @@ type ServerInterface interface {
 	// GetIPSetResolved The set compiled now (prefixes merged per family, single addresses for target positions, problems)
 	// (GET /api/ip-sets/{id}/resolved)
 	GetIPSetResolved(w http.ResponseWriter, r *http.Request, id string, params GetIPSetResolvedParams)
+	// ListMonitorEndpoints Every endpoint with its 60-minute strip and 24-hour uptime
+	// (GET /api/monitor/endpoints)
+	ListMonitorEndpoints(w http.ResponseWriter, r *http.Request)
+	// CreateMonitorEndpoint Add a user monitor with one check
+	// (POST /api/monitor/endpoints)
+	CreateMonitorEndpoint(w http.ResponseWriter, r *http.Request)
+	// DeleteMonitorEndpoint Remove a user monitor; other endpoints follow what they watch
+	// (DELETE /api/monitor/endpoints/{id})
+	DeleteMonitorEndpoint(w http.ResponseWriter, r *http.Request, id string)
+	// GetMonitorEndpoint One endpoint with statistics, chart series and events
+	// (GET /api/monitor/endpoints/{id})
+	GetMonitorEndpoint(w http.ResponseWriter, r *http.Request, id string, params GetMonitorEndpointParams)
+	// PutMonitorEndpoint Change an endpoint's group, schedule, visibility and route override
+	// (PUT /api/monitor/endpoints/{id})
+	PutMonitorEndpoint(w http.ResponseWriter, r *http.Request, id string)
+	// ListNotificationDeliveries Recent deliveries
+	// (GET /api/notifications/deliveries)
+	ListNotificationDeliveries(w http.ResponseWriter, r *http.Request)
+	// ListNotificationProviders Notification providers, never with their secrets
+	// (GET /api/notifications/providers)
+	ListNotificationProviders(w http.ResponseWriter, r *http.Request)
+	// CreateNotificationProvider Add an SMTP or Telegram provider; its secret goes into the vault
+	// (POST /api/notifications/providers)
+	CreateNotificationProvider(w http.ResponseWriter, r *http.Request)
+	// DeleteNotificationProvider Remove a provider and its secret
+	// (DELETE /api/notifications/providers/{id})
+	DeleteNotificationProvider(w http.ResponseWriter, r *http.Request, id string)
+	// TestNotificationProvider Send a test message through the normal delivery path
+	// (POST /api/notifications/providers/{id}/test)
+	TestNotificationProvider(w http.ResponseWriter, r *http.Request, id string)
+	// GetNotificationRoute The default route
+	// (GET /api/notifications/route)
+	GetNotificationRoute(w http.ResponseWriter, r *http.Request)
+	// PutNotificationRoute Change the default route
+	// (PUT /api/notifications/route)
+	PutNotificationRoute(w http.ResponseWriter, r *http.Request)
+	// DiscoverTelegramChats The chats that recently messaged a bot, so the admin can pick one; nothing is stored
+	// (POST /api/notifications/telegram/discover)
+	DiscoverTelegramChats(w http.ResponseWriter, r *http.Request)
+	// GetPublicApps Public dashboard data (cached 15 s)
+	// (GET /api/public/apps)
+	GetPublicApps(w http.ResponseWriter, r *http.Request)
+	// GetPublicStatus Public status page data (cached 15 s); names, groups, state and history only
+	// (GET /api/public/status)
+	GetPublicStatus(w http.ResponseWriter, r *http.Request)
 	// ListServices Every service, system services first, with the reason when one cannot be rendered
 	// (GET /api/services)
 	ListServices(w http.ResponseWriter, r *http.Request)
@@ -3303,6 +3730,9 @@ type ServerInterface interface {
 	// UpdateService Replace a user service's fields and routes (system services change only through their owning setting)
 	// (PUT /api/services/{id})
 	UpdateService(w http.ResponseWriter, r *http.Request, id string)
+	// PutServiceDashboard Show or hide a service on the public dashboard; changes no Traefik state
+	// (PUT /api/services/{id}/dashboard)
+	PutServiceDashboard(w http.ResponseWriter, r *http.Request, id string)
 	// DisableService Turn a user service off (it stays stored, absent from the rendered files)
 	// (POST /api/services/{id}/disable)
 	DisableService(w http.ResponseWriter, r *http.Request, id string)
@@ -4997,6 +5427,292 @@ func (siw *ServerInterfaceWrapper) GetIPSetResolved(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// ListMonitorEndpoints operation middleware
+func (siw *ServerInterfaceWrapper) ListMonitorEndpoints(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListMonitorEndpoints(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateMonitorEndpoint operation middleware
+func (siw *ServerInterfaceWrapper) CreateMonitorEndpoint(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateMonitorEndpoint(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteMonitorEndpoint operation middleware
+func (siw *ServerInterfaceWrapper) DeleteMonitorEndpoint(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteMonitorEndpoint(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetMonitorEndpoint operation middleware
+func (siw *ServerInterfaceWrapper) GetMonitorEndpoint(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetMonitorEndpointParams
+
+	// ------------- Optional query parameter "range" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "range", r.URL.Query(), &params.Range, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "range"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "range", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetMonitorEndpoint(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutMonitorEndpoint operation middleware
+func (siw *ServerInterfaceWrapper) PutMonitorEndpoint(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutMonitorEndpoint(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListNotificationDeliveries operation middleware
+func (siw *ServerInterfaceWrapper) ListNotificationDeliveries(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListNotificationDeliveries(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListNotificationProviders operation middleware
+func (siw *ServerInterfaceWrapper) ListNotificationProviders(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListNotificationProviders(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateNotificationProvider operation middleware
+func (siw *ServerInterfaceWrapper) CreateNotificationProvider(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateNotificationProvider(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteNotificationProvider operation middleware
+func (siw *ServerInterfaceWrapper) DeleteNotificationProvider(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteNotificationProvider(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TestNotificationProvider operation middleware
+func (siw *ServerInterfaceWrapper) TestNotificationProvider(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TestNotificationProvider(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetNotificationRoute operation middleware
+func (siw *ServerInterfaceWrapper) GetNotificationRoute(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetNotificationRoute(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutNotificationRoute operation middleware
+func (siw *ServerInterfaceWrapper) PutNotificationRoute(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutNotificationRoute(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DiscoverTelegramChats operation middleware
+func (siw *ServerInterfaceWrapper) DiscoverTelegramChats(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DiscoverTelegramChats(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetPublicApps operation middleware
+func (siw *ServerInterfaceWrapper) GetPublicApps(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPublicApps(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetPublicStatus operation middleware
+func (siw *ServerInterfaceWrapper) GetPublicStatus(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPublicStatus(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListServices operation middleware
 func (siw *ServerInterfaceWrapper) ListServices(w http.ResponseWriter, r *http.Request) {
 
@@ -5094,6 +5810,32 @@ func (siw *ServerInterfaceWrapper) UpdateService(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateService(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutServiceDashboard operation middleware
+func (siw *ServerInterfaceWrapper) PutServiceDashboard(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutServiceDashboard(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6247,6 +6989,22 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/recovery-key", wrapper.SetupRecoveryKey)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/recovery-key/confirm", wrapper.ConfirmRecoveryKey)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/complete", wrapper.CompleteSetup)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/monitor/endpoints", wrapper.ListMonitorEndpoints)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/monitor/endpoints", wrapper.CreateMonitorEndpoint)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/monitor/endpoints/{id}", wrapper.DeleteMonitorEndpoint)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/monitor/endpoints/{id}", wrapper.GetMonitorEndpoint)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/monitor/endpoints/{id}", wrapper.PutMonitorEndpoint)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/notifications/providers", wrapper.ListNotificationProviders)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/notifications/providers", wrapper.CreateNotificationProvider)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/notifications/telegram/discover", wrapper.DiscoverTelegramChats)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/notifications/providers/{id}", wrapper.DeleteNotificationProvider)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/notifications/providers/{id}/test", wrapper.TestNotificationProvider)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/notifications/route", wrapper.GetNotificationRoute)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/notifications/route", wrapper.PutNotificationRoute)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/notifications/deliveries", wrapper.ListNotificationDeliveries)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/services/{id}/dashboard", wrapper.PutServiceDashboard)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/status", wrapper.GetPublicStatus)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/public/apps", wrapper.GetPublicApps)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings", wrapper.GetSettings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings/general", wrapper.GetGeneralSettings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/settings/general", wrapper.PutGeneralSettings)
@@ -8887,6 +9645,563 @@ func (response GetIPSetResolveddefaultApplicationProblemPlusJSONResponse) VisitG
 	return err
 }
 
+type ListMonitorEndpointsRequestObject struct {
+}
+
+type ListMonitorEndpointsResponseObject interface {
+	VisitListMonitorEndpointsResponse(w http.ResponseWriter) error
+}
+
+type ListMonitorEndpoints200JSONResponse MonitorEndpointList
+
+func (response ListMonitorEndpoints200JSONResponse) VisitListMonitorEndpointsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListMonitorEndpointsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ListMonitorEndpointsdefaultApplicationProblemPlusJSONResponse) VisitListMonitorEndpointsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateMonitorEndpointRequestObject struct {
+	Body *CreateMonitorEndpointJSONRequestBody
+}
+
+type CreateMonitorEndpointResponseObject interface {
+	VisitCreateMonitorEndpointResponse(w http.ResponseWriter) error
+}
+
+type CreateMonitorEndpoint201JSONResponse MonitorEndpoint
+
+func (response CreateMonitorEndpoint201JSONResponse) VisitCreateMonitorEndpointResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateMonitorEndpointdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response CreateMonitorEndpointdefaultApplicationProblemPlusJSONResponse) VisitCreateMonitorEndpointResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteMonitorEndpointRequestObject struct {
+	Id string `json:"id"`
+}
+
+type DeleteMonitorEndpointResponseObject interface {
+	VisitDeleteMonitorEndpointResponse(w http.ResponseWriter) error
+}
+
+type DeleteMonitorEndpoint204Response struct {
+}
+
+func (response DeleteMonitorEndpoint204Response) VisitDeleteMonitorEndpointResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteMonitorEndpointdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response DeleteMonitorEndpointdefaultApplicationProblemPlusJSONResponse) VisitDeleteMonitorEndpointResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMonitorEndpointRequestObject struct {
+	Id     string `json:"id"`
+	Params GetMonitorEndpointParams
+}
+
+type GetMonitorEndpointResponseObject interface {
+	VisitGetMonitorEndpointResponse(w http.ResponseWriter) error
+}
+
+type GetMonitorEndpoint200JSONResponse MonitorEndpointDetail
+
+func (response GetMonitorEndpoint200JSONResponse) VisitGetMonitorEndpointResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMonitorEndpointdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetMonitorEndpointdefaultApplicationProblemPlusJSONResponse) VisitGetMonitorEndpointResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutMonitorEndpointRequestObject struct {
+	Id   string `json:"id"`
+	Body *PutMonitorEndpointJSONRequestBody
+}
+
+type PutMonitorEndpointResponseObject interface {
+	VisitPutMonitorEndpointResponse(w http.ResponseWriter) error
+}
+
+type PutMonitorEndpoint204Response struct {
+}
+
+func (response PutMonitorEndpoint204Response) VisitPutMonitorEndpointResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type PutMonitorEndpointdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutMonitorEndpointdefaultApplicationProblemPlusJSONResponse) VisitPutMonitorEndpointResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListNotificationDeliveriesRequestObject struct {
+}
+
+type ListNotificationDeliveriesResponseObject interface {
+	VisitListNotificationDeliveriesResponse(w http.ResponseWriter) error
+}
+
+type ListNotificationDeliveries200JSONResponse NotificationDeliveryList
+
+func (response ListNotificationDeliveries200JSONResponse) VisitListNotificationDeliveriesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListNotificationDeliveriesdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ListNotificationDeliveriesdefaultApplicationProblemPlusJSONResponse) VisitListNotificationDeliveriesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListNotificationProvidersRequestObject struct {
+}
+
+type ListNotificationProvidersResponseObject interface {
+	VisitListNotificationProvidersResponse(w http.ResponseWriter) error
+}
+
+type ListNotificationProviders200JSONResponse NotificationProviderList
+
+func (response ListNotificationProviders200JSONResponse) VisitListNotificationProvidersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListNotificationProvidersdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ListNotificationProvidersdefaultApplicationProblemPlusJSONResponse) VisitListNotificationProvidersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateNotificationProviderRequestObject struct {
+	Body *CreateNotificationProviderJSONRequestBody
+}
+
+type CreateNotificationProviderResponseObject interface {
+	VisitCreateNotificationProviderResponse(w http.ResponseWriter) error
+}
+
+type CreateNotificationProvider201JSONResponse NotificationProvider
+
+func (response CreateNotificationProvider201JSONResponse) VisitCreateNotificationProviderResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateNotificationProviderdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response CreateNotificationProviderdefaultApplicationProblemPlusJSONResponse) VisitCreateNotificationProviderResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteNotificationProviderRequestObject struct {
+	Id string `json:"id"`
+}
+
+type DeleteNotificationProviderResponseObject interface {
+	VisitDeleteNotificationProviderResponse(w http.ResponseWriter) error
+}
+
+type DeleteNotificationProvider204Response struct {
+}
+
+func (response DeleteNotificationProvider204Response) VisitDeleteNotificationProviderResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteNotificationProviderdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response DeleteNotificationProviderdefaultApplicationProblemPlusJSONResponse) VisitDeleteNotificationProviderResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestNotificationProviderRequestObject struct {
+	Id string `json:"id"`
+}
+
+type TestNotificationProviderResponseObject interface {
+	VisitTestNotificationProviderResponse(w http.ResponseWriter) error
+}
+
+type TestNotificationProvider200JSONResponse NotificationDeliveryList
+
+func (response TestNotificationProvider200JSONResponse) VisitTestNotificationProviderResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestNotificationProviderdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response TestNotificationProviderdefaultApplicationProblemPlusJSONResponse) VisitTestNotificationProviderResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetNotificationRouteRequestObject struct {
+}
+
+type GetNotificationRouteResponseObject interface {
+	VisitGetNotificationRouteResponse(w http.ResponseWriter) error
+}
+
+type GetNotificationRoute200JSONResponse NotificationRoute
+
+func (response GetNotificationRoute200JSONResponse) VisitGetNotificationRouteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetNotificationRoutedefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetNotificationRoutedefaultApplicationProblemPlusJSONResponse) VisitGetNotificationRouteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutNotificationRouteRequestObject struct {
+	Body *PutNotificationRouteJSONRequestBody
+}
+
+type PutNotificationRouteResponseObject interface {
+	VisitPutNotificationRouteResponse(w http.ResponseWriter) error
+}
+
+type PutNotificationRoute204Response struct {
+}
+
+func (response PutNotificationRoute204Response) VisitPutNotificationRouteResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type PutNotificationRoutedefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutNotificationRoutedefaultApplicationProblemPlusJSONResponse) VisitPutNotificationRouteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DiscoverTelegramChatsRequestObject struct {
+	Body *DiscoverTelegramChatsJSONRequestBody
+}
+
+type DiscoverTelegramChatsResponseObject interface {
+	VisitDiscoverTelegramChatsResponse(w http.ResponseWriter) error
+}
+
+type DiscoverTelegramChats200JSONResponse TelegramChats
+
+func (response DiscoverTelegramChats200JSONResponse) VisitDiscoverTelegramChatsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DiscoverTelegramChatsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response DiscoverTelegramChatsdefaultApplicationProblemPlusJSONResponse) VisitDiscoverTelegramChatsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPublicAppsRequestObject struct {
+}
+
+type GetPublicAppsResponseObject interface {
+	VisitGetPublicAppsResponse(w http.ResponseWriter) error
+}
+
+type GetPublicApps200JSONResponse PublicApps
+
+func (response GetPublicApps200JSONResponse) VisitGetPublicAppsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPublicAppsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetPublicAppsdefaultApplicationProblemPlusJSONResponse) VisitGetPublicAppsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPublicStatusRequestObject struct {
+}
+
+type GetPublicStatusResponseObject interface {
+	VisitGetPublicStatusResponse(w http.ResponseWriter) error
+}
+
+type GetPublicStatus200JSONResponse PublicStatus
+
+func (response GetPublicStatus200JSONResponse) VisitGetPublicStatusResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPublicStatusdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetPublicStatusdefaultApplicationProblemPlusJSONResponse) VisitGetPublicStatusResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListServicesRequestObject struct {
 }
 
@@ -9071,6 +10386,40 @@ type UpdateServicedefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response UpdateServicedefaultApplicationProblemPlusJSONResponse) VisitUpdateServiceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutServiceDashboardRequestObject struct {
+	Id   string `json:"id"`
+	Body *PutServiceDashboardJSONRequestBody
+}
+
+type PutServiceDashboardResponseObject interface {
+	VisitPutServiceDashboardResponse(w http.ResponseWriter) error
+}
+
+type PutServiceDashboard204Response struct {
+}
+
+func (response PutServiceDashboard204Response) VisitPutServiceDashboardResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type PutServiceDashboarddefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutServiceDashboarddefaultApplicationProblemPlusJSONResponse) VisitPutServiceDashboardResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -11484,6 +12833,51 @@ type StrictServerInterface interface {
 	// GetIPSetResolved The set compiled now (prefixes merged per family, single addresses for target positions, problems)
 	// (GET /api/ip-sets/{id}/resolved)
 	GetIPSetResolved(ctx context.Context, request GetIPSetResolvedRequestObject) (GetIPSetResolvedResponseObject, error)
+	// ListMonitorEndpoints Every endpoint with its 60-minute strip and 24-hour uptime
+	// (GET /api/monitor/endpoints)
+	ListMonitorEndpoints(ctx context.Context, request ListMonitorEndpointsRequestObject) (ListMonitorEndpointsResponseObject, error)
+	// CreateMonitorEndpoint Add a user monitor with one check
+	// (POST /api/monitor/endpoints)
+	CreateMonitorEndpoint(ctx context.Context, request CreateMonitorEndpointRequestObject) (CreateMonitorEndpointResponseObject, error)
+	// DeleteMonitorEndpoint Remove a user monitor; other endpoints follow what they watch
+	// (DELETE /api/monitor/endpoints/{id})
+	DeleteMonitorEndpoint(ctx context.Context, request DeleteMonitorEndpointRequestObject) (DeleteMonitorEndpointResponseObject, error)
+	// GetMonitorEndpoint One endpoint with statistics, chart series and events
+	// (GET /api/monitor/endpoints/{id})
+	GetMonitorEndpoint(ctx context.Context, request GetMonitorEndpointRequestObject) (GetMonitorEndpointResponseObject, error)
+	// PutMonitorEndpoint Change an endpoint's group, schedule, visibility and route override
+	// (PUT /api/monitor/endpoints/{id})
+	PutMonitorEndpoint(ctx context.Context, request PutMonitorEndpointRequestObject) (PutMonitorEndpointResponseObject, error)
+	// ListNotificationDeliveries Recent deliveries
+	// (GET /api/notifications/deliveries)
+	ListNotificationDeliveries(ctx context.Context, request ListNotificationDeliveriesRequestObject) (ListNotificationDeliveriesResponseObject, error)
+	// ListNotificationProviders Notification providers, never with their secrets
+	// (GET /api/notifications/providers)
+	ListNotificationProviders(ctx context.Context, request ListNotificationProvidersRequestObject) (ListNotificationProvidersResponseObject, error)
+	// CreateNotificationProvider Add an SMTP or Telegram provider; its secret goes into the vault
+	// (POST /api/notifications/providers)
+	CreateNotificationProvider(ctx context.Context, request CreateNotificationProviderRequestObject) (CreateNotificationProviderResponseObject, error)
+	// DeleteNotificationProvider Remove a provider and its secret
+	// (DELETE /api/notifications/providers/{id})
+	DeleteNotificationProvider(ctx context.Context, request DeleteNotificationProviderRequestObject) (DeleteNotificationProviderResponseObject, error)
+	// TestNotificationProvider Send a test message through the normal delivery path
+	// (POST /api/notifications/providers/{id}/test)
+	TestNotificationProvider(ctx context.Context, request TestNotificationProviderRequestObject) (TestNotificationProviderResponseObject, error)
+	// GetNotificationRoute The default route
+	// (GET /api/notifications/route)
+	GetNotificationRoute(ctx context.Context, request GetNotificationRouteRequestObject) (GetNotificationRouteResponseObject, error)
+	// PutNotificationRoute Change the default route
+	// (PUT /api/notifications/route)
+	PutNotificationRoute(ctx context.Context, request PutNotificationRouteRequestObject) (PutNotificationRouteResponseObject, error)
+	// DiscoverTelegramChats The chats that recently messaged a bot, so the admin can pick one; nothing is stored
+	// (POST /api/notifications/telegram/discover)
+	DiscoverTelegramChats(ctx context.Context, request DiscoverTelegramChatsRequestObject) (DiscoverTelegramChatsResponseObject, error)
+	// GetPublicApps Public dashboard data (cached 15 s)
+	// (GET /api/public/apps)
+	GetPublicApps(ctx context.Context, request GetPublicAppsRequestObject) (GetPublicAppsResponseObject, error)
+	// GetPublicStatus Public status page data (cached 15 s); names, groups, state and history only
+	// (GET /api/public/status)
+	GetPublicStatus(ctx context.Context, request GetPublicStatusRequestObject) (GetPublicStatusResponseObject, error)
 	// ListServices Every service, system services first, with the reason when one cannot be rendered
 	// (GET /api/services)
 	ListServices(ctx context.Context, request ListServicesRequestObject) (ListServicesResponseObject, error)
@@ -11499,6 +12893,9 @@ type StrictServerInterface interface {
 	// UpdateService Replace a user service's fields and routes (system services change only through their owning setting)
 	// (PUT /api/services/{id})
 	UpdateService(ctx context.Context, request UpdateServiceRequestObject) (UpdateServiceResponseObject, error)
+	// PutServiceDashboard Show or hide a service on the public dashboard; changes no Traefik state
+	// (PUT /api/services/{id}/dashboard)
+	PutServiceDashboard(ctx context.Context, request PutServiceDashboardRequestObject) (PutServiceDashboardResponseObject, error)
 	// DisableService Turn a user service off (it stays stored, absent from the rendered files)
 	// (POST /api/services/{id}/disable)
 	DisableService(ctx context.Context, request DisableServiceRequestObject) (DisableServiceResponseObject, error)
@@ -13541,6 +14938,412 @@ func (sh *strictHandler) GetIPSetResolved(w http.ResponseWriter, r *http.Request
 	}
 }
 
+// ListMonitorEndpoints operation middleware
+func (sh *strictHandler) ListMonitorEndpoints(w http.ResponseWriter, r *http.Request) {
+	var request ListMonitorEndpointsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListMonitorEndpoints(ctx, request.(ListMonitorEndpointsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListMonitorEndpoints")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListMonitorEndpointsResponseObject); ok {
+		if err := validResponse.VisitListMonitorEndpointsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateMonitorEndpoint operation middleware
+func (sh *strictHandler) CreateMonitorEndpoint(w http.ResponseWriter, r *http.Request) {
+	var request CreateMonitorEndpointRequestObject
+
+	var body CreateMonitorEndpointJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateMonitorEndpoint(ctx, request.(CreateMonitorEndpointRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateMonitorEndpoint")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateMonitorEndpointResponseObject); ok {
+		if err := validResponse.VisitCreateMonitorEndpointResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteMonitorEndpoint operation middleware
+func (sh *strictHandler) DeleteMonitorEndpoint(w http.ResponseWriter, r *http.Request, id string) {
+	var request DeleteMonitorEndpointRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteMonitorEndpoint(ctx, request.(DeleteMonitorEndpointRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteMonitorEndpoint")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteMonitorEndpointResponseObject); ok {
+		if err := validResponse.VisitDeleteMonitorEndpointResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetMonitorEndpoint operation middleware
+func (sh *strictHandler) GetMonitorEndpoint(w http.ResponseWriter, r *http.Request, id string, params GetMonitorEndpointParams) {
+	var request GetMonitorEndpointRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMonitorEndpoint(ctx, request.(GetMonitorEndpointRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMonitorEndpoint")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetMonitorEndpointResponseObject); ok {
+		if err := validResponse.VisitGetMonitorEndpointResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutMonitorEndpoint operation middleware
+func (sh *strictHandler) PutMonitorEndpoint(w http.ResponseWriter, r *http.Request, id string) {
+	var request PutMonitorEndpointRequestObject
+
+	request.Id = id
+
+	var body PutMonitorEndpointJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutMonitorEndpoint(ctx, request.(PutMonitorEndpointRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutMonitorEndpoint")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutMonitorEndpointResponseObject); ok {
+		if err := validResponse.VisitPutMonitorEndpointResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListNotificationDeliveries operation middleware
+func (sh *strictHandler) ListNotificationDeliveries(w http.ResponseWriter, r *http.Request) {
+	var request ListNotificationDeliveriesRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListNotificationDeliveries(ctx, request.(ListNotificationDeliveriesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListNotificationDeliveries")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListNotificationDeliveriesResponseObject); ok {
+		if err := validResponse.VisitListNotificationDeliveriesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListNotificationProviders operation middleware
+func (sh *strictHandler) ListNotificationProviders(w http.ResponseWriter, r *http.Request) {
+	var request ListNotificationProvidersRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListNotificationProviders(ctx, request.(ListNotificationProvidersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListNotificationProviders")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListNotificationProvidersResponseObject); ok {
+		if err := validResponse.VisitListNotificationProvidersResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateNotificationProvider operation middleware
+func (sh *strictHandler) CreateNotificationProvider(w http.ResponseWriter, r *http.Request) {
+	var request CreateNotificationProviderRequestObject
+
+	var body CreateNotificationProviderJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateNotificationProvider(ctx, request.(CreateNotificationProviderRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateNotificationProvider")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateNotificationProviderResponseObject); ok {
+		if err := validResponse.VisitCreateNotificationProviderResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteNotificationProvider operation middleware
+func (sh *strictHandler) DeleteNotificationProvider(w http.ResponseWriter, r *http.Request, id string) {
+	var request DeleteNotificationProviderRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteNotificationProvider(ctx, request.(DeleteNotificationProviderRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteNotificationProvider")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteNotificationProviderResponseObject); ok {
+		if err := validResponse.VisitDeleteNotificationProviderResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// TestNotificationProvider operation middleware
+func (sh *strictHandler) TestNotificationProvider(w http.ResponseWriter, r *http.Request, id string) {
+	var request TestNotificationProviderRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.TestNotificationProvider(ctx, request.(TestNotificationProviderRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "TestNotificationProvider")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(TestNotificationProviderResponseObject); ok {
+		if err := validResponse.VisitTestNotificationProviderResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetNotificationRoute operation middleware
+func (sh *strictHandler) GetNotificationRoute(w http.ResponseWriter, r *http.Request) {
+	var request GetNotificationRouteRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetNotificationRoute(ctx, request.(GetNotificationRouteRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetNotificationRoute")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetNotificationRouteResponseObject); ok {
+		if err := validResponse.VisitGetNotificationRouteResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutNotificationRoute operation middleware
+func (sh *strictHandler) PutNotificationRoute(w http.ResponseWriter, r *http.Request) {
+	var request PutNotificationRouteRequestObject
+
+	var body PutNotificationRouteJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutNotificationRoute(ctx, request.(PutNotificationRouteRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutNotificationRoute")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutNotificationRouteResponseObject); ok {
+		if err := validResponse.VisitPutNotificationRouteResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DiscoverTelegramChats operation middleware
+func (sh *strictHandler) DiscoverTelegramChats(w http.ResponseWriter, r *http.Request) {
+	var request DiscoverTelegramChatsRequestObject
+
+	var body DiscoverTelegramChatsJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DiscoverTelegramChats(ctx, request.(DiscoverTelegramChatsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DiscoverTelegramChats")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DiscoverTelegramChatsResponseObject); ok {
+		if err := validResponse.VisitDiscoverTelegramChatsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetPublicApps operation middleware
+func (sh *strictHandler) GetPublicApps(w http.ResponseWriter, r *http.Request) {
+	var request GetPublicAppsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetPublicApps(ctx, request.(GetPublicAppsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetPublicApps")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetPublicAppsResponseObject); ok {
+		if err := validResponse.VisitGetPublicAppsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetPublicStatus operation middleware
+func (sh *strictHandler) GetPublicStatus(w http.ResponseWriter, r *http.Request) {
+	var request GetPublicStatusRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetPublicStatus(ctx, request.(GetPublicStatusRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetPublicStatus")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetPublicStatusResponseObject); ok {
+		if err := validResponse.VisitGetPublicStatusResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ListServices operation middleware
 func (sh *strictHandler) ListServices(w http.ResponseWriter, r *http.Request) {
 	var request ListServicesRequestObject
@@ -13674,6 +15477,39 @@ func (sh *strictHandler) UpdateService(w http.ResponseWriter, r *http.Request, i
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(UpdateServiceResponseObject); ok {
 		if err := validResponse.VisitUpdateServiceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutServiceDashboard operation middleware
+func (sh *strictHandler) PutServiceDashboard(w http.ResponseWriter, r *http.Request, id string) {
+	var request PutServiceDashboardRequestObject
+
+	request.Id = id
+
+	var body PutServiceDashboardJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutServiceDashboard(ctx, request.(PutServiceDashboardRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutServiceDashboard")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutServiceDashboardResponseObject); ok {
+		if err := validResponse.VisitPutServiceDashboardResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

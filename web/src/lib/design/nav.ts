@@ -68,6 +68,8 @@ const built = new Set([
 	'/traefik',
 	'/firewall',
 	'/ip-sets',
+	'/status',
+	'/app-display',
 	'/activity',
 	'/settings'
 ]);

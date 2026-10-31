@@ -744,6 +744,204 @@ paths:
           content: { application/json: { schema: { $ref: "#/components/schemas/SetupState" } } }
         default: { $ref: "#/components/responses/Problem" }
 
+  # ---- monitoring (07) ----
+  /api/monitor/endpoints:
+    get:
+      operationId: listMonitorEndpoints
+      summary: Every endpoint with its 60-minute strip and 24-hour uptime
+      tags: [monitor]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Endpoints
+          content: { application/json: { schema: { $ref: "#/components/schemas/MonitorEndpointList" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    post:
+      operationId: createMonitorEndpoint
+      summary: Add a user monitor with one check
+      tags: [monitor]
+      x-hashi-scopes: [admin.write]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/MonitorEndpointCreate" } } }
+      responses:
+        "201":
+          description: Created
+          content: { application/json: { schema: { $ref: "#/components/schemas/MonitorEndpoint" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/monitor/endpoints/{id}:
+    get:
+      operationId: getMonitorEndpoint
+      summary: One endpoint with statistics, chart series and events
+      tags: [monitor]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: range, in: query, required: false, schema: { type: string, enum: ["1h", "24h", "7d", "30d"] } }
+      responses:
+        "200":
+          description: Endpoint
+          content: { application/json: { schema: { $ref: "#/components/schemas/MonitorEndpointDetail" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      operationId: putMonitorEndpoint
+      summary: Change an endpoint's group, schedule, visibility and route override
+      tags: [monitor]
+      x-hashi-scopes: [admin.write]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/MonitorEndpointSettings" } } }
+      responses:
+        "204": { description: Saved }
+        default: { $ref: "#/components/responses/Problem" }
+    delete:
+      operationId: deleteMonitorEndpoint
+      summary: Remove a user monitor; other endpoints follow what they watch
+      tags: [monitor]
+      x-hashi-scopes: [admin.write]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "204": { description: Removed }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/notifications/providers:
+    get:
+      operationId: listNotificationProviders
+      summary: Notification providers, never with their secrets
+      tags: [monitor]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Providers
+          content: { application/json: { schema: { $ref: "#/components/schemas/NotificationProviderList" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    post:
+      operationId: createNotificationProvider
+      summary: Add an SMTP or Telegram provider; its secret goes into the vault
+      tags: [monitor]
+      x-hashi-scopes: [admin.write]
+      x-hashi-reauth: true
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/NotificationProviderCreate" } } }
+      responses:
+        "201":
+          description: Created
+          content: { application/json: { schema: { $ref: "#/components/schemas/NotificationProvider" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/notifications/telegram/discover:
+    post:
+      operationId: discoverTelegramChats
+      summary: The chats that recently messaged a bot, so the admin can pick one; nothing is stored
+      tags: [monitor]
+      x-hashi-scopes: [admin.write]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/TelegramDiscover" } } }
+      responses:
+        "200":
+          description: Chats, newest first
+          content: { application/json: { schema: { $ref: "#/components/schemas/TelegramChats" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/notifications/providers/{id}:
+    delete:
+      operationId: deleteNotificationProvider
+      summary: Remove a provider and its secret
+      tags: [monitor]
+      x-hashi-scopes: [admin.write]
+      x-hashi-reauth: true
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "204": { description: Removed }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/notifications/providers/{id}/test:
+    post:
+      operationId: testNotificationProvider
+      summary: Send a test message through the normal delivery path
+      tags: [monitor]
+      x-hashi-scopes: [admin.write]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The recent deliveries, with the test's result
+          content: { application/json: { schema: { $ref: "#/components/schemas/NotificationDeliveryList" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/notifications/route:
+    get:
+      operationId: getNotificationRoute
+      summary: The default route
+      tags: [monitor]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Route
+          content: { application/json: { schema: { $ref: "#/components/schemas/NotificationRoute" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      operationId: putNotificationRoute
+      summary: Change the default route
+      tags: [monitor]
+      x-hashi-scopes: [admin.write]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/NotificationRoute" } } }
+      responses:
+        "204": { description: Saved }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/notifications/deliveries:
+    get:
+      operationId: listNotificationDeliveries
+      summary: Recent deliveries
+      tags: [monitor]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Deliveries
+          content: { application/json: { schema: { $ref: "#/components/schemas/NotificationDeliveryList" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/services/{id}/dashboard:
+    put:
+      operationId: putServiceDashboard
+      summary: Show or hide a service on the public dashboard; changes no Traefik state
+      tags: [monitor]
+      x-hashi-scopes: [services.manage]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [visible], properties: { visible: { type: boolean } } }
+      responses:
+        "204": { description: Saved }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/public/status:
+    get:
+      operationId: getPublicStatus
+      summary: Public status page data (cached 15 s); names, groups, state and history only
+      tags: [public]
+      x-hashi-scopes: []
+      responses:
+        "200":
+          description: Status
+          content: { application/json: { schema: { $ref: "#/components/schemas/PublicStatus" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/public/apps:
+    get:
+      operationId: getPublicApps
+      summary: Public dashboard data (cached 15 s)
+      tags: [public]
+      x-hashi-scopes: []
+      responses:
+        "200":
+          description: Apps
+          content: { application/json: { schema: { $ref: "#/components/schemas/PublicApps" } } }
+        default: { $ref: "#/components/responses/Problem" }
+
   # ---- settings (09 §2) ----
   /api/settings:
     get:
@@ -1718,6 +1916,220 @@ components:
         application/problem+json:
           schema: { $ref: "#/components/schemas/Problem" }
   schemas:
+    MonitorState: { type: string, enum: [up, degraded, down, paused, unknown] }
+    MonitorStripSample:
+      type: object
+      required: [at, verdict]
+      properties:
+        at: { type: string, format: date-time }
+        verdict: { type: string, enum: [up, degraded, down] }
+    MonitorCheck:
+      type: object
+      required: [id, type, role, target, required]
+      properties:
+        id: { type: string }
+        type: { type: string }
+        role: { type: string }
+        target: { type: string }
+        required: { type: boolean }
+        last_error: { type: string }
+    MonitorEndpoint:
+      type: object
+      required: [id, name, group, source_type, state, paused, public, interval_seconds, timeout_seconds, degraded_ms, checks, strip]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        group: { type: string }
+        source_type: { type: string }
+        state: { $ref: "#/components/schemas/MonitorState" }
+        state_since: { type: string, format: date-time }
+        paused: { type: boolean }
+        public: { type: boolean }
+        interval_seconds: { type: integer, format: int64 }
+        timeout_seconds: { type: integer, format: int64 }
+        degraded_ms: { type: integer, format: int64 }
+        route_provider_id: { type: string }
+        last_check_at: { type: string, format: date-time }
+        last_latency_ms: { type: integer, format: int64 }
+        uptime_24h: { type: number, format: double }
+        checks: { type: array, items: { $ref: "#/components/schemas/MonitorCheck" } }
+        strip: { type: array, items: { $ref: "#/components/schemas/MonitorStripSample" } }
+    MonitorEndpointList:
+      type: object
+      required: [endpoints]
+      properties:
+        endpoints: { type: array, items: { $ref: "#/components/schemas/MonitorEndpoint" } }
+    MonitorEndpointCreate:
+      type: object
+      required: [name, type, target]
+      properties:
+        name: { type: string }
+        group: { type: string }
+        type: { type: string }
+        target: { type: string }
+        probe: { type: string }
+        expect: { type: string }
+    MonitorEndpointSettings:
+      type: object
+      required: [group, paused, public, interval_seconds, timeout_seconds, degraded_ms]
+      properties:
+        group: { type: string }
+        paused: { type: boolean }
+        public: { type: boolean }
+        interval_seconds: { type: integer, format: int64 }
+        timeout_seconds: { type: integer, format: int64 }
+        degraded_ms: { type: integer, format: int64 }
+        route_provider_id: { type: string }
+    MonitorPoint:
+      type: object
+      required: [at, latency_ms, availability]
+      properties:
+        at: { type: string, format: date-time }
+        latency_ms: { type: integer, format: int64 }
+        availability: { type: number, format: double }
+        gap_ms: { type: integer, format: int64 }
+    MonitorEvent:
+      type: object
+      required: [id, at, from, to, message]
+      properties:
+        id: { type: string }
+        at: { type: string, format: date-time }
+        from: { type: string }
+        to: { $ref: "#/components/schemas/MonitorState" }
+        message: { type: string }
+    MonitorEndpointDetail:
+      type: object
+      required: [endpoint, series, events]
+      properties:
+        endpoint: { $ref: "#/components/schemas/MonitorEndpoint" }
+        uptime_1h: { type: number, format: double }
+        uptime_7d: { type: number, format: double }
+        uptime_30d: { type: number, format: double }
+        min_ms: { type: integer, format: int64 }
+        avg_ms: { type: integer, format: int64 }
+        max_ms: { type: integer, format: int64 }
+        series: { type: array, items: { $ref: "#/components/schemas/MonitorPoint" } }
+        events: { type: array, items: { $ref: "#/components/schemas/MonitorEvent" } }
+    NotificationProvider:
+      type: object
+      required: [id, type, name, has_secret]
+      properties:
+        id: { type: string }
+        type: { type: string }
+        name: { type: string }
+        host: { type: string }
+        port: { type: integer }
+        tls: { type: string }
+        username: { type: string }
+        from: { type: string }
+        to: { type: string }
+        chat_id: { type: string }
+        has_secret: { type: boolean }
+    NotificationProviderList:
+      type: object
+      required: [providers]
+      properties:
+        providers: { type: array, items: { $ref: "#/components/schemas/NotificationProvider" } }
+    NotificationProviderCreate:
+      type: object
+      required: [type, name]
+      properties:
+        type: { type: string, enum: [smtp, telegram] }
+        name: { type: string }
+        host: { type: string }
+        port: { type: integer }
+        tls: { type: string }
+        username: { type: string }
+        password: { type: string, format: password, description: "SMTP password" }
+        from: { type: string }
+        to: { type: string }
+        bot_token: { type: string, format: password }
+        chat_id: { type: string }
+    TelegramDiscover:
+      type: object
+      required: [bot_token]
+      properties:
+        bot_token: { type: string, format: password }
+    TelegramChats:
+      type: object
+      required: [chats]
+      properties:
+        chats:
+          type: array
+          items:
+            type: object
+            required: [id, title]
+            properties:
+              id: { type: string }
+              title: { type: string }
+    NotificationRoute:
+      type: object
+      required: [min_severity, cooldown_seconds, recovery]
+      properties:
+        provider_id: { type: string }
+        min_severity: { type: string, enum: [degraded, down] }
+        cooldown_seconds: { type: integer, format: int64 }
+        recovery: { type: boolean }
+    NotificationDelivery:
+      type: object
+      required: [id, provider, kind, subject, status, attempts, created_at]
+      properties:
+        id: { type: string }
+        provider: { type: string }
+        kind: { type: string }
+        subject: { type: string }
+        status: { type: string, enum: [pending, delivered, failed] }
+        attempts: { type: integer, format: int64 }
+        last_error: { type: string }
+        created_at: { type: string, format: date-time }
+        delivered_at: { type: string, format: date-time }
+        next_attempt_at: { type: string, format: date-time }
+    NotificationDeliveryList:
+      type: object
+      required: [deliveries]
+      properties:
+        deliveries: { type: array, items: { $ref: "#/components/schemas/NotificationDelivery" } }
+    PublicEndpoint:
+      type: object
+      additionalProperties: false
+      required: [name, group, state, strip]
+      properties:
+        name: { type: string }
+        group: { type: string }
+        state: { $ref: "#/components/schemas/MonitorState" }
+        strip: { type: array, items: { $ref: "#/components/schemas/MonitorStripSample" } }
+        uptime_24h: { type: number, format: double }
+    PublicStatus:
+      type: object
+      additionalProperties: false
+      required: [title, theme, endpoints]
+      properties:
+        title: { type: string }
+        theme: { type: string }
+        updated_at: { type: string, format: date-time }
+        endpoints: { type: array, items: { $ref: "#/components/schemas/PublicEndpoint" } }
+    PublicApp:
+      type: object
+      additionalProperties: false
+      required: [name, group, url, state]
+      properties:
+        name: { type: string }
+        group: { type: string }
+        url: { type: string }
+        state: { $ref: "#/components/schemas/MonitorState" }
+    PublicApps:
+      type: object
+      additionalProperties: false
+      required: [title, theme, apps, hosts_online, hosts_total, firewall_online, firewall_total]
+      properties:
+        title: { type: string }
+        theme: { type: string }
+        updated_at: { type: string, format: date-time }
+        apps: { type: array, items: { $ref: "#/components/schemas/PublicApp" } }
+        hosts_online: { type: integer }
+        hosts_total: { type: integer }
+        firewall_online: { type: integer }
+        firewall_total: { type: integer }
     Problem:
       type: object
       required: [type, title, status]

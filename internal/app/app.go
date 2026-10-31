@@ -29,6 +29,8 @@ import (
 	"git.juzo.io/juzo/hashi/internal/ipsets"
 	"git.juzo.io/juzo/hashi/internal/jobs"
 	"git.juzo.io/juzo/hashi/internal/logring"
+	"git.juzo.io/juzo/hashi/internal/monitor"
+	"git.juzo.io/juzo/hashi/internal/notify"
 	"git.juzo.io/juzo/hashi/internal/secrets"
 	"git.juzo.io/juzo/hashi/internal/services"
 	"git.juzo.io/juzo/hashi/internal/settings"
@@ -186,6 +188,20 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 		return err
 	}
 
+	// Monitoring (07): checks, closed-bucket rollups, retention and notification delivery all run without a browser.
+	notifier := notify.New(st, v)
+	monitorSvc := monitor.New(st, st.Ready, ipSets.ResolveTarget, notifier)
+	for _, j := range []jobs.Job{
+		{Kind: monitor.JobChecks, Interval: monitor.CheckTick, Run: monitorSvc.RunChecks},
+		{Kind: monitor.JobRollup, Interval: monitor.RollupTick, Run: monitorSvc.Rollup},
+		{Kind: monitor.JobRetain, Interval: monitor.RetainTick, Run: monitorSvc.Retain},
+		{Kind: notify.JobKind, Interval: notify.JobInterval, Run: notifier.Deliver},
+	} {
+		if err := runner.Register(ctx, j); err != nil {
+			return err
+		}
+	}
+
 	// dns answers refresh and expired elements drop out every minute; a changed compiled set re-plans every managed
 	// firewall host (low-risk element changes apply, the rest waits for approval, 05 §4.4).
 	if err := runner.Register(ctx, jobs.Job{Kind: ipsets.JobKind, Interval: ipsets.JobInterval, Run: ipSets.Refresh}); err != nil {
@@ -241,16 +257,16 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	health := httpapi.NewHealth(map[string]httpapi.Check{"database": st.Ready})
 	api := &httpapi.Server{
 		Health: health, Version: gen.Version{Version: Version, Commit: Commit}, Store: st, Sessions: sessions,
-		Passkeys: passkeys, Setup: setupSvc, Settings: cfgSettings, DNS: dnsSvc, Traefik: traefikMgr, Certs: certMgr, IPSets: ipSets, Firewall: fwMgr, Sync: syncEngine, Vault: v, Audit: al, IP: ip, Logs: cfg.Logs,
+		Passkeys: passkeys, Setup: setupSvc, Settings: cfgSettings, DNS: dnsSvc, Traefik: traefikMgr, Certs: certMgr, IPSets: ipSets, Monitor: monitorSvc, Notify: notifier, Firewall: fwMgr, Sync: syncEngine, Vault: v, Audit: al, IP: ip, Logs: cfg.Logs,
 		CertsSoon: func(ctx context.Context) error { return runner.Soon(ctx, certs.JobKind) },
 		Log:       log.With("component", "api"),
 	}
 	servers := []*server{{name: "admin", addr: cfg.AdminAddr, handler: adminMux(api)}}
 	if cfg.PublicAppsAddr != "" {
-		servers = append(servers, &server{name: "public-apps", addr: cfg.PublicAppsAddr, handler: publicMux(api, "Hashi apps", &public.apps)})
+		servers = append(servers, &server{name: "public-apps", addr: cfg.PublicAppsAddr, handler: publicMux(api, "apps", &public.apps)})
 	}
 	if cfg.PublicStatusAddr != "" {
-		servers = append(servers, &server{name: "public-status", addr: cfg.PublicStatusAddr, handler: publicMux(api, "Hashi status", &public.status)})
+		servers = append(servers, &server{name: "public-status", addr: cfg.PublicStatusAddr, handler: publicMux(api, "status", &public.status)})
 	}
 	for _, s := range servers {
 		if err := s.listen(ctx); err != nil {
@@ -388,21 +404,34 @@ func (p *publicToggles) update(c settings.Category) {
 	}
 }
 
-// publicMux is the placeholder for the public dashboard and status listeners (07-monitoring-public.md, S7).
-// The enabled toggle already applies: a disabled page answers 404.
-func publicMux(api *httpapi.Server, title string, enabled *atomic.Bool) http.Handler {
+// publicMux serves one public page on its own listener (07 §7, §8): the page, its API and health, nothing of the admin
+// API. A disabled page answers 404.
+func publicMux(api *httpapi.Server, page string, enabled *atomic.Bool) http.Handler {
 	mux := http.NewServeMux()
-	h := gen.NewStrictHandler(api, nil)
+	// Anonymous visitors never see an error's text (07 §7): it is logged, and they get a plain 500.
+	fail := func(w http.ResponseWriter, _ *http.Request, err error) {
+		api.Log.Error("public page", "err", err)
+		http.Error(w, "Temporarily unavailable", http.StatusInternalServerError)
+	}
+	h := gen.NewStrictHandlerWithOptions(api, nil, gen.StrictHTTPServerOptions{RequestErrorHandlerFunc: fail, ResponseErrorHandlerFunc: fail})
 	mux.HandleFunc("GET /healthz", h.GetHealthz)
-	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
+	if page == "status" {
+		mux.HandleFunc("GET /api/public/status", onlyIf(enabled, h.GetPublicStatus))
+	} else {
+		mux.HandleFunc("GET /api/public/apps", onlyIf(enabled, h.GetPublicApps))
+	}
+	mux.HandleFunc("GET /", onlyIf(enabled, web.Public(page).ServeHTTP))
+	return mux
+}
+
+func onlyIf(enabled *atomic.Bool, next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		if !enabled.Load() {
 			http.NotFound(w, r)
 			return
 		}
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		_, _ = io.WriteString(w, title+": not configured yet\n")
-	})
-	return mux
+		next(w, r)
+	}
 }
 
 // targetsUse reports whether a service upstream or DNS value follows one of the sets.

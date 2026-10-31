@@ -5,6 +5,16 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
+**S7 — Monitoring + public pages** · status: **in progress** (started 2026-10-31). Gate: all migrated services monitored; public status + dashboard served on their ports; a real outage produces a notification and recovery.
+
+Scope cut, decided 2026-10-31: Discord waits (no bot to capture yet); AdGuard and Pulse sources arrive with S8; ICMP, DNS entries' port probing and the `static.juzo.io` asset cache wait; charts stay plain SVG instead of uPlot; pending-plan and vault-lock notifications wait. Importing Gatus's 41 endpoints belongs to the V1 cutover. Also not built yet, after the review: editing allowed codes and the required set, a Monitoring settings category, per-endpoint check override, a probe on a UDP stream's own endpoint (use a separate check), group by host, a settings default for the dashboard's sort, per-entry icon upload.
+
+Plan:
+- [x] Tables, sources, executors, state machine, closed-bucket rollups, retention (`internal/monitor`)
+- [x] SMTP (server greeting read by hand, no fixture, no login; implicit TLS tested locally, STARTTLS not) and Telegram (`testdata/contracts/telegram`), route, cooldown, retry (`internal/notify`)
+- [x] Admin Status and App display pages; public pages on their own listeners
+- [ ] Deploy; provider setup by the user; real outage with a throwaway service; alert and recovery received
+
 **S6 — IP sets + firewall + streams** · status: **done** 2026-10-31, deployed `bbe9511`, PRs #36–#40, prod-proof passed except the public TCP/UDP check, which the user moved to the traffic move (see Log). Next: talk with the user about local checks (Agenda), then S7.
 
 Scope and gate: 11-delivery.md §3 row S6: 05a-ip-sets.md (`ip`, `cidr`, `host`, `dns`, set references, system sets,
@@ -649,6 +659,8 @@ Decisions made in S0:
 
 ## Unverified
 
+- S7 review: required display name on monitored DNS entries isn't enforced (falls back to the host name); Telegram channels aren't discovered (no channel captured); monitored A and AAAA of one name could repeat a list key; the test button's delivery can overlap the job's and send twice; no test asserts the 15 s public cache.
+
 (Review findings that were not reproduced. Not worked on unless promoted.)
 
 - S6 PR D review: a rollback when the table load failed before the script's rules were removed appends them again (561 copies
@@ -692,6 +704,8 @@ Decisions made in S0:
   only short-SHA deploys exist so far.
 
 ## Log
+
+- 2026-10-31 — S7 started; built locally. The user supplied SMTP details and a Telegram status bot; its token was rerolled in BotFather on the user's instruction and is in the local keychain, so the old token stopped working.
 
 - 2026-10-31 — S6 gate: `hashi-firewall` restart on the first real host with the user's OK: Hashi's table, iptables and ipsets identical before and after, NetBird connected, home route, LXC internet and public HTTPS fine. **S6 done**; public TCP/UDP waits for the traffic move (user's decision).
 

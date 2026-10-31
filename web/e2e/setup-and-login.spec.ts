@@ -462,6 +462,43 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByRole('button', { name: 'Sign in with a passkey' }).click();
 	await expect(page).toHaveURL(/\/activity$/);
 
+	// Status: Hashi's own endpoint is checked without a browser; a user check, its page and settings; the public view.
+	await page.getByRole('link', { name: 'Status', exact: true }).first().click();
+	await expect(page).toHaveURL(/\/status$/);
+	await expect(page.getByRole('link', { name: /Hashi/ }).first()).toBeVisible({ timeout: 30_000 });
+	await page.getByRole('button', { name: 'Add check' }).click();
+	await page.getByLabel('Name', { exact: true }).fill('E2E port');
+	await page.getByLabel('Target').fill('127.0.0.1:1');
+	await expect(page.getByRole('button', { name: 'Add check' }).last()).toBeEnabled();
+	await page.getByRole('combobox', { name: 'Type' }).click();
+	await page.getByRole('option', { name: 'TCP connect' }).click();
+	await page.getByRole('button', { name: 'Add check' }).last().click();
+	await expect(page).toHaveURL(/\/status\/[0-9A-Z]+$/);
+	await expect(page.getByRole('heading', { name: 'E2E port' })).toBeVisible();
+	await page.getByRole('switch', { name: 'Show on the public status page' }).click();
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page.getByRole('status')).toContainText('Saved.');
+	// The public status page on its own port shows the endpoint, no target, and offers nothing of the admin app.
+	await page.waitForTimeout(16_000); // past the 15 s public cache
+	const pub = await (await request.get(`${state.statusURL}/api/public/status`)).json();
+	expect(JSON.stringify(pub)).toContain('E2E port');
+	expect(JSON.stringify(pub)).not.toContain('127.0.0.1');
+	expect((await request.get(`${state.statusURL}/api/auth/session`)).status()).toBe(404);
+	expect((await request.get(`${state.statusURL}/settings`)).status()).toBe(404);
+	const visitor = await page.context().newPage();
+	await visitor.goto(state.statusURL);
+	await expect(visitor.getByRole('heading', { name: /status/ })).toBeVisible();
+	await expect(visitor.getByText('E2E port')).toBeVisible();
+	await visitor.goto(state.appsURL);
+	await expect(visitor.getByText(/hosts online/)).toBeVisible();
+	await visitor.close();
+	// Notifications: no provider yet; the page explains it.
+	await page.goto(`${state.baseURL}/status`);
+	await page.getByRole('tab', { name: 'Notifications' }).click();
+	await expect(page.getByText('Add a provider to receive alerts.')).toBeVisible();
+	await page.goto(`${state.baseURL}/app-display`);
+	await expect(page.getByRole('switch', { name: 'Show E2E port publicly' })).toBeChecked();
+
 	// Deleting the passkey this session signed in with ends the session: the page goes to sign-in.
 	await page.goto(`${state.baseURL}/settings?category=account`);
 	await page.getByRole('button', { name: 'Delete passkey E2E authenticator' }).click();
