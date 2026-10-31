@@ -696,6 +696,11 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-10-31 — S6 gate: block set with an allowed /32 **passed** with a real outside source (user's phone: blocked by its /24, loads again with its /32 allowed);
+  bindings removed afterwards, block sets empty, NetBird connected. Migrated service record **passed**: the `searxng` CNAME imported and taken over, value
+  unchanged, Hashi's owner label at the provider, service answers. Emptying a set a DNS record uses keeps the record's last values (invariant 21, intended);
+  deleting a set in use is refused. Left: `hashi-firewall` restart on the real host (proven on the dev target only); public TCP/UDP waits for the traffic move (user's decision).
+
 - 2026-10-31 — S6 gate: DNS record with an address-set value **passed**: `set._hashi-test` A created by the user, at the provider with the set's address and Hashi's owner label.
 
 - 2026-10-31 — Deployed `bbe9511` (`make deploy ENV=prod`): readyz ok, version matches, SPA and public pages 200. S6 gate: S3 record path **passed** on the
