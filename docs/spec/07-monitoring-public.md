@@ -53,6 +53,13 @@ always possible; SMTP — send test email.
 Routing: global default route, per-endpoint override, severity thresholds, cooldowns, recovery notifications; pending
 high-risk sync plans and vault-lock events can also notify. Deliveries recorded in `notification_deliveries` with retry/backoff.
 
+Providers can be edited: name and settings, with the secret kept unless a new one is given. Setup lives under Settings →
+Notifications; the Status page shows what was sent.
+
+Message content: state with its colour, service name, a plain reason, time, uptime over 24 h, 7 d and 30 d, a link to the
+admin page. Mail is multipart (plain text + HTML in the saved theme's colours); Telegram uses its HTML style. Messages pass
+through third parties, so they never carry check targets, internal addresses or raw errors; those stay in Hashi's event history.
+
 ## 7. Public status page (port 8082, root path)
 
 - Enabled by default (setting). Shows only endpoints marked public: name, group, state, 60-minute strip, uptime summary.
