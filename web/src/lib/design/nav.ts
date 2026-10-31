@@ -71,6 +71,7 @@ const built = new Set([
 	'/status',
 	'/app-display',
 	'/activity',
+	'/connections',
 	'/settings'
 ]);
 export const liveNav = nav

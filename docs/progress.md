@@ -7,15 +7,15 @@ Rules: docs/spec/11-delivery.md §2.
 
 **S8 — AdGuard, Pulse, agent DNS** · status: **in progress** (started 2026-10-31). Gate: 11-delivery.md §3 row S8.
 
-Contracts: AdGuard's rewrite API captured from throwaway containers of both running versions (`testdata/contracts/adguard`). It accepts exact duplicates and empty domains, and deleting a missing rule still answers 200, so Hashi must validate first and read back after every write. The read of the real instances was refused by the permission system; it needs the user's OK.
+Contracts: AdGuard's rewrite API captured from throwaway containers of both running versions (`testdata/contracts/adguard`). It accepts exact duplicates and empty domains, and deleting a missing rule still answers 200, so Hashi must validate first and read back after every write. The agent's direct read of the real instances was refused twice by the permission system, even after the user's OK; instead the user enters the login in Hashi and Hashi shows the rewrites.
 
 Plan, two PRs:
 
 PR A, AdGuard:
-- [ ] Client from the fixtures with integration tests against a real container
-- [ ] Connections with target set, credentials in the vault, read-only mode for the migration, disabled state
-- [ ] Owned rewrites table, desired rewrites from services, plan/apply/verify; manual rewrites and non-owned duplicates untouched
-- [ ] Connections page and service rewrite state
+- [x] Client from the fixtures with integration tests against a real container
+- [x] Connections with target set, credentials in the vault, read-only mode for the migration, disabled state
+- [x] Owned rewrites table, desired rewrites from services, plan/apply/verify; manual rewrites and non-owned duplicates untouched
+- [x] Connections page and service rewrite state
 - [ ] Real read of both instances, then a test rewrite on the sync tool's origin with the user's OK. The replica stays read-only until the sync tool is retired, because the tool overwrites its rewrites
 
 PR B, Pulse:

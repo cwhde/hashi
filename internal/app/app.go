@@ -17,6 +17,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"git.juzo.io/juzo/hashi/internal/adguard"
 	"git.juzo.io/juzo/hashi/internal/audit"
 	"git.juzo.io/juzo/hashi/internal/auth"
 	"git.juzo.io/juzo/hashi/internal/certs"
@@ -179,12 +180,19 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	}
 	subs := append(dnsSvc.Subsystems(), traefikMgr.Subsystems()...)
 	subs = append(subs, fwMgr.Subsystems()...)
+	adguardSvc := adguard.New(st, v, ipSets.ResolveTarget, fwMgr.Rewrites(ipSets.ResolveTarget))
+	ipSets.AddConsumers(adguard.Consumers)
+	subs = append(subs, adguardSvc.Subsystems()...)
 	syncEngine := hsync.New(st, al, append(subs, certMgr.Subsystems()...)...)
 	if err := syncEngine.Start(ctx); err != nil {
 		return err
 	}
 	// Each run reads the zone fresh and reconciles Hashi's entries (01 §5.4 periodic reconcile).
 	if err := runner.Register(ctx, jobs.Job{Kind: "dns.refresh", Interval: time.Duration(general.SyncIntervalSeconds) * time.Second, Run: dnsSvc.Reconcile(syncEngine)}); err != nil {
+		return err
+	}
+
+	if err := runner.Register(ctx, jobs.Job{Kind: adguard.JobKind, Interval: adguard.JobInterval, Run: adguardSvc.Reconcile(syncEngine)}); err != nil {
 		return err
 	}
 
@@ -257,7 +265,7 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	health := httpapi.NewHealth(map[string]httpapi.Check{"database": st.Ready})
 	api := &httpapi.Server{
 		Health: health, Version: gen.Version{Version: Version, Commit: Commit}, Store: st, Sessions: sessions,
-		Passkeys: passkeys, Setup: setupSvc, Settings: cfgSettings, DNS: dnsSvc, Traefik: traefikMgr, Certs: certMgr, IPSets: ipSets, Monitor: monitorSvc, Notify: notifier, Firewall: fwMgr, Sync: syncEngine, Vault: v, Audit: al, IP: ip, Logs: cfg.Logs,
+		Passkeys: passkeys, Setup: setupSvc, Settings: cfgSettings, DNS: dnsSvc, Traefik: traefikMgr, Certs: certMgr, IPSets: ipSets, AdGuard: adguardSvc, Monitor: monitorSvc, Notify: notifier, Firewall: fwMgr, Sync: syncEngine, Vault: v, Audit: al, IP: ip, Logs: cfg.Logs,
 		CertsSoon: func(ctx context.Context) error { return runner.Soon(ctx, certs.JobKind) },
 		Log:       log.With("component", "api"),
 	}

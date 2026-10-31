@@ -514,6 +514,13 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByRole('button', { name: 'Remove My Telegram' }).click();
 	await expect(page.getByText('Add Telegram or email to receive alerts.')).toBeVisible();
 
+	// AdGuard: adding one is safe, and the page says so.
+	await page.goto(`${state.baseURL}/connections`);
+	await expect(page.getByText('A new one starts read-only')).toBeVisible();
+	await page.getByRole('button', { name: 'Add AdGuard' }).click();
+	await expect(page.getByLabel('Expected hostname')).toBeVisible();
+	await page.getByRole('button', { name: 'Cancel' }).click();
+
 	// The theme is saved, not only remembered by this browser.
 	await page.getByRole('button', { name: 'Theme', exact: true }).click();
 	await page.getByRole('menuitemradio', { name: 'Violet Night' }).click();

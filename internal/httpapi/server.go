@@ -4,6 +4,7 @@ package httpapi
 import (
 	"context"
 	"errors"
+	"git.juzo.io/juzo/hashi/internal/adguard"
 	"log/slog"
 	"net/http"
 	"time"
@@ -40,6 +41,7 @@ type Server struct {
 	Traefik  *traefik.Manager
 	Certs    *certs.Manager
 	IPSets   *ipsets.Service
+	AdGuard  *adguard.Service
 	Monitor  *monitor.Service
 	Notify   *notify.Service
 	Firewall *firewall.Manager
