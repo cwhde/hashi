@@ -5,7 +5,7 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
-**S6 — IP sets + firewall + streams** · status: **in progress** (started 2026-10-29; entry gate passed the same day). PR A merged (#36), PR B merged (#37), PR C merged (#38), PR D merged (#39), PR E merged (#40). Next: deploy, then the gate on the first real host.
+**S6 — IP sets + firewall + streams** · status: **in progress** (started 2026-10-29; entry gate passed the same day). PR A merged (#36), PR B merged (#37), PR C merged (#38), PR D merged (#39), PR E merged (#40). First apply done on the first real host; rest of the gate open (see Log).
 
 Scope and gate: 11-delivery.md §3 row S6: 05a-ip-sets.md (`ip`, `cidr`, `host`, `dns`, set references, system sets,
 compiler, IP sets pages, address page without dynamic state), 05-firewall.md (nftables table, folding, bindings, host
@@ -695,6 +695,14 @@ Decisions made in S0:
   only short-SHA deploys exist so far.
 
 ## Log
+
+- 2026-10-31 — S6 gate: first apply on the first real host with the user's OK, 28 items, confirmed over a new SSH login, rescue
+  timer disarmed. NetBird rules, sets and the other cron jobs identical before and after (the only diff line was the old script's
+  own rule); NetBird connected, peers as before; HTTPS through the public address 200; LXCs reach the internet and the home network;
+  closed port 2022 refuses. Still open: public 222 reaches the running Traefik, which has that entry point but no TCP route to
+  Gitea (HTTP 400 answer; same DNAT target as before, so most likely not new, not tested before the apply); it can work once traffic
+  moves to Hashi's Traefik. Outsider check of blocked inbound, NetBird restart, DNS set value, setup completion and passkey
+  sign-in, migrated CNAME: open.
 
 - 2026-10-31 — Deployed `10df3fa` (setup access and takeover lists, streams without a domain, migration 12): readyz ok, SPA and public pages 200.
 
