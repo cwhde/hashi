@@ -10,6 +10,15 @@ import (
 	"database/sql"
 )
 
+const clearPulseReportedIP = `-- name: ClearPulseReportedIP :exec
+UPDATE pulse_agents SET public_ip = '', public_ip_source = '' WHERE id = ? AND public_ip_source = 'reported'
+`
+
+func (q *Queries) ClearPulseReportedIP(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, clearPulseReportedIP, id)
+	return err
+}
+
 const deletePulseAgent = `-- name: DeletePulseAgent :exec
 DELETE FROM pulse_agents WHERE id = ?
 `
@@ -214,19 +223,20 @@ func (q *Queries) SetPulseDNS(ctx context.Context, arg SetPulseDNSParams) error 
 }
 
 const setPulseHeartbeat = `-- name: SetPulseHeartbeat :exec
-UPDATE pulse_agents SET last_seen_at = ?, public_ip = ?, public_ip_source = ?, candidates_json = ?, selected_ip = ?, hostname = ?, version = ?, updated_at = ? WHERE id = ?
+UPDATE pulse_agents SET last_seen_at = ?, public_ip = ?, public_ip_source = ?, candidates_json = ?, selected_ip = ?, hostname = ?, version = ?, interval_seconds = ?, updated_at = ? WHERE id = ?
 `
 
 type SetPulseHeartbeatParams struct {
-	LastSeenAt     sql.NullInt64
-	PublicIp       string
-	PublicIpSource string
-	CandidatesJson string
-	SelectedIp     string
-	Hostname       string
-	Version        string
-	UpdatedAt      int64
-	ID             string
+	LastSeenAt      sql.NullInt64
+	PublicIp        string
+	PublicIpSource  string
+	CandidatesJson  string
+	SelectedIp      string
+	Hostname        string
+	Version         string
+	IntervalSeconds int64
+	UpdatedAt       int64
+	ID              string
 }
 
 func (q *Queries) SetPulseHeartbeat(ctx context.Context, arg SetPulseHeartbeatParams) error {
@@ -238,6 +248,7 @@ func (q *Queries) SetPulseHeartbeat(ctx context.Context, arg SetPulseHeartbeatPa
 		arg.SelectedIp,
 		arg.Hostname,
 		arg.Version,
+		arg.IntervalSeconds,
 		arg.UpdatedAt,
 		arg.ID,
 	)

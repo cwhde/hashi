@@ -2899,7 +2899,8 @@ type PulseHeartbeat struct {
 		Address   string `json:"address"`
 		Interface string `json:"interface"`
 	} `json:"candidates"`
-	Hostname string `json:"hostname"`
+	Hostname        string `json:"hostname"`
+	IntervalSeconds *int   `json:"interval_seconds,omitempty"`
 
 	// ReportedPublicIp Sent only after Hashi asked; used only for an agent the admin trusts for it
 	ReportedPublicIp  *string `json:"reported_public_ip,omitempty"`

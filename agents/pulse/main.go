@@ -86,6 +86,7 @@ type beat struct {
 	Hostname   string      `json:"hostname"`
 	Candidates []candidate `json:"candidates"`
 	Selected   string      `json:"selected_interface,omitempty"`
+	Interval   int         `json:"interval_seconds"`
 	// ReportedPublic is this machine's public address as outside services see it. Sent only when Hashi asks for it.
 	ReportedPublic string `json:"reported_public_ip,omitempty"`
 }
@@ -253,7 +254,7 @@ func run(ctx context.Context, c config) error {
 		cs, err := candidates()
 		if err == nil {
 			var r reply
-			r, err = send(ctx, h, c, beat{Version: Version, Hostname: host, Candidates: cs, Selected: c.Interface, ReportedPublic: reported})
+			r, err = send(ctx, h, c, beat{Version: Version, Hostname: host, Candidates: cs, Selected: c.Interface, Interval: int(c.Interval.Seconds()), ReportedPublic: reported})
 			if err == nil {
 				if r.CheckPublicIP && !check {
 					wait = 0

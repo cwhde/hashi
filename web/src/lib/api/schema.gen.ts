@@ -2528,6 +2528,7 @@ export interface components {
             version: string;
             hostname: string;
             selected_interface?: string;
+            interval_seconds?: number;
             /** @description Sent only after Hashi asked; used only for an agent the admin trusts for it */
             reported_public_ip?: string;
             candidates: {

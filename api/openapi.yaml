@@ -2395,6 +2395,7 @@ components:
         version: { type: string }
         hostname: { type: string }
         selected_interface: { type: string }
+        interval_seconds: { type: integer }
         reported_public_ip: { type: string, description: "Sent only after Hashi asked; used only for an agent the admin trusts for it" }
         candidates:
           type: array

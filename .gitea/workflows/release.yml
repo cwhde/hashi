@@ -70,7 +70,7 @@ jobs:
           file: deploy/docker/Pulse.Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ env.REGISTRY }}/juzo/hashi-pulse:${{ steps.sha.outputs.short }},${{ env.REGISTRY }}/juzo/hashi-pulse:latest
+          tags: ${{ github.ref_type == 'tag' && format('{0}/juzo/hashi-pulse:{1}', env.REGISTRY, github.ref_name) || format('{0}/juzo/hashi-pulse:{1},{0}/juzo/hashi-pulse:latest', env.REGISTRY, steps.sha.outputs.short) }}
           build-args: |
             VERSION=${{ github.ref_type == 'tag' && github.ref_name || steps.sha.outputs.short }}
 

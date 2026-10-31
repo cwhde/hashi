@@ -60,6 +60,9 @@ func (s *Server) PulseHeartbeat(ctx context.Context, req gen.PulseHeartbeatReque
 	for _, c := range req.Body.Candidates {
 		b.Candidates = append(b.Candidates, pulse.Candidate{Interface: c.Interface, Address: c.Address})
 	}
+	if req.Body.IntervalSeconds != nil {
+		b.IntervalSeconds = *req.Body.IntervalSeconds
+	}
 	if req.Body.ReportedPublicIp != nil {
 		b.ReportedPublic = *req.Body.ReportedPublicIp
 	}
@@ -118,6 +121,11 @@ func (s *Server) UpdatePulseAgent(ctx context.Context, req gen.UpdatePulseAgentR
 	row, err := s.Pulse.SetDNS(ctx, req.Id, req.Body.Name, req.Body.DnsEnabled, name, req.Body.TrustReportedIp, port)
 	if err != nil {
 		return nil, pulseError(err)
+	}
+	ri := info(ctx)
+	if err := s.Audit.Record(ctx, s.Store.Q, audit.Event{Actor: s.actor(ri), Action: "pulse.agent.updated", Target: row.ID, IP: ri.ipString(),
+		Detail: map[string]any{"trust_reported_ip": req.Body.TrustReportedIp, "dns_enabled": req.Body.DnsEnabled}}); err != nil {
+		return nil, err
 	}
 	return gen.UpdatePulseAgent200JSONResponse(pulseBody(row)), nil
 }

@@ -22,7 +22,7 @@ PR A, AdGuard (#44):
 
 PR B, Pulse:
 - [x] `agents/pulse` binary and image, tokens, heartbeat endpoint, agents API and Pulse page with install
-- [x] `pulse` items resolve; a heartbeat change reaches firewall, DNS, Traefik and connection consumers
+- [x] `pulse` items resolve; a heartbeat change reaches firewall, DNS and Traefik through the sets; connections use the new address on their next use
 - [x] Agent DNS under the internal domain, DNS only
 - [x] Public address self-report, off by default; Gitea release job prepared (runs on the first tag)
 - [x] Reachability check; AdGuard and Pulse monitoring sources; agent DNS preview/apply; SSH connection targets as address sets (literal address stays as fallback)
@@ -682,6 +682,10 @@ Decisions made in S0:
 
 ## Unverified
 
+- S8 review: an agent's token holder may get AdGuard credentials if a connection's target set holds a Pulse item and the connection uses HTTP or skips TLS checks, because Basic Auth goes to each address tried. Advice until checked: do not reach AdGuard through a Pulse item without certificate checks.
+- S8 review: certificate distribution and monitoring's TCP checks still use a host's literal address when SSH goes through a set; the AdGuard monitor checks only the first address.
+- S8 review, spec points not built: pending DNS propagation state (08 §4.6), dependency impact in Activity, stale threshold setting, `/consumers` and `/install` endpoints, connection save validation (08 §5), `private` agent DNS mode and stale behaviour (03 §9), agent deletion exception for high risk, a CI shellcheck of the installer and image size check, a test of a heartbeat through each consumer. OpenDNS lookup and Gitea release calls have no captured fixture.
+
 - S7 review: required display name on monitored DNS entries isn't enforced (falls back to the host name); Telegram channels aren't discovered (no channel captured); monitored A and AAAA of one name could repeat a list key; the test button's delivery can overlap the job's and send twice; no test asserts the 15 s public cache.
 
 (Review findings that were not reproduced. Not worked on unless promoted.)
@@ -727,6 +731,8 @@ Decisions made in S0:
   only short-SHA deploys exist so far.
 
 ## Log
+
+- 2026-10-31 — S8 review: 6 reproduced findings fixed with regression tests (Docker agent without CA bundle, trusted agent not asked after moving to a private path, distrust left the address in sets and was unaudited, no heartbeat size limit, duplicates of retired rewrites left unowned, stale ignored the agent's interval). The rest is under Unverified.
 
 - 2026-10-31 — Installer's Hashi path proven against a running server by a test, and the binaries confirmed in the built image stage. Version scheme set (11-delivery §6). Rest of S8 built locally: reachability, AdGuard and Pulse monitoring, agent DNS preview, SSH through address sets.
 

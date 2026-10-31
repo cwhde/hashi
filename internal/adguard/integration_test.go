@@ -104,13 +104,16 @@ func TestRealAdGuardPlanApplyVerify(t *testing.T) {
 		t.Fatalf("not quiet: %+v %v", p, err)
 	}
 
-	// Deleting waits for approval, then removes only Hashi's rewrite.
+	// Deleting waits for approval, then removes only Hashi's rewrite, stray copies included.
+	if err := raw.Add(ctx, adguard.Rewrite{Domain: "svc.example.com", Answer: "192.0.2.11"}); err != nil {
+		t.Fatal(err)
+	}
 	desired = nil
 	p, err := eng.Auto(ctx, adguard.Subsystem, conn.ID, hsync.TriggerManual, "t")
 	if err != nil || p.Status != hsync.StatusPending {
 		t.Fatalf("delete plan %+v %v", p, err)
 	}
-	expect(t, raw, map[string]int{"manual.example.com=192.0.2.50": 1, "svc.example.com=192.0.2.11": 1})
+	expect(t, raw, map[string]int{"manual.example.com=192.0.2.50": 1, "svc.example.com=192.0.2.11": 2})
 	if err := eng.Approve(ctx, p.ID, "t", ""); err != nil {
 		t.Fatal(err)
 	}

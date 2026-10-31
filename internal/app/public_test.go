@@ -89,4 +89,19 @@ func TestAdminMuxServesPulseDownloads(t *testing.T) {
 	if res.StatusCode != http.StatusBadRequest { // no Authorization header at all
 		t.Fatalf("heartbeat without a token: %d", res.StatusCode)
 	}
+	// A huge body is refused before it is read into memory.
+	req, err := http.NewRequest(http.MethodPost, "http://"+in.addr+"/api/pulse/nobody/heartbeat", strings.NewReader(`{"version":"`+strings.Repeat("x", 1<<20)+`","hostname":"h","candidates":[]}`)) //nolint:noctx // a test against localhost
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer x")
+	res, err = http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = res.Body.Close()
+	if res.StatusCode != http.StatusBadRequest {
+		t.Fatalf("oversized heartbeat: %d", res.StatusCode)
+	}
 }

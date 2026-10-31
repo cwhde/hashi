@@ -64,6 +64,8 @@ type Candidate struct {
 // Beat is a heartbeat's content.
 type Beat struct {
 	Version, Hostname, SelectedInterface string
+	// IntervalSeconds is how often the agent reports; staleness is measured against it (08 §2).
+	IntervalSeconds int
 	// ReportedPublic is what the agent says its public address is. Used only for an agent the admin trusts for it,
 	// and never over the address its connection came from.
 	ReportedPublic string
@@ -237,8 +239,19 @@ func (s *Service) SetDNS(ctx context.Context, id, name string, enabled bool, dns
 	if trustReported {
 		trust = 1
 	}
+	before, err := s.get(ctx, id)
+	if err != nil {
+		return db.PulseAgent{}, err
+	}
 	if err := s.st.Q.SetPulseDNS(ctx, db.SetPulseDNSParams{Name: name, DnsEnabled: on, DnsName: dnsName, TrustReportedIp: trust, ReachPort: int64(reachPort), UpdatedAt: s.now().UnixMilli(), ID: id}); err != nil {
 		return db.PulseAgent{}, err
+	}
+	// Taking trust away also takes away what the agent said: its address must leave the sets using it.
+	if before.TrustReportedIp == 1 && !trustReported && before.PublicIpSource == SourceReported {
+		if err := s.st.Q.ClearPulseReportedIP(ctx, id); err != nil {
+			return db.PulseAgent{}, err
+		}
+		s.notify(ctx)
 	}
 	return s.get(ctx, id)
 }
@@ -270,13 +283,17 @@ func (s *Service) Heartbeat(ctx context.Context, id, token string, b Beat, sourc
 	}
 	selected := selectIP(cands, b.SelectedInterface, row.SelectedIp)
 	public, origin := publicAddress(row, source, b.ReportedPublic)
+	interval := row.IntervalSeconds
+	if b.IntervalSeconds >= 10 && b.IntervalSeconds <= 86400 {
+		interval = int64(b.IntervalSeconds)
+	}
 	raw, err := json.Marshal(cands)
 	if err != nil {
 		return false, err
 	}
 	changed := public != row.PublicIp || selected != row.SelectedIp || string(raw) != row.CandidatesJson
 	if err := s.st.Q.SetPulseHeartbeat(ctx, db.SetPulseHeartbeatParams{LastSeenAt: sql.NullInt64{Int64: now.UnixMilli(), Valid: true}, PublicIp: public, PublicIpSource: origin, CandidatesJson: string(raw),
-		SelectedIp: selected, Hostname: trim(b.Hostname, 253), Version: trim(b.Version, 64), UpdatedAt: now.UnixMilli(), ID: id}); err != nil {
+		SelectedIp: selected, Hostname: trim(b.Hostname, 253), Version: trim(b.Version, 64), IntervalSeconds: interval, UpdatedAt: now.UnixMilli(), ID: id}); err != nil {
 		return false, err
 	}
 	if changed {
@@ -288,8 +305,9 @@ func (s *Service) Heartbeat(ctx context.Context, id, token string, b Beat, sourc
 		}
 		s.notify(ctx)
 	}
-	// Outside services hear from an agent only when it is trusted to use them and has no public connection to Hashi.
-	return row.TrustReportedIp == 1 && origin != SourceConnection, nil
+	// Outside services hear from an agent only when it is trusted and this connection was not public: an address learned
+	// from an earlier connection says nothing about where the agent is now.
+	return row.TrustReportedIp == 1 && !publicRoutable(source.Unmap()), nil
 }
 
 // Where a public address came from.
