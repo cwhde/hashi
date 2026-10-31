@@ -1,0 +1,44 @@
+{
+  "_contract": {
+    "captured_at": "2026-10-31",
+    "docs_url": "https://core.telegram.org/bots/api#html-style"
+  },
+  "ok": true,
+  "result": {
+    "message_id": 2,
+    "from": {
+      "id": 123456789,
+      "is_bot": true,
+      "first_name": "Status bot",
+      "username": "example_bot"
+    },
+    "chat": {
+      "id": 987654321,
+      "first_name": "Admin",
+      "type": "private"
+    },
+    "date": 1793455200,
+    "text": "🔴 Sample service is down\nThe service refused the connection.\n31 Oct 2026, 14:05 UTC\n\nUptime 24 h: 99.5 % · 7 d: 99.93 % · 30 d: 99.98 %\n\nOpen in Hashi",
+    "entities": [
+      {
+        "offset": 3,
+        "length": 22,
+        "type": "bold"
+      },
+      {
+        "offset": 62,
+        "length": 22,
+        "type": "italic"
+      },
+      {
+        "offset": 138,
+        "length": 13,
+        "type": "text_link",
+        "url": "https://example.com/status"
+      }
+    ],
+    "link_preview_options": {
+      "is_disabled": true
+    }
+  }
+}

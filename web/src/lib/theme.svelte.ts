@@ -1,6 +1,9 @@
+import { api } from '$lib/api/client';
+
 // Built-in themes (10-ui.md §2). The palette lives in routes/layout.css; this module only switches it.
 export type ThemeId = 'graphite' | 'linen' | 'verdant' | 'violet';
 
+// The saved theme is the database's; the browser's copy only avoids a flash of the wrong theme before first paint.
 // Swatches are rendered by setting data-theme on a small element, so no colour is duplicated here.
 export const themes: { id: ThemeId; name: string; mode: 'dark' | 'light' }[] = [
 	{ id: 'graphite', name: 'Graphite', mode: 'dark' },
@@ -31,6 +34,19 @@ class ThemeState {
 		} catch {
 			// private mode or blocked storage: the theme still applies for this page view
 		}
+	}
+
+	/** Applies a theme and saves it, so other browsers, the public pages and alert mails follow. */
+	async save(id: ThemeId) {
+		this.set(id);
+		const r = await api.GET('/api/settings/appearance');
+		if (r.data) await api.PUT('/api/settings/appearance', { body: { ...r.data, theme: id } });
+	}
+
+	/** Takes the saved theme, for a browser that last saw another one. */
+	async sync() {
+		const r = await api.GET('/api/settings/appearance');
+		if (r.data && r.data.theme !== this.current) this.set(r.data.theme as ThemeId);
 	}
 }
 

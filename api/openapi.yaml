@@ -846,6 +846,22 @@ paths:
           content: { application/json: { schema: { $ref: "#/components/schemas/TelegramChats" } } }
         default: { $ref: "#/components/responses/Problem" }
   /api/notifications/providers/{id}:
+    put:
+      operationId: updateNotificationProvider
+      summary: Change a provider's name and settings; leave its secret out to keep it
+      tags: [monitor]
+      x-hashi-scopes: [admin.write]
+      x-hashi-reauth: true
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/NotificationProviderUpdate" } } }
+      responses:
+        "200":
+          description: Saved
+          content: { application/json: { schema: { $ref: "#/components/schemas/NotificationProvider" } } }
+        default: { $ref: "#/components/responses/Problem" }
     delete:
       operationId: deleteNotificationProvider
       summary: Remove a provider and its secret
@@ -2044,6 +2060,20 @@ components:
         from: { type: string }
         to: { type: string }
         bot_token: { type: string, format: password }
+        chat_id: { type: string }
+    NotificationProviderUpdate:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        host: { type: string }
+        port: { type: integer }
+        tls: { type: string }
+        username: { type: string }
+        password: { type: string, format: password, description: "New SMTP password; left out keeps the stored one" }
+        from: { type: string }
+        to: { type: string }
+        bot_token: { type: string, format: password, description: "New bot token; left out keeps the stored one" }
         chat_id: { type: string }
     TelegramDiscover:
       type: object

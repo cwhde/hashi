@@ -157,6 +157,7 @@ var Requirements = map[string]Requirement{
 	"UpdateFirewallHost":         {Scopes: []string{"firewall.apply"}, Session: false, Reauth: false},
 	"UpdateIPSet":                {Scopes: []string{"security.manage"}, Session: false, Reauth: false},
 	"UpdateIPSetElement":         {Scopes: []string{"security.manage"}, Session: false, Reauth: false},
+	"UpdateNotificationProvider": {Scopes: []string{"admin.write"}, Session: false, Reauth: true},
 	"UpdateService":              {Scopes: []string{"services.manage"}, Session: false, Reauth: false},
 	"ValidateFirewallHost":       {Scopes: []string{"firewall.apply"}, Session: false, Reauth: false},
 }

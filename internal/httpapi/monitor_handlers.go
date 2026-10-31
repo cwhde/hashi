@@ -227,6 +227,40 @@ func (s *Server) CreateNotificationProvider(ctx context.Context, req gen.CreateN
 	return gen.CreateNotificationProvider201JSONResponse(body), nil
 }
 
+func (s *Server) UpdateNotificationProvider(ctx context.Context, req gen.UpdateNotificationProviderRequestObject) (gen.UpdateNotificationProviderResponseObject, error) {
+	ri := info(ctx)
+	b := req.Body
+	str := func(p *string) string {
+		if p == nil {
+			return ""
+		}
+		return *p
+	}
+	secret := str(b.Password) + str(b.BotToken)
+	row, err := s.Notify.Update(ctx, req.Id, b.Name, func(typ string) (any, error) {
+		if typ == notify.TypeTelegram {
+			c := notify.TelegramConfig{ChatID: str(b.ChatId)}
+			return c, c.Validate()
+		}
+		c := notify.SMTPConfig{Host: str(b.Host), TLS: str(b.Tls), Username: str(b.Username), From: str(b.From), To: str(b.To)}
+		if b.Port != nil {
+			c.Port = *b.Port
+		}
+		return c, c.Validate()
+	}, secrets.New(secret))
+	if err != nil {
+		return nil, monitorError(err)
+	}
+	if err := s.Audit.Record(ctx, s.Store.Q, audit.Event{Actor: s.actor(ri), Action: "notification.provider.updated", Target: row.ID, IP: ri.ipString()}); err != nil {
+		return nil, err
+	}
+	body, err := notifyProviderBody(row)
+	if err != nil {
+		return nil, err
+	}
+	return gen.UpdateNotificationProvider200JSONResponse(body), nil
+}
+
 func (s *Server) DiscoverTelegramChats(ctx context.Context, req gen.DiscoverTelegramChatsRequestObject) (gen.DiscoverTelegramChatsResponseObject, error) {
 	chats, err := notify.Telegram{Token: secrets.New(req.Body.BotToken)}.DiscoverChats(ctx)
 	if err != nil {
