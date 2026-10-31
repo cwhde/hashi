@@ -11,10 +11,10 @@ host scripts and dynamic endpoint discovery — one interface instead of hand-ed
 
 <!-- progress:start — update when a slice passes its prod-proof gate (CLAUDE.md → "Progress bar") -->
 ```text
-[████████████████░░░░░░░░░░░░░░]  8 / 15 steps  ·  53 %
+[██████████████████░░░░░░░░░░░░]  9 / 15 steps  ·  60 %
 
-done   S0 walking skeleton · S0b UI design · S1 setup & auth · S2 DNS read · S3 DNS write · S4 SSH & Traefik · S5 HTTP services · S6 firewall
-next   S7 monitoring · V1 cutover
+done   S0 walking skeleton · S0b UI design · S1 setup & auth · S2 DNS read · S3 DNS write · S4 SSH & Traefik · S5 HTTP services · S6 firewall · S7 monitoring
+next   V1 cutover
 then   S8 AdGuard & Pulse · S9 edge SSO · S10 security engine · S11 scripts & themes · S12 1.0
 ```
 <!-- progress:end -->
