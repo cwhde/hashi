@@ -5,12 +5,12 @@ Pulse lets a host report its current addresses without holding any provider cred
 ## 1. Agent
 
 - Go, static binary (`CGO_ENABLED=0`), linux/amd64 + linux/arm64; Docker image on distroless/scratch, < 10 MB compressed.
-- Linux install: one-line command (shown in UI) that downloads the binary from Hashi itself, which carries both architectures in its image (checksum verified; no tag or outside access needed),
-  writes root-owned `/etc/hashi-pulse/config.yaml` (0600), installs a systemd service + timer, or cron fallback.
+- Linux install: one-line command (shown in UI): Hashi serves the installer, which downloads the binary from the Gitea release this Hashi version names (checksum verified). The Hashi image does not carry the agent,
+  writes root-owned `/etc/hashi-pulse/config.yaml` (0600), installs a long-running systemd or OpenRC service, or a cron `@reboot` fallback.
 - Docker install: generated Compose snippet (`network_mode: host` recommended for interface discovery).
 - Config: Hashi URL, agent ID, token, interval, optional interface selector.
 - Heartbeat: agent version, hostname, private IPv4/IPv6 candidates (per interface), optional user-selected interface,
-  timestamp, optional Docker metadata. Retries with jittered backoff.
+  timestamp, whether it runs in a container. Retries with jittered backoff.
 - Footprint: small enough to run in every Compose stack, dozens of instances per host. Targets, measured in S8: idle
   RSS ≤ 15 MB, no disk writes after start (config read once, no local state), sleeps between heartbeats (no busy
   loops or polling). Pulse stays heartbeat-only; firewall or other root-level host functions never go into it
@@ -66,20 +66,22 @@ Every connection that needs a host/IP (Traefik host SSH, firewall host SSH, AdGu
 order. The UI shows, per resolved address, its source (e.g. Pulse agent: last seen, public address, private candidates,
 selected address, stale status, reachability from Hashi).
 
+The literal address a host was first added with stays as the last fallback after its address set, so a set gone wrong
+cannot lock Hashi out of a host; the pinned host key decides who is who either way. A password has no such key: a connection
+with a password may follow a Pulse item only over HTTPS with certificate checks and an expected hostname, refused on save
+and on every connection otherwise, because the agent's reported address decides where the password goes.
+
 Validation before save: the set is an address set; Pulse agents in it exist and have a heartbeat (or explicit "save
 inactive"); port valid; optional connectivity test without leaking secrets; unreachable/inactive saves require
 confirmation. A target that resolves to nothing keeps the last working address (invariant 21).
-
-Former `pulse_ip_mode` values map to item scopes: `selected` / `private_selected` → `internal` (selected first),
-`public` → `public`, `private_candidate` → `internal` with a selector.
 
 API: `/api/pulse/agents` CRUD, `POST /api/pulse/agents/{id}/rotate-token|revoke`, `GET /api/pulse/agents/{id}/consumers`
 (IP sets containing the agent and their consumers), `GET /api/pulse/agents/{id}/install` (one-liner + compose snippet).
 
 ## 6. Releases
 
-Pulse binaries (amd64/arm64) are built into the Hashi image and served with SHA-256 checksums. Tags also attach them with
-checksums to a Gitea release; the installer can use those with `--from <base URL>`. Multi-arch image published to
+Pulse binaries (amd64/arm64) with SHA-256 checksums attached to Gitea releases on tags; a tag must match the release this
+Hashi version installs from. Multi-arch image, tagged like the main image, published to
 `git.juzo.io/juzo/hashi-pulse`.
 
 ## 7. Tests that must exist
