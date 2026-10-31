@@ -1052,7 +1052,9 @@ paths:
         required: true
         content: { application/json: { schema: { $ref: "#/components/schemas/PulseHeartbeat" } } }
       responses:
-        "204": { description: Recorded }
+        "200":
+          description: Recorded
+          content: { application/json: { schema: { $ref: "#/components/schemas/PulseHeartbeatReply" } } }
         default: { $ref: "#/components/responses/Problem" }
   /api/pulse/agents:
     get:
@@ -2343,6 +2345,7 @@ components:
         version: { type: string }
         hostname: { type: string }
         selected_interface: { type: string }
+        reported_public_ip: { type: string, description: "Sent only after Hashi asked; used only for an agent the admin trusts for it" }
         candidates:
           type: array
           items:
@@ -2351,9 +2354,14 @@ components:
             properties:
               interface: { type: string }
               address: { type: string }
+    PulseHeartbeatReply:
+      type: object
+      required: [check_public_ip]
+      properties:
+        check_public_ip: { type: boolean }
     PulseAgent:
       type: object
-      required: [id, name, status, install_type, public_ip, selected_ip, candidates, hostname, version, interval_seconds, dns_enabled, dns_name]
+      required: [id, name, status, install_type, public_ip, selected_ip, candidates, hostname, version, interval_seconds, dns_enabled, dns_name, trust_reported_ip, public_ip_source]
       properties:
         id: { type: string }
         name: { type: string }
@@ -2368,6 +2376,8 @@ components:
         last_seen_at: { type: string, format: date-time }
         dns_enabled: { type: boolean }
         dns_name: { type: string }
+        trust_reported_ip: { type: boolean }
+        public_ip_source: { type: string, enum: ["", connection, reported] }
     PulseAgentList:
       type: object
       required: [agents, hashi_url]
@@ -2382,11 +2392,12 @@ components:
         install_type: { type: string, enum: [linux, docker] }
     PulseAgentUpdate:
       type: object
-      required: [name, dns_enabled]
+      required: [name, dns_enabled, trust_reported_ip]
       properties:
         name: { type: string }
         dns_enabled: { type: boolean }
         dns_name: { type: string }
+        trust_reported_ip: { type: boolean }
     PulseAgentToken:
       type: object
       required: [agent, token]

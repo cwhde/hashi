@@ -108,11 +108,13 @@ func TestRealSSHD(t *testing.T) {
 		t.Fatalf("fetch via wget: %q %v", b, err)
 	}
 	c.Exec(t, "sh", "-c", "sed -i 's/^AllowTcpForwarding no/AllowTcpForwarding local/' /etc/ssh/sshd_config && kill -HUP 1")
-	itest.WaitFor(t, 20*time.Second, "sshd restart", func() bool { return itest.SSHBanner(c.Addr) })
-	cli3, err := sshx.Dial(ctx, sshx.Config{Addr: c.Addr, Pinned: hk, Auth: sshx.Auth{User: "root", PrivateKey: priv}})
-	if err != nil {
-		t.Fatal(err)
-	}
+	// The old sshd may still answer the banner right after the signal and then go away, so the proof is a full login.
+	var cli3 *sshx.Client
+	itest.WaitFor(t, 20*time.Second, "sshd restart", func() bool {
+		var err error
+		cli3, err = sshx.Dial(ctx, sshx.Config{Addr: c.Addr, Pinned: hk, Auth: sshx.Auth{User: "root", PrivateKey: priv}})
+		return err == nil
+	})
 	defer func() { _ = cli3.Close() }()
 	serve()
 	if _, err := cli3.DialLoopback(28080); err != nil {

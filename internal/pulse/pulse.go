@@ -62,7 +62,10 @@ type Candidate struct {
 // Beat is a heartbeat's content.
 type Beat struct {
 	Version, Hostname, SelectedInterface string
-	Candidates                           []Candidate
+	// ReportedPublic is what the agent says its public address is. Used only for an agent the admin trusts for it,
+	// and never over the address its connection came from.
+	ReportedPublic string
+	Candidates     []Candidate
 }
 
 // Service keeps agents.
@@ -213,7 +216,7 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 }
 
 // SetDNS changes an agent's name and its internal DNS entry.
-func (s *Service) SetDNS(ctx context.Context, id, name string, enabled bool, dnsName string) (db.PulseAgent, error) {
+func (s *Service) SetDNS(ctx context.Context, id, name string, enabled bool, dnsName string, trustReported bool) (db.PulseAgent, error) {
 	if _, err := s.get(ctx, id); err != nil {
 		return db.PulseAgent{}, err
 	}
@@ -225,62 +228,88 @@ func (s *Service) SetDNS(ctx context.Context, id, name string, enabled bool, dns
 	if enabled {
 		on = 1
 	}
-	if err := s.st.Q.SetPulseDNS(ctx, db.SetPulseDNSParams{Name: name, DnsEnabled: on, DnsName: dnsName, UpdatedAt: s.now().UnixMilli(), ID: id}); err != nil {
+	var trust int64
+	if trustReported {
+		trust = 1
+	}
+	if err := s.st.Q.SetPulseDNS(ctx, db.SetPulseDNSParams{Name: name, DnsEnabled: on, DnsName: dnsName, TrustReportedIp: trust, UpdatedAt: s.now().UnixMilli(), ID: id}); err != nil {
 		return db.PulseAgent{}, err
 	}
 	return s.get(ctx, id)
 }
 
-// Heartbeat checks the token and records what the agent reports. source is the address it came from, via the client-IP resolver.
-func (s *Service) Heartbeat(ctx context.Context, id, token string, b Beat, source netip.Addr) error {
+// Heartbeat checks the token and records what the agent reports. source is the address it came from, via the client-IP
+// resolver. The answer says whether the agent should find out its public address.
+func (s *Service) Heartbeat(ctx context.Context, id, token string, b Beat, source netip.Addr) (bool, error) {
 	row, err := s.st.R.GetPulseAgent(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) {
-		return ErrToken // the same answer as a wrong token: an unknown ID tells a caller nothing
+		return false, ErrToken // the same answer as a wrong token: an unknown ID tells a caller nothing
 	}
 	if err != nil {
-		return err
+		return false, err
 	}
 	pepper, err := s.pepper(ctx)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if !hmac.Equal(hashToken(pepper, token), row.TokenHash) || row.RevokedAt.Valid {
-		return ErrToken
+		return false, ErrToken
 	}
 	now := s.now()
 	if row.LastSeenAt.Valid && now.Sub(time.UnixMilli(row.LastSeenAt.Int64)) < minBeatGap {
-		return ErrRate
+		return false, ErrRate
 	}
 	cands, err := clean(b.Candidates)
 	if err != nil {
-		return err
+		return false, err
 	}
 	selected := selectIP(cands, b.SelectedInterface, row.SelectedIp)
-	public := ""
-	if source.IsValid() && source.Unmap().IsGlobalUnicast() && !source.Unmap().IsPrivate() {
-		public = source.Unmap().String()
-	} else if row.PublicIp != "" {
-		public = row.PublicIp // reached over a private path: the last public address stays true enough
-	}
+	public, origin := publicAddress(row, source, b.ReportedPublic)
 	raw, err := json.Marshal(cands)
 	if err != nil {
-		return err
+		return false, err
 	}
 	changed := public != row.PublicIp || selected != row.SelectedIp || string(raw) != row.CandidatesJson
-	if err := s.st.Q.SetPulseHeartbeat(ctx, db.SetPulseHeartbeatParams{LastSeenAt: sql.NullInt64{Int64: now.UnixMilli(), Valid: true}, PublicIp: public, CandidatesJson: string(raw),
+	if err := s.st.Q.SetPulseHeartbeat(ctx, db.SetPulseHeartbeatParams{LastSeenAt: sql.NullInt64{Int64: now.UnixMilli(), Valid: true}, PublicIp: public, PublicIpSource: origin, CandidatesJson: string(raw),
 		SelectedIp: selected, Hostname: trim(b.Hostname, 253), Version: trim(b.Version, 64), UpdatedAt: now.UnixMilli(), ID: id}); err != nil {
-		return err
+		return false, err
 	}
 	if changed {
 		if s.al != nil {
 			if err := s.al.Record(ctx, s.st.Q, audit.Event{Actor: audit.System, Action: "pulse.address_changed", Target: "pulse_agent:" + id, Outcome: audit.Success,
-				Detail: map[string]any{"public": public, "selected": selected}}); err != nil {
-				return err
+				Detail: map[string]any{"public": public, "public_source": origin, "selected": selected}}); err != nil {
+				return false, err
 			}
 		}
 		s.notify(ctx)
 	}
-	return nil
+	// Outside services hear from an agent only when it is trusted to use them and has no public connection to Hashi.
+	return row.TrustReportedIp == 1 && origin != SourceConnection, nil
+}
+
+// Where a public address came from.
+const (
+	SourceConnection = "connection"
+	SourceReported   = "reported"
+)
+
+// publicRoutable is an address that can be someone's public one; shared carrier space (NetBird, CGNAT) cannot.
+func publicRoutable(a netip.Addr) bool {
+	return a.IsValid() && a.IsGlobalUnicast() && !a.IsPrivate() && !netip.MustParsePrefix("100.64.0.0/10").Contains(a)
+}
+
+// publicAddress picks an agent's public address. The connection's source is proof and always wins. An agent's own report
+// counts only if the admin trusts this agent for it. Otherwise the last address stays: a private path says nothing new.
+func publicAddress(row db.PulseAgent, source netip.Addr, reported string) (addr, origin string) {
+	if s := source.Unmap(); publicRoutable(s) {
+		return s.String(), SourceConnection
+	}
+	if row.TrustReportedIp == 1 {
+		if a, err := netip.ParseAddr(reported); err == nil && publicRoutable(a.Unmap()) {
+			return a.Unmap().String(), SourceReported
+		}
+	}
+	return row.PublicIp, row.PublicIpSource
 }
 
 // notify runs in the background: a heartbeat must not wait for firewall and proxy plans.

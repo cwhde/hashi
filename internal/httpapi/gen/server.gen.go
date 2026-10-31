@@ -932,6 +932,27 @@ func (e NotificationRouteMinSeverity) Valid() bool {
 	}
 }
 
+// Defines values for PulseAgentPublicIpSource.
+const (
+	PulseAgentPublicIpSourceConnection PulseAgentPublicIpSource = "connection"
+	PulseAgentPublicIpSourceEmpty      PulseAgentPublicIpSource = ""
+	PulseAgentPublicIpSourceReported   PulseAgentPublicIpSource = "reported"
+)
+
+// Valid indicates whether the value is a known member of the PulseAgentPublicIpSource enum.
+func (e PulseAgentPublicIpSource) Valid() bool {
+	switch e {
+	case PulseAgentPublicIpSourceConnection:
+		return true
+	case PulseAgentPublicIpSourceEmpty:
+		return true
+	case PulseAgentPublicIpSourceReported:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PulseAgentStatus.
 const (
 	Fresh   PulseAgentStatus = "fresh"
@@ -2800,20 +2821,25 @@ type PublicStatus struct {
 
 // PulseAgent defines model for PulseAgent.
 type PulseAgent struct {
-	Candidates      []string         `json:"candidates"`
-	DnsEnabled      bool             `json:"dns_enabled"`
-	DnsName         string           `json:"dns_name"`
-	Hostname        string           `json:"hostname"`
-	Id              string           `json:"id"`
-	InstallType     string           `json:"install_type"`
-	IntervalSeconds int              `json:"interval_seconds"`
-	LastSeenAt      *time.Time       `json:"last_seen_at,omitempty"`
-	Name            string           `json:"name"`
-	PublicIp        string           `json:"public_ip"`
-	SelectedIp      string           `json:"selected_ip"`
-	Status          PulseAgentStatus `json:"status"`
-	Version         string           `json:"version"`
+	Candidates      []string                 `json:"candidates"`
+	DnsEnabled      bool                     `json:"dns_enabled"`
+	DnsName         string                   `json:"dns_name"`
+	Hostname        string                   `json:"hostname"`
+	Id              string                   `json:"id"`
+	InstallType     string                   `json:"install_type"`
+	IntervalSeconds int                      `json:"interval_seconds"`
+	LastSeenAt      *time.Time               `json:"last_seen_at,omitempty"`
+	Name            string                   `json:"name"`
+	PublicIp        string                   `json:"public_ip"`
+	PublicIpSource  PulseAgentPublicIpSource `json:"public_ip_source"`
+	SelectedIp      string                   `json:"selected_ip"`
+	Status          PulseAgentStatus         `json:"status"`
+	TrustReportedIp bool                     `json:"trust_reported_ip"`
+	Version         string                   `json:"version"`
 }
+
+// PulseAgentPublicIpSource defines model for PulseAgent.PublicIpSource.
+type PulseAgentPublicIpSource string
 
 // PulseAgentStatus defines model for PulseAgent.Status.
 type PulseAgentStatus string
@@ -2843,9 +2869,10 @@ type PulseAgentToken struct {
 
 // PulseAgentUpdate defines model for PulseAgentUpdate.
 type PulseAgentUpdate struct {
-	DnsEnabled bool    `json:"dns_enabled"`
-	DnsName    *string `json:"dns_name,omitempty"`
-	Name       string  `json:"name"`
+	DnsEnabled      bool    `json:"dns_enabled"`
+	DnsName         *string `json:"dns_name,omitempty"`
+	Name            string  `json:"name"`
+	TrustReportedIp bool    `json:"trust_reported_ip"`
 }
 
 // PulseHeartbeat defines model for PulseHeartbeat.
@@ -2854,9 +2881,17 @@ type PulseHeartbeat struct {
 		Address   string `json:"address"`
 		Interface string `json:"interface"`
 	} `json:"candidates"`
-	Hostname          string  `json:"hostname"`
+	Hostname string `json:"hostname"`
+
+	// ReportedPublicIp Sent only after Hashi asked; used only for an agent the admin trusts for it
+	ReportedPublicIp  *string `json:"reported_public_ip,omitempty"`
 	SelectedInterface *string `json:"selected_interface,omitempty"`
 	Version           string  `json:"version"`
+}
+
+// PulseHeartbeatReply defines model for PulseHeartbeatReply.
+type PulseHeartbeatReply struct {
+	CheckPublicIp bool `json:"check_public_ip"`
 }
 
 // RecoverLogin defines model for RecoverLogin.
@@ -11510,12 +11545,18 @@ type PulseHeartbeatResponseObject interface {
 	VisitPulseHeartbeatResponse(w http.ResponseWriter) error
 }
 
-type PulseHeartbeat204Response struct {
-}
+type PulseHeartbeat200JSONResponse PulseHeartbeatReply
 
-func (response PulseHeartbeat204Response) VisitPulseHeartbeatResponse(w http.ResponseWriter) error {
-	w.WriteHeader(204)
-	return nil
+func (response PulseHeartbeat200JSONResponse) VisitPulseHeartbeatResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
 }
 
 type PulseHeartbeatdefaultApplicationProblemPlusJSONResponse struct {

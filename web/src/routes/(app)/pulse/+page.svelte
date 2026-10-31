@@ -9,7 +9,8 @@
 	import * as Sheet from '$lib/components/ui/sheet';
 	import * as Table from '$lib/components/ui/table';
 	import * as Tabs from '$lib/components/ui/tabs';
-	import { Copy, KeyRound, Plus, Ban, Trash2 } from '@lucide/svelte';
+	import { Copy, KeyRound, Pencil, Plus, Ban, Trash2 } from '@lucide/svelte';
+	import { Switch } from '$lib/components/ui/switch';
 	import { api, problemText, type Schemas } from '$lib/api/client';
 	import { withReauth } from '$lib/auth/reauth';
 	import { dateTime } from '$lib/format';
@@ -90,6 +91,32 @@
 			);
 		});
 
+	// ---- edit ----
+	let editing = $state<{
+		id: string;
+		name: string;
+		dns_enabled: boolean;
+		dns_name: string;
+		trust_reported_ip: boolean;
+	} | null>(null);
+	let editError = $state('');
+	async function saveEdit() {
+		if (!editing) return;
+		editError = '';
+		busy = true;
+		try {
+			const { id, ...body } = editing;
+			const r = await api.PUT('/api/pulse/agents/{id}', { params: { path: { id } }, body });
+			if (r.error) throw r.error;
+			editing = null;
+			await load();
+		} catch (e) {
+			editError = problemText(e);
+		} finally {
+			busy = false;
+		}
+	}
+
 	const linux = $derived(
 		shown
 			? `curl -fsSL ${hashiUrl}/api/pulse/install.sh | sudo sh -s -- --url ${hashiUrl} --id ${shown.agent.id} --token ${shown.token}`
@@ -143,7 +170,10 @@
 						</div>
 					</Table.Cell>
 					<Table.Cell><Mono>{a.selected_ip || '—'}</Mono></Table.Cell>
-					<Table.Cell class="hidden md:table-cell"><Mono>{a.public_ip || '—'}</Mono></Table.Cell>
+					<Table.Cell class="hidden md:table-cell"
+						><Mono>{a.public_ip || '—'}</Mono>{#if a.public_ip_source === 'reported'}
+							<Tag>self-reported</Tag>{/if}</Table.Cell
+					>
 					<Table.Cell class="hidden text-muted-foreground lg:table-cell"
 						><Mono>{a.candidates.filter((c) => c !== a.selected_ip).join(', ') || '—'}</Mono
 						></Table.Cell
@@ -157,6 +187,22 @@
 						{:else}<span class="text-[13px]">{dateTime(a.last_seen_at ?? '')}</span>{/if}
 					</Table.Cell>
 					<Table.Cell class="text-right whitespace-nowrap">
+						<Button
+							variant="ghost"
+							size="icon-sm"
+							aria-label="Edit {a.name}"
+							onclick={() => {
+								editError = '';
+								editing = {
+									id: a.id,
+									name: a.name,
+									dns_enabled: a.dns_enabled,
+									dns_name: a.dns_name,
+									trust_reported_ip: a.trust_reported_ip
+								};
+							}}
+							disabled={busy}><Pencil /></Button
+						>
 						<Button
 							variant="ghost"
 							size="icon-sm"
@@ -249,5 +295,51 @@
 				<Button onclick={create} disabled={busy || !name.trim()}>Create agent</Button>
 			{/if}
 		</Sheet.Footer>
+	</Sheet.Content>
+</Sheet.Root>
+
+<Sheet.Root open={!!editing} onOpenChange={(o) => !o && (editing = null)}>
+	<Sheet.Content class="w-full sm:max-w-md">
+		<Sheet.Header>
+			<Sheet.Title>Edit agent</Sheet.Title>
+			<Sheet.Description>Its token stays the same.</Sheet.Description>
+		</Sheet.Header>
+		{#if editing}
+			<div class="space-y-4 overflow-y-auto px-4 text-[13px]">
+				<div class="space-y-1.5">
+					<Label for="edit-name">Name</Label><Input id="edit-name" bind:value={editing.name} />
+				</div>
+				<label class="flex items-center justify-between gap-3">
+					<span>Give it an internal DNS name</span><Switch
+						bind:checked={editing.dns_enabled}
+						aria-label="Give it an internal DNS name"
+					/>
+				</label>
+				<div class="space-y-1.5">
+					<Label for="edit-dns">DNS name (optional)</Label><Input
+						id="edit-dns"
+						bind:value={editing.dns_name}
+						placeholder="Uses the agent's name"
+					/>
+					<p class="text-[12px] text-muted-foreground">Needed only if two agents would clash.</p>
+				</div>
+				<label class="flex items-center justify-between gap-3">
+					<span>Trust its own report of its public address</span><Switch
+						bind:checked={editing.trust_reported_ip}
+						aria-label="Trust its own report of its public address"
+					/>
+				</label>
+				<p class="text-[12px] text-muted-foreground">
+					For a machine that reaches Hashi only over a private path. The agent then asks Cloudflare
+					and OpenDNS every few minutes, and this address can reach firewall rules through IP sets.
+					If its token were stolen, someone could name any public address here.
+				</p>
+				{#if editError}<p role="alert" class="text-bad-text">{editError}</p>{/if}
+			</div>
+			<Sheet.Footer class="flex-row justify-end gap-2 border-t">
+				<Button variant="outline" onclick={() => (editing = null)}>Cancel</Button>
+				<Button onclick={saveEdit} disabled={busy || !editing.name.trim()}>Save changes</Button>
+			</Sheet.Footer>
+		{/if}
 	</Sheet.Content>
 </Sheet.Root>

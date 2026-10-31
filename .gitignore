@@ -48,3 +48,4 @@ logs/
 
 # Real deploy targets (hosts, IPs)
 /deploy/targets/
+/dist/

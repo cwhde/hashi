@@ -11,7 +11,7 @@ Contracts: AdGuard's rewrite API captured from throwaway containers of both runn
 
 Plan, two PRs:
 
-Not built, decided while building: the optional reachability check, preview/apply endpoints for agent DNS (the Connections preview shows the same), AdGuard and Pulse monitoring sources, SSH connection targets as address sets, per-agent DNS name in the UI (API only). The heartbeat's public address only appears when an agent reaches Hashi over a public path, so replacing the hand-entered home address waits for the cutover's public route.
+Next, by the user's decision, before S8 closes: the reachability check, preview/apply for agent DNS, AdGuard and Pulse monitoring sources, SSH connection targets as address sets. An agent behind a private path can now report its public address when the admin trusts it (08 §4), so the hand-entered home address can go after the gate, with the user's OK.
 
 PR A, AdGuard (#44):
 - [x] Client from the fixtures with integration tests against a real container
@@ -24,6 +24,8 @@ PR B, Pulse:
 - [x] `agents/pulse` binary and image, tokens, heartbeat endpoint, agents API and Pulse page with install
 - [x] `pulse` items resolve; a heartbeat change reaches firewall, DNS, Traefik and connection consumers
 - [x] Agent DNS under the internal domain, DNS only
+- [x] Public address self-report, off by default; Gitea release job prepared (runs on the first tag)
+- [ ] Reachability check; AdGuard and Pulse monitoring sources; agent DNS preview/apply; SSH connection targets as address sets
 - [ ] Gate on a real host: an address change propagates with no manual step; idle memory measured; hand-entered home address replaced after the user's OK
 
 **S7 — Monitoring + public pages** · status: **done** 2026-10-31, deployed `71e79b9`, PR #42. Next: S8 (the V1 cutover now follows S9, see Log). Gate: all migrated services monitored; public status + dashboard served on their ports; a real outage produces a notification and recovery.
@@ -725,6 +727,10 @@ Decisions made in S0:
   only short-SHA deploys exist so far.
 
 ## Log
+
+- 2026-10-31 — CI on `main` after #44 and #45 failed on a timeout fetching actions from GitHub, not on code; both had passed on their PRs. #46's first run hit a race in `TestRealSSHD`: the old sshd answered the banner, then went away. The test now proves the restart with a full login.
+
+- 2026-10-31 — Registry and server cleanup with the user's OK: 165 old `juzo/hashi` registry entries removed (keeping `10790f1`, `71420f3`, `71e79b9`, `latest`, build cache), 13 old v3 and 9 June legacy build images removed on the server. `hashi:old` kept; it exists only on that server, not in the registry. Thin pool 87 % → 80 %. The runner caches hold 18 GB more.
 
 - 2026-10-31 — Pulse agent and install script run on the Alpine and Debian dev targets against a stand-in receiver: heartbeats arrive, config is 0600 root, idle memory 6.4 and 7.2 MB (target 15), image 8.8 MB (target 10). The installer now says so when curl is missing, which the Debian target showed. Targets cleaned; curl stays on the Debian one.
 
