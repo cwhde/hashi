@@ -46,7 +46,7 @@ Go backend + embedded SvelteKit SPA + SQLite, one container. Pulse agent in `age
 
 `README.md` has a rough progress bar between `<!-- progress:start -->` and `<!-- progress:end -->`. When a step passes
 its prod-proof gate (or the V1 cutover is done), update it in the same commit as `docs/progress.md`:
-15 steps total (S0, S0b, S1–S7, V1 cutover, S8–S12); bar = 30 cells, 2 `█` per finished step, rest `░`; count and
+15 steps total (S0, S0b, S1–S9, V1 cutover, S10–S12); bar = 30 cells, 2 `█` per finished step, rest `░`; count and
 percent rounded down; move the step from `next`/`then` to `done`. It's an overview, not a metric.
 
 ## Skills

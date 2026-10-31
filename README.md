@@ -14,8 +14,8 @@ host scripts and dynamic endpoint discovery — one interface instead of hand-ed
 [██████████████████░░░░░░░░░░░░]  9 / 15 steps  ·  60 %
 
 done   S0 walking skeleton · S0b UI design · S1 setup & auth · S2 DNS read · S3 DNS write · S4 SSH & Traefik · S5 HTTP services · S6 firewall · S7 monitoring
-next   V1 cutover
-then   S8 AdGuard & Pulse · S9 edge SSO · S10 security engine · S11 scripts & themes · S12 1.0
+next   S8 AdGuard & Pulse · S9 edge SSO · V1 cutover
+then   S10 security engine · S11 scripts & themes · S12 1.0
 ```
 <!-- progress:end -->
 

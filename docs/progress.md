@@ -5,7 +5,7 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
-**S7 — Monitoring + public pages** · status: **done** 2026-10-31, deployed `71e79b9`, PR #42. Gate: all migrated services monitored; public status + dashboard served on their ports; a real outage produces a notification and recovery.
+**S7 — Monitoring + public pages** · status: **done** 2026-10-31, deployed `71e79b9`, PR #42. Next: S8 (the V1 cutover now follows S9, see Log). Gate: all migrated services monitored; public status + dashboard served on their ports; a real outage produces a notification and recovery.
 
 Scope cut, decided 2026-10-31: Discord waits (no bot to capture yet); AdGuard and Pulse sources arrive with S8; ICMP, DNS entries' port probing and the `static.juzo.io` asset cache wait; charts stay plain SVG instead of uPlot; pending-plan and vault-lock notifications wait. Importing Gatus's 41 endpoints belongs to the V1 cutover. Also not built yet, after the review: editing allowed codes and the required set, a Monitoring settings category, per-endpoint check override, a probe on a UDP stream's own endpoint (use a separate check), group by host, a settings default for the dashboard's sort, per-entry icon upload.
 
@@ -646,9 +646,9 @@ Decisions made in S0:
 | S5 HTTP services | **done** | 2026-10-29 · `3c4504e` · Deploys `24bef01` → `6f7d938` → `3c4504e` (smoke ok each; two gate findings fixed in between, see Log). Manual record `dev.hashi` A → the Alpine edge's internal address (user OK). Setup connection on `hashi-edge-test` (host key = `ssh-keygen -lf` ECDSA, pinned); its plan applied + verified. Step 7: certificate re-issued by Google Trust Services with `<root>`, `*.<root>`, `*.hashi.<root>`; admin route verified; `https://dev.hashi.<root>` from the laptop → 200, valid chain (WR1), `/api/version` = deployed build. SearXNG added with the setup session: a request with its real name to the edge → 200 (page + search), access log: router `svc-searxng@file` → internal upstream, forward auth → Hashi 204; public DNS unchanged. Step 8 + 9 by the user in a real browser (Firefox/Floorp, home LAN): audit 23:38:13 UTC `setup.https.proof` success from the user's address, 23:38:26 `auth.passkey.registered` (RP ID = root domain), 23:38:57 `vault.recovery_key.confirmed`; no session revoked. Setup state: steps 1–5, 7–9 done, 6 pending (S6). V1 untouched. |
 | S6 Firewall + streams | **done** | 2026-10-31 · `bbe9511` · First real host: first apply with rescue timer confirmed; NetBird and foreign rules unchanged; NetBird restart reconnected in 10 s; outsider blocked by drop-other-inbound; block /24 with allowed /32 from a real outside source; table and rules identical after a `hashi-firewall` restart; DNS address-set value, S3 record path with the S5 passkey, setup completed, migrated `searxng` CNAME applied. TCP through the test edge reaches its upstream; **public TCP/UDP deferred to the traffic move by the user's decision** (UDP not yet proven on a real edge, only in integration tests). |
 | S7 Monitoring + public pages | **done** | 2026-10-31 · `71e79b9` · Test messages delivered by Telegram and email (the user received both). Throwaway web service on a dev target, checked by prod Hashi: stopped 14:03:13 UTC → down 14:05:58, alert delivered 14:06:15; restarted → up 14:08:04, recovery delivered 14:08:18. Marked public temporarily: the status API on its port listed name, group, state, strip and uptime only, no target address. Both public ports answer 200 from the deploy host; dashboard data lists the migrated service. Two of three services are monitored; the third has monitoring turned off on purpose. Check and service removed afterwards. Default route now goes to Telegram, set for this test. Finding: an alert's text carries the raw check error, including internal addresses (being fixed next). |
-| V1 cutover | — | |
 | S8 AdGuard, Pulse, agent DNS | — | |
 | S9 Edge SSO + rules | — | |
+| V1 cutover | — | |
 | S10 Security engine, WAF, CAPTCHA, blocklists | — | |
 | S11 Scripts, themes, settings | — | |
 | S12 Hardening + 1.0 | — | |
@@ -704,6 +704,8 @@ Decisions made in S0:
   only short-SHA deploys exist so far.
 
 ## Log
+
+- 2026-10-31 — Plan changed by the user's decision: the V1 cutover moves after S9. Order is now S8, S9, cutover, S10. Pangolin's SSO protects real apps and Hashi has none until S9, so public traffic stays on Pangolin until then, with no temporary allow-list. S8 stays first because S9's gate uses Pulse-backed sets.
 
 - 2026-10-31 — Deployed `71420f3` to prod: no schema change, `/readyz` ok, version matches, admin and both public listeners answer 200, no errors logged. The styled messages weren't sent through the real providers: the user waived that test, since delivery is proven and any look problems can wait.
 
