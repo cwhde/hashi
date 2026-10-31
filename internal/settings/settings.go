@@ -68,7 +68,7 @@ func Get[T Category](ctx context.Context, q *db.Queries) (T, error) {
 
 // Load reads every category once and notifies subscribers, so consumers start with the stored values.
 func (s *Service) Load(ctx context.Context) error {
-	for _, c := range []Category{General{}, Security{}, Appearance{}} {
+	for _, c := range []Category{General{}, Security{}, Appearance{}, AgentDNS{}} {
 		v, err := s.getAny(ctx, c)
 		if err != nil {
 			return err
@@ -86,6 +86,8 @@ func (s *Service) getAny(ctx context.Context, c Category) (Category, error) {
 		return Get[Security](ctx, s.st.Q)
 	case Appearance:
 		return Get[Appearance](ctx, s.st.Q)
+	case AgentDNS:
+		return Get[AgentDNS](ctx, s.st.Q)
 	}
 	return nil, fmt.Errorf("unknown settings category %T", c)
 }

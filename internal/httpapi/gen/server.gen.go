@@ -59,6 +59,24 @@ func (e AdGuardConnectionInputMode) Valid() bool {
 	}
 }
 
+// Defines values for AgentDNSSettingsIpMode.
+const (
+	AgentDNSSettingsIpModePublic   AgentDNSSettingsIpMode = "public"
+	AgentDNSSettingsIpModeSelected AgentDNSSettingsIpMode = "selected"
+)
+
+// Valid indicates whether the value is a known member of the AgentDNSSettingsIpMode enum.
+func (e AgentDNSSettingsIpMode) Valid() bool {
+	switch e {
+	case AgentDNSSettingsIpModePublic:
+		return true
+	case AgentDNSSettingsIpModeSelected:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AuditEventOutcome.
 const (
 	Denied  AuditEventOutcome = "denied"
@@ -577,19 +595,19 @@ func (e IPItemDNSType) Valid() bool {
 
 // Defines values for IPItemHostScope.
 const (
-	All      IPItemHostScope = "all"
-	Internal IPItemHostScope = "internal"
-	Public   IPItemHostScope = "public"
+	IPItemHostScopeAll      IPItemHostScope = "all"
+	IPItemHostScopeInternal IPItemHostScope = "internal"
+	IPItemHostScopePublic   IPItemHostScope = "public"
 )
 
 // Valid indicates whether the value is a known member of the IPItemHostScope enum.
 func (e IPItemHostScope) Valid() bool {
 	switch e {
-	case All:
+	case IPItemHostScopeAll:
 		return true
-	case Internal:
+	case IPItemHostScopeInternal:
 		return true
-	case Public:
+	case IPItemHostScopePublic:
 		return true
 	default:
 		return false
@@ -620,6 +638,42 @@ const (
 func (e IPItemIPType) Valid() bool {
 	switch e {
 	case Ip:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for IPItemPulseScope.
+const (
+	IPItemPulseScopeAll      IPItemPulseScope = "all"
+	IPItemPulseScopeInternal IPItemPulseScope = "internal"
+	IPItemPulseScopePublic   IPItemPulseScope = "public"
+)
+
+// Valid indicates whether the value is a known member of the IPItemPulseScope enum.
+func (e IPItemPulseScope) Valid() bool {
+	switch e {
+	case IPItemPulseScopeAll:
+		return true
+	case IPItemPulseScopeInternal:
+		return true
+	case IPItemPulseScopePublic:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for IPItemPulseType.
+const (
+	Pulse IPItemPulseType = "pulse"
+)
+
+// Valid indicates whether the value is a known member of the IPItemPulseType enum.
+func (e IPItemPulseType) Valid() bool {
+	switch e {
+	case Pulse:
 		return true
 	default:
 		return false
@@ -872,6 +926,48 @@ func (e NotificationRouteMinSeverity) Valid() bool {
 	case NotificationRouteMinSeverityDegraded:
 		return true
 	case NotificationRouteMinSeverityDown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PulseAgentStatus.
+const (
+	Fresh   PulseAgentStatus = "fresh"
+	Revoked PulseAgentStatus = "revoked"
+	Stale   PulseAgentStatus = "stale"
+	Waiting PulseAgentStatus = "waiting"
+)
+
+// Valid indicates whether the value is a known member of the PulseAgentStatus enum.
+func (e PulseAgentStatus) Valid() bool {
+	switch e {
+	case Fresh:
+		return true
+	case Revoked:
+		return true
+	case Stale:
+		return true
+	case Waiting:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PulseAgentCreateInstallType.
+const (
+	Docker PulseAgentCreateInstallType = "docker"
+	Linux  PulseAgentCreateInstallType = "linux"
+)
+
+// Valid indicates whether the value is a known member of the PulseAgentCreateInstallType enum.
+func (e PulseAgentCreateInstallType) Valid() bool {
+	switch e {
+	case Docker:
+		return true
+	case Linux:
 		return true
 	default:
 		return false
@@ -1557,6 +1653,16 @@ type AddressSetMatch struct {
 	Set     IPSet          `json:"set"`
 }
 
+// AgentDNSSettings defines model for AgentDNSSettings.
+type AgentDNSSettings struct {
+	Domain  string                 `json:"domain"`
+	Enabled bool                   `json:"enabled"`
+	IpMode  AgentDNSSettingsIpMode `json:"ip_mode"`
+}
+
+// AgentDNSSettingsIpMode defines model for AgentDNSSettings.IpMode.
+type AgentDNSSettingsIpMode string
+
 // AllSettings defines model for AllSettings.
 type AllSettings struct {
 	Appearance AppearanceSettings `json:"appearance"`
@@ -2216,6 +2322,22 @@ type IPItemIP struct {
 // IPItemIPType defines model for IPItemIP.Type.
 type IPItemIPType string
 
+// IPItemPulse defines model for IPItemPulse.
+type IPItemPulse struct {
+	AgentId string           `json:"agent_id"`
+	Scope   IPItemPulseScope `json:"scope"`
+
+	// Selector Narrows internal addresses to an interface name or a prefix
+	Selector *string         `json:"selector,omitempty"`
+	Type     IPItemPulseType `json:"type"`
+}
+
+// IPItemPulseScope defines model for IPItemPulse.Scope.
+type IPItemPulseScope string
+
+// IPItemPulseType defines model for IPItemPulse.Type.
+type IPItemPulseType string
+
 // IPItemSet defines model for IPItemSet.
 type IPItemSet struct {
 	SetId string        `json:"set_id"`
@@ -2674,6 +2796,67 @@ type PublicStatus struct {
 	Theme     string           `json:"theme"`
 	Title     string           `json:"title"`
 	UpdatedAt *time.Time       `json:"updated_at,omitempty"`
+}
+
+// PulseAgent defines model for PulseAgent.
+type PulseAgent struct {
+	Candidates      []string         `json:"candidates"`
+	DnsEnabled      bool             `json:"dns_enabled"`
+	DnsName         string           `json:"dns_name"`
+	Hostname        string           `json:"hostname"`
+	Id              string           `json:"id"`
+	InstallType     string           `json:"install_type"`
+	IntervalSeconds int              `json:"interval_seconds"`
+	LastSeenAt      *time.Time       `json:"last_seen_at,omitempty"`
+	Name            string           `json:"name"`
+	PublicIp        string           `json:"public_ip"`
+	SelectedIp      string           `json:"selected_ip"`
+	Status          PulseAgentStatus `json:"status"`
+	Version         string           `json:"version"`
+}
+
+// PulseAgentStatus defines model for PulseAgent.Status.
+type PulseAgentStatus string
+
+// PulseAgentCreate defines model for PulseAgentCreate.
+type PulseAgentCreate struct {
+	InstallType *PulseAgentCreateInstallType `json:"install_type,omitempty"`
+	Name        string                       `json:"name"`
+}
+
+// PulseAgentCreateInstallType defines model for PulseAgentCreate.InstallType.
+type PulseAgentCreateInstallType string
+
+// PulseAgentList defines model for PulseAgentList.
+type PulseAgentList struct {
+	Agents []PulseAgent `json:"agents"`
+
+	// HashiUrl The address agents report to
+	HashiUrl string `json:"hashi_url"`
+}
+
+// PulseAgentToken defines model for PulseAgentToken.
+type PulseAgentToken struct {
+	Agent PulseAgent `json:"agent"`
+	Token string     `json:"token"`
+}
+
+// PulseAgentUpdate defines model for PulseAgentUpdate.
+type PulseAgentUpdate struct {
+	DnsEnabled bool    `json:"dns_enabled"`
+	DnsName    *string `json:"dns_name,omitempty"`
+	Name       string  `json:"name"`
+}
+
+// PulseHeartbeat defines model for PulseHeartbeat.
+type PulseHeartbeat struct {
+	Candidates []struct {
+		Address   string `json:"address"`
+		Interface string `json:"interface"`
+	} `json:"candidates"`
+	Hostname          string  `json:"hostname"`
+	SelectedInterface *string `json:"selected_interface,omitempty"`
+	Version           string  `json:"version"`
 }
 
 // RecoverLogin defines model for RecoverLogin.
@@ -3227,6 +3410,11 @@ type GetMonitorEndpointParams struct {
 // GetMonitorEndpointParamsRange defines parameters for GetMonitorEndpoint.
 type GetMonitorEndpointParamsRange string
 
+// PulseHeartbeatParams defines parameters for PulseHeartbeat.
+type PulseHeartbeatParams struct {
+	Authorization string `json:"Authorization"`
+}
+
 // PutServiceDashboardJSONBody defines parameters for PutServiceDashboard.
 type PutServiceDashboardJSONBody struct {
 	Visible bool `json:"visible"`
@@ -3328,6 +3516,15 @@ type PutNotificationRouteJSONRequestBody = NotificationRoute
 // DiscoverTelegramChatsJSONRequestBody defines body for DiscoverTelegramChats for application/json ContentType.
 type DiscoverTelegramChatsJSONRequestBody = TelegramDiscover
 
+// CreatePulseAgentJSONRequestBody defines body for CreatePulseAgent for application/json ContentType.
+type CreatePulseAgentJSONRequestBody = PulseAgentCreate
+
+// UpdatePulseAgentJSONRequestBody defines body for UpdatePulseAgent for application/json ContentType.
+type UpdatePulseAgentJSONRequestBody = PulseAgentUpdate
+
+// PulseHeartbeatJSONRequestBody defines body for PulseHeartbeat for application/json ContentType.
+type PulseHeartbeatJSONRequestBody = PulseHeartbeat
+
 // CreateServiceJSONRequestBody defines body for CreateService for application/json ContentType.
 type CreateServiceJSONRequestBody = ServiceInput
 
@@ -3342,6 +3539,9 @@ type PutAppearanceSettingsJSONRequestBody = AppearanceSettings
 
 // PutGeneralSettingsJSONRequestBody defines body for PutGeneralSettings for application/json ContentType.
 type PutGeneralSettingsJSONRequestBody = GeneralSettings
+
+// PutAgentDNSSettingsJSONRequestBody defines body for PutAgentDNSSettings for application/json ContentType.
+type PutAgentDNSSettingsJSONRequestBody = AgentDNSSettings
 
 // PutSecuritySettingsJSONRequestBody defines body for PutSecuritySettings for application/json ContentType.
 type PutSecuritySettingsJSONRequestBody = SecuritySettings
@@ -3493,6 +3693,40 @@ func (t *IPItem) MergeIPItemHost(v IPItemHost) error {
 	return err
 }
 
+// AsIPItemPulse returns the union data inside the IPItem as a IPItemPulse
+func (t IPItem) AsIPItemPulse() (IPItemPulse, error) {
+	var body IPItemPulse
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromIPItemPulse overwrites any union data inside the IPItem as the provided IPItemPulse
+func (t *IPItem) FromIPItemPulse(v IPItemPulse) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"pulse"}`))
+	t.union = b
+	return err
+}
+
+// MergeIPItemPulse performs a merge with any union data inside the IPItem, using the provided IPItemPulse
+func (t *IPItem) MergeIPItemPulse(v IPItemPulse) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"pulse"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
 // AsIPItemDNS returns the union data inside the IPItem as a IPItemDNS
 func (t IPItem) AsIPItemDNS() (IPItemDNS, error) {
 	var body IPItemDNS
@@ -3583,6 +3817,8 @@ func (t IPItem) ValueByDiscriminator() (interface{}, error) {
 		return t.AsIPItemHost()
 	case "ip":
 		return t.AsIPItemIP()
+	case "pulse":
+		return t.AsIPItemPulse()
 	case "set":
 		return t.AsIPItemSet()
 	default:
@@ -3866,6 +4102,27 @@ type ServerInterface interface {
 	// GetPublicStatus Public status page data (cached 15 s); names, groups, state and history only
 	// (GET /api/public/status)
 	GetPublicStatus(w http.ResponseWriter, r *http.Request)
+
+	// (GET /api/pulse/agents)
+	ListPulseAgents(w http.ResponseWriter, r *http.Request)
+	// CreatePulseAgent Add an agent; the answer holds its token, shown once
+	// (POST /api/pulse/agents)
+	CreatePulseAgent(w http.ResponseWriter, r *http.Request)
+	// DeletePulseAgent Remove an agent no IP set uses
+	// (DELETE /api/pulse/agents/{id})
+	DeletePulseAgent(w http.ResponseWriter, r *http.Request, id string)
+	// UpdatePulseAgent Change an agent's name and internal DNS entry
+	// (PUT /api/pulse/agents/{id})
+	UpdatePulseAgent(w http.ResponseWriter, r *http.Request, id string)
+	// RevokePulseAgent Stop the token; the agent resolves to nothing
+	// (POST /api/pulse/agents/{id}/revoke)
+	RevokePulseAgent(w http.ResponseWriter, r *http.Request, id string)
+	// RotatePulseToken Replace the token; the old one stops working
+	// (POST /api/pulse/agents/{id}/rotate-token)
+	RotatePulseToken(w http.ResponseWriter, r *http.Request, id string)
+	// PulseHeartbeat An agent reports its addresses; its token can do nothing else
+	// (POST /api/pulse/{agentId}/heartbeat)
+	PulseHeartbeat(w http.ResponseWriter, r *http.Request, agentId string, params PulseHeartbeatParams)
 	// ListServices Every service, system services first, with the reason when one cannot be rendered
 	// (GET /api/services)
 	ListServices(w http.ResponseWriter, r *http.Request)
@@ -3908,6 +4165,12 @@ type ServerInterface interface {
 	// PutGeneralSettings Save general settings; changing trusted proxies needs a recent passkey reauthentication
 	// (PUT /api/settings/general)
 	PutGeneralSettings(w http.ResponseWriter, r *http.Request)
+
+	// (GET /api/settings/internal-agent-dns)
+	GetAgentDNSSettings(w http.ResponseWriter, r *http.Request)
+
+	// (PUT /api/settings/internal-agent-dns)
+	PutAgentDNSSettings(w http.ResponseWriter, r *http.Request)
 
 	// (GET /api/settings/security)
 	GetSecuritySettings(w http.ResponseWriter, r *http.Request)
@@ -6022,6 +6285,192 @@ func (siw *ServerInterfaceWrapper) GetPublicStatus(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// ListPulseAgents operation middleware
+func (siw *ServerInterfaceWrapper) ListPulseAgents(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPulseAgents(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreatePulseAgent operation middleware
+func (siw *ServerInterfaceWrapper) CreatePulseAgent(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreatePulseAgent(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeletePulseAgent operation middleware
+func (siw *ServerInterfaceWrapper) DeletePulseAgent(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeletePulseAgent(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdatePulseAgent operation middleware
+func (siw *ServerInterfaceWrapper) UpdatePulseAgent(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdatePulseAgent(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RevokePulseAgent operation middleware
+func (siw *ServerInterfaceWrapper) RevokePulseAgent(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RevokePulseAgent(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RotatePulseToken operation middleware
+func (siw *ServerInterfaceWrapper) RotatePulseToken(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RotatePulseToken(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PulseHeartbeat operation middleware
+func (siw *ServerInterfaceWrapper) PulseHeartbeat(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "agentId" -------------
+	var agentId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "agentId", r.PathValue("agentId"), &agentId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "agentId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PulseHeartbeatParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "Authorization" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Authorization")]; found {
+		var Authorization string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Authorization", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Authorization", valueList[0], &Authorization, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Authorization", Err: err})
+			return
+		}
+
+		params.Authorization = Authorization
+
+	} else {
+		err := fmt.Errorf("Header parameter Authorization is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "Authorization", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PulseHeartbeat(w, r, agentId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListServices operation middleware
 func (siw *ServerInterfaceWrapper) ListServices(w http.ResponseWriter, r *http.Request) {
 
@@ -6293,6 +6742,34 @@ func (siw *ServerInterfaceWrapper) PutGeneralSettings(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PutGeneralSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetAgentDNSSettings operation middleware
+func (siw *ServerInterfaceWrapper) GetAgentDNSSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAgentDNSSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutAgentDNSSettings operation middleware
+func (siw *ServerInterfaceWrapper) PutAgentDNSSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutAgentDNSSettings(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -7322,6 +7799,15 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/settings/security", wrapper.PutSecuritySettings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings/appearance", wrapper.GetAppearanceSettings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/settings/appearance", wrapper.PutAppearanceSettings)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/pulse/{agentId}/heartbeat", wrapper.PulseHeartbeat)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/pulse/agents", wrapper.ListPulseAgents)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/pulse/agents", wrapper.CreatePulseAgent)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/pulse/agents/{id}", wrapper.DeletePulseAgent)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/pulse/agents/{id}", wrapper.UpdatePulseAgent)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/pulse/agents/{id}/rotate-token", wrapper.RotatePulseToken)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/pulse/agents/{id}/revoke", wrapper.RevokePulseAgent)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings/internal-agent-dns", wrapper.GetAgentDNSSettings)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/settings/internal-agent-dns", wrapper.PutAgentDNSSettings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/adguard/connections", wrapper.ListAdGuardConnections)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/adguard/connections", wrapper.CreateAdGuardConnection)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/adguard/connections/{id}", wrapper.DeleteAdGuardConnection)
@@ -10786,6 +11272,269 @@ func (response GetPublicStatusdefaultApplicationProblemPlusJSONResponse) VisitGe
 	return err
 }
 
+type ListPulseAgentsRequestObject struct {
+}
+
+type ListPulseAgentsResponseObject interface {
+	VisitListPulseAgentsResponse(w http.ResponseWriter) error
+}
+
+type ListPulseAgents200JSONResponse PulseAgentList
+
+func (response ListPulseAgents200JSONResponse) VisitListPulseAgentsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListPulseAgentsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ListPulseAgentsdefaultApplicationProblemPlusJSONResponse) VisitListPulseAgentsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreatePulseAgentRequestObject struct {
+	Body *CreatePulseAgentJSONRequestBody
+}
+
+type CreatePulseAgentResponseObject interface {
+	VisitCreatePulseAgentResponse(w http.ResponseWriter) error
+}
+
+type CreatePulseAgent201JSONResponse PulseAgentToken
+
+func (response CreatePulseAgent201JSONResponse) VisitCreatePulseAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreatePulseAgentdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response CreatePulseAgentdefaultApplicationProblemPlusJSONResponse) VisitCreatePulseAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeletePulseAgentRequestObject struct {
+	Id string `json:"id"`
+}
+
+type DeletePulseAgentResponseObject interface {
+	VisitDeletePulseAgentResponse(w http.ResponseWriter) error
+}
+
+type DeletePulseAgent204Response struct {
+}
+
+func (response DeletePulseAgent204Response) VisitDeletePulseAgentResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeletePulseAgentdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response DeletePulseAgentdefaultApplicationProblemPlusJSONResponse) VisitDeletePulseAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdatePulseAgentRequestObject struct {
+	Id   string `json:"id"`
+	Body *UpdatePulseAgentJSONRequestBody
+}
+
+type UpdatePulseAgentResponseObject interface {
+	VisitUpdatePulseAgentResponse(w http.ResponseWriter) error
+}
+
+type UpdatePulseAgent200JSONResponse PulseAgent
+
+func (response UpdatePulseAgent200JSONResponse) VisitUpdatePulseAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdatePulseAgentdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response UpdatePulseAgentdefaultApplicationProblemPlusJSONResponse) VisitUpdatePulseAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RevokePulseAgentRequestObject struct {
+	Id string `json:"id"`
+}
+
+type RevokePulseAgentResponseObject interface {
+	VisitRevokePulseAgentResponse(w http.ResponseWriter) error
+}
+
+type RevokePulseAgent200JSONResponse PulseAgent
+
+func (response RevokePulseAgent200JSONResponse) VisitRevokePulseAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RevokePulseAgentdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response RevokePulseAgentdefaultApplicationProblemPlusJSONResponse) VisitRevokePulseAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RotatePulseTokenRequestObject struct {
+	Id string `json:"id"`
+}
+
+type RotatePulseTokenResponseObject interface {
+	VisitRotatePulseTokenResponse(w http.ResponseWriter) error
+}
+
+type RotatePulseToken200JSONResponse PulseAgentToken
+
+func (response RotatePulseToken200JSONResponse) VisitRotatePulseTokenResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RotatePulseTokendefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response RotatePulseTokendefaultApplicationProblemPlusJSONResponse) VisitRotatePulseTokenResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PulseHeartbeatRequestObject struct {
+	AgentId string `json:"agentId"`
+	Params  PulseHeartbeatParams
+	Body    *PulseHeartbeatJSONRequestBody
+}
+
+type PulseHeartbeatResponseObject interface {
+	VisitPulseHeartbeatResponse(w http.ResponseWriter) error
+}
+
+type PulseHeartbeat204Response struct {
+}
+
+func (response PulseHeartbeat204Response) VisitPulseHeartbeatResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type PulseHeartbeatdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PulseHeartbeatdefaultApplicationProblemPlusJSONResponse) VisitPulseHeartbeatResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListServicesRequestObject struct {
 }
 
@@ -11313,6 +12062,83 @@ type PutGeneralSettingsdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response PutGeneralSettingsdefaultApplicationProblemPlusJSONResponse) VisitPutGeneralSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAgentDNSSettingsRequestObject struct {
+}
+
+type GetAgentDNSSettingsResponseObject interface {
+	VisitGetAgentDNSSettingsResponse(w http.ResponseWriter) error
+}
+
+type GetAgentDNSSettings200JSONResponse AgentDNSSettings
+
+func (response GetAgentDNSSettings200JSONResponse) VisitGetAgentDNSSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetAgentDNSSettingsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetAgentDNSSettingsdefaultApplicationProblemPlusJSONResponse) VisitGetAgentDNSSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAgentDNSSettingsRequestObject struct {
+	Body *PutAgentDNSSettingsJSONRequestBody
+}
+
+type PutAgentDNSSettingsResponseObject interface {
+	VisitPutAgentDNSSettingsResponse(w http.ResponseWriter) error
+}
+
+type PutAgentDNSSettings200JSONResponse AgentDNSSettings
+
+func (response PutAgentDNSSettings200JSONResponse) VisitPutAgentDNSSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutAgentDNSSettingsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutAgentDNSSettingsdefaultApplicationProblemPlusJSONResponse) VisitPutAgentDNSSettingsResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -13483,6 +14309,27 @@ type StrictServerInterface interface {
 	// GetPublicStatus Public status page data (cached 15 s); names, groups, state and history only
 	// (GET /api/public/status)
 	GetPublicStatus(ctx context.Context, request GetPublicStatusRequestObject) (GetPublicStatusResponseObject, error)
+
+	// (GET /api/pulse/agents)
+	ListPulseAgents(ctx context.Context, request ListPulseAgentsRequestObject) (ListPulseAgentsResponseObject, error)
+	// CreatePulseAgent Add an agent; the answer holds its token, shown once
+	// (POST /api/pulse/agents)
+	CreatePulseAgent(ctx context.Context, request CreatePulseAgentRequestObject) (CreatePulseAgentResponseObject, error)
+	// DeletePulseAgent Remove an agent no IP set uses
+	// (DELETE /api/pulse/agents/{id})
+	DeletePulseAgent(ctx context.Context, request DeletePulseAgentRequestObject) (DeletePulseAgentResponseObject, error)
+	// UpdatePulseAgent Change an agent's name and internal DNS entry
+	// (PUT /api/pulse/agents/{id})
+	UpdatePulseAgent(ctx context.Context, request UpdatePulseAgentRequestObject) (UpdatePulseAgentResponseObject, error)
+	// RevokePulseAgent Stop the token; the agent resolves to nothing
+	// (POST /api/pulse/agents/{id}/revoke)
+	RevokePulseAgent(ctx context.Context, request RevokePulseAgentRequestObject) (RevokePulseAgentResponseObject, error)
+	// RotatePulseToken Replace the token; the old one stops working
+	// (POST /api/pulse/agents/{id}/rotate-token)
+	RotatePulseToken(ctx context.Context, request RotatePulseTokenRequestObject) (RotatePulseTokenResponseObject, error)
+	// PulseHeartbeat An agent reports its addresses; its token can do nothing else
+	// (POST /api/pulse/{agentId}/heartbeat)
+	PulseHeartbeat(ctx context.Context, request PulseHeartbeatRequestObject) (PulseHeartbeatResponseObject, error)
 	// ListServices Every service, system services first, with the reason when one cannot be rendered
 	// (GET /api/services)
 	ListServices(ctx context.Context, request ListServicesRequestObject) (ListServicesResponseObject, error)
@@ -13525,6 +14372,12 @@ type StrictServerInterface interface {
 	// PutGeneralSettings Save general settings; changing trusted proxies needs a recent passkey reauthentication
 	// (PUT /api/settings/general)
 	PutGeneralSettings(ctx context.Context, request PutGeneralSettingsRequestObject) (PutGeneralSettingsResponseObject, error)
+
+	// (GET /api/settings/internal-agent-dns)
+	GetAgentDNSSettings(ctx context.Context, request GetAgentDNSSettingsRequestObject) (GetAgentDNSSettingsResponseObject, error)
+
+	// (PUT /api/settings/internal-agent-dns)
+	PutAgentDNSSettings(ctx context.Context, request PutAgentDNSSettingsRequestObject) (PutAgentDNSSettingsResponseObject, error)
 
 	// (GET /api/settings/security)
 	GetSecuritySettings(ctx context.Context, request GetSecuritySettingsRequestObject) (GetSecuritySettingsResponseObject, error)
@@ -16148,6 +17001,206 @@ func (sh *strictHandler) GetPublicStatus(w http.ResponseWriter, r *http.Request)
 	}
 }
 
+// ListPulseAgents operation middleware
+func (sh *strictHandler) ListPulseAgents(w http.ResponseWriter, r *http.Request) {
+	var request ListPulseAgentsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListPulseAgents(ctx, request.(ListPulseAgentsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListPulseAgents")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListPulseAgentsResponseObject); ok {
+		if err := validResponse.VisitListPulseAgentsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreatePulseAgent operation middleware
+func (sh *strictHandler) CreatePulseAgent(w http.ResponseWriter, r *http.Request) {
+	var request CreatePulseAgentRequestObject
+
+	var body CreatePulseAgentJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreatePulseAgent(ctx, request.(CreatePulseAgentRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreatePulseAgent")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreatePulseAgentResponseObject); ok {
+		if err := validResponse.VisitCreatePulseAgentResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeletePulseAgent operation middleware
+func (sh *strictHandler) DeletePulseAgent(w http.ResponseWriter, r *http.Request, id string) {
+	var request DeletePulseAgentRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeletePulseAgent(ctx, request.(DeletePulseAgentRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeletePulseAgent")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeletePulseAgentResponseObject); ok {
+		if err := validResponse.VisitDeletePulseAgentResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdatePulseAgent operation middleware
+func (sh *strictHandler) UpdatePulseAgent(w http.ResponseWriter, r *http.Request, id string) {
+	var request UpdatePulseAgentRequestObject
+
+	request.Id = id
+
+	var body UpdatePulseAgentJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdatePulseAgent(ctx, request.(UpdatePulseAgentRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdatePulseAgent")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdatePulseAgentResponseObject); ok {
+		if err := validResponse.VisitUpdatePulseAgentResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RevokePulseAgent operation middleware
+func (sh *strictHandler) RevokePulseAgent(w http.ResponseWriter, r *http.Request, id string) {
+	var request RevokePulseAgentRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RevokePulseAgent(ctx, request.(RevokePulseAgentRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RevokePulseAgent")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RevokePulseAgentResponseObject); ok {
+		if err := validResponse.VisitRevokePulseAgentResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RotatePulseToken operation middleware
+func (sh *strictHandler) RotatePulseToken(w http.ResponseWriter, r *http.Request, id string) {
+	var request RotatePulseTokenRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RotatePulseToken(ctx, request.(RotatePulseTokenRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RotatePulseToken")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RotatePulseTokenResponseObject); ok {
+		if err := validResponse.VisitRotatePulseTokenResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PulseHeartbeat operation middleware
+func (sh *strictHandler) PulseHeartbeat(w http.ResponseWriter, r *http.Request, agentId string, params PulseHeartbeatParams) {
+	var request PulseHeartbeatRequestObject
+
+	request.AgentId = agentId
+	request.Params = params
+
+	var body PulseHeartbeatJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PulseHeartbeat(ctx, request.(PulseHeartbeatRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PulseHeartbeat")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PulseHeartbeatResponseObject); ok {
+		if err := validResponse.VisitPulseHeartbeatResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ListServices operation middleware
 func (sh *strictHandler) ListServices(w http.ResponseWriter, r *http.Request) {
 	var request ListServicesRequestObject
@@ -16526,6 +17579,61 @@ func (sh *strictHandler) PutGeneralSettings(w http.ResponseWriter, r *http.Reque
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(PutGeneralSettingsResponseObject); ok {
 		if err := validResponse.VisitPutGeneralSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetAgentDNSSettings operation middleware
+func (sh *strictHandler) GetAgentDNSSettings(w http.ResponseWriter, r *http.Request) {
+	var request GetAgentDNSSettingsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetAgentDNSSettings(ctx, request.(GetAgentDNSSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetAgentDNSSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetAgentDNSSettingsResponseObject); ok {
+		if err := validResponse.VisitGetAgentDNSSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutAgentDNSSettings operation middleware
+func (sh *strictHandler) PutAgentDNSSettings(w http.ResponseWriter, r *http.Request) {
+	var request PutAgentDNSSettingsRequestObject
+
+	var body PutAgentDNSSettingsJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutAgentDNSSettings(ctx, request.(PutAgentDNSSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutAgentDNSSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutAgentDNSSettingsResponseObject); ok {
+		if err := validResponse.VisitPutAgentDNSSettingsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

@@ -168,30 +168,32 @@ func (q *Queries) InsertIPSet(ctx context.Context, arg InsertIPSetParams) error 
 }
 
 const insertIPSetElement = `-- name: InsertIPSetElement :exec
-INSERT INTO ip_set_elements (id, ip_set_id, position, type, origin, locked, address, prefix, family, host_id, scope,
+INSERT INTO ip_set_elements (id, ip_set_id, position, type, origin, locked, address, prefix, family, host_id, pulse_agent_id, selector, scope,
     fqdn, child_set_id, note, expires_at, created_by, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertIPSetElementParams struct {
-	ID         string
-	IpSetID    string
-	Position   int64
-	Type       string
-	Origin     string
-	Locked     int64
-	Address    sql.NullString
-	Prefix     sql.NullString
-	Family     sql.NullInt64
-	HostID     sql.NullString
-	Scope      sql.NullString
-	Fqdn       sql.NullString
-	ChildSetID sql.NullString
-	Note       string
-	ExpiresAt  sql.NullInt64
-	CreatedBy  string
-	CreatedAt  int64
-	UpdatedAt  int64
+	ID           string
+	IpSetID      string
+	Position     int64
+	Type         string
+	Origin       string
+	Locked       int64
+	Address      sql.NullString
+	Prefix       sql.NullString
+	Family       sql.NullInt64
+	HostID       sql.NullString
+	PulseAgentID sql.NullString
+	Selector     sql.NullString
+	Scope        sql.NullString
+	Fqdn         sql.NullString
+	ChildSetID   sql.NullString
+	Note         string
+	ExpiresAt    sql.NullInt64
+	CreatedBy    string
+	CreatedAt    int64
+	UpdatedAt    int64
 }
 
 func (q *Queries) InsertIPSetElement(ctx context.Context, arg InsertIPSetElementParams) error {
@@ -206,6 +208,8 @@ func (q *Queries) InsertIPSetElement(ctx context.Context, arg InsertIPSetElement
 		arg.Prefix,
 		arg.Family,
 		arg.HostID,
+		arg.PulseAgentID,
+		arg.Selector,
 		arg.Scope,
 		arg.Fqdn,
 		arg.ChildSetID,
@@ -593,24 +597,26 @@ func (q *Queries) UpdateIPSet(ctx context.Context, arg UpdateIPSetParams) error 
 
 const updateIPSetElement = `-- name: UpdateIPSetElement :exec
 UPDATE ip_set_elements
-SET type = ?, address = ?, prefix = ?, family = ?, host_id = ?, scope = ?, fqdn = ?, child_set_id = ?, note = ?,
+SET type = ?, address = ?, prefix = ?, family = ?, host_id = ?, pulse_agent_id = ?, selector = ?, scope = ?, fqdn = ?, child_set_id = ?, note = ?,
     expires_at = ?, updated_at = ?
 WHERE id = ?
 `
 
 type UpdateIPSetElementParams struct {
-	Type       string
-	Address    sql.NullString
-	Prefix     sql.NullString
-	Family     sql.NullInt64
-	HostID     sql.NullString
-	Scope      sql.NullString
-	Fqdn       sql.NullString
-	ChildSetID sql.NullString
-	Note       string
-	ExpiresAt  sql.NullInt64
-	UpdatedAt  int64
-	ID         string
+	Type         string
+	Address      sql.NullString
+	Prefix       sql.NullString
+	Family       sql.NullInt64
+	HostID       sql.NullString
+	PulseAgentID sql.NullString
+	Selector     sql.NullString
+	Scope        sql.NullString
+	Fqdn         sql.NullString
+	ChildSetID   sql.NullString
+	Note         string
+	ExpiresAt    sql.NullInt64
+	UpdatedAt    int64
+	ID           string
 }
 
 func (q *Queries) UpdateIPSetElement(ctx context.Context, arg UpdateIPSetElementParams) error {
@@ -620,6 +626,8 @@ func (q *Queries) UpdateIPSetElement(ctx context.Context, arg UpdateIPSetElement
 		arg.Prefix,
 		arg.Family,
 		arg.HostID,
+		arg.PulseAgentID,
+		arg.Selector,
 		arg.Scope,
 		arg.Fqdn,
 		arg.ChildSetID,

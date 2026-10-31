@@ -521,6 +521,16 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await expect(page.getByLabel('Expected hostname')).toBeVisible();
 	await page.getByRole('button', { name: 'Cancel' }).click();
 
+	// Pulse: an agent's token is shown once, and an agent can go into an IP set.
+	await page.goto(`${state.baseURL}/pulse`);
+	await page.getByRole('button', { name: 'Add agent' }).click();
+	await page.getByLabel('Name').fill('e2e-box');
+	await page.getByRole('button', { name: 'Create agent' }).click();
+	await expect(page.getByText(/--token hp_/)).toBeVisible();
+	await page.getByRole('button', { name: 'Done' }).click();
+	await page.getByRole('button', { name: 'Remove e2e-box' }).click();
+	await expect(page.getByRole('button', { name: 'Remove e2e-box' })).toHaveCount(0);
+
 	// The theme is saved, not only remembered by this browser.
 	await page.getByRole('button', { name: 'Theme', exact: true }).click();
 	await page.getByRole('menuitemradio', { name: 'Violet Night' }).click();

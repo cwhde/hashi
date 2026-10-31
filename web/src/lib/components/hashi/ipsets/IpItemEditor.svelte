@@ -4,6 +4,8 @@
 	import * as ToggleGroup from '$lib/components/ui/toggle-group';
 	import * as Select from '$lib/components/ui/select';
 	import IpSetPicker from './IpSetPicker.svelte';
+	import { onMount } from 'svelte';
+	import { pulseAgents } from '$lib/pulseAgents.svelte';
 	import type { IPSet, ItemForm, ItemType } from '$lib/ipsets';
 
 	// Add or edit one IP item: pick the type, then only that type's fields (05a §2). When the set is used as a
@@ -24,11 +26,17 @@
 		usedAsTarget?: boolean;
 		lockType?: boolean;
 	} = $props();
-	type T = ItemType | 'pulse' | 'geo';
+	onMount(() => void pulseAgents.load());
+	type T = ItemType | 'geo';
 	const types: { v: T; l: string; target: boolean; why?: string }[] = $derived([
 		{ v: 'ip', l: 'IP', target: true },
 		{ v: 'cidr', l: 'CIDR', target: false },
-		{ v: 'pulse', l: 'Pulse', target: true, why: 'Pulse agents arrive in a later version.' },
+		{
+			v: 'pulse',
+			l: 'Pulse',
+			target: true,
+			why: pulseAgents.list.length ? undefined : 'Add a Pulse agent first.'
+		},
 		{
 			v: 'host',
 			l: 'Host',
@@ -87,6 +95,41 @@
 					Host bits are cleared on save; a /32 or /128 is saved as an IP.
 				</p>{/if}
 		</div>
+	{:else if form.type === 'pulse'}
+		<div class="grid gap-3 sm:grid-cols-2">
+			<div class="space-y-1.5">
+				<Label>Pulse agent</Label>
+				<Select.Root type="single" bind:value={form.agentId}>
+					<Select.Trigger class="w-full"
+						>{pulseAgents.list.find((a) => a.id === form.agentId)?.name ??
+							'Choose an agent'}</Select.Trigger
+					>
+					<Select.Content>
+						{#each pulseAgents.list as a (a.id)}<Select.Item value={a.id}>{a.name}</Select.Item
+							>{/each}
+					</Select.Content>
+				</Select.Root>
+			</div>
+			<div class="space-y-1.5">
+				<Label>Which addresses</Label>
+				<Select.Root type="single" bind:value={form.scope}>
+					<Select.Trigger class="w-full">{scopes.find((s) => s.v === form.scope)?.l}</Select.Trigger
+					>
+					<Select.Content>
+						{#each scopes as s (s.v)}<Select.Item value={s.v}>{s.l}</Select.Item>{/each}
+					</Select.Content>
+				</Select.Root>
+			</div>
+		</div>
+		{#if form.scope !== 'public'}
+			<div class="space-y-1.5">
+				<Label for="item-selector">Only from (optional)</Label>
+				<Input id="item-selector" bind:value={form.selector} placeholder="eth0 or 10.0.0.0/24" />
+			</div>
+		{/if}
+		<p class="text-[12.5px] text-muted-foreground">
+			Follows the agent: when its address changes, every place using this set updates.
+		</p>
 	{:else if form.type === 'host'}
 		<div class="grid gap-3 sm:grid-cols-2">
 			<div class="space-y-1.5">

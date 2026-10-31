@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"git.juzo.io/juzo/hashi/internal/adguard"
+	"git.juzo.io/juzo/hashi/internal/pulse"
 	"log/slog"
 	"net/http"
 	"time"
@@ -42,6 +43,7 @@ type Server struct {
 	Certs    *certs.Manager
 	IPSets   *ipsets.Service
 	AdGuard  *adguard.Service
+	Pulse    *pulse.Service
 	Monitor  *monitor.Service
 	Notify   *notify.Service
 	Firewall *firewall.Manager

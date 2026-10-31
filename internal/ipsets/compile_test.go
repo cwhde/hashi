@@ -18,6 +18,10 @@ type fakeResolver struct {
 	fail  map[string]bool
 }
 
+func (f fakeResolver) Pulse(id, scope, selector string) ([]netip.Addr, error) {
+	return f.Host("pulse:"+id, scope)
+}
+
 func (f fakeResolver) Host(id, scope string) ([]netip.Addr, error) {
 	if f.fail[id] {
 		return nil, errors.New("unreachable")

@@ -1190,6 +1190,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/pulse/{agentId}/heartbeat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** An agent reports its addresses; its token can do nothing else */
+        post: operations["pulseHeartbeat"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pulse/agents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listPulseAgents"];
+        put?: never;
+        /** Add an agent; the answer holds its token, shown once */
+        post: operations["createPulseAgent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pulse/agents/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change an agent's name and internal DNS entry */
+        put: operations["updatePulseAgent"];
+        post?: never;
+        /** Remove an agent no IP set uses */
+        delete: operations["deletePulseAgent"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pulse/agents/{id}/rotate-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Replace the token; the old one stops working */
+        post: operations["rotatePulseToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pulse/agents/{id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stop the token; the agent resolves to nothing */
+        post: operations["revokePulseAgent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/internal-agent-dns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getAgentDNSSettings"];
+        put: operations["putAgentDNSSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/adguard/connections": {
         parameters: {
             query?: never;
@@ -2354,6 +2456,58 @@ export interface components {
                 note?: string;
             }[];
         };
+        PulseHeartbeat: {
+            version: string;
+            hostname: string;
+            selected_interface?: string;
+            candidates: {
+                interface: string;
+                address: string;
+            }[];
+        };
+        PulseAgent: {
+            id: string;
+            name: string;
+            /** @enum {string} */
+            status: "waiting" | "fresh" | "stale" | "revoked";
+            install_type: string;
+            public_ip: string;
+            selected_ip: string;
+            candidates: string[];
+            hostname: string;
+            version: string;
+            interval_seconds: number;
+            /** Format: date-time */
+            last_seen_at?: string;
+            dns_enabled: boolean;
+            dns_name: string;
+        };
+        PulseAgentList: {
+            agents: components["schemas"]["PulseAgent"][];
+            /** @description The address agents report to */
+            hashi_url: string;
+        };
+        PulseAgentCreate: {
+            name: string;
+            /** @enum {string} */
+            install_type?: "linux" | "docker";
+        };
+        PulseAgentUpdate: {
+            name: string;
+            dns_enabled: boolean;
+            dns_name?: string;
+        };
+        PulseAgentToken: {
+            agent: components["schemas"]["PulseAgent"];
+            /** Format: password */
+            token: string;
+        };
+        AgentDNSSettings: {
+            enabled: boolean;
+            domain: string;
+            /** @enum {string} */
+            ip_mode: "selected" | "public";
+        };
         TelegramDiscover: {
             /** Format: password */
             bot_token: string;
@@ -3228,7 +3382,7 @@ export interface components {
             message: string;
         };
         /** @description One IP item or a set reference (05a §2) */
-        IPItem: components["schemas"]["IPItemIP"] | components["schemas"]["IPItemCIDR"] | components["schemas"]["IPItemHost"] | components["schemas"]["IPItemDNS"] | components["schemas"]["IPItemSet"];
+        IPItem: components["schemas"]["IPItemIP"] | components["schemas"]["IPItemCIDR"] | components["schemas"]["IPItemHost"] | components["schemas"]["IPItemPulse"] | components["schemas"]["IPItemDNS"] | components["schemas"]["IPItemSet"];
         IPItemIP: {
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -3256,6 +3410,18 @@ export interface components {
             host_id: string;
             /** @enum {string} */
             scope: "public" | "internal" | "all";
+        };
+        IPItemPulse: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "pulse";
+            agent_id: string;
+            /** @enum {string} */
+            scope: "public" | "internal" | "all";
+            /** @description Narrows internal addresses to an interface name or a prefix */
+            selector?: string;
         };
         IPItemDNS: {
             /**
@@ -5315,6 +5481,219 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AppearanceSettings"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    pulseHeartbeat: {
+        parameters: {
+            query?: never;
+            header: {
+                Authorization: string;
+            };
+            path: {
+                agentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PulseHeartbeat"];
+            };
+        };
+        responses: {
+            /** @description Recorded */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listPulseAgents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Agents */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PulseAgentList"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createPulseAgent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PulseAgentCreate"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PulseAgentToken"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    updatePulseAgent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PulseAgentUpdate"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PulseAgent"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    deletePulseAgent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    rotatePulseToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The new token, shown once */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PulseAgentToken"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    revokePulseAgent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Revoked */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PulseAgent"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getAgentDNSSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Internal agent DNS settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentDNSSettings"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putAgentDNSSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentDNSSettings"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentDNSSettings"];
                 };
             };
             default: components["responses"]["Problem"];

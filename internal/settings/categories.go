@@ -31,6 +31,19 @@ type Appearance struct {
 	PublicStatusEnabled    bool   `json:"public_status_enabled"`
 }
 
+// AgentDNS: stable internal names for Pulse agents (03 §9). DNS only, never reverse proxy.
+type AgentDNS struct {
+	Enabled bool   `json:"enabled"`
+	Domain  string `json:"domain"`
+	IPMode  string `json:"ip_mode"`
+}
+
+// Agent DNS address modes.
+const (
+	AgentIPSelected = "selected"
+	AgentIPPublic   = "public"
+)
+
 // Limits from the spec.
 const (
 	MaxAdminIdle    = 4 * time.Hour // 02 §3.2
@@ -52,6 +65,8 @@ func defaults(c Category) Category {
 				"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "::1/128", "fc00::/7",
 			},
 		}
+	case AgentDNS:
+		return AgentDNS{Domain: "hashi.home.arpa", IPMode: AgentIPSelected}
 	case Appearance:
 		return Appearance{Theme: "graphite", PublicDashboardEnabled: true, PublicStatusEnabled: true}
 	}
@@ -61,6 +76,19 @@ func defaults(c Category) Category {
 func (General) Key() string    { return "general" }
 func (Security) Key() string   { return "security" }
 func (Appearance) Key() string { return "appearance" }
+func (AgentDNS) Key() string   { return "internal_agent_dns" }
+
+// Validate checks AgentDNS.
+func (a AgentDNS) Validate() error {
+	d, ok := normalizeFQDN(a.Domain)
+	if !ok || d != a.Domain || !strings.Contains(d, ".") {
+		return invalid("internal domain %q must be a lower-case domain name", a.Domain)
+	}
+	if a.IPMode != AgentIPSelected && a.IPMode != AgentIPPublic {
+		return invalid("address mode must be selected or public")
+	}
+	return nil
+}
 
 // Configured reports whether setup step 2 has saved the base settings.
 func (g General) Configured() bool { return g.RootDomain != "" }

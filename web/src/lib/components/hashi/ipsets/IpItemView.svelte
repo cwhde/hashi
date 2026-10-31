@@ -2,7 +2,9 @@
 	import Mono from '../Mono.svelte';
 	import Tag from '../Tag.svelte';
 	import SetBadge from './SetBadge.svelte';
-	import { Server, Globe, Hash, Layers } from '@lucide/svelte';
+	import { Activity, Server, Globe, Hash, Layers } from '@lucide/svelte';
+	import { onMount } from 'svelte';
+	import { pulseAgents } from '$lib/pulseAgents.svelte';
 	import { itemValue, type IPSet, type IPItem } from '$lib/ipsets';
 
 	// One IP item in a list: type icon and the value in its natural form (05a §2). A set reference shows the set's
@@ -12,8 +14,18 @@
 		sets,
 		hostName
 	}: { item: IPItem; sets: IPSet[]; hostName?: (id: string) => string | undefined } = $props();
-	const icons = { ip: Hash, cidr: Hash, host: Server, dns: Globe, set: Layers };
-	const typeLabel = { ip: 'IP', cidr: 'CIDR', host: 'Host', dns: 'DNS', set: 'Set' };
+	const icons = { ip: Hash, cidr: Hash, host: Server, pulse: Activity, dns: Globe, set: Layers };
+	const typeLabel = {
+		ip: 'IP',
+		cidr: 'CIDR',
+		host: 'Host',
+		pulse: 'Pulse',
+		dns: 'DNS',
+		set: 'Set'
+	};
+	onMount(() => {
+		if (item.type === 'pulse') void pulseAgents.load();
+	});
 	const Icon = $derived(icons[item.type]);
 	const ref = $derived(item.type === 'set' ? sets.find((s) => s.id === item.set_id) : undefined);
 </script>
@@ -25,6 +37,10 @@
 			<span class="font-medium">{hostName?.(item.host_id) ?? item.host_id}</span><Tag
 				>{item.scope}</Tag
 			>
+		{:else if item.type === 'pulse'}
+			<span class="font-medium"
+				>{pulseAgents.list.find((a) => a.id === item.agent_id)?.name ?? 'Pulse agent'}</span
+			><Tag>{item.scope}</Tag>{#if item.selector}<Mono>{item.selector}</Mono>{/if}
 		{:else if item.type === 'set'}
 			{#if ref}<SetBadge set={ref} />{:else}<span class="text-muted-foreground">missing set</span
 				>{/if}

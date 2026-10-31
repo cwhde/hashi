@@ -438,6 +438,30 @@ type PasskeyCredential struct {
 	LastUsedAt     sql.NullInt64
 }
 
+type PulseAgent struct {
+	ID              string
+	Name            string
+	TokenHash       []byte
+	InstallType     string
+	IntervalSeconds int64
+	LastSeenAt      sql.NullInt64
+	PublicIp        string
+	CandidatesJson  string
+	SelectedIp      string
+	Hostname        string
+	Version         string
+	RevokedAt       sql.NullInt64
+	DnsEnabled      int64
+	DnsName         string
+	CreatedAt       int64
+	UpdatedAt       int64
+}
+
+type PulseConfig struct {
+	ID             int64
+	PepperSecretID string
+}
+
 type RecoveryKey struct {
 	ID            int64
 	KeyVersion    int64

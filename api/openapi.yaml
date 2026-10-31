@@ -1038,6 +1038,124 @@ paths:
           content: { application/json: { schema: { $ref: "#/components/schemas/AppearanceSettings" } } }
         default: { $ref: "#/components/responses/Problem" }
 
+  # ---- pulse (08-pulse.md) ----
+  /api/pulse/{agentId}/heartbeat:
+    post:
+      operationId: pulseHeartbeat
+      summary: An agent reports its addresses; its token can do nothing else
+      tags: [pulse]
+      x-hashi-scopes: []
+      parameters:
+        - { name: agentId, in: path, required: true, schema: { type: string } }
+        - { name: Authorization, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/PulseHeartbeat" } } }
+      responses:
+        "204": { description: Recorded }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/pulse/agents:
+    get:
+      operationId: listPulseAgents
+      tags: [pulse]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Agents
+          content: { application/json: { schema: { $ref: "#/components/schemas/PulseAgentList" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    post:
+      operationId: createPulseAgent
+      summary: Add an agent; the answer holds its token, shown once
+      tags: [pulse]
+      x-hashi-scopes: [admin.write]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/PulseAgentCreate" } } }
+      responses:
+        "201":
+          description: Created
+          content: { application/json: { schema: { $ref: "#/components/schemas/PulseAgentToken" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/pulse/agents/{id}:
+    put:
+      operationId: updatePulseAgent
+      summary: Change an agent's name and internal DNS entry
+      tags: [pulse]
+      x-hashi-scopes: [admin.write]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/PulseAgentUpdate" } } }
+      responses:
+        "200":
+          description: Saved
+          content: { application/json: { schema: { $ref: "#/components/schemas/PulseAgent" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    delete:
+      operationId: deletePulseAgent
+      summary: Remove an agent no IP set uses
+      tags: [pulse]
+      x-hashi-scopes: [admin.write]
+      x-hashi-reauth: true
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "204": { description: Removed }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/pulse/agents/{id}/rotate-token:
+    post:
+      operationId: rotatePulseToken
+      summary: Replace the token; the old one stops working
+      tags: [pulse]
+      x-hashi-scopes: [admin.write]
+      x-hashi-reauth: true
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The new token, shown once
+          content: { application/json: { schema: { $ref: "#/components/schemas/PulseAgentToken" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/pulse/agents/{id}/revoke:
+    post:
+      operationId: revokePulseAgent
+      summary: Stop the token; the agent resolves to nothing
+      tags: [pulse]
+      x-hashi-scopes: [admin.write]
+      x-hashi-reauth: true
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Revoked
+          content: { application/json: { schema: { $ref: "#/components/schemas/PulseAgent" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/settings/internal-agent-dns:
+    get:
+      operationId: getAgentDNSSettings
+      tags: [settings]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Internal agent DNS settings
+          content: { application/json: { schema: { $ref: "#/components/schemas/AgentDNSSettings" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      operationId: putAgentDNSSettings
+      tags: [settings]
+      x-hashi-scopes: [settings.manage]
+      x-hashi-reauth: true
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/AgentDNSSettings" } } }
+      responses:
+        "200":
+          description: Saved
+          content: { application/json: { schema: { $ref: "#/components/schemas/AgentDNSSettings" } } }
+        default: { $ref: "#/components/responses/Problem" }
+
   # ---- adguard (03-dns.md §8) ----
   /api/adguard/connections:
     get:
@@ -2218,6 +2336,70 @@ components:
               answer: { type: string }
               risk: { type: string }
               note: { type: string }
+    PulseHeartbeat:
+      type: object
+      required: [version, hostname, candidates]
+      properties:
+        version: { type: string }
+        hostname: { type: string }
+        selected_interface: { type: string }
+        candidates:
+          type: array
+          items:
+            type: object
+            required: [interface, address]
+            properties:
+              interface: { type: string }
+              address: { type: string }
+    PulseAgent:
+      type: object
+      required: [id, name, status, install_type, public_ip, selected_ip, candidates, hostname, version, interval_seconds, dns_enabled, dns_name]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        status: { type: string, enum: [waiting, fresh, stale, revoked] }
+        install_type: { type: string }
+        public_ip: { type: string }
+        selected_ip: { type: string }
+        candidates: { type: array, items: { type: string } }
+        hostname: { type: string }
+        version: { type: string }
+        interval_seconds: { type: integer }
+        last_seen_at: { type: string, format: date-time }
+        dns_enabled: { type: boolean }
+        dns_name: { type: string }
+    PulseAgentList:
+      type: object
+      required: [agents, hashi_url]
+      properties:
+        agents: { type: array, items: { $ref: "#/components/schemas/PulseAgent" } }
+        hashi_url: { type: string, description: "The address agents report to" }
+    PulseAgentCreate:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        install_type: { type: string, enum: [linux, docker] }
+    PulseAgentUpdate:
+      type: object
+      required: [name, dns_enabled]
+      properties:
+        name: { type: string }
+        dns_enabled: { type: boolean }
+        dns_name: { type: string }
+    PulseAgentToken:
+      type: object
+      required: [agent, token]
+      properties:
+        agent: { $ref: "#/components/schemas/PulseAgent" }
+        token: { type: string, format: password }
+    AgentDNSSettings:
+      type: object
+      required: [enabled, domain, ip_mode]
+      properties:
+        enabled: { type: boolean }
+        domain: { type: string }
+        ip_mode: { type: string, enum: [selected, public] }
     TelegramDiscover:
       type: object
       required: [bot_token]
@@ -3107,6 +3289,7 @@ components:
         - $ref: "#/components/schemas/IPItemIP"
         - $ref: "#/components/schemas/IPItemCIDR"
         - $ref: "#/components/schemas/IPItemHost"
+        - $ref: "#/components/schemas/IPItemPulse"
         - $ref: "#/components/schemas/IPItemDNS"
         - $ref: "#/components/schemas/IPItemSet"
       discriminator:
@@ -3115,6 +3298,7 @@ components:
           ip: "#/components/schemas/IPItemIP"
           cidr: "#/components/schemas/IPItemCIDR"
           host: "#/components/schemas/IPItemHost"
+          pulse: "#/components/schemas/IPItemPulse"
           dns: "#/components/schemas/IPItemDNS"
           set: "#/components/schemas/IPItemSet"
     IPItemIP:
@@ -3136,6 +3320,14 @@ components:
         type: { type: string, enum: [host] }
         host_id: { type: string }
         scope: { type: string, enum: [public, internal, all] }
+    IPItemPulse:
+      type: object
+      required: [type, agent_id, scope]
+      properties:
+        type: { type: string, enum: [pulse] }
+        agent_id: { type: string }
+        scope: { type: string, enum: [public, internal, all] }
+        selector: { type: string, description: "Narrows internal addresses to an interface name or a prefix" }
     IPItemDNS:
       type: object
       required: [type, fqdn]

@@ -33,13 +33,13 @@ SELECT * FROM ip_set_elements WHERE id = ?;
 SELECT CAST(COALESCE(MAX(position), 0) + 1 AS INTEGER) AS next FROM ip_set_elements WHERE ip_set_id = ?;
 
 -- name: InsertIPSetElement :exec
-INSERT INTO ip_set_elements (id, ip_set_id, position, type, origin, locked, address, prefix, family, host_id, scope,
+INSERT INTO ip_set_elements (id, ip_set_id, position, type, origin, locked, address, prefix, family, host_id, pulse_agent_id, selector, scope,
     fqdn, child_set_id, note, expires_at, created_by, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: UpdateIPSetElement :exec
 UPDATE ip_set_elements
-SET type = ?, address = ?, prefix = ?, family = ?, host_id = ?, scope = ?, fqdn = ?, child_set_id = ?, note = ?,
+SET type = ?, address = ?, prefix = ?, family = ?, host_id = ?, pulse_agent_id = ?, selector = ?, scope = ?, fqdn = ?, child_set_id = ?, note = ?,
     expires_at = ?, updated_at = ?
 WHERE id = ?;
 

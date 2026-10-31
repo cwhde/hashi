@@ -27,11 +27,12 @@ const (
 
 // Item types.
 const (
-	TypeIP   = "ip"
-	TypeCIDR = "cidr"
-	TypeHost = "host"
-	TypeDNS  = "dns"
-	TypeSet  = "set"
+	TypeIP    = "ip"
+	TypeCIDR  = "cidr"
+	TypeHost  = "host"
+	TypePulse = "pulse"
+	TypeDNS   = "dns"
+	TypeSet   = "set"
 )
 
 // Scopes of host (and later Pulse) items.
@@ -60,6 +61,13 @@ type Host struct {
 	Scope  string
 }
 
+// Pulse is a Pulse agent's addresses in a scope; Selector narrows internal candidates to an interface or a prefix (05a §2).
+type Pulse struct {
+	AgentID  string
+	Scope    string
+	Selector string
+}
+
 // DNS is a name's A/AAAA answers.
 type DNS struct{ FQDN string }
 
@@ -69,12 +77,14 @@ type SetRef struct{ SetID string }
 func (IP) Type() string     { return TypeIP }
 func (CIDR) Type() string   { return TypeCIDR }
 func (Host) Type() string   { return TypeHost }
+func (Pulse) Type() string  { return TypePulse }
 func (DNS) Type() string    { return TypeDNS }
 func (SetRef) Type() string { return TypeSet }
 
 func (IP) isItem()     {}
 func (CIDR) isItem()   {}
 func (Host) isItem()   {}
+func (Pulse) isItem()  {}
 func (DNS) isItem()    {}
 func (SetRef) isItem() {}
 
@@ -192,6 +202,17 @@ func Normalize(it Item) (Item, error) {
 			return nil, invalid("scope must be public, internal or all")
 		}
 		return v, nil
+	case Pulse:
+		if v.AgentID == "" {
+			return nil, invalid("missing Pulse agent")
+		}
+		switch v.Scope {
+		case ScopePublic, ScopeInternal, ScopeAll:
+		default:
+			return nil, invalid("scope must be public, internal or all")
+		}
+		v.Selector = strings.TrimSpace(v.Selector)
+		return v, nil
 	case DNS:
 		n, err := NormalizeFQDN(v.FQDN)
 		if err != nil {
@@ -213,7 +234,7 @@ func Normalize(it Item) (Item, error) {
 // referenced set's own capability.
 func Targetable(it Item) bool {
 	switch it.(type) {
-	case IP, Host, DNS:
+	case IP, Host, Pulse, DNS:
 		return true
 	}
 	return false

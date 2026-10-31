@@ -62,3 +62,14 @@ jobs:
             COMMIT=${{ steps.sha.outputs.short }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-v3
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-v3,mode=max,ignore-error=true
+
+      # The agent image (08 §6).
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/Pulse.Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ env.REGISTRY }}/juzo/hashi-pulse:${{ steps.sha.outputs.short }},${{ env.REGISTRY }}/juzo/hashi-pulse:latest
+          build-args: |
+            VERSION=${{ github.ref_type == 'tag' && github.ref_name || steps.sha.outputs.short }}

@@ -33,6 +33,9 @@ const Debounce = 2 * time.Second
 // LookupFunc resolves a name to addresses (net.Resolver.LookupNetIP in production).
 type LookupFunc func(ctx context.Context, fqdn string) ([]netip.Addr, error)
 
+// PulseAddrs returns a Pulse agent's addresses in a scope.
+type PulseAddrs func(ctx context.Context, agentID, scope, selector string) ([]netip.Addr, error)
+
 // HostAddrs returns a host's addresses in a scope; nil until firewall hosts exist.
 type HostAddrs func(ctx context.Context, hostID, scope string) ([]netip.Addr, error)
 
@@ -49,6 +52,8 @@ type Service struct {
 
 	mu      sync.Mutex
 	hosts   HostAddrs
+	pulse   PulseAddrs
+	lookupP PulseLookup
 	dns     map[string]dnsEntry
 	subs    []Subscriber
 	sources []ConsumerSource
@@ -93,11 +98,18 @@ func (s *Service) SetHosts(addrs HostAddrs, lookup HostLookup) {
 	s.hosts, s.lookupH = addrs, lookup
 }
 
+// SetPulse wires pulse items to the Pulse feature.
+func (s *Service) SetPulse(addrs PulseAddrs, exists PulseLookup) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.pulse, s.lookupP = addrs, exists
+}
+
 // Editor returns an element editor that knows every registered consumer and the hosts.
 func (s *Service) Editor() Editor {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return Editor{Sources: append([]ConsumerSource(nil), s.sources...), Hosts: s.lookupH}
+	return Editor{Sources: append([]ConsumerSource(nil), s.sources...), Hosts: s.lookupH, Agents: s.lookupP}
 }
 
 // Sources returns the registered consumer sources.
@@ -124,6 +136,16 @@ func (r *resolver) Host(hostID, scope string) ([]netip.Addr, error) {
 		return nil, fmt.Errorf("no firewall or edge hosts are registered")
 	}
 	return h(r.ctx, hostID, scope)
+}
+
+func (r *resolver) Pulse(agentID, scope, selector string) ([]netip.Addr, error) {
+	r.s.mu.Lock()
+	p := r.s.pulse
+	r.s.mu.Unlock()
+	if p == nil {
+		return nil, fmt.Errorf("no Pulse agents are registered")
+	}
+	return p(r.ctx, agentID, scope, selector)
 }
 
 func (r *resolver) DNS(fqdn string) ([]netip.Addr, error) {
