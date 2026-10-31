@@ -705,6 +705,8 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-10-31 — Deployed `71420f3` to prod: no schema change, `/readyz` ok, version matches, admin and both public listeners answer 200, no errors logged. The styled messages weren't sent through the real providers: the user waived that test, since delivery is proven and any look problems can wait.
+
 - 2026-10-31 — User feedback after S7: notification setup moved to Settings → Notifications, providers editable, theme saved in the database from every selector, styled mail in the theme's colours and formatted Telegram with uptime. Telegram's HTML style captured with one real sample to the user's own chat. Alerts no longer carry raw check errors, which held internal addresses.
 
 - 2026-10-31 — Deployed `71e79b9` (S7) to prod: schema 12 → 13 with its pre-migration backup, `/readyz` ok, version matches, admin and both public listeners answer 200. S7's gate passed the same day (see the table).
