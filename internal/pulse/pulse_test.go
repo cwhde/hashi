@@ -309,7 +309,7 @@ func TestCheckReach(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := s.st.Q.SetPulseHeartbeat(ctx, db.SetPulseHeartbeatParams{CandidatesJson: "[]", SelectedIp: "127.0.0.1", UpdatedAt: now.UnixMilli(), ID: a.ID}); err != nil {
+	if err := s.st.Q.SetPulseHeartbeat(ctx, db.SetPulseHeartbeatParams{CandidatesJson: "[]", SelectedIp: "127.0.0.1", IntervalSeconds: 60, UpdatedAt: now.UnixMilli(), ID: a.ID}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.SetDNS(ctx, a.ID, "box", true, "", false, port); err != nil {

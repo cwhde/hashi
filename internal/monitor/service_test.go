@@ -194,7 +194,7 @@ func TestAdGuardAndPulseSources(t *testing.T) {
 	}
 	beat := func(at time.Time) {
 		t.Helper()
-		if err := st.Q.SetPulseHeartbeat(ctx, db.SetPulseHeartbeatParams{LastSeenAt: sql.NullInt64{Int64: at.UnixMilli(), Valid: true}, CandidatesJson: "[]", UpdatedAt: now, ID: "seen"}); err != nil {
+		if err := st.Q.SetPulseHeartbeat(ctx, db.SetPulseHeartbeatParams{LastSeenAt: sql.NullInt64{Int64: at.UnixMilli(), Valid: true}, CandidatesJson: "[]", IntervalSeconds: 60, UpdatedAt: now, ID: "seen"}); err != nil {
 			t.Fatal(err)
 		}
 	}
