@@ -36,6 +36,10 @@ Go backend + embedded SvelteKit SPA + SQLite, one container. Pulse agent in `age
 - PRs are coherent and reviewable: usually one or two per slice, split along natural seams, rough guide ~1,500
   hand-written lines. No stacked micro-PRs (each one costs a CI run). Docs and small fixes go straight to `main`.
 - If the spec is wrong, fix the spec in its own `docs(spec):` commit with the reason. Don't silently diverge.
+- Local first. Iterate on the laptop: change, run the affected tests, repeat. Before a push run `make check`, the affected
+  `make test-integration` packages and `make test-e2e`. Prove behaviour against the dev targets with a local build before asking
+  for a deploy. Group fixes into one push; never push to see if something works. CI and the release build stay the final
+  confirmation and the only way to an image: a CI failure means the local run missed something, so close that gap too.
 - Conventional commits; migrations ship with the model change; OpenAPI and generated clients ship together.
 
 ## Progress bar
