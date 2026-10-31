@@ -219,6 +219,7 @@ type FirewallHost struct {
 	LastAppliedAt         sql.NullInt64
 	CreatedAt             int64
 	UpdatedAt             int64
+	TakeoverJson          string
 }
 
 type FirewallHostAccess struct {

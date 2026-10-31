@@ -430,3 +430,36 @@ func (s *Server) firewallPlans(ctx context.Context) (gen.FirewallPlans, error) {
 	}
 	return out, nil
 }
+
+func (s *Server) GetFirewallTakeover(ctx context.Context, req gen.GetFirewallTakeoverRequestObject) (gen.GetFirewallTakeoverResponseObject, error) {
+	row, err := s.Store.R.GetFirewallHost(ctx, req.Id)
+	if err != nil {
+		return nil, notFound("No such firewall host.")
+	}
+	t, err := firewall.ParseTakeover(row.TakeoverJson)
+	if err != nil {
+		return nil, err
+	}
+	return gen.GetFirewallTakeover200JSONResponse{Chains: list(t.Chains), Rules: list(t.Rules), Ipsets: list(t.IPSets),
+		CronMatch: list(t.CronMatch), CronFiles: list(t.CronFiles)}, nil
+}
+
+func (s *Server) PutFirewallTakeover(ctx context.Context, req gen.PutFirewallTakeoverRequestObject) (gen.PutFirewallTakeoverResponseObject, error) {
+	ri, b := info(ctx), req.Body
+	t := firewall.Takeover{Chains: b.Chains, Rules: b.Rules, IPSets: b.Ipsets, CronMatch: b.CronMatch, CronFiles: b.CronFiles}
+	if err := s.Firewall.PutTakeover(ctx, s.actor(ri), ri.ipString(), req.Id, t); err != nil {
+		return nil, firewallError(err)
+	}
+	plans, err := s.firewallPlans(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return gen.PutFirewallTakeover200JSONResponse(plans), nil
+}
+
+func list(s []string) []string {
+	if s == nil {
+		return []string{}
+	}
+	return s
+}

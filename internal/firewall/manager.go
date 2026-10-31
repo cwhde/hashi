@@ -518,6 +518,27 @@ func (m *Manager) consumers(ctx context.Context, q *db.Queries, setID string) ([
 	return out, nil
 }
 
+// PutTakeover stores what Hashi removes of a host's old firewall script (05 §3.4); the next plan lists it.
+func (m *Manager) PutTakeover(ctx context.Context, actor, ip, id string, t Takeover) error {
+	if err := t.Validate(); err != nil {
+		return err
+	}
+	b, err := json.Marshal(t)
+	if err != nil {
+		return err
+	}
+	return m.st.Tx(ctx, func(q *db.Queries) error {
+		if _, err := q.GetFirewallHost(ctx, id); err != nil {
+			return ErrNotFound
+		}
+		if err := q.SetFirewallHostTakeover(ctx, db.SetFirewallHostTakeoverParams{TakeoverJson: string(b), UpdatedAt: m.now().UnixMilli(), ID: id}); err != nil {
+			return err
+		}
+		return m.audit.Record(ctx, q, audit.Event{Actor: actor, Action: "firewall.takeover.updated", IP: ip,
+			Target: "firewall_host:" + id, Outcome: audit.Success, Detail: map[string]any{"takeover": t}})
+	})
+}
+
 // ---- bindings and host access ----
 
 // Bindings are the global allow and block set lists (05 §4.1).
@@ -866,7 +887,11 @@ func (m *Manager) build(ctx context.Context, id string, owned bool) (db.Firewall
 			guard.AdminIPs = append(guard.AdminIPs, a)
 		}
 	}
-	return row, Desired{Spec: spec, Table: table, NftPath: e.Facts.NftPath, IPv6: false, Guard: guard}, nil
+	takeover, err := ParseTakeover(row.TakeoverJson)
+	if err != nil {
+		return row, Desired{}, fmt.Errorf("stored takeover of %s: %w", row.Name, err)
+	}
+	return row, Desired{Spec: spec, Table: table, NftPath: e.Facts.NftPath, IPv6: false, Guard: guard, Takeover: takeover}, nil
 }
 
 // ports are the published ports: 80 and 443 to Traefik's web/websecure entry points while any HTTP-family service is
