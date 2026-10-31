@@ -62,6 +62,13 @@ func (s *Server) setupBody(ctx context.Context) (gen.SetupState, error) {
 			}
 			out.Traefik = &c
 		}
+		if s.Firewall != nil {
+			if row, ok, err := s.setupFirewallHost(ctx); err != nil {
+				return out, err
+			} else if ok {
+				out.Firewall = ptr(firewallBody(row))
+			}
+		}
 		if row, err := s.Store.R.GetServiceByOwner(ctx, services.OwnerSetup); err == nil {
 			sv, err := services.Get(ctx, s.Store.R, row.ID)
 			if err != nil {

@@ -2437,7 +2437,8 @@ type SetupState struct {
 	Completed    bool                 `json:"completed"`
 
 	// Dns `provider` and `zone` are absent when no zone was chosen (nothing stored)
-	Dns *DNSConnectResult `json:"dns,omitempty"`
+	Dns      *DNSConnectResult `json:"dns,omitempty"`
+	Firewall *FirewallHost     `json:"firewall,omitempty"`
 
 	// Passkeys Registered passkeys (setup sessions only)
 	Passkeys      *int               `json:"passkeys,omitempty"`

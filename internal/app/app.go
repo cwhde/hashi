@@ -172,6 +172,9 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	traefikMgr.UseTargets(ipSets.ResolveTarget)
 	dnsSvc.UseTargets(ipSets.ResolveTarget)
 	dnsSvc.UseGenerator(fwMgr.Records(ipSets.ResolveTarget))
+	if err := devFirewall(cfg, fwMgr); err != nil {
+		return err
+	}
 	subs := append(dnsSvc.Subsystems(), traefikMgr.Subsystems()...)
 	subs = append(subs, fwMgr.Subsystems()...)
 	syncEngine := hsync.New(st, al, append(subs, certMgr.Subsystems()...)...)
@@ -196,11 +199,20 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	}}); err != nil {
 		return err
 	}
-	ipSets.Subscribe(func(ctx context.Context, _ []string) {
+	ipSets.Subscribe(func(ctx context.Context, changed []string) {
 		if _, err := fwMgr.PlanAll(ctx, syncEngine, audit.System); err != nil {
 			log.Warn("firewall plans after an IP set change", "err", err)
 		}
-		// Upstreams and DNS values that follow a set (05a §4.2): every Traefik host and zone is planned again.
+		// Upstreams and DNS values that follow a changed set (05a §4.2): every Traefik host and zone is planned again.
+		// A set no target uses touches neither; a plan here would apply other waiting changes unreviewed (setup step 7).
+		used, err := targetsUse(ctx, st.R, changed)
+		if err != nil {
+			log.Warn("IP set consumers", "err", err)
+			return
+		}
+		if !used {
+			return
+		}
 		if err := traefikMgr.PlanAll(ctx, syncEngine, audit.System); err != nil {
 			log.Warn("Traefik plans after an IP set change", "err", err)
 		}
@@ -391,4 +403,20 @@ func publicMux(api *httpapi.Server, title string, enabled *atomic.Bool) http.Han
 		_, _ = io.WriteString(w, title+": not configured yet\n")
 	})
 	return mux
+}
+
+// targetsUse reports whether a service upstream or DNS value follows one of the sets.
+func targetsUse(ctx context.Context, q *db.Queries, sets []string) (bool, error) {
+	for _, id := range sets {
+		for _, src := range []ipsets.ConsumerSource{services.Consumers, dns.Consumers} {
+			c, err := src(ctx, q, id)
+			if err != nil {
+				return false, err
+			}
+			if len(c) > 0 {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
 }

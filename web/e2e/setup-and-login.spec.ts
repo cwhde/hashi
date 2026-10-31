@@ -141,6 +141,27 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	).toBeVisible();
 	await page.getByRole('button', { name: 'Continue' }).click();
 
+	// Step 6: the firewall host (fake answering the captured probe): key compared and pinned, validation only reads, the
+	// first apply is a high-risk plan under the rescue timer.
+	await expect(page.getByRole('heading', { name: 'Connect a firewall host' })).toBeVisible();
+	await page.getByLabel('Name').fill('edge-a');
+	await page.getByLabel('SSH address').fill('198.18.3.1');
+	await page.getByRole('button', { name: 'Read the host key' }).click();
+	await page.getByRole('button', { name: 'It matches, pin it' }).click();
+	const fwChecks = page.getByRole('list', { name: 'Checks' });
+	await expect(fwChecks).toContainText('nftables 1.1.3');
+	await expect(fwChecks).toContainText('NetBird 0.81.3');
+	await page.getByLabel('NetBird', { exact: true }).selectOption('routing');
+	await page.getByRole('button', { name: 'Save settings' }).click();
+	await expect(page.getByLabel('NetBird', { exact: true })).toHaveValue('routing');
+	await page.getByLabel(/Hashi may manage its own firewall table/).check();
+	await page.getByRole('button', { name: 'Confirm', exact: true }).click();
+	await page.getByRole('button', { name: 'Plan the first apply' }).click();
+	await expect(page.getByRole('heading', { name: 'Firewall on edge-a' })).toBeVisible();
+	await page.getByRole('button', { name: 'Approve and run' }).click();
+	await expect(page.getByText(/rescue timer disarmed/)).toBeVisible();
+	await page.getByRole('button', { name: 'Continue' }).click();
+
 	// Step 7: the Hashi admin service; its deeper name re-issues the certificate first, then the plan is shown.
 	await expect(page.getByRole('heading', { name: 'Publish Hashi' })).toBeVisible();
 	await page.getByRole('button', { name: 'Prepare' }).click();
@@ -240,6 +261,13 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	// NS and SOA cannot be edited at all.
 	await expect(page.getByRole('button', { name: 'Edit @ NS' })).toHaveCount(0);
 	await expect(page.getByRole('button', { name: 'Edit @ SOA' })).toHaveCount(0);
+
+	// The system service opened ports 80/443 on the firewall host: high risk, waiting since setup.
+	await page.getByRole('link', { name: /1 pending change/ }).click();
+	await expect(page.getByRole('heading', { name: 'Firewall on edge-a' })).toBeVisible();
+	await page.getByRole('button', { name: 'Approve and apply' }).click();
+	await expect(page.getByRole('status')).toContainText('rescue timer disarmed');
+	await page.getByRole('link', { name: 'DNS' }).first().click();
 
 	// Deleting it is high risk: it waits on Pending changes until approved with the passkey.
 	await page.getByRole('button', { name: 'Edit _hashi-test A' }).click();
@@ -384,6 +412,31 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByRole('button', { name: 'Add passkey' }).click();
 	await expect(page.getByText('Passkey added.')).toBeVisible();
 	await expect(page.getByText('Second key')).toBeVisible();
+
+	// Firewall pages (05): the host from step 6 with its rendered table; an old script list naming NetBird is refused;
+	// a UDP service opens its port, which waits for approval.
+	await page.getByRole('link', { name: 'Firewall hosts' }).first().click();
+	await page.getByRole('link', { name: 'Open edge-a' }).click();
+	await expect(page.getByRole('heading', { name: 'edge-a' })).toBeVisible();
+	await page.getByRole('tab', { name: 'Generated' }).click();
+	await expect(page.getByText('"name": "hashi"').first()).toBeVisible();
+	await page.getByRole('tab', { name: 'Old script' }).click();
+	await page.getByLabel('Its chains').fill('NETBIRD-ACL-INPUT');
+	await page.getByRole('button', { name: 'Save and plan' }).click();
+	await expect(page.getByRole('alert')).toContainText('cannot be taken over');
+	await page.getByRole('link', { name: 'Services' }).first().click();
+	await page.getByRole('button', { name: /Add service/ }).first().click();
+	await page.getByLabel('Name', { exact: true }).fill('Game');
+	await page.getByLabel('Public domain').fill('game');
+	await page.getByRole('combobox', { name: 'Protocol' }).click();
+	await page.getByRole('option', { name: 'UDP on its own public port' }).click();
+	await page.getByLabel('Address').fill('10.32.0.40');
+	await page.getByLabel('Port', { exact: true }).fill('19132');
+	await page.getByLabel('Public port').fill('19132');
+	await page.getByRole('button', { name: 'Save and publish' }).click();
+	await expect(page.getByRole('status')).toContainText('need your approval');
+	await page.goto(`${state.baseURL}/firewall`);
+	await page.screenshot({ path: 'test-results/firewall-hosts.png', fullPage: true });
 
 	// Bootstrap login is gone after setup.
 	const res = await page.request.post(`${state.baseURL}/api/auth/bootstrap/login`, {

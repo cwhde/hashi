@@ -1744,6 +1744,7 @@ components:
         dns: { $ref: "#/components/schemas/DNSConnectResult" }
         certificates: { $ref: "#/components/schemas/CertificateProvider" }
         traefik: { $ref: "#/components/schemas/TraefikConnection" }
+        firewall: { $ref: "#/components/schemas/FirewallHost" }
         system_service: { $ref: "#/components/schemas/Service" }
     CertificateProviderInput:
       type: object

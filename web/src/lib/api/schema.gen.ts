@@ -1884,6 +1884,7 @@ export interface components {
             dns?: components["schemas"]["DNSConnectResult"];
             certificates?: components["schemas"]["CertificateProvider"];
             traefik?: components["schemas"]["TraefikConnection"];
+            firewall?: components["schemas"]["FirewallHost"];
             system_service?: components["schemas"]["Service"];
         };
         CertificateProviderInput: {

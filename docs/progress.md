@@ -109,11 +109,20 @@ PR D — streams and takeover
       Hashi's SSH public key is added to root on the first real host by Claude (user OK 2026-10-29), at the gate.
 
 PR E — UI + deploy
-- [ ] Firewall pages from the mocks (hosts, host page with observed ruleset, rendered table, bindings, host access),
+- [x] Firewall pages from the mocks (hosts, host page with observed ruleset, rendered table, bindings, host access),
       setup step 6 page (step becomes built), stream fields and target sets on the service page, set values on DNS
       entries; dev fakes (`firewalltest`); E2E.
 - [ ] Prod-proof first on a dev target (Debian LXC on host B, snapshot `clean`), then deploy (user runs `/deploy`) and
       the gate on the first real host with the user's OK for the first apply.
+
+Found by E2E while building PR E (PR C bug): any changed IP set re-planned Traefik, so saving a firewall host (it changes
+`hashi-hosts`) applied the waiting step 7 service change unreviewed. Traefik and DNS now re-plan only for sets a target uses.
+
+Decisions made in PR E:
+- Host page tabs from the mock without Host link, Kernel sets and meter panels: their data arrives with the engine (S9). An
+  "Old script" tab edits the takeover list. Editing a host keeps its pinned key.
+- The first save of a host has NetBird off: only validation finds its interface and port; the admin turns it on from what
+  was found. Setup step 6 is built, so a production setup now needs it.
 
 Decisions made in PR D:
 - The takeover is an explicit per-host list (spec edit), never detected; rules naming NetBird, Docker or Proxmox, and NetBird's

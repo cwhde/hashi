@@ -209,14 +209,21 @@ func (m *Manager) Save(ctx context.Context, actor, ip, id string, in HostInput) 
 		if !slices.ContainsFunc(subnets, func(p netip.Prefix) bool { return p.Contains(netip.MustParseAddr(traefikIP)) }) {
 			return db.FirewallHost{}, fmt.Errorf("%w: the internal Traefik address %s is in none of the managed subnets", ErrInvalid, traefikIP)
 		}
-		if hk, err = sshx.ParseHostKey(in.HostKey); err != nil {
-			return db.FirewallHost{}, fmt.Errorf("%w: scan and confirm the host key first: %w", ErrInvalid, err)
-		}
 	}
 	var cur db.FirewallHost
 	if id != "" {
 		if cur, err = m.st.R.GetFirewallHost(ctx, id); err != nil {
 			return cur, ErrNotFound
+		}
+	}
+	if in.EdgeMode == ModeManaged {
+		// Editing a host keeps its pinned key; only a new one needs the key the admin confirmed.
+		key := in.HostKey
+		if len(key) == 0 && id != "" {
+			key = cur.HostKey
+		}
+		if hk, err = sshx.ParseHostKey(key); err != nil {
+			return db.FirewallHost{}, fmt.Errorf("%w: scan and confirm the host key first: %w", ErrInvalid, err)
 		}
 	}
 	if in.RouteViaHostID != "" {

@@ -170,6 +170,7 @@
 			const body = {
 				ttl: f.ttl,
 				values: f.values,
+				value_set_id: f.value_set_id,
 				display_name: f.display_name,
 				dashboard: f.dashboard,
 				monitoring: f.monitoring

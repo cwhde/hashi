@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ServiceExtras from '$lib/components/hashi/services/ServiceExtras.svelte';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
@@ -19,6 +20,7 @@
 	import { pendingPlans } from '$lib/sync-pending.svelte';
 	import {
 		domainMode,
+		isStream,
 		kinds,
 		kindText,
 		newRoute,
@@ -39,6 +41,7 @@
 	let svc = $state<Service | null>(null);
 	let edit = $state<ServiceInput | null>(null);
 	let targetsText = $state<string[]>([]);
+	let extra = $state({ setId: '', publicPort: '', proxy: false, entryHost: '' });
 	let root = $state('');
 	let yaml = $state('');
 	let loadError = $state('');
@@ -57,6 +60,12 @@
 		svc = s.data;
 		root = r;
 		edit = toInput(s.data);
+		extra = {
+			setId: s.data.target.set_id ?? '',
+			publicPort: String(s.data.public_port ?? ''),
+			proxy: !!s.data.proxy_protocol,
+			entryHost: s.data.entry_host_id ?? ''
+		};
 		targetsText = s.data.routes.map((r) =>
 			r.targets
 				.map(targetText)
@@ -99,9 +108,18 @@
 				...edit,
 				host_name: edit.host_name.trim().toLowerCase(),
 				domain_mode: domainMode(edit.host_name.trim().toLowerCase(), root),
-				target: { address: edit.target.address.trim(), port: Number(edit.target.port) },
-				routes
+				target: extra.setId
+					? { address: '', set_id: extra.setId, port: Number(edit.target.port) }
+					: { address: edit.target.address.trim(), port: Number(edit.target.port) },
+				routes: isStream(edit.kind) ? [] : routes,
+				public_port: isStream(edit.kind) ? Number(extra.publicPort) : undefined,
+				proxy_protocol: edit.kind === 'tcp' ? extra.proxy : undefined,
+				entry_host_id: extra.entryHost || undefined
 			};
+			if (isStream(body.kind)) {
+				body.advanced_routes = false;
+				body.tls_min_version = '';
+			}
 			// Upstream TLS options belong to https only; their fields are hidden for the other kinds.
 			if (body.kind !== 'https') {
 				body.tls_skip_verify = false;
@@ -332,9 +350,16 @@
 								{#each kinds as k (k)}<Select.Item value={k}>{kindText[k]}</Select.Item>{/each}
 							</Select.Content>
 						</Select.Root>
-						<Input bind:value={edit.target.address} aria-label="Address" />
+						<Input bind:value={edit.target.address} aria-label="Address" disabled={!!extra.setId} />
 						<Input bind:value={edit.target.port} aria-label="Port" inputmode="numeric" />
 					</div>
+					<ServiceExtras
+						kind={edit.kind}
+						bind:setId={extra.setId}
+						bind:publicPort={extra.publicPort}
+						bind:proxy={extra.proxy}
+						bind:entryHost={extra.entryHost}
+					/>
 					{#if edit.kind === 'https'}
 						<div class="space-y-3 rounded-xl border p-3">
 							<div class="space-y-1.5">
@@ -349,7 +374,7 @@
 							</div>
 						</div>
 					{/if}
-					{#if edit.advanced_routes}
+					{#if edit.advanced_routes && !isStream(edit.kind)}
 						<p class="text-[12.5px] text-muted-foreground">
 							Requests matching a route go to its targets; everything else goes to the upstream
 							above. Higher priority is checked first.

@@ -14,6 +14,8 @@ import (
 	"git.juzo.io/juzo/hashi/internal/dns"
 	"git.juzo.io/juzo/hashi/internal/dns/hetzner"
 	"git.juzo.io/juzo/hashi/internal/dns/hetzner/hetznertest"
+	"git.juzo.io/juzo/hashi/internal/firewall"
+	"git.juzo.io/juzo/hashi/internal/firewall/firewalltest"
 	"git.juzo.io/juzo/hashi/internal/secrets"
 	"git.juzo.io/juzo/hashi/internal/traefik"
 	"git.juzo.io/juzo/hashi/internal/traefik/traefiktest"
@@ -77,6 +79,23 @@ func devEdge(cfg Config, tm *traefik.Manager, cm *certs.Manager) error {
 		return err
 	}
 	cm.UseClients(ca.Clients)
+	return nil
+}
+
+// devFirewall replaces firewall hosts with one in-memory host answering the captured probe (make dev, E2E).
+func devFirewall(cfg Config, fm *firewall.Manager) error {
+	if cfg.DevDNSFixtures == "" {
+		return nil
+	}
+	probe, err := os.ReadFile(filepath.Join(cfg.DevDNSFixtures, "..", "firewall", "probe_debian13_pve_netbird.txt"))
+	if err != nil {
+		return fmt.Errorf("dev firewall probe fixture: %w", err)
+	}
+	host, err := firewalltest.NewHost(string(probe))
+	if err != nil {
+		return err
+	}
+	fm.UseFakes(host.Connect, host.Scan)
 	return nil
 }
 

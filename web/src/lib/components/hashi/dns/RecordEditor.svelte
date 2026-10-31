@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import IpSetPicker from '$lib/components/hashi/ipsets/IpSetPicker.svelte';
+	import { listSets, type IPSet } from '$lib/ipsets';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -17,6 +20,7 @@
 		type: Schemas['DNSRecordInput']['type'];
 		ttl?: number;
 		values: string[];
+		value_set_id?: string;
 		display_name: string;
 		dashboard: boolean;
 		monitoring: boolean;
@@ -50,11 +54,14 @@
 	};
 
 	// The form starts from the entry once; later changes to the prop do not reset what the admin typed.
+	let sets = $state<IPSet[]>([]);
+	onMount(async () => (sets = await listSets().catch(() => [])));
 	const initial = () => ({
 		name: entry?.name ?? '',
 		type: (entry?.type ?? 'A') as EntryForm['type'],
 		ttl: entry?.ttl != null ? String(entry.ttl) : '',
 		values: entry?.values.join('\n') ?? '',
+		set: entry?.value_set_id ?? '',
 		display: entry?.display_name ?? '',
 		dashboard: entry?.dashboard ?? false,
 		monitoring: entry?.monitoring ?? false
@@ -79,10 +86,13 @@
 			name: f.name.trim() || '@',
 			type: f.type,
 			ttl: f.ttl.trim() ? Number(f.ttl.trim()) : undefined,
-			values: f.values
-				.split('\n')
-				.map((v) => v.trim())
-				.filter(Boolean),
+			values: f.set
+				? []
+				: f.values
+						.split('\n')
+						.map((v) => v.trim())
+						.filter(Boolean),
+			value_set_id: f.set || undefined,
 			display_name: f.display.trim(),
 			dashboard: f.dashboard,
 			monitoring: f.monitoring
@@ -139,10 +149,20 @@
 			bind:value={f.values}
 			rows={Math.max(2, f.values.split('\n').length)}
 			class="font-mono"
-			required
+			required={!f.set}
+			disabled={!!f.set}
 		/>
 		<p class="text-[12px] text-muted-foreground">{hints[f.type]}</p>
 	</div>
+	{#if f.type === 'A' || f.type === 'AAAA'}
+		<div class="mt-3 max-w-sm space-y-1">
+			<Label for="rec-set" class="text-[12px]">Or follow an IP set</Label>
+			<IpSetPicker bind:value={f.set} {sets} addressOnly id="rec-set" />
+			<p class="text-[12px] text-muted-foreground">
+				The record follows the set's addresses. If the set is ever empty, the last values stay.
+			</p>
+		</div>
+	{/if}
 	<Collapsible.Root class="mt-3">
 		<Collapsible.Trigger
 			class="flex items-center gap-1 text-[12.5px] text-muted-foreground hover:text-foreground"
