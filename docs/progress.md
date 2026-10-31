@@ -124,9 +124,17 @@ Decisions made in PR E:
 - The first save of a host has NetBird off: only validation finds its interface and port; the admin turns it on from what
   was found. Setup step 6 is built, so a production setup now needs it.
 
+- Review of PR E (reproduced, fixed): step 7 finished with the firewall ports unopened, and nobody could approve that plan
+  before a passkey exists (step 8 would be stuck): the step now shows the firewall plan and stays open until it is through, and
+  applies DNS; a wrong login or address could not be corrected (`Start over`; a changed login on a saved host is now refused, it
+  was silently dropped); a private key could not be entered (no multi-line field, no passphrase). Also fixed: host delete asks
+  for the passkey, a DNS entry can stop following a set, failed list loads stop the page, the Generated tab reloads after a save.
+- Deferred: takeover discovery (the list is entered by hand), `POST …/rollback` and `at_setup` display, overrides for WAN/public
+  address in the UI (API only), external NAT port list, folded counts on `/firewall`. None blocks the gate.
+
 Decisions made in PR D:
 - The takeover is an explicit per-host list (spec edit), never detected; rules naming NetBird, Docker or Proxmox, and NetBird's
-  unnamed rules (its marks, conntrack or DROP on its interface), are refused. Discovery and a page for it come with PR E.
+  unnamed rules (its marks, conntrack or DROP on its interface), are refused. The page for it came with PR E.
 - Removal is one `iptables-legacy-restore --noflush` input per family: 1,122 deletes in one commit, no shell quoting.
 - A stream's public port equals its entry point's port. Ports on a firewall host's listeners, NetBird's port, SSH and
   Traefik's own API ports are refused at save; one that collides later waits, the rest of the host goes on.

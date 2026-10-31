@@ -148,6 +148,12 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByLabel('SSH address').fill('198.18.3.1');
 	await page.getByRole('button', { name: 'Read the host key' }).click();
 	await page.getByRole('button', { name: 'It matches, pin it' }).click();
+	// Start over works before the host is confirmed; the second try keeps going.
+	await page.getByRole('button', { name: /Start over/ }).click();
+	await page.getByLabel('Name').fill('edge-a');
+	await page.getByLabel('SSH address').fill('198.18.3.1');
+	await page.getByRole('button', { name: 'Read the host key' }).click();
+	await page.getByRole('button', { name: 'It matches, pin it' }).click();
 	const fwChecks = page.getByRole('list', { name: 'Checks' });
 	await expect(fwChecks).toContainText('nftables 1.1.3');
 	await expect(fwChecks).toContainText('NetBird 0.81.3');
@@ -167,6 +173,10 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByRole('button', { name: 'Prepare' }).click();
 	await expect(page.getByText(/Certificate: Applied: issued example.com \(3 names/)).toBeVisible();
 	await expect(page.getByText('10-hashi-http-services.yml')).toBeVisible();
+	await page.getByRole('button', { name: 'Approve and run' }).click();
+	// Opening ports 80/443 is the step's last part: it stays open until approved (step 8 needs them).
+	await expect(page.getByRole('heading', { name: 'Firewall on edge-a' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Continue' })).toBeDisabled();
 	await page.getByRole('button', { name: 'Approve and run' }).click();
 	await expect(page.getByText('The Traefik host serves dev.hashi.example.com')).toBeVisible();
 	await page.getByRole('button', { name: 'Continue' }).click();
@@ -261,13 +271,6 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	// NS and SOA cannot be edited at all.
 	await expect(page.getByRole('button', { name: 'Edit @ NS' })).toHaveCount(0);
 	await expect(page.getByRole('button', { name: 'Edit @ SOA' })).toHaveCount(0);
-
-	// The system service opened ports 80/443 on the firewall host: high risk, waiting since setup.
-	await page.getByRole('link', { name: /1 pending change/ }).click();
-	await expect(page.getByRole('heading', { name: 'Firewall on edge-a' })).toBeVisible();
-	await page.getByRole('button', { name: 'Approve and apply' }).click();
-	await expect(page.getByRole('status')).toContainText('rescue timer disarmed');
-	await page.getByRole('link', { name: 'DNS' }).first().click();
 
 	// Deleting it is high risk: it waits on Pending changes until approved with the passkey.
 	await page.getByRole('button', { name: 'Edit _hashi-test A' }).click();
@@ -425,7 +428,10 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByRole('button', { name: 'Save and plan' }).click();
 	await expect(page.getByRole('alert')).toContainText('cannot be taken over');
 	await page.getByRole('link', { name: 'Services' }).first().click();
-	await page.getByRole('button', { name: /Add service/ }).first().click();
+	await page
+		.getByRole('button', { name: /Add service/ })
+		.first()
+		.click();
 	await page.getByLabel('Name', { exact: true }).fill('Game');
 	await page.getByLabel('Public domain').fill('game');
 	await page.getByRole('combobox', { name: 'Protocol' }).click();

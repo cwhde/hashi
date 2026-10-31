@@ -37,7 +37,9 @@
 	<div class="space-y-1.5">
 		<Label for="sx-set">Follow an IP set instead</Label>
 		<div class="flex gap-2">
-			<IpSetPicker bind:value={setId} {sets} addressOnly id="sx-set" />
+			<div class="min-w-0 flex-1">
+				<IpSetPicker bind:value={setId} {sets} addressOnly id="sx-set" />
+			</div>
 			{#if setId}<Button variant="ghost" size="sm" onclick={() => (setId = '')}>Clear</Button>{/if}
 		</div>
 		<p class="text-[12px] text-muted-foreground">

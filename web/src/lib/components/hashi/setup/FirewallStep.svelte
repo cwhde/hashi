@@ -64,6 +64,12 @@
 			if (res.error || !res.data) throw res.error;
 			await reload();
 		});
+	const startOver = () =>
+		act('over', async () => {
+			const res = await api.DELETE('/api/setup/firewall/host');
+			if (res.error || !res.data) throw res.error;
+			onupdate(res.data);
+		});
 	const confirm = () =>
 		act('confirm', async () => {
 			const res = await api.POST('/api/setup/firewall/confirm');
@@ -131,6 +137,11 @@
 		<h2 class="mb-3 text-[15px] font-semibold">{host.name}</h2>
 		{#if host.edge_mode === 'managed'}
 			<HostSettings {host} busy={!!busy} {save} />
+			{#if !host.ownership_confirmed}
+				<Button class="mt-3" variant="ghost" size="sm" onclick={startOver} disabled={!!busy}
+					>Start over with another address or login</Button
+				>
+			{/if}
 		{:else}
 			<p class="max-w-[62ch] text-[13px]">
 				Hashi does not touch this host's firewall. Forward the public ports on your router to <Mono

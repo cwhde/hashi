@@ -275,7 +275,9 @@ func (m *Manager) Save(ctx context.Context, actor, ip, id string, in HostInput) 
 			dropAt = cur.DropInboundAcceptedAt
 		}
 	}
-	moved := !isNew && (cur.SshHost != in.Host || cur.SshPort != int64(in.Port) || string(cur.HostKey) != string(hk.Key))
+	// The login is part of a host's identity here: the update has no columns for it, and saving must not pretend.
+	moved := !isNew && (cur.SshHost != in.Host || cur.SshPort != int64(in.Port) || string(cur.HostKey) != string(hk.Key) ||
+		cur.SshUser != in.User || cur.Auth != in.Auth || !in.Credential.IsZero() || !in.Passphrase.IsZero())
 	err = m.st.Tx(ctx, func(q *db.Queries) error {
 		for _, r := range recs {
 			if err := q.InsertSecret(ctx, r); err != nil {
@@ -305,7 +307,7 @@ func (m *Manager) Save(ctx context.Context, actor, ip, id string, in HostInput) 
 				return err
 			}
 			if moved {
-				return fmt.Errorf("%w: the SSH address or host key changed: delete the host and add it again", ErrInvalid)
+				return fmt.Errorf("%w: the SSH address, login or host key changed: delete the host and add it again", ErrInvalid)
 			}
 		}
 		action := "firewall.host.updated"

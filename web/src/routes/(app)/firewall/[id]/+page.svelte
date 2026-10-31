@@ -63,6 +63,9 @@
 			api.GET('/api/firewall/hosts/{id}/takeover', path)
 		]);
 		if (h.error || !h.data) throw h.error;
+		// Without them the lists look empty and the next save would replace what is stored.
+		if (a.error) throw a.error;
+		if (t.error) throw t.error;
 		host = h.data;
 		entry = h.data.route_via_host_id;
 		others = (l.data?.hosts ?? []).filter((x) => x.id !== id);
@@ -88,6 +91,8 @@
 			const r = await api.PUT('/api/firewall/hosts/{id}', { ...path, body: b });
 			if (r.error || !r.data) throw r.error;
 			host = r.data;
+			const fresh = await api.GET('/api/firewall/hosts/{id}/rendered', path);
+			rendered = fresh.data ?? rendered;
 			note = 'Saved.';
 		});
 	const validate = () =>
@@ -296,7 +301,9 @@
 					{/each}
 				</ul>
 				<div class="mt-3 flex max-w-md gap-2">
-					<IpSetPicker bind:value={pick} {sets} exclude={access} id="pick-access" />
+					<div class="min-w-0 flex-1">
+						<IpSetPicker bind:value={pick} {sets} exclude={access} id="pick-access" />
+					</div>
 					<Button
 						size="sm"
 						variant="outline"

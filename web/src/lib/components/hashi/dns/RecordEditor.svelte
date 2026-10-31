@@ -67,6 +67,7 @@
 		monitoring: entry?.monitoring ?? false
 	});
 	let f = $state(initial());
+	const followsSet = $derived(!!f.set && (f.type === 'A' || f.type === 'AAAA'));
 
 	// Empty = zone default; otherwise whole seconds in the provider's range. Anything else is refused here, so a typo
 	// never turns into "zone default" (03 §6: plans show the exact TTL).
@@ -82,17 +83,18 @@
 	function submit(e: SubmitEvent) {
 		e.preventDefault();
 		if (ttlError) return;
+		const set = f.type === 'A' || f.type === 'AAAA' ? f.set : '';
 		onSave({
 			name: f.name.trim() || '@',
 			type: f.type,
 			ttl: f.ttl.trim() ? Number(f.ttl.trim()) : undefined,
-			values: f.set
+			values: set
 				? []
 				: f.values
 						.split('\n')
 						.map((v) => v.trim())
 						.filter(Boolean),
-			value_set_id: f.set || undefined,
+			value_set_id: set || undefined,
 			display_name: f.display.trim(),
 			dashboard: f.dashboard,
 			monitoring: f.monitoring
@@ -149,15 +151,22 @@
 			bind:value={f.values}
 			rows={Math.max(2, f.values.split('\n').length)}
 			class="font-mono"
-			required={!f.set}
-			disabled={!!f.set}
+			required={!followsSet}
+			disabled={followsSet}
 		/>
 		<p class="text-[12px] text-muted-foreground">{hints[f.type]}</p>
 	</div>
 	{#if f.type === 'A' || f.type === 'AAAA'}
 		<div class="mt-3 max-w-sm space-y-1">
 			<Label for="rec-set" class="text-[12px]">Or follow an IP set</Label>
-			<IpSetPicker bind:value={f.set} {sets} addressOnly id="rec-set" />
+			<div class="flex gap-2">
+				<div class="min-w-0 flex-1">
+					<IpSetPicker bind:value={f.set} {sets} addressOnly id="rec-set" />
+				</div>
+				{#if f.set}<Button type="button" variant="ghost" size="sm" onclick={() => (f.set = '')}
+						>Clear</Button
+					>{/if}
+			</div>
 			<p class="text-[12px] text-muted-foreground">
 				The record follows the set's addresses. If the set is ever empty, the last values stay.
 			</p>

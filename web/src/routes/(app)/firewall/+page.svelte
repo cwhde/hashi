@@ -93,7 +93,9 @@
 					{#if k === 'allow'}<li class="text-muted-foreground">hashi-hosts (always)</li>{/if}
 				</ul>
 				<div class="mt-2 flex gap-2">
-					<IpSetPicker bind:value={pick[k]} {sets} exclude={bind[k]} id="pick-{k}" />
+					<div class="min-w-0 flex-1">
+						<IpSetPicker bind:value={pick[k]} {sets} exclude={bind[k]} id="pick-{k}" />
+					</div>
 					<Button
 						size="sm"
 						variant="outline"

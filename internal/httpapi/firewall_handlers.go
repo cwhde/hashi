@@ -171,6 +171,32 @@ func (s *Server) PutSetupFirewallHost(ctx context.Context, req gen.PutSetupFirew
 	return gen.PutSetupFirewallHost200JSONResponse(body), nil
 }
 
+// DeleteSetupFirewallHost lets the wizard start over: a mistyped address or login must not need a database reset.
+func (s *Server) DeleteSetupFirewallHost(ctx context.Context, _ gen.DeleteSetupFirewallHostRequestObject) (gen.DeleteSetupFirewallHostResponseObject, error) {
+	ri := info(ctx)
+	if err := s.requireSetupOpen(ctx); err != nil {
+		return nil, err
+	}
+	row, ok, err := s.setupFirewallHost(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if ok {
+		if row.OwnershipConfirmedAt.Valid {
+			return nil, conflict("This host is confirmed already; delete it from the Firewall page after setup.")
+		}
+		if err := s.Firewall.Delete(ctx, s.actor(ri), ri.ipString(), row.ID); err != nil {
+			return nil, firewallError(err)
+		}
+		s.syncRecords(ctx)
+	}
+	body, err := s.setupBody(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return gen.DeleteSetupFirewallHost200JSONResponse(body), nil
+}
+
 func (s *Server) ConfirmSetupFirewall(ctx context.Context, _ gen.ConfirmSetupFirewallRequestObject) (gen.ConfirmSetupFirewallResponseObject, error) {
 	ri := info(ctx)
 	if err := s.requireSetupOpen(ctx); err != nil {

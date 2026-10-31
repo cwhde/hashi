@@ -27,6 +27,7 @@
 		user: 'root',
 		auth: 'hashi_key' as NonNullable<FirewallInput['auth']>,
 		credential: '',
+		passphrase: '',
 		traefikIp: untrack(() => traefikHost),
 		subnets: untrack(() => subnetOf(traefikHost)),
 		publicIp: ''
@@ -42,6 +43,10 @@
 		user: form.mode === 'managed' ? form.user.trim() : undefined,
 		auth: form.mode === 'managed' ? form.auth : undefined,
 		credential: form.mode === 'managed' && form.auth !== 'hashi_key' ? form.credential : undefined,
+		passphrase:
+			form.mode === 'managed' && form.auth === 'private_key'
+				? form.passphrase || undefined
+				: undefined,
 		host_key: key,
 		traefik_connection_id: traefikId,
 		internal_traefik_ip: form.traefikIp.trim(),
@@ -102,9 +107,9 @@
 				<option value="password">A password</option>
 			</select>
 		</div>
-		{#if form.auth !== 'hashi_key'}
+		{#if form.auth === 'password'}
 			<div class="space-y-1.5">
-				<Label for="fw-cred">{form.auth === 'password' ? 'Password' : 'Private key'}</Label>
+				<Label for="fw-cred">Password</Label>
 				<Input
 					id="fw-cred"
 					type="password"
@@ -114,6 +119,29 @@
 					required
 				/>
 				<p class="text-[12px] text-muted-foreground">Stored encrypted, never shown again.</p>
+			</div>
+		{:else if form.auth === 'private_key'}
+			<div class="space-y-1.5 md:col-span-2">
+				<Label for="fw-cred">Private key</Label>
+				<textarea
+					id="fw-cred"
+					bind:value={form.credential}
+					rows="4"
+					autocomplete="off"
+					required
+					class="w-full rounded-[10px] border bg-transparent px-3 py-2 font-mono text-[12.5px]"
+				></textarea>
+				<p class="text-[12px] text-muted-foreground">Stored encrypted, never shown again.</p>
+			</div>
+			<div class="space-y-1.5">
+				<Label for="fw-pass">Passphrase (if any)</Label>
+				<Input
+					id="fw-pass"
+					type="password"
+					bind:value={form.passphrase}
+					autocomplete="off"
+					class="h-10"
+				/>
 			</div>
 		{/if}
 	{:else}

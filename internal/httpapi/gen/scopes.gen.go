@@ -34,6 +34,7 @@ var Requirements = map[string]Requirement{
 	"DeleteIPSetElement":        {Scopes: []string{"security.manage"}, Session: false, Reauth: false},
 	"DeletePasskey":             {Scopes: []string{"admin.write"}, Session: false, Reauth: true},
 	"DeleteService":             {Scopes: []string{"services.manage"}, Session: false, Reauth: true},
+	"DeleteSetupFirewallHost":   {Scopes: []string{"setup.manage"}, Session: false, Reauth: false},
 	"DisableService":            {Scopes: []string{"services.manage"}, Session: false, Reauth: false},
 	"DiscardSyncPlan":           {Scopes: []string{"sync.apply"}, Session: false, Reauth: false},
 	"EnableService":             {Scopes: []string{"services.manage"}, Session: false, Reauth: false},
