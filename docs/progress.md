@@ -118,6 +118,12 @@ PR E — UI + deploy
 Found by E2E while building PR E (PR C bug): any changed IP set re-planned Traefik, so saving a firewall host (it changes
 `hashi-hosts`) applied the waiting step 7 service change unreviewed. Traefik and DNS now re-plan only for sets a target uses.
 
+Dev-target proof (2026-10-31, Debian 13 LXC on host B, real systemd, kernel 7.0.6-pve): `TestRealFirewallOnDevTarget` passes.
+An unconfirmed first apply with takeover was rolled back by the real `hashi-fw-rescue` timer (iptables, ipsets, crontab and
+cron file identical to before, no Hashi table); a confirmed one over a new SSH login removed the script's objects, kept
+NetBird-like ones, the other cron job and the foreign `table inet filter`; the table survived a `hashi-firewall` restart; a
+second plan was empty; a later unconfirmed change went back to the previous table without the script. Machine rolled back to `clean`.
+
 Decisions made in PR E:
 - Host page tabs from the mock without Host link, Kernel sets and meter panels: their data arrives with the engine (S9). An
   "Old script" tab edits the takeover list. Editing a host keeps its pinned key.
