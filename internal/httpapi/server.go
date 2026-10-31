@@ -17,6 +17,8 @@ import (
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
 	"git.juzo.io/juzo/hashi/internal/ipsets"
 	"git.juzo.io/juzo/hashi/internal/logring"
+	"git.juzo.io/juzo/hashi/internal/monitor"
+	"git.juzo.io/juzo/hashi/internal/notify"
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/setup"
 	"git.juzo.io/juzo/hashi/internal/store"
@@ -38,6 +40,8 @@ type Server struct {
 	Traefik  *traefik.Manager
 	Certs    *certs.Manager
 	IPSets   *ipsets.Service
+	Monitor  *monitor.Service
+	Notify   *notify.Service
 	Firewall *firewall.Manager
 	// CertsSoon runs the certificate job now (a new service name needs a certificate); nil in tests without a runner.
 	CertsSoon func(ctx context.Context) error

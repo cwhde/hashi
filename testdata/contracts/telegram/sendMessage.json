@@ -1,0 +1,24 @@
+{
+  "_contract": {
+    "captured_at": "2026-10-31",
+    "docs_url": "https://core.telegram.org/bots/api"
+  },
+  "ok": true,
+  "result": {
+    "message_id": 1594,
+    "from": {
+      "id": 100000001,
+      "is_bot": true,
+      "first_name": "Example",
+      "username": "example_bot"
+    },
+    "chat": {
+      "id": 100000001,
+      "first_name": "Example",
+      "username": "example_user",
+      "type": "private"
+    },
+    "date": 1793442050,
+    "text": "Hashi test: this bot now reports to Hashi."
+  }
+}

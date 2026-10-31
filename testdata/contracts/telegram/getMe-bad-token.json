@@ -1,0 +1,9 @@
+{
+  "_contract": {
+    "captured_at": "2026-10-31",
+    "docs_url": "https://core.telegram.org/bots/api"
+  },
+  "ok": false,
+  "error_code": 401,
+  "description": "Unauthorized: invalid token specified"
+}

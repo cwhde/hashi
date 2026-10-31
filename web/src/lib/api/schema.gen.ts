@@ -931,6 +931,198 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/monitor/endpoints": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every endpoint with its 60-minute strip and 24-hour uptime */
+        get: operations["listMonitorEndpoints"];
+        put?: never;
+        /** Add a user monitor with one check */
+        post: operations["createMonitorEndpoint"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/monitor/endpoints/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One endpoint with statistics, chart series and events */
+        get: operations["getMonitorEndpoint"];
+        /** Change an endpoint's group, schedule, visibility and route override */
+        put: operations["putMonitorEndpoint"];
+        post?: never;
+        /** Remove a user monitor; other endpoints follow what they watch */
+        delete: operations["deleteMonitorEndpoint"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notifications/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Notification providers, never with their secrets */
+        get: operations["listNotificationProviders"];
+        put?: never;
+        /** Add an SMTP or Telegram provider; its secret goes into the vault */
+        post: operations["createNotificationProvider"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notifications/telegram/discover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The chats that recently messaged a bot, so the admin can pick one; nothing is stored */
+        post: operations["discoverTelegramChats"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notifications/providers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a provider and its secret */
+        delete: operations["deleteNotificationProvider"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notifications/providers/{id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send a test message through the normal delivery path */
+        post: operations["testNotificationProvider"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notifications/route": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The default route */
+        get: operations["getNotificationRoute"];
+        /** Change the default route */
+        put: operations["putNotificationRoute"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notifications/deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Recent deliveries */
+        get: operations["listNotificationDeliveries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/services/{id}/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Show or hide a service on the public dashboard; changes no Traefik state */
+        put: operations["putServiceDashboard"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Public status page data (cached 15 s); names, groups, state and history only */
+        get: operations["getPublicStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/apps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Public dashboard data (cached 15 s) */
+        get: operations["getPublicApps"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/settings": {
         parameters: {
             query?: never;
@@ -1883,6 +2075,211 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @enum {string} */
+        MonitorState: "up" | "degraded" | "down" | "paused" | "unknown";
+        MonitorStripSample: {
+            /** Format: date-time */
+            at: string;
+            /** @enum {string} */
+            verdict: "up" | "degraded" | "down";
+        };
+        MonitorCheck: {
+            id: string;
+            type: string;
+            role: string;
+            target: string;
+            required: boolean;
+            last_error?: string;
+        };
+        MonitorEndpoint: {
+            id: string;
+            name: string;
+            group: string;
+            source_type: string;
+            state: components["schemas"]["MonitorState"];
+            /** Format: date-time */
+            state_since?: string;
+            paused: boolean;
+            public: boolean;
+            /** Format: int64 */
+            interval_seconds: number;
+            /** Format: int64 */
+            timeout_seconds: number;
+            /** Format: int64 */
+            degraded_ms: number;
+            route_provider_id?: string;
+            /** Format: date-time */
+            last_check_at?: string;
+            /** Format: int64 */
+            last_latency_ms?: number;
+            /** Format: double */
+            uptime_24h?: number;
+            checks: components["schemas"]["MonitorCheck"][];
+            strip: components["schemas"]["MonitorStripSample"][];
+        };
+        MonitorEndpointList: {
+            endpoints: components["schemas"]["MonitorEndpoint"][];
+        };
+        MonitorEndpointCreate: {
+            name: string;
+            group?: string;
+            type: string;
+            target: string;
+            probe?: string;
+            expect?: string;
+        };
+        MonitorEndpointSettings: {
+            group: string;
+            paused: boolean;
+            public: boolean;
+            /** Format: int64 */
+            interval_seconds: number;
+            /** Format: int64 */
+            timeout_seconds: number;
+            /** Format: int64 */
+            degraded_ms: number;
+            route_provider_id?: string;
+        };
+        MonitorPoint: {
+            /** Format: date-time */
+            at: string;
+            /** Format: int64 */
+            latency_ms: number;
+            /** Format: double */
+            availability: number;
+            /** Format: int64 */
+            gap_ms?: number;
+        };
+        MonitorEvent: {
+            id: string;
+            /** Format: date-time */
+            at: string;
+            from: string;
+            to: components["schemas"]["MonitorState"];
+            message: string;
+        };
+        MonitorEndpointDetail: {
+            endpoint: components["schemas"]["MonitorEndpoint"];
+            /** Format: double */
+            uptime_1h?: number;
+            /** Format: double */
+            uptime_7d?: number;
+            /** Format: double */
+            uptime_30d?: number;
+            /** Format: int64 */
+            min_ms?: number;
+            /** Format: int64 */
+            avg_ms?: number;
+            /** Format: int64 */
+            max_ms?: number;
+            series: components["schemas"]["MonitorPoint"][];
+            events: components["schemas"]["MonitorEvent"][];
+        };
+        NotificationProvider: {
+            id: string;
+            type: string;
+            name: string;
+            host?: string;
+            port?: number;
+            tls?: string;
+            username?: string;
+            from?: string;
+            to?: string;
+            chat_id?: string;
+            has_secret: boolean;
+        };
+        NotificationProviderList: {
+            providers: components["schemas"]["NotificationProvider"][];
+        };
+        NotificationProviderCreate: {
+            /** @enum {string} */
+            type: "smtp" | "telegram";
+            name: string;
+            host?: string;
+            port?: number;
+            tls?: string;
+            username?: string;
+            /**
+             * Format: password
+             * @description SMTP password
+             */
+            password?: string;
+            from?: string;
+            to?: string;
+            /** Format: password */
+            bot_token?: string;
+            chat_id?: string;
+        };
+        TelegramDiscover: {
+            /** Format: password */
+            bot_token: string;
+        };
+        TelegramChats: {
+            chats: {
+                id: string;
+                title: string;
+            }[];
+        };
+        NotificationRoute: {
+            provider_id?: string;
+            /** @enum {string} */
+            min_severity: "degraded" | "down";
+            /** Format: int64 */
+            cooldown_seconds: number;
+            recovery: boolean;
+        };
+        NotificationDelivery: {
+            id: string;
+            provider: string;
+            kind: string;
+            subject: string;
+            /** @enum {string} */
+            status: "pending" | "delivered" | "failed";
+            /** Format: int64 */
+            attempts: number;
+            last_error?: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            delivered_at?: string;
+            /** Format: date-time */
+            next_attempt_at?: string;
+        };
+        NotificationDeliveryList: {
+            deliveries: components["schemas"]["NotificationDelivery"][];
+        };
+        PublicEndpoint: {
+            name: string;
+            group: string;
+            state: components["schemas"]["MonitorState"];
+            strip: components["schemas"]["MonitorStripSample"][];
+            /** Format: double */
+            uptime_24h?: number;
+        };
+        PublicStatus: {
+            title: string;
+            theme: string;
+            /** Format: date-time */
+            updated_at?: string;
+            endpoints: components["schemas"]["PublicEndpoint"][];
+        };
+        PublicApp: {
+            name: string;
+            group: string;
+            url: string;
+            state: components["schemas"]["MonitorState"];
+        };
+        PublicApps: {
+            title: string;
+            theme: string;
+            /** Format: date-time */
+            updated_at?: string;
+            apps: components["schemas"]["PublicApp"][];
+            hosts_online: number;
+            hosts_total: number;
+            firewall_online: number;
+            firewall_total: number;
+        };
         Problem: {
             /** @description Stable URI per error kind, e.g. `/problems/reauth-required` */
             type: string;
@@ -4222,6 +4619,372 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SetupState"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listMonitorEndpoints: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Endpoints */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonitorEndpointList"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createMonitorEndpoint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MonitorEndpointCreate"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonitorEndpoint"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getMonitorEndpoint: {
+        parameters: {
+            query?: {
+                range?: "1h" | "24h" | "7d" | "30d";
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Endpoint */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonitorEndpointDetail"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putMonitorEndpoint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MonitorEndpointSettings"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    deleteMonitorEndpoint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listNotificationProviders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Providers */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationProviderList"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createNotificationProvider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationProviderCreate"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationProvider"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    discoverTelegramChats: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TelegramDiscover"];
+            };
+        };
+        responses: {
+            /** @description Chats, newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelegramChats"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    deleteNotificationProvider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    testNotificationProvider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The recent deliveries, with the test's result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationDeliveryList"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getNotificationRoute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Route */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationRoute"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putNotificationRoute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationRoute"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listNotificationDeliveries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deliveries */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationDeliveryList"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putServiceDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    visible: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Saved */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getPublicStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicStatus"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getPublicApps: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Apps */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicApps"];
                 };
             };
             default: components["responses"]["Problem"];

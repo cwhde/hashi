@@ -24,6 +24,8 @@ export default async function globalSetup() {
 	writeFileSync(keyFile, execFileSync(bin, ['keygen']), { mode: 0o600 });
 	const port = await freePort();
 	const baseURL = `http://localhost:${port}`;
+	const appsURL = `http://localhost:${await freePort()}`;
+	const statusURL = `http://localhost:${await freePort()}`;
 	const proc = spawn(
 		bin,
 		[
@@ -32,9 +34,9 @@ export default async function globalSetup() {
 			'-admin-addr',
 			`127.0.0.1:${port}`,
 			'-public-apps-addr',
-			'off',
+			appsURL.replace('http://localhost', '127.0.0.1'),
 			'-public-status-addr',
-			'off'
+			statusURL.replace('http://localhost', '127.0.0.1')
 		],
 		{
 			env: {
@@ -67,7 +69,10 @@ export default async function globalSetup() {
 		if ((await fetch(`${baseURL}/readyz`).catch(() => null))?.ok) break;
 		await new Promise((r) => setTimeout(r, 100));
 	}
-	writeFileSync(statePath, JSON.stringify({ baseURL, bin, dir, keyFile, ...creds }));
+	writeFileSync(
+		statePath,
+		JSON.stringify({ baseURL, appsURL, statusURL, bin, dir, keyFile, ...creds })
+	);
 	return async () => {
 		proc.kill('SIGTERM');
 	};

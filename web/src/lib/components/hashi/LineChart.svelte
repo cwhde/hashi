@@ -1,5 +1,5 @@
 <script lang="ts">
-	// Mock chart geometry for S0b: thin trace, sparse grid, current value top-right (10a §5.6). The real pages use uPlot.
+	// Thin trace, sparse grid, current value top-right (10a §5.6).
 	let {
 		title,
 		values,
@@ -8,11 +8,12 @@
 	}: { title: string; values: number[]; unit?: string; current?: string } = $props();
 	const w = 600;
 	const h = 140;
-	const max = $derived(Math.max(...values) * 1.15);
+	const max = $derived(Math.max(1, ...values) * 1.15);
 	const pts = $derived(
 		values
 			.map(
-				(v, i) => `${((i / (values.length - 1)) * w).toFixed(1)},${(h - (v / max) * h).toFixed(1)}`
+				(v, i) =>
+					`${((i / Math.max(1, values.length - 1)) * w).toFixed(1)},${(h - (v / max) * h).toFixed(1)}`
 			)
 			.join(' ')
 	);

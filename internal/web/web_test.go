@@ -39,3 +39,29 @@ func TestUnbuiltSPA(t *testing.T) {
 		t.Fatalf("code=%d", rec.Code)
 	}
 }
+
+// A public listener shows its page at the root and serves nothing else but assets: no client-side routes (07 §7, §8).
+func TestPublicHandler(t *testing.T) {
+	root := fstest.MapFS{
+		"index.html":          {Data: []byte("<html><head><title>x</title></head></html>")},
+		"_app/immutable/a.js": {Data: []byte("js")},
+		"secret.txt":          {Data: []byte("no")},
+	}
+	h := publicHandler(root, "status")
+	get := func(p string) *httptest.ResponseRecorder {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, p, nil))
+		return rec
+	}
+	if r := get("/"); r.Code != 200 || !strings.Contains(r.Body.String(), `<meta name="hashi-public" content="status">`) {
+		t.Fatalf("root %d %s", r.Code, r.Body)
+	}
+	if r := get("/_app/immutable/a.js"); r.Code != 200 {
+		t.Fatalf("asset %d", r.Code)
+	}
+	for _, p := range []string{"/login", "/settings", "/secret.txt", "/api/auth/session"} {
+		if r := get(p); r.Code != 404 {
+			t.Errorf("%s: %d", p, r.Code)
+		}
+	}
+}

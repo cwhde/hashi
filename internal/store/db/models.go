@@ -297,6 +297,108 @@ type JobRun struct {
 	Error      string
 }
 
+type MonitorCheck struct {
+	ID         string
+	EndpointID string
+	Type       string
+	Role       string
+	Target     string
+	Required   int64
+	CodeMin    int64
+	CodeMax    int64
+	SkipVerify int64
+	Probe      string
+	Expect     string
+}
+
+type MonitorEndpoint struct {
+	ID              string
+	SourceType      string
+	SourceID        string
+	Name            string
+	GroupName       string
+	Paused          int64
+	IntervalSeconds int64
+	TimeoutSeconds  int64
+	DegradedMs      int64
+	Public          int64
+	RouteProviderID sql.NullString
+	State           string
+	StateSince      int64
+	GoodRounds      int64
+	BadRounds       int64
+	LastCheckAt     sql.NullInt64
+	LastLatencyMs   sql.NullInt64
+	CreatedAt       int64
+	UpdatedAt       int64
+}
+
+type MonitorEvent struct {
+	ID         string
+	EndpointID string
+	At         int64
+	FromState  string
+	ToState    string
+	Message    string
+}
+
+type MonitorRollup struct {
+	EndpointID string
+	CheckID    string
+	Resolution int64
+	Bucket     int64
+	Count      int64
+	OkCount    int64
+	MinMs      int64
+	MaxMs      int64
+	AvgMs      int64
+	P95Ms      int64
+}
+
+type MonitorSample struct {
+	EndpointID string
+	CheckID    string
+	At         int64
+	Verdict    string
+	Ok         int64
+	LatencyMs  int64
+	Detail     string
+}
+
+type NotificationDelivery struct {
+	ID            string
+	ProviderID    string
+	EndpointID    sql.NullString
+	Kind          string
+	Subject       string
+	Body          string
+	Status        string
+	Attempts      int64
+	NextAttemptAt int64
+	LastError     string
+	CreatedAt     int64
+	DeliveredAt   sql.NullInt64
+}
+
+type NotificationProvider struct {
+	ID         string
+	Type       string
+	Name       string
+	ConfigJson string
+	SecretID   sql.NullString
+	CreatedAt  int64
+	UpdatedAt  int64
+}
+
+type NotificationRoute struct {
+	ID              int64
+	ProviderID      sql.NullString
+	MinSeverity     string
+	CooldownSeconds int64
+	Recovery        int64
+	UpdatedAt       int64
+}
+
 type PasskeyCredential struct {
 	ID             string
 	CredentialID   []byte
