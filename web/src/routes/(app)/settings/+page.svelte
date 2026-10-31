@@ -21,13 +21,15 @@
 	import { dateTime, time } from '$lib/format';
 	import { theme, themes } from '$lib/theme.svelte';
 	import Notifications from '$lib/components/hashi/status/Notifications.svelte';
+	import AgentDns from '$lib/components/hashi/pulse/AgentDns.svelte';
 
 	const cats = [
 		{ id: 'general', label: 'General' },
 		{ id: 'account', label: 'Account' },
 		{ id: 'appearance', label: 'Appearance' },
 		{ id: 'security', label: 'Security' },
-		{ id: 'notifications', label: 'Notifications' }
+		{ id: 'notifications', label: 'Notifications' },
+		{ id: 'agent-dns', label: 'Internal agent DNS' }
 	];
 	const cat = $derived(page.url.searchParams.get('category') ?? 'general');
 	function show(id: string) {
@@ -373,6 +375,8 @@
 			{@render loading()}
 		{:else if cat === 'notifications'}
 			<Notifications />
+		{:else if cat === 'agent-dns'}
+			<AgentDns />
 		{:else if cat === 'general' && general}
 			<Panel title="Domains and addresses">
 				<div class="grid gap-4 md:grid-cols-2">

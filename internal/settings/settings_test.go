@@ -81,7 +81,7 @@ func TestPutGetAndNotify(t *testing.T) {
 	if err := svc.Load(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if len(seen) != 3 {
+	if len(seen) != 4 {
 		t.Fatalf("load notified %v", seen)
 	}
 	if err := Put(ctx, st.Q, validGeneral()); err != nil {

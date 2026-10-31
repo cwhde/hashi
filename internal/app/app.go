@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/netip"
 	"os"
 	"sync/atomic"
 	"time"
@@ -32,6 +33,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/logring"
 	"git.juzo.io/juzo/hashi/internal/monitor"
 	"git.juzo.io/juzo/hashi/internal/notify"
+	"git.juzo.io/juzo/hashi/internal/pulse"
 	"git.juzo.io/juzo/hashi/internal/secrets"
 	"git.juzo.io/juzo/hashi/internal/services"
 	"git.juzo.io/juzo/hashi/internal/settings"
@@ -180,7 +182,27 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	}
 	subs := append(dnsSvc.Subsystems(), traefikMgr.Subsystems()...)
 	subs = append(subs, fwMgr.Subsystems()...)
-	adguardSvc := adguard.New(st, v, ipSets.ResolveTarget, fwMgr.Rewrites(ipSets.ResolveTarget))
+	pulseSvc := pulse.New(st, v, al)
+	ipSets.SetPulse(func(ctx context.Context, id, scope, selector string) ([]netip.Addr, error) {
+		return pulseSvc.Addrs(ctx, st.R, id, scope, selector)
+	}, func(ctx context.Context, q *db.Queries, id string) error {
+		_, err := q.GetPulseAgent(ctx, id)
+		return err
+	})
+	pulseSvc.OnChange(func(ctx context.Context) {
+		if _, err := ipSets.Recompile(ctx); err != nil {
+			log.Warn("IP sets after a Pulse address change", "err", err)
+		}
+	})
+	serviceRewrites := fwMgr.Rewrites(ipSets.ResolveTarget)
+	adguardSvc := adguard.New(st, v, ipSets.ResolveTarget, func(ctx context.Context) ([]adguard.Desired, error) {
+		out, err := serviceRewrites(ctx)
+		if err != nil {
+			return nil, err
+		}
+		agents, err := pulseSvc.Rewrites(ctx)
+		return append(out, agents...), err
+	})
 	ipSets.AddConsumers(adguard.Consumers)
 	subs = append(subs, adguardSvc.Subsystems()...)
 	syncEngine := hsync.New(st, al, append(subs, certMgr.Subsystems()...)...)
@@ -243,6 +265,9 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 		if _, err := dnsSvc.Reconcile(syncEngine)(ctx); err != nil {
 			log.Warn("DNS plans after an IP set change", "err", err)
 		}
+		if _, err := adguardSvc.Reconcile(syncEngine)(ctx); err != nil {
+			log.Warn("AdGuard plans after an IP set change", "err", err)
+		}
 	})
 
 	// Hourly: issue what is missing, renew 30 days ahead (a failure waits certs.RetryAfter), then bring every Traefik
@@ -265,7 +290,7 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	health := httpapi.NewHealth(map[string]httpapi.Check{"database": st.Ready})
 	api := &httpapi.Server{
 		Health: health, Version: gen.Version{Version: Version, Commit: Commit}, Store: st, Sessions: sessions,
-		Passkeys: passkeys, Setup: setupSvc, Settings: cfgSettings, DNS: dnsSvc, Traefik: traefikMgr, Certs: certMgr, IPSets: ipSets, AdGuard: adguardSvc, Monitor: monitorSvc, Notify: notifier, Firewall: fwMgr, Sync: syncEngine, Vault: v, Audit: al, IP: ip, Logs: cfg.Logs,
+		Passkeys: passkeys, Setup: setupSvc, Settings: cfgSettings, DNS: dnsSvc, Traefik: traefikMgr, Certs: certMgr, IPSets: ipSets, AdGuard: adguardSvc, Pulse: pulseSvc, Monitor: monitorSvc, Notify: notifier, Firewall: fwMgr, Sync: syncEngine, Vault: v, Audit: al, IP: ip, Logs: cfg.Logs,
 		CertsSoon: func(ctx context.Context) error { return runner.Soon(ctx, certs.JobKind) },
 		Log:       log.With("component", "api"),
 	}
@@ -390,7 +415,20 @@ func (s *server) serve(log *slog.Logger) error {
 func adminMux(api *httpapi.Server) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("GET /", web.Handler())
+	// What a host needs to install an agent (08 §1). No session: nothing here is secret, and the token comes from the admin.
+	mux.HandleFunc("GET /api/pulse/install.sh", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/x-shellscript")
+		_, _ = w.Write(pulse.InstallScript)
+	})
+	mux.HandleFunc("GET /api/pulse/download/{file}", pulse.ServeDownload(pulseDir()))
 	return api.Handler(mux)
+}
+
+func pulseDir() string {
+	if d := os.Getenv("HASHI_PULSE_DIR"); d != "" {
+		return d
+	}
+	return pulse.DefaultDir
 }
 
 // publicToggles mirrors the Appearance settings that switch the public pages on and off.

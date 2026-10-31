@@ -43,6 +43,7 @@ type Graph map[string]*Set
 // set partial; they never fail the compile.
 type Resolver interface {
 	Host(hostID, scope string) ([]netip.Addr, error)
+	Pulse(agentID, scope, selector string) ([]netip.Addr, error)
 	DNS(fqdn string) ([]netip.Addr, error)
 }
 
@@ -63,7 +64,7 @@ type Result struct {
 	// Addresses are the single addresses every target-capable leaf resolved to, in item order (first = primary,
 	// 05a §5.2), without duplicates. Only meaningful when AddressSet is true.
 	Addresses []netip.Addr
-	// AddressSet: every leaf, through nesting, is ip, host or dns (05a §5.2).
+	// AddressSet: every leaf, through nesting, is ip, pulse, host or dns (05a §5.2).
 	AddressSet bool
 	Status     string
 	Problems   []Problem
@@ -229,6 +230,8 @@ func (c *compiler) set(id string) *partial {
 			out.addressSet = false
 		case Host:
 			c.leaf(out, e, fail, func() ([]netip.Addr, error) { return c.r.Host(v.HostID, v.Scope) }, "host")
+		case Pulse:
+			c.leaf(out, e, fail, func() ([]netip.Addr, error) { return c.r.Pulse(v.AgentID, v.Scope, v.Selector) }, "Pulse agent")
 		case DNS:
 			c.leaf(out, e, fail, func() ([]netip.Addr, error) { return c.r.DNS(v.FQDN) }, v.FQDN)
 		case SetRef:

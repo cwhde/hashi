@@ -11,7 +11,9 @@ Contracts: AdGuard's rewrite API captured from throwaway containers of both runn
 
 Plan, two PRs:
 
-PR A, AdGuard:
+Not built, decided while building: the optional reachability check, preview/apply endpoints for agent DNS (the Connections preview shows the same), AdGuard and Pulse monitoring sources, SSH connection targets as address sets, per-agent DNS name in the UI (API only). The heartbeat's public address only appears when an agent reaches Hashi over a public path, so replacing the hand-entered home address waits for the cutover's public route.
+
+PR A, AdGuard (#44):
 - [x] Client from the fixtures with integration tests against a real container
 - [x] Connections with target set, credentials in the vault, read-only mode for the migration, disabled state
 - [x] Owned rewrites table, desired rewrites from services, plan/apply/verify; manual rewrites and non-owned duplicates untouched
@@ -19,9 +21,9 @@ PR A, AdGuard:
 - [ ] Real read of both instances, then a test rewrite on the sync tool's origin with the user's OK. The replica stays read-only until the sync tool is retired, because the tool overwrites its rewrites
 
 PR B, Pulse:
-- [ ] `agents/pulse` binary and image, tokens, heartbeat endpoint, agents API and Pulse page with install
-- [ ] `pulse` items resolve; a heartbeat change reaches firewall, DNS, Traefik and connection consumers
-- [ ] Agent DNS under the internal domain, DNS only
+- [x] `agents/pulse` binary and image, tokens, heartbeat endpoint, agents API and Pulse page with install
+- [x] `pulse` items resolve; a heartbeat change reaches firewall, DNS, Traefik and connection consumers
+- [x] Agent DNS under the internal domain, DNS only
 - [ ] Gate on a real host: an address change propagates with no manual step; idle memory measured; hand-entered home address replaced after the user's OK
 
 **S7 — Monitoring + public pages** · status: **done** 2026-10-31, deployed `71e79b9`, PR #42. Next: S8 (the V1 cutover now follows S9, see Log). Gate: all migrated services monitored; public status + dashboard served on their ports; a real outage produces a notification and recovery.
@@ -723,6 +725,8 @@ Decisions made in S0:
   only short-SHA deploys exist so far.
 
 ## Log
+
+- 2026-10-31 — Pulse agent and install script run on the Alpine and Debian dev targets against a stand-in receiver: heartbeats arrive, config is 0600 root, idle memory 6.4 and 7.2 MB (target 15), image 8.8 MB (target 10). The installer now says so when curl is missing, which the Debian target showed. Targets cleaned; curl stays on the Debian one.
 
 - 2026-10-31 — S8 started. Pocket ID checked: healthy, discovery document answers. AdGuard rewrite API captured locally; the replica runs v0.107.76 and the origin v0.107.79, both behave the same.
 

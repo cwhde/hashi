@@ -16,6 +16,8 @@ func Describe(g Graph, it Item) string {
 		return v.Prefix.String() + " (cidr)"
 	case Host:
 		return "host " + v.HostID + " (" + v.Scope + ")"
+	case Pulse:
+		return "Pulse agent " + v.AgentID + " (" + v.Scope + ")"
 	case DNS:
 		return v.FQDN + " (dns)"
 	case SetRef:
@@ -72,15 +74,18 @@ func leafContains(it Item, a netip.Addr, r Resolver) bool {
 		return v.Addr == a
 	case CIDR:
 		return v.Prefix.Contains(a)
-	case Host, DNS:
+	case Host, Pulse, DNS:
 		if r == nil {
 			return false
 		}
 		var addrs []netip.Addr
-		if h, ok := v.(Host); ok {
-			addrs, _ = r.Host(h.HostID, h.Scope)
-		} else {
-			addrs, _ = r.DNS(v.(DNS).FQDN)
+		switch x := v.(type) {
+		case Host:
+			addrs, _ = r.Host(x.HostID, x.Scope)
+		case Pulse:
+			addrs, _ = r.Pulse(x.AgentID, x.Scope, x.Selector)
+		case DNS:
+			addrs, _ = r.DNS(x.FQDN)
 		}
 		for _, x := range addrs {
 			if x.Unmap() == a {

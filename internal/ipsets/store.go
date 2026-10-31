@@ -43,6 +43,9 @@ const (
 // services); parent sets are known to the package itself.
 type ConsumerSource func(ctx context.Context, q *db.Queries, setID string) ([]Consumer, error)
 
+// PulseLookup reports whether a Pulse agent exists (pulse items reference it).
+type PulseLookup func(ctx context.Context, q *db.Queries, agentID string) error
+
 // HostLookup reports whether a firewall/edge host exists (host items reference it). Nil until hosts exist.
 type HostLookup func(ctx context.Context, q *db.Queries, hostID string) (name string, err error)
 
@@ -215,6 +218,7 @@ type ElementInput struct {
 type Editor struct {
 	Sources []ConsumerSource
 	Hosts   HostLookup
+	Agents  PulseLookup
 }
 
 // AddElement appends an element to a user set.
@@ -236,7 +240,7 @@ func (ed Editor) AddElement(ctx context.Context, q *db.Queries, setID string, in
 	ms := now.UnixMilli()
 	if err := q.InsertIPSetElement(ctx, db.InsertIPSetElementParams{ID: e.ID, IpSetID: setID, Position: pos,
 		Type: e.Item.Type(), Origin: e.Origin, Locked: 0, Address: p.address, Prefix: p.prefix, Family: p.family,
-		HostID: p.hostID, Scope: p.scope, Fqdn: p.fqdn, ChildSetID: p.child, Note: e.Note, ExpiresAt: p.expires,
+		HostID: p.hostID, PulseAgentID: p.agentID, Selector: p.selector, Scope: p.scope, Fqdn: p.fqdn, ChildSetID: p.child, Note: e.Note, ExpiresAt: p.expires,
 		CreatedBy: by, CreatedAt: ms, UpdatedAt: ms}); err != nil {
 		return Element{}, fmt.Errorf("store element: %w", err)
 	}
@@ -264,7 +268,7 @@ func (ed Editor) UpdateElement(ctx context.Context, q *db.Queries, setID, elemen
 	}
 	p := elementParams(e)
 	if err := q.UpdateIPSetElement(ctx, db.UpdateIPSetElementParams{Type: e.Item.Type(), Address: p.address,
-		Prefix: p.prefix, Family: p.family, HostID: p.hostID, Scope: p.scope, Fqdn: p.fqdn, ChildSetID: p.child,
+		Prefix: p.prefix, Family: p.family, HostID: p.hostID, PulseAgentID: p.agentID, Selector: p.selector, Scope: p.scope, Fqdn: p.fqdn, ChildSetID: p.child,
 		Note: e.Note, ExpiresAt: p.expires, UpdatedAt: now.UnixMilli(), ID: e.ID}); err != nil {
 		return Element{}, fmt.Errorf("update element: %w", err)
 	}
@@ -329,6 +333,13 @@ func (ed Editor) prepare(ctx context.Context, q *db.Queries, g Graph, s *Set, e 
 		}
 		if _, err := ed.Hosts(ctx, q, v.HostID); err != nil {
 			return e, invalid("referenced host does not exist")
+		}
+	case Pulse:
+		if ed.Agents == nil {
+			return e, invalid("no Pulse agent is registered")
+		}
+		if err := ed.Agents(ctx, q, v.AgentID); err != nil {
+			return e, invalid("referenced Pulse agent does not exist")
 		}
 	}
 	e.Item, e.Note, e.ExpiresAt = it, strings.TrimSpace(in.Note), in.ExpiresAt
@@ -427,8 +438,8 @@ func touch(ctx context.Context, q *db.Queries, setID string, now time.Time) erro
 }
 
 type elementColumns struct {
-	address, prefix, hostID, scope, fqdn, child sql.NullString
-	family, expires                             sql.NullInt64
+	address, prefix, hostID, agentID, selector, scope, fqdn, child sql.NullString
+	family, expires                                                sql.NullInt64
 }
 
 func elementParams(e Element) elementColumns {
@@ -441,6 +452,11 @@ func elementParams(e Element) elementColumns {
 		c.prefix, c.family = str(v.Prefix.String()), family(v.Prefix.Addr())
 	case Host:
 		c.hostID, c.scope = str(v.HostID), str(v.Scope)
+	case Pulse:
+		c.agentID, c.scope = str(v.AgentID), str(v.Scope)
+		if v.Selector != "" {
+			c.selector = str(v.Selector)
+		}
 	case DNS:
 		c.fqdn = str(v.FQDN)
 	case SetRef:
@@ -485,12 +501,14 @@ func elementFromRow(r db.IpSetElement) (Element, error) {
 		}
 	case TypeHost:
 		e.Item = Host{HostID: r.HostID.String, Scope: r.Scope.String}
+	case TypePulse:
+		e.Item = Pulse{AgentID: r.PulseAgentID.String, Scope: r.Scope.String, Selector: r.Selector.String}
 	case TypeDNS:
 		e.Item = DNS{FQDN: r.Fqdn.String}
 	case TypeSet:
 		e.Item = SetRef{SetID: r.ChildSetID.String}
 	default:
-		// pulse and geo arrive with later slices; their rows cannot exist yet.
+		// geo arrives with S9; its rows cannot exist yet.
 		err = fmt.Errorf("item type %q is not supported yet", r.Type)
 	}
 	if err != nil {

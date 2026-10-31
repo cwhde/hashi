@@ -57,6 +57,8 @@ func itemBody(it ipsets.Item) (gen.IPItem, error) {
 		err = out.FromIPItemCIDR(gen.IPItemCIDR{Type: gen.Cidr, Prefix: v.Prefix.String()})
 	case ipsets.Host:
 		err = out.FromIPItemHost(gen.IPItemHost{Type: gen.Host, HostId: v.HostID, Scope: gen.IPItemHostScope(v.Scope)})
+	case ipsets.Pulse:
+		err = out.FromIPItemPulse(gen.IPItemPulse{Type: gen.Pulse, AgentId: v.AgentID, Scope: gen.IPItemPulseScope(v.Scope), Selector: emptyNil(v.Selector)})
 	case ipsets.DNS:
 		err = out.FromIPItemDNS(gen.IPItemDNS{Type: gen.Dns, Fqdn: v.FQDN})
 	case ipsets.SetRef:
@@ -69,7 +71,7 @@ func itemBody(it ipsets.Item) (gen.IPItem, error) {
 func itemFromBody(b gen.IPItem) (ipsets.Item, error) {
 	v, err := b.ValueByDiscriminator()
 	if err != nil {
-		return nil, invalid("item.type must be ip, cidr, host, dns or set")
+		return nil, invalid("item.type must be ip, cidr, host, pulse, dns or set")
 	}
 	switch v := v.(type) {
 	case gen.IPItemIP:
@@ -88,6 +90,12 @@ func itemFromBody(b gen.IPItem) (ipsets.Item, error) {
 		return ipsets.ParseIPOrCIDR(v.Prefix)
 	case gen.IPItemHost:
 		return ipsets.Host{HostID: v.HostId, Scope: string(v.Scope)}, nil
+	case gen.IPItemPulse:
+		it := ipsets.Pulse{AgentID: v.AgentId, Scope: string(v.Scope)}
+		if v.Selector != nil {
+			it.Selector = *v.Selector
+		}
+		return it, nil
 	case gen.IPItemDNS:
 		return ipsets.DNS{FQDN: v.Fqdn}, nil
 	case gen.IPItemSet:
