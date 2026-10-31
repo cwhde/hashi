@@ -1,19 +1,16 @@
 package app
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
 
 	"git.juzo.io/juzo/hashi/internal/httpapi"
+	"git.juzo.io/juzo/hashi/internal/pulse"
 	"git.juzo.io/juzo/hashi/internal/store/storetest"
 )
 
@@ -39,14 +36,8 @@ func TestPublicMuxHidesErrors(t *testing.T) {
 	}
 }
 
-// A host installs an agent from Hashi itself, without a session (08 §1): the script, the binary and its checksum.
-func TestAdminMuxServesPulseDownloads(t *testing.T) {
-	dir := t.TempDir()
-	body := []byte("agent binary")
-	if err := os.WriteFile(filepath.Join(dir, "hashi-pulse-linux-amd64"), body, 0o600); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("HASHI_PULSE_DIR", dir)
+// A host gets the install script from Hashi without a session, and it names the release to download from (08 §1).
+func TestAdminMuxServesPulseInstall(t *testing.T) {
 	in := start(t, newConfig(t))
 	type answer struct {
 		Code int
@@ -65,20 +56,12 @@ func TestAdminMuxServesPulseDownloads(t *testing.T) {
 		}
 		return answer{res.StatusCode, string(b)}
 	}
-	if r := get("/api/pulse/install.sh"); r.Code != 200 || !strings.HasPrefix(r.Body, "#!/bin/sh") {
-		t.Fatalf("script: %d", r.Code)
+	r := get("/api/pulse/install.sh")
+	if r.Code != 200 || !strings.HasPrefix(r.Body, "#!/bin/sh") || !strings.Contains(r.Body, pulse.ReleaseBase) || strings.Contains(r.Body, "@@") {
+		t.Fatalf("script: %d %q", r.Code, r.Body)
 	}
-	if r := get("/api/pulse/download/amd64"); r.Code != 200 || r.Body != string(body) {
-		t.Fatalf("binary: %d %q", r.Code, r.Body)
-	}
-	sum := sha256.Sum256(body)
-	if r := get("/api/pulse/download/amd64.sha256"); r.Code != 200 || strings.TrimSpace(r.Body) != hex.EncodeToString(sum[:]) {
-		t.Fatalf("checksum: %d %q", r.Code, r.Body)
-	}
-	for _, p := range []string{"/api/pulse/download/arm64", "/api/pulse/download/..%2f..%2fetc%2fpasswd", "/api/pulse/download/riscv"} {
-		if r := get(p); r.Code != 404 {
-			t.Errorf("%s: %d", p, r.Code)
-		}
+	if r := get("/api/pulse/download/amd64"); r.Code == 200 && strings.HasPrefix(r.Body, "\x7fELF") {
+		t.Fatal("the Hashi image no longer carries the agent")
 	}
 	// A heartbeat reaches its handler without a session, and a wrong token gets no further.
 	res, err := http.Post("http://"+in.addr+"/api/pulse/nobody/heartbeat", "application/json", strings.NewReader(`{"version":"1","hostname":"h","candidates":[]}`)) //nolint:noctx // a test against localhost

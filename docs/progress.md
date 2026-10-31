@@ -17,7 +17,7 @@ PR A, AdGuard (#44):
 - [x] Client from the fixtures with integration tests against a real container
 - [x] Connections with target set, credentials in the vault, read-only mode for the migration, disabled state
 - [x] Owned rewrites table, desired rewrites from services, plan/apply/verify; manual rewrites and non-owned duplicates untouched
-- [x] Connections page and service rewrite state
+- [x] Connections page; rewrites and agent names as DNS tabs
 - [ ] Real read of both instances, then a test rewrite on the sync tool's origin with the user's OK. The replica stays read-only until the sync tool is retired, because the tool overwrites its rewrites
 
 PR B, Pulse:
@@ -682,9 +682,6 @@ Decisions made in S0:
 
 ## Unverified
 
-- S8 review: an agent's token holder may get AdGuard credentials if a connection's target set holds a Pulse item and the connection uses HTTP or skips TLS checks, because Basic Auth goes to each address tried. Advice until checked: do not reach AdGuard through a Pulse item without certificate checks.
-- S8 review: certificate distribution and monitoring's TCP checks still use a host's literal address when SSH goes through a set; the AdGuard monitor checks only the first address.
-- S8 review, spec points not built: pending DNS propagation state (08 §4.6), dependency impact in Activity, stale threshold setting, `/consumers` and `/install` endpoints, connection save validation (08 §5), `private` agent DNS mode and stale behaviour (03 §9), agent deletion exception for high risk, a CI shellcheck of the installer and image size check, a test of a heartbeat through each consumer. OpenDNS lookup and Gitea release calls have no captured fixture.
 
 - S7 review: required display name on monitored DNS entries isn't enforced (falls back to the host name); Telegram channels aren't discovered (no channel captured); monitored A and AAAA of one name could repeat a list key; the test button's delivery can overlap the job's and send twice; no test asserts the 15 s public cache.
 
@@ -731,6 +728,12 @@ Decisions made in S0:
   only short-SHA deploys exist so far.
 
 ## Log
+
+- 2026-10-31 — Third S8 review, final pass: earlier findings confirmed closed except two. Fixed with tests: a reconnect no longer turns a failed host healthy, a disabled AdGuard connection is never contacted, the password rule applies only with a password, the consumers API walks up nested sets, a mistaken tag stops before any image, a rewrite follows a new owner, agent names on the address page. Installs from this code need `v0.8.0-beta.2`, tagged right after merge.
+
+- 2026-10-31 — Second S8 review, on the complete slice: 5 reproduced findings fixed with tests (public address through the private list, pending DNS cleared by a failed round, stale agent's set without a warning, silent agent passing save validation, disabled AdGuard being contacted). Also: low-risk rewrites go before a removal waiting for approval, sources shown on target pickers, real heartbeat flow test, page coverage in E2E, agent image size in CI. Spec fixed where it no longer fit: long-running service instead of a timer, no former `pulse_ip_mode` to map.
+
+- 2026-10-31 — The user pointed out that the first plan shipped the agent inside Hashi and that calling S8 ready with spec items open was wrong. The image no longer carries the agent; the installer comes from Hashi and the binary from the release. Every spec gap from the audit built: pepper derived from the master key, debounce, connections retested on change, pending DNS, dependency impact in Activity, Pulse settings, consumers and install endpoints, save validation, private mode and stale removal, collisions shown, deleted agent exemption, DNS tabs, setup step 10, tests and fixtures. Passwords no longer follow an agent's address without proven identity.
 
 - 2026-10-31 — First pre-release `v0.8.0-beta.1` tagged on `655c5c5`: the Gitea release holds the Pulse binaries with checksums, downloaded and matched anonymously. CI hit GitHub download timeouts on several runs today; reruns passed, and github.com answered quickly from the host when measured. Not deployed: S8's gate waits for the user's deploy.
 

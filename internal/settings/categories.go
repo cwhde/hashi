@@ -36,11 +36,20 @@ type AgentDNS struct {
 	Enabled bool   `json:"enabled"`
 	Domain  string `json:"domain"`
 	IPMode  string `json:"ip_mode"`
+	// RemoveStaleAfterHours removes a stale agent's rewrite after this long; 0 keeps it (03 §9).
+	RemoveStaleAfterHours int `json:"remove_stale_after_hours"`
+}
+
+// Pulse: what agents are told and when they count as stale (09 §2, 08 §2).
+type Pulse struct {
+	HeartbeatIntervalSeconds int `json:"heartbeat_interval_seconds"`
+	StaleFactor              int `json:"stale_factor"`
 }
 
 // Agent DNS address modes.
 const (
 	AgentIPSelected = "selected"
+	AgentIPPrivate  = "private"
 	AgentIPPublic   = "public"
 )
 
@@ -65,6 +74,8 @@ func defaults(c Category) Category {
 				"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "127.0.0.0/8", "::1/128", "fc00::/7",
 			},
 		}
+	case Pulse:
+		return Pulse{HeartbeatIntervalSeconds: 60, StaleFactor: 3}
 	case AgentDNS:
 		return AgentDNS{Domain: "hashi.home.arpa", IPMode: AgentIPSelected}
 	case Appearance:
@@ -78,14 +89,30 @@ func (Security) Key() string   { return "security" }
 func (Appearance) Key() string { return "appearance" }
 func (AgentDNS) Key() string   { return "internal_agent_dns" }
 
+func (Pulse) Key() string { return "pulse" }
+
+// Validate checks Pulse.
+func (p Pulse) Validate() error {
+	if p.HeartbeatIntervalSeconds < 10 || p.HeartbeatIntervalSeconds > 86400 {
+		return invalid("heartbeat interval must be between 10 seconds and a day")
+	}
+	if p.StaleFactor < 2 || p.StaleFactor > 100 {
+		return invalid("stale threshold must be between 2 and 100 missed heartbeats")
+	}
+	return nil
+}
+
 // Validate checks AgentDNS.
 func (a AgentDNS) Validate() error {
 	d, ok := normalizeFQDN(a.Domain)
 	if !ok || d != a.Domain || !strings.Contains(d, ".") {
 		return invalid("internal domain %q must be a lower-case domain name", a.Domain)
 	}
-	if a.IPMode != AgentIPSelected && a.IPMode != AgentIPPublic {
-		return invalid("address mode must be selected or public")
+	if a.IPMode != AgentIPSelected && a.IPMode != AgentIPPrivate && a.IPMode != AgentIPPublic {
+		return invalid("address mode must be selected, private or public")
+	}
+	if a.RemoveStaleAfterHours < 0 {
+		return invalid("the stale removal time cannot be negative")
 	}
 	return nil
 }

@@ -61,6 +61,7 @@ func (e AdGuardConnectionInputMode) Valid() bool {
 
 // Defines values for AgentDNSSettingsIpMode.
 const (
+	AgentDNSSettingsIpModePrivate  AgentDNSSettingsIpMode = "private"
 	AgentDNSSettingsIpModePublic   AgentDNSSettingsIpMode = "public"
 	AgentDNSSettingsIpModeSelected AgentDNSSettingsIpMode = "selected"
 )
@@ -68,6 +69,8 @@ const (
 // Valid indicates whether the value is a known member of the AgentDNSSettingsIpMode enum.
 func (e AgentDNSSettingsIpMode) Valid() bool {
 	switch e {
+	case AgentDNSSettingsIpModePrivate:
+		return true
 	case AgentDNSSettingsIpModePublic:
 		return true
 	case AgentDNSSettingsIpModeSelected:
@@ -1616,14 +1619,17 @@ type AdGuardConnectionInput struct {
 	Name string                      `json:"name"`
 
 	// Password Left out keeps the stored one
-	Password    *string `json:"password,omitempty"`
-	PathPrefix  *string `json:"path_prefix,omitempty"`
-	Port        int     `json:"port"`
-	Scheme      string  `json:"scheme"`
-	ServerName  *string `json:"server_name,omitempty"`
-	TargetSetId string  `json:"target_set_id"`
-	TlsVerify   bool    `json:"tls_verify"`
-	Username    *string `json:"username,omitempty"`
+	Password   *string `json:"password,omitempty"`
+	PathPrefix *string `json:"path_prefix,omitempty"`
+	Port       int     `json:"port"`
+
+	// SaveInactive Keep a connection that does not answer yet
+	SaveInactive *bool   `json:"save_inactive,omitempty"`
+	Scheme       string  `json:"scheme"`
+	ServerName   *string `json:"server_name,omitempty"`
+	TargetSetId  string  `json:"target_set_id"`
+	TlsVerify    bool    `json:"tls_verify"`
+	Username     *string `json:"username,omitempty"`
 }
 
 // AdGuardConnectionInputMode defines model for AdGuardConnectionInput.Mode.
@@ -1677,16 +1683,23 @@ type AddressSetMatch struct {
 // AgentDNSPreview defines model for AgentDNSPreview.
 type AgentDNSPreview struct {
 	Rewrites []struct {
-		Answer string `json:"answer"`
-		Domain string `json:"domain"`
+		Agent     string  `json:"agent"`
+		AgentId   string  `json:"agent_id"`
+		Answer    string  `json:"answer"`
+		Collision bool    `json:"collision"`
+		Domain    string  `json:"domain"`
+		Problem   *string `json:"problem,omitempty"`
+		Status    string  `json:"status"`
+		Wanted    bool    `json:"wanted"`
 	} `json:"rewrites"`
 }
 
 // AgentDNSSettings defines model for AgentDNSSettings.
 type AgentDNSSettings struct {
-	Domain  string                 `json:"domain"`
-	Enabled bool                   `json:"enabled"`
-	IpMode  AgentDNSSettingsIpMode `json:"ip_mode"`
+	Domain                string                 `json:"domain"`
+	Enabled               bool                   `json:"enabled"`
+	IpMode                AgentDNSSettingsIpMode `json:"ip_mode"`
+	RemoveStaleAfterHours *int                   `json:"remove_stale_after_hours,omitempty"`
 }
 
 // AgentDNSSettingsIpMode defines model for AgentDNSSettings.IpMode.
@@ -2519,6 +2532,22 @@ type IPSetResolved struct {
 // IPSetResolvedStatus defines model for IPSetResolved.Status.
 type IPSetResolvedStatus string
 
+// IPSetSources defines model for IPSetSources.
+type IPSetSources struct {
+	Sources []struct {
+		Addresses []string `json:"addresses"`
+		Agent     *struct {
+			Candidates []string   `json:"candidates"`
+			LastSeenAt *time.Time `json:"last_seen_at,omitempty"`
+			PublicIp   string     `json:"public_ip"`
+			Reachable  *bool      `json:"reachable,omitempty"`
+			SelectedIp string     `json:"selected_ip"`
+			Status     string     `json:"status"`
+		} `json:"agent,omitempty"`
+		Source string `json:"source"`
+	} `json:"sources"`
+}
+
 // Job defines model for Job.
 type Job struct {
 	Enabled         bool      `json:"enabled"`
@@ -2594,6 +2623,7 @@ type MonitorEndpoint struct {
 	LastLatencyMs   *int64               `json:"last_latency_ms,omitempty"`
 	Name            string               `json:"name"`
 	Paused          bool                 `json:"paused"`
+	PendingDns      *bool                `json:"pending_dns,omitempty"`
 	Public          bool                 `json:"public"`
 	RouteProviderId *string              `json:"route_provider_id,omitempty"`
 	SourceType      string               `json:"source_type"`
@@ -2815,11 +2845,14 @@ type PublicApps struct {
 
 // PublicEndpoint defines model for PublicEndpoint.
 type PublicEndpoint struct {
-	Group     string               `json:"group"`
-	Name      string               `json:"name"`
-	State     MonitorState         `json:"state"`
-	Strip     []MonitorStripSample `json:"strip"`
-	Uptime24h *float64             `json:"uptime_24h,omitempty"`
+	Group string `json:"group"`
+	Name  string `json:"name"`
+
+	// PendingDns Its address changed and DNS may still be catching up
+	PendingDns *bool                `json:"pending_dns,omitempty"`
+	State      MonitorState         `json:"state"`
+	Strip      []MonitorStripSample `json:"strip"`
+	Uptime24h  *float64             `json:"uptime_24h,omitempty"`
 }
 
 // PublicStatus defines model for PublicStatus.
@@ -2893,6 +2926,12 @@ type PulseAgentUpdate struct {
 	TrustReportedIp bool `json:"trust_reported_ip"`
 }
 
+// PulseConsumers defines model for PulseConsumers.
+type PulseConsumers struct {
+	Consumers []string `json:"consumers"`
+	Sets      []string `json:"sets"`
+}
+
 // PulseHeartbeat defines model for PulseHeartbeat.
 type PulseHeartbeat struct {
 	Candidates []struct {
@@ -2900,17 +2939,39 @@ type PulseHeartbeat struct {
 		Interface string `json:"interface"`
 	} `json:"candidates"`
 	Hostname        string `json:"hostname"`
+	InDocker        *bool  `json:"in_docker,omitempty"`
 	IntervalSeconds *int   `json:"interval_seconds,omitempty"`
 
 	// ReportedPublicIp Sent only after Hashi asked; used only for an agent the admin trusts for it
 	ReportedPublicIp  *string `json:"reported_public_ip,omitempty"`
 	SelectedInterface *string `json:"selected_interface,omitempty"`
-	Version           string  `json:"version"`
+
+	// SentAt The agent's clock, for reading logs
+	SentAt  *time.Time `json:"sent_at,omitempty"`
+	Version string     `json:"version"`
 }
 
 // PulseHeartbeatReply defines model for PulseHeartbeatReply.
 type PulseHeartbeatReply struct {
 	CheckPublicIp bool `json:"check_public_ip"`
+
+	// IntervalSeconds Default interval; an agent with its own keeps it
+	IntervalSeconds int `json:"interval_seconds"`
+}
+
+// PulseInstall defines model for PulseInstall.
+type PulseInstall struct {
+	// Compose Compose snippet; <token> stands for the token
+	Compose string `json:"compose"`
+
+	// Linux One-line install; <token> stands for the token, shown once
+	Linux string `json:"linux"`
+}
+
+// PulseSettings defines model for PulseSettings.
+type PulseSettings struct {
+	HeartbeatIntervalSeconds int `json:"heartbeat_interval_seconds"`
+	StaleFactor              int `json:"stale_factor"`
 }
 
 // RecoverLogin defines model for RecoverLogin.
@@ -2942,6 +3003,9 @@ type RevokedCount struct {
 
 // SSHTarget defines model for SSHTarget.
 type SSHTarget struct {
+	// SaveInactive Keep a set that does not answer yet
+	SaveInactive *bool `json:"save_inactive,omitempty"`
+
 	// SetId Address set; empty for the literal address
 	SetId string `json:"set_id"`
 }
@@ -3609,6 +3673,9 @@ type PutGeneralSettingsJSONRequestBody = GeneralSettings
 // PutAgentDNSSettingsJSONRequestBody defines body for PutAgentDNSSettings for application/json ContentType.
 type PutAgentDNSSettingsJSONRequestBody = AgentDNSSettings
 
+// PutPulseSettingsJSONRequestBody defines body for PutPulseSettings for application/json ContentType.
+type PutPulseSettingsJSONRequestBody = PulseSettings
+
 // PutSecuritySettingsJSONRequestBody defines body for PutSecuritySettings for application/json ContentType.
 type PutSecuritySettingsJSONRequestBody = SecuritySettings
 
@@ -4126,6 +4193,9 @@ type ServerInterface interface {
 	// GetIPSetResolved The set compiled now (prefixes merged per family, single addresses for target positions, problems)
 	// (GET /api/ip-sets/{id}/resolved)
 	GetIPSetResolved(w http.ResponseWriter, r *http.Request, id string, params GetIPSetResolvedParams)
+	// GetIPSetSources Each address the set resolves to and where it comes from (08 §5)
+	// (GET /api/ip-sets/{id}/sources)
+	GetIPSetSources(w http.ResponseWriter, r *http.Request, id string)
 	// ListMonitorEndpoints Every endpoint with its 60-minute strip and 24-hour uptime
 	// (GET /api/monitor/endpoints)
 	ListMonitorEndpoints(w http.ResponseWriter, r *http.Request)
@@ -4186,6 +4256,12 @@ type ServerInterface interface {
 	// UpdatePulseAgent Change an agent's name and internal DNS entry
 	// (PUT /api/pulse/agents/{id})
 	UpdatePulseAgent(w http.ResponseWriter, r *http.Request, id string)
+	// GetPulseConsumers The IP sets holding the agent and what uses them
+	// (GET /api/pulse/agents/{id}/consumers)
+	GetPulseConsumers(w http.ResponseWriter, r *http.Request, id string)
+	// GetPulseInstall The install command and Compose snippet; the token is a placeholder
+	// (GET /api/pulse/agents/{id}/install)
+	GetPulseInstall(w http.ResponseWriter, r *http.Request, id string)
 	// RevokePulseAgent Stop the token; the agent resolves to nothing
 	// (POST /api/pulse/agents/{id}/revoke)
 	RevokePulseAgent(w http.ResponseWriter, r *http.Request, id string)
@@ -4249,6 +4325,12 @@ type ServerInterface interface {
 	// PreviewAgentDNS The rewrites agent DNS wants right now; changes nothing
 	// (POST /api/settings/internal-agent-dns/preview-sync)
 	PreviewAgentDNS(w http.ResponseWriter, r *http.Request)
+
+	// (GET /api/settings/pulse)
+	GetPulseSettings(w http.ResponseWriter, r *http.Request)
+
+	// (PUT /api/settings/pulse)
+	PutPulseSettings(w http.ResponseWriter, r *http.Request)
 
 	// (GET /api/settings/security)
 	GetSecuritySettings(w http.ResponseWriter, r *http.Request)
@@ -4318,6 +4400,9 @@ type ServerInterface interface {
 	// StartSetupHTTPS Step 8 — a one-time link (5 minutes) that opens setup on https://<admin domain>
 	// (POST /api/setup/https/start)
 	StartSetupHTTPS(w http.ResponseWriter, r *http.Request)
+	// ContinueSetupIntegrations Step 10 — optional integrations can all wait until after setup
+	// (POST /api/setup/integrations/continue)
+	ContinueSetupIntegrations(w http.ResponseWriter, r *http.Request)
 	// SetupPasskeyOptions Step 9 — start registering the first passkey
 	// (POST /api/setup/passkey/options)
 	SetupPasskeyOptions(w http.ResponseWriter, r *http.Request)
@@ -6080,6 +6165,32 @@ func (siw *ServerInterfaceWrapper) GetIPSetResolved(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// GetIPSetSources operation middleware
+func (siw *ServerInterfaceWrapper) GetIPSetSources(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetIPSetSources(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListMonitorEndpoints operation middleware
 func (siw *ServerInterfaceWrapper) ListMonitorEndpoints(w http.ResponseWriter, r *http.Request) {
 
@@ -6463,6 +6574,58 @@ func (siw *ServerInterfaceWrapper) UpdatePulseAgent(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdatePulseAgent(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetPulseConsumers operation middleware
+func (siw *ServerInterfaceWrapper) GetPulseConsumers(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPulseConsumers(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetPulseInstall operation middleware
+func (siw *ServerInterfaceWrapper) GetPulseInstall(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPulseInstall(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6914,6 +7077,34 @@ func (siw *ServerInterfaceWrapper) PreviewAgentDNS(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// GetPulseSettings operation middleware
+func (siw *ServerInterfaceWrapper) GetPulseSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPulseSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutPulseSettings operation middleware
+func (siw *ServerInterfaceWrapper) PutPulseSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutPulseSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetSecuritySettings operation middleware
 func (siw *ServerInterfaceWrapper) GetSecuritySettings(w http.ResponseWriter, r *http.Request) {
 
@@ -7251,6 +7442,20 @@ func (siw *ServerInterfaceWrapper) StartSetupHTTPS(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.StartSetupHTTPS(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ContinueSetupIntegrations operation middleware
+func (siw *ServerInterfaceWrapper) ContinueSetupIntegrations(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ContinueSetupIntegrations(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -7935,6 +8140,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/passkey/verify", wrapper.SetupPasskeyVerify)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/recovery-key", wrapper.SetupRecoveryKey)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/recovery-key/confirm", wrapper.ConfirmRecoveryKey)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/integrations/continue", wrapper.ContinueSetupIntegrations)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/complete", wrapper.CompleteSetup)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/monitor/endpoints", wrapper.ListMonitorEndpoints)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/monitor/endpoints", wrapper.CreateMonitorEndpoint)
@@ -7969,6 +8175,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/pulse/agents/{id}/revoke", wrapper.RevokePulseAgent)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/firewall/hosts/{id}/ssh-target", wrapper.PutFirewallHostSSHTarget)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/traefik/connections/{id}/ssh-target", wrapper.PutTraefikSSHTarget)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings/pulse", wrapper.GetPulseSettings)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/settings/pulse", wrapper.PutPulseSettings)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/pulse/agents/{id}/consumers", wrapper.GetPulseConsumers)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/pulse/agents/{id}/install", wrapper.GetPulseInstall)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/settings/internal-agent-dns/preview-sync", wrapper.PreviewAgentDNS)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/settings/internal-agent-dns/apply-sync", wrapper.ApplyAgentDNS)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings/internal-agent-dns", wrapper.GetAgentDNSSettings)
@@ -8030,6 +8240,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/ip-sets/{id}/elements/{elementId}", wrapper.DeleteIPSetElement)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/ip-sets/{id}/elements/{elementId}", wrapper.UpdateIPSetElement)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/ip-sets/{id}/resolved", wrapper.GetIPSetResolved)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/ip-sets/{id}/sources", wrapper.GetIPSetSources)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/ip-sets/{id}/consumers", wrapper.GetIPSetConsumers)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/addresses/{address}", wrapper.LookupAddress)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/certificates", wrapper.ListCertificates)
@@ -10874,6 +11085,45 @@ func (response GetIPSetResolveddefaultApplicationProblemPlusJSONResponse) VisitG
 	return err
 }
 
+type GetIPSetSourcesRequestObject struct {
+	Id string `json:"id"`
+}
+
+type GetIPSetSourcesResponseObject interface {
+	VisitGetIPSetSourcesResponse(w http.ResponseWriter) error
+}
+
+type GetIPSetSources200JSONResponse IPSetSources
+
+func (response GetIPSetSources200JSONResponse) VisitGetIPSetSourcesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetIPSetSourcesdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetIPSetSourcesdefaultApplicationProblemPlusJSONResponse) VisitGetIPSetSourcesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListMonitorEndpointsRequestObject struct {
 }
 
@@ -11610,6 +11860,84 @@ type UpdatePulseAgentdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response UpdatePulseAgentdefaultApplicationProblemPlusJSONResponse) VisitUpdatePulseAgentResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPulseConsumersRequestObject struct {
+	Id string `json:"id"`
+}
+
+type GetPulseConsumersResponseObject interface {
+	VisitGetPulseConsumersResponse(w http.ResponseWriter) error
+}
+
+type GetPulseConsumers200JSONResponse PulseConsumers
+
+func (response GetPulseConsumers200JSONResponse) VisitGetPulseConsumersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPulseConsumersdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetPulseConsumersdefaultApplicationProblemPlusJSONResponse) VisitGetPulseConsumersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPulseInstallRequestObject struct {
+	Id string `json:"id"`
+}
+
+type GetPulseInstallResponseObject interface {
+	VisitGetPulseInstallResponse(w http.ResponseWriter) error
+}
+
+type GetPulseInstall200JSONResponse PulseInstall
+
+func (response GetPulseInstall200JSONResponse) VisitGetPulseInstallResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPulseInstalldefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetPulseInstalldefaultApplicationProblemPlusJSONResponse) VisitGetPulseInstallResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -12414,6 +12742,83 @@ type PreviewAgentDNSdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response PreviewAgentDNSdefaultApplicationProblemPlusJSONResponse) VisitPreviewAgentDNSResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPulseSettingsRequestObject struct {
+}
+
+type GetPulseSettingsResponseObject interface {
+	VisitGetPulseSettingsResponse(w http.ResponseWriter) error
+}
+
+type GetPulseSettings200JSONResponse PulseSettings
+
+func (response GetPulseSettings200JSONResponse) VisitGetPulseSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPulseSettingsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetPulseSettingsdefaultApplicationProblemPlusJSONResponse) VisitGetPulseSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutPulseSettingsRequestObject struct {
+	Body *PutPulseSettingsJSONRequestBody
+}
+
+type PutPulseSettingsResponseObject interface {
+	VisitPutPulseSettingsResponse(w http.ResponseWriter) error
+}
+
+type PutPulseSettings200JSONResponse PulseSettings
+
+func (response PutPulseSettings200JSONResponse) VisitPutPulseSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutPulseSettingsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutPulseSettingsdefaultApplicationProblemPlusJSONResponse) VisitPutPulseSettingsResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -13305,6 +13710,44 @@ type StartSetupHTTPSdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response StartSetupHTTPSdefaultApplicationProblemPlusJSONResponse) VisitStartSetupHTTPSResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ContinueSetupIntegrationsRequestObject struct {
+}
+
+type ContinueSetupIntegrationsResponseObject interface {
+	VisitContinueSetupIntegrationsResponse(w http.ResponseWriter) error
+}
+
+type ContinueSetupIntegrations200JSONResponse SetupState
+
+func (response ContinueSetupIntegrations200JSONResponse) VisitContinueSetupIntegrationsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ContinueSetupIntegrationsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ContinueSetupIntegrationsdefaultApplicationProblemPlusJSONResponse) VisitContinueSetupIntegrationsResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -14573,6 +15016,9 @@ type StrictServerInterface interface {
 	// GetIPSetResolved The set compiled now (prefixes merged per family, single addresses for target positions, problems)
 	// (GET /api/ip-sets/{id}/resolved)
 	GetIPSetResolved(ctx context.Context, request GetIPSetResolvedRequestObject) (GetIPSetResolvedResponseObject, error)
+	// GetIPSetSources Each address the set resolves to and where it comes from (08 §5)
+	// (GET /api/ip-sets/{id}/sources)
+	GetIPSetSources(ctx context.Context, request GetIPSetSourcesRequestObject) (GetIPSetSourcesResponseObject, error)
 	// ListMonitorEndpoints Every endpoint with its 60-minute strip and 24-hour uptime
 	// (GET /api/monitor/endpoints)
 	ListMonitorEndpoints(ctx context.Context, request ListMonitorEndpointsRequestObject) (ListMonitorEndpointsResponseObject, error)
@@ -14633,6 +15079,12 @@ type StrictServerInterface interface {
 	// UpdatePulseAgent Change an agent's name and internal DNS entry
 	// (PUT /api/pulse/agents/{id})
 	UpdatePulseAgent(ctx context.Context, request UpdatePulseAgentRequestObject) (UpdatePulseAgentResponseObject, error)
+	// GetPulseConsumers The IP sets holding the agent and what uses them
+	// (GET /api/pulse/agents/{id}/consumers)
+	GetPulseConsumers(ctx context.Context, request GetPulseConsumersRequestObject) (GetPulseConsumersResponseObject, error)
+	// GetPulseInstall The install command and Compose snippet; the token is a placeholder
+	// (GET /api/pulse/agents/{id}/install)
+	GetPulseInstall(ctx context.Context, request GetPulseInstallRequestObject) (GetPulseInstallResponseObject, error)
 	// RevokePulseAgent Stop the token; the agent resolves to nothing
 	// (POST /api/pulse/agents/{id}/revoke)
 	RevokePulseAgent(ctx context.Context, request RevokePulseAgentRequestObject) (RevokePulseAgentResponseObject, error)
@@ -14696,6 +15148,12 @@ type StrictServerInterface interface {
 	// PreviewAgentDNS The rewrites agent DNS wants right now; changes nothing
 	// (POST /api/settings/internal-agent-dns/preview-sync)
 	PreviewAgentDNS(ctx context.Context, request PreviewAgentDNSRequestObject) (PreviewAgentDNSResponseObject, error)
+
+	// (GET /api/settings/pulse)
+	GetPulseSettings(ctx context.Context, request GetPulseSettingsRequestObject) (GetPulseSettingsResponseObject, error)
+
+	// (PUT /api/settings/pulse)
+	PutPulseSettings(ctx context.Context, request PutPulseSettingsRequestObject) (PutPulseSettingsResponseObject, error)
 
 	// (GET /api/settings/security)
 	GetSecuritySettings(ctx context.Context, request GetSecuritySettingsRequestObject) (GetSecuritySettingsResponseObject, error)
@@ -14765,6 +15223,9 @@ type StrictServerInterface interface {
 	// StartSetupHTTPS Step 8 — a one-time link (5 minutes) that opens setup on https://<admin domain>
 	// (POST /api/setup/https/start)
 	StartSetupHTTPS(ctx context.Context, request StartSetupHTTPSRequestObject) (StartSetupHTTPSResponseObject, error)
+	// ContinueSetupIntegrations Step 10 — optional integrations can all wait until after setup
+	// (POST /api/setup/integrations/continue)
+	ContinueSetupIntegrations(ctx context.Context, request ContinueSetupIntegrationsRequestObject) (ContinueSetupIntegrationsResponseObject, error)
 	// SetupPasskeyOptions Step 9 — start registering the first passkey
 	// (POST /api/setup/passkey/options)
 	SetupPasskeyOptions(ctx context.Context, request SetupPasskeyOptionsRequestObject) (SetupPasskeyOptionsResponseObject, error)
@@ -16916,6 +17377,32 @@ func (sh *strictHandler) GetIPSetResolved(w http.ResponseWriter, r *http.Request
 	}
 }
 
+// GetIPSetSources operation middleware
+func (sh *strictHandler) GetIPSetSources(w http.ResponseWriter, r *http.Request, id string) {
+	var request GetIPSetSourcesRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetIPSetSources(ctx, request.(GetIPSetSourcesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetIPSetSources")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetIPSetSourcesResponseObject); ok {
+		if err := validResponse.VisitGetIPSetSourcesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ListMonitorEndpoints operation middleware
 func (sh *strictHandler) ListMonitorEndpoints(w http.ResponseWriter, r *http.Request) {
 	var request ListMonitorEndpointsRequestObject
@@ -17462,6 +17949,58 @@ func (sh *strictHandler) UpdatePulseAgent(w http.ResponseWriter, r *http.Request
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(UpdatePulseAgentResponseObject); ok {
 		if err := validResponse.VisitUpdatePulseAgentResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetPulseConsumers operation middleware
+func (sh *strictHandler) GetPulseConsumers(w http.ResponseWriter, r *http.Request, id string) {
+	var request GetPulseConsumersRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetPulseConsumers(ctx, request.(GetPulseConsumersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetPulseConsumers")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetPulseConsumersResponseObject); ok {
+		if err := validResponse.VisitGetPulseConsumersResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetPulseInstall operation middleware
+func (sh *strictHandler) GetPulseInstall(w http.ResponseWriter, r *http.Request, id string) {
+	var request GetPulseInstallRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetPulseInstall(ctx, request.(GetPulseInstallRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetPulseInstall")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetPulseInstallResponseObject); ok {
+		if err := validResponse.VisitGetPulseInstallResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -18036,6 +18575,61 @@ func (sh *strictHandler) PreviewAgentDNS(w http.ResponseWriter, r *http.Request)
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(PreviewAgentDNSResponseObject); ok {
 		if err := validResponse.VisitPreviewAgentDNSResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetPulseSettings operation middleware
+func (sh *strictHandler) GetPulseSettings(w http.ResponseWriter, r *http.Request) {
+	var request GetPulseSettingsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetPulseSettings(ctx, request.(GetPulseSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetPulseSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetPulseSettingsResponseObject); ok {
+		if err := validResponse.VisitGetPulseSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutPulseSettings operation middleware
+func (sh *strictHandler) PutPulseSettings(w http.ResponseWriter, r *http.Request) {
+	var request PutPulseSettingsRequestObject
+
+	var body PutPulseSettingsJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutPulseSettings(ctx, request.(PutPulseSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutPulseSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutPulseSettingsResponseObject); ok {
+		if err := validResponse.VisitPutPulseSettingsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -18669,6 +19263,30 @@ func (sh *strictHandler) StartSetupHTTPS(w http.ResponseWriter, r *http.Request)
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(StartSetupHTTPSResponseObject); ok {
 		if err := validResponse.VisitStartSetupHTTPSResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ContinueSetupIntegrations operation middleware
+func (sh *strictHandler) ContinueSetupIntegrations(w http.ResponseWriter, r *http.Request) {
+	var request ContinueSetupIntegrationsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ContinueSetupIntegrations(ctx, request.(ContinueSetupIntegrationsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ContinueSetupIntegrations")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ContinueSetupIntegrationsResponseObject); ok {
+		if err := validResponse.VisitContinueSetupIntegrationsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

@@ -31,7 +31,7 @@
 			busy = false;
 		}
 	}
-	let preview = $state<{ domain: string; answer: string }[] | null>(null);
+	let preview = $state<Schemas['AgentDNSPreview']['rewrites'] | null>(null);
 	async function showPreview() {
 		error = '';
 		const r = await api.POST('/api/settings/internal-agent-dns/preview-sync');
@@ -47,7 +47,11 @@
 		else
 			notice = 'Planned. Active AdGuard connections are up to date; removals wait under Changes.';
 	}
-	const modes = { selected: "The agent's selected internal address", public: 'Its public address' };
+	const modes = {
+		selected: "The agent's selected address",
+		private: 'Its first private address',
+		public: 'Its public address'
+	};
 </script>
 
 {#if v}
@@ -75,10 +79,20 @@
 						<Select.Trigger id="ad-mode" class="w-full">{modes[v.ip_mode]}</Select.Trigger>
 						<Select.Content>
 							<Select.Item value="selected">{modes.selected}</Select.Item>
+							<Select.Item value="private">{modes.private}</Select.Item>
 							<Select.Item value="public">{modes.public}</Select.Item>
 						</Select.Content>
 					</Select.Root>
 				</div>
+			</div>
+			<div class="space-y-1.5">
+				<Label for="ad-stale">Remove a stale agent's name after (hours)</Label><Input
+					id="ad-stale"
+					type="number"
+					min="0"
+					bind:value={v.remove_stale_after_hours}
+				/>
+				<p class="text-[12px] text-muted-foreground">0 keeps the last name and marks it stale.</p>
 			</div>
 			<div class="flex items-center justify-end gap-3">
 				{#if notice}<span role="status" class="text-ok-text">{notice}</span>{/if}
@@ -89,11 +103,13 @@
 				<Button size="sm" onclick={save} disabled={busy}>Save</Button>
 			</div>
 			{#if preview}
-				{#if preview.length === 0}<p class="text-muted-foreground">No names right now.</p>{/if}
+				{#if preview.length === 0}<p class="text-muted-foreground">No agents yet.</p>{/if}
 				<ul class="space-y-1">
-					{#each preview as p (p.domain)}
+					{#each preview as p (p.agent_id)}
 						<li class="flex justify-between gap-3">
-							<span>{p.domain}</span><span class="text-muted-foreground">{p.answer}</span>
+							<span>{p.domain || p.agent}</span><span class="text-muted-foreground"
+								>{p.wanted ? p.answer : p.problem || 'off'}</span
+							>
 						</li>
 					{/each}
 				</ul>

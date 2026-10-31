@@ -732,6 +732,17 @@ paths:
           description: Confirmed
           content: { application/json: { schema: { $ref: "#/components/schemas/SetupState" } } }
         default: { $ref: "#/components/responses/Problem" }
+  /api/setup/integrations/continue:
+    post:
+      operationId: continueSetupIntegrations
+      summary: Step 10 — optional integrations can all wait until after setup
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      responses:
+        "200":
+          description: Setup state
+          content: { application/json: { schema: { $ref: "#/components/schemas/SetupState" } } }
+        default: { $ref: "#/components/responses/Problem" }
   /api/setup/complete:
     post:
       operationId: completeSetup
@@ -1163,6 +1174,54 @@ paths:
         content: { application/json: { schema: { $ref: "#/components/schemas/SSHTarget" } } }
       responses:
         "204": { description: Saved }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/settings/pulse:
+    get:
+      operationId: getPulseSettings
+      tags: [settings]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Pulse settings
+          content: { application/json: { schema: { $ref: "#/components/schemas/PulseSettings" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      operationId: putPulseSettings
+      tags: [settings]
+      x-hashi-scopes: [settings.manage]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/PulseSettings" } } }
+      responses:
+        "200":
+          description: Saved
+          content: { application/json: { schema: { $ref: "#/components/schemas/PulseSettings" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/pulse/agents/{id}/consumers:
+    get:
+      operationId: getPulseConsumers
+      summary: The IP sets holding the agent and what uses them
+      tags: [pulse]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Consumers
+          content: { application/json: { schema: { $ref: "#/components/schemas/PulseConsumers" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/pulse/agents/{id}/install:
+    get:
+      operationId: getPulseInstall
+      summary: The install command and Compose snippet; the token is a placeholder
+      tags: [pulse]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Install
+          content: { application/json: { schema: { $ref: "#/components/schemas/PulseInstall" } } }
         default: { $ref: "#/components/responses/Problem" }
   /api/settings/internal-agent-dns/preview-sync:
     post:
@@ -1977,6 +2036,19 @@ paths:
           description: The compiled set (prefixes paginated)
           content: { application/json: { schema: { $ref: "#/components/schemas/IPSetResolved" } } }
         default: { $ref: "#/components/responses/Problem" }
+  /api/ip-sets/{id}/sources:
+    get:
+      operationId: getIPSetSources
+      summary: Each address the set resolves to and where it comes from (08 §5)
+      tags: [ip-sets]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Sources
+          content: { application/json: { schema: { $ref: "#/components/schemas/IPSetSources" } } }
+        default: { $ref: "#/components/responses/Problem" }
   /api/ip-sets/{id}/consumers:
     get:
       operationId: getIPSetConsumers
@@ -2204,6 +2276,7 @@ components:
       type: object
       required: [id, name, group, source_type, state, paused, public, interval_seconds, timeout_seconds, degraded_ms, checks, strip]
       properties:
+        pending_dns: { type: boolean }
         id: { type: string }
         name: { type: string }
         group: { type: string }
@@ -2363,6 +2436,7 @@ components:
         username: { type: string }
         password: { type: string, format: password, description: "Left out keeps the stored one" }
         mode: { type: string, enum: [active, read_only, disabled] }
+        save_inactive: { type: boolean, description: "Keep a connection that does not answer yet" }
     AdGuardRewrites:
       type: object
       required: [rewrites, planned]
@@ -2396,6 +2470,8 @@ components:
         hostname: { type: string }
         selected_interface: { type: string }
         interval_seconds: { type: integer }
+        sent_at: { type: string, format: date-time, description: "The agent's clock, for reading logs" }
+        in_docker: { type: boolean }
         reported_public_ip: { type: string, description: "Sent only after Hashi asked; used only for an agent the admin trusts for it" }
         candidates:
           type: array
@@ -2407,9 +2483,10 @@ components:
               address: { type: string }
     PulseHeartbeatReply:
       type: object
-      required: [check_public_ip]
+      required: [check_public_ip, interval_seconds]
       properties:
         check_public_ip: { type: boolean }
+        interval_seconds: { type: integer, description: "Default interval; an agent with its own keeps it" }
     PulseAgent:
       type: object
       required: [id, name, status, install_type, public_ip, selected_ip, candidates, hostname, version, interval_seconds, dns_enabled, dns_name, trust_reported_ip, public_ip_source, reach_port]
@@ -2458,11 +2535,34 @@ components:
       properties:
         agent: { $ref: "#/components/schemas/PulseAgent" }
         token: { type: string, format: password }
+    IPSetSources:
+      type: object
+      required: [sources]
+      properties:
+        sources:
+          type: array
+          items:
+            type: object
+            required: [source, addresses]
+            properties:
+              source: { type: string }
+              addresses: { type: array, items: { type: string } }
+              agent:
+                type: object
+                required: [status, public_ip, selected_ip, candidates]
+                properties:
+                  status: { type: string }
+                  public_ip: { type: string }
+                  selected_ip: { type: string }
+                  candidates: { type: array, items: { type: string } }
+                  last_seen_at: { type: string, format: date-time }
+                  reachable: { type: boolean }
     SSHTarget:
       type: object
       required: [set_id]
       properties:
         set_id: { type: string, description: "Address set; empty for the literal address" }
+        save_inactive: { type: boolean, description: "Keep a set that does not answer yet" }
     AgentDNSPreview:
       type: object
       required: [rewrites]
@@ -2471,17 +2571,42 @@ components:
           type: array
           items:
             type: object
-            required: [domain, answer]
+            required: [agent_id, agent, domain, answer, status, collision, wanted]
             properties:
+              agent_id: { type: string }
+              agent: { type: string }
               domain: { type: string }
               answer: { type: string }
+              status: { type: string }
+              collision: { type: boolean }
+              wanted: { type: boolean }
+              problem: { type: string }
+    PulseSettings:
+      type: object
+      required: [heartbeat_interval_seconds, stale_factor]
+      properties:
+        heartbeat_interval_seconds: { type: integer }
+        stale_factor: { type: integer }
+    PulseConsumers:
+      type: object
+      required: [sets, consumers]
+      properties:
+        sets: { type: array, items: { type: string } }
+        consumers: { type: array, items: { type: string } }
+    PulseInstall:
+      type: object
+      required: [linux, compose]
+      properties:
+        linux: { type: string, description: "One-line install; <token> stands for the token, shown once" }
+        compose: { type: string, description: "Compose snippet; <token> stands for the token" }
     AgentDNSSettings:
       type: object
       required: [enabled, domain, ip_mode]
       properties:
         enabled: { type: boolean }
         domain: { type: string }
-        ip_mode: { type: string, enum: [selected, public] }
+        ip_mode: { type: string, enum: [selected, private, public] }
+        remove_stale_after_hours: { type: integer }
     TelegramDiscover:
       type: object
       required: [bot_token]
@@ -2531,6 +2656,7 @@ components:
       additionalProperties: false
       required: [name, group, state, strip]
       properties:
+        pending_dns: { type: boolean, description: "Its address changed and DNS may still be catching up" }
         name: { type: string }
         group: { type: string }
         state: { $ref: "#/components/schemas/MonitorState" }

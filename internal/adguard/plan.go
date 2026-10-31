@@ -42,6 +42,11 @@ type key struct{ domain, answer string }
 // Diff compares what Hashi wants with what it owns and what the instance holds. Only owned rewrites and their
 // duplicates are ever changed. A rewrite of someone else's on a wanted name is a conflict: shown, never applied (invariant: owned objects only).
 func Diff(desired []Desired, owned []db.AdguardRewritesOwned, remote []Rewrite) []hsync.Item {
+	return diff(desired, owned, remote, func(string) bool { return false })
+}
+
+// diff is Diff; gone reports an origin whose owner was explicitly deleted, whose rewrite needs no second approval (03 §9).
+func diff(desired []Desired, owned []db.AdguardRewritesOwned, remote []Rewrite, gone func(origin string) bool) []hsync.Item {
 	count := map[key]int{}
 	answers := map[string][]string{}
 	for _, r := range remote {
@@ -79,6 +84,9 @@ func Diff(desired []Desired, owned []db.AdguardRewritesOwned, remote []Rewrite) 
 				items = append(items, hsync.Item{Action: hsync.ActionCreate, Object: d.Domain, After: after, Risk: hsync.Low, Note: "was removed from AdGuard"})
 			}
 			items = append(items, duplicates(o)...)
+			if d.Origin != o.Origin && count[k] > 0 {
+				items = append(items, hsync.Item{Action: hsync.ActionLabel, Object: d.Domain, After: after, Risk: hsync.Low, Note: "same rewrite, new owner"})
+			}
 			continue
 		}
 		var stale *db.AdguardRewritesOwned
@@ -114,6 +122,8 @@ func Diff(desired []Desired, owned []db.AdguardRewritesOwned, remote []Rewrite) 
 		it := hsync.Item{Action: hsync.ActionDelete, Object: o.Domain, Risk: hsync.High, Before: value(itemValue{Domain: o.Domain, Answer: o.Answer})}
 		if count[k] == 0 {
 			it.Risk, it.Note = hsync.Low, "already gone from AdGuard"
+		} else if gone(o.Origin) {
+			it.Risk, it.Note = hsync.Low, "its agent was deleted"
 		}
 		items = append(items, duplicates(o)...) // a delete removes one copy: the extras go first, then ownership
 		items = append(items, it)
@@ -148,7 +158,24 @@ func (x sub) Plan(ctx context.Context, id string) (hsync.Draft, error) {
 	if err != nil {
 		return hsync.Draft{}, err
 	}
-	return hsync.Draft{Title: "AdGuard rewrites on " + row.Name, Items: items}, nil
+	return hsync.Draft{Title: "AdGuard rewrites on " + row.Name, Items: lowFirst(items)}, nil
+}
+
+// lowFirst plans low-risk changes alone while there are any, so a removal waiting for approval never holds back an address
+// update: the removal is planned once nothing else is left to do.
+func lowFirst(items []hsync.Item) []hsync.Item {
+	var low []hsync.Item
+	work := false
+	for _, it := range items {
+		if it.Risk == hsync.Low {
+			low = append(low, it)
+			work = work || it.Action != hsync.ActionConflict
+		}
+	}
+	if work {
+		return low
+	}
+	return items
 }
 
 func (s *Service) items(ctx context.Context, row db.AdguardConnection) ([]hsync.Item, error) {
@@ -168,7 +195,7 @@ func (s *Service) items(ctx context.Context, row db.AdguardConnection) ([]hsync.
 	if err != nil {
 		return nil, err
 	}
-	return Diff(desired, owned, remote), nil
+	return diff(desired, owned, remote, s.gone(ctx)), nil
 }
 
 // Apply does exactly the approved items, one at a time, recording ownership as each lands, then reads the list back:
@@ -222,6 +249,10 @@ func (x sub) Apply(ctx context.Context, id string, items []hsync.Item) (string, 
 			}
 		}
 		switch it.Action {
+		case hsync.ActionLabel: // ownership only: nothing changes on the instance
+			if err := put(a); err != nil {
+				return "", err
+			}
 		case hsync.ActionCreate:
 			if err := c.Add(ctx, Rewrite{Domain: a.Domain, Answer: a.Answer}); err != nil {
 				return "", err

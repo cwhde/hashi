@@ -119,7 +119,11 @@ CREATE INDEX monitor_events_endpoint ON monitor_events (endpoint_id, at);
 CREATE INDEX notification_deliveries_due ON notification_deliveries (status, next_attempt_at);
 CREATE INDEX notification_deliveries_endpoint ON notification_deliveries (endpoint_id, created_at);
 
+-- An address changed and DNS may not have caught up; cleared by the next successful check (08 §4 step 6).
+ALTER TABLE monitor_endpoints ADD COLUMN pending_dns INTEGER NOT NULL DEFAULT 0 CHECK (pending_dns IN (0, 1));
+
 -- +goose Down
+ALTER TABLE monitor_endpoints DROP COLUMN pending_dns;
 DELETE FROM monitor_endpoints WHERE source_type IN ('adguard', 'pulse');
 CREATE TABLE monitor_endpoints_v17d (
     id               TEXT PRIMARY KEY,

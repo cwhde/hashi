@@ -41,6 +41,10 @@ jobs:
             type=sha,prefix=,format=short
             type=semver,pattern={{version}}
 
+      - name: A version tag must be the release Hashi installs from
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: grep -q 'ReleaseTag = "${{ github.ref_name }}"' internal/pulse/release.go
+
       - name: Refuse the V1 tag
         run: |
           if grep -qE ':old$' <<<"${{ steps.meta.outputs.tags }}"; then echo "refusing to push :old (V1 production tag)"; exit 1; fi
@@ -63,26 +67,39 @@ jobs:
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-v3
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-v3,mode=max,ignore-error=true
 
-      # The agent image (08 §6).
+      # The agent image (08 §6), tagged exactly like the main one.
+      - uses: docker/metadata-action@v5
+        id: pulsemeta
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/hashi-pulse
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=,format=short
+            type=semver,pattern={{version}}
+
       - uses: docker/build-push-action@v6
         with:
           context: .
           file: deploy/docker/Pulse.Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ github.ref_type == 'tag' && format('{0}/juzo/hashi-pulse:{1}', env.REGISTRY, github.ref_name) || format('{0}/juzo/hashi-pulse:{1},{0}/juzo/hashi-pulse:latest', env.REGISTRY, steps.sha.outputs.short) }}
+          tags: ${{ steps.pulsemeta.outputs.tags }}
+          labels: ${{ steps.pulsemeta.outputs.labels }}
           build-args: |
             VERSION=${{ github.ref_type == 'tag' && github.ref_name || steps.sha.outputs.short }}
 
   # On a tag: Pulse binaries with checksums on a Gitea release (08 §6). 
   pulse-release:
     if: startsWith(github.ref, 'refs/tags/v')
+    needs: image
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      - name: The tag must be the release Hashi installs from
+        run: grep -q 'ReleaseTag = "${{ github.ref_name }}"' internal/pulse/release.go
       - name: Build
         run: make pulse-dist VERSION=${{ github.ref_name }}
       - name: Publish

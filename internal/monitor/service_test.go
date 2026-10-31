@@ -194,7 +194,7 @@ func TestAdGuardAndPulseSources(t *testing.T) {
 	}
 	beat := func(at time.Time) {
 		t.Helper()
-		if err := st.Q.SetPulseHeartbeat(ctx, db.SetPulseHeartbeatParams{LastSeenAt: sql.NullInt64{Int64: at.UnixMilli(), Valid: true}, CandidatesJson: "[]", IntervalSeconds: 60, UpdatedAt: now, ID: "seen"}); err != nil {
+		if err := st.Q.SetPulseHeartbeat(ctx, db.SetPulseHeartbeatParams{LastSeenAt: sql.NullInt64{Int64: at.UnixMilli(), Valid: true}, CandidatesJson: "[]", IntervalSeconds: 60, InstallType: "linux", UpdatedAt: now, ID: "seen"}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -220,4 +220,89 @@ func TestAdGuardAndPulseSources(t *testing.T) {
 	if r := s.exec.Run(ctx, check, time.Second); r.OK {
 		t.Fatal("a silent agent must fail its check")
 	}
+}
+
+// 08 §4 step 6: the mark stays through a failed round, while the state is still up, and goes with the next passing one.
+func TestPendingDNSClearsOnlyOnAPassingCheck(t *testing.T) {
+	s, st, _, down := fixture(t)
+	ctx := t.Context()
+	round := func() {
+		t.Helper()
+		if _, err := s.RunChecks(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	round()
+	pending := func() int64 {
+		t.Helper()
+		rows, err := st.R.ListMonitorEndpoints(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, r := range rows {
+			if r.SourceType == SourceHashi {
+				return r.PendingDns
+			}
+		}
+		t.Fatal("no endpoint")
+		return 0
+	}
+	if err := st.Q.MarkMonitorPendingDNS(ctx, db.MarkMonitorPendingDNSParams{SourceType: SourceHashi, SourceID: hashiEndpointSource(t, st)}); err != nil {
+		t.Fatal(err)
+	}
+	*down = errors.New("not yet")
+	round()
+	if pending() != 1 {
+		t.Fatal("a failed round must not clear it")
+	}
+	*down = nil
+	round()
+	if pending() != 0 {
+		t.Fatal("a passing round clears it")
+	}
+}
+
+// 07 §1: AdGuard is watched at each address its connection would try; a disabled one is not watched.
+func TestAdGuardSource(t *testing.T) {
+	s, st, _, _ := fixture(t)
+	ctx := t.Context()
+	s.resolve = func(context.Context, string, string) (ipsets.Target, error) {
+		return ipsets.Target{Addresses: []netip.Addr{netip.MustParseAddr("10.0.0.5"), netip.MustParseAddr("10.0.0.6")}}, nil
+	}
+	if err := st.Q.InsertIPSet(ctx, db.InsertIPSetParams{ID: "t", Slug: "t", Name: "t", Kind: "user", Origin: "user"}); err != nil {
+		t.Fatal(err)
+	}
+	for id, mode := range map[string]string{"on": "read_only", "off": "disabled"} {
+		if err := st.Q.InsertAdGuardConnection(ctx, db.InsertAdGuardConnectionParams{ID: id, Name: id, TargetSetID: "t", Port: 3000, Scheme: "http", Mode: mode}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := s.Sources(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var seen []Desired
+	for _, d := range got {
+		if d.SourceType == SourceAdGuard {
+			seen = append(seen, d)
+		}
+	}
+	if len(seen) != 1 || seen[0].SourceID != "on" || len(seen[0].Checks) != 2 || seen[0].Checks[0].Required || seen[0].Checks[1].Target != "10.0.0.6:3000" {
+		t.Fatalf("%+v", seen)
+	}
+}
+
+func hashiEndpointSource(t *testing.T, st *store.Store) string {
+	t.Helper()
+	rows, err := st.R.ListMonitorEndpoints(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range rows {
+		if r.SourceType == SourceHashi {
+			return r.SourceID
+		}
+	}
+	t.Fatal("no endpoint")
+	return ""
 }

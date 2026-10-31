@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
 	import Tag from '$lib/components/hashi/Tag.svelte';
+	import TargetSources from '$lib/components/hashi/TargetSources.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -19,8 +19,6 @@
 	let sets = $state<{ id: string; name: string }[]>([]);
 	let error = $state('');
 	let busy = $state(false);
-	let view = $state<{ id: string; data: Schemas['AdGuardRewrites'] } | null>(null);
-	let viewError = $state('');
 
 	const modes: Record<string, string> = {
 		read_only: 'Read-only: only looks, changes nothing',
@@ -55,23 +53,6 @@
 			busy = false;
 		}
 	}
-	async function show(id: string) {
-		viewError = '';
-		view = null;
-		busy = true;
-		try {
-			const r = await api.GET('/api/adguard/connections/{id}/rewrites', {
-				params: { path: { id } }
-			});
-			if (!r.data) throw r.error;
-			view = { id, data: r.data };
-		} catch (e) {
-			viewError = problemText(e);
-		} finally {
-			busy = false;
-			await load().catch(() => {});
-		}
-	}
 	async function remove(id: string) {
 		error = '';
 		busy = true;
@@ -79,7 +60,6 @@
 			await withReauth(() =>
 				api.DELETE('/api/adguard/connections/{id}', { params: { path: { id } } })
 			);
-			if (view?.id === id) view = null;
 			await load();
 		} catch (e) {
 			error = problemText(e);
@@ -99,7 +79,8 @@
 		server_name: '',
 		username: '',
 		password: '',
-		mode: 'read_only' as Conn['mode']
+		mode: 'read_only' as Conn['mode'],
+		save_inactive: false
 	});
 	let open = $state(false);
 	let editing = $state<string | null>(null);
@@ -131,7 +112,8 @@
 				server_name: f.server_name || undefined,
 				username: f.username || undefined,
 				password: f.password || undefined,
-				mode: f.mode
+				mode: f.mode,
+				save_inactive: f.save_inactive
 			};
 			const id = editing;
 			const row = await withReauth(() =>
@@ -149,12 +131,6 @@
 			busy = false;
 		}
 	}
-	const actionText: Record<string, string> = {
-		create: 'Add',
-		update: 'Change',
-		delete: 'Remove',
-		conflict: 'Left alone'
-	};
 </script>
 
 <PageHeader
@@ -181,9 +157,7 @@
 						>{:else if c.last_version}{c.last_version}{:else}Not checked yet{/if}
 				</span>
 				<Tag tone={c.mode === 'active' ? 'ok' : undefined}>{modeTag[c.mode]}</Tag>
-				<Button variant="outline" size="sm" onclick={() => show(c.id)} disabled={busy}
-					>Show rewrites</Button
-				>
+				<Button variant="outline" size="sm" href="/dns?tab=adguard">Show rewrites</Button>
 				<Button
 					variant="ghost"
 					size="icon-sm"
@@ -210,43 +184,6 @@
 	</ul>
 </div>
 
-{#if viewError}<p role="alert" class="mt-3 text-[13px] text-bad-text">{viewError}</p>{/if}
-{#if view}
-	<div class="mt-4 grid gap-4 lg:grid-cols-2">
-		<Panel title="On this instance" description="Hashi only ever changes the ones marked Hashi.">
-			{#if view.data.rewrites.length === 0}<p class="text-[13px] text-muted-foreground">
-					No rewrites.
-				</p>{/if}
-			<ul class="space-y-1.5 text-[13px]">
-				{#each view.data.rewrites as r, i (i)}
-					<li class="flex items-center gap-2">
-						<span class="min-w-0 flex-1 truncate">{r.domain}</span>
-						<span class="text-muted-foreground">{r.answer}</span>
-						{#if r.owned}<Tag tone="ok">Hashi</Tag>{:else}<Tag>Manual</Tag>{/if}
-					</li>
-				{/each}
-			</ul>
-		</Panel>
-		<Panel title="What Hashi would change" description="In read-only mode this is only a preview.">
-			{#if view.data.planned.length === 0}<p class="text-[13px] text-muted-foreground">
-					Nothing.
-				</p>{/if}
-			<ul class="space-y-1.5 text-[13px]">
-				{#each view.data.planned as p, i (i)}
-					<li class="flex flex-wrap items-center gap-2">
-						<Tag tone={p.action === 'conflict' ? 'warn' : undefined}
-							>{actionText[p.action] ?? p.action}</Tag
-						>
-						<span class="min-w-0 flex-1 truncate">{p.domain}</span>
-						<span class="text-muted-foreground">{p.answer ?? ''}</span>
-						{#if p.note}<span class="w-full text-[12px] text-muted-foreground">{p.note}</span>{/if}
-					</li>
-				{/each}
-			</ul>
-		</Panel>
-	</div>
-{/if}
-
 <Sheet.Root bind:open>
 	<Sheet.Content class="w-full sm:max-w-md">
 		<Sheet.Header>
@@ -271,8 +208,11 @@
 						{#each sets as s (s.id)}<Select.Item value={s.id}>{s.name}</Select.Item>{/each}
 					</Select.Content>
 				</Select.Root>
+				<TargetSources setId={f.target_set_id} />
 				<p class="text-[12px] text-muted-foreground">
-					An IP set holding the instance's address or DNS name.
+					An IP set holding the instance's address or DNS name. With a Pulse agent in it, Hashi
+					needs HTTPS, certificate checks and the expected hostname, so the password only goes to
+					the real instance.
 				</p>
 			</div>
 			<div class="grid grid-cols-[1fr_6rem] gap-3">
@@ -333,6 +273,12 @@
 					</Select.Content>
 				</Select.Root>
 			</div>
+			<label class="flex items-center justify-between gap-3 text-[13px]">
+				<span>Save even if it does not answer yet</span><Switch
+					bind:checked={f.save_inactive}
+					aria-label="Save even if it does not answer yet"
+				/>
+			</label>
 			{#if formError}<p role="alert" class="text-[13px] text-bad-text">{formError}</p>{/if}
 		</div>
 		<Sheet.Footer class="flex-row justify-end gap-2 border-t">

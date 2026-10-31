@@ -1,0 +1,2 @@
+; captured_at: 2026-10-31; docs_url: https://www.opendns.com/; dig A myip.opendns.com @208.67.222.222
+myip.opendns.com.	0	IN	A	198.51.100.7

@@ -1,9 +1,9 @@
 #!/bin/sh
 # Installs the Hashi Pulse agent (08 §1). Usage: install.sh --url <hashi> --id <agent> --token <token> [--interface <name>]
-# --from <release base URL> downloads from a Gitea release instead of Hashi.
+# Hashi serves this script; the binary comes from the Gitea release named below, or from --from <base URL>.
 set -eu
 
-url="" id="" token="" iface="" from=""
+url="" id="" token="" iface="" from="@@RELEASE_BASE@@"
 while [ $# -gt 0 ]; do
 	case "$1" in
 	--url) url="$2"; shift 2 ;;
@@ -28,13 +28,8 @@ esac
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-if [ -n "$from" ]; then
-	curl -fsSL "$from/hashi-pulse-linux-$arch" -o "$tmp/hashi-pulse"
-	want=$(curl -fsSL "$from/hashi-pulse-linux-$arch.sha256")
-else
-	curl -fsSL "$url/api/pulse/download/$arch" -o "$tmp/hashi-pulse"
-	want=$(curl -fsSL "$url/api/pulse/download/$arch.sha256")
-fi
+curl -fsSL "$from/hashi-pulse-linux-$arch" -o "$tmp/hashi-pulse"
+want=$(curl -fsSL "$from/hashi-pulse-linux-$arch.sha256")
 got=$(sha256sum "$tmp/hashi-pulse" | cut -d' ' -f1)
 [ "$want" = "$got" ] || { echo "checksum mismatch" >&2; exit 1; }
 install -m 0755 "$tmp/hashi-pulse" /usr/local/bin/hashi-pulse

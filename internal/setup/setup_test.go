@@ -71,8 +71,8 @@ func TestFreshStateListsElevenSteps(t *testing.T) {
 			builtSteps = append(builtSteps, ss.N)
 		}
 	}
-	if len(builtSteps) != 10 {
-		t.Fatalf("built steps %v, want 1–9, 11", builtSteps)
+	if len(builtSteps) != 11 {
+		t.Fatalf("built steps %v, want all", builtSteps)
 	}
 }
 

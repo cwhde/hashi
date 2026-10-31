@@ -192,8 +192,16 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 		return err
 	})
 	pulseSvc.OnChange(func(ctx context.Context) {
-		if _, err := ipSets.Recompile(ctx); err != nil {
+		changed, err := ipSets.Recompile(ctx)
+		if err != nil {
 			log.Warn("IP sets after a Pulse address change", "err", err)
+			return
+		}
+		// Activity says what the change reached (08 §4).
+		sets, consumers := ipSets.Impact(ctx, changed)
+		if err := al.Record(ctx, st.Q, audit.Event{Actor: audit.System, Action: "pulse.dependency_impact", Target: "ip_sets", Outcome: audit.Success,
+			Detail: map[string]any{"sets": sets, "consumers": consumers}}); err != nil {
+			log.Warn("Pulse dependency impact", "err", err)
 		}
 	})
 	serviceRewrites := fwMgr.Rewrites(ipSets.ResolveTarget)
@@ -205,6 +213,7 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 		agents, err := pulseSvc.Rewrites(ctx)
 		return append(out, agents...), err
 	})
+	adguardSvc.UseOriginGone(pulseSvc.OriginGone)
 	ipSets.AddConsumers(adguard.Consumers)
 	subs = append(subs, adguardSvc.Subsystems()...)
 	syncEngine := hsync.New(st, al, append(subs, certMgr.Subsystems()...)...)
@@ -250,30 +259,21 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	}}); err != nil {
 		return err
 	}
-	ipSets.Subscribe(func(ctx context.Context, changed []string) {
-		if _, err := fwMgr.PlanAll(ctx, syncEngine, audit.System); err != nil {
-			log.Warn("firewall plans after an IP set change", "err", err)
-		}
-		// Upstreams and DNS values that follow a changed set (05a §4.2): every Traefik host and zone is planned again.
-		// A set no target uses touches neither; a plan here would apply other waiting changes unreviewed (setup step 7).
-		used, err := targetsUse(ctx, st.R, changed)
-		if err != nil {
-			log.Warn("IP set consumers", "err", err)
-			return
-		}
-		if !used {
-			return
-		}
-		if err := traefikMgr.PlanAll(ctx, syncEngine, audit.System); err != nil {
-			log.Warn("Traefik plans after an IP set change", "err", err)
-		}
-		if _, err := dnsSvc.Reconcile(syncEngine)(ctx); err != nil {
-			log.Warn("DNS plans after an IP set change", "err", err)
-		}
-		if _, err := adguardSvc.Reconcile(syncEngine)(ctx); err != nil {
-			log.Warn("AdGuard plans after an IP set change", "err", err)
-		}
-	})
+	consumers := setConsumers{
+		firewall: func(ctx context.Context) error { _, err := fwMgr.PlanAll(ctx, syncEngine, audit.System); return err },
+		traefik:  func(ctx context.Context) error { return traefikMgr.PlanAll(ctx, syncEngine, audit.System) },
+		dns:      func(ctx context.Context) error { _, err := dnsSvc.Reconcile(syncEngine)(ctx); return err },
+		adguard:  func(ctx context.Context) error { _, err := adguardSvc.Reconcile(syncEngine)(ctx); return err },
+		reconnect: func(ctx context.Context, changed []string) {
+			adguardSvc.ReconnectUsing(ctx, changed)
+			fwMgr.ReconnectUsing(ctx, changed)
+			traefikMgr.ReconnectUsing(ctx, changed)
+		},
+		pendingDNS: monitorSvc.MarkPendingDNS,
+		used:       func(ctx context.Context, sets []string) (bool, error) { return targetsUse(ctx, st.R, sets) },
+		log:        log,
+	}
+	ipSets.Subscribe(consumers.changed)
 
 	// Hourly: issue what is missing, renew 30 days ahead (a failure waits certs.RetryAfter), then bring every Traefik
 	// host's certificate files up to date.
@@ -420,20 +420,12 @@ func (s *server) serve(log *slog.Logger) error {
 func adminMux(api *httpapi.Server) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("GET /", web.Handler())
-	// What a host needs to install an agent (08 §1). No session: nothing here is secret, and the token comes from the admin.
+	// The install script (08 §1). No session: nothing in it is secret, and the token comes from the admin.
 	mux.HandleFunc("GET /api/pulse/install.sh", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/x-shellscript")
-		_, _ = w.Write(pulse.InstallScript)
+		_, _ = w.Write(pulse.Script())
 	})
-	mux.HandleFunc("GET /api/pulse/download/{file}", pulse.ServeDownload(pulseDir()))
 	return api.Handler(mux)
-}
-
-func pulseDir() string {
-	if d := os.Getenv("HASHI_PULSE_DIR"); d != "" {
-		return d
-	}
-	return pulse.DefaultDir
 }
 
 // publicToggles mirrors the Appearance settings that switch the public pages on and off.
@@ -482,6 +474,44 @@ func onlyIf(enabled *atomic.Bool, next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 		next(w, r)
+	}
+}
+
+// setConsumers is what follows a changed IP set (05a §4.2, 08 §4).
+type setConsumers struct {
+	firewall, traefik, dns, adguard func(ctx context.Context) error
+	reconnect                       func(ctx context.Context, changed []string)
+	pendingDNS                      func(ctx context.Context, changed []string) error
+	used                            func(ctx context.Context, sets []string) (bool, error)
+	log                             *slog.Logger
+}
+
+func (c setConsumers) changed(ctx context.Context, sets []string) {
+	if err := c.firewall(ctx); err != nil {
+		c.log.Warn("firewall plans after an IP set change", "err", err)
+	}
+	c.reconnect(ctx, sets)
+	// Upstreams and DNS values that follow a changed set: every Traefik host and zone is planned again. A set no target
+	// uses touches neither; a plan here would apply other waiting changes unreviewed (setup step 7).
+	used, err := c.used(ctx, sets)
+	if err != nil {
+		c.log.Warn("IP set consumers", "err", err)
+		return
+	}
+	if !used {
+		return
+	}
+	if err := c.pendingDNS(ctx, sets); err != nil {
+		c.log.Warn("pending DNS after an IP set change", "err", err)
+	}
+	if err := c.traefik(ctx); err != nil {
+		c.log.Warn("Traefik plans after an IP set change", "err", err)
+	}
+	if err := c.dns(ctx); err != nil {
+		c.log.Warn("DNS plans after an IP set change", "err", err)
+	}
+	if err := c.adguard(ctx); err != nil {
+		c.log.Warn("AdGuard plans after an IP set change", "err", err)
 	}
 }
 

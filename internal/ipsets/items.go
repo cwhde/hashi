@@ -66,6 +66,8 @@ type Pulse struct {
 	AgentID  string
 	Scope    string
 	Selector string
+	// Name is the agent's name, filled when a graph loads, for display only.
+	Name string
 }
 
 // DNS is a name's A/AAAA answers.

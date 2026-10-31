@@ -914,6 +914,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/setup/integrations/continue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Step 10 — optional integrations can all wait until after setup */
+        post: operations["continueSetupIntegrations"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/setup/complete": {
         parameters: {
             query?: never;
@@ -1303,6 +1320,56 @@ export interface paths {
         get?: never;
         /** Reach the Traefik host through an address set; empty goes back to its literal address */
         put: operations["putTraefikSSHTarget"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/pulse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getPulseSettings"];
+        put: operations["putPulseSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pulse/agents/{id}/consumers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The IP sets holding the agent and what uses them */
+        get: operations["getPulseConsumers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pulse/agents/{id}/install": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The install command and Compose snippet; the token is a placeholder */
+        get: operations["getPulseInstall"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -2057,6 +2124,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ip-sets/{id}/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Each address the set resolves to and where it comes from (08 §5) */
+        get: operations["getIPSetSources"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ip-sets/{id}/consumers": {
         parameters: {
             query?: never;
@@ -2333,6 +2417,7 @@ export interface components {
             last_error?: string;
         };
         MonitorEndpoint: {
+            pending_dns?: boolean;
             id: string;
             name: string;
             group: string;
@@ -2508,6 +2593,8 @@ export interface components {
             password?: string;
             /** @enum {string} */
             mode?: "active" | "read_only" | "disabled";
+            /** @description Keep a connection that does not answer yet */
+            save_inactive?: boolean;
         };
         AdGuardRewrites: {
             rewrites: {
@@ -2529,6 +2616,12 @@ export interface components {
             hostname: string;
             selected_interface?: string;
             interval_seconds?: number;
+            /**
+             * Format: date-time
+             * @description The agent's clock, for reading logs
+             */
+            sent_at?: string;
+            in_docker?: boolean;
             /** @description Sent only after Hashi asked; used only for an agent the admin trusts for it */
             reported_public_ip?: string;
             candidates: {
@@ -2538,6 +2631,8 @@ export interface components {
         };
         PulseHeartbeatReply: {
             check_public_ip: boolean;
+            /** @description Default interval; an agent with its own keeps it */
+            interval_seconds: number;
         };
         PulseAgent: {
             id: string;
@@ -2585,21 +2680,59 @@ export interface components {
             /** Format: password */
             token: string;
         };
+        IPSetSources: {
+            sources: {
+                source: string;
+                addresses: string[];
+                agent?: {
+                    status: string;
+                    public_ip: string;
+                    selected_ip: string;
+                    candidates: string[];
+                    /** Format: date-time */
+                    last_seen_at?: string;
+                    reachable?: boolean;
+                };
+            }[];
+        };
         SSHTarget: {
             /** @description Address set; empty for the literal address */
             set_id: string;
+            /** @description Keep a set that does not answer yet */
+            save_inactive?: boolean;
         };
         AgentDNSPreview: {
             rewrites: {
+                agent_id: string;
+                agent: string;
                 domain: string;
                 answer: string;
+                status: string;
+                collision: boolean;
+                wanted: boolean;
+                problem?: string;
             }[];
+        };
+        PulseSettings: {
+            heartbeat_interval_seconds: number;
+            stale_factor: number;
+        };
+        PulseConsumers: {
+            sets: string[];
+            consumers: string[];
+        };
+        PulseInstall: {
+            /** @description One-line install; <token> stands for the token, shown once */
+            linux: string;
+            /** @description Compose snippet; <token> stands for the token */
+            compose: string;
         };
         AgentDNSSettings: {
             enabled: boolean;
             domain: string;
             /** @enum {string} */
-            ip_mode: "selected" | "public";
+            ip_mode: "selected" | "private" | "public";
+            remove_stale_after_hours?: number;
         };
         TelegramDiscover: {
             /** Format: password */
@@ -2640,6 +2773,8 @@ export interface components {
             deliveries: components["schemas"]["NotificationDelivery"][];
         };
         PublicEndpoint: {
+            /** @description Its address changed and DNS may still be catching up */
+            pending_dns?: boolean;
             name: string;
             group: string;
             state: components["schemas"]["MonitorState"];
@@ -5010,6 +5145,27 @@ export interface operations {
             default: components["responses"]["Problem"];
         };
     };
+    continueSetupIntegrations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Setup state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupState"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
     completeSetup: {
         parameters: {
             query?: never;
@@ -5798,6 +5954,98 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getPulseSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pulse settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PulseSettings"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putPulseSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PulseSettings"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PulseSettings"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getPulseConsumers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Consumers */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PulseConsumers"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getPulseInstall: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Install */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PulseInstall"];
+                };
             };
             default: components["responses"]["Problem"];
         };
@@ -7248,6 +7496,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IPSetResolved"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getIPSetSources: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sources */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IPSetSources"];
                 };
             };
             default: components["responses"]["Problem"];

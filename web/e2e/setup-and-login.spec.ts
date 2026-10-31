@@ -225,7 +225,9 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByLabel('Last group').fill(key.split('-').at(-1) ?? '');
 	await page.getByRole('button', { name: 'Confirm and test' }).click();
 
-	// Step 11: finish (steps of later slices count as done only in this dev build).
+	// Step 10 can wait, then step 11 finishes.
+	await expect(page.getByRole('heading', { name: 'Optional integrations' })).toBeVisible();
+	await page.getByRole('button', { name: 'Continue' }).click();
 	await expect(page.getByRole('heading', { name: 'Finish setup' })).toBeVisible();
 	await page.getByRole('button', { name: 'Finish setup' }).click();
 	await expect(page).toHaveURL(/\/login$/);
@@ -526,8 +528,30 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByRole('button', { name: 'Add agent' }).click();
 	await page.getByLabel('Name').fill('e2e-box');
 	await page.getByRole('button', { name: 'Create agent' }).click();
-	await expect(page.getByText(/--token hp_/)).toBeVisible();
+	const command = page.getByText(/--token hp_/);
+	await expect(command).toBeVisible();
+	const line = (await command.textContent()) ?? '';
+	const agentId = /--id (\S+)/.exec(line)?.[1] ?? '';
+	const agentToken = /--token (\S+)/.exec(line)?.[1] ?? '';
 	await page.getByRole('button', { name: 'Done' }).click();
+	// A real heartbeat with that token shows up on the page.
+	const beat = await page.request.post(`${state.baseURL}/api/pulse/${agentId}/heartbeat`, {
+		headers: { Authorization: `Bearer ${agentToken}` },
+		data: {
+			version: 'e2e',
+			hostname: 'e2e-host',
+			candidates: [{ interface: 'eth0', address: '10.9.8.7' }]
+		}
+	});
+	expect(beat.status()).toBe(200);
+	await page.reload();
+	await expect(page.getByRole('cell', { name: '10.9.8.7' })).toBeVisible();
+	// The DNS page lists its name and AdGuard state.
+	await page.goto(`${state.baseURL}/dns?tab=agents`);
+	await expect(page.getByText('e2e-box.hashi.home.arpa')).toBeVisible();
+	await page.goto(`${state.baseURL}/dns?tab=adguard`);
+	await expect(page.getByText('No AdGuard instance')).toBeVisible();
+	await page.goto(`${state.baseURL}/pulse`);
 	await page.getByRole('button', { name: 'Remove e2e-box' }).click();
 	await expect(page.getByRole('button', { name: 'Remove e2e-box' })).toHaveCount(0);
 
