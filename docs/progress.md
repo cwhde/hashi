@@ -732,6 +732,8 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-10-31 — First pre-release `v0.8.0-beta.1` tagged on `655c5c5`: the Gitea release holds the Pulse binaries with checksums, downloaded and matched anonymously. CI hit GitHub download timeouts on several runs today; reruns passed, and github.com answered quickly from the host when measured. Not deployed: S8's gate waits for the user's deploy.
+
 - 2026-10-31 — S8 review: 6 reproduced findings fixed with regression tests (Docker agent without CA bundle, trusted agent not asked after moving to a private path, distrust left the address in sets and was unaudited, no heartbeat size limit, duplicates of retired rewrites left unowned, stale ignored the agent's interval). The rest is under Unverified.
 
 - 2026-10-31 — Installer's Hashi path proven against a running server by a test, and the binaries confirmed in the built image stage. Version scheme set (11-delivery §6). Rest of S8 built locally: reachability, AdGuard and Pulse monitoring, agent DNS preview, SSH through address sets.
