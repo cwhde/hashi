@@ -237,6 +237,13 @@
 	}
 
 	// Step 11
+	const continueIntegrations = () =>
+		run(async () => {
+			const res = await api.POST('/api/setup/integrations/continue');
+			if (res.error) throw res.error;
+			setup = res.data;
+			selected = firstOpen(res.data);
+		});
 	const complete = () =>
 		run(async () => {
 			const res = await api.POST('/api/setup/complete');
@@ -723,6 +730,22 @@
 					{/if}
 					{#if error}{@render failure(error)}{/if}
 				</section>
+			{:else if step.n === 10}
+				<h1 class="mt-1 text-[24px] font-semibold">Optional integrations</h1>
+				<p class="mt-1 max-w-[62ch] text-[13.5px] text-muted-foreground">
+					Hashi works without these. Each can be added any time after setup.
+				</p>
+				<section class="mt-6 rounded-3xl border bg-card p-6">
+					<ul class="space-y-1.5 text-[13px]">
+						<li>AdGuard Home: Connections</li>
+						<li>Internal agent names: Settings, Internal agent DNS</li>
+						<li>Alerts by Telegram or email: Settings, Notifications</li>
+					</ul>
+					{#if error}{@render failure(error)}{/if}
+				</section>
+				<div class="mt-6 flex justify-end">
+					<Button onclick={continueIntegrations} disabled={busy}>Continue</Button>
+				</div>
 			{:else if step.n === 11}
 				<h1 class="mt-1 text-[24px] font-semibold">Finish setup</h1>
 				<p class="mt-1 max-w-[62ch] text-[13.5px] text-muted-foreground">

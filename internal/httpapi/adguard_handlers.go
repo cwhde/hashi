@@ -18,6 +18,8 @@ func adguardError(err error) error {
 		return notFound(err.Error())
 	case errors.Is(err, adguard.ErrBadInput):
 		return invalid(err.Error())
+	case errors.Is(err, adguard.ErrUnreachable):
+		return conflict(err.Error())
 	}
 	return err
 }
@@ -38,7 +40,7 @@ func adguardInput(b gen.AdGuardConnectionInput, mode string) adguard.Input {
 		mode = string(*b.Mode)
 	}
 	return adguard.Input{Name: b.Name, TargetSetID: b.TargetSetId, Port: b.Port, Scheme: b.Scheme, PathPrefix: str(b.PathPrefix), TLSVerify: b.TlsVerify,
-		ServerName: str(b.ServerName), Username: str(b.Username), Mode: mode, Password: secrets.New(str(b.Password))}
+		ServerName: str(b.ServerName), Username: str(b.Username), Mode: mode, Password: secrets.New(str(b.Password)), SaveInactive: b.SaveInactive != nil && *b.SaveInactive} // hashi:allow-secret-pattern
 }
 
 func (s *Server) ListAdGuardConnections(ctx context.Context, _ gen.ListAdGuardConnectionsRequestObject) (gen.ListAdGuardConnectionsResponseObject, error) {

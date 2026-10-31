@@ -74,17 +74,56 @@ type Manager struct {
 // UseSSHTargets wires SSH address sets.
 func (m *Manager) UseSSHTargets(r services.TargetResolver) { m.sshTargets = r }
 
-// SetSSHTarget makes the host reachable through an address set, or back through its literal address with "".
-func (m *Manager) SetSSHTarget(ctx context.Context, id, setID string) error {
+// SetSSHTarget makes the host reachable through an address set, or back through its literal address with "". A set that
+// resolves to nothing or does not answer is refused unless saveInactive says to keep it (08 §5).
+func (m *Manager) SetSSHTarget(ctx context.Context, id, setID string, saveInactive bool) error {
+	row, err := m.st.R.GetFirewallHost(ctx, id)
+	if err != nil {
+		return ErrNotFound
+	}
 	if setID != "" {
 		if err := ipsets.CheckTarget(ctx, m.st.R, setID); err != nil {
 			return err
 		}
-	}
-	if _, err := m.st.R.GetFirewallHost(ctx, id); err != nil {
-		return ErrNotFound
+		if !saveInactive {
+			silent, err := ipsets.SilentAgents(ctx, m.st.R, setID)
+			if err != nil {
+				return err
+			}
+			if len(silent) > 0 {
+				return fmt.Errorf("%w: Pulse agent %s has not sent a heartbeat yet", sshx.ErrTargetDown, strings.Join(silent, ", "))
+			}
+		}
+		if !saveInactive && m.sshTargets != nil {
+			if err := sshx.ProbeTarget(ctx, m.sshTargets, "firewall_ssh:"+id, setID, int(row.SshPort)); err != nil {
+				return err
+			}
+		}
 	}
 	return m.st.Q.SetFirewallHostSSHTarget(ctx, db.SetFirewallHostSSHTargetParams{SshTargetSetID: sql.NullString{String: setID, Valid: setID != ""}, ID: id})
+}
+
+// ReconnectUsing retests the hosts reached through changed sets (08 §4 step 5).
+func (m *Manager) ReconnectUsing(ctx context.Context, changed []string) {
+	for _, set := range changed {
+		rows, err := m.st.R.ListFirewallHostsBySSHTarget(ctx, sql.NullString{String: set, Valid: true})
+		if err != nil {
+			continue
+		}
+		for _, r := range rows {
+			row, err := m.st.R.GetFirewallHost(ctx, r.ID)
+			if err != nil {
+				continue
+			}
+			_ = m.st.Q.SetFirewallHostHealth(ctx, db.SetFirewallHostHealthParams{Health: "validating", LastValidationError: row.LastValidationError, UpdatedAt: m.now().UnixMilli(), ID: r.ID})
+			c, err := m.dial(ctx, row)
+			if err == nil {
+				_ = c.Close()
+			}
+			health, msg := sshx.AfterReconnect(row.Health, row.LastValidationError, err)
+			_ = m.st.Q.SetFirewallHostHealth(ctx, db.SetFirewallHostHealthParams{Health: health, LastValidationError: msg, UpdatedAt: m.now().UnixMilli(), ID: r.ID})
+		}
+	}
 }
 
 // sshAddrs lists where to reach a host, in order: its address set, then its literal address. The pinned host key is checked on each.

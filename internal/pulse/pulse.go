@@ -52,7 +52,6 @@ var (
 const (
 	maxCandidates = 64
 	minBeatGap    = 2 * time.Second
-	StaleFactor   = 3 // stale after this many missed intervals (08 §2)
 )
 
 // Candidate is one address an agent reports.
@@ -64,6 +63,8 @@ type Candidate struct {
 // Beat is a heartbeat's content.
 type Beat struct {
 	Version, Hostname, SelectedInterface string
+	// InDocker: the agent runs in a container, so its install type follows (08 §1).
+	InDocker bool
 	// IntervalSeconds is how often the agent reports; staleness is measured against it (08 §2).
 	IntervalSeconds int
 	// ReportedPublic is what the agent says its public address is. Used only for an agent the admin trusts for it,
@@ -72,59 +73,36 @@ type Beat struct {
 	Candidates     []Candidate
 }
 
+// Reply is what an agent is told after a heartbeat.
+type Reply struct {
+	CheckPublicIP   bool
+	IntervalSeconds int // the admin's default; an agent with its own interval keeps it
+}
+
 // Service keeps agents.
 type Service struct {
-	st    *store.Store
-	vault *vault.Vault
-	al    *audit.Log
-	now   func() time.Time
-	mu    sync.Mutex
+	st     *store.Store
+	pepper []byte
+	al     *audit.Log
+	now    func() time.Time
+	mu     sync.Mutex
+	timer  *time.Timer
+	// debounce groups address changes before consumers hear of them (05a §4.2).
+	debounce time.Duration
 	// changed runs after a heartbeat with new addresses: it recompiles the sets, which reach their consumers (08 §4).
 	changed func(ctx context.Context)
 }
 
 // New returns the service.
 func New(st *store.Store, v *vault.Vault, al *audit.Log) *Service {
-	return &Service{st: st, vault: v, al: al, now: time.Now}
+	return &Service{st: st, pepper: v.Operational("pulse-token-pepper"), al: al, now: time.Now, debounce: 2 * time.Second}
 }
 
 // OnChange sets what runs after an address change.
 func (s *Service) OnChange(f func(ctx context.Context)) { s.changed = f }
 
-// pepper returns the HMAC key, creating it in the vault on first use.
-func (s *Service) pepper(ctx context.Context) (secrets.Value, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	cfg, err := s.st.R.GetPulseConfig(ctx)
-	if errors.Is(err, sql.ErrNoRows) {
-		raw := make([]byte, 32)
-		if _, err := rand.Read(raw); err != nil {
-			return secrets.Value{}, err
-		}
-		v := secrets.New(hex.EncodeToString(raw))
-		p, err := s.vault.Seal(vault.Service, "pulse:pepper", v)
-		if err != nil {
-			return secrets.Value{}, err
-		}
-		return v, s.st.Tx(ctx, func(q *db.Queries) error {
-			if err := q.InsertSecret(ctx, p); err != nil {
-				return err
-			}
-			return q.InsertPulseConfig(ctx, p.ID)
-		})
-	}
-	if err != nil {
-		return secrets.Value{}, err
-	}
-	rec, err := s.st.R.GetSecret(ctx, cfg.PepperSecretID)
-	if err != nil {
-		return secrets.Value{}, err
-	}
-	return s.vault.Open(rec)
-}
-
-func hashToken(pepper secrets.Value, token string) []byte {
-	m := hmac.New(sha256.New, []byte(pepper.Reveal()))
+func hashToken(pepper []byte, token string) []byte {
+	m := hmac.New(sha256.New, pepper)
 	m.Write([]byte(token))
 	return m.Sum(nil)
 }
@@ -135,11 +113,7 @@ func (s *Service) newToken(ctx context.Context) (secrets.Value, []byte, error) {
 		return secrets.Value{}, nil, err
 	}
 	token := "hp_" + hex.EncodeToString(raw)
-	pepper, err := s.pepper(ctx)
-	if err != nil {
-		return secrets.Value{}, nil, err
-	}
-	return secrets.New(token), hashToken(pepper, token), nil
+	return secrets.New(token), hashToken(s.pepper, token), nil
 }
 
 // Create adds an agent and returns its token, shown once.
@@ -209,11 +183,15 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 	if _, err := s.get(ctx, id); err != nil {
 		return err
 	}
-	names, err := s.st.R.ListIPSetsUsingAgent(ctx, sql.NullString{String: id, Valid: true})
+	sets, err := s.st.R.ListIPSetsUsingAgent(ctx, sql.NullString{String: id, Valid: true})
 	if err != nil {
 		return err
 	}
-	if len(names) > 0 {
+	if len(sets) > 0 {
+		names := make([]string, 0, len(sets))
+		for _, x := range sets {
+			names = append(names, x.Name)
+		}
 		return fmt.Errorf("%w: IP sets %s use it", ErrInUse, strings.Join(names, ", "))
 	}
 	return s.st.Q.DeletePulseAgent(ctx, id)
@@ -257,57 +235,61 @@ func (s *Service) SetDNS(ctx context.Context, id, name string, enabled bool, dns
 }
 
 // Heartbeat checks the token and records what the agent reports. source is the address it came from, via the client-IP
-// resolver. The answer says whether the agent should find out its public address.
-func (s *Service) Heartbeat(ctx context.Context, id, token string, b Beat, source netip.Addr) (bool, error) {
+// resolver. The answer tells the agent what Hashi wants from it.
+func (s *Service) Heartbeat(ctx context.Context, id, token string, b Beat, source netip.Addr) (Reply, error) {
 	row, err := s.st.R.GetPulseAgent(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) {
-		return false, ErrToken // the same answer as a wrong token: an unknown ID tells a caller nothing
+		return Reply{}, ErrToken // the same answer as a wrong token: an unknown ID tells a caller nothing
 	}
 	if err != nil {
-		return false, err
+		return Reply{}, err
 	}
-	pepper, err := s.pepper(ctx)
-	if err != nil {
-		return false, err
-	}
-	if !hmac.Equal(hashToken(pepper, token), row.TokenHash) || row.RevokedAt.Valid {
-		return false, ErrToken
+	if !hmac.Equal(hashToken(s.pepper, token), row.TokenHash) || row.RevokedAt.Valid {
+		return Reply{}, ErrToken
 	}
 	now := s.now()
 	if row.LastSeenAt.Valid && now.Sub(time.UnixMilli(row.LastSeenAt.Int64)) < minBeatGap {
-		return false, ErrRate
+		return Reply{}, ErrRate
 	}
 	cands, err := clean(b.Candidates)
 	if err != nil {
-		return false, err
+		return Reply{}, err
 	}
 	selected := selectIP(cands, b.SelectedInterface, row.SelectedIp)
 	public, origin := publicAddress(row, source, b.ReportedPublic)
+	install := row.InstallType
+	if b.InDocker {
+		install = "docker"
+	}
 	interval := row.IntervalSeconds
 	if b.IntervalSeconds >= 10 && b.IntervalSeconds <= 86400 {
 		interval = int64(b.IntervalSeconds)
 	}
 	raw, err := json.Marshal(cands)
 	if err != nil {
-		return false, err
+		return Reply{}, err
 	}
 	changed := public != row.PublicIp || selected != row.SelectedIp || string(raw) != row.CandidatesJson
 	if err := s.st.Q.SetPulseHeartbeat(ctx, db.SetPulseHeartbeatParams{LastSeenAt: sql.NullInt64{Int64: now.UnixMilli(), Valid: true}, PublicIp: public, PublicIpSource: origin, CandidatesJson: string(raw),
-		SelectedIp: selected, Hostname: trim(b.Hostname, 253), Version: trim(b.Version, 64), IntervalSeconds: interval, UpdatedAt: now.UnixMilli(), ID: id}); err != nil {
-		return false, err
+		SelectedIp: selected, Hostname: trim(b.Hostname, 253), Version: trim(b.Version, 64), IntervalSeconds: interval, InstallType: install, UpdatedAt: now.UnixMilli(), ID: id}); err != nil {
+		return Reply{}, err
 	}
 	if changed {
 		if s.al != nil {
 			if err := s.al.Record(ctx, s.st.Q, audit.Event{Actor: audit.System, Action: "pulse.address_changed", Target: "pulse_agent:" + id, Outcome: audit.Success,
 				Detail: map[string]any{"public": public, "public_source": origin, "selected": selected}}); err != nil {
-				return false, err
+				return Reply{}, err
 			}
 		}
 		s.notify(ctx)
 	}
 	// Outside services hear from an agent only when it is trusted and this connection was not public: an address learned
 	// from an earlier connection says nothing about where the agent is now.
-	return row.TrustReportedIp == 1 && !publicRoutable(source.Unmap()), nil
+	cfg, err := settings.Get[settings.Pulse](ctx, s.st.R)
+	if err != nil {
+		return Reply{}, err
+	}
+	return Reply{CheckPublicIP: row.TrustReportedIp == 1 && !publicRoutable(source.Unmap()), IntervalSeconds: cfg.HeartbeatIntervalSeconds}, nil
 }
 
 // Where a public address came from.
@@ -316,9 +298,12 @@ const (
 	SourceReported   = "reported"
 )
 
-// publicRoutable is an address that can be someone's public one; shared carrier space (NetBird, CGNAT) cannot.
+// carrierShared is shared carrier space (NetBird, CGNAT): private in use, though not by RFC 1918.
+var carrierShared = netip.MustParsePrefix("100.64.0.0/10")
+
+// publicRoutable is an address that can be someone's public one.
 func publicRoutable(a netip.Addr) bool {
-	return a.IsValid() && a.IsGlobalUnicast() && !a.IsPrivate() && !netip.MustParsePrefix("100.64.0.0/10").Contains(a)
+	return a.IsValid() && a.IsGlobalUnicast() && !a.IsPrivate() && !carrierShared.Contains(a)
 }
 
 // publicAddress picks an agent's public address. The connection's source is proof and always wins. An agent's own report
@@ -335,16 +320,23 @@ func publicAddress(row db.PulseAgent, source netip.Addr, reported string) (addr,
 	return row.PublicIp, row.PublicIpSource
 }
 
-// notify runs in the background: a heartbeat must not wait for firewall and proxy plans.
+// notify tells the sets after the debounce, in the background: a heartbeat must not wait for firewall and proxy plans,
+// and several agents changing at once are one recompile.
 func (s *Service) notify(ctx context.Context) {
 	if s.changed == nil {
 		return
 	}
-	go func(ctx context.Context) {
-		ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.timer != nil {
+		s.timer.Stop()
+	}
+	base := context.WithoutCancel(ctx)
+	s.timer = time.AfterFunc(s.debounce, func() {
+		ctx, cancel := context.WithTimeout(base, 5*time.Minute)
 		defer cancel()
 		s.changed(ctx)
-	}(context.WithoutCancel(ctx))
+	})
 }
 
 func trim(s string, n int) string {
@@ -370,7 +362,9 @@ func clean(in []Candidate) ([]Candidate, error) {
 			return nil, fmt.Errorf("%w: bad interface name", ErrInvalid)
 		}
 		a = a.Unmap()
-		if a.IsLoopback() || a.IsUnspecified() || a.IsLinkLocalUnicast() || a.IsMulticast() {
+		// Candidates are private by definition (08 §1): a public one would enter sets through the `internal` scope, past
+		// the opt-in that guards a self-reported public address.
+		if !a.IsPrivate() && !carrierShared.Contains(a) {
 			continue
 		}
 		out = append(out, Candidate{Interface: c.Interface, Address: a.String()})
@@ -403,13 +397,13 @@ func selectIP(cands []Candidate, iface, current string) string {
 }
 
 // Status of an agent (08 §2).
-func Status(r db.PulseAgent, now time.Time) string {
+func Status(r db.PulseAgent, now time.Time, staleFactor int) string {
 	switch {
 	case r.RevokedAt.Valid:
 		return "revoked"
 	case !r.LastSeenAt.Valid:
 		return "waiting"
-	case now.Sub(time.UnixMilli(r.LastSeenAt.Int64)) > time.Duration(r.IntervalSeconds*StaleFactor)*time.Second:
+	case now.Sub(time.UnixMilli(r.LastSeenAt.Int64)) > time.Duration(r.IntervalSeconds*int64(staleFactor))*time.Second:
 		return "stale"
 	}
 	return "fresh"
@@ -434,7 +428,16 @@ func (s *Service) Addrs(ctx context.Context, q *db.Queries, id, scope, selector 
 	if r.RevokedAt.Valid {
 		return nil, errors.New("the Pulse agent is revoked")
 	}
-	return addrsOf(r, scope, selector), nil
+	addrs := addrsOf(r, scope, selector)
+	c, err := settings.Get[settings.Pulse](ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	// A stale agent keeps resolving to its last addresses; its set shows why they may be old (05a §2).
+	if Status(r, s.now(), c.StaleFactor) == "stale" {
+		return addrs, ipsets.Stale{What: "the Pulse agent " + r.Name + " is stale"}
+	}
+	return addrs, nil
 }
 
 func addrsOf(r db.PulseAgent, scope, selector string) []netip.Addr {
@@ -517,40 +520,111 @@ func Slug(name string) string {
 	return trim(s, 63)
 }
 
-// Rewrites lists agent DNS entries (03 §9): only for fresh or stale agents, never revoked ones. A stale agent keeps its
-// last rewrite. Names that collide are left out for all but the first: they need an override.
-func (s *Service) Rewrites(ctx context.Context) ([]adguard.Desired, error) {
+// AgentName is one agent's internal DNS name and its state, for the DNS page (03 §9).
+type AgentName struct {
+	AgentID, Agent, Domain, Answer string
+	Status                         string
+	Collision                      bool   // another agent has this name: this one needs an override
+	Problem                        string // why it has no rewrite, in words
+	Wanted                         bool
+}
+
+// Names decides every agent's name. Names that collide go to the first agent only; the others are shown, not hidden.
+// A stale agent keeps its rewrite unless the admin chose to remove it after a while (03 §9).
+func (s *Service) Names(ctx context.Context) ([]AgentName, error) {
 	c, err := settings.Get[settings.AgentDNS](ctx, s.st.R)
-	if err != nil || !c.Enabled {
+	if err != nil {
+		return nil, err
+	}
+	p, err := settings.Get[settings.Pulse](ctx, s.st.R)
+	if err != nil {
 		return nil, err
 	}
 	rows, err := s.st.R.ListPulseAgents(ctx)
 	if err != nil {
 		return nil, err
 	}
+	now := s.now()
 	seen := map[string]bool{}
-	var out []adguard.Desired
+	out := make([]AgentName, 0, len(rows))
 	for _, r := range rows {
-		if r.DnsEnabled == 0 || r.RevokedAt.Valid {
-			continue
-		}
+		n := AgentName{AgentID: r.ID, Agent: r.Name, Status: Status(r, now, p.StaleFactor)}
 		label := r.DnsName
 		if label == "" {
 			label = r.Name
 		}
 		label = Slug(label)
-		if label == "" || seen[label] {
-			continue
+		switch {
+		case r.DnsEnabled == 0:
+			n.Problem = "turned off for this agent"
+		case r.RevokedAt.Valid:
+			n.Problem = "the agent is revoked"
+		case label == "":
+			n.Problem = "its name has no usable letters; set a DNS name"
+		case seen[label]:
+			n.Collision, n.Problem = true, "another agent has this name; set a DNS name"
 		}
-		answer := r.SelectedIp
-		if c.IPMode == settings.AgentIPPublic {
-			answer = r.PublicIp
+		if label != "" {
+			n.Domain = label + "." + c.Domain
 		}
-		if answer == "" {
-			continue
+		n.Answer = answerFor(r, c.IPMode)
+		if n.Problem == "" && n.Answer == "" {
+			n.Problem = "no address reported yet"
 		}
-		seen[label] = true
-		out = append(out, adguard.Desired{Domain: label + "." + c.Domain, Answer: answer, Origin: "agent " + r.ID})
+		if n.Problem == "" && n.Status == "stale" && c.RemoveStaleAfterHours > 0 && r.LastSeenAt.Valid &&
+			now.Sub(time.UnixMilli(r.LastSeenAt.Int64)) > time.Duration(c.RemoveStaleAfterHours)*time.Hour {
+			n.Problem = "removed: stale for too long"
+		}
+		if n.Problem == "" {
+			seen[label], n.Wanted = true, c.Enabled
+		}
+		out = append(out, n)
 	}
 	return out, nil
+}
+
+// answerFor picks the address a name answers with (03 §9): selected, the first private candidate, or public.
+func answerFor(r db.PulseAgent, mode string) string {
+	switch mode {
+	case settings.AgentIPPublic:
+		return r.PublicIp
+	case settings.AgentIPPrivate:
+		cands := Candidates(r)
+		if a, err := netip.ParseAddr(r.SelectedIp); err == nil && a.IsPrivate() {
+			return r.SelectedIp
+		}
+		for _, x := range cands {
+			if a, err := netip.ParseAddr(x.Address); err == nil && a.IsPrivate() {
+				return x.Address
+			}
+		}
+		return ""
+	}
+	return r.SelectedIp
+}
+
+// Rewrites lists the rewrites agent DNS wants.
+func (s *Service) Rewrites(ctx context.Context) ([]adguard.Desired, error) {
+	names, err := s.Names(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var out []adguard.Desired
+	for _, n := range names {
+		if n.Wanted {
+			out = append(out, adguard.Desired{Domain: n.Domain, Answer: n.Answer, Origin: "agent " + n.AgentID})
+		}
+	}
+	return out, nil
+}
+
+// OriginGone reports whether a rewrite came from an agent that was explicitly deleted: removing it needs no second
+// approval (03 §9).
+func (s *Service) OriginGone(ctx context.Context, origin string) bool {
+	id, ok := strings.CutPrefix(origin, "agent ")
+	if !ok {
+		return false
+	}
+	_, err := s.st.R.GetPulseAgent(ctx, id)
+	return errors.Is(err, sql.ErrNoRows)
 }

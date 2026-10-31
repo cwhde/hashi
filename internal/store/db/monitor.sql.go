@@ -10,6 +10,15 @@ import (
 	"database/sql"
 )
 
+const clearMonitorPendingDNS = `-- name: ClearMonitorPendingDNS :exec
+UPDATE monitor_endpoints SET pending_dns = 0 WHERE id = ? AND pending_dns = 1
+`
+
+func (q *Queries) ClearMonitorPendingDNS(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, clearMonitorPendingDNS, id)
+	return err
+}
+
 const deleteMonitorChecks = `-- name: DeleteMonitorChecks :exec
 DELETE FROM monitor_checks WHERE endpoint_id = ?
 `
@@ -170,7 +179,7 @@ func (q *Queries) FinishNotificationDelivery(ctx context.Context, arg FinishNoti
 }
 
 const getMonitorEndpoint = `-- name: GetMonitorEndpoint :one
-SELECT id, source_type, source_id, name, group_name, paused, interval_seconds, timeout_seconds, degraded_ms, public, route_provider_id, state, state_since, good_rounds, bad_rounds, last_check_at, last_latency_ms, created_at, updated_at FROM monitor_endpoints WHERE id = ?
+SELECT id, source_type, source_id, name, group_name, paused, interval_seconds, timeout_seconds, degraded_ms, public, route_provider_id, state, state_since, good_rounds, bad_rounds, last_check_at, last_latency_ms, created_at, updated_at, pending_dns FROM monitor_endpoints WHERE id = ?
 `
 
 func (q *Queries) GetMonitorEndpoint(ctx context.Context, id string) (MonitorEndpoint, error) {
@@ -196,6 +205,7 @@ func (q *Queries) GetMonitorEndpoint(ctx context.Context, id string) (MonitorEnd
 		&i.LastLatencyMs,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.PendingDns,
 	)
 	return i, err
 }
@@ -521,7 +531,7 @@ func (q *Queries) ListMonitorChecks(ctx context.Context, endpointID string) ([]M
 }
 
 const listMonitorEndpoints = `-- name: ListMonitorEndpoints :many
-SELECT id, source_type, source_id, name, group_name, paused, interval_seconds, timeout_seconds, degraded_ms, public, route_provider_id, state, state_since, good_rounds, bad_rounds, last_check_at, last_latency_ms, created_at, updated_at FROM monitor_endpoints ORDER BY group_name, name
+SELECT id, source_type, source_id, name, group_name, paused, interval_seconds, timeout_seconds, degraded_ms, public, route_provider_id, state, state_since, good_rounds, bad_rounds, last_check_at, last_latency_ms, created_at, updated_at, pending_dns FROM monitor_endpoints ORDER BY group_name, name
 `
 
 func (q *Queries) ListMonitorEndpoints(ctx context.Context) ([]MonitorEndpoint, error) {
@@ -553,6 +563,7 @@ func (q *Queries) ListMonitorEndpoints(ctx context.Context) ([]MonitorEndpoint, 
 			&i.LastLatencyMs,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.PendingDns,
 		); err != nil {
 			return nil, err
 		}
@@ -885,6 +896,20 @@ func (q *Queries) ListRoundsSince(ctx context.Context, at int64) ([]ListRoundsSi
 		return nil, err
 	}
 	return items, nil
+}
+
+const markMonitorPendingDNS = `-- name: MarkMonitorPendingDNS :exec
+UPDATE monitor_endpoints SET pending_dns = 1 WHERE source_type = ? AND source_id = ?
+`
+
+type MarkMonitorPendingDNSParams struct {
+	SourceType string
+	SourceID   string
+}
+
+func (q *Queries) MarkMonitorPendingDNS(ctx context.Context, arg MarkMonitorPendingDNSParams) error {
+	_, err := q.db.ExecContext(ctx, markMonitorPendingDNS, arg.SourceType, arg.SourceID)
+	return err
 }
 
 const pendingAlerts = `-- name: PendingAlerts :one

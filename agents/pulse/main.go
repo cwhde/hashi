@@ -31,6 +31,8 @@ const defaultConfig = "/etc/hashi-pulse/config.yaml"
 type config struct {
 	URL, AgentID, Token, Interface string
 	Interval                       time.Duration
+	// OwnInterval: the config names an interval, so Hashi's default does not replace it.
+	OwnInterval bool
 }
 
 // readConfig takes flat "key: value" lines from path, then environment variables over them. Nothing else in the format
@@ -68,7 +70,7 @@ func readConfig(path string, env func(string) string) (config, error) {
 		if err != nil || secs < 10 {
 			return c, fmt.Errorf("interval must be at least 10 seconds, got %q", v)
 		}
-		c.Interval = time.Duration(secs) * time.Second
+		c.Interval, c.OwnInterval = time.Duration(secs)*time.Second, true
 	}
 	if c.URL == "" || c.AgentID == "" || c.Token == "" {
 		return c, errors.New("url, agent_id and token are required")
@@ -87,13 +89,16 @@ type beat struct {
 	Candidates []candidate `json:"candidates"`
 	Selected   string      `json:"selected_interface,omitempty"`
 	Interval   int         `json:"interval_seconds"`
+	SentAt     time.Time   `json:"sent_at"`
+	InDocker   bool        `json:"in_docker,omitempty"`
 	// ReportedPublic is this machine's public address as outside services see it. Sent only when Hashi asks for it.
 	ReportedPublic string `json:"reported_public_ip,omitempty"`
 }
 
 // reply is Hashi's answer to a heartbeat.
 type reply struct {
-	CheckPublicIP bool `json:"check_public_ip"`
+	CheckPublicIP   bool `json:"check_public_ip"`
+	IntervalSeconds int  `json:"interval_seconds"`
 }
 
 // Outside services are asked by address, not name: a filtering DNS server blocks the well-known names
@@ -228,6 +233,12 @@ func send(ctx context.Context, h *http.Client, c config, b beat) (reply, error) 
 	return out, json.NewDecoder(io.LimitReader(res.Body, 4096)).Decode(&out)
 }
 
+// inDocker reports whether this process runs in a Docker container.
+func inDocker() bool {
+	_, err := os.Stat("/.dockerenv")
+	return err == nil
+}
+
 // jitter spreads many agents over time: ±10 %.
 func jitter(d time.Duration) time.Duration {
 	return d + time.Duration(rand.Int64N(int64(d/5)+1)) - d/10 //nolint:gosec // not security relevant
@@ -254,12 +265,15 @@ func run(ctx context.Context, c config) error {
 		cs, err := candidates()
 		if err == nil {
 			var r reply
-			r, err = send(ctx, h, c, beat{Version: Version, Hostname: host, Candidates: cs, Selected: c.Interface, Interval: int(c.Interval.Seconds()), ReportedPublic: reported})
+			r, err = send(ctx, h, c, beat{Version: Version, Hostname: host, Candidates: cs, Selected: c.Interface, Interval: int(c.Interval.Seconds()), SentAt: time.Now().UTC(), InDocker: inDocker(), ReportedPublic: reported})
 			if err == nil {
 				if r.CheckPublicIP && !check {
 					wait = 0
 				}
 				check = r.CheckPublicIP
+				if !c.OwnInterval && r.IntervalSeconds >= 10 {
+					c.Interval = time.Duration(r.IntervalSeconds) * time.Second
+				}
 			}
 		}
 		if err == nil {
@@ -267,7 +281,7 @@ func run(ctx context.Context, c config) error {
 			continue
 		}
 		failures++
-		wait = jitter(min(c.Interval, 5*time.Second<<min(failures, 8)))
+		wait = jitter(min(c.Interval, 5*time.Second<<min(failures-1, 8)))
 		log.Printf("heartbeat failed, retrying in %s: %v", wait.Round(time.Second), err)
 	}
 }

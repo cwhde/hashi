@@ -80,6 +80,8 @@
 						<HistoryStrip samples={stripHealth(e.strip)} />
 						<span class="flex items-center gap-2 sm:flex-col sm:items-end sm:gap-0">
 							<StatusBadge state={e.state} />
+							{#if e.pending_dns}<span class="text-[12px] text-muted-foreground">DNS updating</span
+								>{/if}
 							<span class="tnum text-[12px] text-muted-foreground">{uptimeText(e.uptime_24h)}</span>
 						</span>
 					</li>

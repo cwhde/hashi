@@ -60,17 +60,6 @@ func (q *Queries) GetPulseAgent(ctx context.Context, id string) (PulseAgent, err
 	return i, err
 }
 
-const getPulseConfig = `-- name: GetPulseConfig :one
-SELECT id, pepper_secret_id FROM pulse_config WHERE id = 1
-`
-
-func (q *Queries) GetPulseConfig(ctx context.Context) (PulseConfig, error) {
-	row := q.db.QueryRowContext(ctx, getPulseConfig)
-	var i PulseConfig
-	err := row.Scan(&i.ID, &i.PepperSecretID)
-	return i, err
-}
-
 const insertPulseAgent = `-- name: InsertPulseAgent :exec
 INSERT INTO pulse_agents (id, name, token_hash, install_type, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)
 `
@@ -96,32 +85,28 @@ func (q *Queries) InsertPulseAgent(ctx context.Context, arg InsertPulseAgentPara
 	return err
 }
 
-const insertPulseConfig = `-- name: InsertPulseConfig :exec
-INSERT INTO pulse_config (id, pepper_secret_id) VALUES (1, ?)
+const listIPSetsUsingAgent = `-- name: ListIPSetsUsingAgent :many
+SELECT DISTINCT s.id, s.name FROM ip_set_elements e JOIN ip_sets s ON s.id = e.ip_set_id WHERE e.pulse_agent_id = ? ORDER BY s.name
 `
 
-func (q *Queries) InsertPulseConfig(ctx context.Context, pepperSecretID string) error {
-	_, err := q.db.ExecContext(ctx, insertPulseConfig, pepperSecretID)
-	return err
+type ListIPSetsUsingAgentRow struct {
+	ID   string
+	Name string
 }
 
-const listIPSetsUsingAgent = `-- name: ListIPSetsUsingAgent :many
-SELECT DISTINCT s.name FROM ip_set_elements e JOIN ip_sets s ON s.id = e.ip_set_id WHERE e.pulse_agent_id = ? ORDER BY s.name
-`
-
-func (q *Queries) ListIPSetsUsingAgent(ctx context.Context, pulseAgentID sql.NullString) ([]string, error) {
+func (q *Queries) ListIPSetsUsingAgent(ctx context.Context, pulseAgentID sql.NullString) ([]ListIPSetsUsingAgentRow, error) {
 	rows, err := q.db.QueryContext(ctx, listIPSetsUsingAgent, pulseAgentID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []string{}
+	items := []ListIPSetsUsingAgentRow{}
 	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
+		var i ListIPSetsUsingAgentRow
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
 			return nil, err
 		}
-		items = append(items, name)
+		items = append(items, i)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -223,7 +208,7 @@ func (q *Queries) SetPulseDNS(ctx context.Context, arg SetPulseDNSParams) error 
 }
 
 const setPulseHeartbeat = `-- name: SetPulseHeartbeat :exec
-UPDATE pulse_agents SET last_seen_at = ?, public_ip = ?, public_ip_source = ?, candidates_json = ?, selected_ip = ?, hostname = ?, version = ?, interval_seconds = ?, updated_at = ? WHERE id = ?
+UPDATE pulse_agents SET last_seen_at = ?, public_ip = ?, public_ip_source = ?, candidates_json = ?, selected_ip = ?, hostname = ?, version = ?, interval_seconds = ?, install_type = ?, updated_at = ? WHERE id = ?
 `
 
 type SetPulseHeartbeatParams struct {
@@ -235,6 +220,7 @@ type SetPulseHeartbeatParams struct {
 	Hostname        string
 	Version         string
 	IntervalSeconds int64
+	InstallType     string
 	UpdatedAt       int64
 	ID              string
 }
@@ -249,6 +235,7 @@ func (q *Queries) SetPulseHeartbeat(ctx context.Context, arg SetPulseHeartbeatPa
 		arg.Hostname,
 		arg.Version,
 		arg.IntervalSeconds,
+		arg.InstallType,
 		arg.UpdatedAt,
 		arg.ID,
 	)

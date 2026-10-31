@@ -16,6 +16,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/adguard"
 	"git.juzo.io/juzo/hashi/internal/pulse"
 	"git.juzo.io/juzo/hashi/internal/services"
+	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/store"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 )
@@ -72,13 +73,63 @@ func New(st *store.Store, self func(context.Context) error, resolve services.Tar
 	return &Service{st: st, exec: Executor{Self: self, Agent: func(ctx context.Context, id string) error { return agentFresh(ctx, st, time.Now(), id) }}, resolve: resolve, notifier: n, now: time.Now}
 }
 
+// hostChecks checks a host where Hashi reaches it: its literal address, or with an address set each of those too, any one
+// of them answering being enough (08 §5).
+func (s *Service) hostChecks(ctx context.Context, consumer string, set sql.NullString, literal, port string) []CheckSpec {
+	lit := CheckSpec{Type: TypeTCP, Target: net.JoinHostPort(literal, port), Required: true}
+	if !set.Valid || s.resolve == nil {
+		return []CheckSpec{lit}
+	}
+	t, err := s.resolve(ctx, consumer, set.String)
+	if err != nil || len(t.Addresses) == 0 {
+		return []CheckSpec{lit}
+	}
+	lit.Required = false
+	out := []CheckSpec{lit}
+	for _, a := range t.Addresses {
+		if target := net.JoinHostPort(a.String(), port); target != lit.Target {
+			out = append(out, CheckSpec{Type: TypeTCP, Target: target})
+		}
+	}
+	return out
+}
+
+// MarkPendingDNS flags endpoints following a changed set until their next good check (08 §4 step 6).
+func (s *Service) MarkPendingDNS(ctx context.Context, changed []string) error {
+	svcs, err := services.List(ctx, s.st.R)
+	if err != nil {
+		return err
+	}
+	for _, id := range changed {
+		for _, v := range services.Uses(svcs, id) {
+			if err := s.st.Q.MarkMonitorPendingDNS(ctx, db.MarkMonitorPendingDNSParams{SourceType: SourceService, SourceID: v.ID}); err != nil {
+				return err
+			}
+		}
+		recs, err := s.st.R.ListDNSRecordsBySet(ctx, sql.NullString{String: id, Valid: true})
+		if err != nil {
+			return err
+		}
+		for _, r := range recs {
+			if err := s.st.Q.MarkMonitorPendingDNS(ctx, db.MarkMonitorPendingDNSParams{SourceType: SourceDNS, SourceID: r.ID}); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // agentFresh fails when an agent stopped sending heartbeats (08 §2).
 func agentFresh(ctx context.Context, st *store.Store, now time.Time, id string) error {
 	r, err := st.R.GetPulseAgent(ctx, id)
 	if err != nil {
 		return fmt.Errorf("Pulse agent: %w", err) //nolint:staticcheck // a name
 	}
-	if pulse.Status(r, now) != "fresh" {
+	c, err := settings.Get[settings.Pulse](ctx, st.R)
+	if err != nil {
+		return err
+	}
+	if pulse.Status(r, now, c.StaleFactor) != "fresh" {
 		return errors.New("no recent heartbeat")
 	}
 	return nil
@@ -148,9 +199,8 @@ func (s *Service) Sources(ctx context.Context) ([]Desired, error) {
 		return nil, err
 	}
 	for _, h := range hosts {
-		out = append(out, Desired{SourceType: SourceFirewall, SourceID: h.ID, Name: h.Name, Group: "Firewall hosts", Checks: []CheckSpec{
-			{Type: TypeTCP, Target: net.JoinHostPort(h.SshHost, strconv.FormatInt(h.SshPort, 10)), Required: true},
-		}})
+		out = append(out, Desired{SourceType: SourceFirewall, SourceID: h.ID, Name: h.Name, Group: "Firewall hosts",
+			Checks: s.hostChecks(ctx, "firewall_ssh:"+h.ID, h.SshTargetSetID, h.SshHost, strconv.FormatInt(h.SshPort, 10))})
 	}
 	guards, err := s.st.R.ListAdGuardConnections(ctx)
 	if err != nil {
@@ -165,9 +215,12 @@ func (s *Service) Sources(ctx context.Context) ([]Desired, error) {
 			out = append(out, Desired{SourceType: SourceAdGuard, SourceID: g.ID, Name: g.Name, Keep: true})
 			continue
 		}
-		out = append(out, Desired{SourceType: SourceAdGuard, SourceID: g.ID, Name: g.Name, Group: "AdGuard", Checks: []CheckSpec{
-			{Type: TypeTCP, Target: net.JoinHostPort(t.Addresses[0].String(), strconv.FormatInt(g.Port, 10)), Required: true},
-		}})
+		// A connection tries every address, so one answering is enough: each check alone is optional.
+		var checks []CheckSpec
+		for _, a := range t.Addresses {
+			checks = append(checks, CheckSpec{Type: TypeTCP, Target: net.JoinHostPort(a.String(), strconv.FormatInt(g.Port, 10))})
+		}
+		out = append(out, Desired{SourceType: SourceAdGuard, SourceID: g.ID, Name: g.Name, Group: "AdGuard", Checks: checks})
 	}
 	agents, err := s.st.R.ListPulseAgents(ctx)
 	if err != nil {
@@ -189,9 +242,8 @@ func (s *Service) Sources(ctx context.Context) ([]Desired, error) {
 		if !c.OwnershipConfirmedAt.Valid {
 			continue // a connection still in setup, or one that was given up on
 		}
-		out = append(out, Desired{SourceType: SourceTraefik, SourceID: c.ID, Name: c.Name, Group: "Traefik hosts", Checks: []CheckSpec{
-			{Type: TypeTCP, Target: net.JoinHostPort(c.SshHost, "443"), Required: true},
-		}})
+		out = append(out, Desired{SourceType: SourceTraefik, SourceID: c.ID, Name: c.Name, Group: "Traefik hosts",
+			Checks: s.hostChecks(ctx, "traefik_ssh:"+c.ID, c.SshTargetSetID, c.SshHost, "443")})
 	}
 	return out, nil
 }
@@ -426,6 +478,11 @@ func (s *Service) runEndpoint(ctx context.Context, e db.MonitorEndpoint) error {
 				if err := s.notifier.StateChanged(ctx, q, e, e.State, m.State, msg); err != nil {
 					return err
 				}
+			}
+		}
+		if verdict == StateUp { // this round passed; state alone stays up through the first failures
+			if err := q.ClearMonitorPendingDNS(ctx, e.ID); err != nil {
+				return err
 			}
 		}
 		return q.SetMonitorEndpointResult(ctx, db.SetMonitorEndpointResultParams{State: m.State, StateSince: since, GoodRounds: m.Good, BadRounds: m.Bad,

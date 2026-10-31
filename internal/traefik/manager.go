@@ -94,17 +94,56 @@ type Manager struct {
 // UseTargets wires address-set upstreams to the IP set compiler (app wiring).
 func (m *Manager) UseTargets(r services.TargetResolver) { m.targets = r }
 
-// SetSSHTarget makes the connection reachable through an address set, or back through its literal address with "".
-func (m *Manager) SetSSHTarget(ctx context.Context, id, setID string) error {
+// SetSSHTarget makes the connection reachable through an address set, or back through its literal address with "". A set
+// that resolves to nothing or does not answer is refused unless saveInactive says to keep it (08 §5).
+func (m *Manager) SetSSHTarget(ctx context.Context, id, setID string, saveInactive bool) error {
+	row, err := m.st.R.GetTraefikConnection(ctx, id)
+	if err != nil {
+		return fmt.Errorf("%w: no such connection", ErrInvalid)
+	}
 	if setID != "" {
 		if err := ipsets.CheckTarget(ctx, m.st.R, setID); err != nil {
 			return err
 		}
-	}
-	if _, err := m.st.R.GetTraefikConnection(ctx, id); err != nil {
-		return fmt.Errorf("%w: no such connection", ErrInvalid)
+		if !saveInactive {
+			silent, err := ipsets.SilentAgents(ctx, m.st.R, setID)
+			if err != nil {
+				return err
+			}
+			if len(silent) > 0 {
+				return fmt.Errorf("%w: Pulse agent %s has not sent a heartbeat yet", sshx.ErrTargetDown, strings.Join(silent, ", "))
+			}
+		}
+		if !saveInactive && m.targets != nil {
+			if err := sshx.ProbeTarget(ctx, m.targets, "traefik_ssh:"+id, setID, int(row.SshPort)); err != nil {
+				return err
+			}
+		}
 	}
 	return m.st.Q.SetTraefikConnectionSSHTarget(ctx, db.SetTraefikConnectionSSHTargetParams{SshTargetSetID: sql.NullString{String: setID, Valid: setID != ""}, ID: id})
+}
+
+// ReconnectUsing retests the connections reached through changed sets (08 §4 step 5).
+func (m *Manager) ReconnectUsing(ctx context.Context, changed []string) {
+	for _, set := range changed {
+		rows, err := m.st.R.ListTraefikConnectionsBySSHTarget(ctx, sql.NullString{String: set, Valid: true})
+		if err != nil {
+			continue
+		}
+		for _, r := range rows {
+			row, err := m.st.R.GetTraefikConnection(ctx, r.ID)
+			if err != nil {
+				continue
+			}
+			_ = m.st.Q.SetTraefikConnectionHealth(ctx, db.SetTraefikConnectionHealthParams{Health: "validating", LastValidatedAt: row.LastValidatedAt, LastValidationError: row.LastValidationError, ID: r.ID, UpdatedAt: m.now().UnixMilli()})
+			c, err := m.dial(ctx, row)
+			if err == nil {
+				_ = c.Close()
+			}
+			health, msg := sshx.AfterReconnect(row.Health, row.LastValidationError, err)
+			_ = m.st.Q.SetTraefikConnectionHealth(ctx, db.SetTraefikConnectionHealthParams{Health: health, LastValidatedAt: row.LastValidatedAt, LastValidationError: msg, ID: r.ID, UpdatedAt: m.now().UnixMilli()})
+		}
+	}
 }
 
 // sshAddrs lists where to reach a connection (08 §5), in order: its address set, then its literal address. The pinned host key is checked on each.
@@ -294,8 +333,21 @@ func (m *Manager) recordDistribution(ctx context.Context, q *db.Queries, connID 
 
 // dialer reaches the host's websecure port directly (the edge's TLS listener faces the network Hashi is in).
 func (m *Manager) dialer(row db.TraefikConnection) Dialer {
-	addr := sshx.Addr(row.SshHost, TLSPort)
-	return func(ctx context.Context) (net.Conn, error) { return m.tlsDial(ctx, addr) }
+	return func(ctx context.Context) (net.Conn, error) {
+		var last error
+		for _, a := range m.sshAddrs(ctx, row) {
+			host, _, err := net.SplitHostPort(a)
+			if err != nil {
+				return nil, err
+			}
+			c, err := m.tlsDial(ctx, sshx.Addr(host, TLSPort))
+			if err == nil {
+				return c, nil
+			}
+			last = err
+		}
+		return nil, last
+	}
 }
 
 // health stores the connection's health from an apply's outcome and returns err.

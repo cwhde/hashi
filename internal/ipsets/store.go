@@ -75,6 +75,22 @@ func LoadGraph(ctx context.Context, q *db.Queries) (Graph, error) {
 			s.Elements = append(s.Elements, e)
 		}
 	}
+	agents, err := q.ListPulseAgents(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list Pulse agents: %w", err)
+	}
+	names := make(map[string]string, len(agents))
+	for _, a := range agents {
+		names[a.ID] = a.Name
+	}
+	for _, set := range g {
+		for i := range set.Elements {
+			if p, ok := set.Elements[i].Item.(Pulse); ok {
+				p.Name = names[p.AgentID]
+				set.Elements[i].Item = p
+			}
+		}
+	}
 	return g, nil
 }
 

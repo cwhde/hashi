@@ -15,7 +15,6 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY cmd/ cmd/
-COPY agents/ agents/
 COPY internal/ internal/
 COPY --from=web /src/internal/web/dist/ internal/web/dist/
 ARG TARGETOS TARGETARCH VERSION=dev COMMIT=unknown
@@ -23,12 +22,10 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath \
       -ldflags "-s -w -X git.juzo.io/juzo/hashi/internal/app.Version=${VERSION} -X git.juzo.io/juzo/hashi/internal/app.Commit=${COMMIT}" \
       -o /out/hashi ./cmd/hashi \
- && for a in amd64 arm64; do CGO_ENABLED=0 GOOS=linux GOARCH=$a go build -trimpath -ldflags "-s -w -X main.Version=${VERSION}" -o /out/pulse/hashi-pulse-linux-$a ./agents/pulse; done \
  && mkdir -p /out/data
 
 FROM gcr.io/distroless/static-debian13:nonroot
 COPY --from=go /out/hashi /usr/local/bin/hashi
-COPY --from=go /out/pulse/ /usr/local/share/hashi/pulse/
 COPY --from=go --chown=65532:65532 /out/data /data
 VOLUME /data
 EXPOSE 8080 8081 8082

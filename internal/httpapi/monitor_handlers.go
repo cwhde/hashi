@@ -66,7 +66,7 @@ func endpointBody(r monitor.Row, lastErr map[string]string) gen.MonitorEndpoint 
 		checks = append(checks, gen.MonitorCheck{Id: c.ID, Type: c.Type, Role: c.Role, Target: c.Target, Required: c.Required == 1, LastError: emptyNil(lastErr[c.ID])})
 	}
 	since := time.UnixMilli(e.StateSince).UTC()
-	return gen.MonitorEndpoint{Id: e.ID, Name: e.Name, Group: e.GroupName, SourceType: e.SourceType, State: gen.MonitorState(r.State), StateSince: &since,
+	return gen.MonitorEndpoint{PendingDns: boolIf(e.PendingDns == 1), Id: e.ID, Name: e.Name, Group: e.GroupName, SourceType: e.SourceType, State: gen.MonitorState(r.State), StateSince: &since,
 		Paused: e.Paused == 1, Public: e.Public == 1, IntervalSeconds: e.IntervalSeconds, TimeoutSeconds: e.TimeoutSeconds, DegradedMs: e.DegradedMs,
 		RouteProviderId: emptyNil(e.RouteProviderID.String), LastCheckAt: millis(e.LastCheckAt), LastLatencyMs: nullInt(e.LastLatencyMs), Uptime24h: r.Uptime24,
 		Checks: checks, Strip: stripBody(r.Strip)}
@@ -418,7 +418,7 @@ func (s *Server) GetPublicStatus(ctx context.Context, _ gen.GetPublicStatusReque
 	}
 	out := gen.GetPublicStatus200JSONResponse{Title: title, Theme: theme, UpdatedAt: nonZero(v.UpdatedAt), Endpoints: make([]gen.PublicEndpoint, 0, len(v.Endpoints))}
 	for _, e := range v.Endpoints {
-		out.Endpoints = append(out.Endpoints, gen.PublicEndpoint{Name: e.Name, Group: e.Group, State: gen.MonitorState(e.State), Strip: stripBody(e.Strip), Uptime24h: e.Uptime24})
+		out.Endpoints = append(out.Endpoints, gen.PublicEndpoint{PendingDns: boolIf(e.PendingDNS), Name: e.Name, Group: e.Group, State: gen.MonitorState(e.State), Strip: stripBody(e.Strip), Uptime24h: e.Uptime24})
 	}
 	return out, nil
 }
@@ -438,4 +438,11 @@ func (s *Server) GetPublicApps(ctx context.Context, _ gen.GetPublicAppsRequestOb
 		out.Apps = append(out.Apps, gen.PublicApp{Name: a.Name, Group: a.Group, Url: a.URL, State: gen.MonitorState(a.State)})
 	}
 	return out, nil
+}
+
+func boolIf(v bool) *bool {
+	if !v {
+		return nil
+	}
+	return &v
 }

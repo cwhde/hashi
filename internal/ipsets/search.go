@@ -17,7 +17,11 @@ func Describe(g Graph, it Item) string {
 	case Host:
 		return "host " + v.HostID + " (" + v.Scope + ")"
 	case Pulse:
-		return "Pulse agent " + v.AgentID + " (" + v.Scope + ")"
+		name := v.Name
+		if name == "" {
+			name = v.AgentID
+		}
+		return name + " (pulse, " + v.Scope + ")"
 	case DNS:
 		return v.FQDN + " (dns)"
 	case SetRef:

@@ -341,6 +341,8 @@ type PublicEndpoint struct {
 	State    string
 	Strip    Strip
 	Uptime24 *float64
+	// PendingDNS: its address changed and DNS may still be catching up.
+	PendingDNS bool
 }
 
 // PublicStatus is the status page's data.
@@ -404,7 +406,7 @@ func (s *Service) PublicStatus(ctx context.Context) (PublicStatus, error) {
 				}
 			}
 			if r.Endpoint.Public == 1 {
-				out.Endpoints = append(out.Endpoints, PublicEndpoint{Name: r.Endpoint.Name, Group: r.Endpoint.GroupName, State: r.State, Strip: r.Strip, Uptime24: r.Uptime24})
+				out.Endpoints = append(out.Endpoints, PublicEndpoint{PendingDNS: r.Endpoint.PendingDns == 1, Name: r.Endpoint.Name, Group: r.Endpoint.GroupName, State: r.State, Strip: r.Strip, Uptime24: r.Uptime24})
 			}
 		}
 		return out, nil

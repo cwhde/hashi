@@ -14,6 +14,8 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import { CircleAlert, FlaskConical, Lock, Pencil, Plus, RefreshCw, Search } from '@lucide/svelte';
+	import AdGuardRewrites from '$lib/components/hashi/dns/AdGuardRewrites.svelte';
+	import AgentNames from '$lib/components/hashi/dns/AgentNames.svelte';
 	import { api, problemText, type Schemas } from '$lib/api/client';
 	import { pendingPlans } from '$lib/sync-pending.svelte';
 	import { outcomeText } from '$lib/sync';
@@ -48,7 +50,12 @@
 	let showGenerated = $state(false);
 
 	// The tab lives in the URL (?tab=import) so a reload or a shared link opens the same tool.
-	let tab = $state(page.url.searchParams.get('tab') === 'import' ? 'import' : 'records');
+	const tabs = ['import', 'adguard', 'agents'];
+	let tab = $state(
+		tabs.includes(page.url.searchParams.get('tab') ?? '')
+			? page.url.searchParams.get('tab')!
+			: 'records'
+	);
 	const setTab = (t: string) =>
 		goto(t === 'records' ? '?' : `?tab=${t}`, {
 			replaceState: true,
@@ -306,6 +313,8 @@
 			<Tabs.Trigger value="import"
 				>Import{#if newCount > 0}<Tag class="ml-1">{newCount} new</Tag>{/if}</Tabs.Trigger
 			>
+			<Tabs.Trigger value="adguard">AdGuard rewrites</Tabs.Trigger>
+			<Tabs.Trigger value="agents">Internal agent names</Tabs.Trigger>
 		</Tabs.List>
 
 		<Tabs.Content value="records">
@@ -415,6 +424,9 @@
 				holds them; import one on the Import tab to edit it here.
 			</p>
 		</Tabs.Content>
+
+		<Tabs.Content value="adguard"><AdGuardRewrites /></Tabs.Content>
+		<Tabs.Content value="agents"><AgentNames /></Tabs.Content>
 
 		<Tabs.Content value="import">
 			<div class="mb-3 flex flex-wrap items-center gap-3">

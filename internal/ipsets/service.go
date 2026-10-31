@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
+	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -103,6 +104,48 @@ func (s *Service) SetPulse(addrs PulseAddrs, exists PulseLookup) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.pulse, s.lookupP = addrs, exists
+}
+
+// Impact names the changed sets and everything using them, for Activity (08 §4).
+func (s *Service) Impact(ctx context.Context, changed []string) (sets, consumers []string) {
+	g, err := LoadGraph(ctx, s.st.R)
+	if err != nil {
+		return nil, nil
+	}
+	// A set holding a changed set changes with it.
+	seen := map[string]bool{}
+	var all []string
+	var up func(string)
+	up = func(id string) {
+		if seen[id] {
+			return
+		}
+		seen[id] = true
+		all = append(all, id)
+		for _, pid := range sortedIDs(g) {
+			if slices.ContainsFunc(g[pid].Elements, func(e Element) bool { r, ok := e.Item.(SetRef); return ok && r.SetID == id }) {
+				up(pid)
+			}
+		}
+	}
+	for _, id := range changed {
+		up(id)
+	}
+	for _, id := range all {
+		if x, ok := g[id]; ok {
+			sets = append(sets, x.Name)
+		}
+		for _, src := range s.Sources() {
+			c, err := src(ctx, s.st.R, id)
+			if err != nil {
+				continue
+			}
+			for _, u := range c {
+				consumers = append(consumers, u.Name)
+			}
+		}
+	}
+	return sets, consumers
 }
 
 // Editor returns an element editor that knows every registered consumer and the hosts.

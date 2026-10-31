@@ -149,7 +149,7 @@
 										<div class="truncate text-[13.5px] font-medium">{m.name}</div>
 										<div class="truncate text-[12px] text-muted-foreground">{checkSummary(m)}</div>
 									</div>
-									<StatusBadge state={m.state} />
+									{#if m.pending_dns}<Tag>DNS updating</Tag>{/if}<StatusBadge state={m.state} />
 								</div>
 								<HistoryStrip samples={stripHealth(m.strip)} />
 								<div class="mt-1.5 flex justify-between text-[12px] text-muted-foreground">

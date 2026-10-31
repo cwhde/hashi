@@ -22,6 +22,7 @@
 	import { theme, themes } from '$lib/theme.svelte';
 	import Notifications from '$lib/components/hashi/status/Notifications.svelte';
 	import AgentDns from '$lib/components/hashi/pulse/AgentDns.svelte';
+	import PulseSettings from '$lib/components/hashi/pulse/PulseSettings.svelte';
 
 	const cats = [
 		{ id: 'general', label: 'General' },
@@ -29,6 +30,7 @@
 		{ id: 'appearance', label: 'Appearance' },
 		{ id: 'security', label: 'Security' },
 		{ id: 'notifications', label: 'Notifications' },
+		{ id: 'pulse', label: 'Pulse' },
 		{ id: 'agent-dns', label: 'Internal agent DNS' }
 	];
 	const cat = $derived(page.url.searchParams.get('category') ?? 'general');
@@ -375,6 +377,8 @@
 			{@render loading()}
 		{:else if cat === 'notifications'}
 			<Notifications />
+		{:else if cat === 'pulse'}
+			<PulseSettings />
 		{:else if cat === 'agent-dns'}
 			<AgentDns />
 		{:else if cat === 'general' && general}

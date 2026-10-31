@@ -3,10 +3,12 @@ package pulse
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net"
 	"net/netip"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -29,6 +31,7 @@ func fixture(t *testing.T) (*Service, *time.Time) {
 	s := New(st, v, nil)
 	now := time.Now()
 	s.now = func() time.Time { return now }
+	s.debounce = time.Millisecond
 	return s, &now
 }
 
@@ -101,7 +104,7 @@ func TestAddressesPerScope(t *testing.T) {
 	}
 	changes := make(chan struct{}, 4)
 	s.OnChange(func(context.Context) { changes <- struct{}{} })
-	cands := []Candidate{{"wg0", "100.64.0.2"}, {"eth0", "10.0.0.5"}, {"eth1", "10.1.0.5"}, {"lo", "127.0.0.1"}}
+	cands := []Candidate{{"wg0", "100.64.0.2"}, {"eth0", "10.0.0.5"}, {"eth1", "10.1.0.5"}, {"lo", "127.0.0.1"}, {"wan", "8.8.8.8"}}
 	if _, err := s.Heartbeat(ctx, a.ID, tok.Reveal(), Beat{Candidates: cands}, netip.MustParseAddr("192.0.2.9")); err != nil {
 		t.Fatal(err)
 	}
@@ -140,11 +143,11 @@ func TestStatus(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if Status(a, *now) != "waiting" {
-		t.Fatal(Status(a, *now))
+	if Status(a, *now, 3) != "waiting" {
+		t.Fatal(Status(a, *now, 3))
 	}
 	a.LastSeenAt = sql.NullInt64{Int64: now.UnixMilli(), Valid: true}
-	if Status(a, *now) != "fresh" || Status(a, now.Add(4*time.Minute)) != "stale" {
+	if Status(a, *now, 3) != "fresh" || Status(a, now.Add(4*time.Minute), 3) != "stale" {
 		t.Fatal("freshness")
 	}
 }
@@ -162,7 +165,7 @@ func TestAgentDNS(t *testing.T) {
 	if got, err := s.Rewrites(ctx); err != nil || len(got) != 0 {
 		t.Fatalf("off by default: %+v %v", got, err)
 	}
-	if err := settings.Put(ctx, s.st.Q, settings.AgentDNS{Enabled: true, Domain: "hashi.home.arpa", IPMode: settings.AgentIPSelected}); err != nil {
+	if err := settings.Put(ctx, s.st.Q, settings.AgentDNS{Enabled: true, Domain: "hashi.home.arpa", IPMode: settings.AgentIPSelected, RemoveStaleAfterHours: 1}); err != nil {
 		t.Fatal(err)
 	}
 	got, err := s.Rewrites(ctx)
@@ -259,11 +262,11 @@ func TestPublicAddressSources(t *testing.T) {
 		if source != "" {
 			src = netip.MustParseAddr(source)
 		}
-		check, err := s.Heartbeat(ctx, a.ID, tok.Reveal(), Beat{ReportedPublic: reported}, src)
+		r, err := s.Heartbeat(ctx, a.ID, tok.Reveal(), Beat{ReportedPublic: reported}, src)
 		if err != nil {
 			t.Fatal(err)
 		}
-		return check
+		return r.CheckPublicIP
 	}
 	public := func() string {
 		r, err := s.st.R.GetPulseAgent(ctx, a.ID)
@@ -309,7 +312,7 @@ func TestCheckReach(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := s.st.Q.SetPulseHeartbeat(ctx, db.SetPulseHeartbeatParams{CandidatesJson: "[]", SelectedIp: "127.0.0.1", IntervalSeconds: 60, UpdatedAt: now.UnixMilli(), ID: a.ID}); err != nil {
+	if err := s.st.Q.SetPulseHeartbeat(ctx, db.SetPulseHeartbeatParams{CandidatesJson: "[]", SelectedIp: "127.0.0.1", IntervalSeconds: 60, InstallType: "linux", UpdatedAt: now.UnixMilli(), ID: a.ID}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.SetDNS(ctx, a.ID, "box", true, "", false, port); err != nil {
@@ -349,11 +352,11 @@ func TestTrustFollowsTheCurrentConnection(t *testing.T) {
 	beat := func(source, reported string) bool {
 		t.Helper()
 		*now = now.Add(time.Minute)
-		check, err := s.Heartbeat(ctx, a.ID, tok.Reveal(), Beat{ReportedPublic: reported}, netip.MustParseAddr(source))
+		r, err := s.Heartbeat(ctx, a.ID, tok.Reveal(), Beat{ReportedPublic: reported}, netip.MustParseAddr(source))
 		if err != nil {
 			t.Fatal(err)
 		}
-		return check
+		return r.CheckPublicIP
 	}
 	// Moving from a public path to a private one must start the checks, or the old address stays frozen.
 	if beat("198.51.100.7", "") {
@@ -394,10 +397,138 @@ func TestStaleFollowsTheAgentsInterval(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := Status(r, now.Add(200*time.Second)); got != "fresh" {
+	if got := Status(r, now.Add(200*time.Second), 3); got != "fresh" {
 		t.Fatal(got)
 	}
-	if got := Status(r, now.Add(901*time.Second)); got != "stale" {
+	if got := Status(r, now.Add(901*time.Second), 3); got != "stale" {
 		t.Fatal(got)
+	}
+}
+
+// 03 §9, §10: normalization, collisions shown and not silently dropped, an override resolving one, private mode, stale removal.
+func TestAgentNames(t *testing.T) {
+	s, now := fixture(t)
+	ctx := t.Context()
+	if err := settings.Put(ctx, s.st.Q, settings.AgentDNS{Enabled: true, Domain: "hashi.home.arpa", IPMode: settings.AgentIPPrivate, RemoveStaleAfterHours: 2}); err != nil {
+		t.Fatal(err)
+	}
+	mk := func(name, addr string) string {
+		t.Helper()
+		a, tok, err := s.Create(ctx, name, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.Heartbeat(ctx, a.ID, tok.Reveal(), Beat{Candidates: []Candidate{{"wg0", "203.0.113.9"}, {"eth0", addr}}}, netip.Addr{}); err != nil {
+			t.Fatal(err)
+		}
+		return a.ID
+	}
+	mk("Media Box!", "10.0.0.5")
+	second := mk("media box", "10.0.0.6")
+	names, err := s.Names(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wanted, collided int
+	for _, n := range names {
+		if n.Wanted {
+			wanted++
+			if n.Domain != "media-box.hashi.home.arpa" || n.Answer != "10.0.0.5" {
+				t.Errorf("%+v", n)
+			}
+		}
+		if n.Collision {
+			collided++
+		}
+	}
+	if wanted != 1 || collided != 1 {
+		t.Fatalf("%+v", names)
+	}
+	if _, err := s.SetDNS(ctx, second, "media box", true, "Second", false, 0); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.Rewrites(ctx)
+	if err != nil || len(got) != 2 {
+		t.Fatalf("override: %+v %v", got, err)
+	}
+	*now = now.Add(time.Hour)
+	if got, _ := s.Rewrites(ctx); len(got) != 2 {
+		t.Fatalf("a stale agent keeps its rewrite: %+v", got)
+	}
+	*now = now.Add(2 * time.Hour)
+	if got, _ := s.Rewrites(ctx); len(got) != 0 {
+		t.Fatalf("removed after the configured time: %+v", got)
+	}
+	if !s.OriginGone(ctx, "agent nobody") || s.OriginGone(ctx, "agent "+second) || s.OriginGone(ctx, "service x") {
+		t.Fatal("OriginGone")
+	}
+}
+
+func TestPulseSettingsAreUsed(t *testing.T) {
+	s, _ := fixture(t)
+	ctx := t.Context()
+	a, tok, err := s.Create(ctx, "box", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := settings.Put(ctx, s.st.Q, settings.Pulse{HeartbeatIntervalSeconds: 120, StaleFactor: 5}); err != nil {
+		t.Fatal(err)
+	}
+	r, err := s.Heartbeat(ctx, a.ID, tok.Reveal(), Beat{}, netip.Addr{})
+	if err != nil || r.IntervalSeconds != 120 {
+		t.Fatalf("%+v %v", r, err)
+	}
+}
+
+// Review of S8: a public address cannot enter sets through the private list without the trust opt-in, and a stale agent's
+// set says so while its addresses keep counting (05a §2).
+func TestPublicCandidateRefusedAndStaleSetWarns(t *testing.T) {
+	s, now := fixture(t)
+	ctx := t.Context()
+	a, tok, err := s.Create(ctx, "box", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Heartbeat(ctx, a.ID, tok.Reveal(), Beat{Candidates: []Candidate{{"wan", "8.8.8.8"}, {"eth0", "10.0.0.5"}}}, netip.Addr{}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.Addrs(ctx, s.st.R, a.ID, ipsets.ScopeInternal, "")
+	if err != nil || len(got) != 1 || got[0].String() != "10.0.0.5" {
+		t.Fatalf("%v %v", got, err)
+	}
+	*now = now.Add(time.Hour)
+	got, err = s.Addrs(ctx, s.st.R, a.ID, ipsets.ScopeInternal, "")
+	var stale ipsets.Stale
+	if !errors.As(err, &stale) || len(got) != 1 {
+		t.Fatalf("stale: %v %v", got, err)
+	}
+}
+
+// The captured release holds what the installer downloads.
+func TestReleaseContract(t *testing.T) {
+	raw, err := os.ReadFile("../../testdata/contracts/gitea/release.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var r struct {
+		Prerelease bool `json:"prerelease"`
+		Assets     []struct {
+			Name string `json:"name"`
+		} `json:"assets"`
+	}
+	if err := json.Unmarshal(raw, &r); err != nil {
+		t.Fatal(err)
+	}
+	names := map[string]bool{}
+	for _, a := range r.Assets {
+		names[a.Name] = true
+	}
+	for _, arch := range []string{"amd64", "arm64"} {
+		if !names["hashi-pulse-linux-"+arch] || !names["hashi-pulse-linux-"+arch+".sha256"] {
+			t.Fatalf("%s missing: %v", arch, names)
+		}
+	}
+	if !strings.Contains(string(InstallScript), `"$from/hashi-pulse-linux-$arch"`) || !strings.Contains(string(Script()), ReleaseBase) {
+		t.Fatal("the installer must fetch those names from this release")
 	}
 }

@@ -124,7 +124,7 @@ func TestRealAdGuardPlanApplyVerify(t *testing.T) {
 }
 
 func setMode(ctx context.Context, s *adguard.Service, c db.AdguardConnection, mode string, port int) error {
-	_, err := s.Update(ctx, c.ID, adguard.Input{Name: c.Name, TargetSetID: c.TargetSetID, Port: port, Scheme: c.Scheme, Username: c.Username, TLSVerify: true, Mode: mode})
+	_, err := s.Update(ctx, c.ID, adguard.Input{Name: c.Name, TargetSetID: c.TargetSetID, Port: port, Scheme: c.Scheme, Username: c.Username, TLSVerify: true, Mode: mode, SaveInactive: false})
 	return err
 }
 

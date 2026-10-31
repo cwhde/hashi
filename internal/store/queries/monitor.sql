@@ -138,3 +138,9 @@ FROM dns_records r JOIN dns_zones z ON z.id = r.zone_id WHERE r.dashboard = 1 OR
 
 -- name: SetServiceDashboard :execrows
 UPDATE services SET dashboard_visible = ?, updated_at = ? WHERE id = ?;
+
+-- name: MarkMonitorPendingDNS :exec
+UPDATE monitor_endpoints SET pending_dns = 1 WHERE source_type = ? AND source_id = ?;
+
+-- name: ClearMonitorPendingDNS :exec
+UPDATE monitor_endpoints SET pending_dns = 0 WHERE id = ? AND pending_dns = 1;

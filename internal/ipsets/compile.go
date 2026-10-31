@@ -3,6 +3,7 @@ package ipsets
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/netip"
 	"slices"
@@ -46,6 +47,11 @@ type Resolver interface {
 	Pulse(agentID, scope, selector string) ([]netip.Addr, error)
 	DNS(fqdn string) ([]netip.Addr, error)
 }
+
+// Stale is a resolver's answer for addresses that still count but may be out of date (05a §2).
+type Stale struct{ What string }
+
+func (s Stale) Error() string { return s.What }
 
 // Problem names one item that could not resolve, with the nesting path from the compiled set to it.
 type Problem struct {
@@ -255,11 +261,14 @@ func (c *compiler) leaf(out *partial, e Element, fail func(Element, string), res
 		return
 	}
 	addrs, err := resolve()
-	if err != nil {
+	var stale Stale
+	switch {
+	case errors.As(err, &stale): // the addresses still count; the set says they may be old
+		fail(e, stale.What)
+	case err != nil:
 		fail(e, fmt.Sprintf("%s: %v", what, err))
 		return
-	}
-	if len(addrs) == 0 {
+	case len(addrs) == 0:
 		fail(e, what+": resolved to no address")
 		return
 	}

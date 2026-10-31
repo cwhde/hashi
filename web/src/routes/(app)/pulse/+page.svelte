@@ -18,7 +18,6 @@
 	// 08, 10b §3: agents and their addresses; the add drawer shows the install once, with the token.
 	type Agent = Schemas['PulseAgent'];
 	let agents = $state<Agent[]>([]);
-	let hashiUrl = $state('');
 	let error = $state('');
 	let busy = $state(false);
 
@@ -26,7 +25,6 @@
 		const r = await api.GET('/api/pulse/agents');
 		if (!r.data) throw r.error;
 		agents = r.data.agents;
-		hashiUrl = r.data.hashi_url;
 	}
 	onMount(() => {
 		load().catch((e) => (error = problemText(e)));
@@ -118,24 +116,17 @@
 		}
 	}
 
-	const linux = $derived(
-		shown
-			? `curl -fsSL ${hashiUrl}/api/pulse/install.sh | sudo sh -s -- --url ${hashiUrl} --id ${shown.agent.id} --token ${shown.token}`
-			: ''
-	);
-	const compose = $derived(
-		shown
-			? `services:
-  pulse:
-    image: git.juzo.io/juzo/hashi-pulse:latest
-    restart: unless-stopped
-    network_mode: host
-    environment:
-      HASHI_URL: ${hashiUrl}
-      HASHI_AGENT_ID: ${shown.agent.id}
-      HASHI_TOKEN: ${shown.token}`
-			: ''
-	);
+	let install = $state<Schemas['PulseInstall'] | null>(null);
+	$effect(() => {
+		const id = shown?.agent.id;
+		if (!id) return;
+		api
+			.GET('/api/pulse/agents/{id}/install', { params: { path: { id } } })
+			.then((r) => (install = r.data ?? null));
+	});
+	const fill = (t?: string) => (t && shown ? t.replaceAll('<token>', shown.token) : '');
+	const linux = $derived(fill(install?.linux));
+	const compose = $derived(fill(install?.compose));
 	const copy = (t: string) => void navigator.clipboard?.writeText(t);
 </script>
 
@@ -277,7 +268,8 @@
 							>
 						</div>
 						<p class="mt-2 text-[12.5px] text-muted-foreground">
-							Downloads the binary from Hashi, checks its SHA-256 and installs a service.
+							Gets the installer from Hashi and the agent from the Hashi release, checks its SHA-256
+							and installs a service.
 						</p>
 					</Tabs.Content>
 					<Tabs.Content value="docker">

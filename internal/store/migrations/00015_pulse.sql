@@ -1,10 +1,5 @@
 -- +goose Up
--- S8: Pulse agents (08 §2). token_hash is HMAC-SHA256(pepper, token); the pepper is in the vault, its record named here.
-CREATE TABLE pulse_config (
-    id               INTEGER PRIMARY KEY CHECK (id = 1),
-    pepper_secret_id TEXT NOT NULL REFERENCES secret_records (id)
-) STRICT;
-
+-- S8: Pulse agents (08 §2). token_hash is HMAC-SHA256(pepper, token); the pepper is derived from the master key (02 §5).
 CREATE TABLE pulse_agents (
     id               TEXT PRIMARY KEY,
     name             TEXT NOT NULL UNIQUE,
@@ -26,4 +21,3 @@ CREATE TABLE pulse_agents (
 
 -- +goose Down
 DROP TABLE pulse_agents;
-DROP TABLE pulse_config;

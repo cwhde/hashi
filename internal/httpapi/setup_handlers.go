@@ -210,6 +210,18 @@ func (s *Server) ConfirmRecoveryKey(ctx context.Context, req gen.ConfirmRecovery
 	return gen.ConfirmRecoveryKey200JSONResponse(body), nil
 }
 
+// ContinueSetupIntegrations leaves step 10: everything in it is optional and has its own page after setup.
+func (s *Server) ContinueSetupIntegrations(ctx context.Context, _ gen.ContinueSetupIntegrationsRequestObject) (gen.ContinueSetupIntegrationsResponseObject, error) {
+	if err := s.Setup.MarkDone(ctx, s.Store.Q, setup.StepOptional, nil); err != nil {
+		return nil, setupError(err)
+	}
+	body, err := s.setupBody(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return gen.ContinueSetupIntegrations200JSONResponse(body), nil
+}
+
 func (s *Server) CompleteSetup(ctx context.Context, _ gen.CompleteSetupRequestObject) (gen.CompleteSetupResponseObject, error) {
 	ri := info(ctx)
 	if err := s.Setup.Complete(ctx, s.actor(ri), ri.ipString()); err != nil {

@@ -293,3 +293,18 @@ func TestResultHashChangesWithContent(t *testing.T) {
 		t.Fatal("hash")
 	}
 }
+
+// A stale item keeps its addresses and marks the set partial (05a §2).
+func TestStaleKeepsAddressesAndWarns(t *testing.T) {
+	g := Graph{"s": {ID: "s", Slug: "s", Elements: []Element{{ID: "e", Item: Pulse{AgentID: "a", Scope: ScopeInternal}}}}}
+	res := g.Compile("s", staleResolver{}, time.Now())
+	if res.Status != StatusPartial || len(res.Addresses) != 1 || len(res.Problems) != 1 {
+		t.Fatalf("%+v", res)
+	}
+}
+
+type staleResolver struct{ fakeResolver }
+
+func (staleResolver) Pulse(string, string, string) ([]netip.Addr, error) {
+	return []netip.Addr{netip.MustParseAddr("10.0.0.1")}, Stale{What: "stale"}
+}

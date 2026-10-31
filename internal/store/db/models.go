@@ -360,6 +360,7 @@ type MonitorEndpoint struct {
 	LastLatencyMs   sql.NullInt64
 	CreatedAt       int64
 	UpdatedAt       int64
+	PendingDns      int64
 }
 
 type MonitorEvent struct {
@@ -460,11 +461,6 @@ type PulseAgent struct {
 	PublicIpSource  string
 	ReachPort       int64
 	ReachOk         sql.NullInt64
-}
-
-type PulseConfig struct {
-	ID             int64
-	PepperSecretID string
 }
 
 type RecoveryKey struct {

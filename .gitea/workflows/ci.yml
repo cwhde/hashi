@@ -66,6 +66,8 @@ jobs:
 
       - name: make test-integration
         run: make test-integration
+      - name: Agent image size
+        run: make pulse-image-size
 
   # 11-delivery.md §4: E2E only when the UI or the API behind it changed (always on main).
   e2e:
