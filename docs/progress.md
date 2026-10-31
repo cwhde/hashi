@@ -5,7 +5,7 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
-**S6 — IP sets + firewall + streams** · status: **in progress** (started 2026-10-29; entry gate passed the same day). PR A merged (#36), PR B merged (#37), PR C merged (#38), PR D merged (#39). Next: PR E (UI, deploy).
+**S6 — IP sets + firewall + streams** · status: **in progress** (started 2026-10-29; entry gate passed the same day). PR A merged (#36), PR B merged (#37), PR C merged (#38), PR D merged (#39), PR E merged (#40). Next: deploy, then the gate on the first real host.
 
 Scope and gate: 11-delivery.md §3 row S6: 05a-ip-sets.md (`ip`, `cidr`, `host`, `dns`, set references, system sets,
 compiler, IP sets pages, address page without dynamic state), 05-firewall.md (nftables table, folding, bindings, host
@@ -685,6 +685,8 @@ Decisions made in S0:
   only short-SHA deploys exist so far.
 
 ## Log
+
+- 2026-10-31 — S6 PR E merged (#40). One CI round failed: the E2E journey hit its 120 s limit on the runners with step 6 added (240 s now). The dev-target proof passed.
 
 - 2026-10-31 — S6 PR D merged (#39), CI green on the first run. Host A pool 85.2 % trimmed.
 

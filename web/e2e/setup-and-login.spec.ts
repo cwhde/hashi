@@ -43,7 +43,7 @@ async function virtualAuthenticator(page: Page, transport: 'internal' | 'usb' = 
 
 test('setup with a passkey, then sign in with it', async ({ page, request }) => {
 	// One long journey through every built page; the default 30 s per test is too short on the CI runners.
-	test.setTimeout(120_000);
+	test.setTimeout(240_000);
 	await virtualAuthenticator(page);
 	await page.goto(state.baseURL);
 	await expect(page).toHaveURL(/\/setup$/);
