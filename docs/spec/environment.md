@@ -29,7 +29,7 @@ host-A firewall script. Their current configuration is reference material only, 
 | Traefik v3.7.16 (release binary, file provider, API) | reverse proxy on the edge LXCs | 2026-10-28 on a disposable Alpine LXC: `testdata/contracts/traefik/` (release checksums, `/api/rawdata`, cert reload, forward-auth fallback) |
 | Edge host OS probe over SSH | Traefik/firewall host validation | 2026-10-28, Alpine 3.23, Debian 12 and 13, Fedora 44: `testdata/contracts/os/` |
 | Google Trust Services ACME (EAB) | certificates | — |
-| AdGuard Home ×2 (+ adguardhome-sync) | internal rewrites | — |
+| AdGuard Home ×2 (+ adguardhome-sync) | internal rewrites | 2026-10-31, rewrite API from local containers of both versions; real instances not yet read |
 | Pocket ID | edge SSO | — |
 | MaxMind GeoLite2 | GeoIP (Pangolin already downloads Country) | — |
 | Gitea (`git.juzo.io`) | repo, act_runner CI, container registry | — |

@@ -1,0 +1,144 @@
+{
+  "_contract": {
+    "captured_at": "2026-10-31",
+    "docs_url": "https://github.com/AdguardTeam/AdGuardHome/tree/master/openapi",
+    "version": "v0.107.76",
+    "source": "throwaway local container, same version as the real instance; basic auth",
+    "note": "add accepts exact duplicates and an empty domain; delete removes one matching rule and answers 200 when nothing matches; update of a missing rule answers 400 as text"
+  },
+  "calls": {
+    "status": {
+      "method": "GET",
+      "path": "/control/status",
+      "status": 200,
+      "body": {
+        "version": "v0.107.76",
+        "language": "",
+        "dns_addresses": [
+          "127.0.0.1",
+          "::1",
+          "192.0.2.1"
+        ],
+        "dns_port": 53,
+        "http_port": 3000,
+        "protection_disabled_duration": 0,
+        "start_time": 1793458745254.2136,
+        "protection_enabled": true,
+        "dhcp_available": true,
+        "running": true
+      }
+    },
+    "list-empty": {
+      "method": "GET",
+      "path": "/control/rewrite/list",
+      "status": 200,
+      "body": []
+    },
+    "add": {
+      "method": "POST",
+      "path": "/control/rewrite/add",
+      "status": 200,
+      "body": ""
+    },
+    "add-dup": {
+      "method": "POST",
+      "path": "/control/rewrite/add",
+      "status": 200,
+      "body": ""
+    },
+    "add-disabled": {
+      "method": "POST",
+      "path": "/control/rewrite/add",
+      "status": 200,
+      "body": ""
+    },
+    "list": {
+      "method": "GET",
+      "path": "/control/rewrite/list",
+      "status": 200,
+      "body": [
+        {
+          "domain": "svc.example.com",
+          "answer": "192.0.2.10",
+          "enabled": true
+        },
+        {
+          "domain": "svc.example.com",
+          "answer": "192.0.2.10",
+          "enabled": true
+        },
+        {
+          "domain": "other.example.com",
+          "answer": "192.0.2.11",
+          "enabled": false
+        }
+      ]
+    },
+    "update": {
+      "method": "PUT",
+      "path": "/control/rewrite/update",
+      "status": 200,
+      "body": ""
+    },
+    "update-missing": {
+      "method": "PUT",
+      "path": "/control/rewrite/update",
+      "status": 400,
+      "body": "target rule not found\n"
+    },
+    "delete": {
+      "method": "POST",
+      "path": "/control/rewrite/delete",
+      "status": 200,
+      "body": ""
+    },
+    "delete-missing": {
+      "method": "POST",
+      "path": "/control/rewrite/delete",
+      "status": 200,
+      "body": ""
+    },
+    "add-bad": {
+      "method": "POST",
+      "path": "/control/rewrite/add",
+      "status": 200,
+      "body": ""
+    },
+    "settings": {
+      "method": "GET",
+      "path": "/control/rewrite/settings",
+      "status": 200,
+      "body": {
+        "enabled": true
+      }
+    },
+    "list-end": {
+      "method": "GET",
+      "path": "/control/rewrite/list",
+      "status": 200,
+      "body": [
+        {
+          "domain": "svc.example.com",
+          "answer": "192.0.2.10",
+          "enabled": true
+        },
+        {
+          "domain": "other.example.com",
+          "answer": "192.0.2.11",
+          "enabled": false
+        },
+        {
+          "domain": "",
+          "answer": "x",
+          "enabled": true
+        }
+      ]
+    },
+    "bad-auth": {
+      "method": "GET",
+      "path": "/control/status",
+      "status": 401,
+      "body": ""
+    }
+  }
+}

@@ -5,6 +5,25 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
+**S8 — AdGuard, Pulse, agent DNS** · status: **in progress** (started 2026-10-31). Gate: 11-delivery.md §3 row S8.
+
+Contracts: AdGuard's rewrite API captured from throwaway containers of both running versions (`testdata/contracts/adguard`). It accepts exact duplicates and empty domains, and deleting a missing rule still answers 200, so Hashi must validate first and read back after every write. The read of the real instances was refused by the permission system; it needs the user's OK.
+
+Plan, two PRs:
+
+PR A, AdGuard:
+- [ ] Client from the fixtures with integration tests against a real container
+- [ ] Connections with target set, credentials in the vault, read-only mode for the migration, disabled state
+- [ ] Owned rewrites table, desired rewrites from services, plan/apply/verify; manual rewrites and non-owned duplicates untouched
+- [ ] Connections page and service rewrite state
+- [ ] Real read of both instances, then a test rewrite on the sync tool's origin with the user's OK. The replica stays read-only until the sync tool is retired, because the tool overwrites its rewrites
+
+PR B, Pulse:
+- [ ] `agents/pulse` binary and image, tokens, heartbeat endpoint, agents API and Pulse page with install
+- [ ] `pulse` items resolve; a heartbeat change reaches firewall, DNS, Traefik and connection consumers
+- [ ] Agent DNS under the internal domain, DNS only
+- [ ] Gate on a real host: an address change propagates with no manual step; idle memory measured; hand-entered home address replaced after the user's OK
+
 **S7 — Monitoring + public pages** · status: **done** 2026-10-31, deployed `71e79b9`, PR #42. Next: S8 (the V1 cutover now follows S9, see Log). Gate: all migrated services monitored; public status + dashboard served on their ports; a real outage produces a notification and recovery.
 
 Scope cut, decided 2026-10-31: Discord waits (no bot to capture yet); AdGuard and Pulse sources arrive with S8; ICMP, DNS entries' port probing and the `static.juzo.io` asset cache wait; charts stay plain SVG instead of uPlot; pending-plan and vault-lock notifications wait. Importing Gatus's 41 endpoints belongs to the V1 cutover. Also not built yet, after the review: editing allowed codes and the required set, a Monitoring settings category, per-endpoint check override, a probe on a UDP stream's own endpoint (use a separate check), group by host, a settings default for the dashboard's sort, per-entry icon upload.
@@ -704,6 +723,8 @@ Decisions made in S0:
   only short-SHA deploys exist so far.
 
 ## Log
+
+- 2026-10-31 — S8 started. Pocket ID checked: healthy, discovery document answers. AdGuard rewrite API captured locally; the replica runs v0.107.76 and the origin v0.107.79, both behave the same.
 
 - 2026-10-31 — Plan changed by the user's decision: the V1 cutover moves after S9. Order is now S8, S9, cutover, S10. Pangolin's SSO protects real apps and Hashi has none until S9, so public traffic stays on Pangolin until then, with no temporary allow-list. S8 stays first because S9's gate uses Pulse-backed sets.
 
