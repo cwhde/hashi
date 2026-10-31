@@ -119,7 +119,7 @@ func TestInvariant_7_TraefikChangesOnlyThroughApprovedPlans(t *testing.T) {
 	}
 	files, _ := st.R.ListTraefikFiles(ctx, "c1")
 	conn, _ := st.R.GetTraefikConnection(ctx, "c1")
-	if len(files) != 7 || conn.Health != "healthy" || conn.InstalledVersion != Version {
+	if len(files) != 8 || conn.Health != "healthy" || conn.InstalledVersion != Version {
 		t.Errorf("files %d health %s version %q", len(files), conn.Health, conn.InstalledVersion)
 	}
 

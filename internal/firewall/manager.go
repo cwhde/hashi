@@ -876,10 +876,18 @@ func (m *Manager) ports(ctx context.Context) ([]Port, error) {
 	if err != nil {
 		return nil, err
 	}
-	if slices.ContainsFunc(all, func(s services.Service) bool { return s.Renderable() }) {
-		return []Port{{Proto: "tcp", Port: 80, TargetPort: 80}, {Proto: "tcp", Port: 443, TargetPort: 443}}, nil
+	var out []Port
+	if slices.ContainsFunc(all, func(s services.Service) bool { return s.Renderable() && !s.Stream() }) {
+		out = append(out, Port{Proto: "tcp", Port: 80, TargetPort: 80}, Port{Proto: "tcp", Port: 443, TargetPort: 443})
 	}
-	return nil, nil
+	// Streams: the public port DNATs to the same port on Traefik, its tcp-<port>/udp-<port> entry point (05 §3.2,
+	// 04 §3); UDP stream ports are what the UDP meters watch.
+	for _, s := range all {
+		if s.Stream() && s.Renderable() {
+			out = append(out, Port{Proto: s.Kind, Port: s.PublicPort, TargetPort: s.PublicPort, Metered: s.Kind == services.KindUDP})
+		}
+	}
+	return out, nil
 }
 
 // Rescue returns the post-apply check: a new SSH connection to the host runs a command, and NetBird (when enabled)

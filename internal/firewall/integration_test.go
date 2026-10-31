@@ -158,7 +158,7 @@ func TestIntegrationDNATReachesTraefik(t *testing.T) {
 		"--sysctl", "net.ipv4.ip_forward=1"}, fwImage)
 	fw.Connect(t, lanNet, l(2))
 	traefik := itest.RunOn(t, lanNet, l(10), []string{"--cap-add", "NET_ADMIN"}, stub,
-		"sh", "-c", "mkdir -p /www && echo entrypoint > /www/index.html && httpd -f -p 8443 -h /www")
+		"sh", "-c", "mkdir -p /www && echo entrypoint > /www/index.html && (while true; do nc -u -l -p 15433 -e /bin/echo udp-entrypoint; done &) ; httpd -f -p 8443 -h /www")
 	client := itest.RunOn(t, wanNet, w(3), []string{"--cap-add", "NET_ADMIN"}, stub,
 		"sh", "-c", "mkdir -p /www && echo outside > /www/index.html && httpd -f -p 8080 -h /www")
 	traefik.Exec(t, "ip", "route", "replace", "default", "via", l(2))
@@ -180,7 +180,7 @@ func TestIntegrationDNATReachesTraefik(t *testing.T) {
 
 	wan := strings.TrimSpace(fw.Exec(t, "sh", "-c", "ip -o -4 addr show | awk '/"+w(2)+"\\// {print $2}'"))
 	s := Spec{WAN: wan, PublicIP: netip.MustParseAddr(w(2)), Subnets: pfx(l(0) + "/24"),
-		TraefikIP: netip.MustParseAddr(l(10)), Ports: []Port{{Proto: "tcp", Port: 443, TargetPort: 8443}},
+		TraefikIP: netip.MustParseAddr(l(10)), Ports: []Port{{Proto: "tcp", Port: 443, TargetPort: 8443}, {Proto: "udp", Port: 15433, TargetPort: 15433, Metered: true}},
 		Folded: Fold(nil, pfx("203.0.113.0/24")), NetBird: NetBird{Mode: NetBirdDisabled}, Meters: DefaultMeters}
 	apply(t, fw, s, false)
 
@@ -188,6 +188,11 @@ func TestIntegrationDNATReachesTraefik(t *testing.T) {
 	itest.WaitFor(t, 20*time.Second, "DNAT to the entry point", func() bool {
 		got, _ = client.Try("wget", "-qO-", "-T", "2", "http://"+w(2)+":443/")
 		return strings.Contains(got, "entrypoint")
+	})
+	// A stream port: a UDP datagram to the public port reaches the same port on the stand-in and is answered.
+	itest.WaitFor(t, 20*time.Second, "UDP DNAT to the entry point", func() bool {
+		got, _ = client.Try("sh", "-c", "echo ping | nc -u -w 2 "+w(2)+" 15433")
+		return strings.Contains(got, "udp-entrypoint")
 	})
 	if out, err := traefik.Try("wget", "-qO-", "-T", "3", "http://"+w(3)+":8080/"); err != nil || !strings.Contains(out, "outside") {
 		t.Fatalf("managed subnet egress through the firewall: %v %s", err, out)

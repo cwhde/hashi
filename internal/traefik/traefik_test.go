@@ -169,7 +169,8 @@ func TestRenderGolden(t *testing.T) {
 	want := []string{
 		"cert /etc/hashi/traefik/certs/example.com.crt", "cert /etc/hashi/traefik/certs/example.com.key",
 		"dynamic /etc/hashi/traefik/dynamic/hashi-certs.yaml", "dynamic /etc/hashi/traefik/dynamic/00-hashi-core.yml",
-		"dynamic /etc/hashi/traefik/dynamic/10-hashi-http-services.yml", "dynamic /etc/hashi/traefik/dynamic/40-hashi-security.yml", "dynamic /etc/hashi/traefik/dynamic/90-hashi-health.yml",
+		"dynamic /etc/hashi/traefik/dynamic/10-hashi-http-services.yml", "dynamic /etc/hashi/traefik/dynamic/20-hashi-stream-services.yml",
+		"dynamic /etc/hashi/traefik/dynamic/40-hashi-security.yml", "dynamic /etc/hashi/traefik/dynamic/90-hashi-health.yml",
 		"system /etc/logrotate.d/hashi-traefik", "static /etc/hashi/traefik/traefik.yaml",
 	}
 	if !slices.Equal(order, want) {
@@ -266,6 +267,12 @@ func testServices() []services.Service {
 			}},
 		{Name: "Off", Slug: "off", Kind: services.KindHTTP, HostName: "off.example.com", Enabled: false,
 			Origin: services.OriginUser, Target: t("192.0.2.50", 80, 0)},
+		{Name: "Db", Slug: "db", Kind: services.KindTCP, HostName: "db.example.com", Enabled: true, Origin: services.OriginUser,
+			Target: t("192.0.2.60", 5432, 0), PublicPort: 15432, ProxyProtocol: true},
+		{Name: "Game", Slug: "game", Kind: services.KindUDP, HostName: "game.example.com", Enabled: true, Origin: services.OriginUser,
+			Target: t("2001:db8::61", 19132, 0), PublicPort: 19132},
+		{Name: "Off stream", Slug: "off-stream", Kind: services.KindTCP, HostName: "offs.example.com", Enabled: false,
+			Origin: services.OriginUser, Target: t("192.0.2.62", 22, 0), PublicPort: 2222},
 		{Name: "Broken", Slug: "broken", Kind: services.KindHTTP, HostName: "broken.example.net", Enabled: true,
 			Origin: services.OriginUser, Target: t("192.0.2.51", 80, 0), InvalidReason: "outside the zone"},
 	}
@@ -283,6 +290,10 @@ func TestRenderServicesGolden(t *testing.T) {
 		switch filepath.Base(f.Path) {
 		case "10-hashi-http-services.yml":
 			golden(t, "services.yml", f.Data)
+		case "20-hashi-stream-services.yml":
+			golden(t, "streams.yml", f.Data)
+		case "traefik.yaml":
+			golden(t, "traefik-streams.yaml", f.Data)
 		case "40-hashi-security.yml":
 			golden(t, "security-edge.yml", f.Data)
 			if !f.Secret || f.Mode != 0o600 {
@@ -311,6 +322,37 @@ func TestRenderWithoutServicesOrToken(t *testing.T) {
 	for _, f := range files {
 		if strings.Contains(string(f.Data), MiddlewareEdge) {
 			t.Errorf("%s mentions the edge middleware without a token", f.Path)
+		}
+	}
+}
+
+// Verify reads streams where Traefik v3.7.16 reports them (testdata/contracts/traefik/streams/api_rawdata_streams.json):
+// loaded routers pass; a router naming a missing service, or one on an entry point that does not exist, fails with
+// Traefik's own error text.
+func TestVerifyStreamsAgainstCapture(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", "testdata", "contracts", "traefik", "streams", "api_rawdata_streams.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := newFakeHost()
+	h.up, h.rawdata = true, raw
+	ok := []string{"tcp-router svc-db@file", "tcp-service svc-db@file", "udp-router svc-game@file", "udp-service svc-game@file"}
+	if err := verifyOnce(t.Context(), h, 8080, ok); err != nil {
+		t.Fatal(err)
+	}
+	err = verifyOnce(t.Context(), h, 8080, []string{"tcp-router svc-broken@file", "udp-router svc-broken-udp@file", "tcp-router svc-none@file"})
+	for _, want := range []string{`the service "missing@file" does not exist`, `entryPoint "udp-15499" doesn't exist`, "svc-none@file is missing"} {
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("want %q in %v", want, err)
+		}
+	}
+	o := testOptions()
+	o.Services = testServices()
+	files, _ := Render(o)
+	exp, _ := Expected(files)
+	for _, w := range ok {
+		if !slices.Contains(exp, w) {
+			t.Errorf("Expected lacks %q", w)
 		}
 	}
 }

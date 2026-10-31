@@ -42,8 +42,15 @@ func Validate(s Service, n Names) error {
 	}
 	switch s.Kind {
 	case KindHTTP, KindHTTPS, KindH2C:
+		if s.PublicPort != 0 || s.ProxyProtocol {
+			return invalid("public_port", "only tcp and udp services have a public port")
+		}
+	case KindTCP, KindUDP:
+		if err := validateStream(s); err != nil {
+			return err
+		}
 	default:
-		return invalid("kind", "must be http, https or h2c")
+		return invalid("kind", "must be http, https, h2c, tcp or udp")
 	}
 	if err := validateHost(s, n); err != nil {
 		return err
@@ -111,6 +118,24 @@ func validateHost(s Service, n Names) error {
 				return invalid("host_name", "names with an ovr label are reserved for routing overrides")
 			}
 		}
+	}
+	return nil
+}
+
+// validateStream checks the L4 fields (04 §1.2): a public port that is not one of the web ports (80/443 tcp, 443 udp
+// for HTTP/3), PROXY protocol only for TCP, none of the HTTP options.
+func validateStream(s Service) error {
+	if s.PublicPort < 1 || s.PublicPort > 65535 {
+		return invalid("public_port", "must be 1–65535")
+	}
+	if s.Kind == KindTCP && (s.PublicPort == 80 || s.PublicPort == 443) || s.Kind == KindUDP && s.PublicPort == 443 {
+		return invalid("public_port", "%d/%s is Traefik's web port", s.PublicPort, s.Kind)
+	}
+	if s.ProxyProtocol && s.Kind != KindTCP {
+		return invalid("proxy_protocol", "PROXY protocol is for tcp services only")
+	}
+	if s.AdvancedRoutes || len(s.Routes) > 0 || s.TLSMinVersion != "" {
+		return invalid("routes", "routes and TLS options are for HTTP services only")
 	}
 	return nil
 }

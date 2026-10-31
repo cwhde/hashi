@@ -2258,7 +2258,7 @@ export interface components {
             name: string;
             slug: string;
             /** @enum {string} */
-            kind: "http" | "https" | "h2c";
+            kind: "http" | "https" | "h2c" | "tcp" | "udp";
             /** @enum {string} */
             domain_mode: "root" | "subdomain" | "custom";
             host_name: string;
@@ -2270,6 +2270,10 @@ export interface components {
             /** @enum {string} */
             tls_min_version?: "" | "VersionTLS12" | "VersionTLS13";
             advanced_routes?: boolean;
+            /** @description tcp/udp only: the public port; Traefik's entry point tcp-<port> / udp-<port> listens on it */
+            public_port?: number;
+            /** @description tcp only: send PROXY protocol v2 to the upstream */
+            proxy_protocol?: boolean;
             /** @description Service routing override: the firewall host public traffic enters through (03 §5.1) */
             entry_host_id?: string;
             routes?: components["schemas"]["ServiceRoute"][];
@@ -2282,7 +2286,7 @@ export interface components {
             name: string;
             slug: string;
             /** @enum {string} */
-            kind: "http" | "https" | "h2c";
+            kind: "http" | "https" | "h2c" | "tcp" | "udp";
             /** @enum {string} */
             domain_mode: "root" | "subdomain" | "custom";
             host_name: string;
@@ -2297,6 +2301,10 @@ export interface components {
             /** @enum {string} */
             tls_min_version: "" | "VersionTLS12" | "VersionTLS13";
             advanced_routes: boolean;
+            /** @description tcp/udp only: the public port; Traefik's entry point tcp-<port> / udp-<port> listens on it */
+            public_port?: number;
+            /** @description tcp only: send PROXY protocol v2 to the upstream */
+            proxy_protocol?: boolean;
             /** @description Service routing override (03 §5.1); empty = none */
             entry_host_id?: string;
             routes: components["schemas"]["ServiceRoute"][];

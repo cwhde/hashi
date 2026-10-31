@@ -360,6 +360,8 @@ type Service struct {
 	UpdatedAt         int64
 	TargetSetID       sql.NullString
 	EntryHostID       sql.NullString
+	PublicPort        sql.NullInt64
+	ProxyProtocol     int64
 }
 
 type ServiceRoute struct {

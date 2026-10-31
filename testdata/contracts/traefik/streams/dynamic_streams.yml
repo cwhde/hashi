@@ -1,0 +1,24 @@
+tcp:
+  routers:
+    svc-db:
+      entryPoints: [tcp-15432]
+      rule: "HostSNI(`*`)"
+      service: svc-db
+  services:
+    svc-db:
+      loadBalancer:
+        proxyProtocol:
+          version: 2
+        servers:
+          - address: "127.0.0.1:9000"
+          - address: "127.0.0.1:9001"
+udp:
+  routers:
+    svc-game:
+      entryPoints: [udp-15433]
+      service: svc-game
+  services:
+    svc-game:
+      loadBalancer:
+        servers:
+          - address: "127.0.0.1:9002"

@@ -64,8 +64,8 @@ func TestDynamicFilesMatchTraefikSchema(t *testing.T) {
 		}
 		n++
 	}
-	if n != 5 {
-		t.Errorf("validated %d dynamic files, want 5", n)
+	if n != 6 {
+		t.Errorf("validated %d dynamic files, want 6", n)
 	}
 	// The schema is strict enough to catch a misspelt key.
 	bad, _ := jsonschema.UnmarshalJSON(bytes.NewReader([]byte(`{"http":{"middlewares":{"x":{"forwardAuht":{"address":"http://a"}}}}}`)))

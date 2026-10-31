@@ -128,10 +128,13 @@ func (h *fakeHost) Fetch(_ context.Context, _ int, path string) ([]byte, error) 
 	if err != nil {
 		return nil, err
 	}
-	rd := rawData{Routers: map[string]rawObject{}, Middlewares: map[string]rawObject{}, Services: map[string]rawObject{}}
+	rd := rawData{Routers: map[string]rawObject{}, Middlewares: map[string]rawObject{}, Services: map[string]rawObject{},
+		TCPRouters: map[string]rawObject{}, TCPServices: map[string]rawObject{}, UDPRouters: map[string]rawObject{}, UDPServices: map[string]rawObject{}}
 	for _, n := range names {
 		kind, name, _ := strings.Cut(n, " ")
-		map[string]map[string]rawObject{"router": rd.Routers, "middleware": rd.Middlewares, "service": rd.Services}[kind][name] = rawObject{Status: "enabled"}
+		map[string]map[string]rawObject{"router": rd.Routers, "middleware": rd.Middlewares, "service": rd.Services,
+			"tcp-router": rd.TCPRouters, "tcp-service": rd.TCPServices, "udp-router": rd.UDPRouters,
+			"udp-service": rd.UDPServices}[kind][name] = rawObject{Status: "enabled"}
 	}
 	return json.Marshal(rd)
 }

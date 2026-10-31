@@ -22,8 +22,10 @@ import (
 	"git.juzo.io/juzo/hashi/internal/store/db"
 )
 
-// Kinds (TCP/UDP arrive with S6).
+// Kinds: the HTTP family (served on websecure) and the L4 streams (one entry point per public port, 04 §1.2).
 const (
+	KindTCP   = "tcp"
+	KindUDP   = "udp"
 	KindHTTP  = "http"
 	KindHTTPS = "https"
 	KindH2C   = "h2c"
@@ -69,7 +71,7 @@ var (
 	ErrNotFound = errors.New("service not found")
 	// ErrSystem: system services change only through their owning workflow (invariant 10).
 	ErrSystem = errors.New("this is a system service: change it through its owning setting")
-	ErrTaken  = errors.New("another service already uses this slug or host name")
+	ErrTaken  = errors.New("another service already uses this slug, host name or public port")
 )
 
 // Target is one upstream: a literal address (an IP or a host name) or an address set (05a §5.2) whose resolved
@@ -115,7 +117,11 @@ type Service struct {
 	AdGuardRewrite    bool
 	// EntryHostID is the service routing override (03 §5.1): the firewall host public traffic enters through.
 	EntryHostID string
-	Routes      []Route
+	// PublicPort is a stream's public port; Traefik's entry point tcp-<port> / udp-<port> listens on it (04 §3).
+	PublicPort int
+	// ProxyProtocol sends PROXY protocol v2 to a TCP upstream (testdata/contracts/traefik/streams).
+	ProxyProtocol bool
+	Routes        []Route
 	// Targets is the simple target with its address set resolved (set by Resolve for rendering; nil otherwise).
 	Targets   []Target
 	CreatedAt time.Time
@@ -222,7 +228,7 @@ func insert(ctx context.Context, q *db.Queries, s Service, now time.Time) error 
 		TlsServerName: s.TLSServerName, TlsMinVersion: s.TLSMinVersion, AdvancedRoutes: b2i(s.AdvancedRoutes),
 		DashboardVisible: b2i(s.DashboardVisible), MonitoringVisible: b2i(s.MonitoringVisible),
 		AdguardRewrite: b2i(s.AdGuardRewrite), TargetSetID: nullStr(s.Target.SetID), EntryHostID: nullStr(s.EntryHostID),
-		CreatedAt: ms, UpdatedAt: ms}); err != nil {
+		PublicPort: nullPort(s.PublicPort), ProxyProtocol: b2i(s.ProxyProtocol), CreatedAt: ms, UpdatedAt: ms}); err != nil {
 		return fmt.Errorf("store service: %w", err)
 	}
 	return putRoutes(ctx, q, s, ms)
@@ -262,7 +268,8 @@ func update(ctx context.Context, q *db.Queries, s Service, now time.Time) error 
 		TlsSkipVerify: b2i(s.TLSSkipVerify), TlsServerName: s.TLSServerName, TlsMinVersion: s.TLSMinVersion,
 		AdvancedRoutes: b2i(s.AdvancedRoutes), DashboardVisible: b2i(s.DashboardVisible),
 		MonitoringVisible: b2i(s.MonitoringVisible), AdguardRewrite: b2i(s.AdGuardRewrite),
-		TargetSetID: nullStr(s.Target.SetID), EntryHostID: nullStr(s.EntryHostID), UpdatedAt: ms, ID: s.ID}); err != nil {
+		TargetSetID: nullStr(s.Target.SetID), EntryHostID: nullStr(s.EntryHostID), PublicPort: nullPort(s.PublicPort),
+		ProxyProtocol: b2i(s.ProxyProtocol), UpdatedAt: ms, ID: s.ID}); err != nil {
 		return fmt.Errorf("update service: %w", err)
 	}
 	if err := q.DeleteServiceRoutes(ctx, s.ID); err != nil {
@@ -388,6 +395,9 @@ func taken(ctx context.Context, q *db.Queries, s Service) error {
 		if r.ID != s.ID && (r.Slug == s.Slug || r.HostName == s.HostName) {
 			return ErrTaken
 		}
+		if r.ID != s.ID && s.Stream() && r.Kind == s.Kind && int(r.PublicPort.Int64) == s.PublicPort {
+			return fmt.Errorf("%w: %s already uses %d/%s", ErrTaken, r.Name, s.PublicPort, s.Kind)
+		}
 	}
 	return nil
 }
@@ -411,8 +421,8 @@ func putRoutes(ctx context.Context, q *db.Queries, s Service, ms int64) error {
 func fromRow(r db.Service, routes []db.ServiceRoute) (Service, error) {
 	s := Service{ID: r.ID, Name: r.Name, Slug: r.Slug, Kind: r.Kind, DomainMode: r.DomainMode, HostName: r.HostName,
 		Enabled: r.Enabled == 1, Origin: r.Origin, OwnerFeature: r.OwnerFeature,
-		Target:        Target{Address: r.TargetAddress, SetID: r.TargetSetID.String, Port: int(r.TargetPort)},
-		EntryHostID:   r.EntryHostID.String,
+		Target:      Target{Address: r.TargetAddress, SetID: r.TargetSetID.String, Port: int(r.TargetPort)},
+		EntryHostID: r.EntryHostID.String, PublicPort: int(r.PublicPort.Int64), ProxyProtocol: r.ProxyProtocol == 1,
 		TLSSkipVerify: r.TlsSkipVerify == 1, TLSServerName: r.TlsServerName, TLSMinVersion: r.TlsMinVersion,
 		AdvancedRoutes: r.AdvancedRoutes == 1, DashboardVisible: r.DashboardVisible == 1,
 		MonitoringVisible: r.MonitoringVisible == 1, AdGuardRewrite: r.AdguardRewrite == 1,
@@ -481,6 +491,11 @@ func (s Service) AllTargets() []Target {
 	}
 	return out
 }
+
+func nullPort(p int) sql.NullInt64 { return sql.NullInt64{Int64: int64(p), Valid: p != 0} }
+
+// Stream reports an L4 service (tcp or udp).
+func (s Service) Stream() bool { return s.Kind == KindTCP || s.Kind == KindUDP }
 
 func nullStr(s string) sql.NullString { return sql.NullString{String: s, Valid: s != ""} }
 

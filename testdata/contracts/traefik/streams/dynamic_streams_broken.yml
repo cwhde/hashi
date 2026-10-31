@@ -1,0 +1,11 @@
+tcp:
+  routers:
+    svc-broken:
+      entryPoints: [tcp-15432]
+      rule: "HostSNI(`*`)"
+      service: missing
+udp:
+  routers:
+    svc-broken-udp:
+      entryPoints: [udp-15499]
+      service: svc-game

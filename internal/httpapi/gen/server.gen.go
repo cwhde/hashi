@@ -775,6 +775,8 @@ const (
 	ServiceKindH2c   ServiceKind = "h2c"
 	ServiceKindHttp  ServiceKind = "http"
 	ServiceKindHttps ServiceKind = "https"
+	ServiceKindTcp   ServiceKind = "tcp"
+	ServiceKindUdp   ServiceKind = "udp"
 )
 
 // Valid indicates whether the value is a known member of the ServiceKind enum.
@@ -785,6 +787,10 @@ func (e ServiceKind) Valid() bool {
 	case ServiceKindHttp:
 		return true
 	case ServiceKindHttps:
+		return true
+	case ServiceKindTcp:
+		return true
+	case ServiceKindUdp:
 		return true
 	default:
 		return false
@@ -862,6 +868,8 @@ const (
 	ServiceInputKindH2c   ServiceInputKind = "h2c"
 	ServiceInputKindHttp  ServiceInputKind = "http"
 	ServiceInputKindHttps ServiceInputKind = "https"
+	ServiceInputKindTcp   ServiceInputKind = "tcp"
+	ServiceInputKindUdp   ServiceInputKind = "udp"
 )
 
 // Valid indicates whether the value is a known member of the ServiceInputKind enum.
@@ -872,6 +880,10 @@ func (e ServiceInputKind) Valid() bool {
 	case ServiceInputKindHttp:
 		return true
 	case ServiceInputKindHttps:
+		return true
+	case ServiceInputKindTcp:
+		return true
+	case ServiceInputKindUdp:
 		return true
 	default:
 		return false
@@ -2242,7 +2254,13 @@ type Service struct {
 	Origin            ServiceOrigin `json:"origin"`
 
 	// OwnerFeature The feature that owns a system service, e.g. setup
-	OwnerFeature  string               `json:"owner_feature"`
+	OwnerFeature string `json:"owner_feature"`
+
+	// ProxyProtocol tcp only: send PROXY protocol v2 to the upstream
+	ProxyProtocol *bool `json:"proxy_protocol,omitempty"`
+
+	// PublicPort tcp/udp only: the public port; Traefik's entry point tcp-<port> / udp-<port> listens on it
+	PublicPort    *int                 `json:"public_port,omitempty"`
 	Routes        []ServiceRoute       `json:"routes"`
 	Slug          string               `json:"slug"`
 	Target        ServiceTarget        `json:"target"`
@@ -2280,17 +2298,23 @@ type ServiceInput struct {
 	Enabled *bool `json:"enabled,omitempty"`
 
 	// EntryHostId Service routing override: the firewall host public traffic enters through (03 §5.1)
-	EntryHostId       *string                    `json:"entry_host_id,omitempty"`
-	HostName          string                     `json:"host_name"`
-	Kind              ServiceInputKind           `json:"kind"`
-	MonitoringVisible *bool                      `json:"monitoring_visible,omitempty"`
-	Name              string                     `json:"name"`
-	Routes            *[]ServiceRoute            `json:"routes,omitempty"`
-	Slug              string                     `json:"slug"`
-	Target            ServiceTarget              `json:"target"`
-	TlsMinVersion     *ServiceInputTlsMinVersion `json:"tls_min_version,omitempty"`
-	TlsServerName     *string                    `json:"tls_server_name,omitempty"`
-	TlsSkipVerify     *bool                      `json:"tls_skip_verify,omitempty"`
+	EntryHostId       *string          `json:"entry_host_id,omitempty"`
+	HostName          string           `json:"host_name"`
+	Kind              ServiceInputKind `json:"kind"`
+	MonitoringVisible *bool            `json:"monitoring_visible,omitempty"`
+	Name              string           `json:"name"`
+
+	// ProxyProtocol tcp only: send PROXY protocol v2 to the upstream
+	ProxyProtocol *bool `json:"proxy_protocol,omitempty"`
+
+	// PublicPort tcp/udp only: the public port; Traefik's entry point tcp-<port> / udp-<port> listens on it
+	PublicPort    *int                       `json:"public_port,omitempty"`
+	Routes        *[]ServiceRoute            `json:"routes,omitempty"`
+	Slug          string                     `json:"slug"`
+	Target        ServiceTarget              `json:"target"`
+	TlsMinVersion *ServiceInputTlsMinVersion `json:"tls_min_version,omitempty"`
+	TlsServerName *string                    `json:"tls_server_name,omitempty"`
+	TlsSkipVerify *bool                      `json:"tls_skip_verify,omitempty"`
 }
 
 // ServiceInputDomainMode defines model for ServiceInput.DomainMode.

@@ -2088,7 +2088,7 @@ components:
       properties:
         name: { type: string }
         slug: { type: string }
-        kind: { type: string, enum: [http, https, h2c] }
+        kind: { type: string, enum: [http, https, h2c, tcp, udp] }
         domain_mode: { type: string, enum: [root, subdomain, custom] }
         host_name: { type: string }
         enabled: { type: boolean, description: "On create only (default true); enable/disable have their own calls" }
@@ -2097,6 +2097,8 @@ components:
         tls_server_name: { type: string }
         tls_min_version: { type: string, enum: ["", VersionTLS12, VersionTLS13] }
         advanced_routes: { type: boolean }
+        public_port: { type: integer, minimum: 1, maximum: 65535, description: "tcp/udp only: the public port; Traefik's entry point tcp-<port> / udp-<port> listens on it" }
+        proxy_protocol: { type: boolean, description: "tcp only: send PROXY protocol v2 to the upstream" }
         entry_host_id: { type: string, description: "Service routing override: the firewall host public traffic enters through (03 §5.1)" }
         routes: { type: array, items: { $ref: "#/components/schemas/ServiceRoute" } }
         dashboard_visible: { type: boolean }
@@ -2111,7 +2113,7 @@ components:
         id: { type: string }
         name: { type: string }
         slug: { type: string }
-        kind: { type: string, enum: [http, https, h2c] }
+        kind: { type: string, enum: [http, https, h2c, tcp, udp] }
         domain_mode: { type: string, enum: [root, subdomain, custom] }
         host_name: { type: string }
         enabled: { type: boolean }
@@ -2122,6 +2124,8 @@ components:
         tls_server_name: { type: string }
         tls_min_version: { type: string, enum: ["", VersionTLS12, VersionTLS13] }
         advanced_routes: { type: boolean }
+        public_port: { type: integer, minimum: 1, maximum: 65535, description: "tcp/udp only: the public port; Traefik's entry point tcp-<port> / udp-<port> listens on it" }
+        proxy_protocol: { type: boolean, description: "tcp only: send PROXY protocol v2 to the upstream" }
         entry_host_id: { type: string, description: "Service routing override (03 §5.1); empty = none" }
         routes: { type: array, items: { $ref: "#/components/schemas/ServiceRoute" } }
         dashboard_visible: { type: boolean }

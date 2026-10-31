@@ -29,7 +29,7 @@ func (q *Queries) DeleteServiceRoutes(ctx context.Context, serviceID string) err
 }
 
 const getService = `-- name: GetService :one
-SELECT id, name, slug, kind, domain_mode, host_name, enabled, origin, owner_feature, target_address, target_port, tls_skip_verify, tls_server_name, tls_min_version, advanced_routes, dashboard_visible, monitoring_visible, adguard_rewrite, created_at, updated_at, target_set_id, entry_host_id FROM services WHERE id = ?
+SELECT id, name, slug, kind, domain_mode, host_name, enabled, origin, owner_feature, target_address, target_port, tls_skip_verify, tls_server_name, tls_min_version, advanced_routes, dashboard_visible, monitoring_visible, adguard_rewrite, created_at, updated_at, target_set_id, entry_host_id, public_port, proxy_protocol FROM services WHERE id = ?
 `
 
 func (q *Queries) GetService(ctx context.Context, id string) (Service, error) {
@@ -58,12 +58,14 @@ func (q *Queries) GetService(ctx context.Context, id string) (Service, error) {
 		&i.UpdatedAt,
 		&i.TargetSetID,
 		&i.EntryHostID,
+		&i.PublicPort,
+		&i.ProxyProtocol,
 	)
 	return i, err
 }
 
 const getServiceByOwner = `-- name: GetServiceByOwner :one
-SELECT id, name, slug, kind, domain_mode, host_name, enabled, origin, owner_feature, target_address, target_port, tls_skip_verify, tls_server_name, tls_min_version, advanced_routes, dashboard_visible, monitoring_visible, adguard_rewrite, created_at, updated_at, target_set_id, entry_host_id FROM services WHERE owner_feature = ?
+SELECT id, name, slug, kind, domain_mode, host_name, enabled, origin, owner_feature, target_address, target_port, tls_skip_verify, tls_server_name, tls_min_version, advanced_routes, dashboard_visible, monitoring_visible, adguard_rewrite, created_at, updated_at, target_set_id, entry_host_id, public_port, proxy_protocol FROM services WHERE owner_feature = ?
 `
 
 func (q *Queries) GetServiceByOwner(ctx context.Context, ownerFeature string) (Service, error) {
@@ -92,6 +94,8 @@ func (q *Queries) GetServiceByOwner(ctx context.Context, ownerFeature string) (S
 		&i.UpdatedAt,
 		&i.TargetSetID,
 		&i.EntryHostID,
+		&i.PublicPort,
+		&i.ProxyProtocol,
 	)
 	return i, err
 }
@@ -99,8 +103,8 @@ func (q *Queries) GetServiceByOwner(ctx context.Context, ownerFeature string) (S
 const insertService = `-- name: InsertService :exec
 INSERT INTO services (id, name, slug, kind, domain_mode, host_name, enabled, origin, owner_feature, target_address,
     target_port, tls_skip_verify, tls_server_name, tls_min_version, advanced_routes, dashboard_visible,
-    monitoring_visible, adguard_rewrite, target_set_id, entry_host_id, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    monitoring_visible, adguard_rewrite, target_set_id, entry_host_id, public_port, proxy_protocol, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertServiceParams struct {
@@ -124,6 +128,8 @@ type InsertServiceParams struct {
 	AdguardRewrite    int64
 	TargetSetID       sql.NullString
 	EntryHostID       sql.NullString
+	PublicPort        sql.NullInt64
+	ProxyProtocol     int64
 	CreatedAt         int64
 	UpdatedAt         int64
 }
@@ -150,6 +156,8 @@ func (q *Queries) InsertService(ctx context.Context, arg InsertServiceParams) er
 		arg.AdguardRewrite,
 		arg.TargetSetID,
 		arg.EntryHostID,
+		arg.PublicPort,
+		arg.ProxyProtocol,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
@@ -276,7 +284,7 @@ func (q *Queries) ListServiceRoutes(ctx context.Context, serviceID string) ([]Se
 }
 
 const listServices = `-- name: ListServices :many
-SELECT id, name, slug, kind, domain_mode, host_name, enabled, origin, owner_feature, target_address, target_port, tls_skip_verify, tls_server_name, tls_min_version, advanced_routes, dashboard_visible, monitoring_visible, adguard_rewrite, created_at, updated_at, target_set_id, entry_host_id FROM services ORDER BY origin = 'system' DESC, name, id
+SELECT id, name, slug, kind, domain_mode, host_name, enabled, origin, owner_feature, target_address, target_port, tls_skip_verify, tls_server_name, tls_min_version, advanced_routes, dashboard_visible, monitoring_visible, adguard_rewrite, created_at, updated_at, target_set_id, entry_host_id, public_port, proxy_protocol FROM services ORDER BY origin = 'system' DESC, name, id
 `
 
 func (q *Queries) ListServices(ctx context.Context) ([]Service, error) {
@@ -311,6 +319,8 @@ func (q *Queries) ListServices(ctx context.Context) ([]Service, error) {
 			&i.UpdatedAt,
 			&i.TargetSetID,
 			&i.EntryHostID,
+			&i.PublicPort,
+			&i.ProxyProtocol,
 		); err != nil {
 			return nil, err
 		}
@@ -376,7 +386,8 @@ const updateService = `-- name: UpdateService :exec
 UPDATE services
 SET name = ?, slug = ?, kind = ?, domain_mode = ?, host_name = ?, target_address = ?, target_port = ?,
     tls_skip_verify = ?, tls_server_name = ?, tls_min_version = ?, advanced_routes = ?, dashboard_visible = ?,
-    monitoring_visible = ?, adguard_rewrite = ?, target_set_id = ?, entry_host_id = ?, updated_at = ?
+    monitoring_visible = ?, adguard_rewrite = ?, target_set_id = ?, entry_host_id = ?, public_port = ?, proxy_protocol = ?,
+    updated_at = ?
 WHERE id = ?
 `
 
@@ -397,6 +408,8 @@ type UpdateServiceParams struct {
 	AdguardRewrite    int64
 	TargetSetID       sql.NullString
 	EntryHostID       sql.NullString
+	PublicPort        sql.NullInt64
+	ProxyProtocol     int64
 	UpdatedAt         int64
 	ID                string
 }
@@ -419,6 +432,8 @@ func (q *Queries) UpdateService(ctx context.Context, arg UpdateServiceParams) er
 		arg.AdguardRewrite,
 		arg.TargetSetID,
 		arg.EntryHostID,
+		arg.PublicPort,
+		arg.ProxyProtocol,
 		arg.UpdatedAt,
 		arg.ID,
 	)
