@@ -14,7 +14,10 @@ while [ $# -gt 0 ]; do
 	*) echo "unknown option: $1" >&2; exit 2 ;;
 	esac
 done
-[ -n "$url" ] && [ -n "$id" ] && [ -n "$token" ] || { echo "--url, --id and --token are required" >&2; exit 2; }
+if [ -z "$url" ] || [ -z "$id" ] || [ -z "$token" ]; then
+	echo "--url, --id and --token are required" >&2
+	exit 2
+fi
 [ "$(id -u)" = 0 ] || { echo "run as root" >&2; exit 1; }
 for tool in curl sha256sum; do
 	command -v "$tool" >/dev/null 2>&1 || { echo "this installer needs $tool" >&2; exit 1; }
