@@ -686,6 +686,8 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-10-31 — Deployed `f2b189b` (`make deploy ENV=prod`): readyz ok, version matches, SPA and public pages 200. Next: the S6 gate.
+
 - 2026-10-31 — S6 PR E merged (#40). One CI round failed: the E2E journey hit its 120 s limit on the runners with step 6 added (240 s now). The dev-target proof passed.
 
 - 2026-10-31 — S6 PR D merged (#39), CI green on the first run. Host A pool 85.2 % trimmed.
