@@ -1,6 +1,7 @@
 package traefik
 
 import (
+	"slices"
 	"strconv"
 
 	"git.juzo.io/juzo/hashi/internal/services"
@@ -9,11 +10,24 @@ import (
 // StreamEntryPoint names a stream's entry point (04 §3): tcp-<port> or udp-<port>.
 func StreamEntryPoint(s services.Service) string { return s.Kind + "-" + strconv.Itoa(s.PublicPort) }
 
+// reservedTCP are this host's loopback entry points; a stream there would keep Traefik from binding them.
+func (o Options) reservedTCP(p int) bool { return p == o.APIPort || p == o.ForwardAuthPort }
+
+// streamFilter leaves out a TCP stream on this host's API or forward-auth port: a connection added later can collide with a
+// stream saved before; that one stream waits, and Traefik still starts (04 §1.5).
+func (o Options) streamFilter() []services.Service {
+	return slices.DeleteFunc(slices.Clone(o.Services), func(s services.Service) bool {
+		return s.Kind == services.KindTCP && o.reservedTCP(s.PublicPort)
+	})
+}
+
+func rendersStream(s services.Service) bool { return s.Stream() && s.Renderable() }
+
 // streamEntryPoints are the static entry points of every renderable stream, ":<port>/tcp" or ":<port>/udp".
 func streamEntryPoints(svcs []services.Service) map[string]entryPoint {
 	out := map[string]entryPoint{}
 	for _, s := range svcs {
-		if s.Stream() && s.Renderable() {
+		if rendersStream(s) {
 			out[StreamEntryPoint(s)] = entryPoint{Address: ":" + strconv.Itoa(s.PublicPort) + "/" + s.Kind}
 		}
 	}
@@ -27,7 +41,7 @@ func streamServices(svcs []services.Service) *dynamicConfig {
 	tcp := &tcpConfig{Routers: map[string]tcpRouter{}, Services: map[string]tcpService{}}
 	udp := &udpConfig{Routers: map[string]udpRouter{}, Services: map[string]udpService{}}
 	for _, s := range svcs {
-		if !s.Stream() || !s.Renderable() {
+		if !rendersStream(s) {
 			continue
 		}
 		name, ep := "svc-"+s.Slug, StreamEntryPoint(s)

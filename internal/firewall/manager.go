@@ -539,6 +539,32 @@ func (m *Manager) PutTakeover(ctx context.Context, actor, ip, id string, t Takeo
 	})
 }
 
+// CheckStreamPort refuses a public port that belongs to something on a firewall host (05 §8): NetBird's WireGuard port,
+// Hashi's SSH path or any listener the last validation saw. DNAT would take that traffic away from it.
+func (m *Manager) CheckStreamPort(ctx context.Context, proto string, port int) error {
+	rows, err := m.st.R.ListFirewallHosts(ctx)
+	if err != nil {
+		return err
+	}
+	for _, r := range rows {
+		if r.EdgeMode != ModeManaged {
+			continue
+		}
+		if proto == "udp" && r.NetbirdMode != NetBirdDisabled && int(r.NetbirdPort) == port {
+			return fmt.Errorf("%w: %d/udp is NetBird's WireGuard port on %s", ErrInvalid, port, r.Name)
+		}
+		if proto == "tcp" && int(r.SshPort) == port {
+			return fmt.Errorf("%w: %d/tcp is the SSH port of %s", ErrInvalid, port, r.Name)
+		}
+		for _, l := range EffectiveOf(r).Facts.Listeners {
+			if l.Proto == proto && l.Port == port && !l.Loopback && l.Process != "traefik" {
+				return fmt.Errorf("%w: %s already listens on %d/%s", ErrInvalid, r.Name, port, proto)
+			}
+		}
+	}
+	return nil
+}
+
 // ---- bindings and host access ----
 
 // Bindings are the global allow and block set lists (05 §4.1).
@@ -869,6 +895,10 @@ func (m *Manager) build(ctx context.Context, id string, owned bool) (db.Firewall
 	if err != nil {
 		return row, Desired{}, err
 	}
+	// A stream saved before this host's NetBird port was known must not stop the host's plans: only that port waits.
+	ports = slices.DeleteFunc(ports, func(p Port) bool {
+		return row.NetbirdMode != NetBirdDisabled && p.Proto == "udp" && p.Port == int(row.NetbirdPort)
+	})
 	traefikIP, _ := netip.ParseAddr(row.InternalTraefikIp)
 	spec := Spec{WAN: e.WAN, PublicIP: e.PublicIP, Subnets: e.Subnets, TraefikIP: traefikIP, Ports: ports, Folded: folded,
 		HostAccess: hostAccess, NetBird: NetBird{Mode: row.NetbirdMode, Iface: row.NetbirdIface, Port: int(row.NetbirdPort)},
@@ -899,6 +929,10 @@ func (m *Manager) build(ctx context.Context, id string, owned bool) (db.Firewall
 func (m *Manager) ports(ctx context.Context) ([]Port, error) {
 	all, err := services.List(ctx, m.st.R)
 	if err != nil {
+		return nil, err
+	}
+	// Same view as Traefik's render: a stream that never resolved has no entry point, so no port either.
+	if all, err = services.Resolve(ctx, all, m.sets.ResolveTarget); err != nil {
 		return nil, err
 	}
 	var out []Port

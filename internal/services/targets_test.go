@@ -10,6 +10,7 @@ import (
 
 	"git.juzo.io/juzo/hashi/internal/audit"
 	"git.juzo.io/juzo/hashi/internal/ipsets"
+	"git.juzo.io/juzo/hashi/internal/store/db"
 )
 
 // Targets take address sets only (04 §1.5, 05a §5.2): a set with a CIDR is refused; once a service uses a set, the set
@@ -85,5 +86,29 @@ func TestResolveIgnoresUnrenderedRoutes(t *testing.T) {
 	s.Target = Target{SetID: "x", Port: 80}
 	if got, _ = Resolve(context.Background(), []Service{s}, never); got[0].Renderable() {
 		t.Fatal("an unresolved simple target has nothing to serve")
+	}
+}
+
+// Review of PR D: a TCP stream on a connection's API or forward-auth port is refused at save.
+func TestStreamOnTraefikAPIPortRefused(t *testing.T) {
+	ctx := context.Background()
+	st := newStore(t)
+	if err := st.Q.InsertTraefikConnection(ctx, db.InsertTraefikConnectionParams{ID: "t1", Name: "edge", SshHost: "192.0.2.1", SshPort: 22, SshUser: "root",
+		Auth: "hashi_key", HostKeyType: "ssh-ed25519", HostKey: []byte{1}, HostKeyFingerprint: "x"}); err != nil {
+		t.Fatal(err)
+	}
+	c, err := st.R.GetTraefikConnection(ctx, "t1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := web()
+	s.Kind, s.PublicPort = KindTCP, int(c.ApiPort)+1
+	var inv *InvalidError
+	if _, err := Create(ctx, st.Q, s, now); !errors.As(err, &inv) || inv.Field != "public_port" {
+		t.Fatalf("%v", err)
+	}
+	s.PublicPort = 15432
+	if _, err := Create(ctx, st.Q, s, now); err != nil {
+		t.Fatal(err)
 	}
 }

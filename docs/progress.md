@@ -5,7 +5,7 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
-**S6 — IP sets + firewall + streams** · status: **in progress** (started 2026-10-29; entry gate passed the same day). PR A merged (#36), PR B merged (#37), PR C merged (#38). Next: PR D (streams, takeover), then PR E (UI, deploy).
+**S6 — IP sets + firewall + streams** · status: **in progress** (started 2026-10-29; entry gate passed the same day). PR A merged (#36), PR B merged (#37), PR C merged (#38). PR D in review (streams, takeover). Next: PR E (UI, deploy).
 
 Scope and gate: 11-delivery.md §3 row S6: 05a-ip-sets.md (`ip`, `cidr`, `host`, `dns`, set references, system sets,
 compiler, IP sets pages, address page without dynamic state), 05-firewall.md (nftables table, folding, bindings, host
@@ -99,9 +99,9 @@ one review; streams and the takeover follow as PR D, the UI as PR E)
       taken over, user entries win (conflict item); `TestInvariant_21` for DNS values and upstreams.
 
 PR D — streams and takeover
-- [ ] TCP/UDP services: model, `20-hashi-stream-services.yml` + `tcp-<port>`/`udp-<port>` entry points (static
+- [x] TCP/UDP services: model, `20-hashi-stream-services.yml` + `tcp-<port>`/`udp-<port>` entry points (static
       change, high risk), DNAT to the entry-point port; golden + Traefik integration with stub TCP/UDP upstreams.
-- [ ] Takeover of an existing firewall script (05 §3.4) as explicit plan items: exact rule specs incl. all
+- [x] Takeover of an existing firewall script (05 §3.4) as explicit plan items: exact rule specs incl. all
       duplicates, the ipset, cron lines in the live crontab and `crontab.txt`; rollback restores them.
       User decisions 2026-10-29: the script's non-firewall duties (`/etc/hosts` pin, cluster MTU routes) are dropped
       with it; the first real host gets "block all other inbound" (today's `CUSTOM_INPUT` ends in DROP and nothing else
@@ -114,6 +114,17 @@ PR E — UI + deploy
       entries; dev fakes (`firewalltest`); E2E.
 - [ ] Prod-proof first on a dev target (Debian LXC on host B, snapshot `clean`), then deploy (user runs `/deploy`) and
       the gate on the first real host with the user's OK for the first apply.
+
+Decisions made in PR D:
+- The takeover is an explicit per-host list (spec edit), never detected; rules naming NetBird, Docker or Proxmox, and NetBird's
+  unnamed rules (its marks, conntrack or DROP on its interface), are refused. Discovery and a page for it come with PR E.
+- Removal is one `iptables-legacy-restore --noflush` input per family: 1,122 deletes in one commit, no shell quoting.
+- A stream's public port equals its entry point's port. Ports on a firewall host's listeners, NetBird's port, SSH and
+  Traefik's own API ports are refused at save; one that collides later waits, the rest of the host goes on.
+- `HostSNI` with TLS (04 §1.2 "may") and the monitoring protocol hint are not built; the hint belongs to S7.
+- Review of PR D (reproduced, fixed with regression tests): NetBird's unnamed rules passed validation; a stream on Traefik's API
+  port stopped Traefik; a stream on NetBird's port blocked the host's plans; stale takeover files; ports published for streams
+  that never resolved.
 
 Decisions made in PR C:
 - Invariant 21 keeps the *last good resolution* per target position (`ip_set_targets`), stored when a position
@@ -610,6 +621,10 @@ Decisions made in S0:
 
 (Review findings that were not reproduced. Not worked on unless promoted.)
 
+- S6 PR D review: a rollback when the table load failed before the script's rules were removed appends them again (561 copies
+  become 1,122: same verdict, read from the code, not run). Rollback also appends rules, so their order among others can change
+  until the script's next run (only the sorted state is compared in `TestIntegrationTakeover`).
+
 - S6 PR C review (#38): the service CNAME update and the unused `ovr` delete are one plan, but the provider may apply
   the delete first, so the old chain could miss its middle record for the seconds between the two writes. Not
   observed; the Hetzner adapter's change order was not checked. Not tested either: generated service records keep
@@ -647,6 +662,8 @@ Decisions made in S0:
   only short-SHA deploys exist so far.
 
 ## Log
+
+- 2026-10-31 — S6 PR D (streams, takeover) built on `s6-streams`, full suite local before the push.
 
 - 2026-10-29 — S6 PR C merged (#38): CI green on the first run after the full local suite. Host A pool 85.3 % → 78 %
   (`lxc-fstrim.service`).

@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -353,6 +354,26 @@ func TestVerifyStreamsAgainstCapture(t *testing.T) {
 	for _, w := range ok {
 		if !slices.Contains(exp, w) {
 			t.Errorf("Expected lacks %q", w)
+		}
+	}
+}
+
+// Review of PR D: a stream on this host's API port never reaches the static file (Traefik would not start); the others do.
+func TestStreamOnAPIPortWaits(t *testing.T) {
+	o := testOptions()
+	bad := services.Service{Name: "X", Slug: "x", Kind: services.KindTCP, HostName: "x.example.com", Enabled: true,
+		Target: services.Target{Address: "192.0.2.9", Port: 1}, PublicPort: o.APIPort}
+	o.Services = append(testServices(), bad)
+	files, err := Render(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range files {
+		if bytes.Contains(f.Data, []byte("tcp-"+strconv.Itoa(o.APIPort))) {
+			t.Errorf("%s holds the stream", f.Path)
+		}
+		if strings.HasSuffix(f.Path, "traefik.yaml") && !bytes.Contains(f.Data, []byte("tcp-15432")) {
+			t.Error("the other stream is gone")
 		}
 	}
 }

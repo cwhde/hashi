@@ -464,6 +464,18 @@ func references(ctx context.Context, q *db.Queries, s Service) error {
 			}
 		}
 	}
+	if s.Kind == KindTCP {
+		// Traefik binds these itself; a stream on one would keep it from starting (04 §3).
+		conns, err := q.ListTraefikConnections(ctx)
+		if err != nil {
+			return err
+		}
+		for _, c := range conns {
+			if p := int64(s.PublicPort); p == c.ApiPort || p == c.ApiPort+1 {
+				return invalid("public_port", "%d/tcp is Traefik's own API port on %s", s.PublicPort, c.Name)
+			}
+		}
+	}
 	if s.EntryHostID != "" {
 		if _, err := q.GetFirewallHost(ctx, s.EntryHostID); err != nil {
 			return invalid("entry_host_id", "no firewall host %s", s.EntryHostID)

@@ -92,3 +92,25 @@ func TestTakeoverRefusesForeignObjects(t *testing.T) {
 		}
 	}
 }
+
+// Review of PR D: NetBird's rules in built-in chains carry no NetBird name, only its marks and interface: every one
+// from the capture is refused, while the script's own wt0 ACCEPTs pass.
+func TestTakeoverRefusesNetBirdRulesWithoutItsName(t *testing.T) {
+	for _, r := range []string{"filter -A FORWARD -m mark --mark 0x1bd20 -j ACCEPT",
+		"mangle -A PREROUTING -i wt0 -m conntrack --ctstate NEW -j CONNMARK --set-xmark 0x1bd10/0xffffffff",
+		"mangle -A POSTROUTING -o wt0 -m conntrack --ctstate NEW -j CONNMARK --set-xmark 0x1bd11/0xffffffff",
+		"filter -A INPUT -i wt0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT", "filter -A INPUT -i wt0 -j DROP",
+		"filter -A FORWARD -i wt0 -j DROP", "filter -A FORWARD -i wt0 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT"} {
+		if err := (Takeover{Rules: []string{r}}).Validate(); err == nil {
+			t.Errorf("accepted %q", r)
+		}
+	}
+}
+
+// Review of PR D: a high-risk apply without a takeover clears files an earlier apply left behind (a failed arm, a lost
+// connection before the move), so its rollback cannot bring the script back; a running timer keeps them.
+func TestStaleTakeoverFilesAreCleared(t *testing.T) {
+	if !strings.Contains(staleTakeoverCleanup, "is-active") || !strings.Contains(staleTakeoverCleanup, "rm -rf "+TakeoverDir) {
+		t.Fatal(staleTakeoverCleanup)
+	}
+}

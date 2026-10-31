@@ -194,8 +194,22 @@ func (s *Server) GetService(ctx context.Context, req gen.GetServiceRequestObject
 	return gen.GetService200JSONResponse(serviceBody(sv)), nil
 }
 
+// checkStream refuses a stream port that belongs to something on a firewall host (05 §8).
+func (s *Server) checkStream(ctx context.Context, in services.Service) error {
+	if !in.Stream() || s.Firewall == nil {
+		return nil
+	}
+	if err := s.Firewall.CheckStreamPort(ctx, in.Kind, in.PublicPort); err != nil {
+		return firewallError(err)
+	}
+	return nil
+}
+
 func (s *Server) CreateService(ctx context.Context, req gen.CreateServiceRequestObject) (gen.CreateServiceResponseObject, error) {
 	in := serviceFromInput(*req.Body)
+	if err := s.checkStream(ctx, in); err != nil {
+		return nil, err
+	}
 	sv, plans, pending, err := s.changeService(ctx, "service.created", func(q *db.Queries) (services.Service, error) {
 		created, err := services.Create(ctx, q, in, s.now())
 		if err != nil {
@@ -212,6 +226,9 @@ func (s *Server) CreateService(ctx context.Context, req gen.CreateServiceRequest
 func (s *Server) UpdateService(ctx context.Context, req gen.UpdateServiceRequestObject) (gen.UpdateServiceResponseObject, error) {
 	in := serviceFromInput(*req.Body)
 	in.ID = req.Id
+	if err := s.checkStream(ctx, in); err != nil {
+		return nil, err
+	}
 	sv, plans, pending, err := s.changeService(ctx, "service.updated", func(q *db.Queries) (services.Service, error) {
 		if _, err := services.Update(ctx, q, in, s.now()); err != nil {
 			return services.Service{}, err

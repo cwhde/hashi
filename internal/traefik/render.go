@@ -221,7 +221,7 @@ func Render(o Options) ([]File, error) {
 		files = append(files, File{Path: o.Paths.Dynamic() + "/10-hashi-http-services.yml", Kind: KindDynamic, Mode: 0o644,
 			Data: []byte(generated + "# No services are enabled.\n")})
 	}
-	if streams := streamServices(o.Services); streams != nil {
+	if streams := streamServices(o.streamFilter()); streams != nil {
 		if err := dyn("20-hashi-stream-services.yml", streams, ""); err != nil {
 			return nil, err
 		}
@@ -313,7 +313,7 @@ func (o Options) static() staticConfig {
 	if len(o.TrustedIPs) > 0 {
 		websecure.ForwardedHeaders = &forwardedHeaders{TrustedIPs: append([]string(nil), o.TrustedIPs...)}
 	}
-	eps := streamEntryPoints(o.Services)
+	eps := streamEntryPoints(o.streamFilter())
 	eps["web"] = entryPoint{Address: ":80", HTTP: &entryPointHTTP{Redirections: &redirections{
 		EntryPoint: redirectEntryPoint{To: "websecure", Scheme: "https"}}}}
 	eps["websecure"] = websecure

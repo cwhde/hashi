@@ -38,6 +38,8 @@ var (
 	takeoverName = regexp.MustCompile(`^[A-Za-z0-9_-]{1,28}$`)
 	takeoverPath = regexp.MustCompile(`^/[A-Za-z0-9._/-]+$`)
 	foreignName  = regexp.MustCompile(`(?i)NETBIRD|DOCKER|PVEFW|PROXMOX|\bnb[-0-9]`)
+	// NetBird's rules in built-in chains carry no name: its marks, and conntrack or DROP rules on its interface.
+	netbirdRule  = regexp.MustCompile(`0x1bd|MARK|--mark|\bwt\d+\b.*(conntrack|-j DROP)`)
 	builtinChain = []string{"INPUT", "OUTPUT", "FORWARD", "PREROUTING", "POSTROUTING"}
 	ruleTables   = []string{"raw", "mangle", "nat", "filter", "security"}
 )
@@ -59,7 +61,7 @@ func (t Takeover) Validate() error {
 	}
 	for _, r := range t.Rules {
 		f := strings.Fields(r)
-		if len(f) < 4 || !slices.Contains(ruleTables, f[0]) || f[1] != "-A" || foreignName.MatchString(r) || strings.ContainsAny(r, "\n\r") {
+		if len(f) < 4 || !slices.Contains(ruleTables, f[0]) || f[1] != "-A" || foreignName.MatchString(r) || netbirdRule.MatchString(r) || strings.ContainsAny(r, "\n\r") {
 			return bad("rule %q is not \"<table> -A <chain> <spec>\" of the script", r)
 		}
 	}
@@ -341,6 +343,9 @@ func (p *TakeoverPlan) removeSteps() []string {
 	}
 	return out
 }
+
+// staleTakeoverCleanup drops saved objects no pending rollback needs. A running timer may still need them.
+const staleTakeoverCleanup = "systemctl is-active --quiet " + RescueUnit + ".timer || rm -rf " + TakeoverDir
 
 // ParseTakeover reads a stored takeover.
 func ParseTakeover(s string) (Takeover, error) {

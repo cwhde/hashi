@@ -288,6 +288,11 @@ func Apply(ctx context.Context, h Host, d Desired, diff Diff, rescue Rescue) err
 			return fmt.Errorf("save the old firewall script's objects (nothing changed): %w", err)
 		}
 	}
+	if armed && !takeover {
+		if err := run(staleTakeoverCleanup); err != nil {
+			return fmt.Errorf("clear old takeover files (nothing changed): %w", err)
+		}
+	}
 	if armed {
 		if err := arm(ctx, h, d, run); err != nil {
 			return fmt.Errorf("arm the rescue timer (nothing changed): %w", err)

@@ -3,6 +3,7 @@ package httpapi
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -88,6 +89,18 @@ func TestSetupStep6FirewallAPI(t *testing.T) {
 	}
 	if host.Loaded() != nil {
 		t.Fatal("validation changed the host")
+	}
+	// Stream ports that belong to the host are refused (05 §8), from the captured listeners.
+	for _, p := range []struct {
+		proto string
+		port  int
+	}{{"tcp", 22}, {"tcp", 8006}, {"udp", 51820}} {
+		if err := fw.CheckStreamPort(ctx, p.proto, p.port); !errors.Is(err, firewall.ErrInvalid) {
+			t.Errorf("%d/%s: %v", p.port, p.proto, err)
+		}
+	}
+	if err := fw.CheckStreamPort(ctx, "tcp", 15432); err != nil {
+		t.Error(err)
 	}
 	state, err := s.ConfirmSetupFirewall(ctx, gen.ConfirmSetupFirewallRequestObject{})
 	if err != nil {
