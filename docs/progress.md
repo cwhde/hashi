@@ -696,6 +696,8 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-10-31 — Deployed `10df3fa` (setup access and takeover lists, streams without a domain, migration 12): readyz ok, SPA and public pages 200.
+
 - 2026-10-31 — Deployed `136f444` (key install): readyz ok, version matches, SPA and public pages 200.
 
 - 2026-10-31 — S6 gate started: Hashi's key added to root on the first real host (user OK), host connected through setup step 6
