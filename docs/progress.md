@@ -728,6 +728,8 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-10-31 — CI on `main` after #44 and #45 failed on a timeout fetching actions from GitHub, not on code; both had passed on their PRs. #46's first run hit a race in `TestRealSSHD`: the old sshd answered the banner, then went away. The test now proves the restart with a full login.
+
 - 2026-10-31 — Registry and server cleanup with the user's OK: 165 old `juzo/hashi` registry entries removed (keeping `10790f1`, `71420f3`, `71e79b9`, `latest`, build cache), 13 old v3 and 9 June legacy build images removed on the server. `hashi:old` kept; it exists only on that server, not in the registry. Thin pool 87 % → 80 %. The runner caches hold 18 GB more.
 
 - 2026-10-31 — Pulse agent and install script run on the Alpine and Debian dev targets against a stand-in receiver: heartbeats arrive, config is 0600 root, idle memory 6.4 and 7.2 MB (target 15), image 8.8 MB (target 10). The installer now says so when curl is missing, which the Debian target showed. Targets cleaned; curl stays on the Debian one.
