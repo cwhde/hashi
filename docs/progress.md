@@ -694,6 +694,8 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-10-31 — Deployed `136f444` (key install): readyz ok, version matches, SPA and public pages 200.
+
 - 2026-10-31 — S6 gate started: Hashi's key added to root on the first real host (user OK), host connected through setup step 6
   (read-only; host key compared with the host's own). Healthy, NetBird 0.81.3 connected, no warnings, ruleset hashes unchanged.
   Not confirmed, nothing planned. DNAT target for now: the running Traefik, so public traffic does not move.
