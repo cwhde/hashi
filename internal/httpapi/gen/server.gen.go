@@ -2430,6 +2430,12 @@ type SessionList struct {
 	Sessions []SessionInfo `json:"sessions"`
 }
 
+// SetupFirewallAccess defines model for SetupFirewallAccess.
+type SetupFirewallAccess struct {
+	// Addresses IP addresses or CIDR ranges
+	Addresses []string `json:"addresses"`
+}
+
 // SetupHTTPSLink defines model for SetupHTTPSLink.
 type SetupHTTPSLink struct {
 	ExpiresAt time.Time `json:"expires_at"`
@@ -2830,6 +2836,9 @@ type PutSetupDNSImportJSONRequestBody = DNSImportDecisions
 // PutSetupDNSProviderJSONRequestBody defines body for PutSetupDNSProvider for application/json ContentType.
 type PutSetupDNSProviderJSONRequestBody = DNSProviderInput
 
+// PutSetupFirewallAccessJSONRequestBody defines body for PutSetupFirewallAccess for application/json ContentType.
+type PutSetupFirewallAccessJSONRequestBody = SetupFirewallAccess
+
 // PutSetupFirewallHostJSONRequestBody defines body for PutSetupFirewallHost for application/json ContentType.
 type PutSetupFirewallHostJSONRequestBody = FirewallHostInput
 
@@ -2838,6 +2847,9 @@ type InstallKeySetupFwJSONRequestBody = KeyInstallInput
 
 // ScanSetupFirewallHostJSONRequestBody defines body for ScanSetupFirewallHost for application/json ContentType.
 type ScanSetupFirewallHostJSONRequestBody = HostKeyScanInput
+
+// PutSetupFirewallTakeoverJSONRequestBody defines body for PutSetupFirewallTakeover for application/json ContentType.
+type PutSetupFirewallTakeoverJSONRequestBody = FirewallTakeover
 
 // ProveSetupHTTPSJSONRequestBody defines body for ProveSetupHTTPS for application/json ContentType.
 type ProveSetupHTTPSJSONRequestBody = SetupHTTPSProof
@@ -3341,6 +3353,9 @@ type ServerInterface interface {
 	// PutSetupDNSProvider Step 3 — validate a DNS provider token read-only, pick the zone, store the first snapshot
 	// (PUT /api/setup/dns/provider)
 	PutSetupDNSProvider(w http.ResponseWriter, r *http.Request)
+	// PutSetupFirewallAccess Step 6 — addresses that may reach the host itself (stored as an IP set bound to its host access)
+	// (PUT /api/setup/firewall/access)
+	PutSetupFirewallAccess(w http.ResponseWriter, r *http.Request)
 	// ConfirmSetupFirewall Step 6 — let Hashi manage the validated host's firewall (its table only); completes the step
 	// (POST /api/setup/firewall/confirm)
 	ConfirmSetupFirewall(w http.ResponseWriter, r *http.Request)
@@ -3362,6 +3377,9 @@ type ServerInterface interface {
 	// ScanSetupFirewallHost Step 6 — read the firewall host's SSH key for the admin to compare (nothing is stored)
 	// (POST /api/setup/firewall/scan)
 	ScanSetupFirewallHost(w http.ResponseWriter, r *http.Request)
+	// PutSetupFirewallTakeover Step 6 — what the first apply removes of an old firewall script
+	// (PUT /api/setup/firewall/takeover)
+	PutSetupFirewallTakeover(w http.ResponseWriter, r *http.Request)
 	// ProveSetupHTTPS Step 8 — called from https://<admin domain> with the link's nonce; accepted only through Hashi-managed Traefik (edge token, Host, HTTPS). Completes the step and signs the browser in there with a new bootstrap session
 	// (POST /api/setup/https/proof)
 	ProveSetupHTTPS(w http.ResponseWriter, r *http.Request)
@@ -5403,6 +5421,20 @@ func (siw *ServerInterfaceWrapper) PutSetupDNSProvider(w http.ResponseWriter, r 
 	handler.ServeHTTP(w, r)
 }
 
+// PutSetupFirewallAccess operation middleware
+func (siw *ServerInterfaceWrapper) PutSetupFirewallAccess(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutSetupFirewallAccess(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ConfirmSetupFirewall operation middleware
 func (siw *ServerInterfaceWrapper) ConfirmSetupFirewall(w http.ResponseWriter, r *http.Request) {
 
@@ -5504,6 +5536,20 @@ func (siw *ServerInterfaceWrapper) ScanSetupFirewallHost(w http.ResponseWriter, 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ScanSetupFirewallHost(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutSetupFirewallTakeover operation middleware
+func (siw *ServerInterfaceWrapper) PutSetupFirewallTakeover(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutSetupFirewallTakeover(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6177,6 +6223,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/firewall/scan", wrapper.ScanSetupFirewallHost)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/setup/firewall/host", wrapper.DeleteSetupFirewallHost)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/setup/firewall/host", wrapper.PutSetupFirewallHost)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/setup/firewall/takeover", wrapper.PutSetupFirewallTakeover)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/setup/firewall/access", wrapper.PutSetupFirewallAccess)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/firewall/confirm", wrapper.ConfirmSetupFirewall)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/firewall/plan", wrapper.PlanSetupFirewall)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/firewall/plan/{id}/run", wrapper.RunSetupFirewallPlan)
@@ -9795,6 +9843,45 @@ func (response PutSetupDNSProviderdefaultApplicationProblemPlusJSONResponse) Vis
 	return err
 }
 
+type PutSetupFirewallAccessRequestObject struct {
+	Body *PutSetupFirewallAccessJSONRequestBody
+}
+
+type PutSetupFirewallAccessResponseObject interface {
+	VisitPutSetupFirewallAccessResponse(w http.ResponseWriter) error
+}
+
+type PutSetupFirewallAccess200JSONResponse SetupFirewallAccess
+
+func (response PutSetupFirewallAccess200JSONResponse) VisitPutSetupFirewallAccessResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutSetupFirewallAccessdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutSetupFirewallAccessdefaultApplicationProblemPlusJSONResponse) VisitPutSetupFirewallAccessResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ConfirmSetupFirewallRequestObject struct {
 }
 
@@ -10054,6 +10141,39 @@ type ScanSetupFirewallHostdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response ScanSetupFirewallHostdefaultApplicationProblemPlusJSONResponse) VisitScanSetupFirewallHostResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutSetupFirewallTakeoverRequestObject struct {
+	Body *PutSetupFirewallTakeoverJSONRequestBody
+}
+
+type PutSetupFirewallTakeoverResponseObject interface {
+	VisitPutSetupFirewallTakeoverResponse(w http.ResponseWriter) error
+}
+
+type PutSetupFirewallTakeover204Response struct {
+}
+
+func (response PutSetupFirewallTakeover204Response) VisitPutSetupFirewallTakeoverResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type PutSetupFirewallTakeoverdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutSetupFirewallTakeoverdefaultApplicationProblemPlusJSONResponse) VisitPutSetupFirewallTakeoverResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -11429,6 +11549,9 @@ type StrictServerInterface interface {
 	// PutSetupDNSProvider Step 3 — validate a DNS provider token read-only, pick the zone, store the first snapshot
 	// (PUT /api/setup/dns/provider)
 	PutSetupDNSProvider(ctx context.Context, request PutSetupDNSProviderRequestObject) (PutSetupDNSProviderResponseObject, error)
+	// PutSetupFirewallAccess Step 6 — addresses that may reach the host itself (stored as an IP set bound to its host access)
+	// (PUT /api/setup/firewall/access)
+	PutSetupFirewallAccess(ctx context.Context, request PutSetupFirewallAccessRequestObject) (PutSetupFirewallAccessResponseObject, error)
 	// ConfirmSetupFirewall Step 6 — let Hashi manage the validated host's firewall (its table only); completes the step
 	// (POST /api/setup/firewall/confirm)
 	ConfirmSetupFirewall(ctx context.Context, request ConfirmSetupFirewallRequestObject) (ConfirmSetupFirewallResponseObject, error)
@@ -11450,6 +11573,9 @@ type StrictServerInterface interface {
 	// ScanSetupFirewallHost Step 6 — read the firewall host's SSH key for the admin to compare (nothing is stored)
 	// (POST /api/setup/firewall/scan)
 	ScanSetupFirewallHost(ctx context.Context, request ScanSetupFirewallHostRequestObject) (ScanSetupFirewallHostResponseObject, error)
+	// PutSetupFirewallTakeover Step 6 — what the first apply removes of an old firewall script
+	// (PUT /api/setup/firewall/takeover)
+	PutSetupFirewallTakeover(ctx context.Context, request PutSetupFirewallTakeoverRequestObject) (PutSetupFirewallTakeoverResponseObject, error)
 	// ProveSetupHTTPS Step 8 — called from https://<admin domain> with the link's nonce; accepted only through Hashi-managed Traefik (edge token, Host, HTTPS). Completes the step and signs the browser in there with a new bootstrap session
 	// (POST /api/setup/https/proof)
 	ProveSetupHTTPS(ctx context.Context, request ProveSetupHTTPSRequestObject) (ProveSetupHTTPSResponseObject, error)
@@ -14082,6 +14208,37 @@ func (sh *strictHandler) PutSetupDNSProvider(w http.ResponseWriter, r *http.Requ
 	}
 }
 
+// PutSetupFirewallAccess operation middleware
+func (sh *strictHandler) PutSetupFirewallAccess(w http.ResponseWriter, r *http.Request) {
+	var request PutSetupFirewallAccessRequestObject
+
+	var body PutSetupFirewallAccessJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutSetupFirewallAccess(ctx, request.(PutSetupFirewallAccessRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutSetupFirewallAccess")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutSetupFirewallAccessResponseObject); ok {
+		if err := validResponse.VisitPutSetupFirewallAccessResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ConfirmSetupFirewall operation middleware
 func (sh *strictHandler) ConfirmSetupFirewall(w http.ResponseWriter, r *http.Request) {
 	var request ConfirmSetupFirewallRequestObject
@@ -14266,6 +14423,37 @@ func (sh *strictHandler) ScanSetupFirewallHost(w http.ResponseWriter, r *http.Re
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ScanSetupFirewallHostResponseObject); ok {
 		if err := validResponse.VisitScanSetupFirewallHostResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutSetupFirewallTakeover operation middleware
+func (sh *strictHandler) PutSetupFirewallTakeover(w http.ResponseWriter, r *http.Request) {
+	var request PutSetupFirewallTakeoverRequestObject
+
+	var body PutSetupFirewallTakeoverJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutSetupFirewallTakeover(ctx, request.(PutSetupFirewallTakeoverRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutSetupFirewallTakeover")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutSetupFirewallTakeoverResponseObject); ok {
+		if err := validResponse.VisitPutSetupFirewallTakeoverResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

@@ -72,6 +72,15 @@
 			if (res.error || !res.data) throw res.error;
 			await reload();
 		});
+	let access = $state('');
+	let accessSaved = $state(false);
+	const saveAccess = () =>
+		act('access', async () => {
+			const addresses = access.split(/[\s,]+/).filter(Boolean);
+			const res = await api.PUT('/api/setup/firewall/access', { body: { addresses } });
+			if (res.error) throw res.error;
+			accessSaved = true;
+		});
 	const startOver = () =>
 		act('over', async () => {
 			const res = await api.DELETE('/api/setup/firewall/host');
@@ -126,6 +135,24 @@
 		<h2 class="mb-3 text-[15px] font-semibold">{host.name}</h2>
 		{#if host.edge_mode === 'managed'}
 			<HostSettings {host} busy={!!busy} {save} />
+			{#if host.drop_other_inbound}
+				<div class="mt-5 max-w-[62ch] space-y-1.5">
+					<label for="fw-access" class="text-[13px] font-medium"
+						>Addresses that may still reach this host</label
+					>
+					<input
+						id="fw-access"
+						bind:value={access}
+						oninput={() => (accessSaved = false)}
+						placeholder="203.0.113.7, 10.0.0.0/8"
+						class="h-10 w-full rounded-[10px] border bg-transparent px-3 font-mono text-[12.5px]"
+					/>
+					<p class="text-[12px] text-muted-foreground">Its own networks and NetBird always can.</p>
+					<Button size="sm" variant="outline" onclick={saveAccess} disabled={!!busy}
+						>{accessSaved ? 'Saved' : 'Save addresses'}</Button
+					>
+				</div>
+			{/if}
 			{#if !host.ownership_confirmed}
 				<Button class="mt-3" variant="ghost" size="sm" onclick={startOver} disabled={!!busy}
 					>Start over with another address or login</Button

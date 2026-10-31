@@ -117,6 +117,22 @@ func TestSetupStep6FirewallAPI(t *testing.T) {
 	if err := fw.CheckStreamPort(ctx, "tcp", 15432); err != nil {
 		t.Error(err)
 	}
+	// Setup can give the host's access list and the old script's list; saving twice replaces, and NetBird names are refused.
+	for _, list := range [][]string{{"198.51.100.1"}, {"198.51.100.2", "10.0.0.0/8"}} {
+		if _, err := s.PutSetupFirewallAccess(ctx, gen.PutSetupFirewallAccessRequestObject{Body: &gen.SetupFirewallAccess{Addresses: list}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	access, _ := fw.GetHostAccess(ctx, h.Id)
+	if g, _ := ipsets.LoadGraph(ctx, st.R); len(access) != 1 || len(g[access[0]].Elements) != 2 {
+		t.Fatalf("access %v", access)
+	}
+	if _, err := s.PutSetupFirewallAccess(ctx, gen.PutSetupFirewallAccessRequestObject{Body: &gen.SetupFirewallAccess{Addresses: []string{"nope"}}}); status(err) != http.StatusUnprocessableEntity {
+		t.Fatalf("bad address: %v", err)
+	}
+	if _, err := s.PutSetupFirewallTakeover(ctx, gen.PutSetupFirewallTakeoverRequestObject{Body: &gen.FirewallTakeover{Chains: []string{"NETBIRD-X"}, Rules: []string{}, Ipsets: []string{}, CronMatch: []string{}, CronFiles: []string{}}}); status(err) != http.StatusUnprocessableEntity {
+		t.Fatalf("netbird chain: %v", err)
+	}
 	state, err := s.ConfirmSetupFirewall(ctx, gen.ConfirmSetupFirewallRequestObject{})
 	if err != nil {
 		t.Fatal(err)

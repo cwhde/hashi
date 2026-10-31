@@ -546,6 +546,62 @@ func (m *Manager) consumers(ctx context.Context, q *db.Queries, setID string) ([
 	return out, nil
 }
 
+// PutSetupAccess replaces the host's setup access set ("<name>-access") with addrs and binds it to the host (setup step 6).
+func (m *Manager) PutSetupAccess(ctx context.Context, actor, ip, id, name string, addrs []string) error {
+	items := make([]ipsets.Item, 0, len(addrs))
+	for _, a := range addrs {
+		it, err := ipsets.ParseIPOrCIDR(strings.TrimSpace(a))
+		if err != nil {
+			return fmt.Errorf("%w: %q is not an address or range", ErrInvalid, a)
+		}
+		items = append(items, it)
+	}
+	slug, now := name+"-access", m.now()
+	err := m.st.Tx(ctx, func(q *db.Queries) error {
+		g, err := ipsets.LoadGraph(ctx, q)
+		if err != nil {
+			return err
+		}
+		ed := ipsets.Editor{Sources: m.sets.Sources()}
+		setID := ""
+		for sid, set := range g {
+			if set.Slug != slug {
+				continue
+			}
+			setID = sid
+			for _, e := range set.Elements {
+				if _, err := ed.DeleteElement(ctx, q, sid, e.ID, now); err != nil {
+					return err
+				}
+			}
+		}
+		if setID == "" {
+			set, err := ipsets.CreateSet(ctx, q, ipsets.SetInput{Slug: slug, Name: "Access to " + name}, now)
+			if err != nil {
+				return err
+			}
+			setID = set.ID
+		}
+		for _, it := range items {
+			if _, err := ed.AddElement(ctx, q, setID, ipsets.ElementInput{Item: it}, actor, now); err != nil {
+				return err
+			}
+		}
+		if err := q.DeleteFirewallHostAccess(ctx, id); err != nil {
+			return err
+		}
+		if err := q.InsertFirewallHostAccess(ctx, db.InsertFirewallHostAccessParams{HostID: id, IpSetID: setID, CreatedAt: now.UnixMilli()}); err != nil {
+			return err
+		}
+		return m.audit.Record(ctx, q, audit.Event{Actor: actor, Action: "firewall.host_access.updated", IP: ip, Target: "firewall_host:" + id,
+			Outcome: audit.Success, Detail: map[string]any{"addresses": addrs}})
+	})
+	if err == nil {
+		m.sets.Changed(ctx)
+	}
+	return err
+}
+
 // PutTakeover stores what Hashi removes of a host's old firewall script (05 §3.4); the next plan lists it.
 func (m *Manager) PutTakeover(ctx context.Context, actor, ip, id string, t Takeover) error {
 	if err := t.Validate(); err != nil {

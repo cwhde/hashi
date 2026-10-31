@@ -571,6 +571,32 @@ paths:
           description: Removed
           content: { application/json: { schema: { $ref: "#/components/schemas/SetupState" } } }
         default: { $ref: "#/components/responses/Problem" }
+  /api/setup/firewall/takeover:
+    put:
+      operationId: putSetupFirewallTakeover
+      summary: Step 6 — what the first apply removes of an old firewall script
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/FirewallTakeover" } } }
+      responses:
+        "204": { description: Saved }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/setup/firewall/access:
+    put:
+      operationId: putSetupFirewallAccess
+      summary: Step 6 — addresses that may reach the host itself (stored as an IP set bound to its host access)
+      tags: [setup]
+      x-hashi-scopes: [setup.manage]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/SetupFirewallAccess" } } }
+      responses:
+        "200":
+          description: Saved
+          content: { application/json: { schema: { $ref: "#/components/schemas/SetupFirewallAccess" } } }
+        default: { $ref: "#/components/responses/Problem" }
   /api/setup/firewall/confirm:
     post:
       operationId: confirmSetupFirewall
@@ -2167,6 +2193,11 @@ components:
       properties:
         open: { type: array, items: { $ref: "#/components/schemas/SyncPlan" } }
         recent: { type: array, items: { $ref: "#/components/schemas/SyncPlan" } }
+    SetupFirewallAccess:
+      type: object
+      required: [addresses]
+      properties:
+        addresses: { type: array, items: { type: string }, description: "IP addresses or CIDR ranges" }
     FirewallTakeover:
       type: object
       description: The old firewall script's objects (05 §3.4); names of NetBird, Docker or Proxmox are refused

@@ -693,6 +693,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/setup/firewall/takeover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Step 6 — what the first apply removes of an old firewall script */
+        put: operations["putSetupFirewallTakeover"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/setup/firewall/access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Step 6 — addresses that may reach the host itself (stored as an IP set bound to its host access) */
+        put: operations["putSetupFirewallAccess"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/setup/firewall/confirm": {
         parameters: {
             query?: never;
@@ -2331,6 +2365,10 @@ export interface components {
             open: components["schemas"]["SyncPlan"][];
             recent: components["schemas"]["SyncPlan"][];
         };
+        SetupFirewallAccess: {
+            /** @description IP addresses or CIDR ranges */
+            addresses: string[];
+        };
         /** @description The old firewall script's objects (05 §3.4); names of NetBird, Docker or Proxmox are refused */
         FirewallTakeover: {
             /** @description Its own chains: flushed and deleted, with every jump to them */
@@ -3861,6 +3899,54 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SetupState"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putSetupFirewallTakeover: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FirewallTakeover"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putSetupFirewallAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetupFirewallAccess"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SetupFirewallAccess"];
                 };
             };
             default: components["responses"]["Problem"];

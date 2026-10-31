@@ -582,3 +582,42 @@ func (s *Server) FirewallIdentity(ctx context.Context, _ gen.FirewallIdentityReq
 	}
 	return gen.FirewallIdentity200JSONResponse{PublicKey: line}, nil
 }
+
+func (s *Server) PutSetupFirewallTakeover(ctx context.Context, req gen.PutSetupFirewallTakeoverRequestObject) (gen.PutSetupFirewallTakeoverResponseObject, error) {
+	ri, b := info(ctx), req.Body
+	if err := s.requireSetupOpen(ctx); err != nil {
+		return nil, err
+	}
+	row, ok, err := s.setupFirewallHost(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, conflict("Save the firewall host first.")
+	}
+	t := firewall.Takeover{Chains: b.Chains, Rules: b.Rules, IPSets: b.Ipsets, CronMatch: b.CronMatch, CronFiles: b.CronFiles}
+	if err := s.Firewall.PutTakeover(ctx, s.actor(ri), ri.ipString(), row.ID, t); err != nil {
+		return nil, firewallError(err)
+	}
+	return gen.PutSetupFirewallTakeover204Response{}, nil
+}
+
+// PutSetupFirewallAccess stores the addresses in one user set per host, bound to its host access. Blocking other
+// inbound connections during setup needs it: IP sets and host access are otherwise edited with a passkey session.
+func (s *Server) PutSetupFirewallAccess(ctx context.Context, req gen.PutSetupFirewallAccessRequestObject) (gen.PutSetupFirewallAccessResponseObject, error) {
+	ri := info(ctx)
+	if err := s.requireSetupOpen(ctx); err != nil {
+		return nil, err
+	}
+	row, ok, err := s.setupFirewallHost(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, conflict("Save the firewall host first.")
+	}
+	if err := s.Firewall.PutSetupAccess(ctx, s.actor(ri), ri.ipString(), row.ID, row.Name, req.Body.Addresses); err != nil {
+		return nil, firewallError(err)
+	}
+	return gen.PutSetupFirewallAccess200JSONResponse{Addresses: req.Body.Addresses}, nil
+}
