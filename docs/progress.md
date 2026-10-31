@@ -696,6 +696,9 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-10-31 — Deployed `8be6473`; `nat_out` applied on the first real host (user pre-approved), confirmed, 2 items; hosts pin removed
+  with the user's OK. NetBird restart still to be repeated. Open question for the user: NetBird's management path depends on a Traefik.
+
 - 2026-10-31 — S6 gate, NetBird restart: **failed, then fixed by hand with the user's OK.** The first host's NetBird management name
   was pinned in `/etc/hosts` to its own public address; the old script's OUTPUT DNAT made that work and the takeover removed it, so
   NetBird could not reconnect after the restart (home route down for some minutes). The pin now points at the internal Traefik. Hashi fix: `nat_out`
