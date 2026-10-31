@@ -4,12 +4,28 @@
 	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
 	import HostForm from '$lib/components/hashi/firewall/HostForm.svelte';
 	import { api, problemText, type Schemas } from '$lib/api/client';
+	import { withReauth } from '$lib/auth/reauth';
 	import type { FirewallInput } from '$lib/firewall';
 
 	let conn = $state<Schemas['TraefikConnection'] | null>(null);
 	let busy = $state(false);
 	let error = $state('');
+	let publicKey = $state('');
+	async function install(body: Schemas['KeyInstallInput']) {
+		error = '';
+		busy = true;
+		try {
+			await withReauth(() => api.POST('/api/firewall/install-key', { body }));
+			return true;
+		} catch (e) {
+			error = problemText(e);
+			return false;
+		} finally {
+			busy = false;
+		}
+	}
 	onMount(async () => {
+		publicKey = (await api.POST('/api/firewall/identity')).data?.public_key ?? '';
 		const r = await api.GET('/api/traefik/connections');
 		conn = r.data?.connections[0] ?? null;
 	});
@@ -52,7 +68,15 @@
 		{error}
 	</p>{/if}
 {#if conn}
-	<HostForm traefikId={conn.id} traefikHost={conn.host} {busy} {scan} {save} />
+	<HostForm
+		traefikId={conn.id}
+		traefikHost={conn.host}
+		{busy}
+		{scan}
+		{save}
+		{publicKey}
+		{install}
+	/>
 {:else}
 	<p class="text-[13px] text-muted-foreground">
 		Connect a Traefik host first: public traffic is forwarded to it.

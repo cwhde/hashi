@@ -36,6 +36,8 @@
 	let pick = $state('');
 	let entry = $state('');
 	let tk = $state({ chains: '', rules: '', ipsets: '', cron_match: '', cron_files: '' });
+	// Hosts without an old script never see this part (05 §3.4); a list comes from the API until detection exists.
+	const hasScript = $derived(Object.values(tk).some(Boolean));
 	let busy = $state(false);
 	let note = $state('');
 	let error = $state('');
@@ -222,7 +224,7 @@
 					>Live ruleset</Tabs.Trigger
 				>
 				<Tabs.Trigger value="generated">Generated</Tabs.Trigger>
-				<Tabs.Trigger value="script">Old script</Tabs.Trigger>
+				{#if hasScript}<Tabs.Trigger value="script">Old script</Tabs.Trigger>{/if}
 			{/if}
 		</Tabs.List>
 		<Tabs.Content value="routing" class="grid gap-4 lg:grid-cols-2">

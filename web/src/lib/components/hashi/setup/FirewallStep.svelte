@@ -7,7 +7,7 @@
 	import PlanReview from '$lib/components/hashi/PlanReview.svelte';
 	import HostForm from '$lib/components/hashi/firewall/HostForm.svelte';
 	import HostSettings from '$lib/components/hashi/firewall/HostSettings.svelte';
-	import { Check, Copy, CircleAlert } from '@lucide/svelte';
+	import { Check, CircleAlert } from '@lucide/svelte';
 	import { api, problemText, type Schemas } from '$lib/api/client';
 	import { outcomeText, reviewItems, triggerText, type Plan } from '$lib/sync';
 	import type { FirewallInput } from '$lib/firewall';
@@ -22,7 +22,6 @@
 	const host = $derived(setup.firewall);
 	const step = $derived(setup.steps.find((s) => s.n === 6));
 	let publicKey = $state('');
-	let copied = $state(false);
 	let agreed = $state(false);
 	let plan = $state<Plan | null>(null);
 	let busy = $state('');
@@ -57,6 +56,15 @@
 			out = res.data;
 		});
 		return out;
+	}
+	async function install(body: Schemas['KeyInstallInput']) {
+		let ok = false;
+		await act('install', async () => {
+			const res = await api.POST('/api/setup/firewall/install-key', { body });
+			if (res.error) throw res.error;
+			ok = true;
+		});
+		return ok;
 	}
 	const save = (body: FirewallInput) =>
 		act('save', async () => {
@@ -102,27 +110,6 @@
 </p>
 
 {#if !host}
-	{#if publicKey}
-		<div class="mt-5 max-w-[62ch] rounded-2xl bg-surface-2/60 p-4 text-[13px]">
-			<p>
-				To let Hashi log in with its own key, add this line to the user's <Mono
-					>~/.ssh/authorized_keys</Mono
-				> on the host:
-			</p>
-			<Mono class="mt-2 block break-all">{publicKey}</Mono>
-			<Button
-				size="sm"
-				variant="outline"
-				class="mt-2"
-				onclick={async () => {
-					await navigator.clipboard.writeText(publicKey);
-					copied = true;
-				}}
-			>
-				{#if copied}<Check />Copied{:else}<Copy />Copy{/if}
-			</Button>
-		</div>
-	{/if}
 	<div class="mt-5">
 		<HostForm
 			traefikId={setup.traefik?.id ?? ''}
@@ -130,6 +117,8 @@
 			busy={!!busy}
 			{scan}
 			{save}
+			{publicKey}
+			{install}
 		/>
 	</div>
 {:else}

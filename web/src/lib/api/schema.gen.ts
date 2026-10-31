@@ -529,6 +529,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/setup/traefik/install-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Step 5 — add Hashi's key to the host, with the admin's permission and a credential given once */
+        post: operations["installKeySetupEdge"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/setup/traefik/scan": {
         parameters: {
             query?: never;
@@ -613,6 +630,23 @@ export interface paths {
         put?: never;
         /** Step 5 — approve the shown Traefik plan and run it */
         post: operations["runSetupTraefikPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/setup/firewall/install-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Step 6 — add Hashi's key to the host, with the admin's permission and a credential given once */
+        post: operations["installKeySetupFw"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1251,6 +1285,40 @@ export interface paths {
         put?: never;
         /** Add a firewall host (validated right away when managed) */
         post: operations["createFirewallHost"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/firewall/install-key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Hashi's key to a new host, with the admin's permission and a credential given once */
+        post: operations["installKeyFirewall"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/firewall/identity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Hashi's SSH public key for a host's authorized_keys */
+        post: operations["firewallIdentity"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1926,6 +1994,20 @@ export interface components {
         HostKeyScanInput: {
             host: string;
             port: number;
+        };
+        /** @description Used for this one call and never stored */
+        KeyInstallInput: {
+            host: string;
+            port: number;
+            user: string;
+            /**
+             * Format: byte
+             * @description `key` from the scan the admin confirmed
+             */
+            host_key: string;
+            password?: string;
+            private_key?: string;
+            passphrase?: string;
         };
         HostKey: {
             /** @description e.g. ssh-ed25519 */
@@ -3548,6 +3630,31 @@ export interface operations {
             default: components["responses"]["Problem"];
         };
     };
+    installKeySetupEdge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KeyInstallInput"];
+            };
+        };
+        responses: {
+            /** @description Installed; Hashi logged in with its key */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TraefikIdentity"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
     scanSetupTraefikHost: {
         parameters: {
             query?: never;
@@ -3658,6 +3765,31 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SyncPlan"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    installKeySetupFw: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KeyInstallInput"];
+            };
+        };
+        responses: {
+            /** @description Installed; Hashi logged in with its key */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TraefikIdentity"];
                 };
             };
             default: components["responses"]["Problem"];
@@ -4728,6 +4860,52 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FirewallHost"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    installKeyFirewall: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KeyInstallInput"];
+            };
+        };
+        responses: {
+            /** @description Installed; Hashi logged in with its key */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TraefikIdentity"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    firewallIdentity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The public key line */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TraefikIdentity"];
                 };
             };
             default: components["responses"]["Problem"];

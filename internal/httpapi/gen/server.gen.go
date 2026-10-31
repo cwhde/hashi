@@ -2154,6 +2154,19 @@ type JobRun struct {
 // JobRunStatus defines model for JobRun.Status.
 type JobRunStatus string
 
+// KeyInstallInput Used for this one call and never stored
+type KeyInstallInput struct {
+	Host string `json:"host"`
+
+	// HostKey `key` from the scan the admin confirmed
+	HostKey    []byte  `json:"host_key"`
+	Passphrase *string `json:"passphrase,omitempty"`
+	Password   *string `json:"password,omitempty"`
+	Port       int     `json:"port"`
+	PrivateKey *string `json:"private_key,omitempty"`
+	User       string  `json:"user"`
+}
+
 // LogLine defines model for LogLine.
 type LogLine struct {
 	// Line One JSON log record (time
@@ -2772,6 +2785,9 @@ type PutFirewallHostAccessJSONRequestBody = IPSetIDs
 // PutFirewallTakeoverJSONRequestBody defines body for PutFirewallTakeover for application/json ContentType.
 type PutFirewallTakeoverJSONRequestBody = FirewallTakeover
 
+// InstallKeyFirewallJSONRequestBody defines body for InstallKeyFirewall for application/json ContentType.
+type InstallKeyFirewallJSONRequestBody = KeyInstallInput
+
 // ScanFirewallHostJSONRequestBody defines body for ScanFirewallHost for application/json ContentType.
 type ScanFirewallHostJSONRequestBody = HostKeyScanInput
 
@@ -2817,6 +2833,9 @@ type PutSetupDNSProviderJSONRequestBody = DNSProviderInput
 // PutSetupFirewallHostJSONRequestBody defines body for PutSetupFirewallHost for application/json ContentType.
 type PutSetupFirewallHostJSONRequestBody = FirewallHostInput
 
+// InstallKeySetupFwJSONRequestBody defines body for InstallKeySetupFw for application/json ContentType.
+type InstallKeySetupFwJSONRequestBody = KeyInstallInput
+
 // ScanSetupFirewallHostJSONRequestBody defines body for ScanSetupFirewallHost for application/json ContentType.
 type ScanSetupFirewallHostJSONRequestBody = HostKeyScanInput
 
@@ -2831,6 +2850,9 @@ type ConfirmRecoveryKeyJSONRequestBody = RecoveryKeyConfirm
 
 // PutSetupTraefikConnectionJSONRequestBody defines body for PutSetupTraefikConnection for application/json ContentType.
 type PutSetupTraefikConnectionJSONRequestBody = TraefikConnectionInput
+
+// InstallKeySetupEdgeJSONRequestBody defines body for InstallKeySetupEdge for application/json ContentType.
+type InstallKeySetupEdgeJSONRequestBody = KeyInstallInput
 
 // ScanSetupTraefikHostJSONRequestBody defines body for ScanSetupTraefikHost for application/json ContentType.
 type ScanSetupTraefikHostJSONRequestBody = HostKeyScanInput
@@ -3202,6 +3224,12 @@ type ServerInterface interface {
 	// ValidateFirewallHost Read the host again over SSH (read-only)
 	// (POST /api/firewall/hosts/{id}/validate)
 	ValidateFirewallHost(w http.ResponseWriter, r *http.Request, id string)
+	// FirewallIdentity Hashi's SSH public key for a host's authorized_keys
+	// (POST /api/firewall/identity)
+	FirewallIdentity(w http.ResponseWriter, r *http.Request)
+	// InstallKeyFirewall Add Hashi's key to a new host, with the admin's permission and a credential given once
+	// (POST /api/firewall/install-key)
+	InstallKeyFirewall(w http.ResponseWriter, r *http.Request)
 	// ScanFirewallHost Read a host's SSH key for the admin to compare (nothing is stored)
 	// (POST /api/firewall/scan)
 	ScanFirewallHost(w http.ResponseWriter, r *http.Request)
@@ -3322,6 +3350,9 @@ type ServerInterface interface {
 	// PutSetupFirewallHost Step 6 — save the first firewall host and validate it over SSH (read-only)
 	// (PUT /api/setup/firewall/host)
 	PutSetupFirewallHost(w http.ResponseWriter, r *http.Request)
+	// InstallKeySetupFw Step 6 — add Hashi's key to the host, with the admin's permission and a credential given once
+	// (POST /api/setup/firewall/install-key)
+	InstallKeySetupFw(w http.ResponseWriter, r *http.Request)
 	// PlanSetupFirewall Step 6 — plan Hashi's first firewall apply on the confirmed host; nothing is written yet
 	// (POST /api/setup/firewall/plan)
 	PlanSetupFirewall(w http.ResponseWriter, r *http.Request)
@@ -3364,6 +3395,9 @@ type ServerInterface interface {
 	// SetupTraefikIdentity Step 5 — Hashi's SSH public key (created on first call) for the host's authorized_keys
 	// (POST /api/setup/traefik/identity)
 	SetupTraefikIdentity(w http.ResponseWriter, r *http.Request)
+	// InstallKeySetupEdge Step 5 — add Hashi's key to the host, with the admin's permission and a credential given once
+	// (POST /api/setup/traefik/install-key)
+	InstallKeySetupEdge(w http.ResponseWriter, r *http.Request)
 	// PlanSetupTraefik Step 5 — plan installing Traefik and Hashi's files on the confirmed host; nothing is written yet
 	// (POST /api/setup/traefik/plan)
 	PlanSetupTraefik(w http.ResponseWriter, r *http.Request)
@@ -4523,6 +4557,34 @@ func (siw *ServerInterfaceWrapper) ValidateFirewallHost(w http.ResponseWriter, r
 	handler.ServeHTTP(w, r)
 }
 
+// FirewallIdentity operation middleware
+func (siw *ServerInterfaceWrapper) FirewallIdentity(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.FirewallIdentity(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// InstallKeyFirewall operation middleware
+func (siw *ServerInterfaceWrapper) InstallKeyFirewall(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.InstallKeyFirewall(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ScanFirewallHost operation middleware
 func (siw *ServerInterfaceWrapper) ScanFirewallHost(w http.ResponseWriter, r *http.Request) {
 
@@ -5383,6 +5445,20 @@ func (siw *ServerInterfaceWrapper) PutSetupFirewallHost(w http.ResponseWriter, r
 	handler.ServeHTTP(w, r)
 }
 
+// InstallKeySetupFw operation middleware
+func (siw *ServerInterfaceWrapper) InstallKeySetupFw(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.InstallKeySetupFw(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // PlanSetupFirewall operation middleware
 func (siw *ServerInterfaceWrapper) PlanSetupFirewall(w http.ResponseWriter, r *http.Request) {
 
@@ -5594,6 +5670,20 @@ func (siw *ServerInterfaceWrapper) SetupTraefikIdentity(w http.ResponseWriter, r
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.SetupTraefikIdentity(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// InstallKeySetupEdge operation middleware
+func (siw *ServerInterfaceWrapper) InstallKeySetupEdge(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.InstallKeySetupEdge(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6077,11 +6167,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/setup/certificates", wrapper.PutSetupCertificates)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/certificates/issue", wrapper.IssueSetupCertificates)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/traefik/identity", wrapper.SetupTraefikIdentity)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/traefik/install-key", wrapper.InstallKeySetupEdge)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/traefik/scan", wrapper.ScanSetupTraefikHost)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/setup/traefik/connection", wrapper.PutSetupTraefikConnection)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/traefik/confirm", wrapper.ConfirmSetupTraefik)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/traefik/plan", wrapper.PlanSetupTraefik)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/traefik/plan/{id}/run", wrapper.RunSetupTraefikPlan)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/firewall/install-key", wrapper.InstallKeySetupFw)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/setup/firewall/scan", wrapper.ScanSetupFirewallHost)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/setup/firewall/host", wrapper.DeleteSetupFirewallHost)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/setup/firewall/host", wrapper.PutSetupFirewallHost)
@@ -6128,6 +6220,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/traefik/plan", wrapper.PlanTraefik)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/firewall/hosts", wrapper.ListFirewallHosts)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/firewall/hosts", wrapper.CreateFirewallHost)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/firewall/install-key", wrapper.InstallKeyFirewall)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/firewall/identity", wrapper.FirewallIdentity)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/firewall/scan", wrapper.ScanFirewallHost)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/firewall/hosts/{id}", wrapper.DeleteFirewallHost)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/firewall/hosts/{id}", wrapper.GetFirewallHost)
@@ -8195,6 +8289,83 @@ func (response ValidateFirewallHostdefaultApplicationProblemPlusJSONResponse) Vi
 	return err
 }
 
+type FirewallIdentityRequestObject struct {
+}
+
+type FirewallIdentityResponseObject interface {
+	VisitFirewallIdentityResponse(w http.ResponseWriter) error
+}
+
+type FirewallIdentity200JSONResponse TraefikIdentity
+
+func (response FirewallIdentity200JSONResponse) VisitFirewallIdentityResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type FirewallIdentitydefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response FirewallIdentitydefaultApplicationProblemPlusJSONResponse) VisitFirewallIdentityResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type InstallKeyFirewallRequestObject struct {
+	Body *InstallKeyFirewallJSONRequestBody
+}
+
+type InstallKeyFirewallResponseObject interface {
+	VisitInstallKeyFirewallResponse(w http.ResponseWriter) error
+}
+
+type InstallKeyFirewall200JSONResponse TraefikIdentity
+
+func (response InstallKeyFirewall200JSONResponse) VisitInstallKeyFirewallResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type InstallKeyFirewalldefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response InstallKeyFirewalldefaultApplicationProblemPlusJSONResponse) VisitInstallKeyFirewallResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ScanFirewallHostRequestObject struct {
 	Body *ScanFirewallHostJSONRequestBody
 }
@@ -9739,6 +9910,45 @@ func (response PutSetupFirewallHostdefaultApplicationProblemPlusJSONResponse) Vi
 	return err
 }
 
+type InstallKeySetupFwRequestObject struct {
+	Body *InstallKeySetupFwJSONRequestBody
+}
+
+type InstallKeySetupFwResponseObject interface {
+	VisitInstallKeySetupFwResponse(w http.ResponseWriter) error
+}
+
+type InstallKeySetupFw200JSONResponse TraefikIdentity
+
+func (response InstallKeySetupFw200JSONResponse) VisitInstallKeySetupFwResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type InstallKeySetupFwdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response InstallKeySetupFwdefaultApplicationProblemPlusJSONResponse) VisitInstallKeySetupFwResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type PlanSetupFirewallRequestObject struct {
 }
 
@@ -10277,6 +10487,45 @@ type SetupTraefikIdentitydefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response SetupTraefikIdentitydefaultApplicationProblemPlusJSONResponse) VisitSetupTraefikIdentityResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type InstallKeySetupEdgeRequestObject struct {
+	Body *InstallKeySetupEdgeJSONRequestBody
+}
+
+type InstallKeySetupEdgeResponseObject interface {
+	VisitInstallKeySetupEdgeResponse(w http.ResponseWriter) error
+}
+
+type InstallKeySetupEdge200JSONResponse TraefikIdentity
+
+func (response InstallKeySetupEdge200JSONResponse) VisitInstallKeySetupEdgeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type InstallKeySetupEdgedefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response InstallKeySetupEdgedefaultApplicationProblemPlusJSONResponse) VisitInstallKeySetupEdgeResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -11063,6 +11312,12 @@ type StrictServerInterface interface {
 	// ValidateFirewallHost Read the host again over SSH (read-only)
 	// (POST /api/firewall/hosts/{id}/validate)
 	ValidateFirewallHost(ctx context.Context, request ValidateFirewallHostRequestObject) (ValidateFirewallHostResponseObject, error)
+	// FirewallIdentity Hashi's SSH public key for a host's authorized_keys
+	// (POST /api/firewall/identity)
+	FirewallIdentity(ctx context.Context, request FirewallIdentityRequestObject) (FirewallIdentityResponseObject, error)
+	// InstallKeyFirewall Add Hashi's key to a new host, with the admin's permission and a credential given once
+	// (POST /api/firewall/install-key)
+	InstallKeyFirewall(ctx context.Context, request InstallKeyFirewallRequestObject) (InstallKeyFirewallResponseObject, error)
 	// ScanFirewallHost Read a host's SSH key for the admin to compare (nothing is stored)
 	// (POST /api/firewall/scan)
 	ScanFirewallHost(ctx context.Context, request ScanFirewallHostRequestObject) (ScanFirewallHostResponseObject, error)
@@ -11183,6 +11438,9 @@ type StrictServerInterface interface {
 	// PutSetupFirewallHost Step 6 — save the first firewall host and validate it over SSH (read-only)
 	// (PUT /api/setup/firewall/host)
 	PutSetupFirewallHost(ctx context.Context, request PutSetupFirewallHostRequestObject) (PutSetupFirewallHostResponseObject, error)
+	// InstallKeySetupFw Step 6 — add Hashi's key to the host, with the admin's permission and a credential given once
+	// (POST /api/setup/firewall/install-key)
+	InstallKeySetupFw(ctx context.Context, request InstallKeySetupFwRequestObject) (InstallKeySetupFwResponseObject, error)
 	// PlanSetupFirewall Step 6 — plan Hashi's first firewall apply on the confirmed host; nothing is written yet
 	// (POST /api/setup/firewall/plan)
 	PlanSetupFirewall(ctx context.Context, request PlanSetupFirewallRequestObject) (PlanSetupFirewallResponseObject, error)
@@ -11225,6 +11483,9 @@ type StrictServerInterface interface {
 	// SetupTraefikIdentity Step 5 — Hashi's SSH public key (created on first call) for the host's authorized_keys
 	// (POST /api/setup/traefik/identity)
 	SetupTraefikIdentity(ctx context.Context, request SetupTraefikIdentityRequestObject) (SetupTraefikIdentityResponseObject, error)
+	// InstallKeySetupEdge Step 5 — add Hashi's key to the host, with the admin's permission and a credential given once
+	// (POST /api/setup/traefik/install-key)
+	InstallKeySetupEdge(ctx context.Context, request InstallKeySetupEdgeRequestObject) (InstallKeySetupEdgeResponseObject, error)
 	// PlanSetupTraefik Step 5 — plan installing Traefik and Hashi's files on the confirmed host; nothing is written yet
 	// (POST /api/setup/traefik/plan)
 	PlanSetupTraefik(ctx context.Context, request PlanSetupTraefikRequestObject) (PlanSetupTraefikResponseObject, error)
@@ -12742,6 +13003,61 @@ func (sh *strictHandler) ValidateFirewallHost(w http.ResponseWriter, r *http.Req
 	}
 }
 
+// FirewallIdentity operation middleware
+func (sh *strictHandler) FirewallIdentity(w http.ResponseWriter, r *http.Request) {
+	var request FirewallIdentityRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.FirewallIdentity(ctx, request.(FirewallIdentityRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "FirewallIdentity")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(FirewallIdentityResponseObject); ok {
+		if err := validResponse.VisitFirewallIdentityResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// InstallKeyFirewall operation middleware
+func (sh *strictHandler) InstallKeyFirewall(w http.ResponseWriter, r *http.Request) {
+	var request InstallKeyFirewallRequestObject
+
+	var body InstallKeyFirewallJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.InstallKeyFirewall(ctx, request.(InstallKeyFirewallRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "InstallKeyFirewall")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(InstallKeyFirewallResponseObject); ok {
+		if err := validResponse.VisitInstallKeyFirewallResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ScanFirewallHost operation middleware
 func (sh *strictHandler) ScanFirewallHost(w http.ResponseWriter, r *http.Request) {
 	var request ScanFirewallHostRequestObject
@@ -13845,6 +14161,37 @@ func (sh *strictHandler) PutSetupFirewallHost(w http.ResponseWriter, r *http.Req
 	}
 }
 
+// InstallKeySetupFw operation middleware
+func (sh *strictHandler) InstallKeySetupFw(w http.ResponseWriter, r *http.Request) {
+	var request InstallKeySetupFwRequestObject
+
+	var body InstallKeySetupFwJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.InstallKeySetupFw(ctx, request.(InstallKeySetupFwRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "InstallKeySetupFw")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(InstallKeySetupFwResponseObject); ok {
+		if err := validResponse.VisitInstallKeySetupFwResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // PlanSetupFirewall operation middleware
 func (sh *strictHandler) PlanSetupFirewall(w http.ResponseWriter, r *http.Request) {
 	var request PlanSetupFirewallRequestObject
@@ -14213,6 +14560,37 @@ func (sh *strictHandler) SetupTraefikIdentity(w http.ResponseWriter, r *http.Req
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(SetupTraefikIdentityResponseObject); ok {
 		if err := validResponse.VisitSetupTraefikIdentityResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// InstallKeySetupEdge operation middleware
+func (sh *strictHandler) InstallKeySetupEdge(w http.ResponseWriter, r *http.Request) {
+	var request InstallKeySetupEdgeRequestObject
+
+	var body InstallKeySetupEdgeJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.InstallKeySetupEdge(ctx, request.(InstallKeySetupEdgeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "InstallKeySetupEdge")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(InstallKeySetupEdgeResponseObject); ok {
+		if err := validResponse.VisitInstallKeySetupEdgeResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

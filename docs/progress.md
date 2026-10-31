@@ -124,8 +124,13 @@ cron file identical to before, no Hashi table); a confirmed one over a new SSH l
 NetBird-like ones, the other cron job and the foreign `table inet filter`; the table survived a `hashi-firewall` restart; a
 second plan was empty; a later unconfirmed change went back to the previous table without the script. Machine rolled back to `clean`.
 
-User request 2026-10-31: setup asks permission to install Hashi's SSH key itself, using a password or key given once (not
-stored); copy-paste stays as the alternative. Feasible: Hashi already logs in with those. Not built yet.
+Key install proof (2026-10-31, Debian dev target, real sshd, `TestRealKeyInstall`): a refused password and a key without its
+passphrase gave the right messages; the passphrase-protected key installed the line once and Hashi's key logged in.
+
+User decisions 2026-10-31: setup asks permission to install Hashi's SSH key (password or key with passphrase, once, not stored),
+copy-paste stays. A host without an old script never sees that part: the tab shows only when a list exists (entered through the
+API until detection exists). Public ports of the first real host after the takeover: 80, 443 and 222 (Gitea SSH); 17701, 17702,
+2022, 8443, 19132 and 19133 are dropped (old game project, obsolete captcha; nothing listens on 8443).
 
 Decisions made in PR E:
 - Host page tabs from the mock without Host link, Kernel sets and meter panels: their data arrives with the engine (S9). An
@@ -691,8 +696,7 @@ Decisions made in S0:
 
 - 2026-10-31 — S6 gate started: Hashi's key added to root on the first real host (user OK), host connected through setup step 6
   (read-only; host key compared with the host's own). Healthy, NetBird 0.81.3 connected, no warnings, ruleset hashes unchanged.
-  Not confirmed, nothing planned. DNAT target for now: the running Traefik, so public traffic does not move. To settle before
-  the first apply: the seven non-web public ports exist only in the old script, so they need stream services or they close.
+  Not confirmed, nothing planned. DNAT target for now: the running Traefik, so public traffic does not move.
 
 - 2026-10-31 — Deployed `f2b189b` (`make deploy ENV=prod`): readyz ok, version matches, SPA and public pages 200. Next: the S6 gate.
 

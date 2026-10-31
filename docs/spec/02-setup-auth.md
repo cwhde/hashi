@@ -280,3 +280,10 @@ The feature is complete when:
 10. Vault material is removed when its session is revoked, expires, or fails IP validation.
 11. Trusted-proxy handling cannot be bypassed with arbitrary forwarding headers.
 12. Session lifecycle events are auditable without exposing bearer credentials.
+
+## Installing Hashi's SSH key
+
+Steps 5 and 6 offer, with the host key already confirmed: **let Hashi install its key** (the admin gives a password, or a private
+key with its passphrase if any, used for that one login and never stored; Hashi adds one line to `authorized_keys`, proves its
+own key logs in, and writes an audit entry) or **I'll do it myself** (the line is shown to paste). A refused login, a protected key
+and a wrong passphrase each say what to try next and always name the manual way.
