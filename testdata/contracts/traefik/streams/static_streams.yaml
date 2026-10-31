@@ -1,0 +1,20 @@
+entryPoints:
+  traefik:
+    address: "127.0.0.1:8080"
+  tcp-15432:
+    address: ":15432/tcp"
+  tcp-15434:
+    address: ":15434/tcp"
+  udp-15433:
+    address: ":15433/udp"
+api:
+  insecure: true
+  dashboard: false
+ping:
+  entryPoint: traefik
+providers:
+  file:
+    directory: /dyn
+    watch: true
+log:
+  format: json

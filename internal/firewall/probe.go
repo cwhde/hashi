@@ -33,6 +33,8 @@ type Listener struct {
 	Proto   string
 	Port    int
 	Process string
+	// Loopback: reachable from the host itself only, so DNAT takes nothing away from it.
+	Loopback bool
 }
 
 // NetBirdFacts is the NetBird daemon as `netbird status` reports it.
@@ -279,7 +281,7 @@ func parseSS(out string) []Listener {
 		if i < 0 || err != nil {
 			continue
 		}
-		l := Listener{Proto: fs[0], Port: port}
+		l := Listener{Proto: fs[0], Port: port, Loopback: strings.HasPrefix(local, "127.") || strings.HasPrefix(local, "[::1]")}
 		if len(fs) > 6 {
 			if m := regexp.MustCompile(`\(\("([^"]+)"`).FindStringSubmatch(fs[6]); m != nil {
 				l.Process = m[1]

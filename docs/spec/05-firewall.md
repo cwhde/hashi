@@ -117,8 +117,15 @@ Threshold changes (`l4.*` settings) re-render only `pre_meter`; existing bans an
 
 If the host already runs its own firewall script, removing it is part of Hashi's **first apply plan** (shown explicitly,
 executed under the rescue timer): its iptables chains (e.g. `CUSTOM_DNAT`, `CUSTOM_FWD`, `CUSTOM_INPUT`), their jump
-rules, its ipsets and its cron/systemd entries. Rules and sets owned by NetBird, Docker or Proxmox are never part of
+rules, its ipsets and its cron entries (a script started by a systemd unit is not supported yet: none captured). Rules and sets owned by NetBird, Docker or Proxmox are never part of
 this cleanup, in any backend.
+
+What belongs to the script is an explicit list per host (`PUT /api/firewall/hosts/{id}/takeover`: chains, rules in built-in
+chains, ipsets, cron match strings, cron files), never a guess; names of NetBird, Docker or Proxmox objects are refused.
+Every copy of a listed rule goes, plus rules that jump to a listed chain or match a listed ipset. Cron lines go first, so
+the script cannot run again mid-apply; its other objects go after Hashi's table is loaded. Rollback restores them with
+`iptables-legacy-restore --noflush`, which appends: restored rules may sit after rules added since, until the script's own
+next run. Only iptables-legacy scripts are supported (the captured backend).
 
 ## 4. Folding: global allow and block
 
@@ -230,8 +237,8 @@ the old script's objects it removed; foreign rules (NetBird, Docker, Proxmox) ar
 
 - Ports come from services (80/443 always when any HTTP-family service exists, plus 443/udp when HTTP/3 is enabled;
   stream ports per L4 service).
-- Opening or closing a port is high-risk. Port conflicts with services already listening on the host are detected
-  (`ss -lntup`) and shown.
+- Opening or closing a port is high-risk. A stream port that a firewall host already listens on (`ss -lntup`, from the last
+  validation; loopback and Traefik excepted), NetBird's WireGuard port or Hashi's SSH port is refused when the service is saved.
 
 ## 9. API
 

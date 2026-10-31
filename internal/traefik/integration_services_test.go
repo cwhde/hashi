@@ -41,7 +41,8 @@ func buildUpstream(t *testing.T) []byte {
 
 // TestIntegrationServices is 04 §9's service integration test: the pinned Traefik loads a rendered services file with
 // every HTTP kind and rewrite mode, its API reports every object enabled, and requests through it reach stub HTTP,
-// H2C and HTTPS upstreams with the rewritten path. Requests to Hashi and forward-auth calls carry the edge token
+// H2C and HTTPS upstreams with the rewritten path; TCP (with and without PROXY protocol) and UDP streams reach their
+// echo upstreams through their own entry points. Requests to Hashi and forward-auth calls carry the edge token
 // (a client cannot forge it); other upstreams never see it.
 func TestIntegrationServices(t *testing.T) {
 	traefik.VerifyWait = 20 * time.Second
@@ -102,6 +103,13 @@ func TestIntegrationServices(t *testing.T) {
 				Origin: services.OriginUser, Target: target(9003), TLSSkipVerify: true},
 			{Name: "Off", Slug: "off", Kind: services.KindHTTP, HostName: "off.example.test", Enabled: false,
 				Origin: services.OriginUser, Target: target(9001)},
+			// Streams (04 §1.2): one entry point per public port, PROXY protocol v2 on one TCP service.
+			{Name: "Db", Slug: "db", Kind: services.KindTCP, HostName: "db.example.test", Enabled: true, Origin: services.OriginUser,
+				Target: target(9010), PublicPort: 15432, ProxyProtocol: true},
+			{Name: "Plain", Slug: "plain", Kind: services.KindTCP, HostName: "plain.example.test", Enabled: true,
+				Origin: services.OriginUser, Target: target(9010), PublicPort: 15434},
+			{Name: "Game", Slug: "game", Kind: services.KindUDP, HostName: "game.example.test", Enabled: true,
+				Origin: services.OriginUser, Target: target(9012), PublicPort: 15433},
 		},
 	}
 	files, err := traefik.Render(opts)
@@ -182,6 +190,22 @@ func TestIntegrationServices(t *testing.T) {
 	}
 	if got := get("secure.example.test", "/s"); !strings.Contains(got, "path=/s edge=") {
 		t.Errorf("https upstream: %q", got)
+	}
+	stream := func(network, port, msg string) string {
+		r, err := h.Run(ctx, "/usr/local/bin/upstream "+network+" "+port+" "+msg, nil)
+		if err != nil {
+			t.Fatalf("%s %s: %v", network, port, err)
+		}
+		return strings.TrimSpace(string(r.Stdout) + string(r.Stderr))
+	}
+	for _, tc := range []struct{ network, port, want string }{
+		{"tcp", "15432", "tcp port=9010 proxy=v2 src=127.0.0.1 got=hello"},
+		{"tcp", "15434", "tcp port=9010 proxy=none got=hello"},
+		{"udp", "15433", "udp got=hello"},
+	} {
+		if got := stream(tc.network, tc.port, "hello"); got != tc.want {
+			t.Errorf("%s %s through Traefik: got %q, want %q", tc.network, tc.port, got, tc.want)
+		}
 	}
 	if got := get("off.example.test", "/"); !strings.HasPrefix(got, "status=404") {
 		t.Errorf("disabled service answered: %q", got)

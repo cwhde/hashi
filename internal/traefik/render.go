@@ -221,6 +221,14 @@ func Render(o Options) ([]File, error) {
 		files = append(files, File{Path: o.Paths.Dynamic() + "/10-hashi-http-services.yml", Kind: KindDynamic, Mode: 0o644,
 			Data: []byte(generated + "# No services are enabled.\n")})
 	}
+	if streams := streamServices(o.streamFilter()); streams != nil {
+		if err := dyn("20-hashi-stream-services.yml", streams, ""); err != nil {
+			return nil, err
+		}
+	} else {
+		files = append(files, File{Path: o.Paths.Dynamic() + "/20-hashi-stream-services.yml", Kind: KindDynamic, Mode: 0o644,
+			Data: []byte(generated + "# No TCP or UDP services are enabled.\n")})
+	}
 	// Forward auth with the local fallback (06 §2.1, captured construct): fail-open middlewares call the loopback
 	// hashi-fa entry point, whose router fails over from Hashi (health-checked on /readyz) to ping@internal (200).
 	// Fail-closed middlewares call Hashi directly and get 500 while it is down. The hashi-fa router adds the edge token,
@@ -305,20 +313,20 @@ func (o Options) static() staticConfig {
 	if len(o.TrustedIPs) > 0 {
 		websecure.ForwardedHeaders = &forwardedHeaders{TrustedIPs: append([]string(nil), o.TrustedIPs...)}
 	}
+	eps := streamEntryPoints(o.streamFilter())
+	eps["web"] = entryPoint{Address: ":80", HTTP: &entryPointHTTP{Redirections: &redirections{
+		EntryPoint: redirectEntryPoint{To: "websecure", Scheme: "https"}}}}
+	eps["websecure"] = websecure
+	eps["traefik"] = entryPoint{Address: loop(o.APIPort)}
+	eps["hashi-fa"] = entryPoint{Address: loop(o.ForwardAuthPort),
+		ForwardedHeaders: &forwardedHeaders{TrustedIPs: []string{"127.0.0.1/32", "::1/128"}}}
 	return staticConfig{
-		Global: global{CheckNewVersion: false, SendAnonymousUsage: false},
-		EntryPoints: map[string]entryPoint{
-			"web": {Address: ":80", HTTP: &entryPointHTTP{Redirections: &redirections{
-				EntryPoint: redirectEntryPoint{To: "websecure", Scheme: "https"}}}},
-			"websecure": websecure,
-			"traefik":   {Address: loop(o.APIPort)},
-			"hashi-fa": {Address: loop(o.ForwardAuthPort),
-				ForwardedHeaders: &forwardedHeaders{TrustedIPs: []string{"127.0.0.1/32", "::1/128"}}},
-		},
-		API:       api{Insecure: true, Dashboard: false},
-		Ping:      ping{EntryPoint: "traefik"},
-		Providers: providers{File: fileProvider{Directory: o.Paths.Dynamic(), Watch: true}},
-		Log:       logConfig{Format: "json", Level: "INFO", FilePath: LogDir + "/traefik.log"},
-		AccessLog: accessLog{Format: "json", FilePath: LogDir + "/access.log"},
+		Global:      global{CheckNewVersion: false, SendAnonymousUsage: false},
+		EntryPoints: eps,
+		API:         api{Insecure: true, Dashboard: false},
+		Ping:        ping{EntryPoint: "traefik"},
+		Providers:   providers{File: fileProvider{Directory: o.Paths.Dynamic(), Watch: true}},
+		Log:         logConfig{Format: "json", Level: "INFO", FilePath: LogDir + "/traefik.log"},
+		AccessLog:   accessLog{Format: "json", FilePath: LogDir + "/access.log"},
 	}
 }

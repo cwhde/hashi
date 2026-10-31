@@ -1,14 +1,15 @@
 -- name: InsertService :exec
 INSERT INTO services (id, name, slug, kind, domain_mode, host_name, enabled, origin, owner_feature, target_address,
     target_port, tls_skip_verify, tls_server_name, tls_min_version, advanced_routes, dashboard_visible,
-    monitoring_visible, adguard_rewrite, target_set_id, entry_host_id, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    monitoring_visible, adguard_rewrite, target_set_id, entry_host_id, public_port, proxy_protocol, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: UpdateService :exec
 UPDATE services
 SET name = ?, slug = ?, kind = ?, domain_mode = ?, host_name = ?, target_address = ?, target_port = ?,
     tls_skip_verify = ?, tls_server_name = ?, tls_min_version = ?, advanced_routes = ?, dashboard_visible = ?,
-    monitoring_visible = ?, adguard_rewrite = ?, target_set_id = ?, entry_host_id = ?, updated_at = ?
+    monitoring_visible = ?, adguard_rewrite = ?, target_set_id = ?, entry_host_id = ?, public_port = ?, proxy_protocol = ?,
+    updated_at = ?
 WHERE id = ?;
 
 -- name: SetServiceEnabled :exec

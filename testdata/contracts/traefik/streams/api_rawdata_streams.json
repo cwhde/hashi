@@ -1,0 +1,180 @@
+{
+    "routers": {
+        "api@internal": {
+            "entryPoints": [
+                "traefik"
+            ],
+            "service": "api@internal",
+            "rule": "PathPrefix(`/api`)",
+            "ruleSyntax": "default",
+            "priority": 9223372036854775806,
+            "observability": {
+                "accessLogs": true,
+                "metrics": true,
+                "tracing": true,
+                "traceVerbosity": "minimal"
+            },
+            "status": "enabled",
+            "using": [
+                "traefik"
+            ]
+        },
+        "ping@internal": {
+            "entryPoints": [
+                "traefik"
+            ],
+            "service": "ping@internal",
+            "rule": "PathPrefix(`/ping`)",
+            "ruleSyntax": "default",
+            "priority": 9223372036854775807,
+            "observability": {
+                "accessLogs": true,
+                "metrics": true,
+                "tracing": true,
+                "traceVerbosity": "minimal"
+            },
+            "status": "enabled",
+            "using": [
+                "traefik"
+            ]
+        }
+    },
+    "services": {
+        "api@internal": {
+            "status": "enabled",
+            "usedBy": [
+                "api@internal"
+            ]
+        },
+        "noop@internal": {
+            "status": "enabled"
+        },
+        "ping@internal": {
+            "status": "enabled",
+            "usedBy": [
+                "ping@internal"
+            ]
+        }
+    },
+    "tcpRouters": {
+        "svc-broken@file": {
+            "entryPoints": [
+                "tcp-15432"
+            ],
+            "service": "missing",
+            "rule": "HostSNI(`*`)",
+            "priority": -1,
+            "error": [
+                "the service \"missing@file\" does not exist"
+            ],
+            "status": "disabled",
+            "using": [
+                "tcp-15432"
+            ]
+        },
+        "svc-db@file": {
+            "entryPoints": [
+                "tcp-15432"
+            ],
+            "service": "svc-db",
+            "rule": "HostSNI(`*`)",
+            "priority": -1,
+            "status": "enabled",
+            "using": [
+                "tcp-15432"
+            ]
+        },
+        "svc-plain@file": {
+            "entryPoints": [
+                "tcp-15434"
+            ],
+            "service": "svc-plain",
+            "rule": "HostSNI(`*`)",
+            "priority": -1,
+            "status": "enabled",
+            "using": [
+                "tcp-15434"
+            ]
+        }
+    },
+    "tcpServices": {
+        "svc-db@file": {
+            "loadBalancer": {
+                "servers": [
+                    {
+                        "address": "127.0.0.1:9000"
+                    },
+                    {
+                        "address": "127.0.0.1:9001"
+                    }
+                ],
+                "proxyProtocol": {
+                    "version": 2
+                }
+            },
+            "status": "enabled",
+            "usedBy": [
+                "svc-db@file"
+            ],
+            "serverStatus": {
+                "127.0.0.1:9000": "UP",
+                "127.0.0.1:9001": "UP"
+            }
+        },
+        "svc-plain@file": {
+            "loadBalancer": {
+                "servers": [
+                    {
+                        "address": "127.0.0.1:9010"
+                    }
+                ]
+            },
+            "status": "enabled",
+            "usedBy": [
+                "svc-plain@file"
+            ],
+            "serverStatus": {
+                "127.0.0.1:9010": "UP"
+            }
+        }
+    },
+    "udpRouters": {
+        "svc-broken-udp@file": {
+            "entryPoints": [
+                "udp-15499"
+            ],
+            "service": "svc-game",
+            "error": [
+                "entryPoint \"udp-15499\" doesn't exist",
+                "no valid entryPoint for this router"
+            ],
+            "status": "disabled"
+        },
+        "svc-game@file": {
+            "entryPoints": [
+                "udp-15433"
+            ],
+            "service": "svc-game",
+            "status": "enabled",
+            "using": [
+                "udp-15433"
+            ]
+        }
+    },
+    "udpServices": {
+        "svc-game@file": {
+            "loadBalancer": {
+                "servers": [
+                    {
+                        "address": "127.0.0.1:9002"
+                    }
+                ]
+            },
+            "status": "enabled",
+            "usedBy": [
+                "svc-broken-udp@file",
+                "svc-game@file"
+            ]
+        }
+    }
+}

@@ -169,10 +169,16 @@ func (c conn) Fetch(_ context.Context, _ int, path string) ([]byte, error) {
 	type obj struct {
 		Status string `json:"status"`
 	}
-	rd := map[string]map[string]obj{"routers": {}, "middlewares": {}, "services": {}}
+	// Expected's kinds as /api/rawdata keys (testdata/contracts/traefik/streams for the tcp/udp ones).
+	keys := map[string]string{"router": "routers", "middleware": "middlewares", "service": "services",
+		"tcp-router": "tcpRouters", "tcp-service": "tcpServices", "udp-router": "udpRouters", "udp-service": "udpServices"}
+	rd := map[string]map[string]obj{}
 	for _, n := range names {
 		kind, name, _ := strings.Cut(n, " ")
-		rd[kind+"s"][name] = obj{Status: "enabled"}
+		if rd[keys[kind]] == nil {
+			rd[keys[kind]] = map[string]obj{}
+		}
+		rd[keys[kind]][name] = obj{Status: "enabled"}
 	}
 	return json.Marshal(rd)
 }

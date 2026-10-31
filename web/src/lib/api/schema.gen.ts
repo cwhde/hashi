@@ -1395,6 +1395,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/firewall/hosts/{id}/takeover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What Hashi removes of the host's old firewall script */
+        get: operations["getFirewallTakeover"];
+        /** Replace the takeover list and plan the host (05 §3.4) */
+        put: operations["putFirewallTakeover"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/firewall/bindings": {
         parameters: {
             query?: never;
@@ -2229,6 +2247,18 @@ export interface components {
             open: components["schemas"]["SyncPlan"][];
             recent: components["schemas"]["SyncPlan"][];
         };
+        /** @description The old firewall script's objects (05 §3.4); names of NetBird, Docker or Proxmox are refused */
+        FirewallTakeover: {
+            /** @description Its own chains: flushed and deleted, with every jump to them */
+            chains: string[];
+            /** @description Rules in built-in chains, "<table> -A <chain> <spec>"; every copy goes */
+            rules: string[];
+            ipsets: string[];
+            /** @description Crontab lines holding one of these go */
+            cron_match: string[];
+            /** @description Files the script installs the crontab from */
+            cron_files: string[];
+        };
         ServiceTarget: {
             /** @description IP address or host name; empty when set_id names an address set */
             address: string;
@@ -2258,7 +2288,7 @@ export interface components {
             name: string;
             slug: string;
             /** @enum {string} */
-            kind: "http" | "https" | "h2c";
+            kind: "http" | "https" | "h2c" | "tcp" | "udp";
             /** @enum {string} */
             domain_mode: "root" | "subdomain" | "custom";
             host_name: string;
@@ -2270,6 +2300,10 @@ export interface components {
             /** @enum {string} */
             tls_min_version?: "" | "VersionTLS12" | "VersionTLS13";
             advanced_routes?: boolean;
+            /** @description tcp/udp only: the public port; Traefik's entry point tcp-<port> / udp-<port> listens on it */
+            public_port?: number;
+            /** @description tcp only: send PROXY protocol v2 to the upstream */
+            proxy_protocol?: boolean;
             /** @description Service routing override: the firewall host public traffic enters through (03 §5.1) */
             entry_host_id?: string;
             routes?: components["schemas"]["ServiceRoute"][];
@@ -2282,7 +2316,7 @@ export interface components {
             name: string;
             slug: string;
             /** @enum {string} */
-            kind: "http" | "https" | "h2c";
+            kind: "http" | "https" | "h2c" | "tcp" | "udp";
             /** @enum {string} */
             domain_mode: "root" | "subdomain" | "custom";
             host_name: string;
@@ -2297,6 +2331,10 @@ export interface components {
             /** @enum {string} */
             tls_min_version: "" | "VersionTLS12" | "VersionTLS13";
             advanced_routes: boolean;
+            /** @description tcp/udp only: the public port; Traefik's entry point tcp-<port> / udp-<port> listens on it */
+            public_port?: number;
+            /** @description tcp only: send PROXY protocol v2 to the upstream */
+            proxy_protocol?: boolean;
             /** @description Service routing override (03 §5.1); empty = none */
             entry_host_id?: string;
             routes: components["schemas"]["ServiceRoute"][];
@@ -4917,6 +4955,56 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["IPSetIDs"];
+            };
+        };
+        responses: {
+            /** @description Saved, with the plans it caused */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirewallPlans"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getFirewallTakeover: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The takeover list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirewallTakeover"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putFirewallTakeover: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FirewallTakeover"];
             };
         };
         responses: {

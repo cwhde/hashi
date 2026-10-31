@@ -11,7 +11,9 @@ export const kinds = ['http', 'https', 'h2c'] as const;
 export const kindText: Record<Service['kind'], string> = {
 	http: 'HTTP upstream',
 	https: 'HTTPS upstream',
-	h2c: 'HTTP/2 without TLS (h2c)'
+	h2c: 'HTTP/2 without TLS (h2c)',
+	tcp: 'TCP on its own public port',
+	udp: 'UDP on its own public port'
 };
 
 /** A slug from a display name: lowercase letters, digits and dashes. */

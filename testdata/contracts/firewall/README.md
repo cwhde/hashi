@@ -38,6 +38,10 @@ valid networks and an address keeps its network across the file). The rule shape
 7. `$SSH_CONNECTION` in a login (checked on the dev target) is `<client ip> <client port> <server ip> <server port>`:
    validation stores the client address as the rescue source.
 
+8. Takeover formats: the remove and restore inputs are `iptables-legacy-restore --noflush` scripts (`-D` for each copy
+   of a rule, then `-F` and `-X` of the script's chains, one atomic commit per table), `ipset restore -exist` for saved
+   sets, `crontab <file>` for the crontab. Run against the real binaries in `TestIntegrationTakeover`.
+
 ## Rescue timer (`systemd-run`, Debian dev target, systemd 257)
 
 - `systemd-run --on-active=N --unit=hashi-fw-rescue <cmd>` creates `hashi-fw-rescue.timer` + `.service`; exit 0.

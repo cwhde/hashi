@@ -63,6 +63,8 @@ type Desired struct {
 	InstallNft string
 	IPv6       bool
 	Guard      Guard
+	// Takeover names the old firewall script's objects (05 §3.4); removed under the rescue timer while they exist.
+	Takeover Takeover
 }
 
 // FileChange is one file that differs on the host.
@@ -82,6 +84,7 @@ type Diff struct {
 	First        bool // Hashi never applied here: no table file on the host
 	Risk         hsync.Risk
 	Reasons      []string
+	Takeover     *TakeoverPlan // nil or empty: nothing of the old script is left
 }
 
 func sha(b []byte) string {
@@ -132,6 +135,11 @@ if [ -s ` + PrevTableFile + ` ]; then
 else
 	rm -f ` + TableFile + `
 	systemctl disable ` + UnitName + ` 2>/dev/null
+fi
+if [ -x ` + takeoverRestore + ` ]; then
+	` + takeoverRestore + `
+	rm -rf ` + TakeoverDir + `.rolled-back
+	mv ` + TakeoverDir + ` ` + TakeoverDir + `.rolled-back
 fi
 `)
 }
@@ -191,6 +199,15 @@ func Observe(ctx context.Context, h Host, d Desired) (Diff, error) {
 	if diff.TableMissing && !diff.First {
 		high("the kernel has no Hashi table: it is loaded again")
 	}
+	if !d.Takeover.Empty() {
+		var err error
+		if diff.Takeover, err = ObserveTakeover(ctx, h, d.Takeover); err != nil {
+			return diff, fmt.Errorf("read the old firewall script's objects: %w", err)
+		}
+		if !diff.Takeover.Empty() {
+			high("the old firewall script is removed")
+		}
+	}
 	return diff, nil
 }
 
@@ -220,6 +237,9 @@ func (d Diff) Items() []hsync.Item {
 	if d.UnitDisabled {
 		items = append(items, hsync.Item{Action: hsync.ActionCreate, Object: "enable " + UnitName, Risk: hsync.High,
 			Note: "loads the table at boot"})
+	}
+	if !d.Takeover.Empty() {
+		items = append(items, d.Takeover.items...)
 	}
 	return items
 }
@@ -262,6 +282,17 @@ func Apply(ctx context.Context, h Host, d Desired, diff Diff, rescue Rescue) err
 		return err
 	}
 	armed := diff.Risk == hsync.High
+	takeover := !diff.Takeover.Empty()
+	if takeover { // saved before the timer is armed, so a rollback always finds them
+		if err := diff.Takeover.save(h); err != nil {
+			return fmt.Errorf("save the old firewall script's objects (nothing changed): %w", err)
+		}
+	}
+	if armed && !takeover {
+		if err := run(staleTakeoverCleanup); err != nil {
+			return fmt.Errorf("clear old takeover files (nothing changed): %w", err)
+		}
+	}
 	if armed {
 		if err := arm(ctx, h, d, run); err != nil {
 			return fmt.Errorf("arm the rescue timer (nothing changed): %w", err)
@@ -289,6 +320,9 @@ func Apply(ctx context.Context, h Host, d Desired, diff Diff, rescue Rescue) err
 		}
 	}
 	steps := []string{d.NftPath + " -j -f " + TableFile}
+	if takeover {
+		steps = append(append(diff.Takeover.cronSteps(), steps...), diff.Takeover.removeSteps()...)
+	}
 	if diff.UnitDisabled || slices.ContainsFunc(diff.Files, func(f FileChange) bool { return f.Path == UnitFile }) {
 		steps = append(steps, "systemctl daemon-reload", "systemctl enable "+UnitName)
 	}
@@ -306,6 +340,15 @@ func Apply(ctx context.Context, h Host, d Desired, diff Diff, rescue Rescue) err
 		}
 		return err
 	}
+	if takeover {
+		left, err := ObserveTakeover(ctx, h, d.Takeover)
+		if err == nil && !left.Empty() {
+			err = fmt.Errorf("%d object(s) of the old firewall script are still there", len(left.items))
+		}
+		if err != nil {
+			return fmt.Errorf("%w (%w)", ErrRescuePending, err)
+		}
+	}
 	if !armed {
 		return nil
 	}
@@ -314,7 +357,13 @@ func Apply(ctx context.Context, h Host, d Desired, diff Diff, rescue Rescue) err
 	if err := rescue(rctx); err != nil {
 		return fmt.Errorf("%w (%w)", ErrRescuePending, err)
 	}
-	return run("systemctl stop " + RescueUnit + ".timer")
+	if err := run("systemctl stop " + RescueUnit + ".timer"); err != nil {
+		return err
+	}
+	if takeover { // confirmed: later rollbacks must not bring the script back
+		return run("rm -rf " + TakeoverDoneDir + " && mv " + TakeoverDir + " " + TakeoverDoneDir)
+	}
+	return nil
 }
 
 // arm saves the live table and the current file, writes rollback.sh (0700) and starts the timer (05 §7 steps 1–3).

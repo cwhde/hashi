@@ -47,7 +47,22 @@ func serviceBody(s services.Service) gen.Service {
 		Target: target(s.Target), TlsSkipVerify: s.TLSSkipVerify, TlsServerName: s.TLSServerName,
 		TlsMinVersion: gen.ServiceTlsMinVersion(s.TLSMinVersion), AdvancedRoutes: s.AdvancedRoutes, Routes: routes,
 		DashboardVisible: s.DashboardVisible, MonitoringVisible: s.MonitoringVisible, AdguardRewrite: s.AdGuardRewrite,
-		EntryHostId: strPtr(s.EntryHostID), InvalidReason: s.InvalidReason, CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt}
+		EntryHostId: strPtr(s.EntryHostID), PublicPort: intPtr(s.PublicPort), ProxyProtocol: boolPtr(s.ProxyProtocol),
+		InvalidReason: s.InvalidReason, CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt}
+}
+
+func intPtr(n int) *int {
+	if n == 0 {
+		return nil
+	}
+	return &n
+}
+
+func boolPtr(b bool) *bool {
+	if !b {
+		return nil
+	}
+	return &b
 }
 
 // serviceFromInput maps the request onto a service; flags absent from the input default to on (dashboard,
@@ -70,7 +85,10 @@ func serviceFromInput(in gen.ServiceInput) services.Service {
 		HostName: in.HostName, Enabled: b(in.Enabled, true), Target: target(in.Target), TLSSkipVerify: b(in.TlsSkipVerify, false),
 		TLSServerName: str(in.TlsServerName), AdvancedRoutes: b(in.AdvancedRoutes, false),
 		DashboardVisible: b(in.DashboardVisible, true), MonitoringVisible: b(in.MonitoringVisible, true),
-		AdGuardRewrite: b(in.AdguardRewrite, true), EntryHostID: str(in.EntryHostId)}
+		AdGuardRewrite: b(in.AdguardRewrite, true), EntryHostID: str(in.EntryHostId), ProxyProtocol: b(in.ProxyProtocol, false)}
+	if in.PublicPort != nil {
+		s.PublicPort = *in.PublicPort
+	}
 	if in.TlsMinVersion != nil {
 		s.TLSMinVersion = string(*in.TlsMinVersion)
 	}
@@ -176,8 +194,22 @@ func (s *Server) GetService(ctx context.Context, req gen.GetServiceRequestObject
 	return gen.GetService200JSONResponse(serviceBody(sv)), nil
 }
 
+// checkStream refuses a stream port that belongs to something on a firewall host (05 §8).
+func (s *Server) checkStream(ctx context.Context, in services.Service) error {
+	if !in.Stream() || s.Firewall == nil {
+		return nil
+	}
+	if err := s.Firewall.CheckStreamPort(ctx, in.Kind, in.PublicPort); err != nil {
+		return firewallError(err)
+	}
+	return nil
+}
+
 func (s *Server) CreateService(ctx context.Context, req gen.CreateServiceRequestObject) (gen.CreateServiceResponseObject, error) {
 	in := serviceFromInput(*req.Body)
+	if err := s.checkStream(ctx, in); err != nil {
+		return nil, err
+	}
 	sv, plans, pending, err := s.changeService(ctx, "service.created", func(q *db.Queries) (services.Service, error) {
 		created, err := services.Create(ctx, q, in, s.now())
 		if err != nil {
@@ -194,6 +226,9 @@ func (s *Server) CreateService(ctx context.Context, req gen.CreateServiceRequest
 func (s *Server) UpdateService(ctx context.Context, req gen.UpdateServiceRequestObject) (gen.UpdateServiceResponseObject, error) {
 	in := serviceFromInput(*req.Body)
 	in.ID = req.Id
+	if err := s.checkStream(ctx, in); err != nil {
+		return nil, err
+	}
 	sv, plans, pending, err := s.changeService(ctx, "service.updated", func(q *db.Queries) (services.Service, error) {
 		if _, err := services.Update(ctx, q, in, s.now()); err != nil {
 			return services.Service{}, err

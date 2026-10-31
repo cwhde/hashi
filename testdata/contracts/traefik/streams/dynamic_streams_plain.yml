@@ -1,0 +1,11 @@
+tcp:
+  routers:
+    svc-plain:
+      entryPoints: [tcp-15434]
+      rule: "HostSNI(`*`)"
+      service: svc-plain
+  services:
+    svc-plain:
+      loadBalancer:
+        servers:
+          - address: "127.0.0.1:9010"

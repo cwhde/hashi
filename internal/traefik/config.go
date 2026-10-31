@@ -73,7 +73,56 @@ type accessLog struct {
 
 type dynamicConfig struct {
 	HTTP *httpConfig `yaml:"http,omitempty"`
+	TCP  *tcpConfig  `yaml:"tcp,omitempty"`
+	UDP  *udpConfig  `yaml:"udp,omitempty"`
 	TLS  *tlsConfig  `yaml:"tls,omitempty"`
+}
+
+// TCP and UDP routers and services in the shape Traefik v3.7.16 accepted (testdata/contracts/traefik/streams).
+type tcpConfig struct {
+	Routers  map[string]tcpRouter  `yaml:"routers,omitempty"`
+	Services map[string]tcpService `yaml:"services,omitempty"`
+}
+
+type tcpRouter struct {
+	EntryPoints []string `yaml:"entryPoints"`
+	Rule        string   `yaml:"rule"`
+	Service     string   `yaml:"service"`
+}
+
+type tcpService struct {
+	LoadBalancer *tcpLoadBalancer `yaml:"loadBalancer"`
+}
+
+type tcpLoadBalancer struct {
+	ProxyProtocol *proxyProtocol `yaml:"proxyProtocol,omitempty"`
+	Servers       []streamServer `yaml:"servers"`
+}
+
+type proxyProtocol struct {
+	Version int `yaml:"version"`
+}
+
+type streamServer struct {
+	Address string `yaml:"address"`
+}
+
+type udpConfig struct {
+	Routers  map[string]udpRouter  `yaml:"routers,omitempty"`
+	Services map[string]udpService `yaml:"services,omitempty"`
+}
+
+type udpRouter struct {
+	EntryPoints []string `yaml:"entryPoints"`
+	Service     string   `yaml:"service"`
+}
+
+type udpService struct {
+	LoadBalancer *udpLoadBalancer `yaml:"loadBalancer"`
+}
+
+type udpLoadBalancer struct {
+	Servers []streamServer `yaml:"servers"`
 }
 
 type httpConfig struct {

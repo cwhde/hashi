@@ -518,6 +518,53 @@ func (m *Manager) consumers(ctx context.Context, q *db.Queries, setID string) ([
 	return out, nil
 }
 
+// PutTakeover stores what Hashi removes of a host's old firewall script (05 §3.4); the next plan lists it.
+func (m *Manager) PutTakeover(ctx context.Context, actor, ip, id string, t Takeover) error {
+	if err := t.Validate(); err != nil {
+		return err
+	}
+	b, err := json.Marshal(t)
+	if err != nil {
+		return err
+	}
+	return m.st.Tx(ctx, func(q *db.Queries) error {
+		if _, err := q.GetFirewallHost(ctx, id); err != nil {
+			return ErrNotFound
+		}
+		if err := q.SetFirewallHostTakeover(ctx, db.SetFirewallHostTakeoverParams{TakeoverJson: string(b), UpdatedAt: m.now().UnixMilli(), ID: id}); err != nil {
+			return err
+		}
+		return m.audit.Record(ctx, q, audit.Event{Actor: actor, Action: "firewall.takeover.updated", IP: ip,
+			Target: "firewall_host:" + id, Outcome: audit.Success, Detail: map[string]any{"takeover": t}})
+	})
+}
+
+// CheckStreamPort refuses a public port that belongs to something on a firewall host (05 §8): NetBird's WireGuard port,
+// Hashi's SSH path or any listener the last validation saw. DNAT would take that traffic away from it.
+func (m *Manager) CheckStreamPort(ctx context.Context, proto string, port int) error {
+	rows, err := m.st.R.ListFirewallHosts(ctx)
+	if err != nil {
+		return err
+	}
+	for _, r := range rows {
+		if r.EdgeMode != ModeManaged {
+			continue
+		}
+		if proto == "udp" && r.NetbirdMode != NetBirdDisabled && int(r.NetbirdPort) == port {
+			return fmt.Errorf("%w: %d/udp is NetBird's WireGuard port on %s", ErrInvalid, port, r.Name)
+		}
+		if proto == "tcp" && int(r.SshPort) == port {
+			return fmt.Errorf("%w: %d/tcp is the SSH port of %s", ErrInvalid, port, r.Name)
+		}
+		for _, l := range EffectiveOf(r).Facts.Listeners {
+			if l.Proto == proto && l.Port == port && !l.Loopback && l.Process != "traefik" {
+				return fmt.Errorf("%w: %s already listens on %d/%s", ErrInvalid, r.Name, port, proto)
+			}
+		}
+	}
+	return nil
+}
+
 // ---- bindings and host access ----
 
 // Bindings are the global allow and block set lists (05 §4.1).
@@ -848,6 +895,10 @@ func (m *Manager) build(ctx context.Context, id string, owned bool) (db.Firewall
 	if err != nil {
 		return row, Desired{}, err
 	}
+	// A stream saved before this host's NetBird port was known must not stop the host's plans: only that port waits.
+	ports = slices.DeleteFunc(ports, func(p Port) bool {
+		return row.NetbirdMode != NetBirdDisabled && p.Proto == "udp" && p.Port == int(row.NetbirdPort)
+	})
 	traefikIP, _ := netip.ParseAddr(row.InternalTraefikIp)
 	spec := Spec{WAN: e.WAN, PublicIP: e.PublicIP, Subnets: e.Subnets, TraefikIP: traefikIP, Ports: ports, Folded: folded,
 		HostAccess: hostAccess, NetBird: NetBird{Mode: row.NetbirdMode, Iface: row.NetbirdIface, Port: int(row.NetbirdPort)},
@@ -866,7 +917,11 @@ func (m *Manager) build(ctx context.Context, id string, owned bool) (db.Firewall
 			guard.AdminIPs = append(guard.AdminIPs, a)
 		}
 	}
-	return row, Desired{Spec: spec, Table: table, NftPath: e.Facts.NftPath, IPv6: false, Guard: guard}, nil
+	takeover, err := ParseTakeover(row.TakeoverJson)
+	if err != nil {
+		return row, Desired{}, fmt.Errorf("stored takeover of %s: %w", row.Name, err)
+	}
+	return row, Desired{Spec: spec, Table: table, NftPath: e.Facts.NftPath, IPv6: false, Guard: guard, Takeover: takeover}, nil
 }
 
 // ports are the published ports: 80 and 443 to Traefik's web/websecure entry points while any HTTP-family service is
@@ -876,10 +931,22 @@ func (m *Manager) ports(ctx context.Context) ([]Port, error) {
 	if err != nil {
 		return nil, err
 	}
-	if slices.ContainsFunc(all, func(s services.Service) bool { return s.Renderable() }) {
-		return []Port{{Proto: "tcp", Port: 80, TargetPort: 80}, {Proto: "tcp", Port: 443, TargetPort: 443}}, nil
+	// Same view as Traefik's render: a stream that never resolved has no entry point, so no port either.
+	if all, err = services.Resolve(ctx, all, m.sets.ResolveTarget); err != nil {
+		return nil, err
 	}
-	return nil, nil
+	var out []Port
+	if slices.ContainsFunc(all, func(s services.Service) bool { return s.Renderable() && !s.Stream() }) {
+		out = append(out, Port{Proto: "tcp", Port: 80, TargetPort: 80}, Port{Proto: "tcp", Port: 443, TargetPort: 443})
+	}
+	// Streams: the public port DNATs to the same port on Traefik, its tcp-<port>/udp-<port> entry point (05 §3.2,
+	// 04 §3); UDP stream ports are what the UDP meters watch.
+	for _, s := range all {
+		if s.Stream() && s.Renderable() {
+			out = append(out, Port{Proto: s.Kind, Port: s.PublicPort, TargetPort: s.PublicPort, Metered: s.Kind == services.KindUDP})
+		}
+	}
+	return out, nil
 }
 
 // Rescue returns the post-apply check: a new SSH connection to the host runs a command, and NetBird (when enabled)

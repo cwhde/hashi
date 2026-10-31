@@ -62,3 +62,6 @@ INSERT INTO firewall_host_access (host_id, ip_set_id, created_at) VALUES (?, ?, 
 
 -- name: CountIPSetElementsForHost :one
 SELECT COUNT(*) FROM ip_set_elements WHERE host_id = ?;
+
+-- name: SetFirewallHostTakeover :exec
+UPDATE firewall_hosts SET takeover_json = ?, updated_at = ? WHERE id = ?;

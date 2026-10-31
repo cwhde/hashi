@@ -775,6 +775,8 @@ const (
 	ServiceKindH2c   ServiceKind = "h2c"
 	ServiceKindHttp  ServiceKind = "http"
 	ServiceKindHttps ServiceKind = "https"
+	ServiceKindTcp   ServiceKind = "tcp"
+	ServiceKindUdp   ServiceKind = "udp"
 )
 
 // Valid indicates whether the value is a known member of the ServiceKind enum.
@@ -785,6 +787,10 @@ func (e ServiceKind) Valid() bool {
 	case ServiceKindHttp:
 		return true
 	case ServiceKindHttps:
+		return true
+	case ServiceKindTcp:
+		return true
+	case ServiceKindUdp:
 		return true
 	default:
 		return false
@@ -862,6 +868,8 @@ const (
 	ServiceInputKindH2c   ServiceInputKind = "h2c"
 	ServiceInputKindHttp  ServiceInputKind = "http"
 	ServiceInputKindHttps ServiceInputKind = "https"
+	ServiceInputKindTcp   ServiceInputKind = "tcp"
+	ServiceInputKindUdp   ServiceInputKind = "udp"
 )
 
 // Valid indicates whether the value is a known member of the ServiceInputKind enum.
@@ -872,6 +880,10 @@ func (e ServiceInputKind) Valid() bool {
 	case ServiceInputKindHttp:
 		return true
 	case ServiceInputKindHttps:
+		return true
+	case ServiceInputKindTcp:
+		return true
+	case ServiceInputKindUdp:
 		return true
 	default:
 		return false
@@ -1865,6 +1877,22 @@ type FirewallRuleset struct {
 	Now string `json:"now"`
 }
 
+// FirewallTakeover The old firewall script's objects (05 §3.4); names of NetBird, Docker or Proxmox are refused
+type FirewallTakeover struct {
+	// Chains Its own chains: flushed and deleted, with every jump to them
+	Chains []string `json:"chains"`
+
+	// CronFiles Files the script installs the crontab from
+	CronFiles []string `json:"cron_files"`
+
+	// CronMatch Crontab lines holding one of these go
+	CronMatch []string `json:"cron_match"`
+	Ipsets    []string `json:"ipsets"`
+
+	// Rules Rules in built-in chains, "<table> -A <chain> <spec>"; every copy goes
+	Rules []string `json:"rules"`
+}
+
 // GeneralSettings defines model for GeneralSettings.
 type GeneralSettings struct {
 	AdminDomain         string   `json:"admin_domain"`
@@ -2242,7 +2270,13 @@ type Service struct {
 	Origin            ServiceOrigin `json:"origin"`
 
 	// OwnerFeature The feature that owns a system service, e.g. setup
-	OwnerFeature  string               `json:"owner_feature"`
+	OwnerFeature string `json:"owner_feature"`
+
+	// ProxyProtocol tcp only: send PROXY protocol v2 to the upstream
+	ProxyProtocol *bool `json:"proxy_protocol,omitempty"`
+
+	// PublicPort tcp/udp only: the public port; Traefik's entry point tcp-<port> / udp-<port> listens on it
+	PublicPort    *int                 `json:"public_port,omitempty"`
 	Routes        []ServiceRoute       `json:"routes"`
 	Slug          string               `json:"slug"`
 	Target        ServiceTarget        `json:"target"`
@@ -2280,17 +2314,23 @@ type ServiceInput struct {
 	Enabled *bool `json:"enabled,omitempty"`
 
 	// EntryHostId Service routing override: the firewall host public traffic enters through (03 §5.1)
-	EntryHostId       *string                    `json:"entry_host_id,omitempty"`
-	HostName          string                     `json:"host_name"`
-	Kind              ServiceInputKind           `json:"kind"`
-	MonitoringVisible *bool                      `json:"monitoring_visible,omitempty"`
-	Name              string                     `json:"name"`
-	Routes            *[]ServiceRoute            `json:"routes,omitempty"`
-	Slug              string                     `json:"slug"`
-	Target            ServiceTarget              `json:"target"`
-	TlsMinVersion     *ServiceInputTlsMinVersion `json:"tls_min_version,omitempty"`
-	TlsServerName     *string                    `json:"tls_server_name,omitempty"`
-	TlsSkipVerify     *bool                      `json:"tls_skip_verify,omitempty"`
+	EntryHostId       *string          `json:"entry_host_id,omitempty"`
+	HostName          string           `json:"host_name"`
+	Kind              ServiceInputKind `json:"kind"`
+	MonitoringVisible *bool            `json:"monitoring_visible,omitempty"`
+	Name              string           `json:"name"`
+
+	// ProxyProtocol tcp only: send PROXY protocol v2 to the upstream
+	ProxyProtocol *bool `json:"proxy_protocol,omitempty"`
+
+	// PublicPort tcp/udp only: the public port; Traefik's entry point tcp-<port> / udp-<port> listens on it
+	PublicPort    *int                       `json:"public_port,omitempty"`
+	Routes        *[]ServiceRoute            `json:"routes,omitempty"`
+	Slug          string                     `json:"slug"`
+	Target        ServiceTarget              `json:"target"`
+	TlsMinVersion *ServiceInputTlsMinVersion `json:"tls_min_version,omitempty"`
+	TlsServerName *string                    `json:"tls_server_name,omitempty"`
+	TlsSkipVerify *bool                      `json:"tls_skip_verify,omitempty"`
 }
 
 // ServiceInputDomainMode defines model for ServiceInput.DomainMode.
@@ -2727,6 +2767,9 @@ type UpdateFirewallHostJSONRequestBody = FirewallHostInput
 // PutFirewallHostAccessJSONRequestBody defines body for PutFirewallHostAccess for application/json ContentType.
 type PutFirewallHostAccessJSONRequestBody = IPSetIDs
 
+// PutFirewallTakeoverJSONRequestBody defines body for PutFirewallTakeover for application/json ContentType.
+type PutFirewallTakeoverJSONRequestBody = FirewallTakeover
+
 // ScanFirewallHostJSONRequestBody defines body for ScanFirewallHost for application/json ContentType.
 type ScanFirewallHostJSONRequestBody = HostKeyScanInput
 
@@ -3148,6 +3191,12 @@ type ServerInterface interface {
 	// GetFirewallRuleset The host's ruleset read now over SSH (all tables, iptables and ipsets), and the one read at setup
 	// (GET /api/firewall/hosts/{id}/ruleset)
 	GetFirewallRuleset(w http.ResponseWriter, r *http.Request, id string)
+	// GetFirewallTakeover What Hashi removes of the host's old firewall script
+	// (GET /api/firewall/hosts/{id}/takeover)
+	GetFirewallTakeover(w http.ResponseWriter, r *http.Request, id string)
+	// PutFirewallTakeover Replace the takeover list and plan the host (05 §3.4)
+	// (PUT /api/firewall/hosts/{id}/takeover)
+	PutFirewallTakeover(w http.ResponseWriter, r *http.Request, id string)
 	// ValidateFirewallHost Read the host again over SSH (read-only)
 	// (POST /api/firewall/hosts/{id}/validate)
 	ValidateFirewallHost(w http.ResponseWriter, r *http.Request, id string)
@@ -4382,6 +4431,58 @@ func (siw *ServerInterfaceWrapper) GetFirewallRuleset(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetFirewallRuleset(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetFirewallTakeover operation middleware
+func (siw *ServerInterfaceWrapper) GetFirewallTakeover(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetFirewallTakeover(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutFirewallTakeover operation middleware
+func (siw *ServerInterfaceWrapper) PutFirewallTakeover(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutFirewallTakeover(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6018,6 +6119,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/firewall/hosts/{id}/ruleset", wrapper.GetFirewallRuleset)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/firewall/hosts/{id}/host-access", wrapper.GetFirewallHostAccess)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/firewall/hosts/{id}/host-access", wrapper.PutFirewallHostAccess)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/firewall/hosts/{id}/takeover", wrapper.GetFirewallTakeover)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/firewall/hosts/{id}/takeover", wrapper.PutFirewallTakeover)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/firewall/bindings", wrapper.GetFirewallBindings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/firewall/bindings", wrapper.PutFirewallBindings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/ip-sets", wrapper.ListIPSets)
@@ -7943,6 +8046,85 @@ type GetFirewallRulesetdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response GetFirewallRulesetdefaultApplicationProblemPlusJSONResponse) VisitGetFirewallRulesetResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetFirewallTakeoverRequestObject struct {
+	Id string `json:"id"`
+}
+
+type GetFirewallTakeoverResponseObject interface {
+	VisitGetFirewallTakeoverResponse(w http.ResponseWriter) error
+}
+
+type GetFirewallTakeover200JSONResponse FirewallTakeover
+
+func (response GetFirewallTakeover200JSONResponse) VisitGetFirewallTakeoverResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetFirewallTakeoverdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetFirewallTakeoverdefaultApplicationProblemPlusJSONResponse) VisitGetFirewallTakeoverResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutFirewallTakeoverRequestObject struct {
+	Id   string `json:"id"`
+	Body *PutFirewallTakeoverJSONRequestBody
+}
+
+type PutFirewallTakeoverResponseObject interface {
+	VisitPutFirewallTakeoverResponse(w http.ResponseWriter) error
+}
+
+type PutFirewallTakeover200JSONResponse FirewallPlans
+
+func (response PutFirewallTakeover200JSONResponse) VisitPutFirewallTakeoverResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutFirewallTakeoverdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutFirewallTakeoverdefaultApplicationProblemPlusJSONResponse) VisitPutFirewallTakeoverResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -10814,6 +10996,12 @@ type StrictServerInterface interface {
 	// GetFirewallRuleset The host's ruleset read now over SSH (all tables, iptables and ipsets), and the one read at setup
 	// (GET /api/firewall/hosts/{id}/ruleset)
 	GetFirewallRuleset(ctx context.Context, request GetFirewallRulesetRequestObject) (GetFirewallRulesetResponseObject, error)
+	// GetFirewallTakeover What Hashi removes of the host's old firewall script
+	// (GET /api/firewall/hosts/{id}/takeover)
+	GetFirewallTakeover(ctx context.Context, request GetFirewallTakeoverRequestObject) (GetFirewallTakeoverResponseObject, error)
+	// PutFirewallTakeover Replace the takeover list and plan the host (05 §3.4)
+	// (PUT /api/firewall/hosts/{id}/takeover)
+	PutFirewallTakeover(ctx context.Context, request PutFirewallTakeoverRequestObject) (PutFirewallTakeoverResponseObject, error)
 	// ValidateFirewallHost Read the host again over SSH (read-only)
 	// (POST /api/firewall/hosts/{id}/validate)
 	ValidateFirewallHost(ctx context.Context, request ValidateFirewallHostRequestObject) (ValidateFirewallHostResponseObject, error)
@@ -12401,6 +12589,65 @@ func (sh *strictHandler) GetFirewallRuleset(w http.ResponseWriter, r *http.Reque
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetFirewallRulesetResponseObject); ok {
 		if err := validResponse.VisitGetFirewallRulesetResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetFirewallTakeover operation middleware
+func (sh *strictHandler) GetFirewallTakeover(w http.ResponseWriter, r *http.Request, id string) {
+	var request GetFirewallTakeoverRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetFirewallTakeover(ctx, request.(GetFirewallTakeoverRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetFirewallTakeover")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetFirewallTakeoverResponseObject); ok {
+		if err := validResponse.VisitGetFirewallTakeoverResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutFirewallTakeover operation middleware
+func (sh *strictHandler) PutFirewallTakeover(w http.ResponseWriter, r *http.Request, id string) {
+	var request PutFirewallTakeoverRequestObject
+
+	request.Id = id
+
+	var body PutFirewallTakeoverJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutFirewallTakeover(ctx, request.(PutFirewallTakeoverRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutFirewallTakeover")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutFirewallTakeoverResponseObject); ok {
+		if err := validResponse.VisitPutFirewallTakeoverResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

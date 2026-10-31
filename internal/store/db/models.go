@@ -219,6 +219,7 @@ type FirewallHost struct {
 	LastAppliedAt         sql.NullInt64
 	CreatedAt             int64
 	UpdatedAt             int64
+	TakeoverJson          string
 }
 
 type FirewallHostAccess struct {
@@ -360,6 +361,8 @@ type Service struct {
 	UpdatedAt         int64
 	TargetSetID       sql.NullString
 	EntryHostID       sql.NullString
+	PublicPort        sql.NullInt64
+	ProxyProtocol     int64
 }
 
 type ServiceRoute struct {

@@ -158,7 +158,7 @@ func TestIntegrationDNATReachesTraefik(t *testing.T) {
 		"--sysctl", "net.ipv4.ip_forward=1"}, fwImage)
 	fw.Connect(t, lanNet, l(2))
 	traefik := itest.RunOn(t, lanNet, l(10), []string{"--cap-add", "NET_ADMIN"}, stub,
-		"sh", "-c", "mkdir -p /www && echo entrypoint > /www/index.html && httpd -f -p 8443 -h /www")
+		"sh", "-c", "mkdir -p /www && echo entrypoint > /www/index.html && (while true; do nc -u -l -p 15433 -e /bin/echo udp-entrypoint; done &) ; httpd -f -p 8443 -h /www")
 	client := itest.RunOn(t, wanNet, w(3), []string{"--cap-add", "NET_ADMIN"}, stub,
 		"sh", "-c", "mkdir -p /www && echo outside > /www/index.html && httpd -f -p 8080 -h /www")
 	traefik.Exec(t, "ip", "route", "replace", "default", "via", l(2))
@@ -180,7 +180,7 @@ func TestIntegrationDNATReachesTraefik(t *testing.T) {
 
 	wan := strings.TrimSpace(fw.Exec(t, "sh", "-c", "ip -o -4 addr show | awk '/"+w(2)+"\\// {print $2}'"))
 	s := Spec{WAN: wan, PublicIP: netip.MustParseAddr(w(2)), Subnets: pfx(l(0) + "/24"),
-		TraefikIP: netip.MustParseAddr(l(10)), Ports: []Port{{Proto: "tcp", Port: 443, TargetPort: 8443}},
+		TraefikIP: netip.MustParseAddr(l(10)), Ports: []Port{{Proto: "tcp", Port: 443, TargetPort: 8443}, {Proto: "udp", Port: 15433, TargetPort: 15433, Metered: true}},
 		Folded: Fold(nil, pfx("203.0.113.0/24")), NetBird: NetBird{Mode: NetBirdDisabled}, Meters: DefaultMeters}
 	apply(t, fw, s, false)
 
@@ -188,6 +188,11 @@ func TestIntegrationDNATReachesTraefik(t *testing.T) {
 	itest.WaitFor(t, 20*time.Second, "DNAT to the entry point", func() bool {
 		got, _ = client.Try("wget", "-qO-", "-T", "2", "http://"+w(2)+":443/")
 		return strings.Contains(got, "entrypoint")
+	})
+	// A stream port: a UDP datagram to the public port reaches the same port on the stand-in and is answered.
+	itest.WaitFor(t, 20*time.Second, "UDP DNAT to the entry point", func() bool {
+		got, _ = client.Try("sh", "-c", "echo ping | nc -u -w 2 "+w(2)+" 15433")
+		return strings.Contains(got, "udp-entrypoint")
 	})
 	if out, err := traefik.Try("wget", "-qO-", "-T", "3", "http://"+w(3)+":8080/"); err != nil || !strings.Contains(out, "outside") {
 		t.Fatalf("managed subnet egress through the firewall: %v %s", err, out)
@@ -291,5 +296,96 @@ func TestIntegrationRescueRollback(t *testing.T) {
 	}
 	if after := strings.ReplaceAll(foreign(t, c), "nft list table inet foreign", ""); after != before {
 		t.Fatalf("foreign state changed:\n%s\n---\n%s", before, after)
+	}
+}
+
+// TestIntegrationTakeover runs the removal and the rollback on real iptables-legacy, ipset and crontab (05 §3.4, §7):
+// an unconfirmed apply brings everything back; a confirmed one removes every copy, leaves NetBird-like objects and
+// other cron jobs byte-identical, and a later rollback does not bring the script back.
+func TestIntegrationTakeover(t *testing.T) {
+	old := RescueWindow
+	RescueWindow = 3 * time.Second
+	t.Cleanup(func() { RescueWindow = old })
+	c := fwContainer(t, "--sysctl", "net.ipv4.ip_forward=1")
+	c.Exec(t, "sh", "-c", `mkdir -p /scripts
+ipset create nb-1 hash:net; ipset add nb-1 10.31.0.1
+ipset create trusted_hosts hash:ip; ipset add trusted_hosts 192.0.2.2
+iptables-legacy -N NETBIRD-ACL-INPUT; iptables-legacy -A INPUT -i wt0 -j NETBIRD-ACL-INPUT
+iptables-legacy -A FORWARD -m set --match-set nb-1 src -j ACCEPT
+iptables-legacy -N CUSTOM_INPUT; iptables-legacy -A CUSTOM_INPUT -i lo -j ACCEPT; iptables-legacy -A CUSTOM_INPUT -j DROP
+iptables-legacy -P INPUT ACCEPT; iptables-legacy -A INPUT -s 198.18.99.0/24 -j CUSTOM_INPUT
+iptables-legacy -t nat -N CUSTOM_DNAT; iptables-legacy -t nat -A PREROUTING -j CUSTOM_DNAT
+iptables-legacy -t nat -A CUSTOM_DNAT -d 192.0.2.1/32 -p tcp -m tcp --dport 80 -j DNAT --to-destination 10.30.0.1:80
+for i in 1 2 3; do iptables-legacy -A FORWARD -i wt0 -o vmbr1 -j ACCEPT; done
+iptables-legacy -A FORWARD -m set --match-set trusted_hosts src -j ACCEPT
+printf '*/15 * * * * /bin/bash /scripts/firewall.sh 2>&1\n0 3 * * * /bin/bash /scripts/shrink_logs.sh\n' > /scripts/crontab.txt
+crontab /scripts/crontab.txt`)
+	tk := Takeover{Chains: []string{"CUSTOM_INPUT", "CUSTOM_DNAT"}, Rules: []string{"filter -A FORWARD -i wt0 -o vmbr1 -j ACCEPT"},
+		IPSets: []string{"trusted_hosts"}, CronMatch: []string{"/scripts/firewall.sh"}, CronFiles: []string{"/scripts/crontab.txt"}}
+	state := func() string {
+		return c.Exec(t, "sh", "-c", "iptables-legacy-save | grep -v '^[#:]' | sed 's/ \\[[0-9:]*\\]//' | sort; ipset list -n | sort; crontab -l; cat /scripts/crontab.txt")
+	}
+	h := containerHost{c}
+	ctx := context.Background()
+	s := shapes()["netbird_routing.json"]
+	s.WAN = "eth0"
+	plan := func() (Desired, Diff) {
+		d := desired(t, s)
+		d.NftPath, d.Takeover = "/usr/sbin/nft", tk
+		diff, err := Observe(ctx, h, d)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if diff.Risk != "high" {
+			t.Fatalf("risk %s", diff.Risk)
+		}
+		return d, diff
+	}
+	before := state()
+
+	d, diff := plan()
+	if err := Apply(ctx, h, d, diff, func(context.Context) error { return errors.New("no route to host") }); !errors.Is(err, ErrRescuePending) {
+		t.Fatalf("err %v", err)
+	}
+	if got := state(); strings.Contains(got, "CUSTOM_INPUT") {
+		t.Fatalf("not removed during the window:\n%s", got)
+	}
+	var got string
+	itest.WaitFor(t, 20*time.Second, "rollback restored the script", func() bool {
+		got = state()
+		return got == before
+	})
+
+	d, diff = plan()
+	if diff.Takeover.Empty() {
+		t.Fatal("nothing to take over after the rollback")
+	}
+	if err := Apply(ctx, h, d, diff, func(context.Context) error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(RescueWindow + 2*time.Second)
+	got = state()
+	for _, gone := range []string{"CUSTOM_", "-i wt0 -o vmbr1", "trusted_hosts", "firewall.sh"} {
+		if strings.Contains(got, gone) {
+			t.Errorf("%q is still there:\n%s", gone, got)
+		}
+	}
+	for _, stays := range []string{"NETBIRD-ACL-INPUT", "--match-set nb-1", "nb-1\n", "shrink_logs"} {
+		if !strings.Contains(got, stays) {
+			t.Errorf("%q was removed:\n%s", stays, got)
+		}
+	}
+	// A later high-risk rollback touches Hashi's table only.
+	s.Ports = append(s.Ports, Port{Proto: "tcp", Port: 25565, TargetPort: 25565})
+	d, diff = plan()
+	if !diff.Takeover.Empty() {
+		t.Fatal("takeover again after it was confirmed")
+	}
+	if err := Apply(ctx, h, d, diff, func(context.Context) error { return errors.New("x") }); !errors.Is(err, ErrRescuePending) {
+		t.Fatal(err)
+	}
+	time.Sleep(RescueWindow + 2*time.Second)
+	if now := state(); strings.Contains(now, "CUSTOM_") {
+		t.Fatalf("a later rollback brought the script back:\n%s", now)
 	}
 }

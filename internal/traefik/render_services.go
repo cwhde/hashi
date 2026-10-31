@@ -34,7 +34,7 @@ func httpServices(svcs []services.Service, edge bool) dynamicConfig {
 	sorted := append([]services.Service(nil), svcs...)
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Slug < sorted[j].Slug })
 	for _, s := range sorted {
-		if !s.Renderable() {
+		if !s.Renderable() || s.Stream() {
 			continue
 		}
 		base := "svc-" + s.Slug
@@ -144,9 +144,12 @@ func edgeMiddleware(token string) middleware {
 	return middleware{Headers: &headers{CustomRequestHeaders: map[string]string{EdgeHeader: token}}}
 }
 
-// EffectiveYAML is the part of 10-hashi-http-services.yml one service produces (rendered config preview, 04 §8), as
+// EffectiveYAML is the part of 10-hashi-http-services.yml (20-hashi-stream-services.yml for a stream) one service produces (rendered config preview, 04 §8), as
 // it would render while enabled. The edge token itself lives in the security file and never appears here.
 func EffectiveYAML(s services.Service) ([]byte, error) {
 	s.Enabled, s.InvalidReason = true, ""
+	if s.Stream() {
+		return marshal(streamServices([]services.Service{s}))
+	}
 	return marshal(httpServices([]services.Service{s}, true))
 }

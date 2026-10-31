@@ -1,8 +1,11 @@
 // Command upstream is the integration tests' stand-in for services behind Traefik and for Hashi itself. Every answer
 // names the port, protocol, path and edge header it saw, so a test can check routing, rewrites and the edge token.
+// TCP 9010 and UDP 9012 echo with their port; TCP 9010 also reports a PROXY protocol v2 header and its source.
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -10,6 +13,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"log"
@@ -23,10 +27,18 @@ import (
 )
 
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "get" {
-		get(os.Args[2], os.Args[3], os.Args[4:])
-		return
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "get":
+			get(os.Args[2], os.Args[3], os.Args[4:])
+			return
+		case "tcp", "udp":
+			send(os.Args[1], os.Args[2], os.Args[3])
+			return
+		}
 	}
+	go tcpEcho("127.0.0.1:9010")
+	go udpEcho("127.0.0.1:9012")
 	var mu sync.Mutex
 	lastFA := "none"
 	handler := func(port string) http.Handler {
@@ -103,4 +115,83 @@ func get(host, path string, headers []string) {
 	defer func() { _ = resp.Body.Close() }()
 	b, _ := io.ReadAll(resp.Body)
 	fmt.Printf("status=%d %s", resp.StatusCode, b)
+}
+
+// proxyV2 is the PROXY protocol v2 signature.
+var proxyV2 = []byte("\r\n\r\n\x00\r\nQUIT\n")
+
+// tcpEcho answers each connection's first line with "tcp port=… proxy=… got=…".
+func tcpEcho(addr string) {
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	for {
+		c, err := ln.Accept()
+		if err != nil {
+			log.Fatal(err)
+		}
+		go func() {
+			defer func() { _ = c.Close() }()
+			_ = c.SetDeadline(time.Now().Add(10 * time.Second))
+			r := bufio.NewReader(c)
+			proxy := "none"
+			// Only a header starts with "\r"; a plain client line may be shorter than the 16 header bytes.
+			if first, err := r.Peek(1); err != nil || first[0] != '\r' {
+				proxy = "none"
+			} else if head, err := r.Peek(16); err == nil && bytes.Equal(head[:12], proxyV2) {
+				n := int(binary.BigEndian.Uint16(head[14:16]))
+				hdr := make([]byte, 16+n)
+				if _, err := io.ReadFull(r, hdr); err != nil {
+					return
+				}
+				proxy = "v2"
+				if hdr[13] == 0x11 && n >= 12 { // TCP over IPv4: source address first
+					proxy += " src=" + net.IP(hdr[16:20]).String()
+				}
+			}
+			line, _ := r.ReadString('\n')
+			_, _ = fmt.Fprintf(c, "tcp port=%s proxy=%s got=%s\n", addr[strings.LastIndex(addr, ":")+1:], proxy, strings.TrimSpace(line))
+		}()
+	}
+}
+
+// udpEcho answers every datagram with "udp got=…".
+func udpEcho(addr string) {
+	pc, err := net.ListenPacket("udp", addr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	buf := make([]byte, 2048)
+	for {
+		n, from, err := pc.ReadFrom(buf)
+		if err != nil {
+			log.Fatal(err)
+		}
+		_, _ = pc.WriteTo([]byte("udp got="+string(buf[:n])+"\n"), from)
+	}
+}
+
+// send writes msg to 127.0.0.1:<port> over tcp or udp and prints the first reply line. The TCP side keeps its
+// connection open until it has read the reply (testdata/contracts/traefik/streams: a half-closed client got none).
+func send(network, port, msg string) {
+	c, err := net.DialTimeout(network, "127.0.0.1:"+port, 5*time.Second)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer func() { _ = c.Close() }()
+	_ = c.SetDeadline(time.Now().Add(5 * time.Second))
+	if network == "udp" {
+		_, err = c.Write([]byte(msg))
+	} else {
+		_, err = c.Write([]byte(msg + "\n"))
+	}
+	if err != nil {
+		log.Fatal(err)
+	}
+	line, err := bufio.NewReader(c).ReadString('\n')
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Print(line)
 }

@@ -14,10 +14,15 @@ import (
 
 // rawData is the part of GET /api/rawdata Verify reads (testdata/contracts/traefik/api_rawdata.json): top-level maps
 // keyed "<name>@<provider>" with a status and, when broken, an error list.
+// Streams appear under tcpRouters, tcpServices, udpRouters and udpServices (testdata/contracts/traefik/streams).
 type rawData struct {
 	Routers     map[string]rawObject `json:"routers"`
 	Middlewares map[string]rawObject `json:"middlewares"`
 	Services    map[string]rawObject `json:"services"`
+	TCPRouters  map[string]rawObject `json:"tcpRouters"`
+	TCPServices map[string]rawObject `json:"tcpServices"`
+	UDPRouters  map[string]rawObject `json:"udpRouters"`
+	UDPServices map[string]rawObject `json:"udpServices"`
 }
 
 type rawObject struct {
@@ -38,6 +43,22 @@ func Expected(files []File) ([]string, error) {
 		var c dynamicConfig
 		if err := yaml.Unmarshal(f.Data, &c); err != nil {
 			return nil, fmt.Errorf("parse %s: %w", f.Path, err)
+		}
+		if c.TCP != nil {
+			for n := range c.TCP.Routers {
+				out = append(out, "tcp-router "+n+"@file")
+			}
+			for n := range c.TCP.Services {
+				out = append(out, "tcp-service "+n+"@file")
+			}
+		}
+		if c.UDP != nil {
+			for n := range c.UDP.Routers {
+				out = append(out, "udp-router "+n+"@file")
+			}
+			for n := range c.UDP.Services {
+				out = append(out, "udp-service "+n+"@file")
+			}
 		}
 		if c.HTTP == nil {
 			continue
@@ -94,7 +115,8 @@ func verifyOnce(ctx context.Context, h Host, apiPort int, want []string) error {
 	var problems []string
 	for _, w := range want {
 		kind, name, _ := strings.Cut(w, " ")
-		m := map[string]map[string]rawObject{"router": rd.Routers, "middleware": rd.Middlewares, "service": rd.Services}[kind]
+		m := map[string]map[string]rawObject{"router": rd.Routers, "middleware": rd.Middlewares, "service": rd.Services,
+			"tcp-router": rd.TCPRouters, "tcp-service": rd.TCPServices, "udp-router": rd.UDPRouters, "udp-service": rd.UDPServices}[kind]
 		o, ok := m[name]
 		switch {
 		case !ok:

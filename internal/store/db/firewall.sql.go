@@ -64,7 +64,7 @@ func (q *Queries) DeleteFirewallHostAccess(ctx context.Context, hostID string) e
 }
 
 const getFirewallHost = `-- name: GetFirewallHost :one
-SELECT id, name, edge_mode, ssh_host, ssh_port, ssh_user, auth, credential_secret_id, passphrase_secret_id, host_key_type, host_key, host_key_fingerprint, traefik_connection_id, internal_traefik_ip, route_via_host_id, public_ip, public_ip6, public_ip_override, public_ip6_override, wan_iface, wan_iface_override, subnets_json, internal_ips_json, netbird_mode, netbird_iface, netbird_port, drop_inbound_accepted_at, facts_json, setup_ruleset, ownership_confirmed_at, health, last_validated_at, last_validation_error, last_applied_hash, last_applied_at, created_at, updated_at FROM firewall_hosts WHERE id = ?
+SELECT id, name, edge_mode, ssh_host, ssh_port, ssh_user, auth, credential_secret_id, passphrase_secret_id, host_key_type, host_key, host_key_fingerprint, traefik_connection_id, internal_traefik_ip, route_via_host_id, public_ip, public_ip6, public_ip_override, public_ip6_override, wan_iface, wan_iface_override, subnets_json, internal_ips_json, netbird_mode, netbird_iface, netbird_port, drop_inbound_accepted_at, facts_json, setup_ruleset, ownership_confirmed_at, health, last_validated_at, last_validation_error, last_applied_hash, last_applied_at, created_at, updated_at, takeover_json FROM firewall_hosts WHERE id = ?
 `
 
 func (q *Queries) GetFirewallHost(ctx context.Context, id string) (FirewallHost, error) {
@@ -108,6 +108,7 @@ func (q *Queries) GetFirewallHost(ctx context.Context, id string) (FirewallHost,
 		&i.LastAppliedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TakeoverJson,
 	)
 	return i, err
 }
@@ -300,7 +301,7 @@ func (q *Queries) ListFirewallHostAccess(ctx context.Context, hostID string) ([]
 }
 
 const listFirewallHosts = `-- name: ListFirewallHosts :many
-SELECT id, name, edge_mode, ssh_host, ssh_port, ssh_user, auth, credential_secret_id, passphrase_secret_id, host_key_type, host_key, host_key_fingerprint, traefik_connection_id, internal_traefik_ip, route_via_host_id, public_ip, public_ip6, public_ip_override, public_ip6_override, wan_iface, wan_iface_override, subnets_json, internal_ips_json, netbird_mode, netbird_iface, netbird_port, drop_inbound_accepted_at, facts_json, setup_ruleset, ownership_confirmed_at, health, last_validated_at, last_validation_error, last_applied_hash, last_applied_at, created_at, updated_at FROM firewall_hosts ORDER BY name
+SELECT id, name, edge_mode, ssh_host, ssh_port, ssh_user, auth, credential_secret_id, passphrase_secret_id, host_key_type, host_key, host_key_fingerprint, traefik_connection_id, internal_traefik_ip, route_via_host_id, public_ip, public_ip6, public_ip_override, public_ip6_override, wan_iface, wan_iface_override, subnets_json, internal_ips_json, netbird_mode, netbird_iface, netbird_port, drop_inbound_accepted_at, facts_json, setup_ruleset, ownership_confirmed_at, health, last_validated_at, last_validation_error, last_applied_hash, last_applied_at, created_at, updated_at, takeover_json FROM firewall_hosts ORDER BY name
 `
 
 func (q *Queries) ListFirewallHosts(ctx context.Context) ([]FirewallHost, error) {
@@ -350,6 +351,7 @@ func (q *Queries) ListFirewallHosts(ctx context.Context) ([]FirewallHost, error)
 			&i.LastAppliedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.TakeoverJson,
 		); err != nil {
 			return nil, err
 		}
@@ -454,6 +456,21 @@ type SetFirewallHostSetupRulesetParams struct {
 
 func (q *Queries) SetFirewallHostSetupRuleset(ctx context.Context, arg SetFirewallHostSetupRulesetParams) error {
 	_, err := q.db.ExecContext(ctx, setFirewallHostSetupRuleset, arg.SetupRuleset, arg.UpdatedAt, arg.ID)
+	return err
+}
+
+const setFirewallHostTakeover = `-- name: SetFirewallHostTakeover :exec
+UPDATE firewall_hosts SET takeover_json = ?, updated_at = ? WHERE id = ?
+`
+
+type SetFirewallHostTakeoverParams struct {
+	TakeoverJson string
+	UpdatedAt    int64
+	ID           string
+}
+
+func (q *Queries) SetFirewallHostTakeover(ctx context.Context, arg SetFirewallHostTakeoverParams) error {
+	_, err := q.db.ExecContext(ctx, setFirewallHostTakeover, arg.TakeoverJson, arg.UpdatedAt, arg.ID)
 	return err
 }
 
