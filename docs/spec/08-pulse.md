@@ -5,7 +5,7 @@ Pulse lets a host report its current addresses without holding any provider cred
 ## 1. Agent
 
 - Go, static binary (`CGO_ENABLED=0`), linux/amd64 + linux/arm64; Docker image on distroless/scratch, < 10 MB compressed.
-- Linux install: one-line command (shown in UI) that downloads the binary from the Hashi release (checksum verified),
+- Linux install: one-line command (shown in UI) that downloads the binary from Hashi itself, which carries both architectures in its image (checksum verified; no tag or outside access needed),
   writes root-owned `/etc/hashi-pulse/config.yaml` (0600), installs a systemd service + timer, or cron fallback.
 - Docker install: generated Compose snippet (`network_mode: host` recommended for interface discovery).
 - Config: Hashi URL, agent ID, token, interval, optional interface selector.
@@ -72,7 +72,7 @@ API: `/api/pulse/agents` CRUD, `POST /api/pulse/agents/{id}/rotate-token|revoke`
 
 ## 6. Releases
 
-Pulse binaries (amd64/arm64) with SHA-256 checksums attached to Gitea releases on tags; multi-arch image published to
+Pulse binaries (amd64/arm64) are built into the Hashi image and served with SHA-256 checksums; multi-arch image published to
 `git.juzo.io/juzo/hashi-pulse`.
 
 ## 7. Tests that must exist
