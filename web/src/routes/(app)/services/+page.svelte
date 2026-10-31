@@ -105,7 +105,11 @@
 	});
 	let formError = $state('');
 	const host = $derived(
-		form.custom ? form.full.trim().toLowerCase() : `${form.sub.trim().toLowerCase()}.${root}`
+		isStream(form.kind) && !(form.custom ? form.full : form.sub).trim()
+			? ''
+			: form.custom
+				? form.full.trim().toLowerCase()
+				: `${form.sub.trim().toLowerCase()}.${root}`
 	);
 
 	function openAdd() {
@@ -241,7 +245,9 @@
 										{s.name}
 										{#if s.origin === 'system'}<Tag><Lock class="size-3" />system</Tag>{/if}
 									</span>
-									<span class="text-[12.5px] text-muted-foreground">{s.host_name}</span>
+									<span class="text-[12.5px] text-muted-foreground"
+										>{s.host_name || `port ${s.public_port}/${s.kind}`}</span
+									>
 								</a>
 							</Table.Cell>
 							<Table.Cell class="hidden md:table-cell">
@@ -330,18 +336,29 @@
 			</div>
 			<div class="space-y-1.5">
 				<div class="flex items-center justify-between gap-3">
-					<Label for={form.custom ? 'sf' : 'sd'}>Public domain</Label>
+					<Label for={form.custom ? 'sf' : 'sd'}
+						>Public domain{isStream(form.kind) ? ' (optional)' : ''}</Label
+					>
 					<label class="flex items-center gap-2 text-[12.5px] text-muted-foreground"
 						>Another name in the zone <Switch bind:checked={form.custom} /></label
 					>
 				</div>
 				{#if form.custom}
-					<Input id="sf" bind:value={form.full} placeholder="app.{root}" required />
+					<Input
+						id="sf"
+						bind:value={form.full}
+						placeholder="app.{root}"
+						required={!isStream(form.kind)}
+					/>
 				{:else}
 					<div class="flex items-center gap-2">
-						<Input id="sd" bind:value={form.sub} class="max-w-56" placeholder="app" required /><span
-							class="text-[13px] text-muted-foreground">.{root}</span
-						>
+						<Input
+							id="sd"
+							bind:value={form.sub}
+							class="max-w-56"
+							placeholder="app"
+							required={!isStream(form.kind)}
+						/><span class="text-[13px] text-muted-foreground">.{root}</span>
 					</div>
 				{/if}
 				<p class="text-[12.5px] text-muted-foreground">

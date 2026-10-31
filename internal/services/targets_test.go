@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"strings"
@@ -110,5 +111,23 @@ func TestStreamOnTraefikAPIPortRefused(t *testing.T) {
 	s.PublicPort = 15432
 	if _, err := Create(ctx, st.Q, s, now); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// A stream needs no name, and several may go without one; an HTTP service still needs its name.
+func TestStreamWithoutName(t *testing.T) {
+	ctx := context.Background()
+	st := newStore(t)
+	for i, port := range []int{222, 2222} {
+		s := web()
+		s.Slug, s.Kind, s.HostName, s.DomainMode, s.PublicPort = fmt.Sprintf("s%d", i), KindTCP, "", ModeNone, port
+		if _, err := Create(ctx, st.Q, s, now); err != nil {
+			t.Fatal(err)
+		}
+	}
+	s := web()
+	s.HostName, s.DomainMode = "", ModeNone
+	if _, err := Create(ctx, st.Q, s, now); err == nil {
+		t.Fatal("an HTTP service without a name")
 	}
 }

@@ -191,10 +191,16 @@
 					{#if system}<Tag><Lock class="size-3" />system · change it in Settings → General</Tag
 						>{/if}
 				</h1>
-				<a
-					class="text-[13.5px] text-muted-foreground hover:underline"
-					href="https://{svc.host_name}">https://{svc.host_name}</a
-				>
+				{#if isStream(svc.kind)}
+					<p class="text-[13.5px] text-muted-foreground">
+						Port {svc.public_port}/{svc.kind}{svc.host_name ? ` · ${svc.host_name}` : ''}
+					</p>
+				{:else}
+					<a
+						class="text-[13.5px] text-muted-foreground hover:underline"
+						href="https://{svc.host_name}">https://{svc.host_name}</a
+					>
+				{/if}
 			</div>
 			{#if !system}
 				<div class="flex flex-wrap gap-2">

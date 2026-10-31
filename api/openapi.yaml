@@ -2236,7 +2236,7 @@ components:
         name: { type: string }
         slug: { type: string }
         kind: { type: string, enum: [http, https, h2c, tcp, udp] }
-        domain_mode: { type: string, enum: [root, subdomain, custom] }
+        domain_mode: { type: string, enum: [root, subdomain, custom, none], description: "none: a tcp/udp service without a public name" }
         host_name: { type: string }
         enabled: { type: boolean, description: "On create only (default true); enable/disable have their own calls" }
         target: { $ref: "#/components/schemas/ServiceTarget" }
@@ -2261,7 +2261,7 @@ components:
         name: { type: string }
         slug: { type: string }
         kind: { type: string, enum: [http, https, h2c, tcp, udp] }
-        domain_mode: { type: string, enum: [root, subdomain, custom] }
+        domain_mode: { type: string, enum: [root, subdomain, custom, none], description: "none: a tcp/udp service without a public name" }
         host_name: { type: string }
         enabled: { type: boolean }
         origin: { type: string, enum: [system, managed, imported, user] }

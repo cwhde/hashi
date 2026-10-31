@@ -752,6 +752,7 @@ func (e SecretMetaClass) Valid() bool {
 // Defines values for ServiceDomainMode.
 const (
 	ServiceDomainModeCustom    ServiceDomainMode = "custom"
+	ServiceDomainModeNone      ServiceDomainMode = "none"
 	ServiceDomainModeRoot      ServiceDomainMode = "root"
 	ServiceDomainModeSubdomain ServiceDomainMode = "subdomain"
 )
@@ -760,6 +761,8 @@ const (
 func (e ServiceDomainMode) Valid() bool {
 	switch e {
 	case ServiceDomainModeCustom:
+		return true
+	case ServiceDomainModeNone:
 		return true
 	case ServiceDomainModeRoot:
 		return true
@@ -845,6 +848,7 @@ func (e ServiceTlsMinVersion) Valid() bool {
 // Defines values for ServiceInputDomainMode.
 const (
 	ServiceInputDomainModeCustom    ServiceInputDomainMode = "custom"
+	ServiceInputDomainModeNone      ServiceInputDomainMode = "none"
 	ServiceInputDomainModeRoot      ServiceInputDomainMode = "root"
 	ServiceInputDomainModeSubdomain ServiceInputDomainMode = "subdomain"
 )
@@ -853,6 +857,8 @@ const (
 func (e ServiceInputDomainMode) Valid() bool {
 	switch e {
 	case ServiceInputDomainModeCustom:
+		return true
+	case ServiceInputDomainModeNone:
 		return true
 	case ServiceInputDomainModeRoot:
 		return true
@@ -2263,12 +2269,14 @@ type SecuritySettings struct {
 
 // Service defines model for Service.
 type Service struct {
-	AdguardRewrite   bool              `json:"adguard_rewrite"`
-	AdvancedRoutes   bool              `json:"advanced_routes"`
-	CreatedAt        time.Time         `json:"created_at"`
-	DashboardVisible bool              `json:"dashboard_visible"`
-	DomainMode       ServiceDomainMode `json:"domain_mode"`
-	Enabled          bool              `json:"enabled"`
+	AdguardRewrite   bool      `json:"adguard_rewrite"`
+	AdvancedRoutes   bool      `json:"advanced_routes"`
+	CreatedAt        time.Time `json:"created_at"`
+	DashboardVisible bool      `json:"dashboard_visible"`
+
+	// DomainMode none: a tcp/udp service without a public name
+	DomainMode ServiceDomainMode `json:"domain_mode"`
+	Enabled    bool              `json:"enabled"`
 
 	// EntryHostId Service routing override (03 §5.1); empty = none
 	EntryHostId *string `json:"entry_host_id,omitempty"`
@@ -2299,7 +2307,7 @@ type Service struct {
 	UpdatedAt     time.Time            `json:"updated_at"`
 }
 
-// ServiceDomainMode defines model for Service.DomainMode.
+// ServiceDomainMode none: a tcp/udp service without a public name
 type ServiceDomainMode string
 
 // ServiceKind defines model for Service.Kind.
@@ -2318,10 +2326,12 @@ type ServiceEffective struct {
 
 // ServiceInput defines model for ServiceInput.
 type ServiceInput struct {
-	AdguardRewrite   *bool                  `json:"adguard_rewrite,omitempty"`
-	AdvancedRoutes   *bool                  `json:"advanced_routes,omitempty"`
-	DashboardVisible *bool                  `json:"dashboard_visible,omitempty"`
-	DomainMode       ServiceInputDomainMode `json:"domain_mode"`
+	AdguardRewrite   *bool `json:"adguard_rewrite,omitempty"`
+	AdvancedRoutes   *bool `json:"advanced_routes,omitempty"`
+	DashboardVisible *bool `json:"dashboard_visible,omitempty"`
+
+	// DomainMode none: a tcp/udp service without a public name
+	DomainMode ServiceInputDomainMode `json:"domain_mode"`
 
 	// Enabled On create only (default true); enable/disable have their own calls
 	Enabled *bool `json:"enabled,omitempty"`
@@ -2346,7 +2356,7 @@ type ServiceInput struct {
 	TlsSkipVerify *bool                      `json:"tls_skip_verify,omitempty"`
 }
 
-// ServiceInputDomainMode defines model for ServiceInput.DomainMode.
+// ServiceInputDomainMode none: a tcp/udp service without a public name
 type ServiceInputDomainMode string
 
 // ServiceInputKind defines model for ServiceInput.Kind.

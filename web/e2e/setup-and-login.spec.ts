@@ -433,7 +433,6 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 		.first()
 		.click();
 	await page.getByLabel('Name', { exact: true }).fill('Game');
-	await page.getByLabel('Public domain').fill('game');
 	await page.getByRole('combobox', { name: 'Protocol' }).click();
 	await page.getByRole('option', { name: 'UDP on its own public port' }).click();
 	await page.getByLabel('Address').fill('10.32.0.40');

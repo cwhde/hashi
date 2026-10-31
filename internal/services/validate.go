@@ -52,7 +52,12 @@ func Validate(s Service, n Names) error {
 	default:
 		return invalid("kind", "must be http, https, h2c, tcp or udp")
 	}
-	if err := validateHost(s, n); err != nil {
+	// A stream is a port: its public name is optional (04 §1.2).
+	if s.Stream() && s.HostName == "" {
+		if s.DomainMode != ModeNone {
+			return invalid("domain_mode", "a service without a name has domain mode none")
+		}
+	} else if err := validateHost(s, n); err != nil {
 		return err
 	}
 	if err := validateTarget("target", s.Target); err != nil {

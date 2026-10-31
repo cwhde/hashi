@@ -130,7 +130,7 @@ func (m *Manager) want(ctx context.Context, root string) ([]Want, error) {
 	}
 	var hosts []string
 	for _, s := range svcs {
-		if s.Renderable() {
+		if s.Renderable() && !s.Stream() { // streams are raw TCP/UDP: Traefik terminates no TLS for them
 			hosts = append(hosts, s.HostName)
 		}
 	}

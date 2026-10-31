@@ -127,6 +127,8 @@ second plan was empty; a later unconfirmed change went back to the previous tabl
 Key install proof (2026-10-31, Debian dev target, real sshd, `TestRealKeyInstall`): a refused password and a key without its
 passphrase gave the right messages; the passphrase-protected key installed the line once and Hashi's key logged in.
 
+Gap found by the user: a TCP/UDP service needed a domain. The name is optional now (no name, no DNS record); streams take no certificate either.
+
 User decisions 2026-10-31: setup asks permission to install Hashi's SSH key (password or key with passphrase, once, not stored),
 copy-paste stays. A host without an old script never sees that part: the tab shows only when a list exists (entered through the
 API until detection exists). Public ports of the first real host after the takeover: 80, 443 and 222 (Gitea SSH); 17701, 17702,

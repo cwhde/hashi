@@ -31,6 +31,7 @@ export function slugify(name: string): string {
 
 /** How a full host name relates to the root domain (the API stores both). */
 export function domainMode(host: string, root: string): Service['domain_mode'] {
+	if (!host) return 'none';
 	if (host === root) return 'root';
 	return host.endsWith('.' + root) ? 'subdomain' : 'custom';
 }

@@ -155,3 +155,13 @@ func TestHostOverrideToUnpublishedHost(t *testing.T) {
 	got := lines(GenerateRecords("example.com", []Effective{a, c}, []services.Service{svc("wiki", "wiki.example.com", "10.0.4.20")}))
 	has(t, got, "on.edge-a.example.com. CNAME via.edge-a.example.com.", "wiki.example.com. CNAME on.edge-a.example.com.")
 }
+
+// A stream without a name gets no record; its port still opens (GenerateRecords looks at names only).
+func TestStreamWithoutNameHasNoRecord(t *testing.T) {
+	a := host("a", "edge-a", "192.0.2.1", "10.0.4.0/24")
+	s := svc("git", "", "10.0.4.6")
+	s.Kind, s.PublicPort = services.KindTCP, 222
+	if got := GenerateRecords("example.com", []Effective{a}, []services.Service{s}); len(got) != 3 {
+		t.Fatalf("%+v", lines(got))
+	}
+}

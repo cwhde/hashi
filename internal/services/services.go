@@ -36,6 +36,7 @@ const (
 	ModeRoot      = "root"
 	ModeSubdomain = "subdomain"
 	ModeCustom    = "custom"
+	ModeNone      = "none"
 )
 
 // Origins (invariant 9).
@@ -392,7 +393,7 @@ func taken(ctx context.Context, q *db.Queries, s Service) error {
 		return err
 	}
 	for _, r := range rows {
-		if r.ID != s.ID && (r.Slug == s.Slug || r.HostName == s.HostName) {
+		if r.ID != s.ID && (r.Slug == s.Slug || (s.HostName != "" && r.HostName == s.HostName)) {
 			return ErrTaken
 		}
 		if r.ID != s.ID && s.Stream() && r.Kind == s.Kind && int(r.PublicPort.Int64) == s.PublicPort {

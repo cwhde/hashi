@@ -2411,8 +2411,11 @@ export interface components {
             slug: string;
             /** @enum {string} */
             kind: "http" | "https" | "h2c" | "tcp" | "udp";
-            /** @enum {string} */
-            domain_mode: "root" | "subdomain" | "custom";
+            /**
+             * @description none: a tcp/udp service without a public name
+             * @enum {string}
+             */
+            domain_mode: "root" | "subdomain" | "custom" | "none";
             host_name: string;
             /** @description On create only (default true); enable/disable have their own calls */
             enabled?: boolean;
@@ -2439,8 +2442,11 @@ export interface components {
             slug: string;
             /** @enum {string} */
             kind: "http" | "https" | "h2c" | "tcp" | "udp";
-            /** @enum {string} */
-            domain_mode: "root" | "subdomain" | "custom";
+            /**
+             * @description none: a tcp/udp service without a public name
+             * @enum {string}
+             */
+            domain_mode: "root" | "subdomain" | "custom" | "none";
             host_name: string;
             enabled: boolean;
             /** @enum {string} */

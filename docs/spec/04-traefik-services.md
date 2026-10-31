@@ -29,7 +29,8 @@ Every middleware a route references is emitted in the same render.
 
 ### 1.2 Stream targets (TCP/UDP)
 
-Protocol, public port, target address (address set), target port, PROXY protocol option (TCP), monitoring protocol hint.
+Protocol, public port, target address (address set), target port, an optional public name (without one, no DNS record;
+clients use any name or the address of the entry host), PROXY protocol option (TCP), monitoring protocol hint.
 TCP with TLS may use `HostSNI`; raw TCP and all UDP are port-based, one entry point per public port.
 TCP/UDP cannot use HTTP forward auth; they are protected by the firewall's folded sets and kernel meters (05-firewall.md §3.2).
 
