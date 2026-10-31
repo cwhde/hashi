@@ -376,6 +376,28 @@
     "chain": {
      "family": "inet",
      "table": "hashi",
+     "name": "nat_out",
+     "type": "nat",
+     "hook": "output",
+     "prio": -100,
+     "policy": "accept"
+    }
+   }
+  },
+  {
+   "flush": {
+    "chain": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "nat_out"
+    }
+   }
+  },
+  {
+   "add": {
+    "chain": {
+     "family": "inet",
+     "table": "hashi",
      "name": "input",
      "type": "filter",
      "hook": "input",

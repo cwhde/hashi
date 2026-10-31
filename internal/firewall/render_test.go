@@ -108,7 +108,7 @@ func TestRenderStructure(t *testing.T) {
 			t.Errorf("%s is not replaced atomically", s)
 		}
 	}
-	if strings.Join(chainOrder, ",") != "pre_guard,pre_meter,nat_pre,input,forward,nat_post,mangle_fwd" {
+	if strings.Join(chainOrder, ",") != "pre_guard,pre_meter,nat_pre,nat_out,input,forward,nat_post,mangle_fwd" {
 		t.Errorf("chains %v", chainOrder)
 	}
 	text := string(out)

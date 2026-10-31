@@ -375,6 +375,16 @@ func chains(s Spec) []chainOut {
 		}
 	}
 
+	// 3b. nat_out: the host itself reaching its public address on a published port, as other machines do. NetBird's
+	// management server can live behind the same edge (found on the first real host: no reconnect without this).
+	natOut := chainOut{def: base("nat_out", "nat", "output", -100)}
+	if s.PublicIP.Is4() {
+		for _, p := range sortedPorts(s.Ports) {
+			natOut.rules = append(natOut.rules, []any{match("==", payload("ip", "daddr"), s.PublicIP.String()), dport(p.Proto, p.Port),
+				obj{"dnat": obj{"family": "ip", "addr": s.TraefikIP.String(), "port": p.TargetPort}}})
+		}
+	}
+
 	// 4. input: drops only after the user accepted "block all other inbound".
 	input := chainOut{def: base("input", "filter", "input", 0)}
 	input.rules = append(input.rules, []any{iif("lo"), verdict("accept")}, []any{ctState("established", "related"), verdict("accept")})
@@ -426,7 +436,7 @@ func chains(s Spec) []chainOut {
 		mangle.rules = append(mangle.rules, []any{iif(s.NetBird.Iface), syn, clamp},
 			[]any{match("==", meta("oifname"), s.NetBird.Iface), syn, clamp})
 	}
-	return []chainOut{guard, meter, nat, input, fwd, post, mangle}
+	return []chainOut{guard, meter, nat, natOut, input, fwd, post, mangle}
 }
 
 func suffix(v4 bool) string {

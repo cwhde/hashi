@@ -1063,8 +1063,32 @@ func (m *Manager) rescue(row db.FirewallHost) Rescue {
 		if !nb.Connected {
 			return errors.New("NetBird is no longer connected")
 		}
-		return nil
+		return checkManagement(ctx, c)
 	}
+}
+
+var managementURL = regexp.MustCompile(`(?m)^Management: Connected to https?://([A-Za-z0-9.-]+):(\d+)\s*$`)
+
+// checkManagement proves the host can still open a connection to NetBird's management server. "Connected" alone only
+// says the running daemon has not noticed yet: a firewall change that cuts the path shows at its next restart (found on
+// the first real host, whose management server sits behind its own public address).
+func checkManagement(ctx context.Context, c Conn) error {
+	r, err := c.Run(ctx, "netbird status -d", nil)
+	if err != nil {
+		return err
+	}
+	m := managementURL.FindStringSubmatch(string(r.Stdout))
+	if m == nil {
+		return nil // an older or differently worded status: nothing to test
+	}
+	r, err = c.Run(ctx, `timeout 5 bash -c 'exec 3<>/dev/tcp/`+m[1]+`/`+m[2]+`'`, nil)
+	if err != nil {
+		return err
+	}
+	if !r.OK() {
+		return fmt.Errorf("this host can no longer reach NetBird's management server %s:%s", m[1], m[2])
+	}
+	return nil
 }
 
 type fwSub struct{ m *Manager }

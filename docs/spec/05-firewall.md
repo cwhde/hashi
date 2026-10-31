@@ -87,6 +87,8 @@ Chains (hook · priority):
 3. `nat_pre` · nat prerouting · dstnat: DNAT each published TCP/UDP port to the linked internal Traefik IP **and the
    Traefik entry-point port** for that service (80/443 for HTTP family, the stream entry point for TCP/UDP — not the
    upstream service port).
+3b. `nat_out` · nat output · dstnat: the same DNAT for the host's own connections to its public address (a NetBird
+   management server behind the same edge depends on it).
 4. `input` · filter input · filter: accept loopback, established/related, managed subnets, NetBird interface, the
    NetBird WireGuard port, `@host_access`; final drop for other new inbound traffic only after the user accepted the
    "block all other inbound" warning for this host.
@@ -225,7 +227,8 @@ Host link state (connected, last poll, last push, lag) is shown on the firewall 
    (Alpine: `at` or a backgrounded `sleep 180 && rollback` with a PID file).
 4. Apply.
 5. Hashi opens a **new** SSH connection (not the existing one) over the address it uses as the host's rescue path,
-   verifies it can log in and run a command, and — if NetBird is enabled — verifies NetBird status is still connected.
+   verifies it can log in and run a command, and — if NetBird is enabled — verifies NetBird status is still connected
+   and the host can open a connection to NetBird's management server (`netbird status -d`): a running daemon does not notice a cut path until its next restart.
    Only then disarm the timer.
 6. If verification fails or times out, do nothing: the timer restores the previous state. Hashi reconnects after the
    window, reads the actual ruleset, re-pushes dynamic entries, and reports the rollback by checking the remote result.

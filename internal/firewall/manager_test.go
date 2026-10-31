@@ -277,3 +277,31 @@ func TestSaveRefusesBadHosts(t *testing.T) {
 		t.Fatalf("external host addresses %v %v", addrs, err)
 	}
 }
+
+// The rescue check catches a cut path to NetBird's management server: the daemon still says connected.
+func TestCheckManagement(t *testing.T) {
+	status := "Daemon version: 0.81.3\nManagement: Connected to https://grid.example.com:443\nSignal: Connected to https://grid.example.com:443\n"
+	for _, tc := range []struct {
+		status string
+		exit   int
+		bad    bool
+	}{{status, 0, false}, {status, 1, true}, {"Management: Disconnected\n", 1, false}} {
+		c := mgmtConn{status: tc.status, exit: tc.exit}
+		if err := checkManagement(t.Context(), &c); (err != nil) != tc.bad {
+			t.Errorf("%+v: %v", tc, err)
+		}
+	}
+}
+
+type mgmtConn struct {
+	Conn
+	status string
+	exit   int
+}
+
+func (m *mgmtConn) Run(_ context.Context, cmd string, _ io.Reader) (sshx.Result, error) {
+	if cmd == "netbird status -d" {
+		return sshx.Result{Stdout: []byte(m.status)}, nil
+	}
+	return sshx.Result{ExitCode: m.exit}, nil
+}

@@ -376,6 +376,28 @@
     "chain": {
      "family": "inet",
      "table": "hashi",
+     "name": "nat_out",
+     "type": "nat",
+     "hook": "output",
+     "prio": -100,
+     "policy": "accept"
+    }
+   }
+  },
+  {
+   "flush": {
+    "chain": {
+     "family": "inet",
+     "table": "hashi",
+     "name": "nat_out"
+    }
+   }
+  },
+  {
+   "add": {
+    "chain": {
+     "family": "inet",
+     "table": "hashi",
      "name": "input",
      "type": "filter",
      "hook": "input",
@@ -8374,6 +8396,3408 @@
         "right": "vmbr0"
        }
       },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20039
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20039
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20000
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20000
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20001
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20001
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20002
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20002
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20003
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20003
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20004
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20004
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20005
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20005
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20006
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20006
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20007
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20007
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20008
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20008
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20009
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20009
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20010
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20010
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20011
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20011
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20012
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20012
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20013
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20013
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20014
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20014
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20015
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20015
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20016
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20016
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20017
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20017
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20018
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20018
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20019
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20019
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20020
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20020
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20021
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20021
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20022
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20022
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20023
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20023
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20024
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20024
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20025
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20025
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20026
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20026
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20027
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20027
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20028
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20028
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20029
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20029
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20030
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20030
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20031
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20031
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20032
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20032
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20033
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20033
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20034
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20034
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20035
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20035
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20036
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20036
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20037
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20037
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20038
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20038
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "tcp"
+         }
+        },
+        "op": "==",
+        "right": 20039
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20039
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 443
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 443
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20000
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20000
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20001
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20001
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20002
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20002
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20003
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20003
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20004
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20004
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20005
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20005
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20006
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20006
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20007
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20007
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20008
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20008
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20009
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20009
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20010
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20010
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20011
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20011
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20012
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20012
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20013
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20013
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20014
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20014
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20015
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20015
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20016
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20016
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20017
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20017
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20018
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20018
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20019
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20019
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20020
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20020
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20021
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20021
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20022
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20022
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20023
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20023
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20024
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20024
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20025
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20025
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20026
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20026
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20027
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20027
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20028
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20028
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20029
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20029
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20030
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20030
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20031
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20031
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20032
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20032
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20033
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20033
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20034
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20034
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20035
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20035
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20036
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20036
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20037
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20037
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "daddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "192.0.2.1"
+       }
+      },
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "dport",
+          "protocol": "udp"
+         }
+        },
+        "op": "==",
+        "right": 20038
+       }
+      },
+      {
+       "dnat": {
+        "addr": "10.20.0.10",
+        "family": "ip",
+        "port": 20038
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "nat_out",
+     "expr": [
       {
        "match": {
         "left": {

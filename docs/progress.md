@@ -696,6 +696,11 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-10-31 — S6 gate, NetBird restart: **failed, then fixed by hand with the user's OK.** The first host's NetBird management name
+  was pinned in `/etc/hosts` to its own public address; the old script's OUTPUT DNAT made that work and the takeover removed it, so
+  NetBird could not reconnect after the restart (home route down for some minutes). The pin now points at the internal Traefik. Hashi fix: `nat_out`
+  chain, rescue check opens a connection to the management server. Repeat the restart after the fix is deployed.
+
 - 2026-10-31 — S6 gate: first apply on the first real host with the user's OK, 28 items, confirmed over a new SSH login, rescue
   timer disarmed. NetBird rules, sets and the other cron jobs identical before and after (the only diff line was the old script's
   own rule); NetBird connected, peers as before; HTTPS through the public address 200; LXCs reach the internet and the home network;

@@ -189,6 +189,11 @@ func TestIntegrationDNATReachesTraefik(t *testing.T) {
 		got, _ = client.Try("wget", "-qO-", "-T", "2", "http://"+w(2)+":443/")
 		return strings.Contains(got, "entrypoint")
 	})
+	// The host itself reaches its own public address on a published port (NetBird's management server may be there).
+	itest.WaitFor(t, 10*time.Second, "the host to its own public address", func() bool {
+		out, _ := fw.Try("bash", "-c", "exec 3<>/dev/tcp/"+w(2)+"/443; printf 'GET / HTTP/1.0\r\n\r\n' >&3; timeout 3 cat <&3")
+		return strings.Contains(out, "entrypoint")
+	})
 	// A stream port: a UDP datagram to the public port reaches the same port on the stand-in and is answered.
 	itest.WaitFor(t, 20*time.Second, "UDP DNAT to the entry point", func() bool {
 		got, _ = client.Try("sh", "-c", "echo ping | nc -u -w 2 "+w(2)+" 15433")
