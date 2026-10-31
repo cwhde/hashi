@@ -7,14 +7,13 @@
 	import { Switch } from '$lib/components/ui/switch';
 	import * as Select from '$lib/components/ui/select';
 	import * as Sheet from '$lib/components/ui/sheet';
-	import { Plus, Send, Trash2 } from '@lucide/svelte';
+	import { Pencil, Plus, Send, Trash2 } from '@lucide/svelte';
 	import { api, problemText, type Schemas } from '$lib/api/client';
 	import { withReauth } from '$lib/auth/reauth';
-	import { dateTime } from '$lib/format';
 
-	// 07 §6: providers, the default route with severity, cooldown and recovery, recent deliveries with their result.
+	// 07 §6: providers and the default route with severity, cooldown and recovery. Settings holds this setup; the
+	// deliveries it produces are on the Status page (RecentNotifications).
 	let providers = $state<Schemas['NotificationProvider'][]>([]);
-	let deliveries = $state<Schemas['NotificationDelivery'][]>([]);
 	let route = $state<Schemas['NotificationRoute']>({
 		min_severity: 'down',
 		cooldown_seconds: 600,
@@ -25,14 +24,12 @@
 	let busy = $state(false);
 
 	async function load() {
-		const [p, d, r] = await Promise.all([
+		const [p, r] = await Promise.all([
 			api.GET('/api/notifications/providers'),
-			api.GET('/api/notifications/deliveries'),
 			api.GET('/api/notifications/route')
 		]);
-		if (!p.data || !d.data || !r.data) throw p.error ?? d.error ?? r.error;
+		if (!p.data || !r.data) throw p.error ?? r.error;
 		providers = p.data.providers;
-		deliveries = d.data.deliveries;
 		route = r.data;
 	}
 	onMount(() => {
@@ -63,7 +60,7 @@
 				params: { path: { id } }
 			});
 			if (r.error) throw r.error;
-		}, 'Test finished; its result is under Recent notifications.');
+		}, 'Test sent. Its result is on the Status page under Notifications.');
 	const remove = (id: string) =>
 		act(async () => {
 			await withReauth(() =>
@@ -71,9 +68,8 @@
 			);
 		}, 'Provider removed.');
 
-	// ---- add ----
-	let addOpen = $state(false);
-	let f = $state({
+	// ---- add and edit ----
+	const blank = () => ({
 		type: 'telegram' as 'telegram' | 'smtp',
 		name: '',
 		bot_token: '',
@@ -86,6 +82,34 @@
 		from: '',
 		to: ''
 	});
+	let addOpen = $state(false);
+	let editing = $state<string | null>(null);
+	let f = $state(blank());
+	function openAdd() {
+		f = blank();
+		editing = null;
+		chats = [];
+		addError = '';
+		addOpen = true;
+	}
+	function openEdit(p: Schemas['NotificationProvider']) {
+		f = {
+			...blank(),
+			type: p.type === 'smtp' ? 'smtp' : 'telegram',
+			name: p.name,
+			chat_id: p.chat_id ?? '',
+			host: p.host ?? '',
+			port: String(p.port ?? 587),
+			tls: p.tls ?? 'starttls',
+			username: p.username ?? '',
+			from: p.from ?? '',
+			to: p.to ?? ''
+		};
+		editing = p.id;
+		chats = [];
+		addError = '';
+		addOpen = true;
+	}
 	let chats = $state<{ id: string; title: string }[]>([]);
 	let addError = $state('');
 
@@ -110,23 +134,27 @@
 		addError = '';
 		busy = true;
 		try {
+			const fields =
+				f.type === 'telegram'
+					? { name: f.name, bot_token: f.bot_token || undefined, chat_id: f.chat_id }
+					: {
+							name: f.name,
+							host: f.host,
+							port: Number(f.port),
+							tls: f.tls,
+							username: f.username || undefined,
+							password: f.password || undefined,
+							from: f.from,
+							to: f.to
+						};
+			const id = editing;
 			await withReauth(() =>
-				api.POST('/api/notifications/providers', {
-					body:
-						f.type === 'telegram'
-							? { type: 'telegram', name: f.name, bot_token: f.bot_token, chat_id: f.chat_id }
-							: {
-									type: 'smtp',
-									name: f.name,
-									host: f.host,
-									port: Number(f.port),
-									tls: f.tls,
-									username: f.username || undefined,
-									password: f.password || undefined,
-									from: f.from,
-									to: f.to
-								}
-				})
+				id
+					? api.PUT('/api/notifications/providers/{id}', {
+							params: { path: { id } },
+							body: fields
+						})
+					: api.POST('/api/notifications/providers', { body: { type: f.type, ...fields } })
 			);
 			f.bot_token = f.password = '';
 			addOpen = false;
@@ -139,14 +167,6 @@
 	}
 	const providerText = (p: Schemas['NotificationProvider']) =>
 		p.type === 'telegram' ? `Telegram · chat ${p.chat_id}` : `Email · ${p.host} to ${p.to}`;
-	const deliveryText = (d: Schemas['NotificationDelivery']) =>
-		d.status === 'delivered'
-			? 'delivered'
-			: d.status === 'failed'
-				? `failed: ${d.last_error}`
-				: d.last_error
-					? `retrying: ${d.last_error}`
-					: 'waiting';
 </script>
 
 {#if error}<p role="alert" class="mb-3 text-[13px] text-bad-text">{error}</p>{/if}
@@ -197,17 +217,20 @@
 					aria-label="Send recovery messages"
 				/>
 			</label>
+			{#if !route.provider_id}
+				<p class="text-warn-text">No alerts are sent until you choose a provider here.</p>
+			{/if}
 			<div class="flex justify-end">
 				<Button size="sm" onclick={saveRoute} disabled={busy}>Save route</Button>
 			</div>
 		</div>
 	</Panel>
 	<Panel title="Providers" flush>
-		{#snippet actions()}<Button variant="outline" size="sm" onclick={() => (addOpen = true)}
-				><Plus />Add provider</Button
-			>{/snippet}
+		{#snippet actions()}<Button size="sm" onclick={openAdd}><Plus />Add provider</Button>{/snippet}
 		{#if providers.length === 0}
-			<p class="px-4 py-3 text-[13px] text-muted-foreground">Add a provider to receive alerts.</p>
+			<p class="px-4 py-3 text-[13px] text-muted-foreground">
+				Add Telegram or email to receive alerts.
+			</p>
 		{/if}
 		<ul class="divide-y">
 			{#each providers as p (p.id)}
@@ -223,25 +246,16 @@
 					<Button
 						variant="ghost"
 						size="icon-sm"
+						aria-label="Edit {p.name}"
+						onclick={() => openEdit(p)}
+						disabled={busy}><Pencil /></Button
+					>
+					<Button
+						variant="ghost"
+						size="icon-sm"
 						aria-label="Remove {p.name}"
 						onclick={() => remove(p.id)}
 						disabled={busy}><Trash2 /></Button
-					>
-				</li>
-			{/each}
-		</ul>
-	</Panel>
-	<Panel title="Recent notifications" class="lg:col-span-2">
-		{#if deliveries.length === 0}
-			<p class="text-[13px] text-muted-foreground">Nothing sent yet.</p>
-		{/if}
-		<ul class="space-y-2.5 text-[13px]">
-			{#each deliveries as d (d.id)}
-				<li class="flex flex-wrap items-center gap-x-3 gap-y-0.5">
-					<Send class="size-4 text-muted-foreground" />
-					<span class="min-w-40 flex-1">{d.subject}</span>
-					<span class={d.status === 'delivered' ? 'text-muted-foreground' : 'text-bad-text'}
-						>{d.provider} · {dateTime(d.created_at)} · {deliveryText(d)}</span
 					>
 				</li>
 			{/each}
@@ -252,13 +266,17 @@
 <Sheet.Root bind:open={addOpen}>
 	<Sheet.Content class="w-full sm:max-w-md">
 		<Sheet.Header>
-			<Sheet.Title>Add provider</Sheet.Title>
-			<Sheet.Description>Its secret is stored encrypted and never shown again.</Sheet.Description>
+			<Sheet.Title>{editing ? 'Edit provider' : 'Add provider'}</Sheet.Title>
+			<Sheet.Description
+				>{editing
+					? 'Leave the secret empty to keep the stored one.'
+					: 'Its secret is stored encrypted and never shown again.'}</Sheet.Description
+			>
 		</Sheet.Header>
 		<div class="space-y-4 overflow-y-auto px-4">
 			<div class="space-y-1.5">
 				<Label for="np-type">Type</Label>
-				<Select.Root type="single" bind:value={f.type}>
+				<Select.Root type="single" bind:value={f.type} disabled={!!editing}>
 					<Select.Trigger id="np-type" class="w-full"
 						>{f.type === 'telegram' ? 'Telegram' : 'Email (SMTP)'}</Select.Trigger
 					>
@@ -344,7 +362,9 @@
 		</div>
 		<Sheet.Footer class="flex-row justify-end gap-2 border-t">
 			<Button variant="outline" onclick={() => (addOpen = false)}>Cancel</Button>
-			<Button onclick={add} disabled={busy || !f.name.trim()}>Add provider</Button>
+			<Button onclick={add} disabled={busy || !f.name.trim()}
+				>{editing ? 'Save changes' : 'Add provider'}</Button
+			>
 		</Sheet.Footer>
 	</Sheet.Content>
 </Sheet.Root>

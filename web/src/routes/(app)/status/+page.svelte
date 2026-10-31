@@ -5,7 +5,7 @@
 	import HistoryStrip from '$lib/components/hashi/HistoryStrip.svelte';
 	import Tag from '$lib/components/hashi/Tag.svelte';
 	import AddCheck from '$lib/components/hashi/status/AddCheck.svelte';
-	import Notifications from '$lib/components/hashi/status/Notifications.svelte';
+	import RecentNotifications from '$lib/components/hashi/status/RecentNotifications.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Skeleton } from '$lib/components/ui/skeleton';
@@ -166,7 +166,7 @@
 			{/each}
 		</div>
 	</Tabs.Content>
-	<Tabs.Content value="notify"><Notifications /></Tabs.Content>
+	<Tabs.Content value="notify"><RecentNotifications /></Tabs.Content>
 </Tabs.Root>
 
 <AddCheck bind:open={addOpen} onadded={() => load().catch(() => {})} />

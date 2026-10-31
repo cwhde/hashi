@@ -59,7 +59,7 @@ first paint. `dark:` variants follow `data-mode`, not the OS.
 | `/firewall` | Firewall hosts | Global policy panel (IP sets bound to allow and to block, folded range counts, carve-out warnings); host panels (mode, subnets, ports, NetBird, host link, last apply, strip); external-NAT hosts show router port-forward instructions |
 | `/firewall/{id}` | Firewall host | Rescue path, NetBird, host link state; tabs: Ports (with conflicts), Host access (IP sets), Kernel sets (sizes, staging now, meter thresholds), Live ruleset (all tables, Hashi's highlighted), Generated (rendered nft JSON) |
 | `/pulse` | Pulse | Agents table (selected/public IP, candidates, reachability, freshness); add-agent drawer with Linux/Docker install |
-| `/status` | Status | Endpoint cards grouped by group or status with history strips; Notifications tab (routes, recent deliveries) |
+| `/status` | Status | Endpoint cards grouped by group or status with history strips; Notifications tab (recent deliveries, where alerts go, link to their setup) |
 | `/status/{id}` | Endpoint | Summary metrics + strip, range switch, three equal charts, events |
 | `/app-display` | App display | What the public dashboard (8081) and status page (8082) show, order and visibility |
 | `/security` | Security | Tabs: Dashboard (allowed/challenged/banned/WAF tiles with sparklines, L4 meter trips per host, top addresses, countries, targeted services, challenge → ban funnel, events, stale feeds/GeoIP), Counters (every address with a ban or challenge counter; filters: banned now, challenged now, any active, all; minimum counts, source, country/ASN, time; search by address/CIDR; edit, reset, bulk reset), Challenge (Cap), Sign-in providers, Engine (thresholds, ban function with curve, GeoIP) |
@@ -71,7 +71,7 @@ first paint. `dark:` variants follow `data-mode`, not the OS.
 | `/scripts` | Scripts | Script list with run history ticks; editor, schedule, timeout, env, targets; runs with output |
 | `/activity` | Activity | Tabs: Audit log, Jobs (last/next run, result), Live log |
 | `/connections` | Connections | All external systems grouped by type, health, last check, required marker |
-| `/settings` | Settings | Category list; Appearance (themes, custom theme editor with contrast guard, widgets), Account (passkeys, sessions, vault mode), General, and every category in 09 §2 |
+| `/settings` | Settings | Category list; Appearance (themes, custom theme editor with contrast guard, widgets), Account (passkeys, sessions, vault mode), General, Notifications (providers with add/edit, default route), and every category in 09 §2 |
 | `/states` | (reference) | Vault locked, empty, loading, error, confirmations |
 
 Shared security components (05a §7): IP set picker (filters to address sets in target positions), IP item editor (type

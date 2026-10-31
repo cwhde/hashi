@@ -2,14 +2,19 @@ package notify
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"io"
+	"mime"
+	"mime/multipart"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/mail"
 	"os"
 	"strings"
 	"sync"
@@ -163,7 +168,11 @@ func TestSMTPValidateRefusesPlainText(t *testing.T) {
 }
 
 func TestMailHeadersCannotBeInjected(t *testing.T) {
-	b := string(buildMail(SMTPConfig{From: "a@example.com", To: "b@example.com"}, Message{Subject: "x\r\nBcc: evil@example.com", Body: "b"}, time.Unix(0, 0)))
+	raw, err := buildMail(SMTPConfig{From: "a@example.com", To: "b@example.com"}, Message{Subject: "x\r\nBcc: evil@example.com", Body: "b"}, time.Unix(0, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := string(raw)
 	head, _, _ := strings.Cut(b, "\r\n\r\n")
 	for _, l := range strings.Split(head, "\r\n") {
 		if strings.HasPrefix(l, "Bcc:") {
@@ -210,7 +219,7 @@ func TestTelegramAgainstContract(t *testing.T) {
 	if err := bot.Send(ctx, Message{Subject: "Wiki is down", Body: "why"}); err != nil {
 		t.Fatal(err)
 	}
-	if body["text"] != "Wiki is down\nwhy" {
+	if body["text"] != "<b>Wiki is down</b>\nwhy" || body["parse_mode"] != "HTML" {
 		t.Fatalf("text %v", body["text"])
 	}
 	bot.ChatID = "1"
@@ -304,5 +313,119 @@ func TestSMTPSendsOverTLS(t *testing.T) {
 	}
 	if err := (SMTP{Config: cfg, Password: secrets.New("wrong"), RootsConfig: client}).Send(ctx, Message{Subject: "x"}); err == nil {
 		t.Fatal("refused login passed")
+	}
+}
+
+// The mail's colours are the app's themes.
+func TestMailPalettesMatchThemes(t *testing.T) {
+	css, err := os.ReadFile("../../web/src/routes/layout.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, p := range palettes {
+		_, rest, ok := strings.Cut(string(css), "[data-theme='"+name+"'] {")
+		if !ok {
+			t.Fatalf("theme %s is not in layout.css", name)
+		}
+		block, _, _ := strings.Cut(rest, "}")
+		for token, want := range map[string]string{"canvas": p.Canvas, "surface": p.Surface, "border": p.Border, "text": p.Text, "muted": p.Muted, "accent": p.Accent, "accent-text": p.AccentText} {
+			if !strings.Contains(block, "--h-"+token+": "+want+";") {
+				t.Errorf("%s: --h-%s is not %s", name, token, want)
+			}
+		}
+	}
+}
+
+// A message carries no raw check error: it would hand internal addresses to the mail or chat service.
+func TestAlertTextHidesInternalDetails(t *testing.T) {
+	for raw, want := range map[string]string{
+		`http: Get "http://10.0.0.5:8080/": dial tcp 10.0.0.5:8080: connect: connection refused`: "The service refused the connection.",
+		`tcp: dial tcp 10.0.0.5:22: i/o timeout`:                                                 "The service did not answer in time.",
+		"http: HTTP 503, expected 200-399":                                                       "The service answered with an error.",
+		"something new at 10.0.0.5":                                                              "Its check failed.",
+	} {
+		if got := plainReason(raw); got != want {
+			t.Errorf("%q: %q", raw, got)
+		}
+	}
+}
+
+// Both parts survive, service names are escaped, and the chosen theme reaches the page.
+func TestStyledMessages(t *testing.T) {
+	m := Message{Subject: "<Wiki> is down", Body: "The service refused the connection.", State: "down", Theme: "verdant", Link: "https://admin.example.com/status/e1",
+		At: time.Date(2026, 1, 2, 3, 4, 0, 0, time.UTC), Stats: []Stat{{"30 d", 99.5}}}
+	raw, err := buildMail(SMTPConfig{From: "a@example.com", To: "b@example.com"}, m, time.Unix(0, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	msg, err := mail.ReadMessage(bytes.NewReader(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, params, err := mime.ParseMediaType(msg.Header.Get("Content-Type"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	parts := map[string]string{}
+	mr := multipart.NewReader(msg.Body, params["boundary"])
+	for {
+		p, err := mr.NextPart()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		b, err := io.ReadAll(p) // the reader undoes quoted-printable
+		if err != nil {
+			t.Fatal(err)
+		}
+		parts[strings.Split(p.Header.Get("Content-Type"), ";")[0]] = string(b)
+	}
+	if !strings.Contains(parts["text/plain"], "Uptime 30 d: 99.5 %") {
+		t.Errorf("text part:\n%s", parts["text/plain"])
+	}
+	page := parts["text/html"]
+	for _, want := range []string{"&lt;Wiki&gt; is down", "#0a1a12", "#EF4444", "99.5 %", `href="https://admin.example.com/status/e1"`} {
+		if !strings.Contains(page, want) {
+			t.Errorf("html lacks %q:\n%s", want, page)
+		}
+	}
+	if strings.Contains(page, "ZgotmplZ") {
+		t.Errorf("template refused a value:\n%s", page)
+	}
+	tg := telegramHTML(m)
+	if !strings.Contains(tg, "🔴 <b>&lt;Wiki&gt; is down</b>") || !strings.Contains(tg, `<a href="https://admin.example.com/status/e1">`) {
+		t.Errorf("telegram: %s", tg)
+	}
+}
+
+func TestUpdateKeepsSecretUnlessGiven(t *testing.T) {
+	s, _, _ := fixture(t)
+	ctx := t.Context()
+	p, err := s.CreateTelegram(ctx, "Bot", TelegramConfig{ChatID: "1"}, secrets.New("token"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	keep := func(string) (any, error) { return TelegramConfig{ChatID: "2"}, nil }
+	r, err := s.Update(ctx, p.ID, "Renamed", keep, secrets.Value{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Name != "Renamed" || r.SecretID != p.SecretID || !strings.Contains(r.ConfigJson, `"2"`) {
+		t.Fatalf("%+v", r)
+	}
+	r2, err := s.Update(ctx, p.ID, "Renamed", keep, secrets.New("new"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r2.SecretID == p.SecretID {
+		t.Fatal("a new secret must replace the old one")
+	}
+	if _, err := s.st.R.GetSecret(ctx, p.SecretID.String); err == nil {
+		t.Fatal("the old secret must be gone")
+	}
+	if _, err := s.Update(ctx, "nope", "x", keep, secrets.Value{}); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("%v", err)
 	}
 }

@@ -34,6 +34,7 @@
 	};
 	afterNavigate(refreshPending);
 	onMount(() => {
+		void theme.sync();
 		refreshPending();
 		const timer = setInterval(refreshPending, 30_000);
 		return () => clearInterval(timer);
@@ -259,7 +260,7 @@
 					<DropdownMenu.Label>Theme</DropdownMenu.Label>
 					<DropdownMenu.RadioGroup
 						value={theme.current}
-						onValueChange={(v) => theme.set(v as typeof theme.current)}
+						onValueChange={(v) => void theme.save(v as typeof theme.current)}
 					>
 						{#each themes as t (t.id)}
 							<DropdownMenu.RadioItem value={t.id}>

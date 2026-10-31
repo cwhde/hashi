@@ -1011,7 +1011,8 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put?: never;
+        /** Change a provider's name and settings; leave its secret out to keep it */
+        put: operations["updateNotificationProvider"];
         post?: never;
         /** Remove a provider and its secret */
         delete: operations["deleteNotificationProvider"];
@@ -2207,6 +2208,26 @@ export interface components {
             from?: string;
             to?: string;
             /** Format: password */
+            bot_token?: string;
+            chat_id?: string;
+        };
+        NotificationProviderUpdate: {
+            name: string;
+            host?: string;
+            port?: number;
+            tls?: string;
+            username?: string;
+            /**
+             * Format: password
+             * @description New SMTP password; left out keeps the stored one
+             */
+            password?: string;
+            from?: string;
+            to?: string;
+            /**
+             * Format: password
+             * @description New bot token; left out keeps the stored one
+             */
             bot_token?: string;
             chat_id?: string;
         };
@@ -4807,6 +4828,33 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TelegramChats"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    updateNotificationProvider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationProviderUpdate"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationProvider"];
                 };
             };
             default: components["responses"]["Problem"];

@@ -1,13 +1,17 @@
 package notify
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"fmt"
 	"mime"
+	"mime/multipart"
+	"mime/quotedprintable"
 	"net"
 	"net/mail"
 	"net/smtp"
+	"net/textproto"
 	"strconv"
 	"strings"
 	"time"
@@ -114,7 +118,11 @@ func (s SMTP) Send(ctx context.Context, m Message) error {
 	if err != nil {
 		return fmt.Errorf("data: %w", err)
 	}
-	if _, err := w.Write(buildMail(c, m, time.Now())); err != nil {
+	raw, err := buildMail(c, m, time.Now())
+	if err != nil {
+		return err
+	}
+	if _, err := w.Write(raw); err != nil {
 		return fmt.Errorf("data: %w", err)
 	}
 	if err := w.Close(); err != nil {
@@ -123,12 +131,37 @@ func (s SMTP) Send(ctx context.Context, m Message) error {
 	return cl.Quit()
 }
 
-func buildMail(c SMTPConfig, m Message, now time.Time) []byte {
+// buildMail makes a mail with a plain text part and a styled one; the client shows the best it can.
+func buildMail(c SMTPConfig, m Message, now time.Time) ([]byte, error) {
+	page, err := mailHTML(m)
+	if err != nil {
+		return nil, err
+	}
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	for _, part := range []struct{ typ, content string }{{"text/plain", mailText(m)}, {"text/html", page}} {
+		w, err := mw.CreatePart(textproto.MIMEHeader{
+			"Content-Type":              {part.typ + "; charset=utf-8"},
+			"Content-Transfer-Encoding": {"quoted-printable"},
+		})
+		if err != nil {
+			return nil, err
+		}
+		qp := quotedprintable.NewWriter(w)
+		if _, err := qp.Write([]byte(part.content)); err != nil {
+			return nil, err
+		}
+		if err := qp.Close(); err != nil {
+			return nil, err
+		}
+	}
+	if err := mw.Close(); err != nil {
+		return nil, err
+	}
 	clean := strings.NewReplacer("\r", " ", "\n", " ")
-	var b strings.Builder
-	fmt.Fprintf(&b, "From: %s\r\nTo: %s\r\nSubject: %s\r\nDate: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n",
-		clean.Replace(c.From), clean.Replace(c.To), mime.QEncoding.Encode("utf-8", clean.Replace(m.Subject)), now.Format(time.RFC1123Z))
-	b.WriteString(strings.ReplaceAll(strings.ReplaceAll(m.Body, "\r\n", "\n"), "\n", "\r\n"))
-	b.WriteString("\r\n")
-	return []byte(b.String())
+	var b bytes.Buffer
+	fmt.Fprintf(&b, "From: %s\r\nTo: %s\r\nSubject: %s\r\nDate: %s\r\nMIME-Version: 1.0\r\nContent-Type: multipart/alternative; boundary=%s\r\n\r\n",
+		clean.Replace(c.From), clean.Replace(c.To), mime.QEncoding.Encode("utf-8", clean.Replace(stateEmojiPrefix(m)+m.Subject)), now.Format(time.RFC1123Z), mw.Boundary())
+	b.Write(body.Bytes())
+	return b.Bytes(), nil
 }

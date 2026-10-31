@@ -2476,6 +2476,23 @@ type NotificationProviderList struct {
 	Providers []NotificationProvider `json:"providers"`
 }
 
+// NotificationProviderUpdate defines model for NotificationProviderUpdate.
+type NotificationProviderUpdate struct {
+	// BotToken New bot token; left out keeps the stored one
+	BotToken *string `json:"bot_token,omitempty"`
+	ChatId   *string `json:"chat_id,omitempty"`
+	From     *string `json:"from,omitempty"`
+	Host     *string `json:"host,omitempty"`
+	Name     string  `json:"name"`
+
+	// Password New SMTP password; left out keeps the stored one
+	Password *string `json:"password,omitempty"`
+	Port     *int    `json:"port,omitempty"`
+	Tls      *string `json:"tls,omitempty"`
+	To       *string `json:"to,omitempty"`
+	Username *string `json:"username,omitempty"`
+}
+
 // NotificationRoute defines model for NotificationRoute.
 type NotificationRoute struct {
 	CooldownSeconds int64                        `json:"cooldown_seconds"`
@@ -3192,6 +3209,9 @@ type PutMonitorEndpointJSONRequestBody = MonitorEndpointSettings
 // CreateNotificationProviderJSONRequestBody defines body for CreateNotificationProvider for application/json ContentType.
 type CreateNotificationProviderJSONRequestBody = NotificationProviderCreate
 
+// UpdateNotificationProviderJSONRequestBody defines body for UpdateNotificationProvider for application/json ContentType.
+type UpdateNotificationProviderJSONRequestBody = NotificationProviderUpdate
+
 // PutNotificationRouteJSONRequestBody defines body for PutNotificationRoute for application/json ContentType.
 type PutNotificationRouteJSONRequestBody = NotificationRoute
 
@@ -3697,6 +3717,9 @@ type ServerInterface interface {
 	// DeleteNotificationProvider Remove a provider and its secret
 	// (DELETE /api/notifications/providers/{id})
 	DeleteNotificationProvider(w http.ResponseWriter, r *http.Request, id string)
+	// UpdateNotificationProvider Change a provider's name and settings; leave its secret out to keep it
+	// (PUT /api/notifications/providers/{id})
+	UpdateNotificationProvider(w http.ResponseWriter, r *http.Request, id string)
 	// TestNotificationProvider Send a test message through the normal delivery path
 	// (POST /api/notifications/providers/{id}/test)
 	TestNotificationProvider(w http.ResponseWriter, r *http.Request, id string)
@@ -5617,6 +5640,32 @@ func (siw *ServerInterfaceWrapper) DeleteNotificationProvider(w http.ResponseWri
 	handler.ServeHTTP(w, r)
 }
 
+// UpdateNotificationProvider operation middleware
+func (siw *ServerInterfaceWrapper) UpdateNotificationProvider(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateNotificationProvider(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // TestNotificationProvider operation middleware
 func (siw *ServerInterfaceWrapper) TestNotificationProvider(w http.ResponseWriter, r *http.Request) {
 
@@ -6998,6 +7047,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/notifications/providers", wrapper.CreateNotificationProvider)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/notifications/telegram/discover", wrapper.DiscoverTelegramChats)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/notifications/providers/{id}", wrapper.DeleteNotificationProvider)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/notifications/providers/{id}", wrapper.UpdateNotificationProvider)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/notifications/providers/{id}/test", wrapper.TestNotificationProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/notifications/route", wrapper.GetNotificationRoute)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/notifications/route", wrapper.PutNotificationRoute)
@@ -9977,6 +10027,46 @@ func (response DeleteNotificationProviderdefaultApplicationProblemPlusJSONRespon
 	return err
 }
 
+type UpdateNotificationProviderRequestObject struct {
+	Id   string `json:"id"`
+	Body *UpdateNotificationProviderJSONRequestBody
+}
+
+type UpdateNotificationProviderResponseObject interface {
+	VisitUpdateNotificationProviderResponse(w http.ResponseWriter) error
+}
+
+type UpdateNotificationProvider200JSONResponse NotificationProvider
+
+func (response UpdateNotificationProvider200JSONResponse) VisitUpdateNotificationProviderResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateNotificationProviderdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response UpdateNotificationProviderdefaultApplicationProblemPlusJSONResponse) VisitUpdateNotificationProviderResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type TestNotificationProviderRequestObject struct {
 	Id string `json:"id"`
 }
@@ -12860,6 +12950,9 @@ type StrictServerInterface interface {
 	// DeleteNotificationProvider Remove a provider and its secret
 	// (DELETE /api/notifications/providers/{id})
 	DeleteNotificationProvider(ctx context.Context, request DeleteNotificationProviderRequestObject) (DeleteNotificationProviderResponseObject, error)
+	// UpdateNotificationProvider Change a provider's name and settings; leave its secret out to keep it
+	// (PUT /api/notifications/providers/{id})
+	UpdateNotificationProvider(ctx context.Context, request UpdateNotificationProviderRequestObject) (UpdateNotificationProviderResponseObject, error)
 	// TestNotificationProvider Send a test message through the normal delivery path
 	// (POST /api/notifications/providers/{id}/test)
 	TestNotificationProvider(ctx context.Context, request TestNotificationProviderRequestObject) (TestNotificationProviderResponseObject, error)
@@ -15177,6 +15270,39 @@ func (sh *strictHandler) DeleteNotificationProvider(w http.ResponseWriter, r *ht
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(DeleteNotificationProviderResponseObject); ok {
 		if err := validResponse.VisitDeleteNotificationProviderResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateNotificationProvider operation middleware
+func (sh *strictHandler) UpdateNotificationProvider(w http.ResponseWriter, r *http.Request, id string) {
+	var request UpdateNotificationProviderRequestObject
+
+	request.Id = id
+
+	var body UpdateNotificationProviderJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateNotificationProvider(ctx, request.(UpdateNotificationProviderRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateNotificationProvider")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateNotificationProviderResponseObject); ok {
+		if err := validResponse.VisitUpdateNotificationProviderResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

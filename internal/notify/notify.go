@@ -13,6 +13,7 @@ import (
 	"github.com/oklog/ulid/v2"
 
 	"git.juzo.io/juzo/hashi/internal/secrets"
+	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/store"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 	"git.juzo.io/juzo/hashi/internal/vault"
@@ -33,8 +34,16 @@ var (
 	ErrInvalid  = errors.New("invalid")
 )
 
-// Message is what a provider sends.
-type Message struct{ Subject, Body string }
+// Message is what a provider sends. Subject and Body are always set for a real delivery; the rest shapes its look.
+// Nothing here may name an internal address: it leaves through someone else's mail or chat service.
+type Message struct {
+	Subject, Body string
+	State         string // up, degraded, down or test: picks the colour
+	Theme         string // the admin's theme, for mail
+	Link          string // this alert's page in the admin UI
+	At            time.Time
+	Stats         []Stat
+}
 
 // Sender delivers to one configured provider.
 type Sender interface {
@@ -120,6 +129,53 @@ func (s *Service) create(ctx context.Context, typ, name string, config any, secr
 	return row, err
 }
 
+// Update changes a provider's name and settings. Its type is fixed. A zero secret keeps the stored one.
+func (s *Service) Update(ctx context.Context, id, name string, config func(typ string) (any, error), secret secrets.Value) (db.NotificationProvider, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return db.NotificationProvider{}, fmt.Errorf("%w: a name is required", ErrInvalid)
+	}
+	var row db.NotificationProvider
+	err := s.st.Tx(ctx, func(q *db.Queries) error {
+		var err error
+		row, err = q.GetNotificationProvider(ctx, id)
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+		c, err := config(row.Type)
+		if err != nil {
+			return err
+		}
+		b, err := json.Marshal(c)
+		if err != nil {
+			return err
+		}
+		old := row.SecretID
+		if !secret.IsZero() {
+			p, err := s.vault.Seal(vault.Service, "notification:"+row.ID, secret)
+			if err != nil {
+				return err
+			}
+			if err := q.InsertSecret(ctx, p); err != nil {
+				return err
+			}
+			row.SecretID = sql.NullString{String: p.ID, Valid: true}
+		}
+		row.Name, row.ConfigJson, row.UpdatedAt = name, string(b), s.now().UnixMilli()
+		if err := q.UpdateNotificationProvider(ctx, db.UpdateNotificationProviderParams{Name: row.Name, ConfigJson: row.ConfigJson, SecretID: row.SecretID, UpdatedAt: row.UpdatedAt, ID: row.ID}); err != nil {
+			return err
+		}
+		if old.Valid && old != row.SecretID {
+			return q.DeleteSecret(ctx, old.String)
+		}
+		return nil
+	})
+	return row, err
+}
+
 // Delete removes a provider and its secret. Its deliveries go with it; a route naming it falls back to none.
 func (s *Service) Delete(ctx context.Context, id string) error {
 	return s.st.Tx(ctx, func(q *db.Queries) error {
@@ -175,9 +231,9 @@ func (s *Service) StateChanged(ctx context.Context, q *db.Queries, e db.MonitorE
 	now := s.now().UnixMilli()
 	id := sql.NullString{String: e.ID, Valid: true}
 	alarm := func(st string) bool { return st == "down" || (st == "degraded" && r.MinSeverity == "degraded") }
-	insert := func(kind, subject string, at int64) error {
+	insert := func(kind, subject string, at int64, body string) error {
 		return q.InsertNotificationDelivery(ctx, db.InsertNotificationDeliveryParams{ID: ulid.Make().String(), ProviderID: provider.String,
-			EndpointID: id, Kind: kind, Subject: subject, Body: message, NextAttemptAt: at, CreatedAt: now})
+			EndpointID: id, Kind: kind, Subject: subject, Body: body, NextAttemptAt: at, CreatedAt: now})
 	}
 	switch {
 	case alarm(to):
@@ -196,7 +252,7 @@ func (s *Service) StateChanged(ctx context.Context, q *db.Queries, e db.MonitorE
 		if last > 0 && now-last < r.CooldownSeconds*1000 {
 			at = last + r.CooldownSeconds*1000
 		}
-		return insert("alert", e.Name+" is "+to, at)
+		return insert("alert", e.Name+" is "+to, at, plainReason(message))
 	case alarm(from):
 		cancelled, err := q.DeletePendingAlerts(ctx, id)
 		if err != nil {
@@ -205,7 +261,7 @@ func (s *Service) StateChanged(ctx context.Context, q *db.Queries, e db.MonitorE
 		if cancelled > 0 || r.Recovery != 1 {
 			return nil
 		}
-		return insert("recovery", e.Name+" is "+to+" again", now)
+		return insert("recovery", e.Name+" is "+to+" again", now, "It was "+from+" for "+plainDuration(s.now().Sub(time.UnixMilli(e.StateSince)))+".")
 	}
 	return nil
 }
@@ -275,7 +331,42 @@ func (s *Service) sendOne(ctx context.Context, d db.NotificationDelivery) error 
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	return sender.Send(ctx, Message{Subject: d.Subject, Body: d.Body})
+	return sender.Send(ctx, s.message(ctx, d))
+}
+
+// message dresses a delivery. Everything added is optional: a failed lookup leaves it out and never blocks an alert.
+func (s *Service) message(ctx context.Context, d db.NotificationDelivery) Message {
+	m := Message{Subject: d.Subject, Body: d.Body, At: time.UnixMilli(d.CreatedAt)}
+	if a, err := settings.Get[settings.Appearance](ctx, s.st.R); err == nil {
+		m.Theme = a.Theme
+	}
+	path := "/status"
+	switch {
+	case d.Kind == "test":
+		m.State = "test"
+	case d.Kind == "recovery":
+		m.State = "up"
+	case strings.HasSuffix(d.Subject, " is degraded"):
+		m.State = "degraded"
+	default:
+		m.State = "down"
+	}
+	if d.EndpointID.Valid {
+		path += "/" + d.EndpointID.String
+		for _, w := range []struct {
+			label string
+			since time.Duration
+		}{{"24 h", 24 * time.Hour}, {"7 d", 7 * 24 * time.Hour}, {"30 d", 30 * 24 * time.Hour}} {
+			r, err := s.st.R.UptimeSince(ctx, db.UptimeSinceParams{EndpointID: d.EndpointID.String, At: s.now().Add(-w.since).UnixMilli()})
+			if err == nil && r.Total > 0 {
+				m.Stats = append(m.Stats, Stat{Label: w.label, Percent: float64(r.OkCount) / float64(r.Total) * 100})
+			}
+		}
+	}
+	if g, err := settings.Get[settings.General](ctx, s.st.R); err == nil && g.AdminDomain != "" {
+		m.Link = "https://" + g.AdminDomain + path
+	}
+	return m
 }
 
 func nullStr(s string) sql.NullString { return sql.NullString{String: s, Valid: s != ""} }

@@ -92,6 +92,9 @@ SELECT * FROM notification_providers WHERE id = ?;
 -- name: InsertNotificationProvider :exec
 INSERT INTO notification_providers (id, type, name, config_json, secret_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?);
 
+-- name: UpdateNotificationProvider :exec
+UPDATE notification_providers SET name = ?, config_json = ?, secret_id = ?, updated_at = ? WHERE id = ?;
+
 -- name: DeleteNotificationProvider :exec
 DELETE FROM notification_providers WHERE id = ?;
 

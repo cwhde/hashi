@@ -495,7 +495,35 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	// Notifications: no provider yet; the page explains it.
 	await page.goto(`${state.baseURL}/status`);
 	await page.getByRole('tab', { name: 'Notifications' }).click();
-	await expect(page.getByText('Add a provider to receive alerts.')).toBeVisible();
+	await expect(page.getByText('No alerts are sent until you choose a provider.')).toBeVisible();
+	await page.getByRole('link', { name: 'Notification settings' }).click();
+	await expect(page.getByText('Add Telegram or email to receive alerts.')).toBeVisible();
+
+	// A provider can be renamed without entering its secret again.
+	await page.getByRole('button', { name: 'Add provider' }).click();
+	await page.getByLabel('Name').fill('Bot');
+	await page.getByLabel('Bot token').fill('123:e2e-token');
+	await page.getByLabel('Chat').fill('123');
+	await page.getByRole('button', { name: 'Add provider' }).last().click();
+	await expect(page.getByText('Telegram · chat 123')).toBeVisible();
+	await page.getByRole('button', { name: 'Edit Bot' }).click();
+	await page.getByLabel('Name').fill('My Telegram');
+	await page.getByRole('button', { name: 'Save changes' }).click();
+	await expect(page.getByRole('button', { name: 'Edit My Telegram' })).toBeVisible();
+	await expect(page.getByText('Telegram · chat 123')).toBeVisible();
+	await page.getByRole('button', { name: 'Remove My Telegram' }).click();
+	await expect(page.getByText('Add Telegram or email to receive alerts.')).toBeVisible();
+
+	// The theme is saved, not only remembered by this browser.
+	await page.getByRole('button', { name: 'Theme', exact: true }).click();
+	await page.getByRole('menuitemradio', { name: 'Violet Night' }).click();
+	await expect(page.locator('html')).toHaveAttribute('data-theme', 'violet');
+	await expect
+		.poll(async () => (await page.request.get(`${state.baseURL}/api/settings/appearance`)).json())
+		.toMatchObject({ theme: 'violet' });
+	await page.evaluate(() => localStorage.removeItem('hashi.theme'));
+	await page.reload();
+	await expect(page.locator('html')).toHaveAttribute('data-theme', 'violet');
 	await page.goto(`${state.baseURL}/app-display`);
 	await expect(page.getByRole('switch', { name: 'Show E2E port publicly' })).toBeChecked();
 

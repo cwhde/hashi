@@ -19,13 +19,15 @@
 	import { withReauth } from '$lib/auth/reauth';
 	import { createPasskey, ceremonyText } from '$lib/auth/webauthn';
 	import { dateTime, time } from '$lib/format';
-	import { theme, themes, type ThemeId } from '$lib/theme.svelte';
+	import { theme, themes } from '$lib/theme.svelte';
+	import Notifications from '$lib/components/hashi/status/Notifications.svelte';
 
 	const cats = [
 		{ id: 'general', label: 'General' },
 		{ id: 'account', label: 'Account' },
 		{ id: 'appearance', label: 'Appearance' },
-		{ id: 'security', label: 'Security' }
+		{ id: 'security', label: 'Security' },
+		{ id: 'notifications', label: 'Notifications' }
 	];
 	const cat = $derived(page.url.searchParams.get('category') ?? 'general');
 	function show(id: string) {
@@ -98,9 +100,8 @@
 			'appearance',
 			async () => {
 				appearance = await withReauth(() =>
-					api.PUT('/api/settings/appearance', { body: appearance! })
+					api.PUT('/api/settings/appearance', { body: { ...appearance!, theme: theme.current } })
 				);
-				theme.set(appearance.theme as ThemeId);
 			},
 			'Saved.'
 		);
@@ -370,6 +371,8 @@
 			</p>
 		{:else if !all}
 			{@render loading()}
+		{:else if cat === 'notifications'}
+			<Notifications />
 		{:else if cat === 'general' && general}
 			<Panel title="Domains and addresses">
 				<div class="grid gap-4 md:grid-cols-2">
@@ -467,11 +470,11 @@
 				<div class="grid grid-cols-2 gap-3 md:grid-cols-4">
 					{#each themes as t (t.id)}
 						<button
-							onclick={() => ((appearance!.theme = t.id), theme.set(t.id))}
-							aria-pressed={appearance.theme === t.id}
+							onclick={() => void theme.save(t.id)}
+							aria-pressed={theme.current === t.id}
 							class={cn(
 								'rounded-xl border p-1.5 text-left',
-								appearance.theme === t.id && 'ring-2 ring-ring'
+								theme.current === t.id && 'ring-2 ring-ring'
 							)}
 						>
 							<div

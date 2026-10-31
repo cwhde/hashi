@@ -86,11 +86,10 @@ func (t Telegram) call(ctx context.Context, method string, body any) (json.RawMe
 
 // Send implements Sender.
 func (t Telegram) Send(ctx context.Context, m Message) error {
-	text := m.Subject
-	if m.Body != "" {
-		text += "\n" + m.Body
-	}
-	_, err := t.call(ctx, "sendMessage", map[string]string{"chat_id": t.ChatID, "text": text})
+	_, err := t.call(ctx, "sendMessage", map[string]any{
+		"chat_id": t.ChatID, "text": telegramHTML(m), "parse_mode": "HTML",
+		"link_preview_options": map[string]bool{"is_disabled": true},
+	})
 	return err
 }
 

@@ -1045,6 +1045,29 @@ func (q *Queries) UpdateMonitorEndpointSettings(ctx context.Context, arg UpdateM
 	return err
 }
 
+const updateNotificationProvider = `-- name: UpdateNotificationProvider :exec
+UPDATE notification_providers SET name = ?, config_json = ?, secret_id = ?, updated_at = ? WHERE id = ?
+`
+
+type UpdateNotificationProviderParams struct {
+	Name       string
+	ConfigJson string
+	SecretID   sql.NullString
+	UpdatedAt  int64
+	ID         string
+}
+
+func (q *Queries) UpdateNotificationProvider(ctx context.Context, arg UpdateNotificationProviderParams) error {
+	_, err := q.db.ExecContext(ctx, updateNotificationProvider,
+		arg.Name,
+		arg.ConfigJson,
+		arg.SecretID,
+		arg.UpdatedAt,
+		arg.ID,
+	)
+	return err
+}
+
 const upsertMonitorRollup = `-- name: UpsertMonitorRollup :exec
 INSERT OR REPLACE INTO monitor_rollups (endpoint_id, check_id, resolution, bucket, count, ok_count, min_ms, max_ms, avg_ms, p95_ms)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
