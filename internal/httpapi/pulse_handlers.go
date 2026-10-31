@@ -36,7 +36,7 @@ func pulseBody(r db.PulseAgent) gen.PulseAgent {
 		cands = append(cands, c.Address)
 	}
 	return gen.PulseAgent{Id: r.ID, Name: r.Name, Status: gen.PulseAgentStatus(pulse.Status(r, time.Now())), InstallType: r.InstallType, PublicIp: r.PublicIp, SelectedIp: r.SelectedIp,
-		Candidates: cands, Hostname: r.Hostname, Version: r.Version, IntervalSeconds: int(r.IntervalSeconds), LastSeenAt: millis(r.LastSeenAt), DnsEnabled: r.DnsEnabled == 1, DnsName: r.DnsName}
+		Candidates: cands, Hostname: r.Hostname, Version: r.Version, IntervalSeconds: int(r.IntervalSeconds), LastSeenAt: millis(r.LastSeenAt), DnsEnabled: r.DnsEnabled == 1, DnsName: r.DnsName, TrustReportedIp: r.TrustReportedIp == 1, PublicIpSource: gen.PulseAgentPublicIpSource(r.PublicIpSource)}
 }
 
 // PulseHeartbeat takes an agent's report. It needs the agent's token and nothing else (08 §3).
@@ -52,10 +52,14 @@ func (s *Server) PulseHeartbeat(ctx context.Context, req gen.PulseHeartbeatReque
 	for _, c := range req.Body.Candidates {
 		b.Candidates = append(b.Candidates, pulse.Candidate{Interface: c.Interface, Address: c.Address})
 	}
-	if err := s.Pulse.Heartbeat(ctx, req.AgentId, token, b, info(ctx).ip); err != nil {
+	if req.Body.ReportedPublicIp != nil {
+		b.ReportedPublic = *req.Body.ReportedPublicIp
+	}
+	check, err := s.Pulse.Heartbeat(ctx, req.AgentId, token, b, info(ctx).ip)
+	if err != nil {
 		return nil, pulseError(err)
 	}
-	return gen.PulseHeartbeat204Response{}, nil
+	return gen.PulseHeartbeat200JSONResponse{CheckPublicIp: check}, nil
 }
 
 func (s *Server) ListPulseAgents(ctx context.Context, _ gen.ListPulseAgentsRequestObject) (gen.ListPulseAgentsResponseObject, error) {
@@ -99,7 +103,7 @@ func (s *Server) UpdatePulseAgent(ctx context.Context, req gen.UpdatePulseAgentR
 	if req.Body.DnsName != nil {
 		name = *req.Body.DnsName
 	}
-	row, err := s.Pulse.SetDNS(ctx, req.Id, req.Body.Name, req.Body.DnsEnabled, name)
+	row, err := s.Pulse.SetDNS(ctx, req.Id, req.Body.Name, req.Body.DnsEnabled, name, req.Body.TrustReportedIp)
 	if err != nil {
 		return nil, pulseError(err)
 	}

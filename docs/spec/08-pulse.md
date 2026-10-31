@@ -40,6 +40,12 @@ address), `internal` (private candidates, selected one first, optional interface
 type makes an agent usable in every position: firewall allow/block and host access, rule `Applies To`, DNS record values,
 service upstreams and connection targets. There is no separate agent-bound target model.
 
+**Public address.** The heartbeat's source address is proof and always wins. An agent that reaches Hashi only over a
+private path has none, so per agent the admin can trust its own report (off by default, shown as "self-reported"). Hashi
+then asks it to check: it asks Cloudflare over TLS and OpenDNS, both by address because filtering DNS blocks the usual
+names, at most every 5 minutes, and reports only if they agree. A token thief could name any single public address for a
+trusted agent, which is why this is opt-in; a private or shared-carrier address is refused, and each change is audited.
+
 On an address change (heartbeat with new public address or new private candidates):
 
 1. Recompile every IP set that contains the agent (directly or nested) and notify their consumers (05a §4.2).
@@ -72,7 +78,8 @@ API: `/api/pulse/agents` CRUD, `POST /api/pulse/agents/{id}/rotate-token|revoke`
 
 ## 6. Releases
 
-Pulse binaries (amd64/arm64) are built into the Hashi image and served with SHA-256 checksums; multi-arch image published to
+Pulse binaries (amd64/arm64) are built into the Hashi image and served with SHA-256 checksums. Tags also attach them with
+checksums to a Gitea release; the installer can use those with `--from <base URL>`. Multi-arch image published to
 `git.juzo.io/juzo/hashi-pulse`.
 
 ## 7. Tests that must exist

@@ -2460,10 +2460,15 @@ export interface components {
             version: string;
             hostname: string;
             selected_interface?: string;
+            /** @description Sent only after Hashi asked; used only for an agent the admin trusts for it */
+            reported_public_ip?: string;
             candidates: {
                 interface: string;
                 address: string;
             }[];
+        };
+        PulseHeartbeatReply: {
+            check_public_ip: boolean;
         };
         PulseAgent: {
             id: string;
@@ -2481,6 +2486,9 @@ export interface components {
             last_seen_at?: string;
             dns_enabled: boolean;
             dns_name: string;
+            trust_reported_ip: boolean;
+            /** @enum {string} */
+            public_ip_source: "" | "connection" | "reported";
         };
         PulseAgentList: {
             agents: components["schemas"]["PulseAgent"][];
@@ -2496,6 +2504,7 @@ export interface components {
             name: string;
             dns_enabled: boolean;
             dns_name?: string;
+            trust_reported_ip: boolean;
         };
         PulseAgentToken: {
             agent: components["schemas"]["PulseAgent"];
@@ -5504,11 +5513,13 @@ export interface operations {
         };
         responses: {
             /** @description Recorded */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["PulseHeartbeatReply"];
+                };
             };
             default: components["responses"]["Problem"];
         };

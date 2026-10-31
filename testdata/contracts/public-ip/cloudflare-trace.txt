@@ -1,0 +1,17 @@
+# captured_at: 2026-10-31; docs_url: https://developers.cloudflare.com/fundamentals/reference/http-headers/ ; GET https://1.1.1.1/cdn-cgi/trace (text/plain, 200)
+fl=920f85
+h=1.1.1.1
+ip=198.51.100.7
+ts=1793462376.000
+visit_scheme=https
+uag=curl/8.7.1
+colo=XX
+sliver=none
+http=http/2
+loc=XX
+tls=TLSv1.3
+sni=off
+warp=off
+gateway=off
+rbi=off
+kex=X25519

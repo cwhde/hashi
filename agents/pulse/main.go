@@ -86,6 +86,92 @@ type beat struct {
 	Hostname   string      `json:"hostname"`
 	Candidates []candidate `json:"candidates"`
 	Selected   string      `json:"selected_interface,omitempty"`
+	// ReportedPublic is this machine's public address as outside services see it. Sent only when Hashi asks for it.
+	ReportedPublic string `json:"reported_public_ip,omitempty"`
+}
+
+// reply is Hashi's answer to a heartbeat.
+type reply struct {
+	CheckPublicIP bool `json:"check_public_ip"`
+}
+
+// Outside services are asked by address, not name: a filtering DNS server blocks the well-known names
+// (testdata/contracts/public-ip). They are two separate companies, one over authenticated TLS and one over DNS.
+const (
+	traceURL        = "https://1.1.1.1/cdn-cgi/trace"
+	openDNSServer   = "208.67.222.222:53"
+	openDNSName     = "myip.opendns.com"
+	publicIPRecheck = 5 * time.Minute
+)
+
+// parseTrace finds the address in Cloudflare's trace answer.
+func parseTrace(body string) (netip.Addr, error) {
+	for _, l := range strings.Split(body, "\n") {
+		if v, ok := strings.CutPrefix(l, "ip="); ok {
+			return netip.ParseAddr(strings.TrimSpace(v))
+		}
+	}
+	return netip.Addr{}, errors.New("no address in the answer")
+}
+
+func traceIP(ctx context.Context, h *http.Client) (netip.Addr, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, traceURL, nil)
+	if err != nil {
+		return netip.Addr{}, err
+	}
+	res, err := h.Do(req)
+	if err != nil {
+		return netip.Addr{}, err
+	}
+	defer func() { _ = res.Body.Close() }()
+	body, err := io.ReadAll(io.LimitReader(res.Body, 4096))
+	if err != nil {
+		return netip.Addr{}, err
+	}
+	return parseTrace(string(body))
+}
+
+func openDNSIP(ctx context.Context) (netip.Addr, error) {
+	r := &net.Resolver{PreferGo: true, Dial: func(ctx context.Context, network, _ string) (net.Conn, error) {
+		var d net.Dialer
+		return d.DialContext(ctx, network, openDNSServer)
+	}}
+	addrs, err := r.LookupNetIP(ctx, "ip4", openDNSName)
+	if err != nil {
+		return netip.Addr{}, err
+	}
+	if len(addrs) != 1 {
+		return netip.Addr{}, errors.New("expected one address")
+	}
+	return addrs[0].Unmap(), nil
+}
+
+// agreed returns the address only when both sources name the same public one: one wrong answer must not move a firewall rule.
+func agreed(a, b netip.Addr) (string, bool) {
+	if !a.IsValid() || a != b || !a.IsGlobalUnicast() || a.IsPrivate() {
+		return "", false
+	}
+	return a.String(), true
+}
+
+func publicIP(ctx context.Context, h *http.Client) string {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	a, err := traceIP(ctx, h)
+	if err != nil {
+		log.Printf("public address check: %v", err)
+		return ""
+	}
+	b, err := openDNSIP(ctx)
+	if err != nil {
+		log.Printf("public address check: %v", err)
+		return ""
+	}
+	ip, ok := agreed(a, b)
+	if !ok {
+		log.Print("public address check: the two sources disagree, not reporting")
+	}
+	return ip
 }
 
 // usable leaves out what could never reach this machine from elsewhere.
@@ -117,27 +203,28 @@ func candidates() ([]candidate, error) {
 	return out, nil
 }
 
-func send(ctx context.Context, h *http.Client, c config, b beat) error {
+func send(ctx context.Context, h *http.Client, c config, b beat) (reply, error) {
+	var out reply
 	body, err := json.Marshal(b)
 	if err != nil {
-		return err
+		return out, err
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.URL+"/api/pulse/"+c.AgentID+"/heartbeat", bytes.NewReader(body))
 	if err != nil {
-		return err
+		return out, err
 	}
 	req.Header.Set("Authorization", "Bearer "+c.Token)
 	req.Header.Set("Content-Type", "application/json")
 	res, err := h.Do(req)
 	if err != nil {
-		return err
+		return out, err
 	}
 	defer func() { _ = res.Body.Close() }()
-	_, _ = io.Copy(io.Discard, io.LimitReader(res.Body, 4096))
-	if res.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("Hashi answered HTTP %d", res.StatusCode) //nolint:staticcheck // a name
+	if res.StatusCode != http.StatusOK {
+		_, _ = io.Copy(io.Discard, io.LimitReader(res.Body, 4096))
+		return out, fmt.Errorf("Hashi answered HTTP %d", res.StatusCode) //nolint:staticcheck // a name
 	}
-	return nil
+	return out, json.NewDecoder(io.LimitReader(res.Body, 4096)).Decode(&out)
 }
 
 // jitter spreads many agents over time: ±10 %.
@@ -150,15 +237,29 @@ func run(ctx context.Context, c config) error {
 	host, _ := os.Hostname()
 	wait := time.Duration(0)
 	failures := 0
+	check, reported := false, ""
+	var checked time.Time
 	for {
 		select {
 		case <-ctx.Done():
 			return nil
 		case <-time.After(wait):
 		}
+		if !check {
+			reported = ""
+		} else if time.Since(checked) >= publicIPRecheck { // outside services hear from this machine only this often
+			reported, checked = publicIP(ctx, h), time.Now()
+		}
 		cs, err := candidates()
 		if err == nil {
-			err = send(ctx, h, c, beat{Version: Version, Hostname: host, Candidates: cs, Selected: c.Interface})
+			var r reply
+			r, err = send(ctx, h, c, beat{Version: Version, Hostname: host, Candidates: cs, Selected: c.Interface, ReportedPublic: reported})
+			if err == nil {
+				if r.CheckPublicIP && !check {
+					wait = 0
+				}
+				check = r.CheckPublicIP
+			}
 		}
 		if err == nil {
 			failures, wait = 0, jitter(c.Interval)

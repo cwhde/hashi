@@ -455,6 +455,8 @@ type PulseAgent struct {
 	DnsName         string
 	CreatedAt       int64
 	UpdatedAt       int64
+	TrustReportedIp int64
+	PublicIpSource  string
 }
 
 type PulseConfig struct {

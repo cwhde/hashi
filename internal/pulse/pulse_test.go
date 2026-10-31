@@ -42,16 +42,16 @@ func TestTokenLifecycle(t *testing.T) {
 		t.Fatal("the token must be long and stored only as a hash")
 	}
 	beat := Beat{Version: "1", Candidates: []Candidate{{"eth0", "10.0.0.5"}}}
-	if err := s.Heartbeat(ctx, a.ID, "wrong", beat, netip.Addr{}); !errors.Is(err, ErrToken) {
+	if _, err := s.Heartbeat(ctx, a.ID, "wrong", beat, netip.Addr{}); !errors.Is(err, ErrToken) {
 		t.Fatalf("wrong token: %v", err)
 	}
-	if err := s.Heartbeat(ctx, "nobody", tok.Reveal(), beat, netip.Addr{}); !errors.Is(err, ErrToken) {
+	if _, err := s.Heartbeat(ctx, "nobody", tok.Reveal(), beat, netip.Addr{}); !errors.Is(err, ErrToken) {
 		t.Fatalf("unknown agent: %v", err)
 	}
-	if err := s.Heartbeat(ctx, a.ID, tok.Reveal(), beat, netip.MustParseAddr("192.0.2.9")); err != nil {
+	if _, err := s.Heartbeat(ctx, a.ID, tok.Reveal(), beat, netip.MustParseAddr("192.0.2.9")); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.Heartbeat(ctx, a.ID, tok.Reveal(), beat, netip.Addr{}); !errors.Is(err, ErrRate) {
+	if _, err := s.Heartbeat(ctx, a.ID, tok.Reveal(), beat, netip.Addr{}); !errors.Is(err, ErrRate) {
 		t.Fatalf("rate: %v", err)
 	}
 	*now = now.Add(time.Minute)
@@ -59,17 +59,17 @@ func TestTokenLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := s.Heartbeat(ctx, a.ID, tok.Reveal(), beat, netip.Addr{}); !errors.Is(err, ErrToken) {
+	if _, err := s.Heartbeat(ctx, a.ID, tok.Reveal(), beat, netip.Addr{}); !errors.Is(err, ErrToken) {
 		t.Fatal("the old token must stop working")
 	}
-	if err := s.Heartbeat(ctx, a.ID, tok2.Reveal(), beat, netip.Addr{}); err != nil {
+	if _, err := s.Heartbeat(ctx, a.ID, tok2.Reveal(), beat, netip.Addr{}); err != nil {
 		t.Fatal(err)
 	}
 	*now = now.Add(time.Minute)
 	if _, err := s.Revoke(ctx, a.ID); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.Heartbeat(ctx, a.ID, tok2.Reveal(), beat, netip.Addr{}); !errors.Is(err, ErrToken) {
+	if _, err := s.Heartbeat(ctx, a.ID, tok2.Reveal(), beat, netip.Addr{}); !errors.Is(err, ErrToken) {
 		t.Fatal("a revoked agent must be refused")
 	}
 	if _, err := s.Addrs(ctx, s.st.R, a.ID, ipsets.ScopeInternal, ""); err == nil {
@@ -85,7 +85,7 @@ func TestHeartbeatValidates(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, b := range []Beat{{Candidates: []Candidate{{"eth0", "not-an-address"}}}, {Candidates: make([]Candidate, 65)}, {Candidates: []Candidate{{"bad name;", "10.0.0.1"}}}} {
-		if err := s.Heartbeat(ctx, a.ID, tok.Reveal(), b, netip.Addr{}); !errors.Is(err, ErrInvalid) {
+		if _, err := s.Heartbeat(ctx, a.ID, tok.Reveal(), b, netip.Addr{}); !errors.Is(err, ErrInvalid) {
 			t.Errorf("%+v: %v", b, err)
 		}
 	}
@@ -101,7 +101,7 @@ func TestAddressesPerScope(t *testing.T) {
 	changes := make(chan struct{}, 4)
 	s.OnChange(func(context.Context) { changes <- struct{}{} })
 	cands := []Candidate{{"wg0", "100.64.0.2"}, {"eth0", "10.0.0.5"}, {"eth1", "10.1.0.5"}, {"lo", "127.0.0.1"}}
-	if err := s.Heartbeat(ctx, a.ID, tok.Reveal(), Beat{Candidates: cands}, netip.MustParseAddr("192.0.2.9")); err != nil {
+	if _, err := s.Heartbeat(ctx, a.ID, tok.Reveal(), Beat{Candidates: cands}, netip.MustParseAddr("192.0.2.9")); err != nil {
 		t.Fatal(err)
 	}
 	select {
@@ -155,7 +155,7 @@ func TestAgentDNS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := s.Heartbeat(ctx, a.ID, tok.Reveal(), Beat{Candidates: []Candidate{{"eth0", "10.0.0.5"}}}, netip.Addr{}); err != nil {
+	if _, err := s.Heartbeat(ctx, a.ID, tok.Reveal(), Beat{Candidates: []Candidate{{"eth0", "10.0.0.5"}}}, netip.Addr{}); err != nil {
 		t.Fatal(err)
 	}
 	if got, err := s.Rewrites(ctx); err != nil || len(got) != 0 {
@@ -218,7 +218,7 @@ func TestAddressChangeReachesNestedSets(t *testing.T) {
 	beat := func(addr string) {
 		t.Helper()
 		*now = now.Add(time.Minute)
-		if err := s.Heartbeat(ctx, a.ID, tok.Reveal(), Beat{Candidates: []Candidate{{"eth0", addr}}}, netip.Addr{}); err != nil {
+		if _, err := s.Heartbeat(ctx, a.ID, tok.Reveal(), Beat{Candidates: []Candidate{{"eth0", addr}}}, netip.Addr{}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -240,5 +240,57 @@ func TestAddressChangeReachesNestedSets(t *testing.T) {
 	}
 	if err := s.Delete(ctx, a.ID); !errors.Is(err, ErrInUse) {
 		t.Fatalf("delete while referenced: %v", err)
+	}
+}
+
+// A connection from a public address is proof; an agent's own word counts only if the admin trusts it for that.
+func TestPublicAddressSources(t *testing.T) {
+	s, now := fixture(t)
+	ctx := t.Context()
+	a, tok, err := s.Create(ctx, "home", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	beat := func(source, reported string) bool {
+		t.Helper()
+		*now = now.Add(time.Minute)
+		var src netip.Addr
+		if source != "" {
+			src = netip.MustParseAddr(source)
+		}
+		check, err := s.Heartbeat(ctx, a.ID, tok.Reveal(), Beat{ReportedPublic: reported}, src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return check
+	}
+	public := func() string {
+		r, err := s.st.R.GetPulseAgent(ctx, a.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r.PublicIp + "/" + r.PublicIpSource
+	}
+	if beat("10.0.0.1", "203.0.113.5") || public() != "/" {
+		t.Fatalf("untrusted report used: %s", public())
+	}
+	if _, err := s.SetDNS(ctx, a.ID, "home", true, "", true); err != nil {
+		t.Fatal(err)
+	}
+	if !beat("10.0.0.1", "") {
+		t.Fatal("a trusted agent behind a private path should be asked to check")
+	}
+	beat("10.0.0.1", "203.0.113.5")
+	if public() != "203.0.113.5/reported" {
+		t.Fatal(public())
+	}
+	for _, bad := range []string{"10.1.1.1", "100.64.0.9", "nonsense"} {
+		beat("10.0.0.1", bad)
+		if public() != "203.0.113.5/reported" {
+			t.Fatalf("%s accepted: %s", bad, public())
+		}
+	}
+	if beat("198.51.100.8", "203.0.113.5") || public() != "198.51.100.8/connection" {
+		t.Fatalf("the connection must win and needs no check: %s", public())
 	}
 }
