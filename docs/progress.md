@@ -696,6 +696,12 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-10-31 — S6 gate: outsider check **passed** (user's phone on mobile data: the host's management port does not load, a public service does).
+  Setup completed on the real install, bootstrap session revoked. User decisions: Gitea SSH may stay offline during the dev phase (the laptop uses
+  HTTPS), so the public TCP/UDP check waits for the traffic move; the NetBird/Traefik loop is accepted for now; the home IP stays hand-entered until
+  Pulse agents exist. Still open: passkey sign-in, S3 record path, waiting Traefik plan for port 222 on the test edge, DNS set value, migrated CNAME,
+  block set with an allowed /32 from real sources.
+
 - 2026-10-31 — S6 gate: NetBird restart repeated with the user's OK, **passed**: reconnected within 10 s, its rules and sets identical before and
   after (39 lines), Hashi's table unchanged, home route both ways, LXC internet and public HTTPS fine. Still open: outsider check, public 222 (no
   TCP route in the running Traefik), DNS set value, setup completion and passkey sign-in, migrated CNAME.
