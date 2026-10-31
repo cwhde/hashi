@@ -696,6 +696,10 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-10-31 — Deployed `bbe9511` (`make deploy ENV=prod`): readyz ok, version matches, SPA and public pages 200. S6 gate: S3 record path **passed** on the
+  deployed install with the real passkey (test TXT created, verified at the provider, its delete approved and gone at the provider; zone back to 73 RRSets).
+  Setup completion and passkey sign-in **passed**. New `docs/bugs.md` holds the user's first visual reports, not to be fixed yet.
+
 - 2026-10-31 — S6 gate: user signed in with the S5 passkey and approved the port 222 plan. Through the test edge's Traefik, `10.0.1.x:222` answers with the
   upstream's SSH banner (TCP path on a real edge, not public yet). Test TXT `gate._hashi-test` created by the user, at the provider with Hashi's owner
   label; its delete is still to be approved. Fix: the pending-changes count stayed 0 after a fresh load (the shell mounts after the first navigation's
