@@ -12,11 +12,11 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
-	"os/exec"
 	"strings"
 	"testing"
 	"time"
 
+	"git.juzo.io/juzo/hashi/internal/itest"
 	"git.juzo.io/juzo/hashi/internal/secrets"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 	"git.juzo.io/juzo/hashi/internal/store/storetest"
@@ -26,33 +26,22 @@ import (
 // The whole sign-in against a real Pocket ID (the version the real server runs): real discovery, keys, PKCE, ID token and
 // group claim. A signed-in browser is stood in for by Pocket ID's one-time access token.
 func TestIntegrationPocketID(t *testing.T) {
-	const name, port, issuer = "hashi-test-pocketid", "18412", "http://localhost:18412"
-	const callback = "http://localhost:9/cb"
+	const port, issuer, callback = 18412, "http://localhost:18412", "http://localhost:9/cb"
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
 		t.Fatal(err)
 	}
 	apiKey := hex.EncodeToString(b[:16])
-	_ = exec.Command("docker", "rm", "-f", name).Run()
-	out, err := exec.Command("docker", "run", "-d", "--name", name, "-p", "127.0.0.1:"+port+":1411", "-e", "APP_URL="+issuer,
-		"-e", "ENCRYPTION_KEY="+hex.EncodeToString(b), "-e", "STATIC_API_KEY="+apiKey, "ghcr.io/pocket-id/pocket-id:v2.19.1").CombinedOutput()
-	if err != nil {
-		t.Fatalf("start: %v: %s", err, out)
-	}
-	t.Cleanup(func() { _ = exec.Command("docker", "rm", "-f", name).Run() })
-	for i := 0; ; i++ {
+	itest.RunFixed(t, port, []string{"-e", "PORT=18412", "-e", "APP_URL=" + issuer, "-e", "ENCRYPTION_KEY=" + hex.EncodeToString(b), "-e", "STATIC_API_KEY=" + apiKey},
+		"ghcr.io/pocket-id/pocket-id:v2.19.1")
+	itest.WaitFor(t, time.Minute, "Pocket ID", func() bool {
 		resp, err := http.Get(issuer + "/.well-known/openid-configuration")
-		if err == nil {
-			_ = resp.Body.Close()
-			if resp.StatusCode == 200 {
-				break
-			}
+		if err != nil {
+			return false
 		}
-		if i > 60 {
-			t.Fatal("Pocket ID did not start")
-		}
-		time.Sleep(time.Second)
-	}
+		_ = resp.Body.Close()
+		return resp.StatusCode == 200
+	})
 	admin := func(method, path string, body any) map[string]any {
 		t.Helper()
 		raw, _ := json.Marshal(body)

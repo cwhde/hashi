@@ -55,6 +55,24 @@ func Run(t testing.TB, port int, flags []string, image string, cmd ...string) Co
 	return RunPorts(t, []int{port}, flags, image, cmd...)
 }
 
+// RunFixed is Run for software that must know its own address before it starts: the port is the same inside and out.
+func RunFixed(t testing.TB, port int, flags []string, image string, cmd ...string) Container {
+	t.Helper()
+	args := []string{"run", "-d", "--rm"}
+	if inContainer() {
+		self, err := os.Hostname()
+		if err != nil {
+			t.Fatal(err)
+		}
+		args = append(args, "--network", "container:"+self)
+	} else {
+		args = append(args, "-p", "127.0.0.1:"+strconv.Itoa(port)+":"+strconv.Itoa(port))
+	}
+	c := start(t, append(args, flags...), image, cmd...)
+	c.Addr = "127.0.0.1:" + strconv.Itoa(port)
+	return c
+}
+
 // RunPorts is Run with more published TCP ports; ports[0] becomes Addr, the others are reached through Port.
 func RunPorts(t testing.TB, ports []int, flags []string, image string, cmd ...string) Container {
 	t.Helper()
