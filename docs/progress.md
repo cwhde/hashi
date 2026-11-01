@@ -5,7 +5,7 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
-**S9 — Forward auth, rule sets, edge SSO** · status: **done** (gate passed 2026-11-01 on `0.9.0-beta.1`). Next: V1 cutover. Gate: 11-delivery.md §3 row S9.
+**S9 — Forward auth, rule sets, edge SSO** · status: **done** (gate passed 2026-11-01 on `0.9.0-beta.1`). V1 cutover done 2026-11-01; after a week remove old data, `legacy/v1/` and its workflow. Next: S10. Gate: 11-delivery.md §3 row S9.
 
 Contracts: Pocket ID's public discovery read from the real server; login flow to capture from a throwaway local Pocket ID container (no change to the real one). GeoIP download: no MaxMind key exists; Pangolin's file comes from a public mirror (decide with the user before the gate).
 
@@ -686,7 +686,7 @@ Decisions made in S0:
 | S7 Monitoring + public pages | **done** | 2026-10-31 · `71e79b9` · Test messages delivered by Telegram and email (the user received both). Throwaway web service on a dev target, checked by prod Hashi: stopped 14:03:13 UTC → down 14:05:58, alert delivered 14:06:15; restarted → up 14:08:04, recovery delivered 14:08:18. Marked public temporarily: the status API on its port listed name, group, state, strip and uptime only, no target address. Both public ports answer 200 from the deploy host; dashboard data lists the migrated service. Two of three services are monitored; the third has monitoring turned off on purpose. Check and service removed afterwards. Default route now goes to Telegram, set for this test. Finding: an alert's text carries the raw check error, including internal addresses (being fixed next). |
 | S8 AdGuard, Pulse, agent DNS | **done** | 2026-11-01 · `0.8.0-beta.3` · both real AdGuards synced; a real agent address change reached DNS, a service and the firewall in about a minute; agent names resolve; the home address in host access follows agent `takizawa`. Log has the details. |
 | S9 Edge SSO + rules | **done** | 2026-11-01 · `0.9.0-beta.1` · Throwaway services `gate-a`/`gate-b` on the home test edge with one shared rule set. A real browser signed in once through the real Pocket ID and reached both (upstream saw the user name); wrong group refused; sign-out ended it. By address, Pulse-backed set and country (CH allowed, US refused): right answers through the edge's own route; trace named `service root → gate-shared`. Deny fallback 403 through real Traefik; trailing-dot name refused; client-sent user header removed. Hashi stopped about 20 s: open service 200, rule-bearing services 503, normal after restart. Forward auth from the home Traefik: p50 16 ms, p99 22 ms, 200 calls; network round trip itself 15–20 ms. Test services, sets, rule set, two temporary DNS records (user OK) and test server removed. |
-| V1 cutover | — | |
+| V1 cutover | **done** | 2026-11-01 · `0.9.1-beta.2` · Both Traefik LXCs replaced by fresh Alpine ones with the same ID, address and MAC; Hashi installed Traefik through approved plans. About 6 minutes public downtime. 47 of 48 names identical before and after, valid certificates; the admin name moved to its final address. NetBird, Gitea and laptop SSH unaffected. 14 protected names redirect signed-out browsers; a real browser completed sign-in through Pocket ID on the new edge (`edge.login` in the audit log). 5 Pulse agents report at the final address. Old data removal follows after a week. |
 | S10 Security engine, WAF, CAPTCHA, blocklists | — | |
 | S11 Scripts, themes, settings | — | |
 | S12 Hardening + 1.0 | — | |
@@ -744,6 +744,9 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-11-01 · cutover swap · both Traefik LXCs replaced in place by fresh Alpine with Hashi-installed Traefik, about 6 minutes public downtime (one GitHub TLS timeout on the binary download, retried). Before/after from outside the edge: 47 of 48 names identical with valid certificates; the admin name differed until it moved. NetBird, Gitea, laptop SSH unaffected. Gatus and the old Hashi stopped, not deleted. Admin moved to its final name; 5 agents report there; 14 protected names redirect signed-out browsers to the login. Open: one full sign-in, final release, deleting old data after a week.
+- 2026-11-01 · `/deploy 0.9.1-beta.2` · `f089094` · readyz and smoke ok, public traffic unchanged. Adds adding and removing Traefik hosts after setup. Main CI failed only on the GeoIP download test (GitHub TLS timeout); release green.
+- 2026-11-01 · `/deploy 0.9.1-beta.1` · `8881cb3` · migration 19 → 20 (route kind), readyz and smoke ok, public traffic unchanged.
 - 2026-11-01 · `/deploy 0.9.0` · readyz and smoke ok, public traffic unchanged. S9 released; main CI green (e2e needed one rerun for a GitHub timeout).
 - 2026-11-01 — S9 gate passed. Not proven on a real host: `geo` items in a firewall set (real prefix lists tested, the apply was not; a set without a database is refused). GeoIP comes from the public mirror the old setup used; MaxMind's own endpoint is uncaptured because no key exists. Known, by design: the root-domain cookie reaches every upstream.
 - 2026-11-01 · `/deploy 0.9.0-beta.1` · `61ae9ae` · migration 18 → 19 with backup, readyz ok, smoke ok, public traffic unchanged. S9 gate still open: needs the Pocket ID client. Review findings fixed before release (trailing-dot and renamed-name bypass reproduced by the reviewer). Main CI once failed on three timing tests, then the rerun stopped at GitHub timeouts; rerun before `v0.9.0`. Reviewer note, by design: the root-domain cookie reaches every upstream.
