@@ -744,6 +744,7 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-11-01 · `/deploy 0.9.0` · readyz and smoke ok, public traffic unchanged. S9 released; main CI green (e2e needed one rerun for a GitHub timeout).
 - 2026-11-01 — S9 gate passed. Not proven on a real host: `geo` items in a firewall set (real prefix lists tested, the apply was not; a set without a database is refused). GeoIP comes from the public mirror the old setup used; MaxMind's own endpoint is uncaptured because no key exists. Known, by design: the root-domain cookie reaches every upstream.
 - 2026-11-01 · `/deploy 0.9.0-beta.1` · `61ae9ae` · migration 18 → 19 with backup, readyz ok, smoke ok, public traffic unchanged. S9 gate still open: needs the Pocket ID client. Review findings fixed before release (trailing-dot and renamed-name bypass reproduced by the reviewer). Main CI once failed on three timing tests, then the rerun stopped at GitHub timeouts; rerun before `v0.9.0`. Reviewer note, by design: the root-domain cookie reaches every upstream.
 - 2026-10-31 — Third S8 review, final pass: earlier findings confirmed closed except two. Fixed with tests: a reconnect no longer turns a failed host healthy, a disabled AdGuard connection is never contacted, the password rule applies only with a password, the consumers API walks up nested sets, a mistaken tag stops before any image, a rewrite follows a new owner, agent names on the address page. Installs from this code need `v0.8.0-beta.2`, tagged right after merge.
