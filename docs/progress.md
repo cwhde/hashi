@@ -5,7 +5,7 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
-**S9 — Forward auth, rule sets, edge SSO** · status: **in progress** (started 2026-11-01). Gate: 11-delivery.md §3 row S9.
+**S9 — Forward auth, rule sets, edge SSO** · status: **done** (gate passed 2026-11-01 on `0.9.0-beta.1`). Next: V1 cutover. Gate: 11-delivery.md §3 row S9.
 
 Contracts: Pocket ID's public discovery read from the real server; login flow to capture from a throwaway local Pocket ID container (no change to the real one). GeoIP download: no MaxMind key exists; Pangolin's file comes from a public mirror (decide with the user before the gate).
 
@@ -18,7 +18,7 @@ Rules, sign-in and countries depend on one another (a rule names a provider, a s
 - [x] OIDC providers (secret in the vault), login/callback/logout, edge sessions on the root domain, groups; integration against a real Pocket ID 2.19.1 container
 - [x] GeoIP download and reader (real files through the mirror: CH is 6,638 v4 and 5,449 v6 ranges), `geo` items for rules and firewall expansion
 - [x] Sign-in providers tab, GeoIP tab
-- [ ] Gate on the test edge: two subdomains, shared rule set, IP/Pulse/country rules, deny fallback, Hashi stopped, latency from the home Traefik
+- [x] Gate on the test edge: two subdomains, shared rule set, IP/Pulse/country rules, deny fallback, Hashi stopped, latency from the home Traefik
 
 **S8 — AdGuard, Pulse, agent DNS** · status: **done** (gate passed 2026-11-01 on `0.8.0-beta.3`). Gate: 11-delivery.md §3 row S8.
 
@@ -685,7 +685,7 @@ Decisions made in S0:
 | S6 Firewall + streams | **done** | 2026-10-31 · `bbe9511` · First real host: first apply with rescue timer confirmed; NetBird and foreign rules unchanged; NetBird restart reconnected in 10 s; outsider blocked by drop-other-inbound; block /24 with allowed /32 from a real outside source; table and rules identical after a `hashi-firewall` restart; DNS address-set value, S3 record path with the S5 passkey, setup completed, migrated `searxng` CNAME applied. TCP through the test edge reaches its upstream; **public TCP/UDP deferred to the traffic move by the user's decision** (UDP not yet proven on a real edge, only in integration tests). |
 | S7 Monitoring + public pages | **done** | 2026-10-31 · `71e79b9` · Test messages delivered by Telegram and email (the user received both). Throwaway web service on a dev target, checked by prod Hashi: stopped 14:03:13 UTC → down 14:05:58, alert delivered 14:06:15; restarted → up 14:08:04, recovery delivered 14:08:18. Marked public temporarily: the status API on its port listed name, group, state, strip and uptime only, no target address. Both public ports answer 200 from the deploy host; dashboard data lists the migrated service. Two of three services are monitored; the third has monitoring turned off on purpose. Check and service removed afterwards. Default route now goes to Telegram, set for this test. Finding: an alert's text carries the raw check error, including internal addresses (being fixed next). |
 | S8 AdGuard, Pulse, agent DNS | **done** | 2026-11-01 · `0.8.0-beta.3` · both real AdGuards synced; a real agent address change reached DNS, a service and the firewall in about a minute; agent names resolve; the home address in host access follows agent `takizawa`. Log has the details. |
-| S9 Edge SSO + rules | — | |
+| S9 Edge SSO + rules | **done** | 2026-11-01 · `0.9.0-beta.1` · Throwaway services `gate-a`/`gate-b` on the home test edge with one shared rule set. A real browser signed in once through the real Pocket ID and reached both (upstream saw the user name); wrong group refused; sign-out ended it. By address, Pulse-backed set and country (CH allowed, US refused): right answers through the edge's own route; trace named `service root → gate-shared`. Deny fallback 403 through real Traefik; trailing-dot name refused; client-sent user header removed. Hashi stopped about 20 s: open service 200, rule-bearing services 503, normal after restart. Forward auth from the home Traefik: p50 16 ms, p99 22 ms, 200 calls; network round trip itself 15–20 ms. Test services, sets, rule set, two temporary DNS records (user OK) and test server removed. |
 | V1 cutover | — | |
 | S10 Security engine, WAF, CAPTCHA, blocklists | — | |
 | S11 Scripts, themes, settings | — | |
@@ -744,6 +744,7 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-11-01 — S9 gate passed. Not proven on a real host: `geo` items in a firewall set (real prefix lists tested, the apply was not; a set without a database is refused). GeoIP comes from the public mirror the old setup used; MaxMind's own endpoint is uncaptured because no key exists. Known, by design: the root-domain cookie reaches every upstream.
 - 2026-11-01 · `/deploy 0.9.0-beta.1` · `61ae9ae` · migration 18 → 19 with backup, readyz ok, smoke ok, public traffic unchanged. S9 gate still open: needs the Pocket ID client. Review findings fixed before release (trailing-dot and renamed-name bypass reproduced by the reviewer). Main CI once failed on three timing tests, then the rerun stopped at GitHub timeouts; rerun before `v0.9.0`. Reviewer note, by design: the root-domain cookie reaches every upstream.
 - 2026-10-31 — Third S8 review, final pass: earlier findings confirmed closed except two. Fixed with tests: a reconnect no longer turns a failed host healthy, a disabled AdGuard connection is never contacted, the password rule applies only with a password, the consumers API walks up nested sets, a mistaken tag stops before any image, a rewrite follows a new owner, agent names on the address page. Installs from this code need `v0.8.0-beta.2`, tagged right after merge.
 
