@@ -744,6 +744,7 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-11-01 · `/deploy 0.9.0-beta.1` · `61ae9ae` · migration 18 → 19 with backup, readyz ok, smoke ok, public traffic unchanged. S9 gate still open: needs the Pocket ID client. Review findings fixed before release (trailing-dot and renamed-name bypass reproduced by the reviewer). Main CI once failed on three timing tests, then the rerun stopped at GitHub timeouts; rerun before `v0.9.0`. Reviewer note, by design: the root-domain cookie reaches every upstream.
 - 2026-10-31 — Third S8 review, final pass: earlier findings confirmed closed except two. Fixed with tests: a reconnect no longer turns a failed host healthy, a disabled AdGuard connection is never contacted, the password rule applies only with a password, the consumers API walks up nested sets, a mistaken tag stops before any image, a rewrite follows a new owner, agent names on the address page. Installs from this code need `v0.8.0-beta.2`, tagged right after merge.
 
 - 2026-10-31 — Second S8 review, on the complete slice: 5 reproduced findings fixed with tests (public address through the private list, pending DNS cleared by a failed round, stale agent's set without a warning, silent agent passing save validation, disabled AdGuard being contacted). Also: low-risk rewrites go before a removal waiting for approval, sources shown on target pickers, real heartbeat flow test, page coverage in E2E, agent image size in CI. Spec fixed where it no longer fit: long-running service instead of a timer, no former `pulse_ip_mode` to map.
