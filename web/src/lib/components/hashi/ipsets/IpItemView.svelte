@@ -2,7 +2,7 @@
 	import Mono from '../Mono.svelte';
 	import Tag from '../Tag.svelte';
 	import SetBadge from './SetBadge.svelte';
-	import { Activity, Server, Globe, Hash, Layers } from '@lucide/svelte';
+	import { Activity, Server, Globe, Hash, Layers, MapPin } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import { pulseAgents } from '$lib/pulseAgents.svelte';
 	import { itemValue, type IPSet, type IPItem } from '$lib/ipsets';
@@ -14,13 +14,22 @@
 		sets,
 		hostName
 	}: { item: IPItem; sets: IPSet[]; hostName?: (id: string) => string | undefined } = $props();
-	const icons = { ip: Hash, cidr: Hash, host: Server, pulse: Activity, dns: Globe, set: Layers };
+	const icons = {
+		ip: Hash,
+		cidr: Hash,
+		host: Server,
+		pulse: Activity,
+		dns: Globe,
+		geo: MapPin,
+		set: Layers
+	};
 	const typeLabel = {
 		ip: 'IP',
 		cidr: 'CIDR',
 		host: 'Host',
 		pulse: 'Pulse',
 		dns: 'DNS',
+		geo: 'Geo',
 		set: 'Set'
 	};
 	onMount(() => {

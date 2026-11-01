@@ -46,6 +46,21 @@ type Pulse struct {
 	StaleFactor              int `json:"stale_factor"`
 }
 
+// EdgeSSO: edge session limits (06 §7).
+type EdgeSSO struct {
+	MaxSessionHours  int `json:"max_session_hours"`
+	IdleTimeoutHours int `json:"idle_timeout_hours"`
+	// RememberDevice keeps the session across browser restarts.
+	RememberDevice bool `json:"remember_device"`
+}
+
+// GeoIP: where the databases come from (06 §12). MaxMind with an account (licence key in the vault), or a download
+// address with {edition} in it, such as a mirror of the same files. Empty means no downloads.
+type GeoIP struct {
+	AccountID string `json:"account_id"`
+	URL       string `json:"url"`
+}
+
 // Agent DNS address modes.
 const (
 	AgentIPSelected = "selected"
@@ -76,6 +91,10 @@ func defaults(c Category) Category {
 		}
 	case Pulse:
 		return Pulse{HeartbeatIntervalSeconds: 60, StaleFactor: 3}
+	case EdgeSSO:
+		return EdgeSSO{MaxSessionHours: 30 * 24, IdleTimeoutHours: 7 * 24, RememberDevice: true}
+	case GeoIP:
+		return GeoIP{}
 	case AgentDNS:
 		return AgentDNS{Domain: "hashi.home.arpa", IPMode: AgentIPSelected}
 	case Appearance:
@@ -90,6 +109,32 @@ func (Appearance) Key() string { return "appearance" }
 func (AgentDNS) Key() string   { return "internal_agent_dns" }
 
 func (Pulse) Key() string { return "pulse" }
+
+func (EdgeSSO) Key() string { return "edge_sso" }
+func (GeoIP) Key() string   { return "geoip" }
+
+// Validate checks EdgeSSO.
+func (e EdgeSSO) Validate() error {
+	if e.MaxSessionHours < 1 || e.MaxSessionHours > 365*24 {
+		return invalid("the longest session must be between an hour and a year")
+	}
+	if e.IdleTimeoutHours < 1 || e.IdleTimeoutHours > e.MaxSessionHours {
+		return invalid("the idle timeout must be at least an hour and no longer than the longest session")
+	}
+	return nil
+}
+
+// Validate checks GeoIP.
+func (g GeoIP) Validate() error {
+	if g.URL == "" {
+		return nil
+	}
+	u, err := url.Parse(g.URL)
+	if err != nil || u.Scheme != "https" || u.Host == "" || !strings.Contains(g.URL, "{edition}") {
+		return invalid("the download address must be https and contain {edition}")
+	}
+	return nil
+}
 
 // Validate checks Pulse.
 func (p Pulse) Validate() error {

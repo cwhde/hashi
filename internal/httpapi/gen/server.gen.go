@@ -596,6 +596,42 @@ func (e IPItemDNSType) Valid() bool {
 	}
 }
 
+// Defines values for IPItemGeoKind.
+const (
+	Asn     IPItemGeoKind = "asn"
+	Country IPItemGeoKind = "country"
+	Region  IPItemGeoKind = "region"
+)
+
+// Valid indicates whether the value is a known member of the IPItemGeoKind enum.
+func (e IPItemGeoKind) Valid() bool {
+	switch e {
+	case Asn:
+		return true
+	case Country:
+		return true
+	case Region:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for IPItemGeoType.
+const (
+	Geo IPItemGeoType = "geo"
+)
+
+// Valid indicates whether the value is a known member of the IPItemGeoType enum.
+func (e IPItemGeoType) Valid() bool {
+	switch e {
+	case Geo:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for IPItemHostScope.
 const (
 	IPItemHostScopeAll      IPItemHostScope = "all"
@@ -685,13 +721,13 @@ func (e IPItemPulseType) Valid() bool {
 
 // Defines values for IPItemSetType.
 const (
-	Set IPItemSetType = "set"
+	IPItemSetTypeSet IPItemSetType = "set"
 )
 
 // Valid indicates whether the value is a known member of the IPItemSetType enum.
 func (e IPItemSetType) Valid() bool {
 	switch e {
-	case Set:
+	case IPItemSetTypeSet:
 		return true
 	default:
 		return false
@@ -998,6 +1034,183 @@ func (e PulseAgentCreateInstallType) Valid() bool {
 	}
 }
 
+// Defines values for RuleEntriesInputFallback.
+const (
+	RuleEntriesInputFallbackDeny RuleEntriesInputFallback = "deny"
+	RuleEntriesInputFallbackNone RuleEntriesInputFallback = "none"
+)
+
+// Valid indicates whether the value is a known member of the RuleEntriesInputFallback enum.
+func (e RuleEntriesInputFallback) Valid() bool {
+	switch e {
+	case RuleEntriesInputFallbackDeny:
+		return true
+	case RuleEntriesInputFallbackNone:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuleEntryAction.
+const (
+	RuleEntryActionDeny               RuleEntryAction = "deny"
+	RuleEntryActionEmpty              RuleEntryAction = ""
+	RuleEntryActionNone               RuleEntryAction = "none"
+	RuleEntryActionPassAuthentication RuleEntryAction = "pass_authentication"
+	RuleEntryActionPassCaptcha        RuleEntryAction = "pass_captcha"
+)
+
+// Valid indicates whether the value is a known member of the RuleEntryAction enum.
+func (e RuleEntryAction) Valid() bool {
+	switch e {
+	case RuleEntryActionDeny:
+		return true
+	case RuleEntryActionEmpty:
+		return true
+	case RuleEntryActionNone:
+		return true
+	case RuleEntryActionPassAuthentication:
+		return true
+	case RuleEntryActionPassCaptcha:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuleEntryMatchType.
+const (
+	RuleEntryMatchTypeEmpty  RuleEntryMatchType = ""
+	RuleEntryMatchTypeExact  RuleEntryMatchType = "exact"
+	RuleEntryMatchTypePrefix RuleEntryMatchType = "prefix"
+	RuleEntryMatchTypeRegex  RuleEntryMatchType = "regex"
+)
+
+// Valid indicates whether the value is a known member of the RuleEntryMatchType enum.
+func (e RuleEntryMatchType) Valid() bool {
+	switch e {
+	case RuleEntryMatchTypeEmpty:
+		return true
+	case RuleEntryMatchTypeExact:
+		return true
+	case RuleEntryMatchTypePrefix:
+		return true
+	case RuleEntryMatchTypeRegex:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuleEntryType.
+const (
+	RuleEntryTypeItem RuleEntryType = "item"
+	RuleEntryTypeSet  RuleEntryType = "set"
+)
+
+// Valid indicates whether the value is a known member of the RuleEntryType enum.
+func (e RuleEntryType) Valid() bool {
+	switch e {
+	case RuleEntryTypeItem:
+		return true
+	case RuleEntryTypeSet:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuleEntryInputAction.
+const (
+	RuleEntryInputActionDeny               RuleEntryInputAction = "deny"
+	RuleEntryInputActionEmpty              RuleEntryInputAction = ""
+	RuleEntryInputActionNone               RuleEntryInputAction = "none"
+	RuleEntryInputActionPassAuthentication RuleEntryInputAction = "pass_authentication"
+	RuleEntryInputActionPassCaptcha        RuleEntryInputAction = "pass_captcha"
+)
+
+// Valid indicates whether the value is a known member of the RuleEntryInputAction enum.
+func (e RuleEntryInputAction) Valid() bool {
+	switch e {
+	case RuleEntryInputActionDeny:
+		return true
+	case RuleEntryInputActionEmpty:
+		return true
+	case RuleEntryInputActionNone:
+		return true
+	case RuleEntryInputActionPassAuthentication:
+		return true
+	case RuleEntryInputActionPassCaptcha:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuleEntryInputMatchType.
+const (
+	RuleEntryInputMatchTypeEmpty  RuleEntryInputMatchType = ""
+	RuleEntryInputMatchTypeExact  RuleEntryInputMatchType = "exact"
+	RuleEntryInputMatchTypePrefix RuleEntryInputMatchType = "prefix"
+	RuleEntryInputMatchTypeRegex  RuleEntryInputMatchType = "regex"
+)
+
+// Valid indicates whether the value is a known member of the RuleEntryInputMatchType enum.
+func (e RuleEntryInputMatchType) Valid() bool {
+	switch e {
+	case RuleEntryInputMatchTypeEmpty:
+		return true
+	case RuleEntryInputMatchTypeExact:
+		return true
+	case RuleEntryInputMatchTypePrefix:
+		return true
+	case RuleEntryInputMatchTypeRegex:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuleEntryInputType.
+const (
+	RuleEntryInputTypeItem RuleEntryInputType = "item"
+	RuleEntryInputTypeSet  RuleEntryInputType = "set"
+)
+
+// Valid indicates whether the value is a known member of the RuleEntryInputType enum.
+func (e RuleEntryInputType) Valid() bool {
+	switch e {
+	case RuleEntryInputTypeItem:
+		return true
+	case RuleEntryInputTypeSet:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuleSetKind.
+const (
+	RuleSetKindGlobal      RuleSetKind = "global"
+	RuleSetKindServiceRoot RuleSetKind = "service_root"
+	RuleSetKindUser        RuleSetKind = "user"
+)
+
+// Valid indicates whether the value is a known member of the RuleSetKind enum.
+func (e RuleSetKind) Valid() bool {
+	switch e {
+	case RuleSetKindGlobal:
+		return true
+	case RuleSetKindServiceRoot:
+		return true
+	case RuleSetKindUser:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SecretMetaClass.
 const (
 	SecretMetaClassAdmin   SecretMetaClass = "admin"
@@ -1106,6 +1319,24 @@ func (e ServiceTlsMinVersion) Valid() bool {
 	case ServiceTlsMinVersionVersionTLS12:
 		return true
 	case ServiceTlsMinVersionVersionTLS13:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ServiceAccessFallback.
+const (
+	ServiceAccessFallbackDeny ServiceAccessFallback = "deny"
+	ServiceAccessFallbackNone ServiceAccessFallback = "none"
+)
+
+// Valid indicates whether the value is a known member of the ServiceAccessFallback enum.
+func (e ServiceAccessFallback) Valid() bool {
+	switch e {
+	case ServiceAccessFallbackDeny:
+		return true
+	case ServiceAccessFallbackNone:
 		return true
 	default:
 		return false
@@ -2297,6 +2528,14 @@ type FirewallTakeover struct {
 	Rules []string `json:"rules"`
 }
 
+// FlatRule defines model for FlatRule.
+type FlatRule struct {
+	Entry RuleEntry `json:"entry"`
+
+	// Path Rule sets it came from, outermost first
+	Path []string `json:"path"`
+}
+
 // GeneralSettings defines model for GeneralSettings.
 type GeneralSettings struct {
 	AdminDomain         string   `json:"admin_domain"`
@@ -2304,6 +2543,32 @@ type GeneralSettings struct {
 	RootDomain          string   `json:"root_domain"`
 	SyncIntervalSeconds int      `json:"sync_interval_seconds"`
 	TrustedProxies      []string `json:"trusted_proxies"`
+}
+
+// GeoIPDatabase defines model for GeoIPDatabase.
+type GeoIPDatabase struct {
+	BuiltAt   time.Time `json:"built_at"`
+	Edition   string    `json:"edition"`
+	FetchedAt time.Time `json:"fetched_at"`
+	Stale     bool      `json:"stale"`
+}
+
+// GeoIPInput defines model for GeoIPInput.
+type GeoIPInput struct {
+	AccountId  *string `json:"account_id,omitempty"`
+	LicenseKey *string `json:"license_key,omitempty"`
+	Url        *string `json:"url,omitempty"`
+}
+
+// GeoIPStatus defines model for GeoIPStatus.
+type GeoIPStatus struct {
+	AccountId string          `json:"account_id"`
+	Databases []GeoIPDatabase `json:"databases"`
+
+	// Error The last download's problem, if any
+	Error  string `json:"error"`
+	HasKey bool   `json:"has_key"`
+	Url    string `json:"url"`
 }
 
 // Health defines model for Health.
@@ -2357,6 +2622,21 @@ type IPItemDNS struct {
 
 // IPItemDNSType defines model for IPItemDNS.Type.
 type IPItemDNSType string
+
+// IPItemGeo defines model for IPItemGeo.
+type IPItemGeo struct {
+	Kind IPItemGeoKind `json:"kind"`
+	Type IPItemGeoType `json:"type"`
+
+	// Value ISO country code, ISO 3166-2 region or AS number
+	Value string `json:"value"`
+}
+
+// IPItemGeoKind defines model for IPItemGeo.Kind.
+type IPItemGeoKind string
+
+// IPItemGeoType defines model for IPItemGeo.Type.
+type IPItemGeoType string
 
 // IPItemHost defines model for IPItemHost.
 type IPItemHost struct {
@@ -3015,6 +3295,106 @@ type RevokedCount struct {
 	Revoked int `json:"revoked"`
 }
 
+// RuleEntriesInput defines model for RuleEntriesInput.
+type RuleEntriesInput struct {
+	Entries []RuleEntryInput `json:"entries"`
+
+	// Fallback A service's fallback action
+	Fallback *RuleEntriesInputFallback `json:"fallback,omitempty"`
+}
+
+// RuleEntriesInputFallback A service's fallback action
+type RuleEntriesInputFallback string
+
+// RuleEntry defines model for RuleEntry.
+type RuleEntry struct {
+	Action RuleEntryAction `json:"action"`
+
+	// AppliesTo IP set ID
+	AppliesTo  string             `json:"applies_to"`
+	ChildId    string             `json:"child_id"`
+	ChildSlug  string             `json:"child_slug"`
+	Enabled    bool               `json:"enabled"`
+	Fallback   bool               `json:"fallback"`
+	Groups     []string           `json:"groups"`
+	Id         string             `json:"id"`
+	Locked     bool               `json:"locked"`
+	MatchType  RuleEntryMatchType `json:"match_type"`
+	Note       string             `json:"note"`
+	Origin     string             `json:"origin"`
+	Pattern    string             `json:"pattern"`
+	Priority   int                `json:"priority"`
+	ProviderId string             `json:"provider_id"`
+	Type       RuleEntryType      `json:"type"`
+}
+
+// RuleEntryAction defines model for RuleEntry.Action.
+type RuleEntryAction string
+
+// RuleEntryMatchType defines model for RuleEntry.MatchType.
+type RuleEntryMatchType string
+
+// RuleEntryType defines model for RuleEntry.Type.
+type RuleEntryType string
+
+// RuleEntryInput defines model for RuleEntryInput.
+type RuleEntryInput struct {
+	Action     *RuleEntryInputAction    `json:"action,omitempty"`
+	AppliesTo  *string                  `json:"applies_to,omitempty"`
+	ChildId    *string                  `json:"child_id,omitempty"`
+	Enabled    *bool                    `json:"enabled,omitempty"`
+	Groups     *[]string                `json:"groups,omitempty"`
+	MatchType  *RuleEntryInputMatchType `json:"match_type,omitempty"`
+	Note       *string                  `json:"note,omitempty"`
+	Pattern    *string                  `json:"pattern,omitempty"`
+	ProviderId *string                  `json:"provider_id,omitempty"`
+	Type       RuleEntryInputType       `json:"type"`
+}
+
+// RuleEntryInputAction defines model for RuleEntryInput.Action.
+type RuleEntryInputAction string
+
+// RuleEntryInputMatchType defines model for RuleEntryInput.MatchType.
+type RuleEntryInputMatchType string
+
+// RuleEntryInputType defines model for RuleEntryInput.Type.
+type RuleEntryInputType string
+
+// RuleSet defines model for RuleSet.
+type RuleSet struct {
+	Description string       `json:"description"`
+	Entries     []RuleEntry  `json:"entries"`
+	Id          string       `json:"id"`
+	Kind        RuleSetKind  `json:"kind"`
+	Name        string       `json:"name"`
+	Origin      string       `json:"origin"`
+	Slug        string       `json:"slug"`
+	UsedBy      []RuleSetUse `json:"used_by"`
+	Warnings    []string     `json:"warnings"`
+}
+
+// RuleSetKind defines model for RuleSet.Kind.
+type RuleSetKind string
+
+// RuleSetInput defines model for RuleSetInput.
+type RuleSetInput struct {
+	Description *string `json:"description,omitempty"`
+	Name        string  `json:"name"`
+	Slug        string  `json:"slug"`
+}
+
+// RuleSetSaved defines model for RuleSetSaved.
+type RuleSetSaved struct {
+	Plans   []SyncPlan `json:"plans"`
+	RuleSet RuleSet    `json:"rule_set"`
+}
+
+// RuleSetUse defines model for RuleSetUse.
+type RuleSetUse struct {
+	Href  string `json:"href"`
+	Label string `json:"label"`
+}
+
 // SSHTarget defines model for SSHTarget.
 type SSHTarget struct {
 	// SaveInactive Keep a set that does not answer yet
@@ -3022,6 +3402,43 @@ type SSHTarget struct {
 
 	// SetId Address set; empty for the literal address
 	SetId string `json:"set_id"`
+}
+
+// SSOProvider defines model for SSOProvider.
+type SSOProvider struct {
+	ClientId string `json:"client_id"`
+
+	// DiscoveryError Empty when the provider's discovery document reads fine
+	DiscoveryError string `json:"discovery_error"`
+	EmailClaim     string `json:"email_claim"`
+	GroupsClaim    string `json:"groups_claim"`
+	Id             string `json:"id"`
+	IsDefault      bool   `json:"is_default"`
+	Issuer         string `json:"issuer"`
+	Name           string `json:"name"`
+	Scopes         string `json:"scopes"`
+	UsernameClaim  string `json:"username_claim"`
+}
+
+// SSOProviderInput defines model for SSOProviderInput.
+type SSOProviderInput struct {
+	ClientId      string  `json:"client_id"`
+	ClientSecret  *string `json:"client_secret,omitempty"`
+	EmailClaim    *string `json:"email_claim,omitempty"`
+	GroupsClaim   *string `json:"groups_claim,omitempty"`
+	IsDefault     bool    `json:"is_default"`
+	Issuer        string  `json:"issuer"`
+	Name          string  `json:"name"`
+	Scopes        *string `json:"scopes,omitempty"`
+	UsernameClaim *string `json:"username_claim,omitempty"`
+}
+
+// SSOProviders defines model for SSOProviders.
+type SSOProviders struct {
+	// CallbackUrl The address to register at the provider
+	CallbackUrl  string        `json:"callback_url"`
+	CookieDomain string        `json:"cookie_domain"`
+	Providers    []SSOProvider `json:"providers"`
 }
 
 // SecretList defines model for SecretList.
@@ -3098,6 +3515,26 @@ type ServiceOrigin string
 
 // ServiceTlsMinVersion defines model for Service.TlsMinVersion.
 type ServiceTlsMinVersion string
+
+// ServiceAccess defines model for ServiceAccess.
+type ServiceAccess struct {
+	// Editable False for system services (06 §4.5)
+	Editable   bool                  `json:"editable"`
+	FailClosed bool                  `json:"fail_closed"`
+	Fallback   ServiceAccessFallback `json:"fallback"`
+	Flattened  []FlatRule            `json:"flattened"`
+	RuleSet    RuleSet               `json:"rule_set"`
+	Warnings   []string              `json:"warnings"`
+}
+
+// ServiceAccessFallback defines model for ServiceAccess.Fallback.
+type ServiceAccessFallback string
+
+// ServiceAccessSaved defines model for ServiceAccessSaved.
+type ServiceAccessSaved struct {
+	Access ServiceAccess `json:"access"`
+	Plans  []SyncPlan    `json:"plans"`
+}
 
 // ServiceEffective defines model for ServiceEffective.
 type ServiceEffective struct {
@@ -3384,6 +3821,22 @@ type TelegramDiscover struct {
 	BotToken string `json:"bot_token"`
 }
 
+// TraceInput defines model for TraceInput.
+type TraceInput struct {
+	Path      string `json:"path"`
+	ServiceId string `json:"service_id"`
+}
+
+// TraceResult defines model for TraceResult.
+type TraceResult struct {
+	Action string `json:"action"`
+
+	// Decided Index into flattened; -1 when nothing matched
+	Decided        int        `json:"decided"`
+	Flattened      []FlatRule `json:"flattened"`
+	NormalizedPath string     `json:"normalized_path"`
+}
+
 // TraefikConnection defines model for TraefikConnection.
 type TraefikConnection struct {
 	ApiPort            int                     `json:"api_port"`
@@ -3561,6 +4014,9 @@ type PutServiceDashboardJSONBody struct {
 	Visible bool `json:"visible"`
 }
 
+// TraceAddressJSONRequestBody defines body for TraceAddress for application/json ContentType.
+type TraceAddressJSONRequestBody = TraceInput
+
 // CreateAdGuardConnectionJSONRequestBody defines body for CreateAdGuardConnection for application/json ContentType.
 type CreateAdGuardConnectionJSONRequestBody = AdGuardConnectionInput
 
@@ -3669,11 +4125,32 @@ type UpdatePulseAgentJSONRequestBody = PulseAgentUpdate
 // PulseHeartbeatJSONRequestBody defines body for PulseHeartbeat for application/json ContentType.
 type PulseHeartbeatJSONRequestBody = PulseHeartbeat
 
+// CreateRuleSetJSONRequestBody defines body for CreateRuleSet for application/json ContentType.
+type CreateRuleSetJSONRequestBody = RuleSetInput
+
+// UpdateRuleSetJSONRequestBody defines body for UpdateRuleSet for application/json ContentType.
+type UpdateRuleSetJSONRequestBody = RuleSetInput
+
+// PutRuleSetEntriesJSONRequestBody defines body for PutRuleSetEntries for application/json ContentType.
+type PutRuleSetEntriesJSONRequestBody = RuleEntriesInput
+
+// PutGeoIPJSONRequestBody defines body for PutGeoIP for application/json ContentType.
+type PutGeoIPJSONRequestBody = GeoIPInput
+
+// CreateSSOProviderJSONRequestBody defines body for CreateSSOProvider for application/json ContentType.
+type CreateSSOProviderJSONRequestBody = SSOProviderInput
+
+// UpdateSSOProviderJSONRequestBody defines body for UpdateSSOProvider for application/json ContentType.
+type UpdateSSOProviderJSONRequestBody = SSOProviderInput
+
 // CreateServiceJSONRequestBody defines body for CreateService for application/json ContentType.
 type CreateServiceJSONRequestBody = ServiceInput
 
 // UpdateServiceJSONRequestBody defines body for UpdateService for application/json ContentType.
 type UpdateServiceJSONRequestBody = ServiceInput
+
+// PutServiceAccessJSONRequestBody defines body for PutServiceAccess for application/json ContentType.
+type PutServiceAccessJSONRequestBody = RuleEntriesInput
 
 // PutServiceDashboardJSONRequestBody defines body for PutServiceDashboard for application/json ContentType.
 type PutServiceDashboardJSONRequestBody PutServiceDashboardJSONBody
@@ -3911,6 +4388,40 @@ func (t *IPItem) MergeIPItemDNS(v IPItemDNS) error {
 	return err
 }
 
+// AsIPItemGeo returns the union data inside the IPItem as a IPItemGeo
+func (t IPItem) AsIPItemGeo() (IPItemGeo, error) {
+	var body IPItemGeo
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromIPItemGeo overwrites any union data inside the IPItem as the provided IPItemGeo
+func (t *IPItem) FromIPItemGeo(v IPItemGeo) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"geo"}`))
+	t.union = b
+	return err
+}
+
+// MergeIPItemGeo performs a merge with any union data inside the IPItem, using the provided IPItemGeo
+func (t *IPItem) MergeIPItemGeo(v IPItemGeo) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	b, err = runtime.JSONMerge(b, []byte(`{"type":"geo"}`))
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
 // AsIPItemSet returns the union data inside the IPItem as a IPItemSet
 func (t IPItem) AsIPItemSet() (IPItemSet, error) {
 	var body IPItemSet
@@ -3963,6 +4474,8 @@ func (t IPItem) ValueByDiscriminator() (interface{}, error) {
 		return t.AsIPItemCIDR()
 	case "dns":
 		return t.AsIPItemDNS()
+	case "geo":
+		return t.AsIPItemGeo()
 	case "host":
 		return t.AsIPItemHost()
 	case "ip":
@@ -4000,6 +4513,9 @@ type ServerInterface interface {
 	// LookupAddress Every set that contains the address, with the nesting path to the element that holds it
 	// (GET /api/addresses/{address})
 	LookupAddress(w http.ResponseWriter, r *http.Request, address string)
+	// TraceAddress What a request from this address to this service and path would get, and which rule decides (05a §8)
+	// (POST /api/addresses/{address}/trace)
+	TraceAddress(w http.ResponseWriter, r *http.Request, address string)
 	// ListAdGuardConnections AdGuard connections, never with their passwords
 	// (GET /api/adguard/connections)
 	ListAdGuardConnections(w http.ResponseWriter, r *http.Request)
@@ -4111,9 +4627,6 @@ type ServerInterface interface {
 	// ListDNSRRSets Observed RRSets of a zone with Hashi's ownership
 	// (GET /api/dns/zones/{id}/rrsets)
 	ListDNSRRSets(w http.ResponseWriter, r *http.Request, id string, params ListDNSRRSetsParams)
-	// GetEdgeAuthForward Traefik forward auth for every edge service
-	// (GET /api/edge-auth/forward)
-	GetEdgeAuthForward(w http.ResponseWriter, r *http.Request)
 	// GetFirewallBindings The IP sets bound to global firewall allow and block
 	// (GET /api/firewall/bindings)
 	GetFirewallBindings(w http.ResponseWriter, r *http.Request)
@@ -4285,6 +4798,42 @@ type ServerInterface interface {
 	// PulseHeartbeat An agent reports its addresses; its token can do nothing else
 	// (POST /api/pulse/{agentId}/heartbeat)
 	PulseHeartbeat(w http.ResponseWriter, r *http.Request, agentId string, params PulseHeartbeatParams)
+	// ListRuleSets Every global and reusable rule set (service roots are on the service's Access tab)
+	// (GET /api/rule-sets)
+	ListRuleSets(w http.ResponseWriter, r *http.Request)
+	// CreateRuleSet Create a reusable rule set
+	// (POST /api/rule-sets)
+	CreateRuleSet(w http.ResponseWriter, r *http.Request)
+	// DeleteRuleSet Delete a reusable rule set nothing attaches
+	// (DELETE /api/rule-sets/{id})
+	DeleteRuleSet(w http.ResponseWriter, r *http.Request, id string)
+	// GetRuleSet One rule set with entries, where it is used and its warnings
+	// (GET /api/rule-sets/{id})
+	GetRuleSet(w http.ResponseWriter, r *http.Request, id string)
+	// UpdateRuleSet Rename a reusable rule set
+	// (PATCH /api/rule-sets/{id})
+	UpdateRuleSet(w http.ResponseWriter, r *http.Request, id string)
+	// PutRuleSetEntries Replace a rule set's entries in order; decisions change within seconds
+	// (PUT /api/rule-sets/{id}/entries)
+	PutRuleSetEntries(w http.ResponseWriter, r *http.Request, id string)
+	// GetGeoIP GeoIP databases on hand and where downloads come from
+	// (GET /api/security/geoip)
+	GetGeoIP(w http.ResponseWriter, r *http.Request)
+	// PutGeoIP Set the download source and fetch now; an empty key keeps the stored one
+	// (PUT /api/security/geoip)
+	PutGeoIP(w http.ResponseWriter, r *http.Request)
+	// ListSSOProviders Sign-in providers with a live discovery check
+	// (GET /api/security/sso/providers)
+	ListSSOProviders(w http.ResponseWriter, r *http.Request)
+	// CreateSSOProvider Add a sign-in provider; the client secret goes to the vault
+	// (POST /api/security/sso/providers)
+	CreateSSOProvider(w http.ResponseWriter, r *http.Request)
+	// DeleteSSOProvider Delete a provider no rule names; its sessions end
+	// (DELETE /api/security/sso/providers/{id})
+	DeleteSSOProvider(w http.ResponseWriter, r *http.Request, id string)
+	// UpdateSSOProvider Change a sign-in provider; an empty secret keeps the stored one
+	// (PUT /api/security/sso/providers/{id})
+	UpdateSSOProvider(w http.ResponseWriter, r *http.Request, id string)
 	// ListServices Every service, system services first, with the reason when one cannot be rendered
 	// (GET /api/services)
 	ListServices(w http.ResponseWriter, r *http.Request)
@@ -4300,6 +4849,12 @@ type ServerInterface interface {
 	// UpdateService Replace a user service's fields and routes (system services change only through their owning setting)
 	// (PUT /api/services/{id})
 	UpdateService(w http.ResponseWriter, r *http.Request, id string)
+	// GetServiceAccess The service's root rule set, fallback, flattened list and outage behaviour
+	// (GET /api/services/{id}/access)
+	GetServiceAccess(w http.ResponseWriter, r *http.Request, id string)
+	// PutServiceAccess Replace the service's own entries and its fallback action
+	// (PUT /api/services/{id}/access)
+	PutServiceAccess(w http.ResponseWriter, r *http.Request, id string)
 	// PutServiceDashboard Show or hide a service on the public dashboard; changes no Traefik state
 	// (PUT /api/services/{id}/dashboard)
 	PutServiceDashboard(w http.ResponseWriter, r *http.Request, id string)
@@ -4635,6 +5190,32 @@ func (siw *ServerInterfaceWrapper) LookupAddress(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.LookupAddress(w, r, address)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TraceAddress operation middleware
+func (siw *ServerInterfaceWrapper) TraceAddress(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "address" -------------
+	var address string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "address", r.PathValue("address"), &address, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "address", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TraceAddress(w, r, address)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5350,20 +5931,6 @@ func (siw *ServerInterfaceWrapper) ListDNSRRSets(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListDNSRRSets(w, r, id, params)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// GetEdgeAuthForward operation middleware
-func (siw *ServerInterfaceWrapper) GetEdgeAuthForward(w http.ResponseWriter, r *http.Request) {
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetEdgeAuthForward(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -6755,6 +7322,246 @@ func (siw *ServerInterfaceWrapper) PulseHeartbeat(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// ListRuleSets operation middleware
+func (siw *ServerInterfaceWrapper) ListRuleSets(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListRuleSets(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateRuleSet operation middleware
+func (siw *ServerInterfaceWrapper) CreateRuleSet(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateRuleSet(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteRuleSet operation middleware
+func (siw *ServerInterfaceWrapper) DeleteRuleSet(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteRuleSet(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetRuleSet operation middleware
+func (siw *ServerInterfaceWrapper) GetRuleSet(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetRuleSet(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateRuleSet operation middleware
+func (siw *ServerInterfaceWrapper) UpdateRuleSet(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateRuleSet(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutRuleSetEntries operation middleware
+func (siw *ServerInterfaceWrapper) PutRuleSetEntries(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutRuleSetEntries(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetGeoIP operation middleware
+func (siw *ServerInterfaceWrapper) GetGeoIP(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetGeoIP(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutGeoIP operation middleware
+func (siw *ServerInterfaceWrapper) PutGeoIP(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutGeoIP(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListSSOProviders operation middleware
+func (siw *ServerInterfaceWrapper) ListSSOProviders(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSSOProviders(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateSSOProvider operation middleware
+func (siw *ServerInterfaceWrapper) CreateSSOProvider(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateSSOProvider(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteSSOProvider operation middleware
+func (siw *ServerInterfaceWrapper) DeleteSSOProvider(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteSSOProvider(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateSSOProvider operation middleware
+func (siw *ServerInterfaceWrapper) UpdateSSOProvider(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateSSOProvider(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListServices operation middleware
 func (siw *ServerInterfaceWrapper) ListServices(w http.ResponseWriter, r *http.Request) {
 
@@ -6852,6 +7659,58 @@ func (siw *ServerInterfaceWrapper) UpdateService(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateService(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetServiceAccess operation middleware
+func (siw *ServerInterfaceWrapper) GetServiceAccess(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetServiceAccess(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutServiceAccess operation middleware
+func (siw *ServerInterfaceWrapper) PutServiceAccess(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutServiceAccess(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -8102,7 +8961,21 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/healthz", wrapper.GetHealthz)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/readyz", wrapper.GetReadyz)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/version", wrapper.GetVersion)
-	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/edge-auth/forward", wrapper.GetEdgeAuthForward)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/rule-sets", wrapper.ListRuleSets)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/rule-sets", wrapper.CreateRuleSet)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/rule-sets/{id}", wrapper.DeleteRuleSet)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/rule-sets/{id}", wrapper.GetRuleSet)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/rule-sets/{id}", wrapper.UpdateRuleSet)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/rule-sets/{id}/entries", wrapper.PutRuleSetEntries)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/services/{id}/access", wrapper.GetServiceAccess)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/services/{id}/access", wrapper.PutServiceAccess)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/addresses/{address}/trace", wrapper.TraceAddress)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/security/sso/providers", wrapper.ListSSOProviders)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/security/sso/providers", wrapper.CreateSSOProvider)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/security/sso/providers/{id}", wrapper.DeleteSSOProvider)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/security/sso/providers/{id}", wrapper.UpdateSSOProvider)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/security/geoip", wrapper.GetGeoIP)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/security/geoip", wrapper.PutGeoIP)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/auth/session", wrapper.GetAuthSession)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/auth/bootstrap/login", wrapper.BootstrapLogin)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/auth/logout", wrapper.Logout)
@@ -8420,6 +9293,46 @@ type LookupAddressdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response LookupAddressdefaultApplicationProblemPlusJSONResponse) VisitLookupAddressResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TraceAddressRequestObject struct {
+	Address string `json:"address"`
+	Body    *TraceAddressJSONRequestBody
+}
+
+type TraceAddressResponseObject interface {
+	VisitTraceAddressResponse(w http.ResponseWriter) error
+}
+
+type TraceAddress200JSONResponse TraceResult
+
+func (response TraceAddress200JSONResponse) VisitTraceAddressResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TraceAddressdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response TraceAddressdefaultApplicationProblemPlusJSONResponse) VisitTraceAddressResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -9889,21 +10802,6 @@ func (response ListDNSRRSetsdefaultApplicationProblemPlusJSONResponse) VisitList
 	w.WriteHeader(response.StatusCode)
 	_, err := buf.WriteTo(w)
 	return err
-}
-
-type GetEdgeAuthForwardRequestObject struct {
-}
-
-type GetEdgeAuthForwardResponseObject interface {
-	VisitGetEdgeAuthForwardResponse(w http.ResponseWriter) error
-}
-
-type GetEdgeAuthForward204Response struct {
-}
-
-func (response GetEdgeAuthForward204Response) VisitGetEdgeAuthForwardResponse(w http.ResponseWriter) error {
-	w.WriteHeader(204)
-	return nil
 }
 
 type GetFirewallBindingsRequestObject struct {
@@ -12082,6 +12980,462 @@ func (response PulseHeartbeatdefaultApplicationProblemPlusJSONResponse) VisitPul
 	return err
 }
 
+type ListRuleSetsRequestObject struct {
+}
+
+type ListRuleSetsResponseObject interface {
+	VisitListRuleSetsResponse(w http.ResponseWriter) error
+}
+
+type ListRuleSets200JSONResponse []RuleSet
+
+func (response ListRuleSets200JSONResponse) VisitListRuleSetsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListRuleSetsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ListRuleSetsdefaultApplicationProblemPlusJSONResponse) VisitListRuleSetsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateRuleSetRequestObject struct {
+	Body *CreateRuleSetJSONRequestBody
+}
+
+type CreateRuleSetResponseObject interface {
+	VisitCreateRuleSetResponse(w http.ResponseWriter) error
+}
+
+type CreateRuleSet200JSONResponse RuleSet
+
+func (response CreateRuleSet200JSONResponse) VisitCreateRuleSetResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateRuleSetdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response CreateRuleSetdefaultApplicationProblemPlusJSONResponse) VisitCreateRuleSetResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteRuleSetRequestObject struct {
+	Id string `json:"id"`
+}
+
+type DeleteRuleSetResponseObject interface {
+	VisitDeleteRuleSetResponse(w http.ResponseWriter) error
+}
+
+type DeleteRuleSet204Response struct {
+}
+
+func (response DeleteRuleSet204Response) VisitDeleteRuleSetResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteRuleSetdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response DeleteRuleSetdefaultApplicationProblemPlusJSONResponse) VisitDeleteRuleSetResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetRuleSetRequestObject struct {
+	Id string `json:"id"`
+}
+
+type GetRuleSetResponseObject interface {
+	VisitGetRuleSetResponse(w http.ResponseWriter) error
+}
+
+type GetRuleSet200JSONResponse RuleSet
+
+func (response GetRuleSet200JSONResponse) VisitGetRuleSetResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetRuleSetdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetRuleSetdefaultApplicationProblemPlusJSONResponse) VisitGetRuleSetResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateRuleSetRequestObject struct {
+	Id   string `json:"id"`
+	Body *UpdateRuleSetJSONRequestBody
+}
+
+type UpdateRuleSetResponseObject interface {
+	VisitUpdateRuleSetResponse(w http.ResponseWriter) error
+}
+
+type UpdateRuleSet200JSONResponse RuleSet
+
+func (response UpdateRuleSet200JSONResponse) VisitUpdateRuleSetResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateRuleSetdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response UpdateRuleSetdefaultApplicationProblemPlusJSONResponse) VisitUpdateRuleSetResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutRuleSetEntriesRequestObject struct {
+	Id   string `json:"id"`
+	Body *PutRuleSetEntriesJSONRequestBody
+}
+
+type PutRuleSetEntriesResponseObject interface {
+	VisitPutRuleSetEntriesResponse(w http.ResponseWriter) error
+}
+
+type PutRuleSetEntries200JSONResponse RuleSetSaved
+
+func (response PutRuleSetEntries200JSONResponse) VisitPutRuleSetEntriesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutRuleSetEntriesdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutRuleSetEntriesdefaultApplicationProblemPlusJSONResponse) VisitPutRuleSetEntriesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetGeoIPRequestObject struct {
+}
+
+type GetGeoIPResponseObject interface {
+	VisitGetGeoIPResponse(w http.ResponseWriter) error
+}
+
+type GetGeoIP200JSONResponse GeoIPStatus
+
+func (response GetGeoIP200JSONResponse) VisitGetGeoIPResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetGeoIPdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetGeoIPdefaultApplicationProblemPlusJSONResponse) VisitGetGeoIPResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutGeoIPRequestObject struct {
+	Body *PutGeoIPJSONRequestBody
+}
+
+type PutGeoIPResponseObject interface {
+	VisitPutGeoIPResponse(w http.ResponseWriter) error
+}
+
+type PutGeoIP200JSONResponse GeoIPStatus
+
+func (response PutGeoIP200JSONResponse) VisitPutGeoIPResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutGeoIPdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutGeoIPdefaultApplicationProblemPlusJSONResponse) VisitPutGeoIPResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListSSOProvidersRequestObject struct {
+}
+
+type ListSSOProvidersResponseObject interface {
+	VisitListSSOProvidersResponse(w http.ResponseWriter) error
+}
+
+type ListSSOProviders200JSONResponse SSOProviders
+
+func (response ListSSOProviders200JSONResponse) VisitListSSOProvidersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListSSOProvidersdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ListSSOProvidersdefaultApplicationProblemPlusJSONResponse) VisitListSSOProvidersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateSSOProviderRequestObject struct {
+	Body *CreateSSOProviderJSONRequestBody
+}
+
+type CreateSSOProviderResponseObject interface {
+	VisitCreateSSOProviderResponse(w http.ResponseWriter) error
+}
+
+type CreateSSOProvider200JSONResponse SSOProvider
+
+func (response CreateSSOProvider200JSONResponse) VisitCreateSSOProviderResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateSSOProviderdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response CreateSSOProviderdefaultApplicationProblemPlusJSONResponse) VisitCreateSSOProviderResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteSSOProviderRequestObject struct {
+	Id string `json:"id"`
+}
+
+type DeleteSSOProviderResponseObject interface {
+	VisitDeleteSSOProviderResponse(w http.ResponseWriter) error
+}
+
+type DeleteSSOProvider204Response struct {
+}
+
+func (response DeleteSSOProvider204Response) VisitDeleteSSOProviderResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteSSOProviderdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response DeleteSSOProviderdefaultApplicationProblemPlusJSONResponse) VisitDeleteSSOProviderResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSSOProviderRequestObject struct {
+	Id   string `json:"id"`
+	Body *UpdateSSOProviderJSONRequestBody
+}
+
+type UpdateSSOProviderResponseObject interface {
+	VisitUpdateSSOProviderResponse(w http.ResponseWriter) error
+}
+
+type UpdateSSOProvider200JSONResponse SSOProvider
+
+func (response UpdateSSOProvider200JSONResponse) VisitUpdateSSOProviderResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateSSOProviderdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response UpdateSSOProviderdefaultApplicationProblemPlusJSONResponse) VisitUpdateSSOProviderResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListServicesRequestObject struct {
 }
 
@@ -12266,6 +13620,85 @@ type UpdateServicedefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response UpdateServicedefaultApplicationProblemPlusJSONResponse) VisitUpdateServiceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetServiceAccessRequestObject struct {
+	Id string `json:"id"`
+}
+
+type GetServiceAccessResponseObject interface {
+	VisitGetServiceAccessResponse(w http.ResponseWriter) error
+}
+
+type GetServiceAccess200JSONResponse ServiceAccess
+
+func (response GetServiceAccess200JSONResponse) VisitGetServiceAccessResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetServiceAccessdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetServiceAccessdefaultApplicationProblemPlusJSONResponse) VisitGetServiceAccessResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutServiceAccessRequestObject struct {
+	Id   string `json:"id"`
+	Body *PutServiceAccessJSONRequestBody
+}
+
+type PutServiceAccessResponseObject interface {
+	VisitPutServiceAccessResponse(w http.ResponseWriter) error
+}
+
+type PutServiceAccess200JSONResponse ServiceAccessSaved
+
+func (response PutServiceAccess200JSONResponse) VisitPutServiceAccessResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutServiceAccessdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutServiceAccessdefaultApplicationProblemPlusJSONResponse) VisitPutServiceAccessResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -14823,6 +16256,9 @@ type StrictServerInterface interface {
 	// LookupAddress Every set that contains the address, with the nesting path to the element that holds it
 	// (GET /api/addresses/{address})
 	LookupAddress(ctx context.Context, request LookupAddressRequestObject) (LookupAddressResponseObject, error)
+	// TraceAddress What a request from this address to this service and path would get, and which rule decides (05a §8)
+	// (POST /api/addresses/{address}/trace)
+	TraceAddress(ctx context.Context, request TraceAddressRequestObject) (TraceAddressResponseObject, error)
 	// ListAdGuardConnections AdGuard connections, never with their passwords
 	// (GET /api/adguard/connections)
 	ListAdGuardConnections(ctx context.Context, request ListAdGuardConnectionsRequestObject) (ListAdGuardConnectionsResponseObject, error)
@@ -14934,9 +16370,6 @@ type StrictServerInterface interface {
 	// ListDNSRRSets Observed RRSets of a zone with Hashi's ownership
 	// (GET /api/dns/zones/{id}/rrsets)
 	ListDNSRRSets(ctx context.Context, request ListDNSRRSetsRequestObject) (ListDNSRRSetsResponseObject, error)
-	// GetEdgeAuthForward Traefik forward auth for every edge service
-	// (GET /api/edge-auth/forward)
-	GetEdgeAuthForward(ctx context.Context, request GetEdgeAuthForwardRequestObject) (GetEdgeAuthForwardResponseObject, error)
 	// GetFirewallBindings The IP sets bound to global firewall allow and block
 	// (GET /api/firewall/bindings)
 	GetFirewallBindings(ctx context.Context, request GetFirewallBindingsRequestObject) (GetFirewallBindingsResponseObject, error)
@@ -15108,6 +16541,42 @@ type StrictServerInterface interface {
 	// PulseHeartbeat An agent reports its addresses; its token can do nothing else
 	// (POST /api/pulse/{agentId}/heartbeat)
 	PulseHeartbeat(ctx context.Context, request PulseHeartbeatRequestObject) (PulseHeartbeatResponseObject, error)
+	// ListRuleSets Every global and reusable rule set (service roots are on the service's Access tab)
+	// (GET /api/rule-sets)
+	ListRuleSets(ctx context.Context, request ListRuleSetsRequestObject) (ListRuleSetsResponseObject, error)
+	// CreateRuleSet Create a reusable rule set
+	// (POST /api/rule-sets)
+	CreateRuleSet(ctx context.Context, request CreateRuleSetRequestObject) (CreateRuleSetResponseObject, error)
+	// DeleteRuleSet Delete a reusable rule set nothing attaches
+	// (DELETE /api/rule-sets/{id})
+	DeleteRuleSet(ctx context.Context, request DeleteRuleSetRequestObject) (DeleteRuleSetResponseObject, error)
+	// GetRuleSet One rule set with entries, where it is used and its warnings
+	// (GET /api/rule-sets/{id})
+	GetRuleSet(ctx context.Context, request GetRuleSetRequestObject) (GetRuleSetResponseObject, error)
+	// UpdateRuleSet Rename a reusable rule set
+	// (PATCH /api/rule-sets/{id})
+	UpdateRuleSet(ctx context.Context, request UpdateRuleSetRequestObject) (UpdateRuleSetResponseObject, error)
+	// PutRuleSetEntries Replace a rule set's entries in order; decisions change within seconds
+	// (PUT /api/rule-sets/{id}/entries)
+	PutRuleSetEntries(ctx context.Context, request PutRuleSetEntriesRequestObject) (PutRuleSetEntriesResponseObject, error)
+	// GetGeoIP GeoIP databases on hand and where downloads come from
+	// (GET /api/security/geoip)
+	GetGeoIP(ctx context.Context, request GetGeoIPRequestObject) (GetGeoIPResponseObject, error)
+	// PutGeoIP Set the download source and fetch now; an empty key keeps the stored one
+	// (PUT /api/security/geoip)
+	PutGeoIP(ctx context.Context, request PutGeoIPRequestObject) (PutGeoIPResponseObject, error)
+	// ListSSOProviders Sign-in providers with a live discovery check
+	// (GET /api/security/sso/providers)
+	ListSSOProviders(ctx context.Context, request ListSSOProvidersRequestObject) (ListSSOProvidersResponseObject, error)
+	// CreateSSOProvider Add a sign-in provider; the client secret goes to the vault
+	// (POST /api/security/sso/providers)
+	CreateSSOProvider(ctx context.Context, request CreateSSOProviderRequestObject) (CreateSSOProviderResponseObject, error)
+	// DeleteSSOProvider Delete a provider no rule names; its sessions end
+	// (DELETE /api/security/sso/providers/{id})
+	DeleteSSOProvider(ctx context.Context, request DeleteSSOProviderRequestObject) (DeleteSSOProviderResponseObject, error)
+	// UpdateSSOProvider Change a sign-in provider; an empty secret keeps the stored one
+	// (PUT /api/security/sso/providers/{id})
+	UpdateSSOProvider(ctx context.Context, request UpdateSSOProviderRequestObject) (UpdateSSOProviderResponseObject, error)
 	// ListServices Every service, system services first, with the reason when one cannot be rendered
 	// (GET /api/services)
 	ListServices(ctx context.Context, request ListServicesRequestObject) (ListServicesResponseObject, error)
@@ -15123,6 +16592,12 @@ type StrictServerInterface interface {
 	// UpdateService Replace a user service's fields and routes (system services change only through their owning setting)
 	// (PUT /api/services/{id})
 	UpdateService(ctx context.Context, request UpdateServiceRequestObject) (UpdateServiceResponseObject, error)
+	// GetServiceAccess The service's root rule set, fallback, flattened list and outage behaviour
+	// (GET /api/services/{id}/access)
+	GetServiceAccess(ctx context.Context, request GetServiceAccessRequestObject) (GetServiceAccessResponseObject, error)
+	// PutServiceAccess Replace the service's own entries and its fallback action
+	// (PUT /api/services/{id}/access)
+	PutServiceAccess(ctx context.Context, request PutServiceAccessRequestObject) (PutServiceAccessResponseObject, error)
 	// PutServiceDashboard Show or hide a service on the public dashboard; changes no Traefik state
 	// (PUT /api/services/{id}/dashboard)
 	PutServiceDashboard(ctx context.Context, request PutServiceDashboardRequestObject) (PutServiceDashboardResponseObject, error)
@@ -15460,6 +16935,39 @@ func (sh *strictHandler) LookupAddress(w http.ResponseWriter, r *http.Request, a
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(LookupAddressResponseObject); ok {
 		if err := validResponse.VisitLookupAddressResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// TraceAddress operation middleware
+func (sh *strictHandler) TraceAddress(w http.ResponseWriter, r *http.Request, address string) {
+	var request TraceAddressRequestObject
+
+	request.Address = address
+
+	var body TraceAddressJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.TraceAddress(ctx, request.(TraceAddressRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "TraceAddress")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(TraceAddressResponseObject); ok {
+		if err := validResponse.VisitTraceAddressResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -16482,30 +17990,6 @@ func (sh *strictHandler) ListDNSRRSets(w http.ResponseWriter, r *http.Request, i
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ListDNSRRSetsResponseObject); ok {
 		if err := validResponse.VisitListDNSRRSetsResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
-	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// GetEdgeAuthForward operation middleware
-func (sh *strictHandler) GetEdgeAuthForward(w http.ResponseWriter, r *http.Request) {
-	var request GetEdgeAuthForwardRequestObject
-
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetEdgeAuthForward(ctx, request.(GetEdgeAuthForwardRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetEdgeAuthForward")
-	}
-
-	response, err := handler(r.Context(), w, r, request)
-
-	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(GetEdgeAuthForwardResponseObject); ok {
-		if err := validResponse.VisitGetEdgeAuthForwardResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -18108,6 +19592,348 @@ func (sh *strictHandler) PulseHeartbeat(w http.ResponseWriter, r *http.Request, 
 	}
 }
 
+// ListRuleSets operation middleware
+func (sh *strictHandler) ListRuleSets(w http.ResponseWriter, r *http.Request) {
+	var request ListRuleSetsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListRuleSets(ctx, request.(ListRuleSetsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListRuleSets")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListRuleSetsResponseObject); ok {
+		if err := validResponse.VisitListRuleSetsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateRuleSet operation middleware
+func (sh *strictHandler) CreateRuleSet(w http.ResponseWriter, r *http.Request) {
+	var request CreateRuleSetRequestObject
+
+	var body CreateRuleSetJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateRuleSet(ctx, request.(CreateRuleSetRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateRuleSet")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateRuleSetResponseObject); ok {
+		if err := validResponse.VisitCreateRuleSetResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteRuleSet operation middleware
+func (sh *strictHandler) DeleteRuleSet(w http.ResponseWriter, r *http.Request, id string) {
+	var request DeleteRuleSetRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteRuleSet(ctx, request.(DeleteRuleSetRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteRuleSet")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteRuleSetResponseObject); ok {
+		if err := validResponse.VisitDeleteRuleSetResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetRuleSet operation middleware
+func (sh *strictHandler) GetRuleSet(w http.ResponseWriter, r *http.Request, id string) {
+	var request GetRuleSetRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetRuleSet(ctx, request.(GetRuleSetRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetRuleSet")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetRuleSetResponseObject); ok {
+		if err := validResponse.VisitGetRuleSetResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateRuleSet operation middleware
+func (sh *strictHandler) UpdateRuleSet(w http.ResponseWriter, r *http.Request, id string) {
+	var request UpdateRuleSetRequestObject
+
+	request.Id = id
+
+	var body UpdateRuleSetJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateRuleSet(ctx, request.(UpdateRuleSetRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateRuleSet")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateRuleSetResponseObject); ok {
+		if err := validResponse.VisitUpdateRuleSetResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutRuleSetEntries operation middleware
+func (sh *strictHandler) PutRuleSetEntries(w http.ResponseWriter, r *http.Request, id string) {
+	var request PutRuleSetEntriesRequestObject
+
+	request.Id = id
+
+	var body PutRuleSetEntriesJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutRuleSetEntries(ctx, request.(PutRuleSetEntriesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutRuleSetEntries")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutRuleSetEntriesResponseObject); ok {
+		if err := validResponse.VisitPutRuleSetEntriesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetGeoIP operation middleware
+func (sh *strictHandler) GetGeoIP(w http.ResponseWriter, r *http.Request) {
+	var request GetGeoIPRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetGeoIP(ctx, request.(GetGeoIPRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetGeoIP")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetGeoIPResponseObject); ok {
+		if err := validResponse.VisitGetGeoIPResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutGeoIP operation middleware
+func (sh *strictHandler) PutGeoIP(w http.ResponseWriter, r *http.Request) {
+	var request PutGeoIPRequestObject
+
+	var body PutGeoIPJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutGeoIP(ctx, request.(PutGeoIPRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutGeoIP")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutGeoIPResponseObject); ok {
+		if err := validResponse.VisitPutGeoIPResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListSSOProviders operation middleware
+func (sh *strictHandler) ListSSOProviders(w http.ResponseWriter, r *http.Request) {
+	var request ListSSOProvidersRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListSSOProviders(ctx, request.(ListSSOProvidersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListSSOProviders")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListSSOProvidersResponseObject); ok {
+		if err := validResponse.VisitListSSOProvidersResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateSSOProvider operation middleware
+func (sh *strictHandler) CreateSSOProvider(w http.ResponseWriter, r *http.Request) {
+	var request CreateSSOProviderRequestObject
+
+	var body CreateSSOProviderJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateSSOProvider(ctx, request.(CreateSSOProviderRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateSSOProvider")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateSSOProviderResponseObject); ok {
+		if err := validResponse.VisitCreateSSOProviderResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteSSOProvider operation middleware
+func (sh *strictHandler) DeleteSSOProvider(w http.ResponseWriter, r *http.Request, id string) {
+	var request DeleteSSOProviderRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteSSOProvider(ctx, request.(DeleteSSOProviderRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteSSOProvider")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteSSOProviderResponseObject); ok {
+		if err := validResponse.VisitDeleteSSOProviderResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateSSOProvider operation middleware
+func (sh *strictHandler) UpdateSSOProvider(w http.ResponseWriter, r *http.Request, id string) {
+	var request UpdateSSOProviderRequestObject
+
+	request.Id = id
+
+	var body UpdateSSOProviderJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateSSOProvider(ctx, request.(UpdateSSOProviderRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateSSOProvider")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateSSOProviderResponseObject); ok {
+		if err := validResponse.VisitUpdateSSOProviderResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ListServices operation middleware
 func (sh *strictHandler) ListServices(w http.ResponseWriter, r *http.Request) {
 	var request ListServicesRequestObject
@@ -18241,6 +20067,65 @@ func (sh *strictHandler) UpdateService(w http.ResponseWriter, r *http.Request, i
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(UpdateServiceResponseObject); ok {
 		if err := validResponse.VisitUpdateServiceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetServiceAccess operation middleware
+func (sh *strictHandler) GetServiceAccess(w http.ResponseWriter, r *http.Request, id string) {
+	var request GetServiceAccessRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetServiceAccess(ctx, request.(GetServiceAccessRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetServiceAccess")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetServiceAccessResponseObject); ok {
+		if err := validResponse.VisitGetServiceAccessResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutServiceAccess operation middleware
+func (sh *strictHandler) PutServiceAccess(w http.ResponseWriter, r *http.Request, id string) {
+	var request PutServiceAccessRequestObject
+
+	request.Id = id
+
+	var body PutServiceAccessJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutServiceAccess(ctx, request.(PutServiceAccessRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutServiceAccess")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutServiceAccessResponseObject); ok {
+		if err := validResponse.VisitPutServiceAccessResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

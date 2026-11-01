@@ -25,3 +25,6 @@ UPDATE recovery_key SET confirmed_at = ? WHERE id = 1;
 
 -- name: DeleteSecret :exec
 DELETE FROM secret_records WHERE id = ?;
+
+-- name: DeleteSecretsByPurpose :exec
+DELETE FROM secret_records WHERE purpose = ?;

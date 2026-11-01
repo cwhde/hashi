@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -32,6 +34,7 @@ const (
 	TypeHost  = "host"
 	TypePulse = "pulse"
 	TypeDNS   = "dns"
+	TypeGeo   = "geo"
 	TypeSet   = "set"
 )
 
@@ -73,6 +76,32 @@ type Pulse struct {
 // DNS is a name's A/AAAA answers.
 type DNS struct{ FQDN string }
 
+// Geo kinds (05a §2).
+const (
+	GeoCountry = "country"
+	GeoRegion  = "region"
+	GeoASN     = "asn"
+)
+
+// Geo is a country, region or network: a lookup at L7 and the database's prefixes at the firewall (05a §4.3).
+type Geo struct {
+	Kind  string
+	Value string
+}
+
+// Matches reports whether a lookup's answer is this predicate.
+func (g Geo) Matches(country, region string, asn uint) bool {
+	switch g.Kind {
+	case GeoCountry:
+		return country != "" && g.Value == country
+	case GeoRegion:
+		return region != "" && g.Value == region
+	case GeoASN:
+		return asn != 0 && g.Value == strconv.FormatUint(uint64(asn), 10)
+	}
+	return false
+}
+
 // SetRef includes another IP set.
 type SetRef struct{ SetID string }
 
@@ -81,6 +110,7 @@ func (CIDR) Type() string   { return TypeCIDR }
 func (Host) Type() string   { return TypeHost }
 func (Pulse) Type() string  { return TypePulse }
 func (DNS) Type() string    { return TypeDNS }
+func (Geo) Type() string    { return TypeGeo }
 func (SetRef) Type() string { return TypeSet }
 
 func (IP) isItem()     {}
@@ -88,6 +118,7 @@ func (CIDR) isItem()   {}
 func (Host) isItem()   {}
 func (Pulse) isItem()  {}
 func (DNS) isItem()    {}
+func (Geo) isItem()    {}
 func (SetRef) isItem() {}
 
 // Element is an item at a position inside a set.
@@ -158,6 +189,11 @@ func ParseIPOrCIDR(s string) (Item, error) {
 	return CIDR{Prefix: p}, nil
 }
 
+var (
+	countryRe = regexp.MustCompile(`^[A-Z]{2}$`)
+	regionRe  = regexp.MustCompile(`^[A-Z]{2}-[A-Z0-9]{1,3}$`)
+)
+
 // NormalizeFQDN lowercases a name and drops a trailing dot; it must be a plausible DNS name.
 func NormalizeFQDN(s string) (string, error) {
 	n := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(s)), ".")
@@ -221,6 +257,27 @@ func Normalize(it Item) (Item, error) {
 			return nil, err
 		}
 		return DNS{FQDN: n}, nil
+	case Geo:
+		v.Value = strings.ToUpper(strings.TrimSpace(v.Value))
+		switch v.Kind {
+		case GeoCountry:
+			if !countryRe.MatchString(v.Value) {
+				return nil, invalid("a country is a two-letter ISO code, like CH")
+			}
+		case GeoRegion:
+			if !regionRe.MatchString(v.Value) {
+				return nil, invalid("a region is an ISO 3166-2 code, like CH-ZH")
+			}
+		case GeoASN:
+			n, err := strconv.ParseUint(strings.TrimPrefix(v.Value, "AS"), 10, 32)
+			if err != nil || n == 0 {
+				return nil, invalid("a network is an AS number, like 13030")
+			}
+			v.Value = strconv.FormatUint(n, 10)
+		default:
+			return nil, invalid("geo kind must be country, region or asn")
+		}
+		return v, nil
 	case SetRef:
 		if v.SetID == "" {
 			return nil, invalid("missing set")

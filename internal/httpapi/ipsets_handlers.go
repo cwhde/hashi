@@ -61,8 +61,10 @@ func itemBody(it ipsets.Item) (gen.IPItem, error) {
 		err = out.FromIPItemPulse(gen.IPItemPulse{Type: gen.Pulse, AgentId: v.AgentID, Scope: gen.IPItemPulseScope(v.Scope), Selector: emptyNil(v.Selector)})
 	case ipsets.DNS:
 		err = out.FromIPItemDNS(gen.IPItemDNS{Type: gen.Dns, Fqdn: v.FQDN})
+	case ipsets.Geo:
+		err = out.FromIPItemGeo(gen.IPItemGeo{Type: gen.Geo, Kind: gen.IPItemGeoKind(v.Kind), Value: v.Value})
 	case ipsets.SetRef:
-		err = out.FromIPItemSet(gen.IPItemSet{Type: gen.Set, SetId: v.SetID})
+		err = out.FromIPItemSet(gen.IPItemSet{Type: gen.IPItemSetTypeSet, SetId: v.SetID})
 	}
 	return out, err
 }
@@ -71,7 +73,7 @@ func itemBody(it ipsets.Item) (gen.IPItem, error) {
 func itemFromBody(b gen.IPItem) (ipsets.Item, error) {
 	v, err := b.ValueByDiscriminator()
 	if err != nil {
-		return nil, invalid("item.type must be ip, cidr, host, pulse, dns or set")
+		return nil, invalid("item.type must be ip, cidr, host, pulse, dns, geo or set")
 	}
 	switch v := v.(type) {
 	case gen.IPItemIP:
@@ -83,6 +85,8 @@ func itemFromBody(b gen.IPItem) (ipsets.Item, error) {
 			return nil, invalid("an ip item takes one address; use a cidr item for a prefix")
 		}
 		return it, nil
+	case gen.IPItemGeo:
+		return ipsets.Geo{Kind: string(v.Kind), Value: v.Value}, nil
 	case gen.IPItemCIDR:
 		if !strings.Contains(v.Prefix, "/") {
 			return nil, invalid("a cidr item takes a prefix such as 192.0.2.0/24")

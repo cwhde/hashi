@@ -29,6 +29,8 @@ export function itemValue(i: IPItem): string {
 			return i.prefix;
 		case 'dns':
 			return i.fqdn;
+		case 'geo':
+			return i.value;
 		case 'host':
 			return i.host_id;
 		case 'pulse':
@@ -59,6 +61,7 @@ export type ItemForm = {
 	agentId: string;
 	selector: string;
 	setId: string;
+	geoKind: 'country' | 'region' | 'asn';
 	note: string;
 	/** yyyy-mm-dd or empty; the item expires at the end of that local day. */
 	expires: string;
@@ -72,6 +75,7 @@ export const emptyItemForm = (): ItemForm => ({
 	agentId: '',
 	selector: '',
 	setId: '',
+	geoKind: 'country',
 	note: '',
 	expires: ''
 });
@@ -92,6 +96,9 @@ export function formFromElement(e: IPSetElement): ItemForm {
 		f.agentId = i.agent_id;
 		f.scope = i.scope;
 		f.selector = i.selector ?? '';
+	} else if (i.type === 'geo') {
+		f.geoKind = i.kind;
+		f.value = i.value;
 	} else if (i.type === 'set') f.setId = i.set_id;
 	else f.value = itemValue(i);
 	return f;
@@ -104,18 +111,20 @@ export function elementInput(f: ItemForm): Schemas['IPSetElementInput'] {
 			? { type: 'ip', address: v }
 			: f.type === 'cidr'
 				? { type: 'cidr', prefix: v }
-				: f.type === 'dns'
-					? { type: 'dns', fqdn: v }
-					: f.type === 'host'
-						? { type: 'host', host_id: f.hostId, scope: f.scope }
-						: f.type === 'pulse'
-							? {
-									type: 'pulse',
-									agent_id: f.agentId,
-									scope: f.scope,
-									selector: f.selector.trim() || undefined
-								}
-							: { type: 'set', set_id: f.setId };
+				: f.type === 'geo'
+					? { type: 'geo', kind: f.geoKind, value: v }
+					: f.type === 'dns'
+						? { type: 'dns', fqdn: v }
+						: f.type === 'host'
+							? { type: 'host', host_id: f.hostId, scope: f.scope }
+							: f.type === 'pulse'
+								? {
+										type: 'pulse',
+										agent_id: f.agentId,
+										scope: f.scope,
+										selector: f.selector.trim() || undefined
+									}
+								: { type: 'set', set_id: f.setId };
 	return {
 		item,
 		note: f.note.trim(),

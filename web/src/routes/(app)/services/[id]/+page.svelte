@@ -1,5 +1,6 @@
 <script lang="ts">
 	import ServiceExtras from '$lib/components/hashi/services/ServiceExtras.svelte';
+	import ServiceAccess from '$lib/components/hashi/rules/ServiceAccess.svelte';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
@@ -464,13 +465,11 @@
 		</Tabs.Content>
 
 		<Tabs.Content value="access">
-			<Panel title="Access">
-				<p class="text-[13px] text-muted-foreground">
-					Rules and sign-in arrive in a later slice. Until then Hashi's forward auth sits in front
-					of this service and lets every request through; if Hashi is unreachable the service stays
-					open.
-				</p>
-			</Panel>
+			{#if svc && !isStream(svc.kind)}<ServiceAccess serviceId={id} />{:else}<Panel title="Access">
+					<p class="text-[13px] text-muted-foreground">
+						TCP and UDP services are protected at the firewall.
+					</p>
+				</Panel>{/if}
 		</Tabs.Content>
 
 		<Tabs.Content value="waf">

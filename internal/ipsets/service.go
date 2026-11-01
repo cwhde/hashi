@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -59,6 +60,7 @@ type Service struct {
 	subs    []Subscriber
 	sources []ConsumerSource
 	lookupH HostLookup
+	geo     func(Geo) ([]netip.Prefix, error)
 	timer   *time.Timer
 }
 
@@ -165,6 +167,24 @@ func (s *Service) Sources() []ConsumerSource {
 // Resolver returns a resolver for one compile: dns answers from the cache (resolved on a miss), hosts from the
 // firewall feature.
 func (s *Service) Resolver(ctx context.Context) Resolver { return &resolver{s: s, ctx: ctx} }
+
+// UseGeo sets the source of geo prefixes (05a §4.3); nil until a GeoIP database exists.
+func (s *Service) UseGeo(f func(Geo) ([]netip.Prefix, error)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.geo = f
+}
+
+// GeoPrefixes implements the GeoPrefixes interface.
+func (r *resolver) GeoPrefixes(g Geo) ([]netip.Prefix, error) {
+	r.s.mu.Lock()
+	f := r.s.geo
+	r.s.mu.Unlock()
+	if f == nil {
+		return nil, errors.New("GeoIP database is not available")
+	}
+	return f(g)
+}
 
 type resolver struct {
 	s   *Service

@@ -169,8 +169,8 @@ func (q *Queries) InsertIPSet(ctx context.Context, arg InsertIPSetParams) error 
 
 const insertIPSetElement = `-- name: InsertIPSetElement :exec
 INSERT INTO ip_set_elements (id, ip_set_id, position, type, origin, locked, address, prefix, family, host_id, pulse_agent_id, selector, scope,
-    fqdn, child_set_id, note, expires_at, created_by, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    fqdn, geo_kind, geo_value, child_set_id, note, expires_at, created_by, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertIPSetElementParams struct {
@@ -188,6 +188,8 @@ type InsertIPSetElementParams struct {
 	Selector     sql.NullString
 	Scope        sql.NullString
 	Fqdn         sql.NullString
+	GeoKind      sql.NullString
+	GeoValue     sql.NullString
 	ChildSetID   sql.NullString
 	Note         string
 	ExpiresAt    sql.NullInt64
@@ -212,6 +214,8 @@ func (q *Queries) InsertIPSetElement(ctx context.Context, arg InsertIPSetElement
 		arg.Selector,
 		arg.Scope,
 		arg.Fqdn,
+		arg.GeoKind,
+		arg.GeoValue,
 		arg.ChildSetID,
 		arg.Note,
 		arg.ExpiresAt,
@@ -597,7 +601,7 @@ func (q *Queries) UpdateIPSet(ctx context.Context, arg UpdateIPSetParams) error 
 
 const updateIPSetElement = `-- name: UpdateIPSetElement :exec
 UPDATE ip_set_elements
-SET type = ?, address = ?, prefix = ?, family = ?, host_id = ?, pulse_agent_id = ?, selector = ?, scope = ?, fqdn = ?, child_set_id = ?, note = ?,
+SET type = ?, address = ?, prefix = ?, family = ?, host_id = ?, pulse_agent_id = ?, selector = ?, scope = ?, fqdn = ?, geo_kind = ?, geo_value = ?, child_set_id = ?, note = ?,
     expires_at = ?, updated_at = ?
 WHERE id = ?
 `
@@ -612,6 +616,8 @@ type UpdateIPSetElementParams struct {
 	Selector     sql.NullString
 	Scope        sql.NullString
 	Fqdn         sql.NullString
+	GeoKind      sql.NullString
+	GeoValue     sql.NullString
 	ChildSetID   sql.NullString
 	Note         string
 	ExpiresAt    sql.NullInt64
@@ -630,6 +636,8 @@ func (q *Queries) UpdateIPSetElement(ctx context.Context, arg UpdateIPSetElement
 		arg.Selector,
 		arg.Scope,
 		arg.Fqdn,
+		arg.GeoKind,
+		arg.GeoValue,
 		arg.ChildSetID,
 		arg.Note,
 		arg.ExpiresAt,

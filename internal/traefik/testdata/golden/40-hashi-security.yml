@@ -6,15 +6,31 @@ http:
       entryPoints:
         - hashi-fa
       service: hashi-fa-failover
+    hashi-fa-closed:
+      rule: PathPrefix(`/closed/`)
+      entryPoints:
+        - hashi-fa
+      middlewares:
+        - hashi-fa-closed-strip
+      service: hashi-fa-primary
+      priority: 100000
   middlewares:
     hashi-auth-closed:
       forwardAuth:
-        address: http://192.0.2.5:3340/api/edge-auth/forward
+        authResponseHeaders:
+          - X-Hashi-User
+        address: http://127.0.0.1:8081/closed/api/edge-auth/forward
         trustForwardHeader: true
     hashi-auth-open:
       forwardAuth:
+        authResponseHeaders:
+          - X-Hashi-User
         address: http://127.0.0.1:8081/api/edge-auth/forward
         trustForwardHeader: true
+    hashi-fa-closed-strip:
+      stripPrefix:
+        prefixes:
+          - /closed
   services:
     hashi-fa-failover:
       failover:

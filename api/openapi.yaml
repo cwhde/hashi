@@ -57,18 +57,208 @@ paths:
               schema: { $ref: "#/components/schemas/Version" }
 
   # ---- edge (06-edge-security.md §2) ----
-  /api/edge-auth/forward:
+  # /api/edge-auth/{forward,login,callback,logout} are plain handlers for Traefik and browsers (httpapi/edge_handlers.go):
+  # redirects and cookies are their whole interface, so they are not part of this admin API.
+  /api/rule-sets:
     get:
-      operationId: getEdgeAuthForward
-      summary: Traefik forward auth for every edge service
-      description: >-
-        S4 stub: allows every request (204). Stage A and the rule engine replace it in S9/S10. Traefik reaches it
-        directly (fail-closed services) or through the local `hashi-fa` fallback (fail-open services, 06 §2.1).
-      tags: [edge]
-      x-hashi-scopes: []
+      operationId: listRuleSets
+      summary: Every global and reusable rule set (service roots are on the service's Access tab)
+      tags: [rule-sets]
+      x-hashi-scopes: [admin.read]
       responses:
-        "204":
-          description: Allowed
+        "200":
+          description: Rule sets
+          content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/RuleSet" } } } }
+        default: { $ref: "#/components/responses/Problem" }
+    post:
+      operationId: createRuleSet
+      summary: Create a reusable rule set
+      tags: [rule-sets]
+      x-hashi-scopes: [security.manage]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/RuleSetInput" } } }
+      responses:
+        "200":
+          description: The new rule set
+          content: { application/json: { schema: { $ref: "#/components/schemas/RuleSet" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/rule-sets/{id}:
+    get:
+      operationId: getRuleSet
+      summary: One rule set with entries, where it is used and its warnings
+      tags: [rule-sets]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The rule set
+          content: { application/json: { schema: { $ref: "#/components/schemas/RuleSet" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    patch:
+      operationId: updateRuleSet
+      summary: Rename a reusable rule set
+      tags: [rule-sets]
+      x-hashi-scopes: [security.manage]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/RuleSetInput" } } }
+      responses:
+        "200":
+          description: The rule set
+          content: { application/json: { schema: { $ref: "#/components/schemas/RuleSet" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    delete:
+      operationId: deleteRuleSet
+      summary: Delete a reusable rule set nothing attaches
+      tags: [rule-sets]
+      x-hashi-scopes: [security.manage]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "204": { description: Deleted }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/rule-sets/{id}/entries:
+    put:
+      operationId: putRuleSetEntries
+      summary: Replace a rule set's entries in order; decisions change within seconds
+      tags: [rule-sets]
+      x-hashi-scopes: [security.manage]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/RuleEntriesInput" } } }
+      responses:
+        "200":
+          description: The rule set and any Traefik plans a changed outage behaviour caused
+          content: { application/json: { schema: { $ref: "#/components/schemas/RuleSetSaved" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/services/{id}/access:
+    get:
+      operationId: getServiceAccess
+      summary: The service's root rule set, fallback, flattened list and outage behaviour
+      tags: [rule-sets]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Access
+          content: { application/json: { schema: { $ref: "#/components/schemas/ServiceAccess" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      operationId: putServiceAccess
+      summary: Replace the service's own entries and its fallback action
+      tags: [rule-sets]
+      x-hashi-scopes: [security.manage]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/RuleEntriesInput" } } }
+      responses:
+        "200":
+          description: The new state and any Traefik plans a changed outage behaviour caused
+          content: { application/json: { schema: { $ref: "#/components/schemas/ServiceAccessSaved" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/addresses/{address}/trace:
+    post:
+      operationId: traceAddress
+      summary: What a request from this address to this service and path would get, and which rule decides (05a §8)
+      tags: [rule-sets]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: address, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/TraceInput" } } }
+      responses:
+        "200":
+          description: The trace
+          content: { application/json: { schema: { $ref: "#/components/schemas/TraceResult" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/security/sso/providers:
+    get:
+      operationId: listSSOProviders
+      summary: Sign-in providers with a live discovery check
+      tags: [security]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Providers
+          content: { application/json: { schema: { $ref: "#/components/schemas/SSOProviders" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    post:
+      operationId: createSSOProvider
+      summary: Add a sign-in provider; the client secret goes to the vault
+      tags: [security]
+      x-hashi-scopes: [security.manage]
+      x-hashi-reauth: true
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/SSOProviderInput" } } }
+      responses:
+        "200":
+          description: The provider
+          content: { application/json: { schema: { $ref: "#/components/schemas/SSOProvider" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/security/sso/providers/{id}:
+    put:
+      operationId: updateSSOProvider
+      summary: Change a sign-in provider; an empty secret keeps the stored one
+      tags: [security]
+      x-hashi-scopes: [security.manage]
+      x-hashi-reauth: true
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/SSOProviderInput" } } }
+      responses:
+        "200":
+          description: The provider
+          content: { application/json: { schema: { $ref: "#/components/schemas/SSOProvider" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    delete:
+      operationId: deleteSSOProvider
+      summary: Delete a provider no rule names; its sessions end
+      tags: [security]
+      x-hashi-scopes: [security.manage]
+      x-hashi-reauth: true
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "204": { description: Deleted }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/security/geoip:
+    get:
+      operationId: getGeoIP
+      summary: GeoIP databases on hand and where downloads come from
+      tags: [security]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Status
+          content: { application/json: { schema: { $ref: "#/components/schemas/GeoIPStatus" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      operationId: putGeoIP
+      summary: Set the download source and fetch now; an empty key keeps the stored one
+      tags: [security]
+      x-hashi-scopes: [security.manage]
+      x-hashi-reauth: true
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/GeoIPInput" } } }
+      responses:
+        "200":
+          description: Status after the download
+          content: { application/json: { schema: { $ref: "#/components/schemas/GeoIPStatus" } } }
+        default: { $ref: "#/components/responses/Problem" }
 
   # ---- auth (02-setup-auth.md §2–4) ----
   /api/auth/session:
@@ -2255,6 +2445,171 @@ components:
         application/problem+json:
           schema: { $ref: "#/components/schemas/Problem" }
   schemas:
+    RuleEntry:
+      type: object
+      required: [id, priority, type, child_id, child_slug, applies_to, match_type, pattern, action, provider_id, groups, origin, locked, fallback, enabled, note]
+      properties:
+        id: { type: string }
+        priority: { type: integer }
+        type: { type: string, enum: [item, set] }
+        child_id: { type: string }
+        child_slug: { type: string }
+        applies_to: { type: string, description: "IP set ID" }
+        match_type: { type: string, enum: ["", exact, prefix, regex] }
+        pattern: { type: string }
+        action: { type: string, enum: ["", none, deny, pass_captcha, pass_authentication] }
+        provider_id: { type: string }
+        groups: { type: array, items: { type: string } }
+        origin: { type: string }
+        locked: { type: boolean }
+        fallback: { type: boolean }
+        enabled: { type: boolean }
+        note: { type: string }
+    RuleEntryInput:
+      type: object
+      required: [type]
+      properties:
+        type: { type: string, enum: [item, set] }
+        child_id: { type: string }
+        applies_to: { type: string }
+        match_type: { type: string, enum: ["", exact, prefix, regex] }
+        pattern: { type: string }
+        action: { type: string, enum: ["", none, deny, pass_captcha, pass_authentication] }
+        provider_id: { type: string }
+        groups: { type: array, items: { type: string } }
+        enabled: { type: boolean }
+        note: { type: string }
+    RuleEntriesInput:
+      type: object
+      required: [entries]
+      properties:
+        entries: { type: array, items: { $ref: "#/components/schemas/RuleEntryInput" } }
+        fallback: { type: string, enum: [none, deny], description: "A service's fallback action" }
+    RuleSetInput:
+      type: object
+      required: [slug, name]
+      properties:
+        slug: { type: string }
+        name: { type: string }
+        description: { type: string }
+    RuleSetUse:
+      type: object
+      required: [label, href]
+      properties:
+        label: { type: string }
+        href: { type: string }
+    RuleSet:
+      type: object
+      required: [id, slug, name, description, kind, origin, entries, used_by, warnings]
+      properties:
+        id: { type: string }
+        slug: { type: string }
+        name: { type: string }
+        description: { type: string }
+        kind: { type: string, enum: [user, global, service_root] }
+        origin: { type: string }
+        entries: { type: array, items: { $ref: "#/components/schemas/RuleEntry" } }
+        used_by: { type: array, items: { $ref: "#/components/schemas/RuleSetUse" } }
+        warnings: { type: array, items: { type: string } }
+    RuleSetSaved:
+      type: object
+      required: [rule_set, plans]
+      properties:
+        rule_set: { $ref: "#/components/schemas/RuleSet" }
+        plans: { type: array, items: { $ref: "#/components/schemas/SyncPlan" } }
+    FlatRule:
+      type: object
+      required: [entry, path]
+      properties:
+        entry: { $ref: "#/components/schemas/RuleEntry" }
+        path: { type: array, items: { type: string }, description: "Rule sets it came from, outermost first" }
+    ServiceAccess:
+      type: object
+      required: [rule_set, fallback, editable, fail_closed, flattened, warnings]
+      properties:
+        rule_set: { $ref: "#/components/schemas/RuleSet" }
+        fallback: { type: string, enum: [none, deny] }
+        editable: { type: boolean, description: "False for system services (06 §4.5)" }
+        fail_closed: { type: boolean }
+        flattened: { type: array, items: { $ref: "#/components/schemas/FlatRule" } }
+        warnings: { type: array, items: { type: string } }
+    ServiceAccessSaved:
+      type: object
+      required: [access, plans]
+      properties:
+        access: { $ref: "#/components/schemas/ServiceAccess" }
+        plans: { type: array, items: { $ref: "#/components/schemas/SyncPlan" } }
+    TraceInput:
+      type: object
+      required: [service_id, path]
+      properties:
+        service_id: { type: string }
+        path: { type: string }
+    TraceResult:
+      type: object
+      required: [action, decided, flattened, normalized_path]
+      properties:
+        action: { type: string }
+        decided: { type: integer, description: "Index into flattened; -1 when nothing matched" }
+        normalized_path: { type: string }
+        flattened: { type: array, items: { $ref: "#/components/schemas/FlatRule" } }
+    SSOProvider:
+      type: object
+      required: [id, name, issuer, client_id, scopes, username_claim, email_claim, groups_claim, is_default, discovery_error]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        issuer: { type: string }
+        client_id: { type: string }
+        scopes: { type: string }
+        username_claim: { type: string }
+        email_claim: { type: string }
+        groups_claim: { type: string }
+        is_default: { type: boolean }
+        discovery_error: { type: string, description: "Empty when the provider's discovery document reads fine" }
+    SSOProviders:
+      type: object
+      required: [providers, callback_url, cookie_domain]
+      properties:
+        providers: { type: array, items: { $ref: "#/components/schemas/SSOProvider" } }
+        callback_url: { type: string, description: "The address to register at the provider" }
+        cookie_domain: { type: string }
+    SSOProviderInput:
+      type: object
+      required: [name, issuer, client_id, is_default]
+      properties:
+        name: { type: string }
+        issuer: { type: string }
+        client_id: { type: string }
+        client_secret: { type: string, format: password }
+        scopes: { type: string }
+        username_claim: { type: string }
+        email_claim: { type: string }
+        groups_claim: { type: string }
+        is_default: { type: boolean }
+    GeoIPDatabase:
+      type: object
+      required: [edition, built_at, fetched_at, stale]
+      properties:
+        edition: { type: string }
+        built_at: { type: string, format: date-time }
+        fetched_at: { type: string, format: date-time }
+        stale: { type: boolean }
+    GeoIPStatus:
+      type: object
+      required: [databases, account_id, has_key, url, error]
+      properties:
+        databases: { type: array, items: { $ref: "#/components/schemas/GeoIPDatabase" } }
+        account_id: { type: string }
+        has_key: { type: boolean }
+        url: { type: string }
+        error: { type: string, description: "The last download's problem, if any" }
+    GeoIPInput:
+      type: object
+      properties:
+        account_id: { type: string }
+        license_key: { type: string, format: password }
+        url: { type: string }
     MonitorState: { type: string, enum: [up, degraded, down, paused, unknown] }
     MonitorStripSample:
       type: object
@@ -3504,6 +3859,7 @@ components:
         - $ref: "#/components/schemas/IPItemHost"
         - $ref: "#/components/schemas/IPItemPulse"
         - $ref: "#/components/schemas/IPItemDNS"
+        - $ref: "#/components/schemas/IPItemGeo"
         - $ref: "#/components/schemas/IPItemSet"
       discriminator:
         propertyName: type
@@ -3513,6 +3869,7 @@ components:
           host: "#/components/schemas/IPItemHost"
           pulse: "#/components/schemas/IPItemPulse"
           dns: "#/components/schemas/IPItemDNS"
+          geo: "#/components/schemas/IPItemGeo"
           set: "#/components/schemas/IPItemSet"
     IPItemIP:
       type: object
@@ -3547,6 +3904,13 @@ components:
       properties:
         type: { type: string, enum: [dns] }
         fqdn: { type: string }
+    IPItemGeo:
+      type: object
+      required: [type, kind, value]
+      properties:
+        type: { type: string, enum: [geo] }
+        kind: { type: string, enum: [country, region, asn] }
+        value: { type: string, description: "ISO country code, ISO 3166-2 region or AS number" }
     IPItemSet:
       type: object
       required: [type, set_id]

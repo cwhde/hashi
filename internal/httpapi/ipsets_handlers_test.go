@@ -42,7 +42,7 @@ func ipItem(t *testing.T, typ, v string) gen.IPItem {
 	case "dns":
 		err = it.FromIPItemDNS(gen.IPItemDNS{Type: gen.Dns, Fqdn: v})
 	case "set":
-		err = it.FromIPItemSet(gen.IPItemSet{Type: gen.Set, SetId: v})
+		err = it.FromIPItemSet(gen.IPItemSet{Type: gen.IPItemSetTypeSet, SetId: v})
 	}
 	if err != nil {
 		t.Fatal(err)

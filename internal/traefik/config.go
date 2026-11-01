@@ -183,8 +183,9 @@ type headers struct {
 }
 
 type forwardAuth struct {
-	Address            string `yaml:"address"`
-	TrustForwardHeader bool   `yaml:"trustForwardHeader"`
+	AuthResponseHeaders []string `yaml:"authResponseHeaders,omitempty"`
+	Address             string   `yaml:"address"`
+	TrustForwardHeader  bool     `yaml:"trustForwardHeader"`
 }
 
 type service struct {

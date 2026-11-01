@@ -9,8 +9,8 @@
 	import type { IPSet, ItemForm, ItemType } from '$lib/ipsets';
 
 	// Add or edit one IP item: pick the type, then only that type's fields (05a §2). When the set is used as a
-	// target, CIDR, Geo and non-address sets cannot be added (05a §5.2). Pulse and Geo items arrive with their
-	// slices and show why they are not available yet; host items need a registered host.
+	// target, CIDR, Geo and non-address sets cannot be added (05a §5.2). Pulse items need an agent, host items a
+	// registered host.
 	let {
 		form = $bindable(),
 		sets,
@@ -27,7 +27,7 @@
 		lockType?: boolean;
 	} = $props();
 	onMount(() => void pulseAgents.load());
-	type T = ItemType | 'geo';
+	type T = ItemType;
 	const types: { v: T; l: string; target: boolean; why?: string }[] = $derived([
 		{ v: 'ip', l: 'IP', target: true },
 		{ v: 'cidr', l: 'CIDR', target: false },
@@ -44,7 +44,7 @@
 			why: hosts.length ? undefined : 'Add a firewall host first.'
 		},
 		{ v: 'dns', l: 'DNS name', target: true },
-		{ v: 'geo', l: 'Geo', target: false, why: 'Countries and networks arrive with GeoIP.' },
+		{ v: 'geo', l: 'Geo', target: false },
 		{ v: 'set', l: 'Other set', target: true }
 	]);
 	const unavailable = $derived(types.filter((t) => t.why).map((t) => t.why));
@@ -157,6 +157,30 @@
 		<p class="text-[12.5px] text-muted-foreground">
 			Follows the host: when its address changes, every place using this set updates.
 		</p>
+	{:else if form.type === 'geo'}
+		<div class="grid gap-3 sm:grid-cols-[10rem_1fr]">
+			<div class="space-y-1.5">
+				<Label>Kind</Label>
+				<Select.Root type="single" bind:value={form.geoKind}>
+					<Select.Trigger class="w-full"
+						>{form.geoKind === 'asn' ? 'Network (AS number)' : 'Country'}</Select.Trigger
+					>
+					<Select.Content>
+						<Select.Item value="country">Country</Select.Item>
+						<Select.Item value="asn">Network (AS number)</Select.Item>
+					</Select.Content>
+				</Select.Root>
+			</div>
+			<div class="space-y-1.5">
+				<Label for="gv">{form.geoKind === 'asn' ? 'AS number' : 'ISO country code'}</Label>
+				<Input
+					id="gv"
+					class="font-mono"
+					bind:value={form.value}
+					placeholder={form.geoKind === 'asn' ? '13030' : 'CH'}
+				/>
+			</div>
+		</div>
 	{:else if form.type === 'dns'}
 		<div class="space-y-1.5">
 			<Label for="fq">Name</Label><Input

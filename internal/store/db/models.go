@@ -203,6 +203,21 @@ type DnsZone struct {
 	CreatedAt        int64
 }
 
+type EdgeSession struct {
+	IDHash     string
+	ProviderID string
+	Subject    string
+	Username   string
+	Email      string
+	GroupsJson string
+	IDToken    string
+	Ip         string
+	UserAgent  string
+	CreatedAt  int64
+	LastSeenAt int64
+	ExpiresAt  int64
+}
+
 type FirewallBinding struct {
 	Position  string
 	IpSetID   string
@@ -430,6 +445,21 @@ type NotificationRoute struct {
 	UpdatedAt       int64
 }
 
+type OidcProvider struct {
+	ID            string
+	Name          string
+	Issuer        string
+	ClientID      string
+	SecretID      string
+	Scopes        string
+	UsernameClaim string
+	EmailClaim    string
+	GroupsClaim   string
+	IsDefault     int64
+	CreatedAt     int64
+	UpdatedAt     int64
+}
+
 type PasskeyCredential struct {
 	ID             string
 	CredentialID   []byte
@@ -479,6 +509,39 @@ type RecoveryLink struct {
 	CreatedAt int64
 	ExpiresAt int64
 	UsedAt    sql.NullInt64
+}
+
+type RuleEntry struct {
+	ID             string
+	RuleSetID      string
+	Priority       int64
+	EntryType      string
+	ChildRuleSetID sql.NullString
+	AppliesToSetID sql.NullString
+	MatchType      sql.NullString
+	Pattern        sql.NullString
+	Action         sql.NullString
+	AuthProviderID sql.NullString
+	AuthGroupsJson string
+	Origin         string
+	Locked         int64
+	IsFallback     int64
+	Enabled        int64
+	Note           string
+	CreatedAt      int64
+	UpdatedAt      int64
+}
+
+type RuleSet struct {
+	ID          string
+	Slug        string
+	Name        string
+	Description string
+	Kind        string
+	Origin      string
+	ServiceID   sql.NullString
+	CreatedAt   int64
+	UpdatedAt   int64
 }
 
 type SecretRecord struct {

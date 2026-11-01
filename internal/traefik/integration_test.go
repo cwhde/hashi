@@ -188,10 +188,10 @@ func TestIntegrationApplyVerifyFallback(t *testing.T) {
 		return strings.Contains(status(open), "200") && strings.Contains(status(closed), "200")
 	})
 
-	// "Hashi" stops: fail-open falls back to ping@internal once the health check notices, fail-closed answers 500.
+	// "Hashi" stops: fail-open falls back to ping@internal once the health check notices, fail-closed answers 503 from its own loopback route.
 	c.Exec(t, "pkill", "httpd")
 	itest.WaitFor(t, 30*time.Second, "fallback with Hashi down", func() bool {
-		return strings.Contains(status(open), "200") && strings.Contains(status(closed), "500")
+		return strings.Contains(status(open), "200") && strings.Contains(status(closed), "503")
 	})
 	t.Logf("Hashi down: open %q, closed %q", status(open), status(closed))
 

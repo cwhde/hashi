@@ -5,6 +5,8 @@ http:
       compress: {}
     hashi-headers:
       headers:
+        customRequestHeaders:
+          X-Hashi-User: ""
         stsSeconds: 31536000
         stsIncludeSubdomains: true
         contentTypeNosniff: true
