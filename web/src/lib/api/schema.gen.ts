@@ -1824,6 +1824,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/traefik/identity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Hashi's own SSH public key, to install on a new Traefik host */
+        get: operations["getTraefikIdentity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/traefik/scan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Read a new host's SSH key for the admin to compare (nothing is stored) */
+        post: operations["scanTraefikHost"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/traefik/hosts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add a Traefik host with its confirmed host key, validate it and let Hashi take it over
+         * @description Every host receives every enabled service (04 §7). A failed validation answers 200 with `health: failed` and nothing is taken over. Installing happens through the host's plan, which needs approval.
+         */
+        post: operations["addTraefikHost"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/traefik/hosts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Forget a Traefik host; nothing on the host itself changes */
+        delete: operations["removeTraefikHost"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/traefik/connections/{id}/plan": {
         parameters: {
             query?: never;
@@ -7276,6 +7347,98 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["TraefikConnectionList"];
                 };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getTraefikIdentity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The key */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TraefikIdentity"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    scanTraefikHost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HostKeyScanInput"];
+            };
+        };
+        responses: {
+            /** @description The host key */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostKey"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    addTraefikHost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TraefikConnectionInput"];
+            };
+        };
+        responses: {
+            /** @description The connection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TraefikConnection"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    removeTraefikHost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             default: components["responses"]["Problem"];
         };

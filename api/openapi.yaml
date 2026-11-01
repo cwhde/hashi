@@ -1731,6 +1731,61 @@ paths:
           description: Connections
           content: { application/json: { schema: { $ref: "#/components/schemas/TraefikConnectionList" } } }
         default: { $ref: "#/components/responses/Problem" }
+  /api/traefik/identity:
+    get:
+      operationId: getTraefikIdentity
+      summary: Hashi's own SSH public key, to install on a new Traefik host
+      tags: [traefik]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: The key
+          content: { application/json: { schema: { $ref: "#/components/schemas/TraefikIdentity" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/traefik/scan:
+    post:
+      operationId: scanTraefikHost
+      summary: Read a new host's SSH key for the admin to compare (nothing is stored)
+      tags: [traefik]
+      x-hashi-scopes: [admin.write]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/HostKeyScanInput" } } }
+      responses:
+        "200":
+          description: The host key
+          content: { application/json: { schema: { $ref: "#/components/schemas/HostKey" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/traefik/hosts:
+    post:
+      operationId: addTraefikHost
+      summary: Add a Traefik host with its confirmed host key, validate it and let Hashi take it over
+      description: >-
+        Every host receives every enabled service (04 §7). A failed validation answers 200 with `health: failed` and nothing is
+        taken over. Installing happens through the host's plan, which needs approval.
+      tags: [traefik]
+      x-hashi-scopes: [services.manage]
+      x-hashi-reauth: true
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/TraefikConnectionInput" } } }
+      responses:
+        "200":
+          description: The connection
+          content: { application/json: { schema: { $ref: "#/components/schemas/TraefikConnection" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/traefik/hosts/{id}:
+    delete:
+      operationId: removeTraefikHost
+      summary: Forget a Traefik host; nothing on the host itself changes
+      tags: [traefik]
+      x-hashi-scopes: [services.manage]
+      x-hashi-reauth: true
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "204": { description: Removed }
+        default: { $ref: "#/components/responses/Problem" }
   /api/traefik/connections/{id}/plan:
     post:
       operationId: planTraefikConnection

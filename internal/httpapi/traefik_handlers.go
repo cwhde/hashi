@@ -5,8 +5,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
+	"git.juzo.io/juzo/hashi/internal/audit"
 	"git.juzo.io/juzo/hashi/internal/certs"
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
 	"git.juzo.io/juzo/hashi/internal/secrets"
@@ -238,18 +240,7 @@ func (s *Server) PutSetupTraefikConnection(ctx context.Context, req gen.PutSetup
 	if err := s.requireSetupOpen(ctx); err != nil {
 		return nil, err
 	}
-	b := req.Body
-	in := traefik.ConnectionInput{Name: b.Name, Host: b.Host, Port: b.Port, User: b.User, Auth: string(b.Auth), HostKey: b.HostKey,
-		InternalIP: str(b.InternalIp), Binary: str(b.TraefikBinary), ConfigDir: str(b.ConfigDir)}
-	if b.Credential != nil {
-		in.Credential = secrets.New(*b.Credential)
-	}
-	if b.Passphrase != nil {
-		in.Passphrase = secrets.New(*b.Passphrase)
-	}
-	if b.ApiPort != nil {
-		in.APIPort = *b.ApiPort
-	}
+	in := connectionInput(*req.Body)
 	cur, exists, err := s.setupConnection(ctx)
 	if err != nil {
 		return nil, err
@@ -381,6 +372,83 @@ func (s *Server) PlanTraefikConnection(ctx context.Context, req gen.PlanTraefikC
 		return nil, traefikError(err)
 	}
 	return gen.PlanTraefikConnection200JSONResponse(s.planResult(ctx, p)), nil
+}
+
+func (s *Server) GetTraefikIdentity(ctx context.Context, _ gen.GetTraefikIdentityRequestObject) (gen.GetTraefikIdentityResponseObject, error) {
+	ri := info(ctx)
+	line, err := s.Traefik.Identity(ctx, s.actor(ri), ri.ipString())
+	if err != nil {
+		return nil, err
+	}
+	return gen.GetTraefikIdentity200JSONResponse{PublicKey: line}, nil
+}
+
+func (s *Server) ScanTraefikHost(ctx context.Context, req gen.ScanTraefikHostRequestObject) (gen.ScanTraefikHostResponseObject, error) {
+	hk, err := s.Traefik.ScanHostKey(ctx, req.Body.Host, req.Body.Port)
+	if err != nil {
+		return nil, providerFailed("Could not read the SSH host key: " + err.Error())
+	}
+	return gen.ScanTraefikHost200JSONResponse{Type: hk.Type, Fingerprint: hk.Fingerprint, Key: hk.Key}, nil
+}
+
+// AddTraefikHost saves, validates and takes over one more host (04 §7). Installing goes through its plan.
+func (s *Server) AddTraefikHost(ctx context.Context, req gen.AddTraefikHostRequestObject) (gen.AddTraefikHostResponseObject, error) {
+	ri := info(ctx)
+	row, err := s.Traefik.Save(ctx, s.actor(ri), ri.ipString(), "", connectionInput(*req.Body))
+	if err != nil {
+		return nil, traefikError(err)
+	}
+	if row, _, err = s.Traefik.Validate(ctx, row.ID); err != nil {
+		// Shown on the connection (health, last error); nothing is taken over.
+		if row, err = s.Store.R.GetTraefikConnection(ctx, row.ID); err != nil {
+			return nil, err
+		}
+	} else if err := s.Traefik.ConfirmOwnership(ctx, s.actor(ri), ri.ipString(), row.ID); err != nil {
+		return nil, traefikError(err)
+	} else if row, err = s.Store.R.GetTraefikConnection(ctx, row.ID); err != nil {
+		return nil, err
+	}
+	body, err := s.connectionBody(ctx, row)
+	if err != nil {
+		return nil, err
+	}
+	return gen.AddTraefikHost200JSONResponse(body), nil
+}
+
+// RemoveTraefikHost forgets a host; nothing on it changes. A firewall host's link keeps it (the error says so).
+func (s *Server) RemoveTraefikHost(ctx context.Context, req gen.RemoveTraefikHostRequestObject) (gen.RemoveTraefikHostResponseObject, error) {
+	ri := info(ctx)
+	if _, err := s.Store.R.GetTraefikConnection(ctx, req.Id); err != nil {
+		return nil, traefikError(err)
+	}
+	err := s.Store.Tx(ctx, func(q *db.Queries) error {
+		if err := q.DeleteTraefikConnection(ctx, req.Id); err != nil {
+			return err
+		}
+		return s.Audit.Record(ctx, q, audit.Event{Actor: s.actor(ri), Action: "traefik.connection.removed", IP: ri.ipString(), Target: "traefik:" + req.Id, Outcome: audit.Success})
+	})
+	if err != nil {
+		if strings.Contains(err.Error(), "FOREIGN KEY") {
+			return nil, conflict("A firewall host still uses this Traefik host; change that host first.")
+		}
+		return nil, err
+	}
+	return gen.RemoveTraefikHost204Response{}, nil
+}
+
+func connectionInput(b gen.TraefikConnectionInput) traefik.ConnectionInput {
+	in := traefik.ConnectionInput{Name: b.Name, Host: b.Host, Port: b.Port, User: b.User, Auth: string(b.Auth), HostKey: b.HostKey,
+		InternalIP: str(b.InternalIp), Binary: str(b.TraefikBinary), ConfigDir: str(b.ConfigDir)}
+	if b.Credential != nil {
+		in.Credential = secrets.New(*b.Credential)
+	}
+	if b.Passphrase != nil {
+		in.Passphrase = secrets.New(*b.Passphrase)
+	}
+	if b.ApiPort != nil {
+		in.APIPort = *b.ApiPort
+	}
+	return in
 }
 
 // strPtr is nil for an empty string (optional response fields).

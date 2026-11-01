@@ -15,6 +15,7 @@ func (r Requirement) NeedsSession() bool { return r.Session || r.Reauth || len(r
 // Requirements is keyed by the operation name passed to strict middleware.
 var Requirements = map[string]Requirement{
 	"AddIPSetElement":            {Scopes: []string{"security.manage"}, Session: false, Reauth: false},
+	"AddTraefikHost":             {Scopes: []string{"services.manage"}, Session: false, Reauth: true},
 	"ApplyAgentDNS":              {Scopes: []string{"admin.write"}, Session: false, Reauth: false},
 	"ApplySyncPlan":              {Scopes: []string{"sync.apply"}, Session: false, Reauth: false},
 	"ApproveSyncPlan":            {Scopes: []string{"sync.apply"}, Session: false, Reauth: true},
@@ -90,6 +91,7 @@ var Requirements = map[string]Requirement{
 	"GetSetup":                   {Scopes: []string{}, Session: false, Reauth: false},
 	"GetSetupDNSImport":          {Scopes: []string{"setup.manage"}, Session: false, Reauth: false},
 	"GetSyncPlan":                {Scopes: []string{"admin.read"}, Session: false, Reauth: false},
+	"GetTraefikIdentity":         {Scopes: []string{"admin.read"}, Session: false, Reauth: false},
 	"GetVault":                   {Scopes: []string{"admin.read"}, Session: false, Reauth: false},
 	"GetVersion":                 {Scopes: []string{}, Session: false, Reauth: false},
 	"InstallKeyFirewall":         {Scopes: []string{"firewall.apply"}, Session: false, Reauth: true},
@@ -168,6 +170,7 @@ var Requirements = map[string]Requirement{
 	"RecoverPasskeyOptions":      {Scopes: []string{"recovery.passkey"}, Session: false, Reauth: false},
 	"RecoverPasskeyVerify":       {Scopes: []string{"recovery.passkey"}, Session: false, Reauth: false},
 	"RefreshDNSZone":             {Scopes: []string{"admin.write"}, Session: false, Reauth: false},
+	"RemoveTraefikHost":          {Scopes: []string{"services.manage"}, Session: false, Reauth: true},
 	"RenamePasskey":              {Scopes: []string{"admin.write"}, Session: false, Reauth: false},
 	"RenewCertificate":           {Scopes: []string{"admin.write"}, Session: false, Reauth: false},
 	"RevealSecret":               {Scopes: []string{"secrets.manage"}, Session: false, Reauth: true},
@@ -182,6 +185,7 @@ var Requirements = map[string]Requirement{
 	"ScanFirewallHost":           {Scopes: []string{"firewall.apply"}, Session: false, Reauth: false},
 	"ScanSetupFirewallHost":      {Scopes: []string{"setup.manage"}, Session: false, Reauth: false},
 	"ScanSetupTraefikHost":       {Scopes: []string{"setup.manage"}, Session: false, Reauth: false},
+	"ScanTraefikHost":            {Scopes: []string{"admin.write"}, Session: false, Reauth: false},
 	"SetupPasskeyOptions":        {Scopes: []string{"setup.manage"}, Session: false, Reauth: false},
 	"SetupPasskeyVerify":         {Scopes: []string{"setup.manage"}, Session: false, Reauth: false},
 	"SetupRecoveryKey":           {Scopes: []string{"setup.manage"}, Session: false, Reauth: false},

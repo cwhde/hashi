@@ -4258,6 +4258,12 @@ type ScanSetupTraefikHostJSONRequestBody = HostKeyScanInput
 // PutTraefikSSHTargetJSONRequestBody defines body for PutTraefikSSHTarget for application/json ContentType.
 type PutTraefikSSHTargetJSONRequestBody = SSHTarget
 
+// AddTraefikHostJSONRequestBody defines body for AddTraefikHost for application/json ContentType.
+type AddTraefikHostJSONRequestBody = TraefikConnectionInput
+
+// ScanTraefikHostJSONRequestBody defines body for ScanTraefikHost for application/json ContentType.
+type ScanTraefikHostJSONRequestBody = HostKeyScanInput
+
 // AsIPItemIP returns the union data inside the IPItem as a IPItemIP
 func (t IPItem) AsIPItemIP() (IPItemIP, error) {
 	var body IPItemIP
@@ -5081,9 +5087,21 @@ type ServerInterface interface {
 	// PutTraefikSSHTarget Reach the Traefik host through an address set; empty goes back to its literal address
 	// (PUT /api/traefik/connections/{id}/ssh-target)
 	PutTraefikSSHTarget(w http.ResponseWriter, r *http.Request, id string)
+	// AddTraefikHost Add a Traefik host with its confirmed host key, validate it and let Hashi take it over
+	// (POST /api/traefik/hosts)
+	AddTraefikHost(w http.ResponseWriter, r *http.Request)
+	// RemoveTraefikHost Forget a Traefik host; nothing on the host itself changes
+	// (DELETE /api/traefik/hosts/{id})
+	RemoveTraefikHost(w http.ResponseWriter, r *http.Request, id string)
+	// GetTraefikIdentity Hashi's own SSH public key, to install on a new Traefik host
+	// (GET /api/traefik/identity)
+	GetTraefikIdentity(w http.ResponseWriter, r *http.Request)
 	// PlanTraefik Plan every Traefik host (low-risk plans apply right away)
 	// (POST /api/traefik/plan)
 	PlanTraefik(w http.ResponseWriter, r *http.Request)
+	// ScanTraefikHost Read a new host's SSH key for the admin to compare (nothing is stored)
+	// (POST /api/traefik/scan)
+	ScanTraefikHost(w http.ResponseWriter, r *http.Request)
 	// GetVault Vault mode and state
 	// (GET /api/vault)
 	GetVault(w http.ResponseWriter, r *http.Request)
@@ -8802,11 +8820,79 @@ func (siw *ServerInterfaceWrapper) PutTraefikSSHTarget(w http.ResponseWriter, r 
 	handler.ServeHTTP(w, r)
 }
 
+// AddTraefikHost operation middleware
+func (siw *ServerInterfaceWrapper) AddTraefikHost(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddTraefikHost(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveTraefikHost operation middleware
+func (siw *ServerInterfaceWrapper) RemoveTraefikHost(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveTraefikHost(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetTraefikIdentity operation middleware
+func (siw *ServerInterfaceWrapper) GetTraefikIdentity(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetTraefikIdentity(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // PlanTraefik operation middleware
 func (siw *ServerInterfaceWrapper) PlanTraefik(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PlanTraefik(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ScanTraefikHost operation middleware
+func (siw *ServerInterfaceWrapper) ScanTraefikHost(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ScanTraefikHost(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -9164,6 +9250,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/dns/prune", wrapper.PlanDNSPrune)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/dns/probe", wrapper.PlanDNSProbe)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/traefik/connections", wrapper.ListTraefikConnections)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/traefik/identity", wrapper.GetTraefikIdentity)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/traefik/scan", wrapper.ScanTraefikHost)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/traefik/hosts", wrapper.AddTraefikHost)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/traefik/hosts/{id}", wrapper.RemoveTraefikHost)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/traefik/connections/{id}/plan", wrapper.PlanTraefikConnection)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/services", wrapper.ListServices)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/services", wrapper.CreateService)
@@ -16165,6 +16255,116 @@ func (response PutTraefikSSHTargetdefaultApplicationProblemPlusJSONResponse) Vis
 	return err
 }
 
+type AddTraefikHostRequestObject struct {
+	Body *AddTraefikHostJSONRequestBody
+}
+
+type AddTraefikHostResponseObject interface {
+	VisitAddTraefikHostResponse(w http.ResponseWriter) error
+}
+
+type AddTraefikHost200JSONResponse TraefikConnection
+
+func (response AddTraefikHost200JSONResponse) VisitAddTraefikHostResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddTraefikHostdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response AddTraefikHostdefaultApplicationProblemPlusJSONResponse) VisitAddTraefikHostResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveTraefikHostRequestObject struct {
+	Id string `json:"id"`
+}
+
+type RemoveTraefikHostResponseObject interface {
+	VisitRemoveTraefikHostResponse(w http.ResponseWriter) error
+}
+
+type RemoveTraefikHost204Response struct {
+}
+
+func (response RemoveTraefikHost204Response) VisitRemoveTraefikHostResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RemoveTraefikHostdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response RemoveTraefikHostdefaultApplicationProblemPlusJSONResponse) VisitRemoveTraefikHostResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetTraefikIdentityRequestObject struct {
+}
+
+type GetTraefikIdentityResponseObject interface {
+	VisitGetTraefikIdentityResponse(w http.ResponseWriter) error
+}
+
+type GetTraefikIdentity200JSONResponse TraefikIdentity
+
+func (response GetTraefikIdentity200JSONResponse) VisitGetTraefikIdentityResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetTraefikIdentitydefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetTraefikIdentitydefaultApplicationProblemPlusJSONResponse) VisitGetTraefikIdentityResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type PlanTraefikRequestObject struct {
 }
 
@@ -16192,6 +16392,45 @@ type PlanTraefikdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response PlanTraefikdefaultApplicationProblemPlusJSONResponse) VisitPlanTraefikResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ScanTraefikHostRequestObject struct {
+	Body *ScanTraefikHostJSONRequestBody
+}
+
+type ScanTraefikHostResponseObject interface {
+	VisitScanTraefikHostResponse(w http.ResponseWriter) error
+}
+
+type ScanTraefikHost200JSONResponse HostKey
+
+func (response ScanTraefikHost200JSONResponse) VisitScanTraefikHostResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ScanTraefikHostdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ScanTraefikHostdefaultApplicationProblemPlusJSONResponse) VisitScanTraefikHostResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -16937,9 +17176,21 @@ type StrictServerInterface interface {
 	// PutTraefikSSHTarget Reach the Traefik host through an address set; empty goes back to its literal address
 	// (PUT /api/traefik/connections/{id}/ssh-target)
 	PutTraefikSSHTarget(ctx context.Context, request PutTraefikSSHTargetRequestObject) (PutTraefikSSHTargetResponseObject, error)
+	// AddTraefikHost Add a Traefik host with its confirmed host key, validate it and let Hashi take it over
+	// (POST /api/traefik/hosts)
+	AddTraefikHost(ctx context.Context, request AddTraefikHostRequestObject) (AddTraefikHostResponseObject, error)
+	// RemoveTraefikHost Forget a Traefik host; nothing on the host itself changes
+	// (DELETE /api/traefik/hosts/{id})
+	RemoveTraefikHost(ctx context.Context, request RemoveTraefikHostRequestObject) (RemoveTraefikHostResponseObject, error)
+	// GetTraefikIdentity Hashi's own SSH public key, to install on a new Traefik host
+	// (GET /api/traefik/identity)
+	GetTraefikIdentity(ctx context.Context, request GetTraefikIdentityRequestObject) (GetTraefikIdentityResponseObject, error)
 	// PlanTraefik Plan every Traefik host (low-risk plans apply right away)
 	// (POST /api/traefik/plan)
 	PlanTraefik(ctx context.Context, request PlanTraefikRequestObject) (PlanTraefikResponseObject, error)
+	// ScanTraefikHost Read a new host's SSH key for the admin to compare (nothing is stored)
+	// (POST /api/traefik/scan)
+	ScanTraefikHost(ctx context.Context, request ScanTraefikHostRequestObject) (ScanTraefikHostResponseObject, error)
 	// GetVault Vault mode and state
 	// (GET /api/vault)
 	GetVault(ctx context.Context, request GetVaultRequestObject) (GetVaultResponseObject, error)
@@ -21969,6 +22220,87 @@ func (sh *strictHandler) PutTraefikSSHTarget(w http.ResponseWriter, r *http.Requ
 	}
 }
 
+// AddTraefikHost operation middleware
+func (sh *strictHandler) AddTraefikHost(w http.ResponseWriter, r *http.Request) {
+	var request AddTraefikHostRequestObject
+
+	var body AddTraefikHostJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AddTraefikHost(ctx, request.(AddTraefikHostRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AddTraefikHost")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AddTraefikHostResponseObject); ok {
+		if err := validResponse.VisitAddTraefikHostResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RemoveTraefikHost operation middleware
+func (sh *strictHandler) RemoveTraefikHost(w http.ResponseWriter, r *http.Request, id string) {
+	var request RemoveTraefikHostRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RemoveTraefikHost(ctx, request.(RemoveTraefikHostRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RemoveTraefikHost")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RemoveTraefikHostResponseObject); ok {
+		if err := validResponse.VisitRemoveTraefikHostResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetTraefikIdentity operation middleware
+func (sh *strictHandler) GetTraefikIdentity(w http.ResponseWriter, r *http.Request) {
+	var request GetTraefikIdentityRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetTraefikIdentity(ctx, request.(GetTraefikIdentityRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetTraefikIdentity")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetTraefikIdentityResponseObject); ok {
+		if err := validResponse.VisitGetTraefikIdentityResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // PlanTraefik operation middleware
 func (sh *strictHandler) PlanTraefik(w http.ResponseWriter, r *http.Request) {
 	var request PlanTraefikRequestObject
@@ -21986,6 +22318,37 @@ func (sh *strictHandler) PlanTraefik(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(PlanTraefikResponseObject); ok {
 		if err := validResponse.VisitPlanTraefikResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ScanTraefikHost operation middleware
+func (sh *strictHandler) ScanTraefikHost(w http.ResponseWriter, r *http.Request) {
+	var request ScanTraefikHostRequestObject
+
+	var body ScanTraefikHostJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ScanTraefikHost(ctx, request.(ScanTraefikHostRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ScanTraefikHost")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ScanTraefikHostResponseObject); ok {
+		if err := validResponse.VisitScanTraefikHostResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
