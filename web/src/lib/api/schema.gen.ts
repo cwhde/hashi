@@ -2560,10 +2560,14 @@ export interface components {
             id: string;
             name: string;
             target_set_id: string;
+            /** @description Set when the connection reaches its instance through one Pulse agent */
+            target_agent_id?: string;
             port: number;
             scheme: string;
             path_prefix: string;
             tls_verify: boolean;
+            /** @description SHA-256 of the exact certificate expected, or empty */
+            tls_fingerprint: string;
             server_name: string;
             username: string;
             has_password: boolean;
@@ -2579,7 +2583,12 @@ export interface components {
         };
         AdGuardConnectionInput: {
             name: string;
-            target_set_id: string;
+            /** @description An address set; left out when target_agent_id is given */
+            target_set_id?: string;
+            /** @description Reach the instance through this Pulse agent; wins over target_set_id */
+            target_agent_id?: string;
+            /** @description SHA-256 of the exact certificate expected; accepts openssl's colons and capitals */
+            tls_fingerprint?: string;
             port: number;
             scheme: string;
             path_prefix?: string;

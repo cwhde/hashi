@@ -8,11 +8,11 @@ SELECT * FROM adguard_connections WHERE id = ?;
 SELECT * FROM adguard_connections WHERE target_set_id = ? ORDER BY name;
 
 -- name: InsertAdGuardConnection :exec
-INSERT INTO adguard_connections (id, name, target_set_id, port, scheme, path_prefix, tls_verify, server_name, username, secret_id, mode, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO adguard_connections (id, name, target_set_id, port, scheme, path_prefix, tls_verify, tls_fingerprint, server_name, username, secret_id, mode, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: UpdateAdGuardConnection :exec
-UPDATE adguard_connections SET name = ?, target_set_id = ?, port = ?, scheme = ?, path_prefix = ?, tls_verify = ?, server_name = ?,
+UPDATE adguard_connections SET name = ?, target_set_id = ?, port = ?, scheme = ?, path_prefix = ?, tls_verify = ?, tls_fingerprint = ?, server_name = ?,
     username = ?, secret_id = ?, mode = ?, updated_at = ? WHERE id = ?;
 
 -- name: SetAdGuardConnectionCheck :exec

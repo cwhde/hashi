@@ -2,8 +2,11 @@ package adguard
 
 import (
 	"context"
+	"crypto/sha256"
+	"crypto/subtle"
 	"crypto/tls"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
@@ -47,9 +50,13 @@ var (
 // Input is a connection's editable fields. A zero Password keeps the stored one.
 type Input struct {
 	Name, TargetSetID, Scheme, PathPrefix, ServerName, Username, Mode string
-	Port                                                              int
-	TLSVerify                                                         bool
-	Password                                                          secrets.Value
+	// TargetAgentID reaches the instance through one Pulse agent without a set of the admin's; it wins over TargetSetID.
+	TargetAgentID string
+	// TLSFingerprint is the SHA-256 of the exact certificate expected, for an instance with a self-signed one.
+	TLSFingerprint string
+	Port           int
+	TLSVerify      bool
+	Password       secrets.Value
 	// SaveInactive saves a connection that does not answer yet.
 	SaveInactive bool
 }
@@ -70,7 +77,21 @@ func (in Input) check() error {
 	if in.PathPrefix != "" && !strings.HasPrefix(in.PathPrefix, "/") {
 		return fmt.Errorf("%w: the path prefix must start with /", ErrBadInput)
 	}
+	if in.TLSFingerprint != "" {
+		if in.Scheme != "https" {
+			return fmt.Errorf("%w: a certificate fingerprint needs HTTPS", ErrBadInput)
+		}
+		if b, err := hex.DecodeString(in.TLSFingerprint); err != nil || len(b) != sha256.Size {
+			return fmt.Errorf("%w: the certificate fingerprint must be a SHA-256 in hex", ErrBadInput)
+		}
+	}
 	return nil
+}
+
+// normalized cleans what a person pastes: openssl prints a fingerprint in capitals, with colons.
+func (in Input) normalized() Input {
+	in.TLSFingerprint = strings.ToLower(strings.ReplaceAll(strings.TrimSpace(in.TLSFingerprint), ":", ""))
+	return in
 }
 
 // Resolver resolves a target position (ipsets.Service.ResolveTarget).
@@ -94,10 +115,10 @@ func (s *Service) gone(ctx context.Context) func(string) bool {
 }
 
 // ErrAgentTarget refuses sending a password to an address an agent reported unless the instance proves who it is.
-var ErrAgentTarget = fmt.Errorf("%w: a target using a Pulse agent needs HTTPS, certificate checks and an expected hostname, because the agent's reported address decides where the password goes", ErrBadInput)
+var ErrAgentTarget = fmt.Errorf("%w: a target using a Pulse agent needs HTTPS and either the certificate's fingerprint or certificate checks with an expected hostname, because the agent's reported address decides where the password goes", ErrBadInput)
 
 // agentSafe holds whenever the password may follow an agent's address (08 §3: a token can do nothing but its heartbeat).
-func (s *Service) agentSafe(ctx context.Context, setID, scheme, serverName string, verify, hasPassword bool) error {
+func (s *Service) agentSafe(ctx context.Context, setID, scheme, serverName, fingerprint string, verify, hasPassword bool) error {
 	if !hasPassword {
 		return nil
 	}
@@ -105,7 +126,7 @@ func (s *Service) agentSafe(ctx context.Context, setID, scheme, serverName strin
 	if err != nil {
 		return err
 	}
-	if uses && (scheme != "https" || !verify || serverName == "") {
+	if uses && (scheme != "https" || (fingerprint == "" && (!verify || serverName == ""))) {
 		return ErrAgentTarget
 	}
 	return nil
@@ -116,7 +137,7 @@ func (s *Service) validate(ctx context.Context, in Input, id string, current sql
 	if err := s.checkTarget(ctx, in.TargetSetID); err != nil {
 		return err
 	}
-	if err := s.agentSafe(ctx, in.TargetSetID, in.Scheme, in.ServerName, in.TLSVerify, !in.Password.IsZero() || current.Valid); err != nil {
+	if err := s.agentSafe(ctx, in.TargetSetID, in.Scheme, in.ServerName, in.TLSFingerprint, in.TLSVerify, !in.Password.IsZero() || current.Valid); err != nil {
 		return err
 	}
 	if in.SaveInactive || in.Mode == ModeDisabled { // a disabled connection is not contacted, not even to test it
@@ -139,7 +160,7 @@ func (s *Service) validate(ctx context.Context, in Input, id string, current sql
 			return err
 		}
 	}
-	row := db.AdguardConnection{ID: id, TargetSetID: in.TargetSetID, Port: int64(in.Port), Scheme: in.Scheme, PathPrefix: in.PathPrefix, TlsVerify: b2i(in.TLSVerify), ServerName: in.ServerName, Username: in.Username}
+	row := db.AdguardConnection{ID: id, TargetSetID: in.TargetSetID, Port: int64(in.Port), Scheme: in.Scheme, PathPrefix: in.PathPrefix, TlsVerify: b2i(in.TLSVerify), TlsFingerprint: in.TLSFingerprint, ServerName: in.ServerName, Username: in.Username}
 	if _, _, err := s.dialWith(ctx, row, password); err != nil {
 		return fmt.Errorf("%w: %w", ErrUnreachable, err)
 	}
@@ -176,14 +197,20 @@ func (s *Service) Create(ctx context.Context, in Input) (db.AdguardConnection, e
 	if in.Mode == "" {
 		in.Mode = ModeReadOnly
 	}
+	in = in.normalized()
 	if err := in.check(); err != nil {
+		return db.AdguardConnection{}, err
+	}
+	in, err := s.useAgent(ctx, in)
+	if err != nil {
 		return db.AdguardConnection{}, err
 	}
 	id, now := ulid.Make().String(), s.now().UnixMilli()
 	if err := s.validate(ctx, in, id, sql.NullString{}); err != nil {
+		s.dropAgentSet(ctx, in.TargetSetID)
 		return db.AdguardConnection{}, err
 	}
-	err := s.st.Tx(ctx, func(q *db.Queries) error {
+	err = s.st.Tx(ctx, func(q *db.Queries) error {
 		var secretID sql.NullString
 		if !in.Password.IsZero() {
 			p, err := s.vault.Seal(vault.Service, "adguard:"+id, in.Password)
@@ -196,9 +223,10 @@ func (s *Service) Create(ctx context.Context, in Input) (db.AdguardConnection, e
 			secretID = sql.NullString{String: p.ID, Valid: true}
 		}
 		return q.InsertAdGuardConnection(ctx, db.InsertAdGuardConnectionParams{ID: id, Name: strings.TrimSpace(in.Name), TargetSetID: in.TargetSetID, Port: int64(in.Port),
-			Scheme: in.Scheme, PathPrefix: in.PathPrefix, TlsVerify: b2i(in.TLSVerify), ServerName: in.ServerName, Username: in.Username, SecretID: secretID, Mode: in.Mode, CreatedAt: now, UpdatedAt: now})
+			Scheme: in.Scheme, PathPrefix: in.PathPrefix, TlsVerify: b2i(in.TLSVerify), TlsFingerprint: in.TLSFingerprint, ServerName: in.ServerName, Username: in.Username, SecretID: secretID, Mode: in.Mode, CreatedAt: now, UpdatedAt: now})
 	})
 	if err != nil {
+		s.dropAgentSet(ctx, in.TargetSetID)
 		return db.AdguardConnection{}, err
 	}
 	return s.st.R.GetAdGuardConnection(ctx, id)
@@ -206,6 +234,7 @@ func (s *Service) Create(ctx context.Context, in Input) (db.AdguardConnection, e
 
 // Update changes a connection; a zero password keeps the stored one.
 func (s *Service) Update(ctx context.Context, id string, in Input) (db.AdguardConnection, error) {
+	in = in.normalized()
 	if err := in.check(); err != nil {
 		return db.AdguardConnection{}, err
 	}
@@ -216,7 +245,11 @@ func (s *Service) Update(ctx context.Context, id string, in Input) (db.AdguardCo
 	if err != nil {
 		return db.AdguardConnection{}, err
 	}
+	if in, err = s.useAgent(ctx, in); err != nil {
+		return db.AdguardConnection{}, err
+	}
 	if err := s.validate(ctx, in, id, cur.SecretID); err != nil {
+		s.dropAgentSet(ctx, in.TargetSetID)
 		return db.AdguardConnection{}, err
 	}
 	err = s.st.Tx(ctx, func(q *db.Queries) error {
@@ -239,7 +272,7 @@ func (s *Service) Update(ctx context.Context, id string, in Input) (db.AdguardCo
 			secretID = sql.NullString{String: p.ID, Valid: true}
 		}
 		if err := q.UpdateAdGuardConnection(ctx, db.UpdateAdGuardConnectionParams{Name: strings.TrimSpace(in.Name), TargetSetID: in.TargetSetID, Port: int64(in.Port), Scheme: in.Scheme,
-			PathPrefix: in.PathPrefix, TlsVerify: b2i(in.TLSVerify), ServerName: in.ServerName, Username: in.Username, SecretID: secretID, Mode: in.Mode, UpdatedAt: s.now().UnixMilli(), ID: id}); err != nil {
+			PathPrefix: in.PathPrefix, TlsVerify: b2i(in.TLSVerify), TlsFingerprint: in.TLSFingerprint, ServerName: in.ServerName, Username: in.Username, SecretID: secretID, Mode: in.Mode, UpdatedAt: s.now().UnixMilli(), ID: id}); err != nil {
 			return err
 		}
 		if row.SecretID.Valid && row.SecretID != secretID {
@@ -248,13 +281,51 @@ func (s *Service) Update(ctx context.Context, id string, in Input) (db.AdguardCo
 		return nil
 	})
 	if err != nil {
+		s.dropAgentSet(ctx, in.TargetSetID)
 		return db.AdguardConnection{}, err
+	}
+	if cur.TargetSetID != in.TargetSetID {
+		s.dropAgentSet(ctx, cur.TargetSetID)
 	}
 	return s.st.R.GetAdGuardConnection(ctx, id)
 }
 
+// useAgent points the input at the agent's own hidden set.
+func (s *Service) useAgent(ctx context.Context, in Input) (Input, error) {
+	if in.TargetAgentID == "" {
+		return in, nil
+	}
+	var set string
+	err := s.st.Tx(ctx, func(q *db.Queries) error {
+		a, err := q.GetPulseAgent(ctx, in.TargetAgentID)
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("%w: no such Pulse agent", ErrBadInput)
+		}
+		if err != nil {
+			return err
+		}
+		set, err = ipsets.EnsureAgentSet(ctx, q, a.ID, a.Name, s.now())
+		return err
+	})
+	in.TargetSetID = set
+	return in, err
+}
+
+// dropAgentSet removes an agent's hidden set once no connection uses it, so it never blocks removing the agent.
+func (s *Service) dropAgentSet(ctx context.Context, setID string) {
+	if _, ok := ipsets.AgentOf(setID); !ok {
+		return
+	}
+	rows, err := s.st.R.ListAdGuardConnectionsBySet(ctx, setID)
+	if err == nil && len(rows) == 0 {
+		_ = s.st.Q.DeleteIPSet(ctx, setID)
+	}
+}
+
 // Delete forgets a connection and its secret. Rewrites stay on the instance: removing them is a plan, not a side effect.
 func (s *Service) Delete(ctx context.Context, id string) error {
+	var set string
+	defer func() { s.dropAgentSet(ctx, set) }()
 	return s.st.Tx(ctx, func(q *db.Queries) error {
 		row, err := q.GetAdGuardConnection(ctx, id)
 		if errors.Is(err, sql.ErrNoRows) {
@@ -263,6 +334,7 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 		if err != nil {
 			return err
 		}
+		set = row.TargetSetID
 		if err := q.DeleteAdGuardConnection(ctx, id); err != nil {
 			return err
 		}
@@ -303,7 +375,7 @@ func (s *Service) dial(ctx context.Context, row db.AdguardConnection) (Client, s
 
 func (s *Service) dialWith(ctx context.Context, row db.AdguardConnection, password secrets.Value) (Client, string, error) {
 	// Checked on every connection, not only on save: the set may have gained a Pulse item since.
-	if err := s.agentSafe(ctx, row.TargetSetID, row.Scheme, row.ServerName, row.TlsVerify == 1, !password.IsZero()); err != nil {
+	if err := s.agentSafe(ctx, row.TargetSetID, row.Scheme, row.ServerName, row.TlsFingerprint, row.TlsVerify == 1, !password.IsZero()); err != nil {
 		return Client{}, "", err
 	}
 	t, err := s.resolve(ctx, "adguard:"+row.ID, row.TargetSetID)
@@ -313,9 +385,7 @@ func (s *Service) dialWith(ctx context.Context, row db.AdguardConnection, passwo
 	if len(t.Addresses) == 0 {
 		return Client{}, "", fmt.Errorf("the target has no address: %s", t.Unresolved)
 	}
-	h := &http.Client{Timeout: 15 * time.Second, Transport: &http.Transport{TLSClientConfig: &tls.Config{
-		MinVersion: tls.VersionTLS12, ServerName: row.ServerName, InsecureSkipVerify: row.TlsVerify == 0, //nolint:gosec // the admin's explicit per-connection choice (03 §8)
-	}}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	h := &http.Client{Timeout: 15 * time.Second, Transport: &http.Transport{TLSClientConfig: tlsConfig(row)}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	var last error
 	for _, a := range t.Addresses {
 		c := Client{Base: row.Scheme + "://" + net.JoinHostPort(a.String(), strconv.FormatInt(row.Port, 10)) + row.PathPrefix, Username: row.Username, Password: password, HTTP: h, Host: row.ServerName}
@@ -329,6 +399,25 @@ func (s *Service) dialWith(ctx context.Context, row db.AdguardConnection, passwo
 		last = err
 	}
 	return Client{}, "", last
+}
+
+// tlsConfig checks the certificate the connection asks for: its exact fingerprint when it names one, else the usual chain.
+func tlsConfig(row db.AdguardConnection) *tls.Config {
+	c := &tls.Config{MinVersion: tls.VersionTLS12, ServerName: row.ServerName, InsecureSkipVerify: row.TlsVerify == 0} //nolint:gosec // the admin's explicit per-connection choice (03 §8)
+	if row.TlsFingerprint != "" {
+		c.InsecureSkipVerify = true //nolint:gosec // VerifyConnection below is stricter than a chain: one exact certificate
+		c.VerifyConnection = func(cs tls.ConnectionState) error {
+			if len(cs.PeerCertificates) == 0 {
+				return errors.New("the instance sent no certificate")
+			}
+			got := sha256.Sum256(cs.PeerCertificates[0].Raw)
+			if subtle.ConstantTimeCompare([]byte(hex.EncodeToString(got[:])), []byte(row.TlsFingerprint)) != 1 {
+				return errors.New("the instance's certificate does not match the expected fingerprint")
+			}
+			return nil
+		}
+	}
+	return c
 }
 
 // Test connects now and records the result.
