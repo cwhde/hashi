@@ -68,8 +68,8 @@ selected address, stale status, reachability from Hashi).
 
 The literal address a host was first added with stays as the last fallback after its address set, so a set gone wrong
 cannot lock Hashi out of a host; the pinned host key decides who is who either way. A password has no such key: a connection
-with a password may follow a Pulse item only over HTTPS with certificate checks and an expected hostname, refused on save
-and on every connection otherwise, because the agent's reported address decides where the password goes.
+with a password may follow a Pulse item only over HTTPS with either the certificate's exact fingerprint or certificate
+checks and an expected hostname, refused on save and on every connection otherwise, because the agent's reported address decides where the password goes.
 
 Validation before save: the set is an address set; Pulse agents in it exist and have a heartbeat (or explicit "save
 inactive"); port valid; optional connectivity test without leaking secrets; unreachable/inactive saves require

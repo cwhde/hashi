@@ -235,8 +235,11 @@ Rules:
   that host>`. The routing override is never applied internally.
 - Duplicate cleanup: only duplicates of **owned** entries, and only ones shown in the preview.
 - Disabled AdGuard connections are neither planned nor applied.
-- AdGuard connection targets are address sets (05a §5.2), so an instance can be reached through its Pulse agent.
+- An AdGuard connection reaches its instance through one Pulse agent chosen directly, or through an address set (05a §5.2) when
+  several addresses belong together. A directly chosen agent gets a hidden set of its own, so resolving stays one path.
 - Credentials: username + password (basic auth) or none; TLS verify on by default; optional path prefix.
+- A connection may name the SHA-256 fingerprint of the exact certificate it expects, for an instance with a self-signed
+  one. The fingerprint then replaces the chain and hostname checks.
 - Multiple AdGuard instances are independent connections; Hashi writes its owned rewrites to every enabled instance
   itself, so no external sync tool is needed. (Migration only: while an existing sync tool still runs, connections it
   replicates to can be temporarily set to `read-only` to avoid two writers; see 11-delivery.md §7.)
