@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/oklog/ulid/v2"
+
 	"git.juzo.io/juzo/hashi/internal/store/db"
 )
 
@@ -24,6 +26,31 @@ type Target struct {
 
 // ErrNotAddressSet: a target position names a set that holds more than single addresses.
 var ErrNotAddressSet = fmt.Errorf("%w: targets take only address sets (ip, pulse, host and dns items)", ErrInvalid)
+
+// agentSetPrefix marks the hidden set behind "reach this through one Pulse agent" (05a §5.2): the target positions stay
+// sets, so resolving, last good addresses and change propagation have one path, and the admin's list stays free of them.
+const agentSetPrefix = "agent-"
+
+// AgentOf says which agent a hidden set belongs to.
+func AgentOf(setID string) (string, bool) { return strings.CutPrefix(setID, agentSetPrefix) }
+
+// EnsureAgentSet returns an agent's hidden set, creating it on first use. Its one locked item is the agent's internal addresses.
+func EnsureAgentSet(ctx context.Context, q *db.Queries, agentID, agentName string, now time.Time) (string, error) {
+	id := agentSetPrefix + agentID
+	_, err := q.GetIPSet(ctx, id)
+	if err == nil {
+		return id, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return "", err
+	}
+	ms := now.UnixMilli()
+	if err := q.InsertIPSet(ctx, db.InsertIPSetParams{ID: id, Slug: strings.ToLower(id), Name: "Pulse agent " + agentName, Kind: KindUser, Origin: "managed", CreatedAt: ms, UpdatedAt: ms}); err != nil {
+		return "", err
+	}
+	return id, q.InsertIPSetElement(ctx, db.InsertIPSetElementParams{ID: ulid.Make().String(), IpSetID: id, Type: "pulse", Origin: "managed", Locked: 1,
+		PulseAgentID: sql.NullString{String: agentID, Valid: true}, Scope: sql.NullString{String: string(ScopeInternal), Valid: true}, CreatedBy: "system", CreatedAt: ms, UpdatedAt: ms})
+}
 
 // CheckTarget refuses a set that cannot stand in a target position (05a §5.2).
 func CheckTarget(ctx context.Context, q *db.Queries, id string) error {

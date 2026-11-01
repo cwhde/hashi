@@ -128,6 +128,9 @@ func (s *Server) ListIPSets(ctx context.Context, req gen.ListIPSetsRequestObject
 	out := gen.IPSetList{Sets: []gen.IPSet{}}
 	for _, row := range rows { // the query's order: system first, then by name
 		set := g[row.ID]
+		if _, hidden := ipsets.AgentOf(row.ID); hidden {
+			continue
+		}
 		if req.Params.Kind != nil && set.Kind != string(*req.Params.Kind) {
 			continue
 		}

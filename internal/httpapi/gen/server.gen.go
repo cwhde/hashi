@@ -1605,9 +1605,15 @@ type AdGuardConnection struct {
 	Port          int                   `json:"port"`
 	Scheme        string                `json:"scheme"`
 	ServerName    string                `json:"server_name"`
-	TargetSetId   string                `json:"target_set_id"`
-	TlsVerify     bool                  `json:"tls_verify"`
-	Username      string                `json:"username"`
+
+	// TargetAgentId Set when the connection reaches its instance through one Pulse agent
+	TargetAgentId *string `json:"target_agent_id,omitempty"`
+	TargetSetId   string  `json:"target_set_id"`
+
+	// TlsFingerprint SHA-256 of the exact certificate expected, or empty
+	TlsFingerprint string `json:"tls_fingerprint"`
+	TlsVerify      bool   `json:"tls_verify"`
+	Username       string `json:"username"`
 }
 
 // AdGuardConnectionMode defines model for AdGuardConnection.Mode.
@@ -1627,9 +1633,17 @@ type AdGuardConnectionInput struct {
 	SaveInactive *bool   `json:"save_inactive,omitempty"`
 	Scheme       string  `json:"scheme"`
 	ServerName   *string `json:"server_name,omitempty"`
-	TargetSetId  string  `json:"target_set_id"`
-	TlsVerify    bool    `json:"tls_verify"`
-	Username     *string `json:"username,omitempty"`
+
+	// TargetAgentId Reach the instance through this Pulse agent; wins over target_set_id
+	TargetAgentId *string `json:"target_agent_id,omitempty"`
+
+	// TargetSetId An address set; left out when target_agent_id is given
+	TargetSetId *string `json:"target_set_id,omitempty"`
+
+	// TlsFingerprint SHA-256 of the exact certificate expected; accepts openssl's colons and capitals
+	TlsFingerprint *string `json:"tls_fingerprint,omitempty"`
+	TlsVerify      bool    `json:"tls_verify"`
+	Username       *string `json:"username,omitempty"`
 }
 
 // AdGuardConnectionInputMode defines model for AdGuardConnectionInput.Mode.

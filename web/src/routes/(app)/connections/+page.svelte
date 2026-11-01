@@ -17,6 +17,7 @@
 	type Conn = Schemas['AdGuardConnection'];
 	let conns = $state<Conn[]>([]);
 	let sets = $state<{ id: string; name: string }[]>([]);
+	let agents = $state<{ id: string; name: string }[]>([]);
 	let error = $state('');
 	let busy = $state(false);
 
@@ -28,11 +29,13 @@
 	const modeTag = { read_only: 'Read-only', active: 'Active', disabled: 'Disabled' };
 
 	async function load() {
-		const [c, s] = await Promise.all([
+		const [c, s, a] = await Promise.all([
 			api.GET('/api/adguard/connections'),
-			api.GET('/api/ip-sets', { params: { query: {} } })
+			api.GET('/api/ip-sets', { params: { query: {} } }),
+			api.GET('/api/pulse/agents')
 		]);
-		if (!c.data || !s.data) throw c.error ?? s.error;
+		if (!c.data || !s.data || !a.data) throw c.error ?? s.error ?? a.error;
+		agents = a.data.agents.map((x) => ({ id: x.id, name: x.name }));
 		conns = c.data.connections;
 		sets = s.data.sets.map((x) => ({ id: x.id, name: x.name }));
 	}
@@ -71,7 +74,10 @@
 	// ---- add and edit ----
 	const blank = () => ({
 		name: '',
+		target: 'agent' as 'agent' | 'set',
 		target_set_id: '',
+		target_agent_id: '',
+		tls_fingerprint: '',
 		port: '443',
 		scheme: 'https',
 		path_prefix: '',
@@ -93,7 +99,15 @@
 		open = true;
 	}
 	function openEdit(c: Conn) {
-		f = { ...blank(), ...c, port: String(c.port), password: '' };
+		f = {
+			...blank(),
+			...c,
+			target: c.target_agent_id ? 'agent' : 'set',
+			target_set_id: c.target_agent_id ? '' : c.target_set_id,
+			target_agent_id: c.target_agent_id ?? '',
+			port: String(c.port),
+			password: ''
+		};
 		editing = c.id;
 		formError = '';
 		open = true;
@@ -104,7 +118,9 @@
 		try {
 			const body = {
 				name: f.name,
-				target_set_id: f.target_set_id,
+				target_set_id: f.target === 'set' ? f.target_set_id : undefined,
+				target_agent_id: f.target === 'agent' ? f.target_agent_id : undefined,
+				tls_fingerprint: f.tls_fingerprint || undefined,
 				port: Number(f.port),
 				scheme: f.scheme,
 				path_prefix: f.path_prefix || undefined,
@@ -199,21 +215,45 @@
 				<Label for="ag-name">Name</Label><Input id="ag-name" bind:value={f.name} />
 			</div>
 			<div class="space-y-1.5">
-				<Label for="ag-set">Address set</Label>
-				<Select.Root type="single" bind:value={f.target_set_id}>
-					<Select.Trigger id="ag-set" class="w-full"
-						>{sets.find((s) => s.id === f.target_set_id)?.name ?? 'Choose a set'}</Select.Trigger
+				<Label for="ag-kind">Reached through</Label>
+				<Select.Root type="single" bind:value={f.target}>
+					<Select.Trigger id="ag-kind" class="w-full"
+						>{f.target === 'agent' ? 'Pulse agent' : 'Address set'}</Select.Trigger
 					>
 					<Select.Content>
-						{#each sets as s (s.id)}<Select.Item value={s.id}>{s.name}</Select.Item>{/each}
+						<Select.Item value="agent">Pulse agent</Select.Item>
+						<Select.Item value="set">Address set</Select.Item>
 					</Select.Content>
 				</Select.Root>
-				<TargetSources setId={f.target_set_id} />
-				<p class="text-[12px] text-muted-foreground">
-					An IP set holding the instance's address or DNS name. With a Pulse agent in it, Hashi
-					needs HTTPS, certificate checks and the expected hostname, so the password only goes to
-					the real instance.
-				</p>
+				{#if f.target === 'agent'}
+					<Select.Root type="single" bind:value={f.target_agent_id}>
+						<Select.Trigger aria-label="Pulse agent" class="w-full"
+							>{agents.find((a) => a.id === f.target_agent_id)?.name ??
+								'Choose an agent'}</Select.Trigger
+						>
+						<Select.Content>
+							{#each agents as a (a.id)}<Select.Item value={a.id}>{a.name}</Select.Item>{/each}
+						</Select.Content>
+					</Select.Root>
+					<p class="text-[12px] text-muted-foreground">
+						Hashi follows this machine's internal address. It needs HTTPS and proof of the
+						certificate, so the password only goes to the real instance.
+					</p>
+				{:else}
+					<Select.Root type="single" bind:value={f.target_set_id}>
+						<Select.Trigger aria-label="Address set" class="w-full"
+							>{sets.find((s) => s.id === f.target_set_id)?.name ?? 'Choose a set'}</Select.Trigger
+						>
+						<Select.Content>
+							{#each sets as s (s.id)}<Select.Item value={s.id}>{s.name}</Select.Item>{/each}
+						</Select.Content>
+					</Select.Root>
+					<TargetSources setId={f.target_set_id} />
+					<p class="text-[12px] text-muted-foreground">
+						An IP set holding the instance's address or DNS name. With a Pulse agent in it, Hashi
+						needs HTTPS and proof of the certificate.
+					</p>
+				{/if}
 			</div>
 			<div class="grid grid-cols-[1fr_6rem] gap-3">
 				<div class="space-y-1.5">
@@ -233,6 +273,17 @@
 						inputmode="numeric"
 					/>
 				</div>
+			</div>
+			<div class="space-y-1.5">
+				<Label for="ag-fp">Certificate fingerprint</Label><Input
+					id="ag-fp"
+					class="font-mono"
+					bind:value={f.tls_fingerprint}
+				/>
+				<p class="text-[12px] text-muted-foreground">
+					For a self-signed certificate: its SHA-256. Hashi then accepts only that exact
+					certificate, and the two settings below are not needed.
+				</p>
 			</div>
 			<div class="space-y-1.5">
 				<Label for="ag-host">Expected hostname</Label><Input
@@ -283,7 +334,11 @@
 		</div>
 		<Sheet.Footer class="flex-row justify-end gap-2 border-t">
 			<Button variant="outline" onclick={() => (open = false)}>Cancel</Button>
-			<Button onclick={save} disabled={busy || !f.name.trim() || !f.target_set_id}
+			<Button
+				onclick={save}
+				disabled={busy ||
+					!f.name.trim() ||
+					!(f.target === 'agent' ? f.target_agent_id : f.target_set_id)}
 				>{editing ? 'Save changes' : 'Add AdGuard'}</Button
 			>
 		</Sheet.Footer>

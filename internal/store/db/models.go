@@ -28,22 +28,23 @@ type AcmeAccount struct {
 }
 
 type AdguardConnection struct {
-	ID            string
-	Name          string
-	TargetSetID   string
-	Port          int64
-	Scheme        string
-	PathPrefix    string
-	TlsVerify     int64
-	ServerName    string
-	Username      string
-	SecretID      sql.NullString
-	Mode          string
-	LastCheckedAt sql.NullInt64
-	LastVersion   string
-	LastError     string
-	CreatedAt     int64
-	UpdatedAt     int64
+	ID             string
+	Name           string
+	TargetSetID    string
+	Port           int64
+	Scheme         string
+	PathPrefix     string
+	TlsVerify      int64
+	ServerName     string
+	Username       string
+	SecretID       sql.NullString
+	Mode           string
+	LastCheckedAt  sql.NullInt64
+	LastVersion    string
+	LastError      string
+	CreatedAt      int64
+	UpdatedAt      int64
+	TlsFingerprint string
 }
 
 type AdguardRewritesOwned struct {

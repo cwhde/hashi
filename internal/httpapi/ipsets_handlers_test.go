@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"strings"
 	"testing"
+	"time"
 
 	"git.juzo.io/juzo/hashi/internal/audit"
 	"git.juzo.io/juzo/hashi/internal/auth"
@@ -186,3 +187,24 @@ func TestIPSetsAPI(t *testing.T) {
 }
 
 func dbAuditParams(n int64) db.ListAuditEventsParams { return db.ListAuditEventsParams{Lim: n} }
+
+// An agent's hidden target set stays out of the admin's list and every picker fed by it (05a §5.2).
+func TestAgentTargetSetNotListed(t *testing.T) {
+	ctx := context.Background()
+	st := storetest.New(t)
+	al := audit.New([]byte("k"))
+	s := &Server{Store: st, Audit: al, Sessions: auth.NewManager(st, al, []byte("csrf")),
+		IPSets: ipsets.NewService(st, al, slog.New(slog.NewTextHandler(io.Discard, nil)), nil), Log: slog.Default()}
+	if _, err := ipsets.EnsureAgentSet(ctx, st.Q, "A1", "ns", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	r, err := s.ListIPSets(ctx, gen.ListIPSetsRequestObject{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, x := range r.(gen.ListIPSets200JSONResponse).Sets {
+		if x.Id == "agent-A1" {
+			t.Fatal("the hidden set is listed")
+		}
+	}
+}

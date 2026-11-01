@@ -35,7 +35,7 @@ func (q *Queries) DeleteAdGuardOwned(ctx context.Context, arg DeleteAdGuardOwned
 }
 
 const getAdGuardConnection = `-- name: GetAdGuardConnection :one
-SELECT id, name, target_set_id, port, scheme, path_prefix, tls_verify, server_name, username, secret_id, mode, last_checked_at, last_version, last_error, created_at, updated_at FROM adguard_connections WHERE id = ?
+SELECT id, name, target_set_id, port, scheme, path_prefix, tls_verify, server_name, username, secret_id, mode, last_checked_at, last_version, last_error, created_at, updated_at, tls_fingerprint FROM adguard_connections WHERE id = ?
 `
 
 func (q *Queries) GetAdGuardConnection(ctx context.Context, id string) (AdguardConnection, error) {
@@ -58,29 +58,31 @@ func (q *Queries) GetAdGuardConnection(ctx context.Context, id string) (AdguardC
 		&i.LastError,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.TlsFingerprint,
 	)
 	return i, err
 }
 
 const insertAdGuardConnection = `-- name: InsertAdGuardConnection :exec
-INSERT INTO adguard_connections (id, name, target_set_id, port, scheme, path_prefix, tls_verify, server_name, username, secret_id, mode, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO adguard_connections (id, name, target_set_id, port, scheme, path_prefix, tls_verify, tls_fingerprint, server_name, username, secret_id, mode, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertAdGuardConnectionParams struct {
-	ID          string
-	Name        string
-	TargetSetID string
-	Port        int64
-	Scheme      string
-	PathPrefix  string
-	TlsVerify   int64
-	ServerName  string
-	Username    string
-	SecretID    sql.NullString
-	Mode        string
-	CreatedAt   int64
-	UpdatedAt   int64
+	ID             string
+	Name           string
+	TargetSetID    string
+	Port           int64
+	Scheme         string
+	PathPrefix     string
+	TlsVerify      int64
+	TlsFingerprint string
+	ServerName     string
+	Username       string
+	SecretID       sql.NullString
+	Mode           string
+	CreatedAt      int64
+	UpdatedAt      int64
 }
 
 func (q *Queries) InsertAdGuardConnection(ctx context.Context, arg InsertAdGuardConnectionParams) error {
@@ -92,6 +94,7 @@ func (q *Queries) InsertAdGuardConnection(ctx context.Context, arg InsertAdGuard
 		arg.Scheme,
 		arg.PathPrefix,
 		arg.TlsVerify,
+		arg.TlsFingerprint,
 		arg.ServerName,
 		arg.Username,
 		arg.SecretID,
@@ -103,7 +106,7 @@ func (q *Queries) InsertAdGuardConnection(ctx context.Context, arg InsertAdGuard
 }
 
 const listAdGuardConnections = `-- name: ListAdGuardConnections :many
-SELECT id, name, target_set_id, port, scheme, path_prefix, tls_verify, server_name, username, secret_id, mode, last_checked_at, last_version, last_error, created_at, updated_at FROM adguard_connections ORDER BY name
+SELECT id, name, target_set_id, port, scheme, path_prefix, tls_verify, server_name, username, secret_id, mode, last_checked_at, last_version, last_error, created_at, updated_at, tls_fingerprint FROM adguard_connections ORDER BY name
 `
 
 func (q *Queries) ListAdGuardConnections(ctx context.Context) ([]AdguardConnection, error) {
@@ -132,6 +135,7 @@ func (q *Queries) ListAdGuardConnections(ctx context.Context) ([]AdguardConnecti
 			&i.LastError,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.TlsFingerprint,
 		); err != nil {
 			return nil, err
 		}
@@ -147,7 +151,7 @@ func (q *Queries) ListAdGuardConnections(ctx context.Context) ([]AdguardConnecti
 }
 
 const listAdGuardConnectionsBySet = `-- name: ListAdGuardConnectionsBySet :many
-SELECT id, name, target_set_id, port, scheme, path_prefix, tls_verify, server_name, username, secret_id, mode, last_checked_at, last_version, last_error, created_at, updated_at FROM adguard_connections WHERE target_set_id = ? ORDER BY name
+SELECT id, name, target_set_id, port, scheme, path_prefix, tls_verify, server_name, username, secret_id, mode, last_checked_at, last_version, last_error, created_at, updated_at, tls_fingerprint FROM adguard_connections WHERE target_set_id = ? ORDER BY name
 `
 
 func (q *Queries) ListAdGuardConnectionsBySet(ctx context.Context, targetSetID string) ([]AdguardConnection, error) {
@@ -176,6 +180,7 @@ func (q *Queries) ListAdGuardConnectionsBySet(ctx context.Context, targetSetID s
 			&i.LastError,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.TlsFingerprint,
 		); err != nil {
 			return nil, err
 		}
@@ -272,23 +277,24 @@ func (q *Queries) SetAdGuardConnectionCheck(ctx context.Context, arg SetAdGuardC
 }
 
 const updateAdGuardConnection = `-- name: UpdateAdGuardConnection :exec
-UPDATE adguard_connections SET name = ?, target_set_id = ?, port = ?, scheme = ?, path_prefix = ?, tls_verify = ?, server_name = ?,
+UPDATE adguard_connections SET name = ?, target_set_id = ?, port = ?, scheme = ?, path_prefix = ?, tls_verify = ?, tls_fingerprint = ?, server_name = ?,
     username = ?, secret_id = ?, mode = ?, updated_at = ? WHERE id = ?
 `
 
 type UpdateAdGuardConnectionParams struct {
-	Name        string
-	TargetSetID string
-	Port        int64
-	Scheme      string
-	PathPrefix  string
-	TlsVerify   int64
-	ServerName  string
-	Username    string
-	SecretID    sql.NullString
-	Mode        string
-	UpdatedAt   int64
-	ID          string
+	Name           string
+	TargetSetID    string
+	Port           int64
+	Scheme         string
+	PathPrefix     string
+	TlsVerify      int64
+	TlsFingerprint string
+	ServerName     string
+	Username       string
+	SecretID       sql.NullString
+	Mode           string
+	UpdatedAt      int64
+	ID             string
 }
 
 func (q *Queries) UpdateAdGuardConnection(ctx context.Context, arg UpdateAdGuardConnectionParams) error {
@@ -299,6 +305,7 @@ func (q *Queries) UpdateAdGuardConnection(ctx context.Context, arg UpdateAdGuard
 		arg.Scheme,
 		arg.PathPrefix,
 		arg.TlsVerify,
+		arg.TlsFingerprint,
 		arg.ServerName,
 		arg.Username,
 		arg.SecretID,

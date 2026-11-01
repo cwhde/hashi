@@ -8,6 +8,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/adguard"
 	"git.juzo.io/juzo/hashi/internal/audit"
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
+	"git.juzo.io/juzo/hashi/internal/ipsets"
 	"git.juzo.io/juzo/hashi/internal/secrets"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 )
@@ -25,7 +26,11 @@ func adguardError(err error) error {
 }
 
 func adguardBody(r db.AdguardConnection) gen.AdGuardConnection {
-	return gen.AdGuardConnection{Id: r.ID, Name: r.Name, TargetSetId: r.TargetSetID, Port: int(r.Port), Scheme: r.Scheme, PathPrefix: r.PathPrefix, TlsVerify: r.TlsVerify == 1,
+	var agent *string
+	if id, ok := ipsets.AgentOf(r.TargetSetID); ok {
+		agent = &id
+	}
+	return gen.AdGuardConnection{Id: r.ID, Name: r.Name, TargetSetId: r.TargetSetID, TargetAgentId: agent, TlsFingerprint: r.TlsFingerprint, Port: int(r.Port), Scheme: r.Scheme, PathPrefix: r.PathPrefix, TlsVerify: r.TlsVerify == 1,
 		ServerName: r.ServerName, Username: r.Username, HasPassword: r.SecretID.Valid, Mode: gen.AdGuardConnectionMode(r.Mode), LastCheckedAt: millis(r.LastCheckedAt), LastVersion: r.LastVersion, LastError: r.LastError}
 }
 
@@ -39,7 +44,7 @@ func adguardInput(b gen.AdGuardConnectionInput, mode string) adguard.Input {
 	if b.Mode != nil {
 		mode = string(*b.Mode)
 	}
-	return adguard.Input{Name: b.Name, TargetSetID: b.TargetSetId, Port: b.Port, Scheme: b.Scheme, PathPrefix: str(b.PathPrefix), TLSVerify: b.TlsVerify,
+	return adguard.Input{Name: b.Name, TargetSetID: str(b.TargetSetId), TargetAgentID: str(b.TargetAgentId), TLSFingerprint: str(b.TlsFingerprint), Port: b.Port, Scheme: b.Scheme, PathPrefix: str(b.PathPrefix), TLSVerify: b.TlsVerify,
 		ServerName: str(b.ServerName), Username: str(b.Username), Mode: mode, Password: secrets.New(str(b.Password)), SaveInactive: b.SaveInactive != nil && *b.SaveInactive} // hashi:allow-secret-pattern
 }
 

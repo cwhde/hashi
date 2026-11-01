@@ -2401,15 +2401,17 @@ components:
         chat_id: { type: string }
     AdGuardConnection:
       type: object
-      required: [id, name, target_set_id, port, scheme, path_prefix, tls_verify, server_name, username, has_password, mode, last_version, last_error]
+      required: [id, name, target_set_id, port, scheme, path_prefix, tls_verify, tls_fingerprint, server_name, username, has_password, mode, last_version, last_error]
       properties:
         id: { type: string }
         name: { type: string }
         target_set_id: { type: string }
+        target_agent_id: { type: string, description: "Set when the connection reaches its instance through one Pulse agent" }
         port: { type: integer }
         scheme: { type: string }
         path_prefix: { type: string }
         tls_verify: { type: boolean }
+        tls_fingerprint: { type: string, description: "SHA-256 of the exact certificate expected, or empty" }
         server_name: { type: string }
         username: { type: string }
         has_password: { type: boolean }
@@ -2424,10 +2426,12 @@ components:
         connections: { type: array, items: { $ref: "#/components/schemas/AdGuardConnection" } }
     AdGuardConnectionInput:
       type: object
-      required: [name, target_set_id, port, scheme, tls_verify]
+      required: [name, port, scheme, tls_verify]
       properties:
         name: { type: string }
-        target_set_id: { type: string }
+        target_set_id: { type: string, description: "An address set; left out when target_agent_id is given" }
+        target_agent_id: { type: string, description: "Reach the instance through this Pulse agent; wins over target_set_id" }
+        tls_fingerprint: { type: string, description: "SHA-256 of the exact certificate expected; accepts openssl's colons and capitals" }
         port: { type: integer }
         scheme: { type: string }
         path_prefix: { type: string }

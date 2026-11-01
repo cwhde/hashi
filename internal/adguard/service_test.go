@@ -2,11 +2,16 @@ package adguard
 
 import (
 	"context"
+	"crypto/sha256"
+	"database/sql"
+	"encoding/hex"
 	"errors"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -168,5 +173,98 @@ func TestRewriteFollowsItsNewOwner(t *testing.T) {
 	items := Diff([]Desired{{Domain: "a.home.arpa", Answer: "10.0.0.5", Origin: "agent new"}}, owned, remote)
 	if len(items) != 1 || items[0].Action != hsync.ActionLabel {
 		t.Fatalf("%+v", items)
+	}
+}
+
+// The password follows an agent's address to the exact certificate named, and to nothing else (08 §5).
+func TestFingerprintProvesTheInstance(t *testing.T) {
+	var asked int
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		asked++
+		_, _ = w.Write([]byte(`{"version":"v0.107.79","running":true}`))
+	}))
+	defer srv.Close()
+	host, port, _ := net.SplitHostPort(srv.Listener.Addr().String())
+	s, _ := svc(t, netip.MustParseAddr(host))
+	ctx := t.Context()
+	p, _ := strconv.Atoi(port)
+	sum := sha256.Sum256(srv.Certificate().Raw)
+	good := hex.EncodeToString(sum[:])
+
+	// The agent has sent no heartbeat here, so the saves skip their test and the connection is dialled directly.
+	in := Input{Name: "wrong", TargetSetID: "agent", Port: p, Scheme: "https", TLSFingerprint: strings.Repeat("ab", 32), Username: "u", Password: secrets.New("pw"), SaveInactive: true} // hashi:allow-secret-pattern
+	wrong, err := s.Create(ctx, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := s.dial(ctx, wrong); err == nil || !strings.Contains(err.Error(), "fingerprint") {
+		t.Fatalf("wrong fingerprint: %v", err)
+	}
+	if asked != 0 {
+		t.Fatal("the password went to a certificate nobody named")
+	}
+	in.Name, in.TLSFingerprint = "right", strings.ToUpper(good[:2])+":"+good[2:] // as openssl prints it
+	right, err := s.Create(ctx, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := s.dial(ctx, right); err != nil || right.TlsFingerprint != good || asked == 0 {
+		t.Fatalf("right fingerprint: %v, stored %q, asked %d", err, right.TlsFingerprint, asked)
+	}
+	in.Name, in.Scheme = "plain", "http"
+	if _, err := s.Create(ctx, in); !errors.Is(err, ErrBadInput) {
+		t.Fatalf("fingerprint over http: %v", err)
+	}
+	in.Scheme, in.TLSFingerprint = "https", "nope"
+	if _, err := s.Create(ctx, in); !errors.Is(err, ErrBadInput) {
+		t.Fatalf("bad fingerprint: %v", err)
+	}
+}
+
+// Choosing an agent directly makes one hidden set, shared by its connections, gone with the last of them, and held to the password rule.
+func TestAgentTargetKeepsItsSetHidden(t *testing.T) {
+	s, st := svc(t, netip.MustParseAddr("192.0.2.1"))
+	ctx := t.Context()
+	if err := st.Q.InsertPulseAgent(ctx, db.InsertPulseAgentParams{ID: "A1", Name: "ns", TokenHash: []byte("x"), InstallType: "linux", CreatedAt: 1, UpdatedAt: 1}); err != nil {
+		t.Fatal(err)
+	}
+	in := Input{Name: "one", TargetAgentID: "A1", Port: 443, Scheme: "http", Username: "u", Password: secrets.New("pw"), SaveInactive: true} // hashi:allow-secret-pattern
+	if _, err := s.Create(ctx, in); !errors.Is(err, ErrAgentTarget) {
+		t.Fatalf("password rule: %v", err)
+	}
+	if _, err := st.R.GetIPSet(ctx, "agent-A1"); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("a refused save left its set: %v", err)
+	}
+	in.Scheme, in.TLSFingerprint = "https", strings.Repeat("ab", 32)
+	one, err := s.Create(ctx, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	in.Name = "two"
+	two, err := s.Create(ctx, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if one.TargetSetID != "agent-A1" || two.TargetSetID != one.TargetSetID {
+		t.Fatalf("sets %q %q", one.TargetSetID, two.TargetSetID)
+	}
+	if uses, err := ipsets.UsesPulse(ctx, st.R, one.TargetSetID); err != nil || !uses {
+		t.Fatalf("uses pulse: %v %v", uses, err)
+	}
+	if err := s.Delete(ctx, one.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.R.GetIPSet(ctx, "agent-A1"); err != nil {
+		t.Fatalf("still used, must stay: %v", err)
+	}
+	// Moving the last connection to a set of the admin's frees the agent.
+	if _, err := s.Update(ctx, two.ID, Input{Name: "two", TargetSetID: "plain", Port: 443, Scheme: "https", TLSFingerprint: in.TLSFingerprint, Mode: ModeReadOnly, SaveInactive: true}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.R.GetIPSet(ctx, "agent-A1"); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("unused set stayed: %v", err)
+	}
+	if _, err := s.Create(ctx, Input{Name: "x", TargetAgentID: "nobody", Port: 443, Scheme: "https"}); !errors.Is(err, ErrBadInput) {
+		t.Fatalf("unknown agent: %v", err)
 	}
 }
