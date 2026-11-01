@@ -597,6 +597,7 @@ type ServiceRoute struct {
 	RewriteValue   string
 	CreatedAt      int64
 	UpdatedAt      int64
+	Kind           string
 }
 
 type SetupState struct {

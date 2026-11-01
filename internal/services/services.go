@@ -86,9 +86,11 @@ type Target struct {
 
 // Route is an advanced route; its identity is ID, never Priority.
 type Route struct {
-	ID             string
-	Enabled        bool
-	Targets        []Target
+	ID      string
+	Enabled bool
+	Targets []Target
+	// Kind is the route's own upstream protocol; empty uses the service's.
+	Kind           string
 	PathMatch      string
 	PathValue      string
 	Priority       int
@@ -412,7 +414,7 @@ func putRoutes(ctx context.Context, q *db.Queries, s Service, ms int64) error {
 			return err
 		}
 		if err := q.InsertServiceRoute(ctx, db.InsertServiceRouteParams{ID: r.ID, ServiceID: s.ID, Enabled: b2i(r.Enabled),
-			TargetsJson: string(targets), PathMatch: r.PathMatch, PathValue: r.PathValue, Priority: int64(r.Priority),
+			TargetsJson: string(targets), Kind: r.Kind, PathMatch: r.PathMatch, PathValue: r.PathValue, Priority: int64(r.Priority),
 			RewriteMode: r.RewriteMode, RewritePattern: r.RewritePattern, RewriteValue: r.RewriteValue,
 			CreatedAt: ms, UpdatedAt: ms}); err != nil {
 			return fmt.Errorf("store route: %w", err)
@@ -435,7 +437,7 @@ func fromRow(r db.Service, routes []db.ServiceRoute) (Service, error) {
 		if err := json.Unmarshal([]byte(rr.TargetsJson), &t); err != nil {
 			return s, fmt.Errorf("route %s targets: %w", rr.ID, err)
 		}
-		s.Routes = append(s.Routes, Route{ID: rr.ID, Enabled: rr.Enabled == 1, Targets: t, PathMatch: rr.PathMatch,
+		s.Routes = append(s.Routes, Route{ID: rr.ID, Enabled: rr.Enabled == 1, Targets: t, Kind: rr.Kind, PathMatch: rr.PathMatch,
 			PathValue: rr.PathValue, Priority: int(rr.Priority), RewriteMode: rr.RewriteMode,
 			RewritePattern: rr.RewritePattern, RewriteValue: rr.RewriteValue})
 	}

@@ -73,7 +73,11 @@ func httpServices(svcs []services.Service, edge bool) dynamicConfig {
 			}
 			h.Routers[name] = router{Rule: host + " && " + pathRule(r), EntryPoints: []string{"websecure"}, Middlewares: mws,
 				Service: name, Priority: routePriority + r.Priority, TLS: rt}
-			h.Services[name] = service{LoadBalancer: balancer(s.Kind, r.Targets, transport)}
+			kind := s.Kind
+			if r.Kind != "" {
+				kind = r.Kind // one name can mix them: gRPC needs h2c next to plain HTTP (04 §1.1)
+			}
+			h.Services[name] = service{LoadBalancer: balancer(kind, r.Targets, transport)}
 		}
 	}
 	c := dynamicConfig{HTTP: h}

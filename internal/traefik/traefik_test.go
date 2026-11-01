@@ -377,3 +377,19 @@ func TestStreamOnAPIPortWaits(t *testing.T) {
 		}
 	}
 }
+
+// A route's own protocol: gRPC next to plain HTTP on one name (04 §1.1).
+func TestRouteKindOverridesService(t *testing.T) {
+	s := services.Service{Slug: "grid", Kind: services.KindHTTP, HostName: "grid.example.com", Enabled: true, AdvancedRoutes: true,
+		Target: services.Target{Address: "192.0.2.1", Port: 80}, Routes: []services.Route{
+			{ID: "A", Enabled: true, Kind: services.KindH2C, PathMatch: services.MatchPrefix, PathValue: "/m", Priority: 1, Targets: []services.Target{{Address: "192.0.2.1", Port: 80}}},
+			{ID: "B", Enabled: true, PathMatch: services.MatchPrefix, PathValue: "/w", Priority: 2, Targets: []services.Target{{Address: "192.0.2.1", Port: 80}}},
+		}}
+	b, err := EffectiveYAML(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(b, []byte("h2c://192.0.2.1:80")) || !bytes.Contains(b, []byte("http://192.0.2.1:80")) {
+		t.Fatalf("got:\n%s", b)
+	}
+}

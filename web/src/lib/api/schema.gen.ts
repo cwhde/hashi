@@ -3626,6 +3626,11 @@ export interface components {
             id?: string;
             enabled: boolean;
             targets: components["schemas"]["ServiceTarget"][];
+            /**
+             * @description The route's own upstream protocol; empty uses the service's
+             * @enum {string}
+             */
+            kind?: "" | "http" | "https" | "h2c";
             /** @enum {string} */
             path_match: "prefix" | "exact" | "regex";
             path_value: string;

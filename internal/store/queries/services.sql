@@ -28,9 +28,9 @@ SELECT * FROM services ORDER BY origin = 'system' DESC, name, id;
 DELETE FROM services WHERE id = ?;
 
 -- name: InsertServiceRoute :exec
-INSERT INTO service_routes (id, service_id, enabled, targets_json, path_match, path_value, priority, rewrite_mode,
+INSERT INTO service_routes (id, service_id, enabled, targets_json, kind, path_match, path_value, priority, rewrite_mode,
     rewrite_pattern, rewrite_value, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: DeleteServiceRoutes :exec
 DELETE FROM service_routes WHERE service_id = ?;

@@ -391,6 +391,21 @@
 								<li class="space-y-2 rounded-xl border p-3">
 									<div class="flex flex-wrap items-center gap-2">
 										<Switch bind:checked={r.enabled} aria-label="Route on" />
+										<Select.Root
+											type="single"
+											value={r.kind || 'same'}
+											onValueChange={(v) => (r.kind = v === 'same' ? '' : (v as Route['kind']))}
+										>
+											<Select.Trigger class="w-36" aria-label="Upstream protocol"
+												>{r.kind || 'Same as service'}</Select.Trigger
+											>
+											<Select.Content>
+												<Select.Item value="same">Same as service</Select.Item>
+												<Select.Item value="http">http</Select.Item>
+												<Select.Item value="https">https</Select.Item>
+												<Select.Item value="h2c">h2c (gRPC)</Select.Item>
+											</Select.Content>
+										</Select.Root>
 										<Select.Root type="single" bind:value={r.path_match}>
 											<Select.Trigger class="w-36" aria-label="Path match"
 												>{matchText[r.path_match]}</Select.Trigger

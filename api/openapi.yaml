@@ -3587,6 +3587,7 @@ components:
         id: { type: string, description: "ULID; absent for a new route" }
         enabled: { type: boolean }
         targets: { type: array, items: { $ref: "#/components/schemas/ServiceTarget" } }
+        kind: { type: string, enum: ["", http, https, h2c], description: "The route's own upstream protocol; empty uses the service's" }
         path_match: { type: string, enum: [prefix, exact, regex] }
         path_value: { type: string }
         priority: { type: integer, minimum: 1, maximum: 9999 }
