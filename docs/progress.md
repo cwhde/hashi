@@ -7,6 +7,9 @@ Rules: docs/spec/11-delivery.md §2.
 
 **S9 — Forward auth, rule sets, edge SSO** · status: **done** (gate passed 2026-11-01 on `0.9.0-beta.1`). V1 cutover done 2026-11-01; after a week remove old data, `legacy/v1/` and its workflow. Next: S10. Gate: 11-delivery.md §3 row S9.
 
+
+Noted for later (user, 2026-11-01): remove the old pre-Hashi backups from all backup stores. When a Hashi logo exists (bugs #5), add it to Hashi's client in the identity provider.
+
 Contracts: Pocket ID's public discovery read from the real server; login flow to capture from a throwaway local Pocket ID container (no change to the real one). GeoIP download: no MaxMind key exists; Pangolin's file comes from a public mirror (decide with the user before the gate).
 
 Rules, sign-in and countries depend on one another (a rule names a provider, a set names a country), so they ship as one PR.
