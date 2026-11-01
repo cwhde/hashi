@@ -10,6 +10,8 @@ Rules: docs/spec/11-delivery.md §2.
 
 Noted for later (user, 2026-11-01): remove the old pre-Hashi backups from all backup stores. When a Hashi logo exists (bugs #5), add it to Hashi's client in the identity provider.
 
+Pulse memory study (2026-11-01, undecided, nothing changed). Test agents on a dev target against a stand-in server, about 7 to 20 minutes each. Heap profile: 88 % of allocations load the system CA list (about 140 roots); after GC the heap holds under 1.5 MB. Today: about 10 MB RSS (6.5 file-backed, 3.5 anonymous), peak 12 MB, binary 6.7 MB. Go settings only: about 9.6 MB. No `net/http` or `encoding/json` plus `GOGC=25`, `GOMAXPROCS=1`, `FreeOSMemory`: 7.4 MB, 4.7 MB binary. Also `madvise(DONTNEED)` on read-only file pages after each beat: 4.2 MB, peak 8.4 MB, but anonymous only falls to 2.8 MB, so about 20 % real. Rust (ureq, rustls, ring, `opt-level=z`), heartbeat only, no public address check: 1.7 MB, anonymous 0.3 MB, 1.7 MB binary. One certificate instead of the list: little steady change, 0.3 to 1.3 MB off the peak, and fragile. Run-once from a timer: nothing idle, peak 8.5 to 9.7 MB, no fit for Docker. The spec's 15 MB target is already met. Choice open: Rust, slim Go, or leave as is.
+
 Contracts: Pocket ID's public discovery read from the real server; login flow to capture from a throwaway local Pocket ID container (no change to the real one). GeoIP download: no MaxMind key exists; Pangolin's file comes from a public mirror (decide with the user before the gate).
 
 Rules, sign-in and countries depend on one another (a rule names a provider, a set names a country), so they ship as one PR.
