@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"net/netip"
+	"sync"
 	"testing"
 	"time"
 
@@ -28,8 +29,14 @@ func fixture(t *testing.T) (*Service, *store.Store, *recorder, *error) {
 	var down error
 	rec := &recorder{}
 	s := New(st, func(context.Context) error { return down }, nil, rec)
+	var mu sync.Mutex // checks run concurrently and each reads the clock
 	clock := time.Now()
-	s.now = func() time.Time { clock = clock.Add(time.Minute); return clock }
+	s.now = func() time.Time {
+		mu.Lock()
+		defer mu.Unlock()
+		clock = clock.Add(time.Minute)
+		return clock
+	}
 	return s, st, rec, &down
 }
 
