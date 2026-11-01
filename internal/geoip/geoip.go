@@ -241,7 +241,7 @@ func (s *Service) request(ctx context.Context, src Source, tmpl, edition string)
 	}
 	resp, err := s.client.Do(req)
 	if err != nil {
-		// The URL can hold credentials a mirror asks for, and the error would name them.
+		// http.Client errors quote the URL; MaxMind's request carries its login separately, but keep logs to the cause.
 		var ue interface{ Unwrap() error }
 		if errors.As(err, &ue) {
 			return nil, fmt.Errorf("download failed: %w", ue.Unwrap())

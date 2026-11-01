@@ -65,8 +65,12 @@ func TestForwardAuthRules(t *testing.T) {
 	if got := forward("aaa.example.com", "/"); got != 204 {
 		t.Fatalf("open service: %d", got)
 	}
-	if got := forward("nothing.example.com", "/"); got != 204 {
+	// A name no service has is shut, however it is spelled; the health routers answer on any name (06 §2.1).
+	if got := forward("nothing.example.com", "/"); got != 403 {
 		t.Fatalf("unknown host: %d", got)
+	}
+	if got := forward("nothing.example.com", "/.well-known/hashi/health/open"); got != 204 {
+		t.Fatalf("health: %d", got)
 	}
 
 	// An IP set with our address; a shared rule set denies /admin for it and is attached to both services.
@@ -103,9 +107,17 @@ func TestForwardAuthRules(t *testing.T) {
 	if r.body["access"].(map[string]any)["fail_closed"] != true {
 		t.Fatalf("access: %s", r.raw)
 	}
-	if got := forward("bbb.example.com", "/open"); got != 403 {
-		t.Errorf("closed service: %d", got)
+	for _, host := range []string{"bbb.example.com", "bbb.example.com.", "BBB.example.com:443"} {
+		if got := forward(host, "/open"); got != 403 {
+			t.Errorf("closed service as %q: %d", host, got)
+		}
 	}
+	// A renamed service's old name is shut at once, though Traefik may route it until its plan applies.
+	c.mustStatus(c.do(http.MethodPut, "/api/services/"+b+"/access", map[string]any{"entries": []map[string]any{}, "fallback": "none"}), 200)
+	if got := forward("bbb.example.com.", "/open"); got != 204 {
+		t.Errorf("open service with a trailing dot: %d", got)
+	}
+	c.mustStatus(c.do(http.MethodPut, "/api/services/"+b+"/access", map[string]any{"entries": []map[string]any{}, "fallback": "deny"}), 200)
 
 	// Attached set can't be deleted; a cycle and Pass CAPTCHA are refused; sign-in without a provider stays shut.
 	c.mustStatus(c.do(http.MethodDelete, "/api/rule-sets/"+rs, nil), 409)

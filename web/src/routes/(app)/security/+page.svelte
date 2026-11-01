@@ -27,11 +27,20 @@
 	let geoForm = $state({ account_id: '', license_key: '', url: '' });
 	let geoError = $state('');
 
+	let limits = $state<Schemas['EdgeSSOSettings'] | null>(null);
+	let limitsNote = $state('');
+	async function saveLimits() {
+		if (!limits) return;
+		const r = await api.PUT('/api/settings/edge-sso', { body: limits });
+		limitsNote = r.error ? problemText(r.error) : 'Saved.';
+	}
 	async function load() {
-		const [p, g] = await Promise.all([
+		const [p, g, l] = await Promise.all([
 			api.GET('/api/security/sso/providers'),
-			api.GET('/api/security/geoip')
+			api.GET('/api/security/geoip'),
+			api.GET('/api/settings/edge-sso')
 		]);
+		limits = l.data ?? null;
 		if (p.error || g.error) {
 			error = problemText(p.error ?? g.error);
 			return;
@@ -124,6 +133,7 @@
 <Tabs.Root value="sso">
 	<Tabs.List class="mb-4">
 		<Tabs.Trigger value="sso">Sign-in providers</Tabs.Trigger>
+		<Tabs.Trigger value="limits">Sessions</Tabs.Trigger>
 		<Tabs.Trigger value="geo">GeoIP</Tabs.Trigger>
 	</Tabs.List>
 
@@ -169,6 +179,30 @@
 		{#if data}<p class="text-[12.5px] text-muted-foreground">
 				Register this address at the provider: <Mono>{data.callback_url}</Mono>
 			</p>{/if}
+	</Tabs.Content>
+
+	<Tabs.Content value="limits">
+		{#if limits}
+			<Panel title="Sessions" description="How long a sign-in at the edge lasts.">
+				<div class="grid max-w-lg gap-3 sm:grid-cols-2">
+					<div class="space-y-1.5">
+						<Label for="lm">Longest session (hours)</Label>
+						<Input id="lm" type="number" bind:value={limits.max_session_hours} />
+					</div>
+					<div class="space-y-1.5">
+						<Label for="li">Ends when unused for (hours)</Label>
+						<Input id="li" type="number" bind:value={limits.idle_timeout_hours} />
+					</div>
+				</div>
+				<label class="mt-3 flex items-center gap-2 text-[13px]"
+					><Switch bind:checked={limits.remember_device} />Stay signed in after closing the browser</label
+				>
+				<div class="mt-3 flex items-center gap-3">
+					<Button size="sm" onclick={saveLimits}>Save sessions</Button>
+					<span class="text-[13px] text-muted-foreground">{limitsNote}</span>
+				</div>
+			</Panel>
+		{/if}
 	</Tabs.Content>
 
 	<Tabs.Content value="geo" class="grid gap-4 lg:grid-cols-2">

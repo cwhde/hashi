@@ -2346,6 +2346,13 @@ type DNSZoneRef struct {
 	ZoneId string `json:"zone_id"`
 }
 
+// EdgeSSOSettings defines model for EdgeSSOSettings.
+type EdgeSSOSettings struct {
+	IdleTimeoutHours int  `json:"idle_timeout_hours"`
+	MaxSessionHours  int  `json:"max_session_hours"`
+	RememberDevice   bool `json:"remember_device"`
+}
+
 // FirewallBindings defines model for FirewallBindings.
 type FirewallBindings struct {
 	// Allow IP set IDs (hashi-hosts is always allowed in addition)
@@ -4158,6 +4165,9 @@ type PutServiceDashboardJSONRequestBody PutServiceDashboardJSONBody
 // PutAppearanceSettingsJSONRequestBody defines body for PutAppearanceSettings for application/json ContentType.
 type PutAppearanceSettingsJSONRequestBody = AppearanceSettings
 
+// PutEdgeSSOSettingsJSONRequestBody defines body for PutEdgeSSOSettings for application/json ContentType.
+type PutEdgeSSOSettingsJSONRequestBody = EdgeSSOSettings
+
 // PutGeneralSettingsJSONRequestBody defines body for PutGeneralSettings for application/json ContentType.
 type PutGeneralSettingsJSONRequestBody = GeneralSettings
 
@@ -4876,6 +4886,12 @@ type ServerInterface interface {
 
 	// (PUT /api/settings/appearance)
 	PutAppearanceSettings(w http.ResponseWriter, r *http.Request)
+
+	// (GET /api/settings/edge-sso)
+	GetEdgeSSOSettings(w http.ResponseWriter, r *http.Request)
+
+	// (PUT /api/settings/edge-sso)
+	PutEdgeSSOSettings(w http.ResponseWriter, r *http.Request)
 
 	// (GET /api/settings/general)
 	GetGeneralSettings(w http.ResponseWriter, r *http.Request)
@@ -7866,6 +7882,34 @@ func (siw *ServerInterfaceWrapper) PutAppearanceSettings(w http.ResponseWriter, 
 	handler.ServeHTTP(w, r)
 }
 
+// GetEdgeSSOSettings operation middleware
+func (siw *ServerInterfaceWrapper) GetEdgeSSOSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetEdgeSSOSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutEdgeSSOSettings operation middleware
+func (siw *ServerInterfaceWrapper) PutEdgeSSOSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutEdgeSSOSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetGeneralSettings operation middleware
 func (siw *ServerInterfaceWrapper) GetGeneralSettings(w http.ResponseWriter, r *http.Request) {
 
@@ -9062,6 +9106,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/pulse/agents/{id}/revoke", wrapper.RevokePulseAgent)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/firewall/hosts/{id}/ssh-target", wrapper.PutFirewallHostSSHTarget)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/traefik/connections/{id}/ssh-target", wrapper.PutTraefikSSHTarget)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings/edge-sso", wrapper.GetEdgeSSOSettings)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/settings/edge-sso", wrapper.PutEdgeSSOSettings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings/pulse", wrapper.GetPulseSettings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/settings/pulse", wrapper.PutPulseSettings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/pulse/agents/{id}/consumers", wrapper.GetPulseConsumers)
@@ -13976,6 +14022,83 @@ func (response PutAppearanceSettingsdefaultApplicationProblemPlusJSONResponse) V
 	return err
 }
 
+type GetEdgeSSOSettingsRequestObject struct {
+}
+
+type GetEdgeSSOSettingsResponseObject interface {
+	VisitGetEdgeSSOSettingsResponse(w http.ResponseWriter) error
+}
+
+type GetEdgeSSOSettings200JSONResponse EdgeSSOSettings
+
+func (response GetEdgeSSOSettings200JSONResponse) VisitGetEdgeSSOSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEdgeSSOSettingsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetEdgeSSOSettingsdefaultApplicationProblemPlusJSONResponse) VisitGetEdgeSSOSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutEdgeSSOSettingsRequestObject struct {
+	Body *PutEdgeSSOSettingsJSONRequestBody
+}
+
+type PutEdgeSSOSettingsResponseObject interface {
+	VisitPutEdgeSSOSettingsResponse(w http.ResponseWriter) error
+}
+
+type PutEdgeSSOSettings200JSONResponse EdgeSSOSettings
+
+func (response PutEdgeSSOSettings200JSONResponse) VisitPutEdgeSSOSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutEdgeSSOSettingsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutEdgeSSOSettingsdefaultApplicationProblemPlusJSONResponse) VisitPutEdgeSSOSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetGeneralSettingsRequestObject struct {
 }
 
@@ -16619,6 +16742,12 @@ type StrictServerInterface interface {
 
 	// (PUT /api/settings/appearance)
 	PutAppearanceSettings(ctx context.Context, request PutAppearanceSettingsRequestObject) (PutAppearanceSettingsResponseObject, error)
+
+	// (GET /api/settings/edge-sso)
+	GetEdgeSSOSettings(ctx context.Context, request GetEdgeSSOSettingsRequestObject) (GetEdgeSSOSettingsResponseObject, error)
+
+	// (PUT /api/settings/edge-sso)
+	PutEdgeSSOSettings(ctx context.Context, request PutEdgeSSOSettingsRequestObject) (PutEdgeSSOSettingsResponseObject, error)
 
 	// (GET /api/settings/general)
 	GetGeneralSettings(ctx context.Context, request GetGeneralSettingsRequestObject) (GetGeneralSettingsResponseObject, error)
@@ -20316,6 +20445,61 @@ func (sh *strictHandler) PutAppearanceSettings(w http.ResponseWriter, r *http.Re
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(PutAppearanceSettingsResponseObject); ok {
 		if err := validResponse.VisitPutAppearanceSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetEdgeSSOSettings operation middleware
+func (sh *strictHandler) GetEdgeSSOSettings(w http.ResponseWriter, r *http.Request) {
+	var request GetEdgeSSOSettingsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetEdgeSSOSettings(ctx, request.(GetEdgeSSOSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetEdgeSSOSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetEdgeSSOSettingsResponseObject); ok {
+		if err := validResponse.VisitGetEdgeSSOSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutEdgeSSOSettings operation middleware
+func (sh *strictHandler) PutEdgeSSOSettings(w http.ResponseWriter, r *http.Request) {
+	var request PutEdgeSSOSettingsRequestObject
+
+	var body PutEdgeSSOSettingsJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutEdgeSSOSettings(ctx, request.(PutEdgeSSOSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutEdgeSSOSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutEdgeSSOSettingsResponseObject); ok {
+		if err := validResponse.VisitPutEdgeSSOSettingsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

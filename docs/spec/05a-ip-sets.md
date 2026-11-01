@@ -83,7 +83,7 @@ connection targets. Dynamic entries reach the firewall through the host link (05
 `geo` items in a firewall-bound set are expanded from the MaxMind database (iterate the MMDB networks, keep those whose
 country/region/ASN matches). Countries can be tens of thousands of prefixes; the plan preview shows counts per set and
 host, not every prefix. Without a GeoIP database `geo` items resolve to nothing, the set is `partial`, and binding a set
-with geo items to a firewall position needs a confirmation that names the missing database.
+with geo items to a firewall position is refused, naming the missing database.
 
 ## 5. Positions
 

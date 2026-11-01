@@ -43,8 +43,13 @@ func (s *Server) edgeForward(w http.ResponseWriter, r *http.Request) {
 		edgePage(w, http.StatusForbidden, "Access denied.")
 		return
 	}
-	host := hostOnly(r.Header.Get("X-Forwarded-Host"))
+	host := strings.TrimSuffix(hostOnly(r.Header.Get("X-Forwarded-Host")), ".")
 	uri := r.Header.Get("X-Forwarded-Uri")
+	// The health routers answer on every host name with ping@internal, nothing behind them (06 §2.1).
+	if p := edge.NormalizePath(uri); p == traefik.HealthPath+"/open" || p == traefik.HealthPath+"/closed" {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 	d := s.Edge.DecideHost(host, ri.ip, uri)
 
 	var sess *edge.Session

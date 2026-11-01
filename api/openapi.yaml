@@ -1365,6 +1365,28 @@ paths:
       responses:
         "204": { description: Saved }
         default: { $ref: "#/components/responses/Problem" }
+  /api/settings/edge-sso:
+    get:
+      operationId: getEdgeSSOSettings
+      tags: [settings]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Edge session limits
+          content: { application/json: { schema: { $ref: "#/components/schemas/EdgeSSOSettings" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      operationId: putEdgeSSOSettings
+      tags: [settings]
+      x-hashi-scopes: [settings.manage]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/EdgeSSOSettings" } } }
+      responses:
+        "200":
+          description: Saved
+          content: { application/json: { schema: { $ref: "#/components/schemas/EdgeSSOSettings" } } }
+        default: { $ref: "#/components/responses/Problem" }
   /api/settings/pulse:
     get:
       operationId: getPulseSettings
@@ -2940,6 +2962,13 @@ components:
               collision: { type: boolean }
               wanted: { type: boolean }
               problem: { type: string }
+    EdgeSSOSettings:
+      type: object
+      required: [max_session_hours, idle_timeout_hours, remember_device]
+      properties:
+        max_session_hours: { type: integer }
+        idle_timeout_hours: { type: integer }
+        remember_device: { type: boolean }
     PulseSettings:
       type: object
       required: [heartbeat_interval_seconds, stale_factor]

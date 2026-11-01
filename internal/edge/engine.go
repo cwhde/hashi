@@ -92,8 +92,17 @@ func (e *Engine) Rebuild(ctx context.Context) error {
 			}
 		}
 		for _, row := range svcs {
+			if !isHTTP(row.Kind) {
+				continue
+			}
 			root, ok := roots[row.ID]
-			if !ok || !isHTTP(row.Kind) {
+			if !ok {
+				// Between a system service's creation and the job that gives it a root (seconds): the admin page has its
+				// own login and must stay reachable. Any other service gets its root in the transaction that creates it.
+				if row.Origin == "system" && row.HostName != "" {
+					next.byHost[strings.ToLower(row.HostName)] = serviceView{ID: row.ID, Name: row.Name, List: []rules.Flat{{Entry: rules.Entry{AppliesTo: next.allID, Action: rules.ActionNone, Fallback: true}}}}
+					next.sets[next.allID] = Compiled{}
+				}
 				continue
 			}
 			v := serviceView{ID: row.ID, Name: row.Name, List: g.Flatten(root, row.Origin == "system")}
@@ -179,16 +188,16 @@ type Decision struct {
 	List      []rules.Flat
 }
 
-// DecideHost resolves the service by host and evaluates. A host Hashi serves no service for is only ever the health
-// routers (06 §2.1): Traefik has no other router for it, so it is allowed.
+// DecideHost resolves the service by host and evaluates. A name no service has is denied: it may be an old name Traefik
+// still routes until its plan applies, or a spelling Traefik accepts. The caller answers the health routers first.
 func (e *Engine) DecideHost(host string, a netip.Addr, path string) Decision {
 	s := e.cur.Load()
 	if s == nil {
 		return Decision{Action: rules.ActionDeny, Index: -1} // never serve from nothing; Rebuild runs before the listener
 	}
-	v, ok := s.byHost[strings.ToLower(host)]
+	v, ok := s.byHost[strings.TrimSuffix(strings.ToLower(host), ".")] // Traefik's Host() matches the trailing-dot form too
 	if !ok {
-		return Decision{Action: rules.ActionNone, Index: -1}
+		return Decision{Action: rules.ActionDeny, Index: -1}
 	}
 	return e.decide(s, v, a, path)
 }

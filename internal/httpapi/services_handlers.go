@@ -171,11 +171,7 @@ func (s *Server) changeService(ctx context.Context, action string, f func(q *db.
 	if err != nil {
 		return svc, nil, false, serviceError(err)
 	}
-	if s.Edge != nil {
-		if err := s.Edge.Rebuild(ctx); err != nil {
-			s.Log.Warn("forward auth after a service change", "err", err)
-		}
-	}
+	s.edgeChanged(ctx)
 	plans, pending, err := s.syncServices(ctx)
 	return svc, plans, pending, err
 }
@@ -307,7 +303,11 @@ func (s *Server) GetServiceEffective(ctx context.Context, req gen.GetServiceEffe
 			return nil, conflict("This service is not rendered: " + sv.InvalidReason)
 		}
 	}
-	b, err := traefik.EffectiveYAML(sv)
+	one := []services.Service{sv}
+	if err := traefik.MarkFailClosed(ctx, s.Store.R, one); err != nil {
+		return nil, err
+	}
+	b, err := traefik.EffectiveYAML(one[0])
 	if err != nil {
 		return nil, err
 	}
@@ -320,4 +320,14 @@ func (s *Server) PlanTraefik(ctx context.Context, _ gen.PlanTraefikRequestObject
 		return nil, err
 	}
 	return gen.PlanTraefik200JSONResponse{Plans: plans, CertificatePending: pending}, nil
+}
+
+// edgeChanged brings forward auth up to date with a service change.
+func (s *Server) edgeChanged(ctx context.Context) {
+	if s.Edge == nil {
+		return
+	}
+	if err := s.Edge.Rebuild(ctx); err != nil {
+		s.Log.Warn("forward auth after a service change", "err", err)
+	}
 }

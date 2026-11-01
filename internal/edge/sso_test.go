@@ -79,6 +79,7 @@ func newIdP(t *testing.T) *fakeIdP {
 		if err != nil {
 			t.Error(err)
 		}
+		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{"id_token": s, "access_token": "a", "token_type": "Bearer", "expires_in": 3599})
 	})
 	f.srv = httptest.NewServer(mux)

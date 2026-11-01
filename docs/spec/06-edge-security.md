@@ -286,7 +286,8 @@ cursor, bounded per read (8 MB).
   managed domain (no open redirect) → set cookie → redirect. `/api/edge-auth/logout` clears and optionally calls IdP
   end-session. These endpoints run Stage A in-process.
 - A valid edge session exempts its requests from the A2 rate trigger only (§3.2); never from A1, A3, WAF or rules.
-- Host: requests to a host name no service has reach only the health routers, so they pass. A service name outside the
+- Host: a name no service has is denied, including an old name Traefik routes until its plan applies, and a trailing dot
+  counts as the same name; only the health routers' paths pass on any name. A service name outside the
   root domain cannot receive the cookie, so `pass_authentication` there asks for a login every time.
 - `X-Hashi-User` is removed from every client request before forward auth, so only Hashi can set it.
 

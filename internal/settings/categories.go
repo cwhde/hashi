@@ -133,6 +133,10 @@ func (g GeoIP) Validate() error {
 	if err != nil || u.Scheme != "https" || u.Host == "" || !strings.Contains(g.URL, "{edition}") {
 		return invalid("the download address must be https and contain {edition}")
 	}
+	// It is shown to anyone who can read settings, so it may not hold a password or token.
+	if u.User != nil || u.RawQuery != "" {
+		return invalid("the download address may not contain a login or a query")
+	}
 	return nil
 }
 

@@ -1450,6 +1450,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings/edge-sso": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getEdgeSSOSettings"];
+        put: operations["putEdgeSSOSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/settings/pulse": {
         parameters: {
             query?: never;
@@ -2997,6 +3013,11 @@ export interface components {
                 wanted: boolean;
                 problem?: string;
             }[];
+        };
+        EdgeSSOSettings: {
+            max_session_hours: number;
+            idle_timeout_hours: number;
+            remember_device: boolean;
         };
         PulseSettings: {
             heartbeat_interval_seconds: number;
@@ -6593,6 +6614,52 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getEdgeSSOSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Edge session limits */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EdgeSSOSettings"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putEdgeSSOSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EdgeSSOSettings"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EdgeSSOSettings"];
+                };
             };
             default: components["responses"]["Problem"];
         };

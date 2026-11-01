@@ -423,7 +423,7 @@ func orDefault(p *string, def string) string {
 
 // saveProvider stores a provider (id empty: new). It reads the discovery document first, so a mistyped issuer is refused.
 func (s *Server) saveProvider(ctx context.Context, id string, in gen.SSOProviderInput) (db.OidcProvider, error) {
-	issuer := strings.TrimRight(strings.TrimSpace(in.Issuer), "/")
+	issuer := strings.TrimSpace(in.Issuer) // exactly as the provider names itself, or its tokens fail the issuer check
 	if !strings.HasPrefix(issuer, "https://") {
 		return db.OidcProvider{}, invalid("The issuer must be an https address.")
 	}
@@ -634,4 +634,37 @@ func (s *Server) PutGeoIP(ctx context.Context, req gen.PutGeoIPRequestObject) (g
 		return nil, err
 	}
 	return gen.PutGeoIP200JSONResponse(st), nil
+}
+
+func edgeSSOBody(v settings.EdgeSSO) gen.EdgeSSOSettings {
+	return gen.EdgeSSOSettings{MaxSessionHours: v.MaxSessionHours, IdleTimeoutHours: v.IdleTimeoutHours, RememberDevice: v.RememberDevice}
+}
+
+func (s *Server) GetEdgeSSOSettings(ctx context.Context, _ gen.GetEdgeSSOSettingsRequestObject) (gen.GetEdgeSSOSettingsResponseObject, error) {
+	v, err := settings.Get[settings.EdgeSSO](ctx, s.Store.R)
+	if err != nil {
+		return nil, err
+	}
+	return gen.GetEdgeSSOSettings200JSONResponse(edgeSSOBody(v)), nil
+}
+
+func (s *Server) PutEdgeSSOSettings(ctx context.Context, req gen.PutEdgeSSOSettingsRequestObject) (gen.PutEdgeSSOSettingsResponseObject, error) {
+	v := settings.EdgeSSO{MaxSessionHours: req.Body.MaxSessionHours, IdleTimeoutHours: req.Body.IdleTimeoutHours, RememberDevice: req.Body.RememberDevice}
+	if err := saveSetting(ctx, s, v, nil); err != nil {
+		return nil, err
+	}
+	return gen.PutEdgeSSOSettings200JSONResponse(edgeSSOBody(v)), nil
+}
+
+// refuseGeoWithoutDatabase is 05a §4.3: a firewall set of countries with no database would silently match nothing.
+func (s *Server) refuseGeoWithoutDatabase(ctx context.Context, sets ...[]string) error {
+	missing := s.geoMissing(ctx)
+	for _, list := range sets {
+		for _, id := range list {
+			if missing(id) {
+				return conflict("That set names countries or networks, but the GeoIP database is missing, so it would match nobody. Add the database under Security, GeoIP first.")
+			}
+		}
+	}
+	return nil
 }

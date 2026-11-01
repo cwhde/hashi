@@ -112,7 +112,8 @@ func TestSetupStep8HTTPSProof(t *testing.T) {
 	// hashi-fa hop: same cookie, edge token, and 127.0.0.1 appended to X-Forwarded-For (contract finding 3). That call
 	// must neither be mistaken for a request from 127.0.0.1 nor end the session (it did: ip_mismatch, bounce to login).
 	fa := browser(map[string]string{"X-Hashi-Edge": edge.Reveal(), "X-Forwarded-For": "192.168.50.1, 127.0.0.1",
-		"X-Forwarded-Proto": "https", "X-Forwarded-Host": "dev.hashi.example.com", "Host": "127.0.0.1:28181"})
+		"X-Forwarded-Proto": "https", "X-Forwarded-Host": "dev.hashi.example.com", "Host": "127.0.0.1:28181",
+		"X-Forwarded-Uri": "/.well-known/hashi/health/open"}) // this test has no admin service row, and the session is the point
 	fa.cookie = b.cookie
 	fa.mustStatus(fa.do(http.MethodGet, "/api/edge-auth/forward", nil), 204)
 	r = b.mustStatus(b.do(http.MethodGet, "/api/auth/session", nil), 200)

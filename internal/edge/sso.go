@@ -2,11 +2,8 @@ package edge
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"crypto/elliptic"
 	"crypto/hmac"
 	"crypto/rand"
-	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/subtle"
 	"database/sql"
@@ -15,8 +12,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"math/big"
 	"net/http"
 	"net/url"
 	"slices"
@@ -24,8 +19,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/oklog/ulid/v2"
+	"golang.org/x/oauth2"
 
 	"git.juzo.io/juzo/hashi/internal/secrets"
 	"git.juzo.io/juzo/hashi/internal/settings"
@@ -42,7 +38,7 @@ const (
 
 	keyPurpose = "edge:session-key"
 	loginTTL   = 10 * time.Minute
-	maxPending = 1000
+	maxPending = 10000
 	touchEvery = time.Minute
 	metaTTL    = 10 * time.Minute
 )
@@ -76,13 +72,9 @@ type pending struct {
 }
 
 type metadata struct {
-	Issuer                string `json:"issuer"`
-	AuthorizationEndpoint string `json:"authorization_endpoint"`
-	TokenEndpoint         string `json:"token_endpoint"`
-	JWKSURI               string `json:"jwks_uri"`
-	EndSessionEndpoint    string `json:"end_session_endpoint"`
-	fetched               time.Time
-	keys                  map[string]any
+	provider           *oidc.Provider
+	endSessionEndpoint string
+	fetched            time.Time
 }
 
 // SSO runs the sign-in flow and validates sessions.
@@ -156,62 +148,31 @@ func hashID(id string) string {
 	return hex.EncodeToString(h[:])
 }
 
-// discover returns the provider's metadata, fetched at most every metaTTL. The issuer must be the configured one.
+// discover returns the provider's metadata through the OIDC library, read at most every metaTTL. The library insists the
+// document names exactly the configured issuer and handles signing keys and their rotation.
 func (s *SSO) discover(ctx context.Context, issuer string, force bool) (*metadata, error) {
-	issuer = strings.TrimRight(issuer, "/")
 	s.mu.Lock()
 	m := s.meta[issuer]
 	s.mu.Unlock()
 	if m != nil && !force && s.now().Sub(m.fetched) < metaTTL {
 		return m, nil
 	}
-	var fresh metadata
-	if err := s.getJSON(ctx, issuer+"/.well-known/openid-configuration", &fresh); err != nil {
+	// The key set keeps this context for later fetches, so it must outlive the request.
+	p, err := oidc.NewProvider(oidc.ClientContext(context.WithoutCancel(ctx), s.client), issuer)
+	if err != nil {
 		return nil, fmt.Errorf("discovery: %w", err)
 	}
-	if strings.TrimRight(fresh.Issuer, "/") != issuer {
-		return nil, fmt.Errorf("discovery names issuer %q, expected %q", fresh.Issuer, issuer)
+	var extra struct {
+		EndSession string `json:"end_session_endpoint"`
 	}
-	if fresh.AuthorizationEndpoint == "" || fresh.TokenEndpoint == "" || fresh.JWKSURI == "" {
-		return nil, errors.New("discovery is missing an endpoint")
+	if err := p.Claims(&extra); err != nil {
+		return nil, fmt.Errorf("discovery: %w", err)
 	}
-	var set struct {
-		Keys []struct {
-			Kid string `json:"kid"`
-			Kty string `json:"kty"`
-			N   string `json:"n"`
-			E   string `json:"e"`
-			Crv string `json:"crv"`
-			X   string `json:"x"`
-			Y   string `json:"y"`
-		} `json:"keys"`
-	}
-	if err := s.getJSON(ctx, fresh.JWKSURI, &set); err != nil {
-		return nil, fmt.Errorf("signing keys: %w", err)
-	}
-	fresh.keys = map[string]any{}
-	dec := base64.RawURLEncoding.DecodeString
-	for _, k := range set.Keys {
-		switch k.Kty {
-		case "RSA":
-			n, e1 := dec(k.N)
-			e, e2 := dec(k.E)
-			if e1 == nil && e2 == nil {
-				fresh.keys[k.Kid] = &rsa.PublicKey{N: new(big.Int).SetBytes(n), E: int(new(big.Int).SetBytes(e).Int64())}
-			}
-		case "EC":
-			x, e1 := dec(k.X)
-			y, e2 := dec(k.Y)
-			if e1 == nil && e2 == nil && k.Crv == "P-256" {
-				fresh.keys[k.Kid] = &ecdsa.PublicKey{Curve: elliptic.P256(), X: new(big.Int).SetBytes(x), Y: new(big.Int).SetBytes(y)} //nolint:staticcheck // the JWT library takes this form
-			}
-		}
-	}
-	fresh.fetched = s.now()
+	fresh := &metadata{provider: p, endSessionEndpoint: extra.EndSession, fetched: s.now()}
 	s.mu.Lock()
-	s.meta[issuer] = &fresh
+	s.meta[issuer] = fresh
 	s.mu.Unlock()
-	return &fresh, nil
+	return fresh, nil
 }
 
 // Check reads a provider's discovery document, for the settings page.
@@ -220,20 +181,8 @@ func (s *SSO) Check(ctx context.Context, issuer string) error {
 	return err
 }
 
-func (s *SSO) getJSON(ctx context.Context, u string, v any) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
-	if err != nil {
-		return err
-	}
-	resp, err := s.client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("%s answered %d", u, resp.StatusCode)
-	}
-	return json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(v)
+func oauthConfig(p db.OidcProvider, m *metadata, secret, callback string) oauth2.Config {
+	return oauth2.Config{ClientID: p.ClientID, ClientSecret: secret, Endpoint: m.provider.Endpoint(), RedirectURL: callback, Scopes: strings.Fields(p.Scopes)}
 }
 
 // provider returns the chosen provider, or the default for an empty ID (06 §7).
@@ -294,21 +243,21 @@ func (s *SSO) Begin(ctx context.Context, providerID, rd, callback string) (authU
 			delete(s.state, k)
 		}
 	}
-	if len(s.state) >= maxPending {
-		s.mu.Unlock()
-		return "", "", errors.New("too many sign-ins in progress")
+	// A flood of unfinished logins may not lock everyone out: the oldest goes, never the new one.
+	for len(s.state) >= maxPending {
+		var oldest string
+		for k, v := range s.state {
+			if oldest == "" || v.expires.Before(s.state[oldest].expires) {
+				oldest = k
+			}
+		}
+		delete(s.state, oldest)
 	}
 	s.state[state] = pending{provider: p.ID, verifier: verifier, nonce: nonce, rd: rd, expires: now.Add(loginTTL)}
 	s.mu.Unlock()
 
-	ch := sha256.Sum256([]byte(verifier))
-	q := url.Values{"client_id": {p.ClientID}, "response_type": {"code"}, "scope": {p.Scopes}, "redirect_uri": {callback},
-		"state": {state}, "nonce": {nonce}, "code_challenge": {base64.RawURLEncoding.EncodeToString(ch[:])}, "code_challenge_method": {"S256"}}
-	sep := "?"
-	if strings.Contains(m.AuthorizationEndpoint, "?") {
-		sep = "&"
-	}
-	return m.AuthorizationEndpoint + sep + q.Encode(), state, nil
+	cfg := oauthConfig(p, m, "", callback)
+	return cfg.AuthCodeURL(state, oidc.Nonce(nonce), oauth2.S256ChallengeOption(verifier)), state, nil
 }
 
 // Identity is what the ID token says, after verification.
@@ -381,67 +330,40 @@ func (s *SSO) exchange(ctx context.Context, p db.OidcProvider, code string, pend
 	if err != nil {
 		return Identity{}, err
 	}
-	form := url.Values{"grant_type": {"authorization_code"}, "code": {code}, "redirect_uri": {callback}, "code_verifier": {pend.verifier}}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, m.TokenEndpoint, strings.NewReader(form.Encode()))
+	cfg := oauthConfig(p, m, secret.Reveal(), callback)
+	tok, err := cfg.Exchange(oidc.ClientContext(ctx, s.client), code, oauth2.VerifierOption(pend.verifier))
 	if err != nil {
-		return Identity{}, err
-	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.SetBasicAuth(url.QueryEscape(p.ClientID), url.QueryEscape(secret.Reveal())) // RFC 6749 §2.3.1
-	resp, err := s.client.Do(req)
-	if err != nil {
+		var re *oauth2.RetrieveError
+		if errors.As(err, &re) { // its text can quote the response; the code is enough
+			return Identity{}, fmt.Errorf("%w: the provider refused the code (%s)", ErrBadLogin, re.ErrorCode)
+		}
 		return Identity{}, fmt.Errorf("token request: %w", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
-	var body struct {
-		IDToken string `json:"id_token"`
-		Error   string `json:"error"`
+	raw, _ := tok.Extra("id_token").(string)
+	if raw == "" {
+		return Identity{}, fmt.Errorf("%w: the provider sent no ID token", ErrBadLogin)
 	}
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&body); err != nil {
-		return Identity{}, fmt.Errorf("token response: %w", err)
-	}
-	if resp.StatusCode != http.StatusOK || body.IDToken == "" {
-		return Identity{}, fmt.Errorf("%w: the provider refused the code (%d %s)", ErrBadLogin, resp.StatusCode, body.Error)
-	}
-	return s.verify(ctx, p, body.IDToken, pend.nonce)
+	return s.verify(ctx, p, m, raw, pend.nonce)
 }
 
-// verify checks the ID token's signature, issuer, audience, expiry and nonce, then maps the claims (06 §7).
-func (s *SSO) verify(ctx context.Context, p db.OidcProvider, raw, nonce string) (Identity, error) {
-	keyFor := func(t *jwt.Token) (any, error) {
-		kid, _ := t.Header["kid"].(string)
-		m, err := s.discover(ctx, p.Issuer, false)
-		if err != nil {
-			return nil, err
-		}
-		if k, ok := m.keys[kid]; ok {
-			return k, nil
-		}
-		// A rotated key: read the provider once more.
-		if m, err = s.discover(ctx, p.Issuer, true); err != nil {
-			return nil, err
-		}
-		if k, ok := m.keys[kid]; ok {
-			return k, nil
-		}
-		return nil, fmt.Errorf("unknown signing key %q", kid)
-	}
-	claims := jwt.MapClaims{}
-	_, err := jwt.ParseWithClaims(raw, claims, keyFor, jwt.WithValidMethods([]string{"RS256", "ES256"}),
-		jwt.WithIssuer(strings.TrimRight(p.Issuer, "/")), jwt.WithAudience(p.ClientID), jwt.WithExpirationRequired(),
-		jwt.WithTimeFunc(s.now), jwt.WithLeeway(time.Minute))
+// verify checks the ID token through the OIDC library (signature, issuer, audience, expiry), then the nonce, and maps the
+// claims (06 §7).
+func (s *SSO) verify(ctx context.Context, p db.OidcProvider, m *metadata, raw, nonce string) (Identity, error) {
+	tok, err := m.provider.VerifierContext(oidc.ClientContext(context.WithoutCancel(ctx), s.client), &oidc.Config{ClientID: p.ClientID, Now: s.now}).Verify(ctx, raw)
 	if err != nil {
 		return Identity{}, fmt.Errorf("%w: the ID token is not valid: %w", ErrBadLogin, err)
 	}
-	got, _ := claims["nonce"].(string)
-	if subtle.ConstantTimeCompare([]byte(got), []byte(nonce)) != 1 {
+	if subtle.ConstantTimeCompare([]byte(tok.Nonce), []byte(nonce)) != 1 {
 		return Identity{}, fmt.Errorf("%w: the ID token answers another sign-in", ErrBadLogin)
 	}
-	id := Identity{IDToken: raw}
-	id.Subject, _ = claims["sub"].(string)
-	if id.Subject == "" {
+	if tok.Subject == "" {
 		return Identity{}, fmt.Errorf("%w: the ID token names nobody", ErrBadLogin)
 	}
+	claims := map[string]any{}
+	if err := tok.Claims(&claims); err != nil {
+		return Identity{}, fmt.Errorf("%w: %w", ErrBadLogin, err)
+	}
+	id := Identity{IDToken: raw, Subject: tok.Subject}
 	id.Username, _ = claims[p.UsernameClaim].(string)
 	id.Email, _ = claims[p.EmailClaim].(string)
 	switch g := claims[p.GroupsClaim].(type) {
@@ -519,14 +441,14 @@ func (s *SSO) Logout(ctx context.Context, cookie, postLogout string) (string, er
 		return "", nil //nolint:nilerr // the session is gone; a missing provider only skips the provider's logout
 	}
 	m, err := s.discover(ctx, p.Issuer, false)
-	if err != nil || m.EndSessionEndpoint == "" {
+	if err != nil || m.endSessionEndpoint == "" {
 		return "", nil //nolint:nilerr // same
 	}
 	q := url.Values{"id_token_hint": {sess.IDToken}}
 	if postLogout != "" {
 		q.Set("post_logout_redirect_uri", postLogout)
 	}
-	return m.EndSessionEndpoint + "?" + q.Encode(), nil
+	return m.endSessionEndpoint + "?" + q.Encode(), nil
 }
 
 // Cleanup drops ended sessions.
