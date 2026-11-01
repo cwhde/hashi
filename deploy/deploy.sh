@@ -26,7 +26,7 @@ smoke() {
   on_jump "curl -fsS -m 3 $base:$DEPLOY_ADMIN_PORT/readyz" && echo
   local v; v=$(on_jump "curl -fsS -m 3 $base:$DEPLOY_ADMIN_PORT/api/version")
   echo "version: $v"
-  if [[ -n $want && $want != latest ]] && ! grep -q "\"$want\"" <<<"$v"; then echo "smoke: expected $want"; exit 1; fi
+  if [[ -n $want && $want != latest ]] && ! grep -Eq "\"v?$want\"" <<<"$v"; then echo "smoke: expected $want"; exit 1; fi
   on_jump "curl -fsS -m 3 -o /dev/null -w 'spa %{http_code}\n' $base:$DEPLOY_ADMIN_PORT/"
   on_jump "curl -fsS -m 3 -o /dev/null -w 'public-apps %{http_code}\n' $base:$DEPLOY_PUBLIC_APPS_PORT/"
   on_jump "curl -fsS -m 3 -o /dev/null -w 'public-status %{http_code}\n' $base:$DEPLOY_PUBLIC_STATUS_PORT/"
