@@ -115,10 +115,15 @@ const (
 	MiddlewareAuthOpen   = "hashi-auth-open"
 	MiddlewareAuthClosed = "hashi-auth-closed"
 	RouterForwardAuth    = "hashi-fa"
-	ServiceFailover      = "hashi-fa-failover"
-	ServiceHashi         = "hashi-fa-primary"
-	RouterHealthOpen     = "hashi-health-open"
-	RouterHealthClosed   = "hashi-health-closed"
+	// RouterForwardAuthClosed is the same entry point's route without a fallback.
+	RouterForwardAuthClosed = "hashi-fa-closed"
+	middlewareClosedStrip   = "hashi-fa-closed-strip"
+	closedPrefix            = "/closed"
+	closedPriority          = 100000
+	ServiceFailover         = "hashi-fa-failover"
+	ServiceHashi            = "hashi-fa-primary"
+	RouterHealthOpen        = "hashi-health-open"
+	RouterHealthClosed      = "hashi-health-closed"
 
 	// HealthPath is the edge path the health routers answer on, for every host name: /open goes through fail-open
 	// forward auth, /closed through fail-closed (06 §2.1). ping@internal answers 200.
@@ -129,6 +134,11 @@ const (
 )
 
 var certName = regexp.MustCompile(`^[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?$`)
+
+// HeaderUser names the signed-in user on requests to upstreams (06 §2).
+const HeaderUser = "X-Hashi-User"
+
+var authResponseHeaders = []string{HeaderUser}
 
 func (o Options) validate() error {
 	if err := o.Paths.Validate(); err != nil {
@@ -204,7 +214,9 @@ func Render(o Options) ([]File, error) {
 	if err := dyn("00-hashi-core.yml", dynamicConfig{HTTP: &httpConfig{Middlewares: map[string]middleware{
 		MiddlewareHeaders: {Headers: &headers{
 			STSSeconds: 31536000, STSIncludeSubdomains: true, ContentTypeNosniff: true,
-			ReferrerPolicy: "strict-origin-when-cross-origin",
+			// Runs before forward auth: a client's own X-Hashi-User must never reach an upstream (06 §2).
+			CustomRequestHeaders: map[string]string{HeaderUser: ""},
+			ReferrerPolicy:       "strict-origin-when-cross-origin",
 		}},
 		MiddlewareCompress: {Compress: &struct{}{}},
 	}}}, ""); err != nil {
@@ -231,16 +243,21 @@ func Render(o Options) ([]File, error) {
 	}
 	// Forward auth with the local fallback (06 §2.1, captured construct): fail-open middlewares call the loopback
 	// hashi-fa entry point, whose router fails over from Hashi (health-checked on /readyz) to ping@internal (200).
-	// Fail-closed middlewares call Hashi directly and get 500 while it is down. The hashi-fa router adds the edge token,
-	// so forward-auth requests carry it while upstream services never see it.
+	// Fail-closed middlewares call the same entry point under /closed, whose router has no fallback: it answers 503 while
+	// Hashi is down, which denies. Both routers add the edge token, so forward-auth requests carry it (a remote edge may
+	// reach Hashi from behind NAT, 01 §8) while upstream services never see it.
 	security := &httpConfig{
-		Routers: map[string]router{RouterForwardAuth: {
-			Rule: "PathPrefix(`/`)", EntryPoints: []string{"hashi-fa"}, Service: ServiceFailover,
-		}},
+		Routers: map[string]router{
+			RouterForwardAuth: {Rule: "PathPrefix(`/`)", EntryPoints: []string{"hashi-fa"}, Service: ServiceFailover},
+			RouterForwardAuthClosed: {Rule: "PathPrefix(`" + closedPrefix + "/`)", EntryPoints: []string{"hashi-fa"}, Service: ServiceHashi,
+				Middlewares: []string{middlewareClosedStrip}, Priority: closedPriority},
+		},
 		Middlewares: map[string]middleware{
 			MiddlewareAuthOpen: {ForwardAuth: &forwardAuth{
-				Address: "http://127.0.0.1:" + strconv.Itoa(o.ForwardAuthPort) + forwardAuthPath, TrustForwardHeader: true}},
-			MiddlewareAuthClosed: {ForwardAuth: &forwardAuth{Address: hashi + forwardAuthPath, TrustForwardHeader: true}},
+				Address: "http://127.0.0.1:" + strconv.Itoa(o.ForwardAuthPort) + forwardAuthPath, TrustForwardHeader: true, AuthResponseHeaders: authResponseHeaders}},
+			MiddlewareAuthClosed: {ForwardAuth: &forwardAuth{
+				Address: "http://127.0.0.1:" + strconv.Itoa(o.ForwardAuthPort) + closedPrefix + forwardAuthPath, TrustForwardHeader: true, AuthResponseHeaders: authResponseHeaders}},
+			middlewareClosedStrip: {StripPrefix: &stripPrefix{Prefixes: []string{closedPrefix}}},
 		},
 		Services: map[string]service{
 			ServiceFailover: {Failover: &failover{Service: ServiceHashi, Fallback: "ping@internal"}},
@@ -255,6 +272,9 @@ func Render(o Options) ([]File, error) {
 		fa := security.Routers[RouterForwardAuth]
 		fa.Middlewares = []string{MiddlewareEdge}
 		security.Routers[RouterForwardAuth] = fa
+		closed := security.Routers[RouterForwardAuthClosed]
+		closed.Middlewares = []string{middlewareClosedStrip, MiddlewareEdge}
+		security.Routers[RouterForwardAuthClosed] = closed
 	}
 	if err := dyn("40-hashi-security.yml", dynamicConfig{HTTP: security}, ""); err != nil {
 		return nil, err

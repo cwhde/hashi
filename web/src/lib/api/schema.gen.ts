@@ -55,19 +55,142 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/edge-auth/forward": {
+    "/api/rule-sets": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /**
-         * Traefik forward auth for every edge service
-         * @description S4 stub: allows every request (204). Stage A and the rule engine replace it in S9/S10. Traefik reaches it directly (fail-closed services) or through the local `hashi-fa` fallback (fail-open services, 06 §2.1).
-         */
-        get: operations["getEdgeAuthForward"];
+        /** Every global and reusable rule set (service roots are on the service's Access tab) */
+        get: operations["listRuleSets"];
         put?: never;
+        /** Create a reusable rule set */
+        post: operations["createRuleSet"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/rule-sets/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One rule set with entries, where it is used and its warnings */
+        get: operations["getRuleSet"];
+        put?: never;
+        post?: never;
+        /** Delete a reusable rule set nothing attaches */
+        delete: operations["deleteRuleSet"];
+        options?: never;
+        head?: never;
+        /** Rename a reusable rule set */
+        patch: operations["updateRuleSet"];
+        trace?: never;
+    };
+    "/api/rule-sets/{id}/entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace a rule set's entries in order; decisions change within seconds */
+        put: operations["putRuleSetEntries"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/services/{id}/access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The service's root rule set, fallback, flattened list and outage behaviour */
+        get: operations["getServiceAccess"];
+        /** Replace the service's own entries and its fallback action */
+        put: operations["putServiceAccess"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/addresses/{address}/trace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** What a request from this address to this service and path would get, and which rule decides (05a §8) */
+        post: operations["traceAddress"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/sso/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Sign-in providers with a live discovery check */
+        get: operations["listSSOProviders"];
+        put?: never;
+        /** Add a sign-in provider; the client secret goes to the vault */
+        post: operations["createSSOProvider"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/sso/providers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change a sign-in provider; an empty secret keeps the stored one */
+        put: operations["updateSSOProvider"];
+        post?: never;
+        /** Delete a provider no rule names; its sessions end */
+        delete: operations["deleteSSOProvider"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/geoip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** GeoIP databases on hand and where downloads come from */
+        get: operations["getGeoIP"];
+        /** Set the download source and fetch now; an empty key keeps the stored one */
+        put: operations["putGeoIP"];
         post?: never;
         delete?: never;
         options?: never;
@@ -1327,6 +1450,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings/edge-sso": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getEdgeSSOSettings"];
+        put: operations["putEdgeSSOSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/settings/pulse": {
         parameters: {
             query?: never;
@@ -2400,6 +2539,159 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        RuleEntry: {
+            id: string;
+            priority: number;
+            /** @enum {string} */
+            type: "item" | "set";
+            child_id: string;
+            child_slug: string;
+            /** @description IP set ID */
+            applies_to: string;
+            /** @enum {string} */
+            match_type: "" | "exact" | "prefix" | "regex";
+            pattern: string;
+            /** @enum {string} */
+            action: "" | "none" | "deny" | "pass_captcha" | "pass_authentication";
+            provider_id: string;
+            groups: string[];
+            origin: string;
+            locked: boolean;
+            fallback: boolean;
+            enabled: boolean;
+            note: string;
+        };
+        RuleEntryInput: {
+            /** @enum {string} */
+            type: "item" | "set";
+            child_id?: string;
+            applies_to?: string;
+            /** @enum {string} */
+            match_type?: "" | "exact" | "prefix" | "regex";
+            pattern?: string;
+            /** @enum {string} */
+            action?: "" | "none" | "deny" | "pass_captcha" | "pass_authentication";
+            provider_id?: string;
+            groups?: string[];
+            enabled?: boolean;
+            note?: string;
+        };
+        RuleEntriesInput: {
+            entries: components["schemas"]["RuleEntryInput"][];
+            /**
+             * @description A service's fallback action
+             * @enum {string}
+             */
+            fallback?: "none" | "deny";
+        };
+        RuleSetInput: {
+            slug: string;
+            name: string;
+            description?: string;
+        };
+        RuleSetUse: {
+            label: string;
+            href: string;
+        };
+        RuleSet: {
+            id: string;
+            slug: string;
+            name: string;
+            description: string;
+            /** @enum {string} */
+            kind: "user" | "global" | "service_root";
+            origin: string;
+            entries: components["schemas"]["RuleEntry"][];
+            used_by: components["schemas"]["RuleSetUse"][];
+            warnings: string[];
+        };
+        RuleSetSaved: {
+            rule_set: components["schemas"]["RuleSet"];
+            plans: components["schemas"]["SyncPlan"][];
+        };
+        FlatRule: {
+            entry: components["schemas"]["RuleEntry"];
+            /** @description Rule sets it came from, outermost first */
+            path: string[];
+        };
+        ServiceAccess: {
+            rule_set: components["schemas"]["RuleSet"];
+            /** @enum {string} */
+            fallback: "none" | "deny";
+            /** @description False for system services (06 §4.5) */
+            editable: boolean;
+            fail_closed: boolean;
+            flattened: components["schemas"]["FlatRule"][];
+            warnings: string[];
+        };
+        ServiceAccessSaved: {
+            access: components["schemas"]["ServiceAccess"];
+            plans: components["schemas"]["SyncPlan"][];
+        };
+        TraceInput: {
+            service_id: string;
+            path: string;
+        };
+        TraceResult: {
+            action: string;
+            /** @description Index into flattened; -1 when nothing matched */
+            decided: number;
+            normalized_path: string;
+            flattened: components["schemas"]["FlatRule"][];
+        };
+        SSOProvider: {
+            id: string;
+            name: string;
+            issuer: string;
+            client_id: string;
+            scopes: string;
+            username_claim: string;
+            email_claim: string;
+            groups_claim: string;
+            is_default: boolean;
+            /** @description Empty when the provider's discovery document reads fine */
+            discovery_error: string;
+        };
+        SSOProviders: {
+            providers: components["schemas"]["SSOProvider"][];
+            /** @description The address to register at the provider */
+            callback_url: string;
+            cookie_domain: string;
+        };
+        SSOProviderInput: {
+            name: string;
+            issuer: string;
+            client_id: string;
+            /** Format: password */
+            client_secret?: string;
+            scopes?: string;
+            username_claim?: string;
+            email_claim?: string;
+            groups_claim?: string;
+            is_default: boolean;
+        };
+        GeoIPDatabase: {
+            edition: string;
+            /** Format: date-time */
+            built_at: string;
+            /** Format: date-time */
+            fetched_at: string;
+            stale: boolean;
+        };
+        GeoIPStatus: {
+            databases: components["schemas"]["GeoIPDatabase"][];
+            account_id: string;
+            has_key: boolean;
+            url: string;
+            /** @description The last download's problem, if any */
+            error: string;
+        };
+        GeoIPInput: {
+            account_id?: string;
+            /** Format: password */
+            license_key?: string;
+            url?: string;
+        };
         /** @enum {string} */
         MonitorState: "up" | "degraded" | "down" | "paused" | "unknown";
         MonitorStripSample: {
@@ -2721,6 +3013,11 @@ export interface components {
                 wanted: boolean;
                 problem?: string;
             }[];
+        };
+        EdgeSSOSettings: {
+            max_session_hours: number;
+            idle_timeout_hours: number;
+            remember_device: boolean;
         };
         PulseSettings: {
             heartbeat_interval_seconds: number;
@@ -3621,7 +3918,7 @@ export interface components {
             message: string;
         };
         /** @description One IP item or a set reference (05a §2) */
-        IPItem: components["schemas"]["IPItemIP"] | components["schemas"]["IPItemCIDR"] | components["schemas"]["IPItemHost"] | components["schemas"]["IPItemPulse"] | components["schemas"]["IPItemDNS"] | components["schemas"]["IPItemSet"];
+        IPItem: components["schemas"]["IPItemIP"] | components["schemas"]["IPItemCIDR"] | components["schemas"]["IPItemHost"] | components["schemas"]["IPItemPulse"] | components["schemas"]["IPItemDNS"] | components["schemas"]["IPItemGeo"] | components["schemas"]["IPItemSet"];
         IPItemIP: {
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -3669,6 +3966,17 @@ export interface components {
              */
             type: "dns";
             fqdn: string;
+        };
+        IPItemGeo: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "geo";
+            /** @enum {string} */
+            kind: "country" | "region" | "asn";
+            /** @description ISO country code, ISO 3166-2 region or AS number */
+            value: string;
         };
         IPItemSet: {
             /**
@@ -3965,7 +4273,7 @@ export interface operations {
             };
         };
     };
-    getEdgeAuthForward: {
+    listRuleSets: {
         parameters: {
             query?: never;
             header?: never;
@@ -3974,13 +4282,356 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Allowed */
+            /** @description Rule sets */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleSet"][];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createRuleSet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuleSetInput"];
+            };
+        };
+        responses: {
+            /** @description The new rule set */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleSet"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getRuleSet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The rule set */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleSet"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    deleteRuleSet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
             204: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
+            default: components["responses"]["Problem"];
+        };
+    };
+    updateRuleSet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuleSetInput"];
+            };
+        };
+        responses: {
+            /** @description The rule set */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleSet"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putRuleSetEntries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuleEntriesInput"];
+            };
+        };
+        responses: {
+            /** @description The rule set and any Traefik plans a changed outage behaviour caused */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleSetSaved"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getServiceAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Access */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceAccess"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putServiceAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuleEntriesInput"];
+            };
+        };
+        responses: {
+            /** @description The new state and any Traefik plans a changed outage behaviour caused */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceAccessSaved"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    traceAddress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                address: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TraceInput"];
+            };
+        };
+        responses: {
+            /** @description The trace */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TraceResult"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listSSOProviders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Providers */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SSOProviders"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createSSOProvider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SSOProviderInput"];
+            };
+        };
+        responses: {
+            /** @description The provider */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SSOProvider"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    updateSSOProvider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SSOProviderInput"];
+            };
+        };
+        responses: {
+            /** @description The provider */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SSOProvider"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    deleteSSOProvider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getGeoIP: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GeoIPStatus"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putGeoIP: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GeoIPInput"];
+            };
+        };
+        responses: {
+            /** @description Status after the download */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GeoIPStatus"];
+                };
+            };
+            default: components["responses"]["Problem"];
         };
     };
     getAuthSession: {
@@ -5963,6 +6614,52 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getEdgeSSOSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Edge session limits */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EdgeSSOSettings"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putEdgeSSOSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EdgeSSOSettings"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EdgeSSOSettings"];
+                };
             };
             default: components["responses"]["Problem"];
         };

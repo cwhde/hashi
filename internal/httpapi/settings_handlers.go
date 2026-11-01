@@ -8,6 +8,7 @@ import (
 
 	"git.juzo.io/juzo/hashi/internal/audit"
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
+	"git.juzo.io/juzo/hashi/internal/rules"
 	"git.juzo.io/juzo/hashi/internal/services"
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/store/db"
@@ -118,6 +119,9 @@ func (s *Server) PutGeneralSettings(ctx context.Context, req gen.PutGeneralSetti
 		if err != nil || !changed {
 			return err
 		}
+		if err := rules.EnsureRoots(ctx, q, s.now()); err != nil {
+			return err
+		}
 		moved = true
 		return s.Audit.Record(ctx, q, audit.Event{Actor: s.actor(ri), Action: "service.system.saved", IP: ri.ipString(),
 			Target: "service:" + sv.ID, Detail: map[string]any{"host_name": sv.HostName}})
@@ -126,6 +130,7 @@ func (s *Server) PutGeneralSettings(ctx context.Context, req gen.PutGeneralSetti
 		return nil, serviceError(err)
 	}
 	if moved {
+		s.edgeChanged(ctx)
 		if _, _, err := s.syncServices(ctx); err != nil {
 			return nil, err
 		}

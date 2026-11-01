@@ -30,8 +30,8 @@ host-A firewall script. Their current configuration is reference material only, 
 | Edge host OS probe over SSH | Traefik/firewall host validation | 2026-10-28, Alpine 3.23, Debian 12 and 13, Fedora 44: `testdata/contracts/os/` |
 | Google Trust Services ACME (EAB) | certificates | — |
 | AdGuard Home ×2 (+ adguardhome-sync) | internal rewrites | 2026-10-31, rewrite API from local containers of both versions; real instances not yet read |
-| Pocket ID | edge SSO | — |
-| MaxMind GeoLite2 | GeoIP (Pangolin already downloads Country) | — |
+| Pocket ID | edge SSO | `testdata/contracts/oidc` (2.19.1) |
+| MaxMind GeoLite2 | GeoIP (Pangolin already downloads Country) | Mirror archives read for real by `internal/geoip` integration test; MaxMind's own endpoint not captured (no key) |
 | Gitea (`git.juzo.io`) | repo, act_runner CI, container registry | — |
 
 ## Constraints discovered

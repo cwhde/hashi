@@ -6,6 +6,7 @@ import (
 
 	"git.juzo.io/juzo/hashi/internal/audit"
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
+	"git.juzo.io/juzo/hashi/internal/rules"
 	"git.juzo.io/juzo/hashi/internal/services"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 	"git.juzo.io/juzo/hashi/internal/traefik"
@@ -170,6 +171,7 @@ func (s *Server) changeService(ctx context.Context, action string, f func(q *db.
 	if err != nil {
 		return svc, nil, false, serviceError(err)
 	}
+	s.edgeChanged(ctx)
 	plans, pending, err := s.syncServices(ctx)
 	return svc, plans, pending, err
 }
@@ -212,6 +214,9 @@ func (s *Server) CreateService(ctx context.Context, req gen.CreateServiceRequest
 	}
 	sv, plans, pending, err := s.changeService(ctx, "service.created", func(q *db.Queries) (services.Service, error) {
 		created, err := services.Create(ctx, q, in, s.now())
+		if err == nil {
+			err = rules.EnsureRoots(ctx, q, s.now())
+		}
 		if err != nil {
 			return created, err
 		}
@@ -298,7 +303,11 @@ func (s *Server) GetServiceEffective(ctx context.Context, req gen.GetServiceEffe
 			return nil, conflict("This service is not rendered: " + sv.InvalidReason)
 		}
 	}
-	b, err := traefik.EffectiveYAML(sv)
+	one := []services.Service{sv}
+	if err := traefik.MarkFailClosed(ctx, s.Store.R, one); err != nil {
+		return nil, err
+	}
+	b, err := traefik.EffectiveYAML(one[0])
 	if err != nil {
 		return nil, err
 	}
@@ -311,4 +320,14 @@ func (s *Server) PlanTraefik(ctx context.Context, _ gen.PlanTraefikRequestObject
 		return nil, err
 	}
 	return gen.PlanTraefik200JSONResponse{Plans: plans, CertificatePending: pending}, nil
+}
+
+// edgeChanged brings forward auth up to date with a service change.
+func (s *Server) edgeChanged(ctx context.Context) {
+	if s.Edge == nil {
+		return
+	}
+	if err := s.Edge.Rebuild(ctx); err != nil {
+		s.Log.Warn("forward auth after a service change", "err", err)
+	}
 }

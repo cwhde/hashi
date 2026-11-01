@@ -83,14 +83,18 @@ func httpServices(svcs []services.Service, edge bool) dynamicConfig {
 	return c
 }
 
-// chain is a service's default middleware chain (04 §4.1): security headers, compression, forward auth. Every service
-// is fail-open until rule sets that can deny exist (S9, 06 §2.1). Requests to Hashi itself carry the edge token.
+// chain is a service's default middleware chain (04 §4.1): security headers, compression, forward auth, failing open or
+// closed by the content of its rules (06 §2.1). Requests to Hashi itself carry the edge token.
 func chain(s services.Service, edge bool) []string {
 	var out []string
 	if edge && s.System() && s.OwnerFeature == services.OwnerSetup {
 		out = append(out, MiddlewareEdge)
 	}
-	return append(out, MiddlewareHeaders, MiddlewareCompress, MiddlewareAuthOpen)
+	auth := MiddlewareAuthOpen
+	if s.FailClosed {
+		auth = MiddlewareAuthClosed
+	}
+	return append(out, MiddlewareHeaders, MiddlewareCompress, auth)
 }
 
 func balancer(kind string, targets []services.Target, transport string) *loadBalancer {

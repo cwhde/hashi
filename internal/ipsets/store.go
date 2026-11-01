@@ -256,7 +256,7 @@ func (ed Editor) AddElement(ctx context.Context, q *db.Queries, setID string, in
 	ms := now.UnixMilli()
 	if err := q.InsertIPSetElement(ctx, db.InsertIPSetElementParams{ID: e.ID, IpSetID: setID, Position: pos,
 		Type: e.Item.Type(), Origin: e.Origin, Locked: 0, Address: p.address, Prefix: p.prefix, Family: p.family,
-		HostID: p.hostID, PulseAgentID: p.agentID, Selector: p.selector, Scope: p.scope, Fqdn: p.fqdn, ChildSetID: p.child, Note: e.Note, ExpiresAt: p.expires,
+		HostID: p.hostID, PulseAgentID: p.agentID, Selector: p.selector, Scope: p.scope, Fqdn: p.fqdn, GeoKind: p.geoKind, GeoValue: p.geoValue, ChildSetID: p.child, Note: e.Note, ExpiresAt: p.expires,
 		CreatedBy: by, CreatedAt: ms, UpdatedAt: ms}); err != nil {
 		return Element{}, fmt.Errorf("store element: %w", err)
 	}
@@ -284,7 +284,7 @@ func (ed Editor) UpdateElement(ctx context.Context, q *db.Queries, setID, elemen
 	}
 	p := elementParams(e)
 	if err := q.UpdateIPSetElement(ctx, db.UpdateIPSetElementParams{Type: e.Item.Type(), Address: p.address,
-		Prefix: p.prefix, Family: p.family, HostID: p.hostID, PulseAgentID: p.agentID, Selector: p.selector, Scope: p.scope, Fqdn: p.fqdn, ChildSetID: p.child,
+		Prefix: p.prefix, Family: p.family, HostID: p.hostID, PulseAgentID: p.agentID, Selector: p.selector, Scope: p.scope, Fqdn: p.fqdn, GeoKind: p.geoKind, GeoValue: p.geoValue, ChildSetID: p.child,
 		Note: e.Note, ExpiresAt: p.expires, UpdatedAt: now.UnixMilli(), ID: e.ID}); err != nil {
 		return Element{}, fmt.Errorf("update element: %w", err)
 	}
@@ -456,6 +456,7 @@ func touch(ctx context.Context, q *db.Queries, setID string, now time.Time) erro
 type elementColumns struct {
 	address, prefix, hostID, agentID, selector, scope, fqdn, child sql.NullString
 	family, expires                                                sql.NullInt64
+	geoKind, geoValue                                              sql.NullString
 }
 
 func elementParams(e Element) elementColumns {
@@ -475,6 +476,8 @@ func elementParams(e Element) elementColumns {
 		}
 	case DNS:
 		c.fqdn = str(v.FQDN)
+	case Geo:
+		c.geoKind, c.geoValue = str(v.Kind), str(v.Value)
 	case SetRef:
 		c.child = str(v.SetID)
 	}
@@ -523,8 +526,9 @@ func elementFromRow(r db.IpSetElement) (Element, error) {
 		e.Item = DNS{FQDN: r.Fqdn.String}
 	case TypeSet:
 		e.Item = SetRef{SetID: r.ChildSetID.String}
+	case TypeGeo:
+		e.Item = Geo{Kind: r.GeoKind.String, Value: r.GeoValue.String}
 	default:
-		// geo arrives with S9; its rows cannot exist yet.
 		err = fmt.Errorf("item type %q is not supported yet", r.Type)
 	}
 	if err != nil {

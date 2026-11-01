@@ -555,6 +555,43 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByRole('button', { name: 'Remove e2e-box' }).click();
 	await expect(page.getByRole('button', { name: 'Remove e2e-box' })).toHaveCount(0);
 
+	// Rule sets (06 §13): a shared set with one rule, attached to a service; the trace shows who decides; a closed fallback
+	// says what happens while Hashi is away. The admin service stays read-only.
+	await page.goto(`${state.baseURL}/rule-sets`);
+	await page.getByRole('button', { name: 'Add rule set' }).click();
+	await page.getByLabel('Slug').fill('e2e-shared');
+	await page.getByRole('button', { name: 'Add rule set' }).last().click();
+	await expect(page).toHaveURL(/\/rule-sets\/[0-9A-Z]+$/);
+	await page.getByRole('button', { name: 'Add rule', exact: true }).click();
+	await page.getByRole('combobox', { name: 'Path match' }).click();
+	await page.getByRole('option', { name: 'prefix' }).click();
+	await page.locator('#pp').fill('/admin');
+	await page.getByRole('radio', { name: /Deny/ }).click();
+	await page.getByRole('button', { name: 'Save rule' }).click();
+	await expect(page.getByText('/admin')).toBeVisible();
+	await page.goto(`${state.baseURL}/services`);
+	await page.getByRole('button', { name: 'Add service' }).click();
+	await page.getByLabel('Name', { exact: true }).fill('Guarded');
+	await page.getByLabel('Public domain').fill('guarded');
+	await page.getByLabel('Address').fill('192.0.2.21');
+	await page.getByLabel('Port').fill('8080');
+	await page.getByRole('button', { name: 'Save and publish' }).click();
+	await expect(page.getByRole('status')).toContainText('Saved');
+	await page.getByRole('link', { name: /^Guarded/ }).click();
+	await page.getByRole('tab', { name: 'Access' }).click();
+	await page.getByRole('button', { name: 'Attach rule set' }).click();
+	await page.getByRole('combobox').last().click();
+	await page.getByRole('option', { name: 'e2e-shared' }).click();
+	await page.getByRole('button', { name: 'Attach', exact: true }).click();
+	await expect(page.getByRole('link', { name: 'e2e-shared' })).toBeVisible();
+	await expect(page.getByText('this service refuses requests')).toBeVisible();
+	await page.getByLabel('Address to try').fill('203.0.113.7');
+	await page.getByLabel('Path to try').fill('/admin/x');
+	await page.getByRole('button', { name: 'Try a request' }).click();
+	await expect(page.getByLabel('Decides')).toBeVisible();
+	await page.goto(`${state.baseURL}/security`);
+	await expect(page.getByText('No provider yet')).toBeVisible();
+
 	// The theme is saved, not only remembered by this browser.
 	await page.getByRole('button', { name: 'Theme', exact: true }).click();
 	await page.getByRole('menuitemradio', { name: 'Violet Night' }).click();

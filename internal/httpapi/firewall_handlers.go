@@ -414,6 +414,9 @@ func (s *Server) GetFirewallBindings(ctx context.Context, _ gen.GetFirewallBindi
 
 func (s *Server) PutFirewallBindings(ctx context.Context, req gen.PutFirewallBindingsRequestObject) (gen.PutFirewallBindingsResponseObject, error) {
 	ri := info(ctx)
+	if err := s.refuseGeoWithoutDatabase(ctx, req.Body.Allow, req.Body.Block); err != nil {
+		return nil, err
+	}
 	if err := s.Firewall.PutBindings(ctx, s.actor(ri), ri.ipString(), firewall.Bindings{Allow: req.Body.Allow, Block: req.Body.Block}); err != nil {
 		return nil, firewallError(err)
 	}
@@ -434,6 +437,9 @@ func (s *Server) GetFirewallHostAccess(ctx context.Context, req gen.GetFirewallH
 
 func (s *Server) PutFirewallHostAccess(ctx context.Context, req gen.PutFirewallHostAccessRequestObject) (gen.PutFirewallHostAccessResponseObject, error) {
 	ri := info(ctx)
+	if err := s.refuseGeoWithoutDatabase(ctx, req.Body.Sets); err != nil {
+		return nil, err
+	}
 	if err := s.Firewall.PutHostAccess(ctx, s.actor(ri), ri.ipString(), req.Id, req.Body.Sets); err != nil {
 		return nil, firewallError(err)
 	}

@@ -123,6 +123,8 @@ type Service struct {
 	// ProxyProtocol sends PROXY protocol v2 to a TCP upstream (testdata/contracts/traefik/streams).
 	ProxyProtocol bool
 	Routes        []Route
+	// FailClosed: its rules can deny or ask for sign-in, so forward auth has no local fallback (06 §2.1). Set for rendering.
+	FailClosed bool
 	// Targets is the simple target with its address set resolved (set by Resolve for rendering; nil otherwise).
 	Targets   []Target
 	CreatedAt time.Time

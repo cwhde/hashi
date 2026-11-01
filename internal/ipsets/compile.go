@@ -48,6 +48,12 @@ type Resolver interface {
 	DNS(fqdn string) ([]netip.Addr, error)
 }
 
+// GeoPrefixes is what a resolver with a GeoIP database also answers (05a §4.3). Without it, or with an error, a geo item
+// resolves to nothing and the set is partial.
+type GeoPrefixes interface {
+	GeoPrefixes(g Geo) ([]netip.Prefix, error)
+}
+
 // Stale is a resolver's answer for addresses that still count but may be out of date (05a §2).
 type Stale struct{ What string }
 
@@ -72,8 +78,11 @@ type Result struct {
 	Addresses []netip.Addr
 	// AddressSet: every leaf, through nesting, is ip, pulse, host or dns (05a §5.2).
 	AddressSet bool
-	Status     string
-	Problems   []Problem
+	// Geo are the geo items through nesting, for lookups at L7 (05a §4.1). The firewall's prefixes for them are in the
+	// prefix lists when the resolver has a database.
+	Geo      []Geo
+	Status   string
+	Problems []Problem
 }
 
 // Hash identifies the compiled content: consumers re-plan only when it changes.
@@ -84,6 +93,9 @@ func (r Result) Hash() string {
 	}
 	for _, p := range r.V6 {
 		b.WriteString(p.String() + "\n")
+	}
+	for _, g := range r.Geo {
+		b.WriteString(g.Kind + ":" + g.Value + "\n")
 	}
 	b.WriteString("--\n")
 	for _, a := range r.Addresses {
@@ -168,7 +180,7 @@ func (g Graph) Compile(id string, r Resolver, now time.Time) Result {
 		b.AddPrefix(pre)
 	}
 	ips, _ := b.IPSet() // the builder only errors on invalid input, which normalization excludes
-	res := Result{AddressSet: p.addressSet, Problems: p.problems, Addresses: dedup(p.addresses), Leaves: leaves(p.prefixes)}
+	res := Result{AddressSet: p.addressSet, Geo: p.geo, Problems: p.problems, Addresses: dedup(p.addresses), Leaves: leaves(p.prefixes)}
 	for _, pre := range ips.Prefixes() {
 		if pre.Addr().Is4() {
 			res.V4 = append(res.V4, pre)
@@ -191,6 +203,7 @@ type partial struct {
 	prefixes   []netip.Prefix
 	addresses  []netip.Addr
 	addressSet bool
+	geo        []Geo
 	problems   []Problem
 }
 
@@ -240,8 +253,23 @@ func (c *compiler) set(id string) *partial {
 			c.leaf(out, e, fail, func() ([]netip.Addr, error) { return c.r.Pulse(v.AgentID, v.Scope, v.Selector) }, "Pulse agent")
 		case DNS:
 			c.leaf(out, e, fail, func() ([]netip.Addr, error) { return c.r.DNS(v.FQDN) }, v.FQDN)
+		case Geo:
+			out.addressSet = false
+			out.geo = append(out.geo, v)
+			gp, ok := c.r.(GeoPrefixes)
+			if !ok {
+				fail(e, "GeoIP database is not available")
+				continue
+			}
+			prefixes, err := gp.GeoPrefixes(v)
+			if err != nil {
+				fail(e, err.Error())
+				continue
+			}
+			out.prefixes = append(out.prefixes, prefixes...)
 		case SetRef:
 			child := c.set(v.SetID)
+			out.geo = append(out.geo, child.geo...)
 			out.prefixes = append(out.prefixes, child.prefixes...)
 			out.addresses = append(out.addresses, child.addresses...)
 			for _, p := range child.problems {

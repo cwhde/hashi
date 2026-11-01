@@ -28,6 +28,15 @@ func (q *Queries) DeleteSecret(ctx context.Context, id string) error {
 	return err
 }
 
+const deleteSecretsByPurpose = `-- name: DeleteSecretsByPurpose :exec
+DELETE FROM secret_records WHERE purpose = ?
+`
+
+func (q *Queries) DeleteSecretsByPurpose(ctx context.Context, purpose string) error {
+	_, err := q.db.ExecContext(ctx, deleteSecretsByPurpose, purpose)
+	return err
+}
+
 const getRecoveryKey = `-- name: GetRecoveryKey :one
 SELECT id, key_version, verifier, nonce, wrapped_master, created_at, confirmed_at FROM recovery_key WHERE id = 1
 `

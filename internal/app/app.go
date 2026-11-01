@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/netip"
 	"os"
+	"path/filepath"
 	"sync/atomic"
 	"time"
 
@@ -25,7 +26,9 @@ import (
 	"git.juzo.io/juzo/hashi/internal/clientip"
 	"git.juzo.io/juzo/hashi/internal/dns"
 	"git.juzo.io/juzo/hashi/internal/dns/hetzner"
+	"git.juzo.io/juzo/hashi/internal/edge"
 	"git.juzo.io/juzo/hashi/internal/firewall"
+	"git.juzo.io/juzo/hashi/internal/geoip"
 	"git.juzo.io/juzo/hashi/internal/httpapi"
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
 	"git.juzo.io/juzo/hashi/internal/ipsets"
@@ -34,6 +37,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/monitor"
 	"git.juzo.io/juzo/hashi/internal/notify"
 	"git.juzo.io/juzo/hashi/internal/pulse"
+	"git.juzo.io/juzo/hashi/internal/rules"
 	"git.juzo.io/juzo/hashi/internal/secrets"
 	"git.juzo.io/juzo/hashi/internal/services"
 	"git.juzo.io/juzo/hashi/internal/settings"
@@ -292,10 +296,56 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 		ip.SetEdgeToken(t)
 	}
 
+	// Forward auth (06 §2): rules and sets in memory, refreshed on changes and every 30 s. Every service has its root.
+	if err := st.Tx(ctx, func(q *db.Queries) error { return rules.EnsureRoots(ctx, q, time.Now()) }); err != nil {
+		return fmt.Errorf("rule sets: %w", err)
+	}
+	geoSvc := geoip.New(filepath.Join(cfg.DataDir, "geoip"), &http.Client{Timeout: 5 * time.Minute}, time.Now)
+	ipSets.UseGeo(geoSvc.Prefixes)
+	edgeEngine := edge.NewEngine(st, ipSets, log.With("component", "edge"))
+	edgeEngine.UseGeo(geoSvc.Lookup)
+	if err := edgeEngine.Rebuild(ctx); err != nil {
+		return fmt.Errorf("forward auth: %w", err)
+	}
+	ipSets.Subscribe(func(ctx context.Context, _ []string) {
+		if err := edgeEngine.Rebuild(ctx); err != nil {
+			log.Warn("forward auth after an IP set change", "err", err)
+		}
+	})
+	sso := edge.NewSSO(st, v, &http.Client{Timeout: 10 * time.Second}, time.Now)
+	for _, j := range []jobs.Job{
+		{Kind: edge.JobKind, Interval: edge.JobInterval, Run: func(ctx context.Context) (string, error) {
+			if err := sso.Cleanup(ctx); err != nil {
+				log.Warn("edge sessions cleanup", "err", err)
+			}
+			// The admin service appears through its own workflow (02 §1.6) and gets its root here.
+			if err := st.Tx(ctx, func(q *db.Queries) error { return rules.EnsureRoots(ctx, q, time.Now()) }); err != nil {
+				return "", err
+			}
+			return edgeEngine.Refresh(ctx)
+		}},
+		{Kind: geoip.JobKind, Interval: geoip.JobInterval, Run: func(ctx context.Context) (string, error) {
+			src, err := httpapi.GeoSource(ctx, st.R, v)
+			if err != nil {
+				return "", err
+			}
+			changed, err := geoSvc.Update(ctx, src, false)
+			if changed {
+				ipSets.Changed(ctx)
+				return "updated", err
+			}
+			return "", err
+		}},
+	} {
+		if err := runner.Register(ctx, j); err != nil {
+			return err
+		}
+	}
+
 	health := httpapi.NewHealth(map[string]httpapi.Check{"database": st.Ready})
 	api := &httpapi.Server{
 		Health: health, Version: gen.Version{Version: Version, Commit: Commit}, Store: st, Sessions: sessions,
-		Passkeys: passkeys, Setup: setupSvc, Settings: cfgSettings, DNS: dnsSvc, Traefik: traefikMgr, Certs: certMgr, IPSets: ipSets, AdGuard: adguardSvc, Pulse: pulseSvc, Monitor: monitorSvc, Notify: notifier, Firewall: fwMgr, Sync: syncEngine, Vault: v, Audit: al, IP: ip, Logs: cfg.Logs,
+		Passkeys: passkeys, Setup: setupSvc, Settings: cfgSettings, DNS: dnsSvc, Traefik: traefikMgr, Certs: certMgr, IPSets: ipSets, AdGuard: adguardSvc, Pulse: pulseSvc, Monitor: monitorSvc, Notify: notifier, Firewall: fwMgr, Edge: edgeEngine, SSO: sso, GeoIP: geoSvc, Sync: syncEngine, Vault: v, Audit: al, IP: ip, Logs: cfg.Logs,
 		CertsSoon: func(ctx context.Context) error { return runner.Soon(ctx, certs.JobKind) },
 		Log:       log.With("component", "api"),
 	}

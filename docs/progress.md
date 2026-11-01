@@ -5,6 +5,21 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
+**S9 — Forward auth, rule sets, edge SSO** · status: **in progress** (started 2026-11-01). Gate: 11-delivery.md §3 row S9.
+
+Contracts: Pocket ID's public discovery read from the real server; login flow to capture from a throwaway local Pocket ID container (no change to the real one). GeoIP download: no MaxMind key exists; Pangolin's file comes from a public mirror (decide with the user before the gate).
+
+Rules, sign-in and countries depend on one another (a rule names a provider, a set names a country), so they ship as one PR.
+
+- [x] Rule set tables, `internal/rules` (flatten, first match, trace, cycle check, warnings); root rule set per HTTP service, one global set
+- [x] Real forward auth in `internal/edge`: service by host, normalized path, in-memory snapshot, trace; Stage A stays S10; `pass_captcha` refused on save until S10
+- [x] Fail-open or fail-closed from rule content in Traefik's files; fail-closed calls carry the edge token (real Traefik: down Hashi gives 200 and 503)
+- [x] Rule set API, Rule sets pages, service Access tab with "try a request"
+- [x] OIDC providers (secret in the vault), login/callback/logout, edge sessions on the root domain, groups; integration against a real Pocket ID 2.19.1 container
+- [x] GeoIP download and reader (real files through the mirror: CH is 6,638 v4 and 5,449 v6 ranges), `geo` items for rules and firewall expansion
+- [x] Sign-in providers tab, GeoIP tab
+- [ ] Gate on the test edge: two subdomains, shared rule set, IP/Pulse/country rules, deny fallback, Hashi stopped, latency from the home Traefik
+
 **S8 — AdGuard, Pulse, agent DNS** · status: **done** (gate passed 2026-11-01 on `0.8.0-beta.3`). Gate: 11-delivery.md §3 row S8.
 
 Contracts: AdGuard's rewrite API captured from throwaway containers of both running versions (`testdata/contracts/adguard`). It accepts exact duplicates and empty domains, and deleting a missing rule still answers 200, so Hashi must validate first and read back after every write. The agent's direct read of the real instances was refused twice by the permission system, even after the user's OK; instead the user enters the login in Hashi and Hashi shows the rewrites.

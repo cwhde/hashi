@@ -114,7 +114,7 @@ func TestInvariant_7_TraefikChangesOnlyThroughApprovedPlans(t *testing.T) {
 	if string(host.files[DefaultBinary]) != "ELF-amd64" {
 		t.Errorf("binary %q", host.files[DefaultBinary])
 	}
-	if !bytes.Contains(host.files[DefaultConfigDir+"/dynamic/40-hashi-security.yml"], []byte("http://192.0.2.5:3340/api/edge-auth/forward")) {
+	if !bytes.Contains(host.files[DefaultConfigDir+"/dynamic/40-hashi-security.yml"], []byte("url: http://192.0.2.5:3340")) {
 		t.Error("forward auth does not use the internal URL's origin")
 	}
 	files, _ := st.R.ListTraefikFiles(ctx, "c1")

@@ -132,7 +132,8 @@ highest priority number), `enabled`, `note`.
 
 ## 4. Services (security columns)
 
-`services.root_rule_set_id` (HTTP kinds), `service_waf_modes`: `service_id`, `match_type`, `pattern` (null = service
+A service's root is found through `rule_sets.service_id` (one direction is enough, and it deletes with the service).
+`service_waf_modes`: `service_id`, `match_type`, `pattern` (null = service
 root), `mode` (`enabled` | `headers_only` | `disabled`), `exclusions_json` (CRS rule IDs).
 
 ## 5. Edge, CAPTCHA, GeoIP

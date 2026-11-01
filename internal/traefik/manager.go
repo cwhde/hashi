@@ -14,6 +14,7 @@ import (
 
 	"git.juzo.io/juzo/hashi/internal/audit"
 	"git.juzo.io/juzo/hashi/internal/ipsets"
+	"git.juzo.io/juzo/hashi/internal/rules"
 	"git.juzo.io/juzo/hashi/internal/secrets"
 	"git.juzo.io/juzo/hashi/internal/services"
 	"git.juzo.io/juzo/hashi/internal/settings"
@@ -403,6 +404,9 @@ func (m *Manager) desired(ctx context.Context, connID string) (db.TraefikConnect
 			return row, Desired{}, err
 		}
 	}
+	if err := MarkFailClosed(ctx, m.st.R, svcs); err != nil {
+		return row, Desired{}, err
+	}
 	edge, err := EnsureEdgeToken(ctx, m.st, m.vault)
 	if err != nil {
 		return row, Desired{}, fmt.Errorf("edge token: %w", err)
@@ -422,6 +426,26 @@ func (m *Manager) desired(ctx context.Context, connID string) (db.TraefikConnect
 		PingTimeout: m.pingTimeout, Certs: certs, PackageManager: probe.PackageManager, Init: probe.Init}
 	d.Binary = func(ctx context.Context) ([]byte, error) { return m.binary(ctx, probe.Arch) }
 	return row, d, nil
+}
+
+// MarkFailClosed sets each service's forward-auth mode from its flattened rules (06 §2.1).
+func MarkFailClosed(ctx context.Context, q *db.Queries, svcs []services.Service) error {
+	g, err := rules.Load(ctx, q)
+	if err != nil {
+		return err
+	}
+	roots := map[string]string{}
+	for _, s := range g {
+		if s.Kind == rules.KindServiceRoot {
+			roots[s.ServiceID] = s.ID
+		}
+	}
+	for i := range svcs {
+		if root, ok := roots[svcs[i].ID]; ok {
+			svcs[i].FailClosed = rules.FailClosed(g.Flatten(root, svcs[i].System()))
+		}
+	}
+	return nil
 }
 
 // originOf reduces the internal Hashi URL to scheme://host[:port], the form edges call forward auth on.

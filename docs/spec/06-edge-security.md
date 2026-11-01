@@ -47,7 +47,7 @@ route whose service has a health check on Hashi and a failover to a static `204`
 
 | Service | During a Hashi outage |
 | --- | --- |
-| Flattened rules contain a `Deny` or `Pass Authentication` item, or the fallback is `Deny` | Fail **closed**: points straight at Hashi, no fallback |
+| Flattened rules contain a `Deny` or `Pass Authentication` item, or the fallback is `Deny` | Fail **closed**: same local entry point, under `/closed`, a route with no fallback |
 | Only `None` / `Pass CAPTCHA` | Fail **open** through the local fallback: Stage A and CAPTCHA pause |
 | Firewall sets (`block`, `dyn`, `staging`) and meters | Keep working in the kernel |
 | Recording | The outage window is recorded as an event; access logs are ingested afterwards |
@@ -56,8 +56,9 @@ Construct (captured on Traefik v3.7.16, `testdata/contracts/traefik/`): a loopba
 `forwardedHeaders.trustedIPs` are the loopback addresses (otherwise the original host and URI are lost on this hop); a
 router on it sends everything to a `failover` service whose primary is Hashi's forward-auth URL with a `healthCheck` on
 `/readyz` and whose fallback is `ping@internal` (200 on any path; `noop@internal` answers 418 and would deny). Fail-open
-services' `forwardAuth.address` points at `hashi-fa`; fail-closed services point straight at Hashi and get 500 while it
-is down. Prove the outage path with a real Traefik in S4.
+services' `forwardAuth.address` points at `hashi-fa`; fail-closed services point at `hashi-fa` under `/closed`, whose router
+sends to Hashi with no fallback and answers 503 while it is down. Both routes add the edge token: a direct call could not,
+and without it a remote edge behind NAT would look like the client. Proven with a real Traefik.
 Forward auth for services on a remote Traefik host crosses the overlay network; if that link drops, the same table applies.
 S9 records the forward-auth latency over that link.
 
@@ -147,7 +148,7 @@ Actions:
 - **`none`** — allow; Stage B ends; the request goes to the upstream. Skips every lower-priority `pass_captcha` and
   `pass_authentication`.
 - **`deny`** — `403`. Never touches dynamic sets.
-- **`pass_captcha`** — requires a valid clearance cookie for this service: HMAC-signed `{service, issued, expiry}`,
+- **`pass_captcha`** (arrives with CAPTCHA in S10; refused on save until then) — requires a valid clearance cookie for this service: HMAC-signed `{service, issued, expiry}`,
   lifetime `captcha.clearance_ttl`, not bound to the address (mobile clients change addresses). Missing → challenge with
   `scope=service`. Never adds the address to `dynamic-challenge`; a bot hammering the challenge is still counted by A2.
   A valid edge SSO session (§7) also satisfies it, so a logged-in user is never asked for a CAPTCHA (e.g. on a VPN that a
@@ -285,6 +286,10 @@ cursor, bounded per read (8 MB).
   managed domain (no open redirect) → set cookie → redirect. `/api/edge-auth/logout` clears and optionally calls IdP
   end-session. These endpoints run Stage A in-process.
 - A valid edge session exempts its requests from the A2 rate trigger only (§3.2); never from A1, A3, WAF or rules.
+- Host: a name no service has is denied, including an old name Traefik routes until its plan applies, and a trailing dot
+  counts as the same name; only the health routers' paths pass on any name. A service name outside the
+  root domain cannot receive the cookie, so `pass_authentication` there asks for a login every time.
+- `X-Hashi-User` is removed from every client request before forward auth, so only Hashi can set it.
 
 ## 8. Feeds (external blocklists)
 
@@ -370,8 +375,10 @@ failure without leaking details and never exposes the Cap secret. Hashi verifies
 
 ## 12. GeoIP
 
-MaxMind GeoLite2 Country + ASN (account ID + licence key in vault; optional City for regions if the licence allows).
-Download job with checksum, atomic swap of the reader, staleness warning after 14 days. Used for `geo` items at L7
+MaxMind GeoLite2 Country + ASN (account ID + licence key in vault; optional City for regions if the licence allows), or a
+download address with `{edition}` in it, for a mirror of the same files. Download job, with the checksum when MaxMind is the
+source (a mirror publishes none, so the file must open as the right edition), atomic swap of the reader, staleness warning
+after 14 days. Regions need the City database, which Hashi does not download yet. Used for `geo` items at L7
 (lookup) and at the firewall (prefix expansion, 05a §4.3), and for country/ASN columns in telemetry. Without databases
 `geo` items resolve to nothing and widgets show "GeoIP unavailable".
 
