@@ -165,9 +165,9 @@ func (q *Queries) InsertService(ctx context.Context, arg InsertServiceParams) er
 }
 
 const insertServiceRoute = `-- name: InsertServiceRoute :exec
-INSERT INTO service_routes (id, service_id, enabled, targets_json, path_match, path_value, priority, rewrite_mode,
+INSERT INTO service_routes (id, service_id, enabled, targets_json, kind, path_match, path_value, priority, rewrite_mode,
     rewrite_pattern, rewrite_value, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertServiceRouteParams struct {
@@ -175,6 +175,7 @@ type InsertServiceRouteParams struct {
 	ServiceID      string
 	Enabled        int64
 	TargetsJson    string
+	Kind           string
 	PathMatch      string
 	PathValue      string
 	Priority       int64
@@ -191,6 +192,7 @@ func (q *Queries) InsertServiceRoute(ctx context.Context, arg InsertServiceRoute
 		arg.ServiceID,
 		arg.Enabled,
 		arg.TargetsJson,
+		arg.Kind,
 		arg.PathMatch,
 		arg.PathValue,
 		arg.Priority,
@@ -204,7 +206,7 @@ func (q *Queries) InsertServiceRoute(ctx context.Context, arg InsertServiceRoute
 }
 
 const listAllServiceRoutes = `-- name: ListAllServiceRoutes :many
-SELECT id, service_id, enabled, targets_json, path_match, path_value, priority, rewrite_mode, rewrite_pattern, rewrite_value, created_at, updated_at FROM service_routes ORDER BY service_id, priority DESC, id
+SELECT id, service_id, enabled, targets_json, path_match, path_value, priority, rewrite_mode, rewrite_pattern, rewrite_value, created_at, updated_at, kind FROM service_routes ORDER BY service_id, priority DESC, id
 `
 
 func (q *Queries) ListAllServiceRoutes(ctx context.Context) ([]ServiceRoute, error) {
@@ -229,6 +231,7 @@ func (q *Queries) ListAllServiceRoutes(ctx context.Context) ([]ServiceRoute, err
 			&i.RewriteValue,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Kind,
 		); err != nil {
 			return nil, err
 		}
@@ -244,7 +247,7 @@ func (q *Queries) ListAllServiceRoutes(ctx context.Context) ([]ServiceRoute, err
 }
 
 const listServiceRoutes = `-- name: ListServiceRoutes :many
-SELECT id, service_id, enabled, targets_json, path_match, path_value, priority, rewrite_mode, rewrite_pattern, rewrite_value, created_at, updated_at FROM service_routes WHERE service_id = ? ORDER BY priority DESC, id
+SELECT id, service_id, enabled, targets_json, path_match, path_value, priority, rewrite_mode, rewrite_pattern, rewrite_value, created_at, updated_at, kind FROM service_routes WHERE service_id = ? ORDER BY priority DESC, id
 `
 
 func (q *Queries) ListServiceRoutes(ctx context.Context, serviceID string) ([]ServiceRoute, error) {
@@ -269,6 +272,7 @@ func (q *Queries) ListServiceRoutes(ctx context.Context, serviceID string) ([]Se
 			&i.RewriteValue,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Kind,
 		); err != nil {
 			return nil, err
 		}

@@ -1415,6 +1415,30 @@ func (e ServiceInputTlsMinVersion) Valid() bool {
 	}
 }
 
+// Defines values for ServiceRouteKind.
+const (
+	ServiceRouteKindEmpty ServiceRouteKind = ""
+	ServiceRouteKindH2c   ServiceRouteKind = "h2c"
+	ServiceRouteKindHttp  ServiceRouteKind = "http"
+	ServiceRouteKindHttps ServiceRouteKind = "https"
+)
+
+// Valid indicates whether the value is a known member of the ServiceRouteKind enum.
+func (e ServiceRouteKind) Valid() bool {
+	switch e {
+	case ServiceRouteKindEmpty:
+		return true
+	case ServiceRouteKindH2c:
+		return true
+	case ServiceRouteKindHttp:
+		return true
+	case ServiceRouteKindHttps:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ServiceRoutePathMatch.
 const (
 	ServiceRoutePathMatchExact  ServiceRoutePathMatch = "exact"
@@ -3608,7 +3632,10 @@ type ServiceRoute struct {
 	Enabled bool `json:"enabled"`
 
 	// Id ULID; absent for a new route
-	Id          *string                 `json:"id,omitempty"`
+	Id *string `json:"id,omitempty"`
+
+	// Kind The route's own upstream protocol; empty uses the service's
+	Kind        *ServiceRouteKind       `json:"kind,omitempty"`
 	PathMatch   ServiceRoutePathMatch   `json:"path_match"`
 	PathValue   string                  `json:"path_value"`
 	Priority    int                     `json:"priority"`
@@ -3621,6 +3648,9 @@ type ServiceRoute struct {
 	RewriteValue string          `json:"rewrite_value"`
 	Targets      []ServiceTarget `json:"targets"`
 }
+
+// ServiceRouteKind The route's own upstream protocol; empty uses the service's
+type ServiceRouteKind string
 
 // ServiceRoutePathMatch defines model for ServiceRoute.PathMatch.
 type ServiceRoutePathMatch string

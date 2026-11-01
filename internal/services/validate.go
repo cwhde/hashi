@@ -177,6 +177,11 @@ func validateTarget(field string, t Target) error {
 }
 
 func validateRoute(field string, r Route) error {
+	switch r.Kind {
+	case "", KindHTTP, KindHTTPS, KindH2C:
+	default:
+		return invalid(field+".kind", "the upstream protocol must be http, https or h2c")
+	}
 	if r.Priority < 1 || r.Priority > 9999 {
 		return invalid(field+".priority", "must be 1–9999")
 	}

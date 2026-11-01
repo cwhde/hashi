@@ -16,6 +16,7 @@ with Hashi-managed TLS and an HTTP→HTTPS redirect on `web` (80).
 
 ### 1.1 HTTP-family targets
 
+A route may name its own upstream protocol (`http`, `https`, `h2c`); empty uses the service's. One name can then serve gRPC next to plain HTTP, as NetBird and Nezha need.
 - **Simple target:** scheme, address (an address set, [05a-ip-sets.md](05a-ip-sets.md) §5.2 — a single IP, a Pulse agent, a
   host or a DNS name; several resolved addresses are load-balanced), port.
 - **Advanced routes** (when enabled), each with: enabled, target list (address sets, load-balanced; weights optional), path match type

@@ -40,7 +40,7 @@ func serviceBody(s services.Service) gen.Service {
 			ts = append(ts, target(t))
 		}
 		routes = append(routes, gen.ServiceRoute{Id: ptr(r.ID), Enabled: r.Enabled, Targets: ts,
-			PathMatch: gen.ServiceRoutePathMatch(r.PathMatch), PathValue: r.PathValue, Priority: r.Priority,
+			Kind: routeKindBody(r.Kind), PathMatch: gen.ServiceRoutePathMatch(r.PathMatch), PathValue: r.PathValue, Priority: r.Priority,
 			RewriteMode: gen.ServiceRouteRewriteMode(r.RewriteMode), RewritePattern: r.RewritePattern, RewriteValue: r.RewriteValue})
 	}
 	return gen.Service{Id: s.ID, Name: s.Name, Slug: s.Slug, Kind: gen.ServiceKind(s.Kind), DomainMode: gen.ServiceDomainMode(s.DomainMode),
@@ -95,7 +95,7 @@ func serviceFromInput(in gen.ServiceInput) services.Service {
 	}
 	if in.Routes != nil {
 		for _, r := range *in.Routes {
-			rt := services.Route{ID: str(r.Id), Enabled: r.Enabled, PathMatch: string(r.PathMatch), PathValue: r.PathValue,
+			rt := services.Route{ID: str(r.Id), Enabled: r.Enabled, Kind: routeKind(r.Kind), PathMatch: string(r.PathMatch), PathValue: r.PathValue,
 				Priority: r.Priority, RewriteMode: string(r.RewriteMode), RewritePattern: r.RewritePattern, RewriteValue: r.RewriteValue}
 			for _, t := range r.Targets {
 				rt.Targets = append(rt.Targets, target(t))
@@ -330,4 +330,19 @@ func (s *Server) edgeChanged(ctx context.Context) {
 	if err := s.Edge.Rebuild(ctx); err != nil {
 		s.Log.Warn("forward auth after a service change", "err", err)
 	}
+}
+
+func routeKindBody(k string) *gen.ServiceRouteKind {
+	if k == "" {
+		return nil
+	}
+	v := gen.ServiceRouteKind(k)
+	return &v
+}
+
+func routeKind(k *gen.ServiceRouteKind) string {
+	if k == nil {
+		return ""
+	}
+	return string(*k)
 }
