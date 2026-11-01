@@ -268,7 +268,7 @@ func (s *Server) GetPulseInstall(ctx context.Context, req gen.GetPulseInstallReq
 	url := "https://" + g.AdminDomain
 	return gen.GetPulseInstall200JSONResponse{
 		Linux: "curl -fsSL " + url + "/api/pulse/install.sh | sudo sh -s -- --url " + url + " --id " + req.Id + " --token <token>",
-		Compose: "services:\n  pulse:\n    image: git.juzo.io/juzo/hashi-pulse:latest\n    restart: unless-stopped\n    network_mode: host\n    environment:\n      HASHI_URL: " + url +
+		Compose: "services:\n  pulse:\n    image: " + pulse.Image() + "\n    restart: unless-stopped\n    network_mode: host\n    environment:\n      HASHI_URL: " + url +
 			"\n      HASHI_AGENT_ID: " + req.Id + "\n      HASHI_TOKEN: <token>\n",
 	}, nil
 }

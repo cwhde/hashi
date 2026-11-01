@@ -157,9 +157,7 @@
 					<Table.Cell class="pl-4">
 						<div class="font-medium">{a.name}</div>
 						<div class="text-[12px] text-muted-foreground">
-							{a.version ? `v${a.version}` : 'No heartbeat yet'}{a.hostname
-								? ` · ${a.hostname}`
-								: ''}
+							{a.version || 'No heartbeat yet'}{a.hostname ? ` · ${a.hostname}` : ''}
 						</div>
 					</Table.Cell>
 					<Table.Cell><Mono>{a.selected_ip || '—'}</Mono></Table.Cell>
