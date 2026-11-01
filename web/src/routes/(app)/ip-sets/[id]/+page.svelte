@@ -27,6 +27,7 @@
 		TriangleAlert
 	} from '@lucide/svelte';
 	import { api, problemText, type Schemas } from '$lib/api/client';
+	import { withReauth } from '$lib/auth/reauth';
 	import { dateTime } from '$lib/format';
 	import {
 		count,
@@ -119,13 +120,15 @@
 		itemError = '';
 		try {
 			const body = elementInput(item);
-			const r = editing
-				? await api.PATCH('/api/ip-sets/{id}/elements/{elementId}', {
-						params: { path: { id, elementId: editing.id } },
-						body
-					})
-				: await api.POST('/api/ip-sets/{id}/elements', { params: { path: { id } }, body });
-			if (r.error) throw r.error;
+			const target = editing;
+			await withReauth(() =>
+				target
+					? api.PATCH('/api/ip-sets/{id}/elements/{elementId}', {
+							params: { path: { id, elementId: target.id } },
+							body
+						})
+					: api.POST('/api/ip-sets/{id}/elements', { params: { path: { id } }, body })
+			);
 			itemOpen = false;
 			outcome = { text: editing ? 'Item saved.' : 'Item added.', bad: false };
 			await load();
@@ -138,11 +141,14 @@
 
 	async function removeItem(e: IPSetElement) {
 		outcome = null;
-		const r = await api.DELETE('/api/ip-sets/{id}/elements/{elementId}', {
-			params: { path: { id, elementId: e.id } }
-		});
-		if (r.error) {
-			outcome = { text: problemText(r.error), bad: true };
+		try {
+			await withReauth(() =>
+				api.DELETE('/api/ip-sets/{id}/elements/{elementId}', {
+					params: { path: { id, elementId: e.id } }
+				})
+			);
+		} catch (err) {
+			outcome = { text: problemText(err), bad: true };
 			return;
 		}
 		outcome = { text: `Removed ${e.label}.`, bad: false };
@@ -180,10 +186,11 @@
 
 	let delOpen = $state(false);
 	async function deleteSet() {
-		const r = await api.DELETE('/api/ip-sets/{id}', { params: { path: { id } } });
 		delOpen = false;
-		if (r.error) {
-			outcome = { text: problemText(r.error), bad: true };
+		try {
+			await withReauth(() => api.DELETE('/api/ip-sets/{id}', { params: { path: { id } } }));
+		} catch (err) {
+			outcome = { text: problemText(err), bad: true };
 			return;
 		}
 		await goto('/ip-sets');
