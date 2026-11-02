@@ -755,6 +755,7 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-11-02 · release `v0.9.3` (not deployed) · `472617a` · Pulse auto-update (ADR 0003, PR #54): signed agent binaries, verified locally against the built-in key after download. Release image job and two CI jobs failed on GitHub checkout timeouts and were re-run; the `internal/app` readiness test timed out once on a busy runner (bugs.md #10).
 - 2026-11-02 · `/deploy 0.9.2` · `83fce65` · readyz and smoke ok, admin name 200. Ships the Pulse sleeper (PR #53); the five running agents (all native) stay on their old versions until upgraded. Main CI failed only on checkout (GitHub TLS timeout), PR CI and release green.
 - 2026-11-01 · `/deploy 0.9.1` · `0f913e7` · readyz and smoke ok; 47 names unchanged from before the swap, the admin name now answers 200. Main CI and release green. V1 cutover released.
 - 2026-11-01 · cutover swap · both Traefik LXCs replaced in place by fresh Alpine with Hashi-installed Traefik, about 6 minutes public downtime (one GitHub TLS timeout on the binary download, retried). Before/after from outside the edge: 47 of 48 names identical with valid certificates; the admin name differed until it moved. NetBird, Gitea, laptop SSH unaffected. Gatus and the old Hashi stopped, not deleted. Admin moved to its final name; 5 agents report there; 14 protected names redirect signed-out browsers to the login. Open: one full sign-in, final release, deleting old data after a week.
