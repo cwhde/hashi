@@ -3,6 +3,8 @@ package feeds
 import (
 	"context"
 	"crypto/sha256"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -24,6 +26,8 @@ type Fetcher struct {
 	Timeout   time.Duration
 	// AllowInternal lets tests and the dev build fetch from loopback servers. Never set in production.
 	AllowInternal bool
+	// RootCAs replaces the system roots (tests with a local TLS server); nil in production.
+	RootCAs *x509.CertPool
 }
 
 // NewFetcher is the production fetcher.
@@ -95,6 +99,7 @@ func (f *Fetcher) client(allowHTTP bool) *http.Client {
 		return nil
 	}}
 	tr := &http.Transport{DialContext: d.DialContext, Proxy: nil, TLSHandshakeTimeout: 15 * time.Second,
+		TLSClientConfig:       &tls.Config{RootCAs: f.RootCAs, MinVersion: tls.VersionTLS12},
 		ResponseHeaderTimeout: 30 * time.Second, MaxIdleConns: 1, IdleConnTimeout: time.Second}
 	return &http.Client{Transport: tr, Timeout: f.Timeout, CheckRedirect: func(req *http.Request, via []*http.Request) error {
 		if len(via) >= maxRedirects {

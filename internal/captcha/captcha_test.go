@@ -113,3 +113,43 @@ func TestClearance(t *testing.T) {
 		t.Error(CookieName("01ABC"))
 	}
 }
+
+// Creating a site key as Cap 3.1.15 answers it (contract finding 7).
+func TestCreateKey(t *testing.T) {
+	const admin = "0123456789abcdef0123"
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var in map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&in)
+		switch r.URL.Path {
+		case "/auth/login":
+			if in["admin_key"] != admin {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			_, _ = w.Write([]byte(`{"success":true,"session_token":"tok","hashed_token":"h","expires":1}`))
+		case "/server/keys":
+			if r.Header.Get("Authorization") != "Bearer eyJoYXNoIjoiaCIsInRva2VuIjoidG9rIn0=" || in["name"] != "hashi" {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			_, _ = w.Write([]byte(`{"siteKey":"0a1b2c3d4e","secretKey":"sk-abc"}`))
+		}
+	}))
+	defer srv.Close()
+	sk, sec, err := CreateKey(context.Background(), srv.Client(), srv.URL, secrets.New(admin), "hashi")
+	if err != nil || sk != "0a1b2c3d4e" || sec.Reveal() != "sk-abc" {
+		t.Fatalf("%q %v", sk, err)
+	}
+	if _, _, err := CreateKey(context.Background(), srv.Client(), srv.URL, secrets.New("wrong-password-1"), "hashi"); err == nil {
+		t.Error("wrong password accepted")
+	}
+	p := t.TempDir() + "/cap.env"
+	_ = os.WriteFile(p, []byte("ADMIN_KEY="+admin+"\n"), 0o600)
+	if k, err := AdminKey(p); err != nil || k.Reveal() != admin {
+		t.Errorf("AdminKey %v", err)
+	}
+	_ = os.WriteFile(p, []byte(""), 0o600)
+	if _, err := AdminKey(p); err == nil {
+		t.Error("empty cap.env")
+	}
+}

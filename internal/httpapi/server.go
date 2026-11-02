@@ -57,6 +57,9 @@ type Server struct {
 	// Security is Stage A (06 §3); nil runs Stage B only.
 	Security *security.Engine
 	GeoIP    *geoip.Service
+	// CapEnvFile is Cap's password file when Cap runs next to Hashi (06 §11); CapPort is its host port.
+	CapEnvFile string
+	CapPort    int
 	// Feeds owns the feed sets (06 §8).
 	Feeds *feeds.Service
 	// Captcha caches the CAPTCHA settings for forward auth; nil reads them from the database.

@@ -43,7 +43,14 @@ PR C, CAPTCHA and feeds:
 
 PR C merged 2026-11-02 (#57, CI green). Not deployed.
 
-PR D, UI: Security dashboard, Counters, Challenge, Engine; service WAF tab; feed add; dynamic sets on the IP sets page.
+PR D1, the screens needed to switch S10 on (2026-11-02): Security → Challenge (CAPTCHA settings, "Create key in Cap":
+Hashi reads Cap's password from `cap.env` and makes its own key, test), Security → Engine (read-only summary as in the
+mock), IP sets → Add blocklist (recommended lists, another list by address with preview), service → WAF tab (mode per
+path, uploads, exclusions). Browser test at phone width for each. A one-screen "switch on" shortcut was built and
+removed again at the user's request: the normal screens are the way.
+Left for PR D2: Security dashboard and Counters (need their APIs), engine settings editor, dynamic sets on the IP sets page.
+
+PR D2, UI: Security dashboard, Counters, Challenge, Engine; service WAF tab; feed add; dynamic sets on the IP sets page.
 
 - [ ] Gate on the real edges (needs a Cap instance and the user's OK for each production change)
 

@@ -49,7 +49,8 @@ up() { # write compose + .env, pull, start
   if [[ -n ${DEPLOY_CAP_PORT:-} ]]; then
     cap="COMPOSE_PROFILES=cap\nHASHI_CAP_PORT=$DEPLOY_CAP_PORT\n"
     on_host "cd '$DEPLOY_DIR' && { grep -q '^ADMIN_KEY=.\{12,\}' cap.env 2>/dev/null || \
-      { umask 077 && printf 'ADMIN_KEY=%s\n' \"\$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')\" > cap.env; }; } && chmod 600 cap.env"
+      { umask 077 && printf 'ADMIN_KEY=%s\n' \"\$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')\" > cap.env; }; } \
+      && chown 65532:65532 cap.env && chmod 600 cap.env"
   else
     on_host "cd '$DEPLOY_DIR' && { [ -e cap.env ] || { umask 077 && : > cap.env; }; }"
   fi

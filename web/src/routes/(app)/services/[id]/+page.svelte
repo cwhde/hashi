@@ -1,6 +1,7 @@
 <script lang="ts">
 	import ServiceExtras from '$lib/components/hashi/services/ServiceExtras.svelte';
 	import ServiceAccess from '$lib/components/hashi/rules/ServiceAccess.svelte';
+	import ServiceWaf from '$lib/components/hashi/services/ServiceWaf.svelte';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
@@ -487,14 +488,7 @@
 				</Panel>{/if}
 		</Tabs.Content>
 
-		<Tabs.Content value="waf">
-			<Panel title="WAF">
-				<p class="text-[13px] text-muted-foreground">
-					The web application firewall per path arrives in a later slice. Nothing filters request
-					bodies yet.
-				</p>
-			</Panel>
-		</Tabs.Content>
+		<Tabs.Content value="waf"><ServiceWaf serviceId={id} /></Tabs.Content>
 
 		<Tabs.Content value="monitoring">
 			<Panel title="Monitoring">
