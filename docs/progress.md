@@ -5,6 +5,32 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
+**S10 — Abuse engine, WAF, CAPTCHA, feeds** · status: **in progress** (started 2026-11-02). Gate: 11-delivery.md §3 row S10.
+Scope: 06 §3, §5–6, §8–11, §13 (Security dashboard, Engine), dynamic sets, host link, kernel meters on.
+
+Contracts: Traefik access log JSON exists (`testdata/contracts/traefik`), nft meter and set shapes exist
+(`testdata/contracts/nft`). Missing: `nft` list/add/delete of `staging`/`dyn` elements with timeouts (dev target 108),
+the five recommended feeds' real formats (public, read-only), the Coraza plugin's config and access-log fields (throwaway
+local Traefik container), Cap Standalone's verify API (throwaway local container). No Cap instance runs anywhere yet
+(checked both Docker hosts 2026-11-02); the gate needs one.
+
+PR A, engine:
+- [x] Contracts: `staging`/`dyn` element list, add with timeout, delete (dev target 108); recommended feed formats
+- [ ] Tables (dynamic entry state and hosts, address counters, security events, buckets, top addresses, host link) and the Security settings category (06 §10)
+- [ ] `internal/security`: `T_ban`, step-decay counters, dynamic entries with expiry, escalation (allowed addresses skipped)
+- [ ] Stage A in forward auth: A1 block guard, A2 rate window (SSO exempt, IPv6 per /64), A3 challenge, escalation; invariant 20 and stage-order tests
+- [ ] Host link per managed firewall host: drain staging, push `dyn`, reconcile every 5 min; meters on
+- [ ] Access-log tail per Traefik host over SSH (cursor, rotation), telemetry buckets and events
+
+PR B, CAPTCHA, WAF, feeds:
+- [ ] Cap contract; challenge service, start/verify, clearance cookie; `pass_captcha` allowed on save
+- [ ] Coraza contract; WAF modes per path and exclusions in Traefik's files; matches counted from the tail
+- [ ] Feeds: SSRF-safe fetcher, parsers per format, refresh job, preview; firewall block binding
+
+PR C, UI: Security dashboard, Counters, Challenge, Engine; service WAF tab; feed add; dynamic sets on the IP sets page.
+
+- [ ] Gate on the real edges (needs a Cap instance and the user's OK for each production change)
+
 **S9 — Forward auth, rule sets, edge SSO** · status: **done** (gate passed 2026-11-01 on `0.9.0-beta.1`). V1 cutover done 2026-11-01; after a week remove old data, `legacy/v1/` and its workflow. Next: S10. Gate: 11-delivery.md §3 row S9.
 
 

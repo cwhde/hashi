@@ -111,7 +111,7 @@ func TestIPSetsAPI(t *testing.T) {
 		t.Fatal(err)
 	}
 	sets := all.(gen.ListIPSets200JSONResponse).Sets
-	if len(sets) != 5 || sets[0].Kind != gen.IPSetKindSystem {
+	if len(sets) != 7 || sets[0].Kind != gen.IPSetKindSystem { // three system, two user, two dynamic
 		t.Fatalf("list: %+v", sets)
 	}
 	var sysAll string
