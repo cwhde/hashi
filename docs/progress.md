@@ -680,7 +680,11 @@ Decisions made in S0:
 
 ## Agenda with the user
 
-- None open. Settled 2026-10-31: local first (CLAUDE.md); CI stays as the final confirmation and the only way to an image.
+- Later, not yet (user, 2026-11-02): design a workflow for changing Hashi's admin domain (another subdomain under the
+  same root domain) and its internal address. Today a change re-runs setup steps 7 and 8, and Traefik is updated by its
+  next plan; Pulse agents keep the old URL in their config, the identity provider keeps the old callback, and there is no
+  overlap where the old name and address keep working. Root-domain changes (passkeys are bound to it) stay out of scope.
+- Settled 2026-10-31: local first (CLAUDE.md); CI stays as the final confirmation and the only way to an image.
 
 ## Slices
 
