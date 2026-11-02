@@ -66,6 +66,20 @@ func LoadGraph(ctx context.Context, q *db.Queries) (Graph, error) {
 		s := setFromRow(r)
 		g[s.ID] = &s
 	}
+	feeds, err := q.ListFeeds(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list feeds: %w", err)
+	}
+	for _, f := range feeds {
+		if s, ok := g[f.IpSetID]; ok {
+			switch {
+			case f.LastError != "":
+				s.Problem = "feed: " + f.LastError
+			case !f.LastSuccessAt.Valid:
+				s.Problem = "feed: not downloaded yet"
+			}
+		}
+	}
 	for _, r := range els {
 		e, err := elementFromRow(r)
 		if err != nil {
@@ -429,6 +443,11 @@ func Ancestors(g Graph, id string) map[string]bool {
 		}
 	}
 	return out
+}
+
+// SlugFree reports ErrTaken when another set uses slug (feeds create their sets themselves).
+func SlugFree(ctx context.Context, q *db.Queries, slug string) error {
+	return slugFree(ctx, q, slug, "")
 }
 
 func slugFree(ctx context.Context, q *db.Queries, slug, self string) error {

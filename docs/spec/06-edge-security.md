@@ -462,8 +462,9 @@ Trace: `POST /api/addresses/{address}/trace` (05a §8). Dynamic sets and address
 Counters: `GET /api/security/counters?state=&min_ban=&min_challenge=&source=&country=&asn=&since=&q=&sort=&cursor=`,
 `PATCH /api/addresses/{address}/counters` (`ban_count`, `challenge_count`, `reset_failures`),
 `POST /api/security/counters/reset` (addresses or a filter; returns the count).
-Feeds: `POST /api/ip-sets` with `kind=feed` + feed settings, `POST /api/ip-sets/{id}/feed/preview|refresh`,
-`GET /api/ip-sets/{id}/feed/runs`.
+Feeds: `GET /api/feeds/recommended`, `POST /api/feeds/preview` (before adding), `POST /api/feeds` (creates the set of
+kind feed and downloads once), `GET /api/ip-sets/{id}/feed` (source, state, the last 50 runs),
+`POST /api/ip-sets/{id}/feed/refresh`. A feed is removed by deleting its set.
 CAPTCHA: `GET|PUT /api/security/captcha/settings`, `POST /api/security/captcha/test`, `GET /api/edge-challenge/start`,
 `POST /api/edge-challenge/verify`, `GET /api/edge-challenge/status`.
 Dashboard: `GET /api/security/dashboard?range=&service=&traefik=&host=&action=`. Engine settings: `/api/settings/security`.

@@ -17,6 +17,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/clientip"
 	"git.juzo.io/juzo/hashi/internal/dns"
 	"git.juzo.io/juzo/hashi/internal/edge"
+	"git.juzo.io/juzo/hashi/internal/feeds"
 	"git.juzo.io/juzo/hashi/internal/firewall"
 	"git.juzo.io/juzo/hashi/internal/geoip"
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
@@ -56,6 +57,8 @@ type Server struct {
 	// Security is Stage A (06 §3); nil runs Stage B only.
 	Security *security.Engine
 	GeoIP    *geoip.Service
+	// Feeds owns the feed sets (06 §8).
+	Feeds *feeds.Service
 	// Captcha caches the CAPTCHA settings for forward auth; nil reads them from the database.
 	Captcha *CaptchaCache
 	// CertsSoon runs the certificate job now (a new service name needs a certificate); nil in tests without a runner.

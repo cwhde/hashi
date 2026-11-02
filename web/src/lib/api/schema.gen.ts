@@ -2297,6 +2297,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/feeds/recommended": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The blocklists Hashi offers (all off until added), with the set of each one already added (06 §8) */
+        get: operations["listRecommendedFeeds"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/feeds/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Download and parse a feed without storing it */
+        post: operations["previewFeed"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/feeds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add a feed as an IP set of kind feed and download it once; binding it is a separate step */
+        post: operations["createFeed"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ip-sets/{id}/feed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A feed set's source, state and recent downloads */
+        get: operations["getFeed"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ip-sets/{id}/feed/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Download the feed now */
+        post: operations["refreshFeed"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ip-sets": {
         parameters: {
             query?: never;
@@ -2801,6 +2886,88 @@ export interface components {
             /** Format: date-time */
             fetched_at: string;
             stale: boolean;
+        };
+        /** @enum {string} */
+        FeedFormat: "lines" | "csv" | "json_array" | "json_object" | "json_lines";
+        FeedOptions: {
+            /** @enum {string} */
+            separator?: "tab" | "comma" | "semicolon" | "space";
+            /** @description CSV: the address column, from 1 */
+            column?: number;
+            /** @description CSV: the prefix-length column, if any */
+            prefix_column?: number;
+            /** @description JSON object and lines: the field with the addresses */
+            field?: string;
+        };
+        FeedSource: {
+            url: string;
+            format: components["schemas"]["FeedFormat"];
+            options?: components["schemas"]["FeedOptions"];
+            /** @description Plain HTTP, only with this explicit choice */
+            allow_http?: boolean;
+        };
+        FeedInput: components["schemas"]["FeedSource"] & {
+            name: string;
+            slug: string;
+            description?: string;
+            /** @description The recommended feed this is, if any */
+            catalog_key?: string;
+        };
+        RecommendedFeed: {
+            key: string;
+            name: string;
+            url: string;
+            format: components["schemas"]["FeedFormat"];
+            options: components["schemas"]["FeedOptions"];
+            description: string;
+            /**
+             * @description False-positive risk
+             * @enum {string}
+             */
+            risk: "low" | "medium" | "high";
+            licence: string;
+            /** @description The set of this feed, once added */
+            set_id?: string;
+        };
+        FeedReject: {
+            line: number;
+            text: string;
+            reason: string;
+        };
+        FeedPreview: {
+            count: number;
+            sample: string[];
+            rejected: number;
+            rejects: components["schemas"]["FeedReject"][];
+            ignored: number;
+            hash: string;
+        };
+        FeedRun: {
+            /** Format: date-time */
+            started_at: string;
+            /** @enum {string} */
+            outcome: "updated" | "unchanged" | "failed" | "stale";
+            error: string;
+            parsed: number;
+            added: number;
+            removed: number;
+            unchanged: number;
+            rejected: number;
+        };
+        Feed: components["schemas"]["FeedSource"] & {
+            catalog_key: string;
+            entry_count: number;
+            rejected_count: number;
+            /** Format: date-time */
+            last_attempt_at?: string;
+            /** Format: date-time */
+            last_success_at?: string;
+            last_error: string;
+            runs: components["schemas"]["FeedRun"][];
+        };
+        FeedCreated: {
+            set_id: string;
+            run: components["schemas"]["FeedRun"];
         };
         CaptchaSettingsInput: {
             enabled: boolean;
@@ -8370,6 +8537,123 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FirewallPlans"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listRecommendedFeeds: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Catalog */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecommendedFeed"][];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    previewFeed: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedSource"];
+            };
+        };
+        responses: {
+            /** @description What the feed would contain */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedPreview"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createFeed: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedInput"];
+            };
+        };
+        responses: {
+            /** @description The new set and its first download */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedCreated"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getFeed: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Feed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Feed"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    refreshFeed: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The download's result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedRun"];
                 };
             };
             default: components["responses"]["Problem"];

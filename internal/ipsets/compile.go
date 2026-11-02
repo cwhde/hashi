@@ -29,9 +29,11 @@ type Set struct {
 	Kind        string
 	Origin      string
 	SystemKey   string
-	Elements    []Element
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	// Problem is a set-level problem: a feed's last refresh failed or it was never downloaded (06 §8).
+	Problem   string
+	Elements  []Element
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 // Editable reports whether the user may change the set's elements and metadata (05a §3).
@@ -235,6 +237,9 @@ func (c *compiler) set(id string) *partial {
 	out := &partial{addressSet: s.Kind == KindUser || s.Kind == KindSystem}
 	fail := func(e Element, msg string) {
 		out.problems = append(out.problems, Problem{SetID: id, ElementID: e.ID, Path: path, Message: msg})
+	}
+	if s.Problem != "" {
+		out.problems = append(out.problems, Problem{SetID: id, Path: path, Message: s.Problem})
 	}
 	for _, e := range s.Elements {
 		if e.Expired(c.now) {

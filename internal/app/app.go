@@ -27,6 +27,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/dns"
 	"git.juzo.io/juzo/hashi/internal/dns/hetzner"
 	"git.juzo.io/juzo/hashi/internal/edge"
+	"git.juzo.io/juzo/hashi/internal/feeds"
 	"git.juzo.io/juzo/hashi/internal/firewall"
 	"git.juzo.io/juzo/hashi/internal/geoip"
 	"git.juzo.io/juzo/hashi/internal/httpapi"
@@ -355,6 +356,16 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	if err := runner.Register(ctx, jobs.Job{Kind: security.SweepJobKind, Interval: security.SweepJobInterval, Run: abuse.Sweep}); err != nil {
 		return err
 	}
+	// Feeds (06 §8): each one refreshed on the engine's interval, emptied when stale.
+	fetcher := feeds.NewFetcher(Version)
+	fetcher.AllowInternal = devBuild // the dev build's stand-in feeds run on loopback
+	feedSvc := feeds.NewService(st, al, ipSets, fetcher, log.With("component", "feeds"), time.Now)
+	if err := runner.Register(ctx, jobs.Job{Kind: feeds.JobKind, Interval: feeds.JobInterval, Run: func(ctx context.Context) (string, error) {
+		e := abuse.Settings()
+		return feedSvc.RunDue(ctx, time.Duration(e.FeedRefreshSeconds)*time.Second, time.Duration(e.FeedStaleSeconds)*time.Second)
+	}}); err != nil {
+		return err
+	}
 	ipSets.Subscribe(func(ctx context.Context, _ []string) {
 		if err := edgeEngine.Rebuild(ctx); err != nil {
 			log.Warn("forward auth after an IP set change", "err", err)
@@ -397,7 +408,7 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	} else {
 		return err
 	}
-	api := &httpapi.Server{Captcha: capCache,
+	api := &httpapi.Server{Captcha: capCache, Feeds: feedSvc,
 		Health: health, Version: gen.Version{Version: Version, Commit: Commit}, Store: st, Sessions: sessions,
 		Passkeys: passkeys, Setup: setupSvc, Settings: cfgSettings, DNS: dnsSvc, Traefik: traefikMgr, Certs: certMgr, IPSets: ipSets, AdGuard: adguardSvc, Pulse: pulseSvc, Monitor: monitorSvc, Notify: notifier, Firewall: fwMgr, Edge: edgeEngine, SSO: sso, Security: abuse, GeoIP: geoSvc, Sync: syncEngine, Vault: v, Audit: al, IP: ip, Logs: cfg.Logs,
 		CertsSoon: func(ctx context.Context) error { return runner.Soon(ctx, certs.JobKind) },
