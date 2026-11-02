@@ -82,7 +82,7 @@ ban reaches every firewall host.
 ### 3.2 A2 — WAF and request rate
 
 **WAF** (§9) runs in Traefik before the request reaches the upstream. A blocking match rejects that request at the proxy.
-Hashi learns of every match from the continuously tailed access log (§6.2) and counts it for the address.
+Hashi learns of every match from the continuously tailed Traefik general log (§6.2) and counts it for the address.
 
 **Rate:** forward auth counts every request per address in a sliding window.
 
@@ -275,8 +275,13 @@ Per-address counters (rate window, WAF window, `f`) live in memory; `c` and dyna
 
 Hashi follows `/var/log/hashi/traefik/access.log` on every Traefik host over a persistent SSH session (cursor = inode +
 byte offset; rotation handled by finishing the old inode from `.1`), parsing JSON lines as they arrive (target lag: a
-few seconds). WAF matches come from the Coraza plugin's fields in the same stream. On reconnect it resumes from the
-cursor, bounded per read (8 MB).
+few seconds). On reconnect it resumes from the cursor, bounded per read (1 MB, the SSH output cap). Lines from the
+`hashi-fa` entry point are the forward-auth hop and are skipped.
+
+WAF matches are not in the access log (captured, `testdata/contracts/coraza/`): Coraza writes each matched rule as a line
+of the general log `/var/log/hashi/traefik/traefik.log` (router, middleware, client, rule ID, severity, URI, unique ID).
+Hashi tails that file the same way; it is rotated with `copytruncate`, so a file shorter than the cursor restarts at 0.
+One request can match several rules: matches with the same unique ID count once.
 
 ## 7. Edge SSO
 
@@ -325,9 +330,17 @@ Coraza Traefik plugin with OWASP CRS, free, local, pinned version (verified to e
 
 | Mode | Coraza | Use |
 | --- | --- | --- |
-| `enabled` (default) | `SecRuleEngine On`, `SecRequestBodyAccess On` | URI, headers, cookies and bodies inspected |
-| `headers_only` | `SecRuleEngine On`, `SecRequestBodyAccess Off` | WebDAV, git pushes, uploads, rich JSON APIs |
+| `headers_only` (default) | `SecRuleEngine On`, `SecRequestBodyAccess Off` | URI, headers, cookies and query inspected |
+| `enabled` | `SecRuleEngine On`, `SecRequestBodyAccess On` | also bodies; **not offered** until the plugin is fixed (below) |
 | `disabled` | no WAF middleware | |
+
+Per path, independent of the mode: **uploads** widens CRS's request policy (`tx.allowed_methods` with `PUT PATCH DELETE`
+and the WebDAV methods, `tx.allowed_request_content_type` with `application/octet-stream` and the other upload types),
+because CRS refuses these from the headers alone (rules 911100, 920420) even with body access off.
+
+Decision 2026-11-02 (user): headers only. With the pinned plugin, body access breaks every request body above about
+160 KB (lost or `500`; captured, plugin issues #8 and #15), so `enabled` stays in the data model but the UI does not
+offer it. Reconsider when the upstream bug is fixed (`docs/bugs.md`).
 
 Resolution per request: most specific path mode of the service → the service's root mode → `waf.default_mode`. Per-path
 modes are rendered as additional Traefik routers with the path match and a higher priority, each with its own WAF
@@ -340,7 +353,7 @@ All in Settings → Security (09-scripts-settings.md §2).
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `waf.default_mode` | `enabled` | baseline WAF mode |
+| `waf.default_mode` | `headers_only` | baseline WAF mode |
 | `waf.violation_threshold` | 5 within 60 s | WAF matches per address → challenge |
 | `l7.rate_limit_threshold` | 300 within 10 s | requests per address → challenge (exempt: allowed addresses, SSO sessions) |
 | `challenge.expiry` (`T_exp`) | 30 m (0 = never) | fixed lifetime of a challenge entry |
@@ -443,7 +456,8 @@ enable; CAPTCHA settings and Cap secret rotation; SSO provider changes; engine s
 1. Own address trips an L4 meter or the L7 rate trigger while it is in *Global firewall allow* → no drop in the kernel,
    no challenge, no ban, an event records the skip. Not allowed but banned → address page "remove / reset counter" lifts
    it on every host within one poll interval.
-2. Large upload / WebDAV on a path with `headers_only` passes; the same body on an `enabled` path is inspected.
+2. Large upload / WebDAV on a path marked *uploads* passes; the same request on a path without it gets `403` from CRS;
+   SQL injection in the query string gets `403` in `headers_only`.
 3. Flood on an SSO-protected `/admin` → challenged by A3 before the IdP is contacted; after `F_max` ignored requests
    banned in the kernel on every managed host.
 4. Fallback `deny` + `trusted-devices` → `none` + `all` · `/api/public` → `none`: devices reach everything, others only
