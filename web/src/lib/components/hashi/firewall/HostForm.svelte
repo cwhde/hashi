@@ -183,7 +183,7 @@
 	</div>
 	<div class="space-y-1.5">
 		<Label for="fw-sub">Networks behind this host</Label>
-		<Input id="fw-sub" bind:value={form.subnets} placeholder="10.0.4.0/24" class="h-10" required />
+		<Input id="fw-sub" bind:value={form.subnets} placeholder="10.40.4.0/24" class="h-10" required />
 		<p class="text-[12px] text-muted-foreground">
 			Services with a target in one of these run on this host.
 		</p>

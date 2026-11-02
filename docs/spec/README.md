@@ -131,7 +131,7 @@ host firewall script with its own installs (11-delivery.md §7); the home host i
 - [NetBird routing peers](https://docs.netbird.io/manage/networks/how-routing-peers-work)
 - [NetBird ports and firewalls](https://docs.netbird.io/about-netbird/ports-and-firewalls)
 - [NetBird CLI](https://docs.netbird.io/get-started/cli)
-- [Hashi static asset host](https://static.juzo.io/)
+- [Hashi static asset host](https://static.example.com/)
 - [Go WebAuthn](https://github.com/go-webauthn/webauthn)
 - [sqlc](https://docs.sqlc.dev/)
 - [oapi-codegen](https://github.com/oapi-codegen/oapi-codegen)

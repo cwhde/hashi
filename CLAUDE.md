@@ -59,6 +59,8 @@ percent rounded down; move the step from `next`/`then` to `done`. It's an overvi
 ## Safety
 
 - The repo is public. No tokens, real hostnames/IPs, production configs or unsanitized fixtures in commits.
+  The secret guard reads the gitignored `testdata/contracts/denylist.txt`; in a fresh checkout run
+  `python3 .claude/hooks/secret_guard.py install` so git's own pre-commit and pre-push hooks run it too.
 - These rules are for you, the coding agent. Deployed Hashi runs its remote commands unattended by design (plan → apply → verify).
 - Production hosts: read-only commands unless the user approved the exact change in this session. Never flush
   iptables/nft chains, never touch NetBird rules, never restart Proxmox, Traefik or DNS services without approval.

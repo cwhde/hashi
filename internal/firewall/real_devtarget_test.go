@@ -75,7 +75,7 @@ crontab /scripts/crontab.txt; true`)
 		t.Fatal(err)
 	}
 	me := netip.MustParseAddr(strings.Fields(sh(`echo "$SSH_CONNECTION"`))[0])
-	s := Spec{WAN: facts.WAN, PublicIP: facts.PublicIP, Subnets: pfx("10.0.0.0/22"), TraefikIP: netip.MustParseAddr("10.0.1.200"),
+	s := Spec{WAN: facts.WAN, PublicIP: facts.PublicIP, Subnets: pfx("10.40.0.0/22"), TraefikIP: netip.MustParseAddr("10.40.1.200"),
 		Ports:  []Port{{Proto: "tcp", Port: 443, TargetPort: 443}, {Proto: "udp", Port: 15433, TargetPort: 15433, Metered: true}},
 		Folded: Fold(pfx(me.String()+"/32"), pfx("203.0.113.0/24")), HostAccess: pfx(me.String() + "/32"),
 		NetBird: NetBird{Mode: NetBirdDisabled}, DropOtherInbound: true, Meters: DefaultMeters}

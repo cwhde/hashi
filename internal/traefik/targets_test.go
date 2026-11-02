@@ -63,9 +63,9 @@ func TestInvariant_21_UpstreamKeepsLastGood(t *testing.T) {
 	if s, _ := render(other); !strings.Contains(s.InvalidReason, "agent never seen") {
 		t.Fatalf("never resolved: %q", s.InvalidReason)
 	}
-	addrs = []netip.Addr{netip.MustParseAddr("10.0.4.20"), netip.MustParseAddr("fd00::20")}
+	addrs = []netip.Addr{netip.MustParseAddr("10.40.4.20"), netip.MustParseAddr("fd00::20")}
 	_, y := render(svc)
-	if !strings.Contains(y, "http://10.0.4.20:8080") || !strings.Contains(y, "http://[fd00::20]:8080") {
+	if !strings.Contains(y, "http://10.40.4.20:8080") || !strings.Contains(y, "http://[fd00::20]:8080") {
 		t.Fatalf("resolved render:\n%s", y)
 	}
 	addrs = nil

@@ -57,18 +57,18 @@ func has(t *testing.T, got []string, want ...string) {
 // behind a host (subnet, host address, host FQDN), A with public addresses otherwise, nothing for a private address
 // no host covers (03 §5.2); apex flattened to the entry host's address.
 func TestGenerateHostAndServiceRecords(t *testing.T) {
-	a := host("a", "edge-a", "192.0.2.1", "10.0.4.0/24")
-	b := via(host("b", "edge-b", "198.51.100.3", "10.0.0.0/22"), "a")
+	a := host("a", "edge-a", "192.0.2.1", "10.40.4.0/24")
+	b := via(host("b", "edge-b", "198.51.100.3", "10.40.0.0/22"), "a")
 	noPub := host("c", "edge-c", "", "10.9.0.0/24")
 	got := lines(GenerateRecords("Example.com.", []Effective{a, b, noPub}, []services.Service{
-		svc("wiki", "wiki.example.com", "10.0.4.20"),
-		svc("nas", "nas.example.com", "10.0.1.5"),
+		svc("wiki", "wiki.example.com", "10.40.4.20"),
+		svc("nas", "nas.example.com", "10.40.1.5"),
 		svc("byname", "byname.example.com", "edge-a.example.com"),
 		svc("public", "public.example.com", "203.0.113.9"),
 		svc("lan", "lan.example.com", "192.168.77.1"),
-		svc("apex", "example.com", "10.0.0.9"),
+		svc("apex", "example.com", "10.40.0.9"),
 		svc("hidden", "hidden.example.com", "10.9.0.4"),
-		svc("clash", "edge-a.example.com", "10.0.4.9"),
+		svc("clash", "edge-a.example.com", "10.40.4.9"),
 	}))
 	has(t, got,
 		"edge-a.example.com. A 192.0.2.1", "via.edge-a.example.com. CNAME edge-a.example.com.",
@@ -93,9 +93,9 @@ func TestGenerateHostAndServiceRecords(t *testing.T) {
 // service needs it; an entry host equal to where on.<home> already points gives the plain on. CNAME; changing the
 // host override later moves services between the two forms.
 func TestServiceRoutingOverride(t *testing.T) {
-	a := host("a", "edge-a", "192.0.2.1", "10.0.4.0/24")
-	b := host("b", "edge-b", "198.51.100.3", "10.0.0.0/22")
-	one, two := svc("one", "one.example.com", "10.0.1.1"), svc("two", "two.example.com", "10.0.1.2")
+	a := host("a", "edge-a", "192.0.2.1", "10.40.4.0/24")
+	b := host("b", "edge-b", "198.51.100.3", "10.40.0.0/22")
+	one, two := svc("one", "one.example.com", "10.40.1.1"), svc("two", "two.example.com", "10.40.1.2")
 	one.EntryHostID, two.EntryHostID = "a", "a"
 	const ovr = "edge-a.ovr.on.edge-b.example.com. CNAME via.edge-a.example.com."
 	count := func(got []string, s string) int {
@@ -152,16 +152,16 @@ func TestGeneratedRecordsIPv4Only(t *testing.T) {
 // Review of PR C: a host override to a host without a public IPv4 address would leave on.<host> dangling; the host
 // keeps entering through itself until the override target has an address.
 func TestHostOverrideToUnpublishedHost(t *testing.T) {
-	a := via(host("a", "edge-a", "192.0.2.1", "10.0.4.0/24"), "c")
+	a := via(host("a", "edge-a", "192.0.2.1", "10.40.4.0/24"), "c")
 	c := host("c", "edge-c", "")
-	got := lines(GenerateRecords("example.com", []Effective{a, c}, []services.Service{svc("wiki", "wiki.example.com", "10.0.4.20")}))
+	got := lines(GenerateRecords("example.com", []Effective{a, c}, []services.Service{svc("wiki", "wiki.example.com", "10.40.4.20")}))
 	has(t, got, "on.edge-a.example.com. CNAME via.edge-a.example.com.", "wiki.example.com. CNAME on.edge-a.example.com.")
 }
 
 // A stream without a name gets no record; its port still opens (GenerateRecords looks at names only).
 func TestStreamWithoutNameHasNoRecord(t *testing.T) {
-	a := host("a", "edge-a", "192.0.2.1", "10.0.4.0/24")
-	s := svc("git", "", "10.0.4.6")
+	a := host("a", "edge-a", "192.0.2.1", "10.40.4.0/24")
+	s := svc("git", "", "10.40.4.6")
 	s.Kind, s.PublicPort = services.KindTCP, 222
 	if got := GenerateRecords("example.com", []Effective{a}, []services.Service{s}); len(got) != 3 {
 		t.Fatalf("%+v", lines(got))

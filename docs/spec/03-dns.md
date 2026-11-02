@@ -247,7 +247,7 @@ Rules:
 ## 9. Internal agent DNS (optional, requires AdGuard)
 
 Stable internal names for Pulse agents via AdGuard rewrites under an internal domain, default `hashi.home.arpa`.
-Example: `kanae.hashi.home.arpa → 10.0.0.42`.
+Example: `host A.hashi.home.arpa → 10.0.0.42`.
 
 - Only for Pulse agents; resolves to the agent's selected IP (setting: selected / private / public; default selected).
 - Name normalization: lowercase ASCII slug, invalid chars → `-`, collapse repeats, trim, reject empty, prevent collisions

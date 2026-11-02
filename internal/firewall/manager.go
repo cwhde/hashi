@@ -222,7 +222,7 @@ func parseSubnets(ss []string) ([]netip.Prefix, error) {
 	for _, s := range ss {
 		p, err := netip.ParsePrefix(strings.TrimSpace(s))
 		if err != nil {
-			return nil, fmt.Errorf("%w: %q is not a subnet (e.g. 10.0.4.0/24)", ErrInvalid, s)
+			return nil, fmt.Errorf("%w: %q is not a subnet (e.g. 10.40.4.0/24)", ErrInvalid, s)
 		}
 		p = p.Masked()
 		for _, o := range out {
