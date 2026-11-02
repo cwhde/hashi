@@ -8,6 +8,16 @@ import (
 	"database/sql"
 )
 
+type AccessLogCursor struct {
+	TraefikConnectionID string
+	Inode               int64
+	Offset              int64
+	LagMs               int64
+	LastReadAt          sql.NullInt64
+	Error               string
+	UpdatedAt           int64
+}
+
 type AcmeAccount struct {
 	ID                  string
 	Directory           string
@@ -23,6 +33,22 @@ type AcmeAccount struct {
 	Health              string
 	LastValidatedAt     sql.NullInt64
 	LastValidationError string
+	CreatedAt           int64
+	UpdatedAt           int64
+}
+
+type AddressCounter struct {
+	Address             string
+	BanCount            int64
+	BanQuietSince       int64
+	ChallengeCount      int64
+	ChallengeQuietSince int64
+	LastBanAt           sql.NullInt64
+	LastBanEndsAt       sql.NullInt64
+	LastChallengeAt     sql.NullInt64
+	LastSource          string
+	Country             string
+	Asn                 int64
 	CreatedAt           int64
 	UpdatedAt           int64
 }
@@ -203,6 +229,26 @@ type DnsZone struct {
 	CreatedAt        int64
 }
 
+type DynamicEntryHost struct {
+	ElementID      string
+	FirewallHostID string
+	State          string
+	AppliedAt      sql.NullInt64
+	Error          string
+}
+
+type DynamicEntryState struct {
+	ElementID      string
+	Source         string
+	Meter          string
+	FirewallHostID sql.NullString
+	ServiceID      sql.NullString
+	Reason         string
+	FailureCount   int64
+	RemovedAt      sql.NullInt64
+	RemovedReason  string
+}
+
 type EdgeSession struct {
 	IDHash     string
 	ProviderID string
@@ -271,6 +317,16 @@ type FirewallHostAccess struct {
 	HostID    string
 	IpSetID   string
 	CreatedAt int64
+}
+
+type FirewallHostLink struct {
+	FirewallHostID string
+	State          string
+	LastPollAt     sql.NullInt64
+	LastPushAt     sql.NullInt64
+	LagMs          int64
+	Error          string
+	UpdatedAt      int64
 }
 
 type IpSet struct {
@@ -555,6 +611,53 @@ type SecretRecord struct {
 	WrappedDek []byte
 	CreatedAt  int64
 	UpdatedAt  int64
+}
+
+type SecurityBuckets1m struct {
+	BucketStart          int64
+	ServiceID            string
+	RootDomain           string
+	TraefikConnectionID  string
+	Country              string
+	Asn                  int64
+	Decision             string
+	StatusClass          string
+	PathPrefix           string
+	RequestCount         int64
+	DeniedCount          int64
+	ChallengedCount      int64
+	ChallengeFailedCount int64
+	BannedCount          int64
+}
+
+type SecurityEvent struct {
+	ID                  string
+	OccurredAt          int64
+	Address             string
+	ServiceID           sql.NullString
+	FirewallHostID      sql.NullString
+	TraefikConnectionID sql.NullString
+	EventType           string
+	Severity            string
+	Decision            string
+	Source              string
+	Reason              string
+	RequestMethod       string
+	RequestPath         string
+	StatusCode          int64
+	UserAgentHash       string
+	RequestID           string
+	Suppressed          int64
+	MetadataJson        string
+}
+
+type SecurityIpTop1m struct {
+	BucketStart     int64
+	Address         string
+	ServiceID       string
+	RequestCount    int64
+	DeniedCount     int64
+	ChallengedCount int64
 }
 
 type Service struct {

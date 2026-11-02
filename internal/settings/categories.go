@@ -63,6 +63,50 @@ type GeoIP struct {
 	URL       string `json:"url"`
 }
 
+// Engine: the abuse engine's numbers and timers (06 §10). Rules decide who; these decide how much and how long.
+type Engine struct {
+	WAFDefaultMode      string `json:"waf_default_mode"`
+	WAFViolations       int    `json:"waf_violations"`
+	WAFWindowSeconds    int    `json:"waf_window_seconds"`
+	RateRequests        int    `json:"rate_requests"`
+	RateWindowSeconds   int    `json:"rate_window_seconds"`
+	ChallengeExpirySecs int    `json:"challenge_expiry_seconds"` // 0: a challenge never expires
+	ChallengeMaxFailed  int    `json:"challenge_max_failed"`
+	ClearanceHours      int    `json:"captcha_clearance_hours"`
+
+	MetersEnabled    bool `json:"meters_enabled"`
+	TCPNewPerMinute  int  `json:"tcp_new_per_minute"`
+	TCPBurst         int  `json:"tcp_burst"`
+	TCPMaxConcurrent int  `json:"tcp_max_concurrent"`
+	UDPNewPerMinute  int  `json:"udp_new_per_minute"`
+	UDPBurst         int  `json:"udp_burst"`
+	UDPPerSecond     int  `json:"udp_per_second"`
+	UDPPPSBurst      int  `json:"udp_pps_burst"`
+	StagingSeconds   int  `json:"staging_timeout_seconds"`
+	PollIntervalSecs int  `json:"poll_interval_seconds"`
+
+	BanFunction       string  `json:"ban_function"`
+	BanBaseSeconds    int     `json:"ban_base_seconds"`
+	BanK              float64 `json:"ban_k"`
+	BanMaxSeconds     int     `json:"ban_max_seconds"`
+	BanPermanentAfter int     `json:"ban_permanent_after"` // 0: never permanent
+	DecaySeconds      int     `json:"counter_decay_seconds"`
+
+	FeedRefreshSeconds int `json:"feed_refresh_seconds"`
+	FeedStaleSeconds   int `json:"feed_stale_seconds"`
+}
+
+// WAF modes and ban functions (06 §9, §5.2).
+const (
+	WAFEnabled     = "enabled"
+	WAFHeadersOnly = "headers_only"
+	WAFDisabled    = "disabled"
+
+	BanConstant    = "constant"
+	BanLinear      = "linear"
+	BanExponential = "exponential"
+)
+
 // Agent DNS address modes.
 const (
 	AgentIPSelected = "selected"
@@ -97,6 +141,13 @@ func defaults(c Category) Category {
 		return EdgeSSO{MaxSessionHours: 30 * 24, IdleTimeoutHours: 7 * 24, RememberDevice: true}
 	case GeoIP:
 		return GeoIP{}
+	case Engine:
+		return Engine{WAFDefaultMode: WAFEnabled, WAFViolations: 5, WAFWindowSeconds: 60, RateRequests: 300,
+			RateWindowSeconds: 10, ChallengeExpirySecs: 30 * 60, ChallengeMaxFailed: 15, ClearanceHours: 24,
+			MetersEnabled: true, TCPNewPerMinute: 150, TCPBurst: 30, TCPMaxConcurrent: 250, UDPNewPerMinute: 200,
+			UDPBurst: 50, UDPPerSecond: 5000, UDPPPSBurst: 1000, StagingSeconds: 5 * 60, PollIntervalSecs: 3,
+			BanFunction: BanExponential, BanBaseSeconds: 15 * 60, BanK: 2, BanMaxSeconds: 30 * 24 * 3600,
+			DecaySeconds: 7 * 24 * 3600, FeedRefreshSeconds: 6 * 3600, FeedStaleSeconds: 72 * 3600}
 	case AgentDNS:
 		return AgentDNS{Domain: "hashi.home.arpa", IPMode: AgentIPSelected}
 	case Appearance:
@@ -114,6 +165,7 @@ func (Pulse) Key() string { return "pulse" }
 
 func (EdgeSSO) Key() string { return "edge_sso" }
 func (GeoIP) Key() string   { return "geoip" }
+func (Engine) Key() string  { return "engine" }
 
 // Validate checks EdgeSSO.
 func (e EdgeSSO) Validate() error {
@@ -138,6 +190,45 @@ func (g GeoIP) Validate() error {
 	// It is shown to anyone who can read settings, so it may not hold a password or token.
 	if u.User != nil || u.RawQuery != "" {
 		return invalid("the download address may not contain a login or a query")
+	}
+	return nil
+}
+
+// Validate checks Engine. Bounds keep a typo from switching protection off or banning for decades.
+func (e Engine) Validate() error {
+	day := 24 * 3600
+	switch {
+	case e.WAFDefaultMode != WAFEnabled && e.WAFDefaultMode != WAFHeadersOnly && e.WAFDefaultMode != WAFDisabled:
+		return invalid("the WAF mode must be enabled, headers_only or disabled")
+	case e.WAFViolations < 1 || e.WAFWindowSeconds < 1 || e.WAFWindowSeconds > 3600:
+		return invalid("the WAF trigger needs at least one match within a window of up to an hour")
+	case e.RateRequests < 10 || e.RateWindowSeconds < 1 || e.RateWindowSeconds > 3600:
+		return invalid("the rate trigger needs at least 10 requests within a window of up to an hour")
+	case e.ChallengeExpirySecs < 0 || e.ChallengeExpirySecs > 30*day:
+		return invalid("a challenge lasts at most 30 days (0 means until solved)")
+	case e.ChallengeMaxFailed < 1 || e.ChallengeMaxFailed > 10000:
+		return invalid("unsolved requests before a ban must be between 1 and 10,000")
+	case e.ClearanceHours < 1 || e.ClearanceHours > 30*24:
+		return invalid("a CAPTCHA clearance lasts between an hour and 30 days")
+	case e.TCPNewPerMinute < 1 || e.TCPBurst < 1 || e.TCPMaxConcurrent < 1 || e.UDPNewPerMinute < 1 || e.UDPBurst < 1 ||
+		e.UDPPerSecond < 1 || e.UDPPPSBurst < 1:
+		return invalid("meter limits must be positive")
+	case e.StagingSeconds < 10 || e.StagingSeconds > day:
+		return invalid("the staging timeout must be between 10 seconds and a day")
+	case e.PollIntervalSecs < 1 || e.PollIntervalSecs > 60:
+		return invalid("the host link polls every 1 to 60 seconds")
+	case e.BanFunction != BanConstant && e.BanFunction != BanLinear && e.BanFunction != BanExponential:
+		return invalid("the ban function must be constant, linear or exponential")
+	case e.BanBaseSeconds < 60 || e.BanMaxSeconds < e.BanBaseSeconds || e.BanMaxSeconds > 3650*day:
+		return invalid("a ban lasts at least a minute, and the longest ban at least as long as the first")
+	case e.BanK < 1 || e.BanK > 100:
+		return invalid("the ban factor must be between 1 and 100")
+	case e.BanPermanentAfter < 0:
+		return invalid("permanent after cannot be negative")
+	case e.DecaySeconds < 3600 || e.DecaySeconds > 365*day:
+		return invalid("counters drop by one per quiet period of an hour to a year")
+	case e.FeedRefreshSeconds < 15*60 || e.FeedStaleSeconds < e.FeedRefreshSeconds:
+		return invalid("feeds refresh at most every 15 minutes, and stay valid at least one refresh")
 	}
 	return nil
 }

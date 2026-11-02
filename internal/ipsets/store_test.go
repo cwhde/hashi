@@ -190,7 +190,7 @@ func TestRecompileNotifiesOnlyChangedSets(t *testing.T) {
 	var got [][]string
 	svc.Subscribe(func(_ context.Context, changed []string) { got = append(got, changed) })
 	first, err := svc.Recompile(ctx)
-	if err != nil || len(first) != 6 { // three system sets + three user sets, all compiled for the first time
+	if err != nil || len(first) != 8 { // five system sets (two dynamic) + three user sets, all compiled for the first time
 		t.Fatalf("first: %v %v", first, err)
 	}
 	if again, _ := svc.Recompile(ctx); len(again) != 0 {

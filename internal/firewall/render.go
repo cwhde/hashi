@@ -6,6 +6,8 @@ import (
 	"net/netip"
 	"slices"
 	"time"
+
+	"git.juzo.io/juzo/hashi/internal/settings"
 )
 
 // TableName is Hashi's only nftables table (invariant 12). It must never be "filter": NetBird ≥ 0.81 switches to
@@ -36,6 +38,13 @@ type Meters struct {
 	UDPNewPerMinute, UDPBurst int
 	UDPPerSecond, UDPPPSBurst int
 	StagingTimeout            time.Duration
+}
+
+// MetersFrom reads the thresholds from the engine settings (06 §10).
+func MetersFrom(e settings.Engine) Meters {
+	return Meters{Enabled: e.MetersEnabled, TCPNewPerMinute: e.TCPNewPerMinute, TCPBurst: e.TCPBurst,
+		TCPMaxConcurrent: e.TCPMaxConcurrent, UDPNewPerMinute: e.UDPNewPerMinute, UDPBurst: e.UDPBurst,
+		UDPPerSecond: e.UDPPerSecond, UDPPPSBurst: e.UDPPPSBurst, StagingTimeout: time.Duration(e.StagingSeconds) * time.Second}
 }
 
 // DefaultMeters are the spec defaults (06 §11).

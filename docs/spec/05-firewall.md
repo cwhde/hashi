@@ -205,7 +205,8 @@ Hashi keeps one persistent SSH connection per `managed` firewall host (pinned ho
 2. For each staged address: skip if allowed (should not happen, §4.2); otherwise hand it to the engine (06 §3.4), which
    increments the ban counter, computes `T_ban(c)` and creates a `dynamic-blocked` entry.
 3. Push all pending dynamic changes as one `nft -j -f -` transaction per tick and host: `add element … dyn { a timeout T }`
-   (no timeout for permanent bans), `delete element … staging { a }`, `delete element … dyn { a }` for unbans.
+   (no timeout for permanent bans; re-adding replaces the timeout), `destroy element … staging { a }`, `destroy element
+   … dyn { a }` for unbans (`delete` of a missing element would fail the whole batch, `testdata/contracts/nft/`).
 4. Record per-host applied state for every entry (pending / applied / failed + error).
 5. Every 5 min and on every reconnect: list `dyn` on the host, diff with the database, re-add missing entries with their
    remaining time, delete entries Hashi does not know.

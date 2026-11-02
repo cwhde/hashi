@@ -39,6 +39,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/pulse"
 	"git.juzo.io/juzo/hashi/internal/rules"
 	"git.juzo.io/juzo/hashi/internal/secrets"
+	"git.juzo.io/juzo/hashi/internal/security"
 	"git.juzo.io/juzo/hashi/internal/services"
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/setup"
@@ -304,8 +305,55 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	ipSets.UseGeo(geoSvc.Prefixes)
 	edgeEngine := edge.NewEngine(st, ipSets, log.With("component", "edge"))
 	edgeEngine.UseGeo(geoSvc.Lookup)
+	edgeEngine.UsePartition(func(ctx context.Context) ([]netip.Prefix, []netip.Prefix, error) {
+		f, _, _, err := fwMgr.Folded(ctx, st.R)
+		return append(f.Allow4, f.Allow6...), append(f.Block4, f.Block6...), err
+	})
 	if err := edgeEngine.Rebuild(ctx); err != nil {
 		return fmt.Errorf("forward auth: %w", err)
+	}
+
+	// Stage A (06 §3): the dynamic sets in memory, persisted on change.
+	abuse := security.NewEngine(st, log.With("component", "abuse"), time.Now)
+	if c, err := settings.Get[settings.Engine](ctx, st.R); err == nil {
+		abuse.UseSettings(c)
+	} else {
+		return err
+	}
+	cfgSettings.Subscribe(func(c settings.Category) {
+		if c, ok := c.(settings.Engine); ok {
+			abuse.UseSettings(c)
+		}
+	})
+	abuse.UseAllowed(edgeEngine.Allowed)
+	abuse.UseGeo(func(a netip.Addr) (string, uint, bool) {
+		country, _, asn, ok := geoSvc.Lookup(a)
+		return country, asn, ok
+	})
+	// Host links (05 §6): bans reach every managed host's kernel without a plan (invariant 7's exception).
+	link := firewall.NewLink(fwMgr, abuse, log.With("component", "hostlink"))
+	abuse.OnChange(func() {
+		ipSets.Changed(ctx)
+		link.Wake()
+	})
+	if err := abuse.Load(ctx); err != nil {
+		return fmt.Errorf("abuse engine: %w", err)
+	}
+	go abuse.Run(ctx)
+	if !devBuild {
+		go link.Run(ctx)
+		// Access-log tail per installed Traefik (06 §6.2); the WAF's matches arrive through it.
+		go traefik.NewTailer(traefikMgr, log.With("component", "accesslog"), nil).Run(ctx)
+	}
+	cfgSettings.Subscribe(func(c settings.Category) {
+		if _, ok := c.(settings.Engine); ok { // meter thresholds re-render pre_meter through a plan (05 §3.3)
+			if err := runner.Soon(ctx, "firewall.reconcile"); err != nil {
+				log.Warn("firewall plan after engine settings", "err", err)
+			}
+		}
+	})
+	if err := runner.Register(ctx, jobs.Job{Kind: security.SweepJobKind, Interval: security.SweepJobInterval, Run: abuse.Sweep}); err != nil {
+		return err
 	}
 	ipSets.Subscribe(func(ctx context.Context, _ []string) {
 		if err := edgeEngine.Rebuild(ctx); err != nil {
@@ -345,7 +393,7 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	health := httpapi.NewHealth(map[string]httpapi.Check{"database": st.Ready})
 	api := &httpapi.Server{
 		Health: health, Version: gen.Version{Version: Version, Commit: Commit}, Store: st, Sessions: sessions,
-		Passkeys: passkeys, Setup: setupSvc, Settings: cfgSettings, DNS: dnsSvc, Traefik: traefikMgr, Certs: certMgr, IPSets: ipSets, AdGuard: adguardSvc, Pulse: pulseSvc, Monitor: monitorSvc, Notify: notifier, Firewall: fwMgr, Edge: edgeEngine, SSO: sso, GeoIP: geoSvc, Sync: syncEngine, Vault: v, Audit: al, IP: ip, Logs: cfg.Logs,
+		Passkeys: passkeys, Setup: setupSvc, Settings: cfgSettings, DNS: dnsSvc, Traefik: traefikMgr, Certs: certMgr, IPSets: ipSets, AdGuard: adguardSvc, Pulse: pulseSvc, Monitor: monitorSvc, Notify: notifier, Firewall: fwMgr, Edge: edgeEngine, SSO: sso, Security: abuse, GeoIP: geoSvc, Sync: syncEngine, Vault: v, Audit: al, IP: ip, Logs: cfg.Logs,
 		CertsSoon: func(ctx context.Context) error { return runner.Soon(ctx, certs.JobKind) },
 		Log:       log.With("component", "api"),
 	}

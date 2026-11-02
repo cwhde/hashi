@@ -11,6 +11,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/audit"
 	"git.juzo.io/juzo/hashi/internal/edge"
 	"git.juzo.io/juzo/hashi/internal/rules"
+	"git.juzo.io/juzo/hashi/internal/security"
 	"git.juzo.io/juzo/hashi/internal/services"
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/traefik"
@@ -62,7 +63,36 @@ func (s *Server) edgeForward(w http.ResponseWriter, r *http.Request) {
 			s.Log.Warn("edge session", "err", err)
 		}
 	}
+
+	// Every decision is counted per minute for the dashboard (06 §6.1).
+	decision := security.DecisionDeny
+	if s.Security != nil {
+		defer func() {
+			s.Security.Record(security.Hit{At: time.Now(), Addr: ri.ip, ServiceID: d.ServiceID, Decision: decision,
+				Path: edge.NormalizePath(uri)})
+		}()
+	}
+
+	// Stage A runs before the service's rules, for every service (06 §3).
+	if s.Security != nil {
+		o, err := s.Security.StageA(r.Context(), security.Request{Addr: ri.ip, SSO: sess != nil,
+			StaticBlock: s.Edge.StaticBlocked(ri.ip), ServiceID: d.ServiceID})
+		if err != nil { // the state change was not stored: answer as if it had been, and say so in the log
+			s.Log.Error("abuse engine", "err", err)
+		}
+		switch o.Step {
+		case security.Blocked, security.BannedNow:
+			decision = security.DecisionBlocked
+			edgePage(w, http.StatusForbidden, "Access denied.")
+			return
+		case security.Challenged:
+			decision = security.DecisionChallenge
+			s.challenge(w, r)
+			return
+		}
+	}
 	allow := func() {
+		decision = security.DecisionAllow
 		if sess != nil {
 			w.Header().Set(traefik.HeaderUser, sess.Username)
 		}
@@ -86,13 +116,24 @@ func (s *Server) edgeForward(w http.ResponseWriter, r *http.Request) {
 		case sess != nil && sess.ProviderID == want:
 			edgePage(w, http.StatusForbidden, "Your account is not allowed here.")
 		case browserRequest(r):
+			decision = security.DecisionAuth
 			s.redirectToLogin(w, r, host, uri, provider)
 		default:
+			decision = security.DecisionAuth
 			edgePage(w, http.StatusUnauthorized, "Authentication required.")
 		}
 	default: // deny, and anything this build does not know
 		edgePage(w, http.StatusForbidden, "Access denied.")
 	}
+}
+
+// challenge answers a request from a challenged address (06 §3.3). Until a CAPTCHA is set up there is nothing to
+// solve, so browsers and API clients both get 429 until the challenge expires; unsolved requests still count.
+func (s *Server) challenge(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.WriteHeader(http.StatusTooManyRequests)
+	_, _ = w.Write([]byte(`{"error":"challenge_required"}` + "\n"))
 }
 
 // browserRequest is 06 §3.4's test: Accept names HTML and the original method is safe.

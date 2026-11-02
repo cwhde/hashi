@@ -18,6 +18,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/ipsets"
 	"git.juzo.io/juzo/hashi/internal/secrets"
 	"git.juzo.io/juzo/hashi/internal/services"
+	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/sshx"
 	"git.juzo.io/juzo/hashi/internal/store"
 	"git.juzo.io/juzo/hashi/internal/store/db"
@@ -1060,10 +1061,14 @@ func (m *Manager) build(ctx context.Context, id string, owned bool) (db.Firewall
 	ports = slices.DeleteFunc(ports, func(p Port) bool {
 		return row.NetbirdMode != NetBirdDisabled && p.Proto == "udp" && p.Port == int(row.NetbirdPort)
 	})
+	engine, err := settings.Get[settings.Engine](ctx, m.st.R)
+	if err != nil {
+		return row, Desired{}, err
+	}
 	traefikIP, _ := netip.ParseAddr(row.InternalTraefikIp)
 	spec := Spec{WAN: e.WAN, PublicIP: e.PublicIP, Subnets: e.Subnets, TraefikIP: traefikIP, Ports: ports, Folded: folded,
 		HostAccess: hostAccess, NetBird: NetBird{Mode: row.NetbirdMode, Iface: row.NetbirdIface, Port: int(row.NetbirdPort)},
-		DropOtherInbound: row.DropInboundAcceptedAt.Valid, Meters: DefaultMeters}
+		DropOtherInbound: row.DropInboundAcceptedAt.Valid, Meters: MetersFrom(engine)}
 	table, err := Render(spec)
 	if err != nil {
 		return row, Desired{}, fmt.Errorf("%w: %w", ErrNotReady, err)
