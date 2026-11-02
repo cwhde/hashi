@@ -330,11 +330,26 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 		country, _, asn, ok := geoSvc.Lookup(a)
 		return country, asn, ok
 	})
-	abuse.OnChange(func() { ipSets.Changed(ctx) })
+	// Host links (05 §6): bans reach every managed host's kernel without a plan (invariant 7's exception).
+	link := firewall.NewLink(fwMgr, abuse, log.With("component", "hostlink"))
+	abuse.OnChange(func() {
+		ipSets.Changed(ctx)
+		link.Wake()
+	})
 	if err := abuse.Load(ctx); err != nil {
 		return fmt.Errorf("abuse engine: %w", err)
 	}
 	go abuse.Run(ctx)
+	if !devBuild {
+		go link.Run(ctx)
+	}
+	cfgSettings.Subscribe(func(c settings.Category) {
+		if _, ok := c.(settings.Engine); ok { // meter thresholds re-render pre_meter through a plan (05 §3.3)
+			if err := runner.Soon(ctx, "firewall.reconcile"); err != nil {
+				log.Warn("firewall plan after engine settings", "err", err)
+			}
+		}
+	})
 	if err := runner.Register(ctx, jobs.Job{Kind: security.SweepJobKind, Interval: security.SweepJobInterval, Run: abuse.Sweep}); err != nil {
 		return err
 	}

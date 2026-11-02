@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"math/rand/v2"
 	"net/netip"
 	"os"
@@ -19,6 +20,7 @@ import (
 	"time"
 
 	"git.juzo.io/juzo/hashi/internal/itest"
+	"git.juzo.io/juzo/hashi/internal/security"
 	"git.juzo.io/juzo/hashi/internal/sshx"
 )
 
@@ -392,5 +394,86 @@ crontab /scripts/crontab.txt`)
 	time.Sleep(RescueWindow + 2*time.Second)
 	if now := state(); strings.Contains(now, "CUSTOM_") {
 		t.Fatalf("a later rollback brought the script back:\n%s", now)
+	}
+}
+
+// Kernel meters and the host link on a real kernel (S10 gate, 05 §6, invariant 20): a source over the TCP new-connection
+// meter lands in staging and is dropped; an allowed source over the same meter is never staged; one host link tick
+// turns the staged source into a ban in dyn4 with T_ban as its timeout and drains staging.
+func TestIntegrationMeterStagesAndHostLinkBans(t *testing.T) {
+	itest.Build(t, fwImage, filepath.Join("testdata", "itest"))
+	n := 10 + rand.IntN(240)
+	wanNet, lanNet := fmt.Sprintf("hashi-fw-mwan-%d-%d", n, os.Getpid()), fmt.Sprintf("hashi-fw-mlan-%d-%d", n, os.Getpid())
+	w := func(h int) string { return fmt.Sprintf("198.18.%d.%d", n, h) }
+	l := func(h int) string { return fmt.Sprintf("10.78.%d.%d", n, h) }
+	itest.Network(t, wanNet, w(0)+"/24")
+	itest.Network(t, lanNet, l(0)+"/24")
+	fw := itest.RunOn(t, wanNet, w(2), []string{"--cap-add", "NET_ADMIN", "--cap-add", "NET_RAW",
+		"--sysctl", "net.ipv4.ip_forward=1"}, fwImage)
+	fw.Connect(t, lanNet, l(2))
+	traefik := itest.RunOn(t, lanNet, l(10), []string{"--cap-add", "NET_ADMIN"}, stub,
+		"sh", "-c", "mkdir -p /www && echo entrypoint > /www/index.html && httpd -f -p 8443 -h /www")
+	bad := itest.RunOn(t, wanNet, w(3), nil, stub, "sleep", "3600")
+	good := itest.RunOn(t, wanNet, w(4), nil, stub, "sleep", "3600")
+	traefik.Exec(t, "ip", "route", "replace", "default", "via", l(2))
+
+	wan := strings.TrimSpace(fw.Exec(t, "sh", "-c", "ip -o -4 addr show | awk '/"+w(2)+"\\// {print $2}'"))
+	meters := DefaultMeters
+	meters.Enabled, meters.TCPNewPerMinute, meters.TCPBurst = true, 2, 2
+	s := Spec{WAN: wan, PublicIP: netip.MustParseAddr(w(2)), Subnets: pfx(l(0) + "/24"),
+		TraefikIP: netip.MustParseAddr(l(10)), Ports: []Port{{Proto: "tcp", Port: 443, TargetPort: 8443}},
+		Folded: Fold(pfx(w(4)+"/32"), nil), NetBird: NetBird{Mode: NetBirdDisabled}, Meters: meters}
+	apply(t, fw, s, false)
+	get := func(c itest.Container) bool {
+		out, err := c.Try("wget", "-qO-", "-T", "2", "http://"+w(2)+":443/")
+		return err == nil && strings.Contains(out, "entrypoint")
+	}
+	itest.WaitFor(t, 20*time.Second, "DNAT to the entry point", func() bool { return get(good) })
+	for range 10 {
+		get(bad)
+		get(good)
+	}
+	staged := fw.Exec(t, "nft", "-j", "list", "set", "inet", "hashi", "staging4")
+	if !strings.Contains(staged, w(3)) || strings.Contains(staged, w(4)) {
+		t.Fatalf("staging4 after the flood: %s", staged)
+	}
+	if get(bad) || !get(good) {
+		t.Fatal("staged source not dropped, or allowed source dropped")
+	}
+
+	ctx := context.Background()
+	e := newEnv(t)
+	h, err := e.m.Save(ctx, "admin", "", "", managedInput(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	row, _ := e.st.R.GetFirewallHost(ctx, h.ID)
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	eng := security.NewEngine(e.st, log, time.Now)
+	eng.UseAllowed(func(a netip.Addr) bool { return a.String() == w(4) })
+	ls := &linkSession{l: NewLink(e.m, eng, log), row: row, h: containerHost{fw}, nft: "nft"}
+	if err := ls.tick(ctx); err != nil {
+		t.Fatal(err)
+	}
+	dyn := fw.Exec(t, "nft", "-j", "list", "set", "inet", "hashi", "dyn4")
+	elems, err := parseSetElems([]byte(dyn))
+	if err != nil || len(elems) != 1 || elems[0].prefix.Addr().String() != w(3) || elems[0].expires < 890 || elems[0].expires > 900 {
+		t.Fatalf("dyn4 after one tick: %s", dyn)
+	}
+	if s, _ := parseSetElems([]byte(fw.Exec(t, "nft", "-j", "list", "set", "inet", "hashi", "staging4"))); len(s) != 0 {
+		t.Fatalf("staging not drained: %+v", s)
+	}
+	if get(bad) || !get(good) {
+		t.Fatal("banned source passes, or allowed source dropped")
+	}
+	// Lifting the ban removes it from the kernel on the next tick.
+	if _, err := eng.Remove(ctx, netip.MustParsePrefix(w(3)+"/32"), "admin", "test"); err != nil {
+		t.Fatal(err)
+	}
+	if err := ls.tick(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if s, _ := parseSetElems([]byte(fw.Exec(t, "nft", "-j", "list", "set", "inet", "hashi", "dyn4"))); len(s) != 0 {
+		t.Fatalf("unban not pushed: %+v", s)
 	}
 }
