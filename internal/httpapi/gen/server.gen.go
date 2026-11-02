@@ -1016,6 +1016,30 @@ func (e PulseAgentStatus) Valid() bool {
 	}
 }
 
+// Defines values for PulseAgentVersionState.
+const (
+	PulseAgentVersionStateCurrent PulseAgentVersionState = "current"
+	PulseAgentVersionStateNewer   PulseAgentVersionState = "newer"
+	PulseAgentVersionStateOlder   PulseAgentVersionState = "older"
+	PulseAgentVersionStateUnknown PulseAgentVersionState = "unknown"
+)
+
+// Valid indicates whether the value is a known member of the PulseAgentVersionState enum.
+func (e PulseAgentVersionState) Valid() bool {
+	switch e {
+	case PulseAgentVersionStateCurrent:
+		return true
+	case PulseAgentVersionStateNewer:
+		return true
+	case PulseAgentVersionStateOlder:
+		return true
+	case PulseAgentVersionStateUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for PulseAgentCreateInstallType.
 const (
 	Docker PulseAgentCreateInstallType = "docker"
@@ -3190,9 +3214,12 @@ type PublicStatus struct {
 
 // PulseAgent defines model for PulseAgent.
 type PulseAgent struct {
-	Candidates      []string                 `json:"candidates"`
-	DnsEnabled      bool                     `json:"dns_enabled"`
-	DnsName         string                   `json:"dns_name"`
+	Candidates []string `json:"candidates"`
+	DnsEnabled bool     `json:"dns_enabled"`
+	DnsName    string   `json:"dns_name"`
+
+	// ExpectedVersion The agent version this Hashi installs
+	ExpectedVersion string                   `json:"expected_version"`
 	Hostname        string                   `json:"hostname"`
 	Id              string                   `json:"id"`
 	InstallType     string                   `json:"install_type"`
@@ -3209,6 +3236,9 @@ type PulseAgent struct {
 	Status          PulseAgentStatus `json:"status"`
 	TrustReportedIp bool             `json:"trust_reported_ip"`
 	Version         string           `json:"version"`
+
+	// VersionState version against expected_version; unknown before a heartbeat or for a development build
+	VersionState PulseAgentVersionState `json:"version_state"`
 }
 
 // PulseAgentPublicIpSource defines model for PulseAgent.PublicIpSource.
@@ -3216,6 +3246,9 @@ type PulseAgentPublicIpSource string
 
 // PulseAgentStatus defines model for PulseAgent.Status.
 type PulseAgentStatus string
+
+// PulseAgentVersionState version against expected_version; unknown before a heartbeat or for a development build
+type PulseAgentVersionState string
 
 // PulseAgentCreate defines model for PulseAgentCreate.
 type PulseAgentCreate struct {
@@ -3282,6 +3315,12 @@ type PulseHeartbeatReply struct {
 
 	// IntervalSeconds Default interval; an agent with its own keeps it
 	IntervalSeconds int `json:"interval_seconds"`
+
+	// UpdateFrom Where that release's files are; present while agents update themselves (ADR 0003)
+	UpdateFrom *string `json:"update_from,omitempty"`
+
+	// Version The agent version this Hashi installs
+	Version string `json:"version"`
 }
 
 // PulseInstall defines model for PulseInstall.
@@ -3295,8 +3334,10 @@ type PulseInstall struct {
 
 // PulseSettings defines model for PulseSettings.
 type PulseSettings struct {
-	HeartbeatIntervalSeconds int `json:"heartbeat_interval_seconds"`
-	StaleFactor              int `json:"stale_factor"`
+	// AutoUpdate Agents installed on a machine update themselves to this Hashi's version (ADR 0003)
+	AutoUpdate               bool `json:"auto_update"`
+	HeartbeatIntervalSeconds int  `json:"heartbeat_interval_seconds"`
+	StaleFactor              int  `json:"stale_factor"`
 }
 
 // RecoverLogin defines model for RecoverLogin.

@@ -38,57 +38,11 @@ func (e *tlsVerifyError) Error() string { return e.err.Error() }
 func roundTrip(ctx context.Context, r request, roots *x509.CertPool) (*response, error) {
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	u, err := url.Parse(r.URL)
-	if err != nil {
-		return nil, err
-	}
-	port := u.Port()
-	var conn net.Conn
-	out := &response{}
-	switch u.Scheme {
-	case "https":
-		if port == "" {
-			port = "443"
-		}
-		d := tls.Dialer{Config: &tls.Config{RootCAs: roots, ServerName: u.Hostname(), MinVersion: tls.VersionTLS12, NextProtos: []string{"http/1.1"}}}
-		conn, err = d.DialContext(ctx, "tcp", net.JoinHostPort(u.Hostname(), port))
-		var bad *tls.CertificateVerificationError
-		if errors.As(err, &bad) {
-			return nil, &tlsVerifyError{err}
-		}
-		if err == nil {
-			if ch := conn.(*tls.Conn).ConnectionState().VerifiedChains; len(ch) > 0 { //nolint:errcheck // tls.Dialer returns *tls.Conn
-				out.Root = ch[0][len(ch[0])-1].Raw
-			}
-		}
-	case "http":
-		if port == "" {
-			port = "80"
-		}
-		var d net.Dialer
-		conn, err = d.DialContext(ctx, "tcp", net.JoinHostPort(u.Hostname(), port))
-	default:
-		return nil, fmt.Errorf("unsupported address %q", u.Scheme)
-	}
+	conn, out, err := open(ctx, r, roots)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = conn.Close() }()
-	if dl, ok := ctx.Deadline(); ok {
-		_ = conn.SetDeadline(dl)
-	}
-	var b strings.Builder
-	b.WriteString(r.Method + " " + u.RequestURI() + " HTTP/1.1\r\nHost: " + u.Host + "\r\nUser-Agent: hashi-pulse\r\nConnection: close\r\n")
-	if r.Bearer != "" {
-		b.WriteString("Authorization: Bearer " + r.Bearer + "\r\n")
-	}
-	if r.Method == "POST" {
-		b.WriteString("Content-Type: application/json\r\nContent-Length: " + strconv.Itoa(len(r.Body)) + "\r\n")
-	}
-	b.WriteString("\r\n" + r.Body)
-	if _, err := conn.Write([]byte(b.String())); err != nil {
-		return nil, err
-	}
 	raw := make([]byte, 0, 2048)
 	buf := make([]byte, 2048)
 	for len(raw) <= maxAnswer {
@@ -103,6 +57,62 @@ func roundTrip(ctx context.Context, r request, roots *x509.CertPool) (*response,
 		return nil, err
 	}
 	return out, nil
+}
+
+// open connects and sends the request; the caller reads the answer from the connection and closes it.
+func open(ctx context.Context, r request, roots *x509.CertPool) (net.Conn, *response, error) {
+	u, err := url.Parse(r.URL)
+	if err != nil {
+		return nil, nil, err
+	}
+	port := u.Port()
+	var conn net.Conn
+	out := &response{}
+	switch u.Scheme {
+	case "https":
+		if port == "" {
+			port = "443"
+		}
+		d := tls.Dialer{Config: &tls.Config{RootCAs: roots, ServerName: u.Hostname(), MinVersion: tls.VersionTLS12, NextProtos: []string{"http/1.1"}}}
+		conn, err = d.DialContext(ctx, "tcp", net.JoinHostPort(u.Hostname(), port))
+		var bad *tls.CertificateVerificationError
+		if errors.As(err, &bad) {
+			return nil, nil, &tlsVerifyError{err}
+		}
+		if err == nil {
+			if ch := conn.(*tls.Conn).ConnectionState().VerifiedChains; len(ch) > 0 { //nolint:errcheck // tls.Dialer returns *tls.Conn
+				out.Root = ch[0][len(ch[0])-1].Raw
+			}
+		}
+	case "http":
+		if port == "" {
+			port = "80"
+		}
+		var d net.Dialer
+		conn, err = d.DialContext(ctx, "tcp", net.JoinHostPort(u.Hostname(), port))
+	default:
+		return nil, nil, fmt.Errorf("unsupported address %q", u.Scheme)
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	if dl, ok := ctx.Deadline(); ok {
+		_ = conn.SetDeadline(dl)
+	}
+	var b strings.Builder
+	b.WriteString(r.Method + " " + u.RequestURI() + " HTTP/1.1\r\nHost: " + u.Host + "\r\nUser-Agent: hashi-pulse\r\nConnection: close\r\n")
+	if r.Bearer != "" {
+		b.WriteString("Authorization: Bearer " + r.Bearer + "\r\n")
+	}
+	if r.Method == "POST" {
+		b.WriteString("Content-Type: application/json\r\nContent-Length: " + strconv.Itoa(len(r.Body)) + "\r\n")
+	}
+	b.WriteString("\r\n" + r.Body)
+	if _, err := conn.Write([]byte(b.String())); err != nil {
+		_ = conn.Close()
+		return nil, nil, err
+	}
+	return conn, out, nil
 }
 
 // parseHTTP reads a status and body, for the body forms a server or reverse proxy may use with Connection: close.
@@ -234,6 +244,15 @@ func parseReply(s string) (reply, error) {
 		return r, errors.New("the answer is not an object")
 	}
 	r.CheckPublicIP = jsonValue(s, "check_public_ip") == "true"
+	for key, dst := range map[string]*string{"version": &r.Version, "update_from": &r.UpdateFrom} {
+		if v := jsonValue(s, key); v != "" {
+			u, err := strconv.Unquote(v)
+			if err != nil {
+				return r, errors.New("bad " + key + " in the answer")
+			}
+			*dst = u
+		}
+	}
 	if v := jsonValue(s, "interval_seconds"); v != "" {
 		n, err := strconv.Atoi(v)
 		if err != nil {
@@ -272,6 +291,10 @@ type state struct {
 	Interval int
 	Root     []byte
 	RootAt   int64
+	// Tried is the version an update was last tried for: a failed one waits for a restart, not the next beat.
+	Tried string
+	// Restart: an update replaced this file, so an agent that stays in memory starts it.
+	Restart bool
 }
 
 func (s state) encode() string {
@@ -281,13 +304,13 @@ func (s state) encode() string {
 		}
 		return "0"
 	}
-	return strings.Join([]string{b(s.Due), strconv.Itoa(s.Failures), b(s.Check), strconv.FormatInt(s.Checked, 10), s.Reported, strconv.Itoa(s.Interval), base64.RawStdEncoding.EncodeToString(s.Root), strconv.FormatInt(s.RootAt, 10)}, ",")
+	return strings.Join([]string{b(s.Due), strconv.Itoa(s.Failures), b(s.Check), strconv.FormatInt(s.Checked, 10), s.Reported, strconv.Itoa(s.Interval), base64.RawStdEncoding.EncodeToString(s.Root), strconv.FormatInt(s.RootAt, 10), s.Tried}, ",")
 }
 
 // decodeState gives a fresh start for anything unreadable: the state only saves work.
 func decodeState(v string) state {
 	f := strings.Split(v, ",")
-	if len(f) != 8 {
+	if len(f) != 9 {
 		return state{}
 	}
 	var s state
@@ -299,6 +322,7 @@ func decodeState(v string) state {
 	s.Interval, err[2] = strconv.Atoi(f[5])
 	s.Root, err[3] = base64.RawStdEncoding.DecodeString(f[6])
 	s.RootAt, err[4] = strconv.ParseInt(f[7], 10, 64)
+	s.Tried = f[8]
 	if errors.Join(err[:]...) != nil {
 		return state{}
 	}

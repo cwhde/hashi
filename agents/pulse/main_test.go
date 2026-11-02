@@ -156,6 +156,23 @@ func TestStateSurvivesTheSleeper(t *testing.T) {
 	}
 }
 
+// The state handed to the next run replaces the old one; a second entry would be ignored.
+func TestWithState(t *testing.T) {
+	env := withState([]string{"A=1", stateEnv + "=old", "B=2"}, state{Tried: "v1.2.3"})
+	n := 0
+	for _, e := range env {
+		if strings.HasPrefix(e, stateEnv+"=") {
+			n++
+			if decodeState(strings.TrimPrefix(e, stateEnv+"=")).Tried != "v1.2.3" {
+				t.Fatal(e)
+			}
+		}
+	}
+	if n != 1 || len(env) != 3 {
+		t.Fatalf("%v", env)
+	}
+}
+
 // Every agent keeps its own point in the interval, wherever it starts, and agents spread out over it.
 func TestSlots(t *testing.T) {
 	iv := time.Minute

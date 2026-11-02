@@ -77,6 +77,8 @@ type Beat struct {
 type Reply struct {
 	CheckPublicIP   bool
 	IntervalSeconds int // the admin's default; an agent with its own interval keeps it
+	// Version is the agent version this Hashi installs; UpdateFrom, set while updates are on, is where its release is.
+	Version, UpdateFrom string
 }
 
 // Service keeps agents.
@@ -289,7 +291,11 @@ func (s *Service) Heartbeat(ctx context.Context, id, token string, b Beat, sourc
 	if err != nil {
 		return Reply{}, err
 	}
-	return Reply{CheckPublicIP: row.TrustReportedIp == 1 && !publicRoutable(source.Unmap()), IntervalSeconds: cfg.HeartbeatIntervalSeconds}, nil
+	r := Reply{CheckPublicIP: row.TrustReportedIp == 1 && !publicRoutable(source.Unmap()), IntervalSeconds: cfg.HeartbeatIntervalSeconds, Version: ReleaseTag}
+	if cfg.AutoUpdate && install != "docker" { // a container is updated by replacing its image (ADR 0003)
+		r.UpdateFrom = ReleaseBase
+	}
+	return r, nil
 }
 
 // Where a public address came from.

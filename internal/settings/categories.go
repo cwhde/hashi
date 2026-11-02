@@ -44,6 +44,8 @@ type AgentDNS struct {
 type Pulse struct {
 	HeartbeatIntervalSeconds int `json:"heartbeat_interval_seconds"`
 	StaleFactor              int `json:"stale_factor"`
+	// AutoUpdate lets agents installed on a machine update themselves to this Hashi's version (ADR 0003).
+	AutoUpdate bool `json:"auto_update"`
 }
 
 // EdgeSSO: edge session limits (06 §7).
@@ -90,7 +92,7 @@ func defaults(c Category) Category {
 			},
 		}
 	case Pulse:
-		return Pulse{HeartbeatIntervalSeconds: 60, StaleFactor: 3}
+		return Pulse{HeartbeatIntervalSeconds: 60, StaleFactor: 3, AutoUpdate: true}
 	case EdgeSSO:
 		return EdgeSSO{MaxSessionHours: 30 * 24, IdleTimeoutHours: 7 * 24, RememberDevice: true}
 	case GeoIP:

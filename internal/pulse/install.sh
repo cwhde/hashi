@@ -61,6 +61,8 @@ Restart=always
 RestartSec=10
 ProtectSystem=strict
 ProtectHome=yes
+# The agent replaces its own file when it updates itself (ADR 0003).
+ReadWritePaths=/usr/local/bin
 NoNewPrivileges=yes
 
 [Install]

@@ -532,3 +532,42 @@ func TestReleaseContract(t *testing.T) {
 		t.Fatal("the installer must fetch those names from this release")
 	}
 }
+
+// The reply names this Hashi's agent version, and where to fetch it only for an agent that may update itself (ADR 0003).
+func TestReplyNamesUpdate(t *testing.T) {
+	s, now := fixture(t)
+	ctx := t.Context()
+	a, tok, err := s.Create(ctx, "box", "linux")
+	if err != nil {
+		t.Fatal(err)
+	}
+	d, dtok, err := s.Create(ctx, "container", "docker")
+	if err != nil {
+		t.Fatal(err)
+	}
+	beat := func(docker bool) Reply {
+		t.Helper()
+		*now = now.Add(time.Minute)
+		id, token := a.ID, tok.Reveal()
+		if docker {
+			id, token = d.ID, dtok.Reveal()
+		}
+		r, err := s.Heartbeat(ctx, id, token, Beat{Version: "v0.0.1", InDocker: docker, Candidates: []Candidate{{"eth0", "10.0.0.5"}}}, netip.Addr{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return r
+	}
+	if r := beat(false); r.Version != ReleaseTag || r.UpdateFrom != ReleaseBase {
+		t.Fatalf("%+v", r)
+	}
+	if r := beat(true); r.Version != ReleaseTag || r.UpdateFrom != "" {
+		t.Fatalf("a container is updated through its image: %+v", r)
+	}
+	if err := s.st.Q.UpsertSetting(ctx, db.UpsertSettingParams{Key: settings.Pulse{}.Key(), ValueJson: `{"heartbeat_interval_seconds":60,"stale_factor":3,"auto_update":false}`, UpdatedAt: 1}); err != nil {
+		t.Fatal(err)
+	}
+	if r := beat(false); r.Version != ReleaseTag || r.UpdateFrom != "" {
+		t.Fatalf("updates are off: %+v", r)
+	}
+}

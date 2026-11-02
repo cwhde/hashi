@@ -2919,13 +2919,15 @@ components:
               address: { type: string }
     PulseHeartbeatReply:
       type: object
-      required: [check_public_ip, interval_seconds]
+      required: [check_public_ip, interval_seconds, version]
       properties:
         check_public_ip: { type: boolean }
         interval_seconds: { type: integer, description: "Default interval; an agent with its own keeps it" }
+        version: { type: string, description: "The agent version this Hashi installs" }
+        update_from: { type: string, description: "Where that release's files are; present while agents update themselves (ADR 0003)" }
     PulseAgent:
       type: object
-      required: [id, name, status, install_type, public_ip, selected_ip, candidates, hostname, version, interval_seconds, dns_enabled, dns_name, trust_reported_ip, public_ip_source, reach_port]
+      required: [id, name, status, install_type, public_ip, selected_ip, candidates, hostname, version, expected_version, version_state, interval_seconds, dns_enabled, dns_name, trust_reported_ip, public_ip_source, reach_port]
       properties:
         id: { type: string }
         name: { type: string }
@@ -2936,6 +2938,8 @@ components:
         candidates: { type: array, items: { type: string } }
         hostname: { type: string }
         version: { type: string }
+        expected_version: { type: string, description: "The agent version this Hashi installs" }
+        version_state: { type: string, enum: [current, older, newer, unknown], description: "version against expected_version; unknown before a heartbeat or for a development build" }
         interval_seconds: { type: integer }
         last_seen_at: { type: string, format: date-time }
         reach_port: { type: integer }
@@ -3026,10 +3030,11 @@ components:
         remember_device: { type: boolean }
     PulseSettings:
       type: object
-      required: [heartbeat_interval_seconds, stale_factor]
+      required: [heartbeat_interval_seconds, stale_factor, auto_update]
       properties:
         heartbeat_interval_seconds: { type: integer }
         stale_factor: { type: integer }
+        auto_update: { type: boolean, description: "Agents installed on a machine update themselves to this Hashi's version (ADR 0003)" }
     PulseConsumers:
       type: object
       required: [sets, consumers]
