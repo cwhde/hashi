@@ -20,7 +20,8 @@ PR A, engine:
 - [x] `internal/security`: `T_ban`, step-decay counters, dynamic entries with expiry, escalation (allowed addresses skipped)
 - [x] Stage A in forward auth: A1 block guard, A2 rate window (SSO exempt, IPv6 per /64), A3 challenge, escalation; invariant 20 and stage-order tests. Without CAPTCHA a challenge answers 429 (spec clarified)
 - [x] Host link per managed firewall host: drain staging, push `dyn`, reconcile every 5 min; meters on (rendered from the engine settings, so the next firewall plan per host adds the meter rules and waits for approval). Real kernel in the integration test: meter trip → staging → ban in `dyn4` with `T_ban` → dropped → unban; an allowed source is never staged
-- [ ] Access-log tail per Traefik host over SSH (cursor, rotation), telemetry buckets and events
+- [x] Access-log tail per Traefik host over SSH (cursor stored, rotation), telemetry buckets and events. Found with real Traefik: every protected request is logged twice (the loopback forward-auth hop too; dropped), and `ping@internal` routes are not logged at all. Buckets come from forward auth's own decisions, not from status codes
+- Local proof for PR A (2026-11-02): `make check`, the firewall/traefik/edge integration packages and `make test-e2e` green; host link over real SSH on dev target 108 (Debian 13, nft 1.1.3): staged address → ban in `dyn4` (~900 s), staging drained, a stranger removed, unban pushed
 
 PR B, CAPTCHA, WAF, feeds:
 - [ ] Cap contract; challenge service, start/verify, clearance cookie; `pass_captcha` allowed on save
