@@ -35,6 +35,9 @@ type fakeHost struct {
 	probe   string // what ProbeCommand prints
 	// noLogrotate makes `command -v logrotate` fail.
 	noLogrotate bool
+	// pinnedPlugin makes sha256sum report the pinned hash for a plugin file that exists (the tests' plugin bytes are
+	// placeholders).
+	pinnedPlugin bool
 }
 
 func newFakeHost() *fakeHost {
@@ -49,6 +52,17 @@ func (h *fakeHost) Run(_ context.Context, cmd string, _ io.Reader) (sshx.Result,
 	switch {
 	case cmd == ProbeCommand:
 		return sshx.Result{Stdout: []byte(h.probe)}, nil
+	case strings.HasPrefix(cmd, "sha256sum "):
+		p := unquote(strings.TrimSuffix(strings.TrimPrefix(cmd, "sha256sum "), " 2>/dev/null || true"))
+		b, ok := h.files[p]
+		if !ok {
+			return sshx.Result{}, nil
+		}
+		sum := sshx.Hash(b)
+		if pinned, isPlugin := PinnedPluginSum(p); isPlugin && h.pinnedPlugin {
+			sum = pinned
+		}
+		return sshx.Result{Stdout: []byte(sum + "  " + p + "\n")}, nil
 	case cmd == "command -v logrotate" && h.noLogrotate:
 		return sshx.Result{ExitCode: 1}, nil
 	case strings.HasPrefix(cmd, "cp -p "):

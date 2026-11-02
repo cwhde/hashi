@@ -18,7 +18,8 @@ import (
 	"git.juzo.io/juzo/hashi/internal/store/db"
 )
 
-// Access-log tail (06 §6.2): Hashi follows every installed Traefik's JSON access log over one SSH connection per host.
+// Log tail (06 §6.2): Hashi follows every installed Traefik's JSON access log and general log (the WAF's matches) over
+// one SSH connection per host.
 // The cursor is the file's inode and the byte offset of the next unread line; it is stored, so a restart or a lost
 // connection resumes where it stopped. After a rotation (logrotate renames the file, 04 §3) the rest of the old inode is
 // read first. Commands were tried on BusyBox 1.37 (Alpine) and GNU coreutils.
@@ -82,22 +83,32 @@ func ParseAccessLines(b []byte) (out []AccessLine, bad int) {
 	return out, bad
 }
 
-// LineSink receives the lines of one Traefik host in order.
+// LineSink receives the access-log lines of one Traefik host in order.
 type LineSink func(ctx context.Context, connID string, lines []AccessLine)
+
+// WAFSink receives the WAF's blocking decisions of one Traefik host in order.
+type WAFSink func(ctx context.Context, connID string, matches []WAFBlock)
+
+// The files the tail follows in LogDir.
+const (
+	AccessLogFile  = "access.log"
+	GeneralLogFile = "traefik.log"
+)
 
 // Tailer runs one tail per installed Traefik host.
 type Tailer struct {
 	m    *Manager
 	log  *slog.Logger
 	sink LineSink
+	waf  WAFSink
 	dir  string // LogDir; tests use another
 	mu   sync.Mutex
 	runs map[string]context.CancelFunc
 }
 
-// NewTailer returns the tails of m's installed hosts, delivering to sink.
-func NewTailer(m *Manager, log *slog.Logger, sink LineSink) *Tailer {
-	return &Tailer{m: m, log: log, sink: sink, dir: LogDir, runs: map[string]context.CancelFunc{}}
+// NewTailer returns the tails of m's installed hosts, delivering access-log lines to sink and WAF blocks to waf.
+func NewTailer(m *Manager, log *slog.Logger, sink LineSink, waf WAFSink) *Tailer {
+	return &Tailer{m: m, log: log, sink: sink, waf: waf, dir: LogDir, runs: map[string]context.CancelFunc{}}
 }
 
 // Run starts a tail per installed host and stops tails of hosts that are gone, until ctx ends.
@@ -148,9 +159,11 @@ func (t *Tailer) host(ctx context.Context, id string) {
 		conn, err := t.m.dial(ctx, row)
 		if err == nil {
 			backoff = time.Second
-			cur := t.cursor(ctx, id)
+			acc, gen := t.cursor(ctx, id, AccessLogFile), t.cursor(ctx, id, GeneralLogFile)
 			for err == nil {
-				cur, err = t.Poll(ctx, conn, id, cur)
+				if acc, err = t.Poll(ctx, conn, id, AccessLogFile, acc); err == nil {
+					gen, err = t.Poll(ctx, conn, id, GeneralLogFile, gen)
+				}
 				if err == nil && !wait(ctx, TailEvery) {
 					err = ctx.Err()
 				}
@@ -160,7 +173,8 @@ func (t *Tailer) host(ctx context.Context, id string) {
 		if ctx.Err() != nil {
 			return
 		}
-		t.save(ctx, id, Cursor{}, 0, false, err.Error(), true)
+		t.save(ctx, id, AccessLogFile, Cursor{}, 0, false, err.Error(), true)
+		t.save(ctx, id, GeneralLogFile, Cursor{}, 0, false, err.Error(), true)
 		t.log.Warn("access log tail down", "connection", row.Name, "err", err)
 		if !wait(ctx, backoff) {
 			return
@@ -185,53 +199,59 @@ type Cursor struct {
 	Inode, Offset int64
 }
 
-func (t *Tailer) cursor(ctx context.Context, id string) Cursor {
-	c, err := t.m.st.R.GetAccessLogCursor(ctx, id)
+func (t *Tailer) cursor(ctx context.Context, id, file string) Cursor {
+	c, err := t.m.st.R.GetAccessLogCursor(ctx, db.GetAccessLogCursorParams{TraefikConnectionID: id, File: file})
 	if err != nil {
 		return Cursor{}
 	}
 	return Cursor{Inode: c.Inode, Offset: c.Offset}
 }
 
-func (t *Tailer) save(ctx context.Context, id string, c Cursor, lag time.Duration, read bool, msg string, errOnly bool) {
+func (t *Tailer) save(ctx context.Context, id, file string, c Cursor, lag time.Duration, read bool, msg string, errOnly bool) {
 	now := t.m.now().UnixMilli()
 	if errOnly {
-		old, err := t.m.st.R.GetAccessLogCursor(ctx, id)
+		old, err := t.m.st.R.GetAccessLogCursor(ctx, db.GetAccessLogCursorParams{TraefikConnectionID: id, File: file})
 		if errors.Is(err, sql.ErrNoRows) {
 			return
 		}
 		c = Cursor{Inode: old.Inode, Offset: old.Offset}
 	}
-	p := db.PutAccessLogCursorParams{TraefikConnectionID: id, Inode: c.Inode, Offset: c.Offset, LagMs: lag.Milliseconds(),
+	p := db.PutAccessLogCursorParams{TraefikConnectionID: id, File: file, Inode: c.Inode, Offset: c.Offset, LagMs: lag.Milliseconds(),
 		Error: msg, UpdatedAt: now}
 	if read {
 		p.LastReadAt = sql.NullInt64{Int64: now, Valid: true}
 	}
 	if err := t.m.st.Q.PutAccessLogCursor(ctx, p); err != nil && ctx.Err() == nil {
-		t.log.Warn("access log cursor", "connection", id, "err", err)
+		t.log.Warn("log tail cursor", "connection", id, "file", file, "err", err)
 	}
 }
 
-// Poll reads what was written since cur, delivers whole lines and stores the new cursor.
-func (t *Tailer) Poll(ctx context.Context, h Host, id string, cur Cursor) (Cursor, error) {
-	b, next, note, err := Follow(ctx, h, t.dir, cur)
+// Poll reads what was written to file since cur, delivers whole lines and stores the new cursor.
+func (t *Tailer) Poll(ctx context.Context, h Host, id, file string, cur Cursor) (Cursor, error) {
+	b, next, note, err := Follow(ctx, h, t.dir, file, cur)
 	if err != nil {
 		return cur, err
 	}
 	if note != "" {
-		t.log.Warn("access log: "+note, "connection", id)
+		t.log.Warn(file+": "+note, "connection", id)
 	}
-	lag := t.deliver(ctx, id, b)
-	t.save(ctx, id, next, lag, true, "", false)
+	var lag time.Duration
+	if file == GeneralLogFile {
+		lag = t.deliverWAF(ctx, id, b)
+	} else {
+		lag = t.deliver(ctx, id, b)
+	}
+	t.save(ctx, id, file, next, lag, true, "", false)
 	return next, nil
 }
 
-// Follow reads the whole lines written to dir/access.log since cur and returns them with the next cursor. A zero
-// cursor starts at the current end. note says when lines were lost (a rotated file compressed before it was finished).
-func Follow(ctx context.Context, h Host, dir string, cur Cursor) (lines []byte, next Cursor, note string, err error) {
-	file := dir + "/access.log"
+// Follow reads the whole lines written to dir/name since cur and returns them with the next cursor. A zero cursor
+// starts at the current end. A file renamed by logrotate is finished first; one copied and truncated in place (the
+// general log, 04 §3) restarts at 0. note says when lines were lost (a rotated file compressed before it was finished).
+func Follow(ctx context.Context, h Host, dir, name string, cur Cursor) (lines []byte, next Cursor, note string, err error) {
+	file := dir + "/" + name
 	ino, size, err := statFile(ctx, h, file)
-	if err != nil || ino == 0 { // ino 0: no access log yet (no request since the install)
+	if err != nil || ino == 0 { // ino 0: no such log yet (nothing written since the install)
 		return nil, cur, "", err
 	}
 	if cur.Inode == 0 {
@@ -240,7 +260,7 @@ func Follow(ctx context.Context, h Host, dir string, cur Cursor) (lines []byte, 
 	var out []byte
 	if cur.Inode != ino {
 		// Rotated: finish the old file if it is still there under another name (not yet compressed).
-		old, err := findInode(ctx, h, dir, cur.Inode)
+		old, err := findInode(ctx, h, dir, name, cur.Inode)
 		if err != nil {
 			return nil, cur, "", err
 		}
@@ -321,9 +341,9 @@ func statFile(ctx context.Context, h Host, p string) (ino, size int64, err error
 	return ino, size, nil
 }
 
-// findInode names the access log file that has inode ino, uncompressed; "" when there is none.
-func findInode(ctx context.Context, h Host, dir string, ino int64) (string, error) {
-	r, err := h.Run(ctx, fmt.Sprintf("find %s -maxdepth 1 -inum %d -name 'access.log*' ! -name '*.gz' | head -n 1", dir, ino), nil)
+// findInode names the log file (name or a rotated copy of it) that has inode ino, uncompressed; "" when there is none.
+func findInode(ctx context.Context, h Host, dir, name string, ino int64) (string, error) {
+	r, err := h.Run(ctx, fmt.Sprintf("find %s -maxdepth 1 -inum %d -name '%s*' ! -name '*.gz' | head -n 1", dir, ino, name), nil)
 	if err != nil {
 		return "", err
 	}

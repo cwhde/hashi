@@ -66,6 +66,15 @@ func (e *Edge) Binary(context.Context, string) ([]byte, error) {
 	return []byte("traefik " + traefik.Version), nil
 }
 
+// Plugin is the "WAF plugin download": placeholder bytes; the host reports the pinned hashes for them (Run).
+func (e *Edge) Plugin(context.Context) (map[string][]byte, error) {
+	out := map[string][]byte{}
+	for _, f := range []string{".traefik.yml", "coraza-http-wasm.wasm"} {
+		out[traefik.PluginDir+"/"+f] = []byte("plugin " + f)
+	}
+	return out, nil
+}
+
 // DialTLS connects to the host's websecure port: it presents whichever distributed certificate matches the SNI.
 func (e *Edge) DialTLS(ctx context.Context, _ string) (net.Conn, error) {
 	e.mu.Lock()
@@ -108,6 +117,12 @@ func (c conn) Run(_ context.Context, cmd string, _ io.Reader) (sshx.Result, erro
 			return sshx.Result{ExitCode: 127, Stderr: []byte("not found")}, nil
 		}
 		return sshx.Result{Stdout: []byte("Version:      " + traefik.Version + "\n")}, nil
+	case strings.HasPrefix(cmd, "sha256sum "):
+		p := strings.Trim(strings.TrimSuffix(strings.TrimPrefix(cmd, "sha256sum "), " 2>/dev/null || true"), "'")
+		if sum, ok := traefik.PinnedPluginSum(p); ok && e.files[p] != nil {
+			return sshx.Result{Stdout: []byte(sum + "  " + p + "\n")}, nil
+		}
+		return sshx.Result{}, nil
 	case strings.HasPrefix(cmd, "test -d "):
 		return sshx.Result{}, nil // directories are created on demand
 	case strings.Contains(cmd, "systemctl") || strings.Contains(cmd, "rc-service"):

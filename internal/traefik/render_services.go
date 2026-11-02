@@ -20,16 +20,20 @@ const (
 	tlsOptions13 = "hashi-tls13"
 
 	// A service's main router sits below its routes; routes keep their own order above it and stay below the health
-	// routers (healthPriority).
+	// routers (healthPriority). Each router's WAF paths take the wafSlots-1 priorities right above it, so a WAF path
+	// never outranks a router its base router loses to.
 	mainPriority  = 10
 	routePriority = 1000
+	wafSlots      = 32
 )
 
 // httpServices renders the routers, middlewares, services and transports of every renderable service (04 §4,
-// 10-hashi-http-services.yml). Disabled and invalid services are absent (04 §7).
-func httpServices(svcs []services.Service, edge bool) dynamicConfig {
+// 10-hashi-http-services.yml), and the WAF middlewares they use (40-hashi-security.yml). Disabled and invalid services
+// are absent (04 §7).
+func httpServices(svcs []services.Service, edge bool, wafDefault string) (dynamicConfig, map[string]middleware) {
 	h := &httpConfig{Routers: map[string]router{}, Middlewares: map[string]middleware{}, Services: map[string]service{},
 		ServersTransports: map[string]serversTransport{}}
+	wafs := map[string]middleware{}
 	tlsOpts := map[string]tlsOption{}
 	sorted := append([]services.Service(nil), svcs...)
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Slug < sorted[j].Slug })
@@ -51,8 +55,25 @@ func httpServices(svcs []services.Service, edge bool) dynamicConfig {
 			h.ServersTransports[transport] = serversTransport{ServerName: s.TLSServerName, InsecureSkipVerify: s.TLSSkipVerify}
 		}
 		host := "Host(`" + s.HostName + "`)"
-		h.Routers[base] = router{Rule: host, EntryPoints: []string{"websecure"}, Middlewares: chain(s, edge), Service: base,
-			Priority: mainPriority, TLS: rt}
+		root := s.RootWAF(wafDefault)
+		wafPaths := byPathSpecificity(s.WAF.Paths)
+		if s.System() {
+			wafPaths = nil
+		}
+		// add puts a router and one variant per WAF path (rule narrowed to the path, its own WAF) into h.
+		add := func(name string, r router) {
+			r.Middlewares = withWAF(r.Middlewares, root, wafs)
+			h.Routers[name] = r
+			for i, p := range wafPaths {
+				v := r
+				v.Rule = r.Rule + " && " + wafPathRule(p)
+				v.Priority = r.Priority + 1 + i
+				v.Middlewares = withWAF(v.Middlewares[:len(v.Middlewares)-wafCount(r.Middlewares, wafs)], root.For(p), wafs)
+				h.Routers[name+"-w-"+strings.ToLower(p.ID)] = v
+			}
+		}
+		add(base, router{Rule: host, EntryPoints: []string{"websecure"}, Middlewares: chain(s, edge), Service: base,
+			Priority: mainPriority, TLS: rt})
 		targets := s.Targets
 		if targets == nil {
 			targets = []services.Target{s.Target}
@@ -71,8 +92,8 @@ func httpServices(svcs []services.Service, edge bool) dynamicConfig {
 				h.Middlewares[name] = mw
 				mws = append(mws, name)
 			}
-			h.Routers[name] = router{Rule: host + " && " + pathRule(r), EntryPoints: []string{"websecure"}, Middlewares: mws,
-				Service: name, Priority: routePriority + r.Priority, TLS: rt}
+			add(name, router{Rule: host + " && " + pathRule(r), EntryPoints: []string{"websecure"}, Middlewares: mws,
+				Service: name, Priority: routePriority + wafSlots*r.Priority, TLS: rt})
 			kind := s.Kind
 			if r.Kind != "" {
 				kind = r.Kind // one name can mix them: gRPC needs h2c next to plain HTTP (04 §1.1)
@@ -84,7 +105,7 @@ func httpServices(svcs []services.Service, edge bool) dynamicConfig {
 	if len(tlsOpts) > 0 {
 		c.TLS = &tlsConfig{Options: tlsOpts}
 	}
-	return c
+	return c, wafs
 }
 
 // chain is a service's default middleware chain (04 §4.1): security headers, compression, forward auth, failing open or
@@ -154,10 +175,11 @@ func edgeMiddleware(token string) middleware {
 
 // EffectiveYAML is the part of 10-hashi-http-services.yml (20-hashi-stream-services.yml for a stream) one service produces (rendered config preview, 04 §8), as
 // it would render while enabled. The edge token itself lives in the security file and never appears here.
-func EffectiveYAML(s services.Service) ([]byte, error) {
+func EffectiveYAML(s services.Service, wafDefault string) ([]byte, error) {
 	s.Enabled, s.InvalidReason = true, ""
 	if s.Stream() {
 		return marshal(streamServices([]services.Service{s}))
 	}
-	return marshal(httpServices([]services.Service{s}, true))
+	c, _ := httpServices([]services.Service{s}, true, wafDefault)
+	return marshal(c)
 }

@@ -409,7 +409,7 @@ func (q *Queries) ListIPSets(ctx context.Context) ([]IpSet, error) {
 }
 
 const listServicesBySet = `-- name: ListServicesBySet :many
-SELECT id, name, slug, kind, domain_mode, host_name, enabled, origin, owner_feature, target_address, target_port, tls_skip_verify, tls_server_name, tls_min_version, advanced_routes, dashboard_visible, monitoring_visible, adguard_rewrite, created_at, updated_at, target_set_id, entry_host_id, public_port, proxy_protocol FROM services WHERE target_set_id = ?
+SELECT id, name, slug, kind, domain_mode, host_name, enabled, origin, owner_feature, target_address, target_port, tls_skip_verify, tls_server_name, tls_min_version, advanced_routes, dashboard_visible, monitoring_visible, adguard_rewrite, created_at, updated_at, target_set_id, entry_host_id, public_port, proxy_protocol, waf_json FROM services WHERE target_set_id = ?
 `
 
 func (q *Queries) ListServicesBySet(ctx context.Context, targetSetID sql.NullString) ([]Service, error) {
@@ -446,6 +446,7 @@ func (q *Queries) ListServicesBySet(ctx context.Context, targetSetID sql.NullStr
 			&i.EntryHostID,
 			&i.PublicPort,
 			&i.ProxyProtocol,
+			&i.WafJson,
 		); err != nil {
 			return nil, err
 		}

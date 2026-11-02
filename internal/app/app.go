@@ -342,8 +342,8 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	go abuse.Run(ctx)
 	if !devBuild {
 		go link.Run(ctx)
-		// Access-log tail per installed Traefik (06 §6.2); the WAF's matches arrive through it.
-		go traefik.NewTailer(traefikMgr, log.With("component", "accesslog"), nil).Run(ctx)
+		// Log tail per installed Traefik (06 §6.2): the WAF's blocks come from the general log and count per address.
+		go traefik.NewTailer(traefikMgr, log.With("component", "logtail"), nil, wafSink(st, abuse, log)).Run(ctx)
 	}
 	cfgSettings.Subscribe(func(c settings.Category) {
 		if _, ok := c.(settings.Engine); ok { // meter thresholds re-render pre_meter through a plan (05 §3.3)
@@ -627,4 +627,25 @@ func targetsUse(ctx context.Context, q *db.Queries, sets []string) (bool, error)
 		}
 	}
 	return false, nil
+}
+
+// wafSink counts each WAF block for its address and service (06 §3.2).
+func wafSink(st *store.Store, abuse *security.Engine, log *slog.Logger) traefik.WAFSink {
+	return func(ctx context.Context, _ string, blocks []traefik.WAFBlock) {
+		svcs, err := st.R.ListServices(ctx)
+		if err != nil {
+			log.Warn("WAF blocks: list services", "err", err)
+			return
+		}
+		slugs, ids := make([]string, len(svcs)), map[string]string{}
+		for i, s := range svcs {
+			slugs[i], ids[s.Slug] = s.Slug, s.ID
+		}
+		for _, b := range blocks {
+			slug, _ := traefik.RouterService(b.Router, slugs)
+			if err := abuse.WAFMatch(ctx, b.Client, ids[slug]); err != nil {
+				log.Warn("WAF block", "err", err)
+			}
+		}
+	}
 }

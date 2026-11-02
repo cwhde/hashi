@@ -142,7 +142,7 @@ func defaults(c Category) Category {
 	case GeoIP:
 		return GeoIP{}
 	case Engine:
-		return Engine{WAFDefaultMode: WAFEnabled, WAFViolations: 5, WAFWindowSeconds: 60, RateRequests: 300,
+		return Engine{WAFDefaultMode: WAFHeadersOnly, WAFViolations: 5, WAFWindowSeconds: 60, RateRequests: 300,
 			RateWindowSeconds: 10, ChallengeExpirySecs: 30 * 60, ChallengeMaxFailed: 15, ClearanceHours: 24,
 			MetersEnabled: true, TCPNewPerMinute: 150, TCPBurst: 30, TCPMaxConcurrent: 250, UDPNewPerMinute: 200,
 			UDPBurst: 50, UDPPerSecond: 5000, UDPPPSBurst: 1000, StagingSeconds: 5 * 60, PollIntervalSecs: 3,
@@ -198,8 +198,11 @@ func (g GeoIP) Validate() error {
 func (e Engine) Validate() error {
 	day := 24 * 3600
 	switch {
-	case e.WAFDefaultMode != WAFEnabled && e.WAFDefaultMode != WAFHeadersOnly && e.WAFDefaultMode != WAFDisabled:
-		return invalid("the WAF mode must be enabled, headers_only or disabled")
+	case e.WAFDefaultMode == WAFEnabled:
+		// 06 §9: body inspection breaks request bodies above about 160 KB with the pinned plugin.
+		return invalid("checking request bodies is off until the WAF plugin's upload bug is fixed; use headers_only")
+	case e.WAFDefaultMode != WAFHeadersOnly && e.WAFDefaultMode != WAFDisabled:
+		return invalid("the WAF mode must be headers_only or disabled")
 	case e.WAFViolations < 1 || e.WAFWindowSeconds < 1 || e.WAFWindowSeconds > 3600:
 		return invalid("the WAF trigger needs at least one match within a window of up to an hour")
 	case e.RateRequests < 10 || e.RateWindowSeconds < 1 || e.RateWindowSeconds > 3600:

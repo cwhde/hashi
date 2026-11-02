@@ -103,14 +103,20 @@ func (q *Queries) DeleteDynamicElement(ctx context.Context, id string) error {
 }
 
 const getAccessLogCursor = `-- name: GetAccessLogCursor :one
-SELECT traefik_connection_id, inode, "offset", lag_ms, last_read_at, error, updated_at FROM access_log_cursors WHERE traefik_connection_id = ?
+SELECT traefik_connection_id, file, inode, "offset", lag_ms, last_read_at, error, updated_at FROM access_log_cursors WHERE traefik_connection_id = ? AND file = ?
 `
 
-func (q *Queries) GetAccessLogCursor(ctx context.Context, traefikConnectionID string) (AccessLogCursor, error) {
-	row := q.db.QueryRowContext(ctx, getAccessLogCursor, traefikConnectionID)
+type GetAccessLogCursorParams struct {
+	TraefikConnectionID string
+	File                string
+}
+
+func (q *Queries) GetAccessLogCursor(ctx context.Context, arg GetAccessLogCursorParams) (AccessLogCursor, error) {
+	row := q.db.QueryRowContext(ctx, getAccessLogCursor, arg.TraefikConnectionID, arg.File)
 	var i AccessLogCursor
 	err := row.Scan(
 		&i.TraefikConnectionID,
+		&i.File,
 		&i.Inode,
 		&i.Offset,
 		&i.LagMs,
@@ -483,15 +489,16 @@ func (q *Queries) ListSecurityEventsForAddress(ctx context.Context, arg ListSecu
 }
 
 const putAccessLogCursor = `-- name: PutAccessLogCursor :exec
-INSERT INTO access_log_cursors (traefik_connection_id, inode, offset, lag_ms, last_read_at, error, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT (traefik_connection_id) DO UPDATE SET inode = excluded.inode, offset = excluded.offset,
+INSERT INTO access_log_cursors (traefik_connection_id, file, inode, offset, lag_ms, last_read_at, error, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT (traefik_connection_id, file) DO UPDATE SET inode = excluded.inode, offset = excluded.offset,
     lag_ms = excluded.lag_ms, last_read_at = COALESCE(excluded.last_read_at, access_log_cursors.last_read_at),
     error = excluded.error, updated_at = excluded.updated_at
 `
 
 type PutAccessLogCursorParams struct {
 	TraefikConnectionID string
+	File                string
 	Inode               int64
 	Offset              int64
 	LagMs               int64
@@ -503,6 +510,7 @@ type PutAccessLogCursorParams struct {
 func (q *Queries) PutAccessLogCursor(ctx context.Context, arg PutAccessLogCursorParams) error {
 	_, err := q.db.ExecContext(ctx, putAccessLogCursor,
 		arg.TraefikConnectionID,
+		arg.File,
 		arg.Inode,
 		arg.Offset,
 		arg.LagMs,

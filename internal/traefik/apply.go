@@ -39,6 +39,8 @@ type Desired struct {
 	Backup []string
 	// Binary returns the verified Traefik binary (Download + Binary); called only when the host needs it.
 	Binary func(ctx context.Context) ([]byte, error)
+	// Plugin returns the verified WAF plugin files by host path (DownloadPlugin); called only when a plugin file differs.
+	Plugin func(ctx context.Context) (map[string][]byte, error)
 	// PingTimeout overrides the default wait after a restart (tests).
 	PingTimeout time.Duration
 	// Certs are the certificates in Files; the manager checks each by TLS handshake after Verify (03 §5.3).
@@ -123,7 +125,11 @@ func Observe(ctx context.Context, h Host, d Desired) (Diff, error) {
 	}
 	diff.Service.File = svc
 	for _, f := range d.Files {
-		hh, err := hostHash(f.Path)
+		get := hostHash
+		if f.Kind == KindPlugin {
+			get = func(p string) (string, error) { return remoteSum(ctx, h, p) }
+		}
+		hh, err := get(f.Path)
 		if err != nil {
 			return diff, err
 		}
@@ -188,10 +194,14 @@ func (d Diff) Items() []hsync.Item {
 	}
 	for _, c := range d.Files {
 		risk := hsync.Low
-		if c.File.Kind == KindStatic {
+		if c.File.Kind == KindStatic || c.File.Kind == KindPlugin {
 			risk = hsync.High
 		}
-		items = append(items, file(c, risk))
+		it := file(c, risk)
+		if c.File.Kind == KindPlugin {
+			it.Note = "WAF plugin " + PluginVersion + ": download, verify the pinned checksum, upload; restarts Traefik"
+		}
+		items = append(items, it)
 	}
 	return items
 }
@@ -281,14 +291,31 @@ func Apply(ctx context.Context, h Host, d Desired, diff Diff, now time.Time) (Ap
 		}
 	}
 
-	// Certificates first, then hashi-certs.yaml (Render's order), then the other dynamic files.
+	// Certificates first, then hashi-certs.yaml (Render's order), then the other dynamic files and the plugin.
 	var static *FileChange
+	var plugin map[string][]byte
 	for i, c := range diff.Files {
 		if c.File.Kind == KindStatic {
 			static = &diff.Files[i]
 			continue
 		}
-		if err := write(c.File); err != nil {
+		f := c.File
+		if f.Kind == KindPlugin {
+			if plugin == nil {
+				if d.Plugin == nil {
+					return out, errors.New("WAF plugin needed but no download configured")
+				}
+				var err error
+				if plugin, err = d.Plugin(ctx); err != nil {
+					return out, err
+				}
+			}
+			if f.Data = plugin[f.Path]; f.Data == nil {
+				return out, fmt.Errorf("WAF plugin has no %s", f.Path)
+			}
+			restart = true // plugins load only at start
+		}
+		if err := write(f); err != nil {
 			return out, err
 		}
 	}

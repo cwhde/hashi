@@ -125,6 +125,8 @@ type Service struct {
 	// ProxyProtocol sends PROXY protocol v2 to a TCP upstream (testdata/contracts/traefik/streams).
 	ProxyProtocol bool
 	Routes        []Route
+	// WAF is the service's WAF configuration (06 §9), changed only through SetWAF.
+	WAF WAF
 	// FailClosed: its rules can deny or ask for sign-in, so forward auth has no local fallback (06 §2.1). Set for rendering.
 	FailClosed bool
 	// Targets is the simple target with its address set resolved (set by Resolve for rendering; nil otherwise).
@@ -432,6 +434,9 @@ func fromRow(r db.Service, routes []db.ServiceRoute) (Service, error) {
 		AdvancedRoutes: r.AdvancedRoutes == 1, DashboardVisible: r.DashboardVisible == 1,
 		MonitoringVisible: r.MonitoringVisible == 1, AdGuardRewrite: r.AdguardRewrite == 1,
 		CreatedAt: time.UnixMilli(r.CreatedAt).UTC(), UpdatedAt: time.UnixMilli(r.UpdatedAt).UTC()}
+	if err := json.Unmarshal([]byte(r.WafJson), &s.WAF); err != nil {
+		return s, fmt.Errorf("service %s WAF: %w", r.ID, err)
+	}
 	for _, rr := range routes {
 		var t []Target
 		if err := json.Unmarshal([]byte(rr.TargetsJson), &t); err != nil {
