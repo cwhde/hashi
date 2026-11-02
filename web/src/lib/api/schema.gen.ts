@@ -180,6 +180,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/security/captcha/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** How Hashi reaches Cap and the challenge service's name (06 §11) */
+        get: operations["getCaptchaSettings"];
+        /** Save the CAPTCHA settings; an empty secret key keeps the stored one. Creates, moves or removes the challenge service */
+        put: operations["putCaptchaSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/captcha/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ask Cap with the stored site key and secret whether they are right (no visitor needed) */
+        post: operations["testCaptcha"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/security/geoip": {
         parameters: {
             query?: never;
@@ -2767,6 +2802,38 @@ export interface components {
             fetched_at: string;
             stale: boolean;
         };
+        CaptchaSettingsInput: {
+            enabled: boolean;
+            /** @description The challenge service's name, e.g. cap.hashi.example.com */
+            challenge_domain: string;
+            /** @description Where edges reach Cap's public paths */
+            cap_address: string;
+            cap_port: number;
+            /** @description Where Hashi checks tokens, e.g. http://cap:3000 */
+            verify_url: string;
+            site_key: string;
+            /**
+             * Format: password
+             * @description Empty keeps the stored one
+             */
+            secret_key?: string;
+            timeout_seconds: number;
+            /** @description The Cap dashboard's service: never behind Pass CAPTCHA */
+            admin_service_id?: string;
+        };
+        CaptchaSettings: components["schemas"]["CaptchaSettingsInput"] & {
+            has_secret: boolean;
+            challenge_service_id?: string;
+        };
+        CaptchaSaveResult: {
+            settings: components["schemas"]["CaptchaSettings"];
+            plans: components["schemas"]["SyncPlan"][];
+            certificate_pending: boolean;
+        };
+        CaptchaTest: {
+            ok: boolean;
+            message: string;
+        };
         GeoIPStatus: {
             databases: components["schemas"]["GeoIPDatabase"][];
             account_id: string;
@@ -4727,6 +4794,73 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getCaptchaSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Settings; the secret key is never returned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptchaSettings"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putCaptchaSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CaptchaSettingsInput"];
+            };
+        };
+        responses: {
+            /** @description Saved, with the Traefik plans it caused */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptchaSaveResult"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    testCaptcha: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The answer; ok false carries the reason */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptchaTest"];
+                };
             };
             default: components["responses"]["Problem"];
         };

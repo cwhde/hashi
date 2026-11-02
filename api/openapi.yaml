@@ -234,6 +234,42 @@ paths:
       responses:
         "204": { description: Deleted }
         default: { $ref: "#/components/responses/Problem" }
+  /api/security/captcha/settings:
+    get:
+      operationId: getCaptchaSettings
+      summary: How Hashi reaches Cap and the challenge service's name (06 §11)
+      tags: [security]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Settings; the secret key is never returned
+          content: { application/json: { schema: { $ref: "#/components/schemas/CaptchaSettings" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      operationId: putCaptchaSettings
+      summary: Save the CAPTCHA settings; an empty secret key keeps the stored one. Creates, moves or removes the challenge service
+      tags: [security]
+      x-hashi-scopes: [security.manage]
+      x-hashi-reauth: true
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CaptchaSettingsInput" } } }
+      responses:
+        "200":
+          description: Saved, with the Traefik plans it caused
+          content: { application/json: { schema: { $ref: "#/components/schemas/CaptchaSaveResult" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/security/captcha/test:
+    post:
+      operationId: testCaptcha
+      summary: Ask Cap with the stored site key and secret whether they are right (no visitor needed)
+      tags: [security]
+      x-hashi-scopes: [security.manage]
+      responses:
+        "200":
+          description: The answer; ok false carries the reason
+          content: { application/json: { schema: { $ref: "#/components/schemas/CaptchaTest" } } }
+        default: { $ref: "#/components/responses/Problem" }
   /api/security/geoip:
     get:
       operationId: getGeoIP
@@ -2700,6 +2736,40 @@ components:
         built_at: { type: string, format: date-time }
         fetched_at: { type: string, format: date-time }
         stale: { type: boolean }
+    CaptchaSettingsInput:
+      type: object
+      required: [enabled, challenge_domain, cap_address, cap_port, verify_url, site_key, timeout_seconds]
+      properties:
+        enabled: { type: boolean }
+        challenge_domain: { type: string, description: "The challenge service's name, e.g. cap.hashi.example.com" }
+        cap_address: { type: string, description: "Where edges reach Cap's public paths" }
+        cap_port: { type: integer }
+        verify_url: { type: string, description: "Where Hashi checks tokens, e.g. http://cap:3000" }
+        site_key: { type: string }
+        secret_key: { type: string, format: password, description: "Empty keeps the stored one" }
+        timeout_seconds: { type: integer }
+        admin_service_id: { type: string, description: "The Cap dashboard's service: never behind Pass CAPTCHA" }
+    CaptchaSettings:
+      allOf:
+        - $ref: "#/components/schemas/CaptchaSettingsInput"
+        - type: object
+          required: [has_secret]
+          properties:
+            has_secret: { type: boolean }
+            challenge_service_id: { type: string }
+    CaptchaSaveResult:
+      type: object
+      required: [settings, plans, certificate_pending]
+      properties:
+        settings: { $ref: "#/components/schemas/CaptchaSettings" }
+        plans: { type: array, items: { $ref: "#/components/schemas/SyncPlan" } }
+        certificate_pending: { type: boolean }
+    CaptchaTest:
+      type: object
+      required: [ok, message]
+      properties:
+        ok: { type: boolean }
+        message: { type: string }
     GeoIPStatus:
       type: object
       required: [databases, account_id, has_key, url, error]

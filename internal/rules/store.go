@@ -13,6 +13,7 @@ import (
 
 	"github.com/oklog/ulid/v2"
 
+	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 )
 
@@ -137,7 +138,21 @@ func normalize(ctx context.Context, q *db.Queries, g Graph, parent string, e Ent
 	case ActionNone, ActionDeny:
 		e.Provider, e.Groups = "", nil
 	case ActionCaptcha:
-		return e, invalid("Pass CAPTCHA arrives with the abuse engine; use another action for now")
+		e.Provider, e.Groups = "", nil
+		// No CAPTCHA in front of CAPTCHA (06 §11): not in the challenge service's or the Cap dashboard's own rules.
+		if p, ok := g[parent]; ok && p.ServiceID != "" {
+			c, err := settings.Get[settings.Captcha](ctx, q)
+			if err != nil {
+				return e, err
+			}
+			sv, err := q.GetService(ctx, p.ServiceID)
+			if err != nil {
+				return e, err
+			}
+			if p.ServiceID == c.AdminServiceID || (sv.Origin == "system" && sv.OwnerFeature == "captcha") {
+				return e, invalid("Pass CAPTCHA cannot protect Cap itself: the CAPTCHA would need itself to load")
+			}
+		}
 	case ActionAuth:
 		if e.Provider != "" {
 			if _, err := q.GetOIDCProvider(ctx, e.Provider); err != nil {

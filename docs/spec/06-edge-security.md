@@ -402,7 +402,7 @@ No loops (06 §4.5, invariant 20):
 - A challenged address must always reach the flow: the challenge service runs A1 only, its requests never count as
   failures or towards the rate trigger, and it is never challenged, so it never redirects to itself.
 - `pass_captcha` cannot apply to the challenge service or the Cap admin service: refused on save in their rule sets,
-  and skipped (with a trace line) when it reaches them through the global rule set.
+  and left out of their flattened list when it reaches them through the global rule set.
 - A1 still applies: a banned address is dropped in the kernel and cannot reach the challenge either, by design (a ban
   is not solvable; it expires or the admin lifts it).
 - Cap unreachable: a challenge cannot be solved, so challenged addresses wait for their entry to expire; a

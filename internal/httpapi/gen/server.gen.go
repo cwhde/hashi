@@ -2106,6 +2106,65 @@ type BootstrapLogin struct {
 	Username string `json:"username"`
 }
 
+// CaptchaSaveResult defines model for CaptchaSaveResult.
+type CaptchaSaveResult struct {
+	CertificatePending bool            `json:"certificate_pending"`
+	Plans              []SyncPlan      `json:"plans"`
+	Settings           CaptchaSettings `json:"settings"`
+}
+
+// CaptchaSettings defines model for CaptchaSettings.
+type CaptchaSettings struct {
+	// AdminServiceId The Cap dashboard's service: never behind Pass CAPTCHA
+	AdminServiceId *string `json:"admin_service_id,omitempty"`
+
+	// CapAddress Where edges reach Cap's public paths
+	CapAddress string `json:"cap_address"`
+	CapPort    int    `json:"cap_port"`
+
+	// ChallengeDomain The challenge service's name, e.g. cap.hashi.example.com
+	ChallengeDomain    string  `json:"challenge_domain"`
+	ChallengeServiceId *string `json:"challenge_service_id,omitempty"`
+	Enabled            bool    `json:"enabled"`
+	HasSecret          bool    `json:"has_secret"`
+
+	// SecretKey Empty keeps the stored one
+	SecretKey      *string `json:"secret_key,omitempty"`
+	SiteKey        string  `json:"site_key"`
+	TimeoutSeconds int     `json:"timeout_seconds"`
+
+	// VerifyUrl Where Hashi checks tokens, e.g. http://cap:3000
+	VerifyUrl string `json:"verify_url"`
+}
+
+// CaptchaSettingsInput defines model for CaptchaSettingsInput.
+type CaptchaSettingsInput struct {
+	// AdminServiceId The Cap dashboard's service: never behind Pass CAPTCHA
+	AdminServiceId *string `json:"admin_service_id,omitempty"`
+
+	// CapAddress Where edges reach Cap's public paths
+	CapAddress string `json:"cap_address"`
+	CapPort    int    `json:"cap_port"`
+
+	// ChallengeDomain The challenge service's name, e.g. cap.hashi.example.com
+	ChallengeDomain string `json:"challenge_domain"`
+	Enabled         bool   `json:"enabled"`
+
+	// SecretKey Empty keeps the stored one
+	SecretKey      *string `json:"secret_key,omitempty"`
+	SiteKey        string  `json:"site_key"`
+	TimeoutSeconds int     `json:"timeout_seconds"`
+
+	// VerifyUrl Where Hashi checks tokens, e.g. http://cap:3000
+	VerifyUrl string `json:"verify_url"`
+}
+
+// CaptchaTest defines model for CaptchaTest.
+type CaptchaTest struct {
+	Message string `json:"message"`
+	Ok      bool   `json:"ok"`
+}
+
 // CeremonyOptions defines model for CeremonyOptions.
 type CeremonyOptions struct {
 	CeremonyId string `json:"ceremony_id"`
@@ -4303,6 +4362,9 @@ type UpdateRuleSetJSONRequestBody = RuleSetInput
 // PutRuleSetEntriesJSONRequestBody defines body for PutRuleSetEntries for application/json ContentType.
 type PutRuleSetEntriesJSONRequestBody = RuleEntriesInput
 
+// PutCaptchaSettingsJSONRequestBody defines body for PutCaptchaSettings for application/json ContentType.
+type PutCaptchaSettingsJSONRequestBody = CaptchaSettingsInput
+
 // PutGeoIPJSONRequestBody defines body for PutGeoIP for application/json ContentType.
 type PutGeoIPJSONRequestBody = GeoIPInput
 
@@ -4997,6 +5059,15 @@ type ServerInterface interface {
 	// PutRuleSetEntries Replace a rule set's entries in order; decisions change within seconds
 	// (PUT /api/rule-sets/{id}/entries)
 	PutRuleSetEntries(w http.ResponseWriter, r *http.Request, id string)
+	// GetCaptchaSettings How Hashi reaches Cap and the challenge service's name (06 §11)
+	// (GET /api/security/captcha/settings)
+	GetCaptchaSettings(w http.ResponseWriter, r *http.Request)
+	// PutCaptchaSettings Save the CAPTCHA settings; an empty secret key keeps the stored one. Creates, moves or removes the challenge service
+	// (PUT /api/security/captcha/settings)
+	PutCaptchaSettings(w http.ResponseWriter, r *http.Request)
+	// TestCaptcha Ask Cap with the stored site key and secret whether they are right (no visitor needed)
+	// (POST /api/security/captcha/test)
+	TestCaptcha(w http.ResponseWriter, r *http.Request)
 	// GetGeoIP GeoIP databases on hand and where downloads come from
 	// (GET /api/security/geoip)
 	GetGeoIP(w http.ResponseWriter, r *http.Request)
@@ -7659,6 +7730,48 @@ func (siw *ServerInterfaceWrapper) PutRuleSetEntries(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// GetCaptchaSettings operation middleware
+func (siw *ServerInterfaceWrapper) GetCaptchaSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetCaptchaSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutCaptchaSettings operation middleware
+func (siw *ServerInterfaceWrapper) PutCaptchaSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutCaptchaSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TestCaptcha operation middleware
+func (siw *ServerInterfaceWrapper) TestCaptcha(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TestCaptcha(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetGeoIP operation middleware
 func (siw *ServerInterfaceWrapper) GetGeoIP(w http.ResponseWriter, r *http.Request) {
 
@@ -9327,6 +9440,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/security/sso/providers", wrapper.CreateSSOProvider)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/security/sso/providers/{id}", wrapper.DeleteSSOProvider)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/security/sso/providers/{id}", wrapper.UpdateSSOProvider)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/security/captcha/settings", wrapper.GetCaptchaSettings)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/security/captcha/settings", wrapper.PutCaptchaSettings)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/security/captcha/test", wrapper.TestCaptcha)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/security/geoip", wrapper.GetGeoIP)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/security/geoip", wrapper.PutGeoIP)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/auth/session", wrapper.GetAuthSession)
@@ -13570,6 +13686,121 @@ func (response PutRuleSetEntriesdefaultApplicationProblemPlusJSONResponse) Visit
 	return err
 }
 
+type GetCaptchaSettingsRequestObject struct {
+}
+
+type GetCaptchaSettingsResponseObject interface {
+	VisitGetCaptchaSettingsResponse(w http.ResponseWriter) error
+}
+
+type GetCaptchaSettings200JSONResponse CaptchaSettings
+
+func (response GetCaptchaSettings200JSONResponse) VisitGetCaptchaSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetCaptchaSettingsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetCaptchaSettingsdefaultApplicationProblemPlusJSONResponse) VisitGetCaptchaSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutCaptchaSettingsRequestObject struct {
+	Body *PutCaptchaSettingsJSONRequestBody
+}
+
+type PutCaptchaSettingsResponseObject interface {
+	VisitPutCaptchaSettingsResponse(w http.ResponseWriter) error
+}
+
+type PutCaptchaSettings200JSONResponse CaptchaSaveResult
+
+func (response PutCaptchaSettings200JSONResponse) VisitPutCaptchaSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutCaptchaSettingsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutCaptchaSettingsdefaultApplicationProblemPlusJSONResponse) VisitPutCaptchaSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestCaptchaRequestObject struct {
+}
+
+type TestCaptchaResponseObject interface {
+	VisitTestCaptchaResponse(w http.ResponseWriter) error
+}
+
+type TestCaptcha200JSONResponse CaptchaTest
+
+func (response TestCaptcha200JSONResponse) VisitTestCaptchaResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestCaptchadefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response TestCaptchadefaultApplicationProblemPlusJSONResponse) VisitTestCaptchaResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetGeoIPRequestObject struct {
 }
 
@@ -17225,6 +17456,15 @@ type StrictServerInterface interface {
 	// PutRuleSetEntries Replace a rule set's entries in order; decisions change within seconds
 	// (PUT /api/rule-sets/{id}/entries)
 	PutRuleSetEntries(ctx context.Context, request PutRuleSetEntriesRequestObject) (PutRuleSetEntriesResponseObject, error)
+	// GetCaptchaSettings How Hashi reaches Cap and the challenge service's name (06 §11)
+	// (GET /api/security/captcha/settings)
+	GetCaptchaSettings(ctx context.Context, request GetCaptchaSettingsRequestObject) (GetCaptchaSettingsResponseObject, error)
+	// PutCaptchaSettings Save the CAPTCHA settings; an empty secret key keeps the stored one. Creates, moves or removes the challenge service
+	// (PUT /api/security/captcha/settings)
+	PutCaptchaSettings(ctx context.Context, request PutCaptchaSettingsRequestObject) (PutCaptchaSettingsResponseObject, error)
+	// TestCaptcha Ask Cap with the stored site key and secret whether they are right (no visitor needed)
+	// (POST /api/security/captcha/test)
+	TestCaptcha(ctx context.Context, request TestCaptchaRequestObject) (TestCaptchaResponseObject, error)
 	// GetGeoIP GeoIP databases on hand and where downloads come from
 	// (GET /api/security/geoip)
 	GetGeoIP(ctx context.Context, request GetGeoIPRequestObject) (GetGeoIPResponseObject, error)
@@ -20448,6 +20688,85 @@ func (sh *strictHandler) PutRuleSetEntries(w http.ResponseWriter, r *http.Reques
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(PutRuleSetEntriesResponseObject); ok {
 		if err := validResponse.VisitPutRuleSetEntriesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetCaptchaSettings operation middleware
+func (sh *strictHandler) GetCaptchaSettings(w http.ResponseWriter, r *http.Request) {
+	var request GetCaptchaSettingsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetCaptchaSettings(ctx, request.(GetCaptchaSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetCaptchaSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetCaptchaSettingsResponseObject); ok {
+		if err := validResponse.VisitGetCaptchaSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutCaptchaSettings operation middleware
+func (sh *strictHandler) PutCaptchaSettings(w http.ResponseWriter, r *http.Request) {
+	var request PutCaptchaSettingsRequestObject
+
+	var body PutCaptchaSettingsJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutCaptchaSettings(ctx, request.(PutCaptchaSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutCaptchaSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutCaptchaSettingsResponseObject); ok {
+		if err := validResponse.VisitPutCaptchaSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// TestCaptcha operation middleware
+func (sh *strictHandler) TestCaptcha(w http.ResponseWriter, r *http.Request) {
+	var request TestCaptchaRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.TestCaptcha(ctx, request.(TestCaptchaRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "TestCaptcha")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(TestCaptchaResponseObject); ok {
+		if err := validResponse.VisitTestCaptchaResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

@@ -56,6 +56,8 @@ type Server struct {
 	// Security is Stage A (06 §3); nil runs Stage B only.
 	Security *security.Engine
 	GeoIP    *geoip.Service
+	// Captcha caches the CAPTCHA settings for forward auth; nil reads them from the database.
+	Captcha *CaptchaCache
 	// CertsSoon runs the certificate job now (a new service name needs a certificate); nil in tests without a runner.
 	CertsSoon func(ctx context.Context) error
 	Sync      *hsync.Engine
@@ -78,6 +80,7 @@ func (s *Server) Handler(mux *http.ServeMux) http.Handler {
 	})
 	gen.HandlerFromMux(strict, mux)
 	s.edgeRoutes(mux)
+	s.challengeRoutes(mux)
 	return s.withRequest(limitHeartbeat(mux))
 }
 

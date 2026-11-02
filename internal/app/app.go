@@ -391,7 +391,13 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	}
 
 	health := httpapi.NewHealth(map[string]httpapi.Check{"database": st.Ready})
-	api := &httpapi.Server{
+	capCache := &httpapi.CaptchaCache{}
+	if c, err := settings.Get[settings.Captcha](ctx, st.R); err == nil {
+		capCache.Set(c)
+	} else {
+		return err
+	}
+	api := &httpapi.Server{Captcha: capCache,
 		Health: health, Version: gen.Version{Version: Version, Commit: Commit}, Store: st, Sessions: sessions,
 		Passkeys: passkeys, Setup: setupSvc, Settings: cfgSettings, DNS: dnsSvc, Traefik: traefikMgr, Certs: certMgr, IPSets: ipSets, AdGuard: adguardSvc, Pulse: pulseSvc, Monitor: monitorSvc, Notify: notifier, Firewall: fwMgr, Edge: edgeEngine, SSO: sso, Security: abuse, GeoIP: geoSvc, Sync: syncEngine, Vault: v, Audit: al, IP: ip, Logs: cfg.Logs,
 		CertsSoon: func(ctx context.Context) error { return runner.Soon(ctx, certs.JobKind) },
