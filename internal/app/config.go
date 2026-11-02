@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"git.juzo.io/juzo/hashi/internal/dns"
@@ -17,12 +18,16 @@ import (
 // Config is the process configuration. Flags override HASHI_* environment variables, which override defaults.
 // Everything else (connections, behaviour) lives in the database and is edited in the UI.
 type Config struct {
-	DataDir           string
-	AdminAddr         string
-	PublicAppsAddr    string // "" disables the listener
-	PublicStatusAddr  string // "" disables the listener
-	LogLevel          slog.Level
-	MasterKeyFile     string // HASHI_MASTER_KEY_FILE: base64 master key from `hashi keygen` (02-setup-auth.md §5.2)
+	DataDir          string
+	AdminAddr        string
+	PublicAppsAddr   string // "" disables the listener
+	PublicStatusAddr string // "" disables the listener
+	LogLevel         slog.Level
+	MasterKeyFile    string // HASHI_MASTER_KEY_FILE: base64 master key from `hashi keygen` (02-setup-auth.md §5.2)
+	// CapEnvFile is Cap's cap.env from the same compose project (HASHI_CAP_ENV_FILE): with it Hashi logs in to Cap's
+	// dashboard API and creates its own site key (06 §11). CapPort is Cap's host port, where edges reach it.
+	CapEnvFile        string
+	CapPort           int
 	DevWebAuthnOrigin string // dev builds only, see devbuild_dev.go
 	DevDNSFixtures    string // dev builds only: directory of recorded Hetzner responses to serve instead of the API
 
@@ -54,6 +59,12 @@ func LoadConfig(args []string, getenv func(string) string) (Config, error) {
 	fs.StringVar(&c.PublicStatusAddr, "public-status-addr", env("HASHI_PUBLIC_STATUS_ADDR", ":8082"), `public status page listener ("off" disables)`)
 	fs.StringVar(&c.MasterKeyFile, "master-key-file", env("HASHI_MASTER_KEY_FILE", ""), "file with the base64 master key (hashi keygen)")
 	fs.StringVar(&level, "log-level", env("HASHI_LOG_LEVEL", "info"), "debug, info, warn or error")
+	fs.StringVar(&c.CapEnvFile, "cap-env-file", env("HASHI_CAP_ENV_FILE", ""), "Cap's cap.env (its dashboard password), when Cap runs next to Hashi")
+	capPort, err := strconv.Atoi(env("HASHI_CAP_PORT", "3343"))
+	if err != nil || capPort < 1 || capPort > 65535 {
+		return Config{}, fmt.Errorf("HASHI_CAP_PORT must be a port number")
+	}
+	fs.IntVar(&c.CapPort, "cap-port", capPort, "Cap's host port, where edges reach it")
 	if err := fs.Parse(args); err != nil {
 		return Config{}, err
 	}

@@ -198,6 +198,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/security/captcha/key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a site key in the Cap next to Hashi (read from its cap.env) and store it with its secret */
+        post: operations["createCaptchaKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/security/captcha/test": {
         parameters: {
             query?: never;
@@ -1342,6 +1359,23 @@ export interface paths {
         };
         get: operations["getSecuritySettings"];
         put: operations["putSecuritySettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/engine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The abuse engine's thresholds, ban function, WAF default and feed timing (06 §10) */
+        get: operations["getEngineSettings"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -2969,6 +3003,26 @@ export interface components {
             set_id: string;
             run: components["schemas"]["FeedRun"];
         };
+        EngineSettings: {
+            waf_default_mode: string;
+            waf_violations: number;
+            waf_window_seconds: number;
+            rate_requests: number;
+            rate_window_seconds: number;
+            challenge_expiry_seconds: number;
+            challenge_max_failed: number;
+            captcha_clearance_hours: number;
+            meters_enabled: boolean;
+            /** @enum {string} */
+            ban_function: "constant" | "linear" | "exponential";
+            ban_base_seconds: number;
+            ban_k: number;
+            ban_max_seconds: number;
+            ban_permanent_after: number;
+            counter_decay_seconds: number;
+            feed_refresh_seconds: number;
+            feed_stale_seconds: number;
+        };
         CaptchaSettingsInput: {
             enabled: boolean;
             /** @description The challenge service's name, e.g. cap.hashi.example.com */
@@ -2991,6 +3045,8 @@ export interface components {
         CaptchaSettings: components["schemas"]["CaptchaSettingsInput"] & {
             has_secret: boolean;
             challenge_service_id?: string;
+            /** @description Hashi can read Cap's password and create its own key */
+            can_create_key?: boolean;
         };
         CaptchaSaveResult: {
             settings: components["schemas"]["CaptchaSettings"];
@@ -5011,6 +5067,27 @@ export interface operations {
             default: components["responses"]["Problem"];
         };
     };
+    createCaptchaKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The settings with the new site key */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CaptchaSettings"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
     testCaptcha: {
         parameters: {
             query?: never;
@@ -6792,6 +6869,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SecuritySettings"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getEngineSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Engine settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EngineSettings"];
                 };
             };
             default: components["responses"]["Problem"];

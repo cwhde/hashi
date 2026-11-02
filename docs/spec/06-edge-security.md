@@ -390,6 +390,10 @@ Cap's public paths on the host port `HASHI_CAP_PORT`. Cap serves its widget and 
 (`ENABLE_ASSETS_SERVER=true`, pinned versions), so the challenge page loads nothing from third parties, and takes the
 client address for its own rate limit from `X-Real-Ip`, which Traefik sets.
 
+Hashi reads that `cap.env` (compose secret `cap_env`, `HASHI_CAP_ENV_FILE`; owned by Hashi's user) and creates its own
+site key through Cap's dashboard API (`POST /api/security/captcha/key`, the "Create key in Cap" button in the CAPTCHA
+settings), so the admin never copies a key or secret.
+
 Cap has a dashboard (site keys, statistics), so it gets two names:
 
 - **Cap admin service**, e.g. `cap.example.com`: the dashboard, a normal user service, sign-in required.

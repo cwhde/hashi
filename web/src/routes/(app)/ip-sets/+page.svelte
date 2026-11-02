@@ -4,6 +4,7 @@
 	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
 	import Tag from '$lib/components/hashi/Tag.svelte';
 	import IpItemEditor from '$lib/components/hashi/ipsets/IpItemEditor.svelte';
+	import AddFeedSheet from '$lib/components/hashi/ipsets/AddFeedSheet.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -13,7 +14,7 @@
 	import * as Table from '$lib/components/ui/table';
 	import * as Sheet from '$lib/components/ui/sheet';
 	import * as ToggleGroup from '$lib/components/ui/toggle-group';
-	import { CircleAlert, Lock, Plus, Search } from '@lucide/svelte';
+	import { CircleAlert, Lock, Plus, Rss, Search } from '@lucide/svelte';
 	import { api, problemText, type Schemas } from '$lib/api/client';
 	import { dateTime } from '$lib/format';
 	import {
@@ -27,7 +28,8 @@
 		type IPSet
 	} from '$lib/ipsets';
 
-	// 05a: every place that needs an address points at a set. Feeds arrive with S10, dynamic sets with S9/S10.
+	// 05a: every place that needs an address points at a set; blocklists (06 §8) are sets of kind feed.
+	let feedOpen = $state(false);
 	let sets = $state<IPSet[]>([]);
 	let usedBy = $state<Record<string, Schemas['IPSetConsumer'][]>>({});
 	let loaded = $state(false);
@@ -121,6 +123,7 @@
 	description="Named groups of addresses. Firewall allow and block, rules, DNS values, upstreams and SSH targets all point at a set, so one change reaches every place that uses it."
 >
 	{#snippet actions()}
+		<Button variant="outline" onclick={() => (feedOpen = true)}><Rss />Add blocklist</Button>
 		<Button onclick={openAdd}><Plus />Add set</Button>
 	{/snippet}
 </PageHeader>
@@ -267,3 +270,11 @@
 		</Sheet.Footer>
 	</Sheet.Content>
 </Sheet.Root>
+
+<AddFeedSheet
+	bind:open={feedOpen}
+	onadded={(id) => {
+		feedOpen = false;
+		goto(`/ip-sets/${id}`);
+	}}
+/>

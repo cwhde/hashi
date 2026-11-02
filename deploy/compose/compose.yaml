@@ -11,10 +11,13 @@ services:
       - "${HASHI_PUBLIC_STATUS_PORT:-8082}:8082"
     volumes:
       - ${HASHI_DATA_DIR:-./data}:/data
-    secrets: [hashi_master_key]
+    secrets: [hashi_master_key, cap_env]
     environment:
       HASHI_LOG_LEVEL: ${HASHI_LOG_LEVEL:-info}
       HASHI_MASTER_KEY_FILE: /run/secrets/hashi_master_key
+      # Cap's password, so Hashi can create its own site key there (06 §11); empty when Cap is off.
+      HASHI_CAP_ENV_FILE: /run/secrets/cap_env
+      HASHI_CAP_PORT: ${HASHI_CAP_PORT:-3343}
     read_only: true
     tmpfs: [/tmp]
     security_opt:
@@ -63,3 +66,5 @@ services:
 secrets:
   hashi_master_key:
     file: ${HASHI_MASTER_KEY_PATH:-./master.key}
+  cap_env:
+    file: ./cap.env

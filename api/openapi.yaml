@@ -259,6 +259,18 @@ paths:
           description: Saved, with the Traefik plans it caused
           content: { application/json: { schema: { $ref: "#/components/schemas/CaptchaSaveResult" } } }
         default: { $ref: "#/components/responses/Problem" }
+  /api/security/captcha/key:
+    post:
+      operationId: createCaptchaKey
+      summary: Create a site key in the Cap next to Hashi (read from its cap.env) and store it with its secret
+      tags: [security]
+      x-hashi-scopes: [security.manage]
+      x-hashi-reauth: true
+      responses:
+        "200":
+          description: The settings with the new site key
+          content: { application/json: { schema: { $ref: "#/components/schemas/CaptchaSettings" } } }
+        default: { $ref: "#/components/responses/Problem" }
   /api/security/captcha/test:
     post:
       operationId: testCaptcha
@@ -1251,6 +1263,17 @@ paths:
         "200":
           description: Saved
           content: { application/json: { schema: { $ref: "#/components/schemas/SecuritySettings" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/settings/engine:
+    get:
+      operationId: getEngineSettings
+      summary: The abuse engine's thresholds, ban function, WAF default and feed timing (06 §10)
+      tags: [settings]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Engine settings
+          content: { application/json: { schema: { $ref: "#/components/schemas/EngineSettings" } } }
         default: { $ref: "#/components/responses/Problem" }
   /api/settings/appearance:
     get:
@@ -2888,6 +2911,30 @@ components:
       properties:
         set_id: { type: string }
         run: { $ref: "#/components/schemas/FeedRun" }
+    EngineSettings:
+      type: object
+      required: [waf_default_mode, waf_violations, waf_window_seconds, rate_requests, rate_window_seconds,
+        challenge_expiry_seconds, challenge_max_failed, captcha_clearance_hours, meters_enabled, ban_function,
+        ban_base_seconds, ban_k, ban_max_seconds, ban_permanent_after, counter_decay_seconds, feed_refresh_seconds,
+        feed_stale_seconds]
+      properties:
+        waf_default_mode: { type: string }
+        waf_violations: { type: integer }
+        waf_window_seconds: { type: integer }
+        rate_requests: { type: integer }
+        rate_window_seconds: { type: integer }
+        challenge_expiry_seconds: { type: integer }
+        challenge_max_failed: { type: integer }
+        captcha_clearance_hours: { type: integer }
+        meters_enabled: { type: boolean }
+        ban_function: { type: string, enum: [constant, linear, exponential] }
+        ban_base_seconds: { type: integer }
+        ban_k: { type: number }
+        ban_max_seconds: { type: integer }
+        ban_permanent_after: { type: integer }
+        counter_decay_seconds: { type: integer }
+        feed_refresh_seconds: { type: integer }
+        feed_stale_seconds: { type: integer }
     CaptchaSettingsInput:
       type: object
       required: [enabled, challenge_domain, cap_address, cap_port, verify_url, site_key, timeout_seconds]
@@ -2909,6 +2956,7 @@ components:
           properties:
             has_secret: { type: boolean }
             challenge_service_id: { type: string }
+            can_create_key: { type: boolean, description: "Hashi can read Cap's password and create its own key" }
     CaptchaSaveResult:
       type: object
       required: [settings, plans, certificate_pending]

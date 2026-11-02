@@ -14,6 +14,8 @@
 	import { api, problemText, type Schemas } from '$lib/api/client';
 	import { withReauth } from '$lib/auth/reauth';
 	import { dateTime } from '$lib/format';
+	import ChallengeSettings from '$lib/components/hashi/security/ChallengeSettings.svelte';
+	import EngineSummary from '$lib/components/hashi/security/EngineSummary.svelte';
 
 	// Security for S9: who may sign in at the edge, and the country database (06 §7, §12). The dashboard, counters, CAPTCHA
 	// and engine tabs arrive with the abuse engine.
@@ -121,7 +123,7 @@
 
 <PageHeader
 	title="Security"
-	description="Who can sign in at the edge, and where countries come from."
+	description="CAPTCHA, sign-in at the edge, the abuse engine and where countries come from."
 />
 
 {#if error}
@@ -130,12 +132,17 @@
 	</p>
 {/if}
 
-<Tabs.Root value="sso">
-	<Tabs.List class="mb-4">
+<Tabs.Root value="captcha">
+	<Tabs.List class="mb-4 max-w-full justify-start overflow-x-auto">
+		<Tabs.Trigger value="captcha">Challenge</Tabs.Trigger>
 		<Tabs.Trigger value="sso">Sign-in providers</Tabs.Trigger>
 		<Tabs.Trigger value="limits">Sessions</Tabs.Trigger>
+		<Tabs.Trigger value="engine">Engine</Tabs.Trigger>
 		<Tabs.Trigger value="geo">GeoIP</Tabs.Trigger>
 	</Tabs.List>
+
+	<Tabs.Content value="captcha"><ChallengeSettings /></Tabs.Content>
+	<Tabs.Content value="engine"><EngineSummary /></Tabs.Content>
 
 	<Tabs.Content value="sso" class="space-y-3">
 		<Panel

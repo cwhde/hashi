@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -120,4 +121,78 @@ func Cleared(key []byte, serviceID, value string, now time.Time) bool {
 	id, exp, ok := strings.Cut(string(msg), "|")
 	until, err := strconv.ParseInt(exp, 10, 64)
 	return ok && err == nil && id == serviceID && now.Unix() < until
+}
+
+// AdminKey reads Cap's dashboard password from its cap.env ("ADMIN_KEY=…", written once by the deploy).
+func AdminKey(path string) (secrets.Value, error) {
+	b, err := os.ReadFile(path) //nolint:gosec // the operator sets this path (HASHI_CAP_ENV_FILE), like the master key file
+	if err != nil {
+		return secrets.Value{}, err
+	}
+	for _, line := range strings.Split(string(b), "\n") {
+		if v, ok := strings.CutPrefix(strings.TrimSpace(line), "ADMIN_KEY="); ok && len(v) >= 12 {
+			return secrets.New(v), nil
+		}
+	}
+	return secrets.Value{}, errors.New("cap.env has no ADMIN_KEY")
+}
+
+// CreateKey logs in to Cap's dashboard API and creates a site key (testdata/contracts/cap/README.md finding 7):
+// `POST /auth/login {"admin_key"}` → session token and hash; `POST /server/keys` with
+// `Authorization: Bearer base64({"token","hash"})` → `{"siteKey","secretKey"}`.
+func CreateKey(ctx context.Context, client *http.Client, base string, admin secrets.Value, name string) (siteKey string, secret secrets.Value, err error) {
+	base = strings.TrimSuffix(base, "/")
+	post := func(path, auth string, in, out any) error {
+		body, err := json.Marshal(in)
+		if err != nil {
+			return err
+		}
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+path, bytes.NewReader(body))
+		if err != nil {
+			return err
+		}
+		req.Header.Set("Content-Type", "application/json")
+		if auth != "" {
+			req.Header.Set("Authorization", auth)
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			return fmt.Errorf("%w: %w", ErrUnavailable, err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+		b, err := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+		if err != nil {
+			return err
+		}
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("the Cap server answered %s with HTTP %d", path, resp.StatusCode)
+		}
+		return json.Unmarshal(b, out)
+	}
+	var login struct {
+		Success      bool   `json:"success"`
+		SessionToken string `json:"session_token"`
+		HashedToken  string `json:"hashed_token"`
+	}
+	if err := post("/auth/login", "", map[string]string{"admin_key": admin.Reveal()}, &login); err != nil {
+		return "", secrets.Value{}, fmt.Errorf("log in to Cap: %w", err)
+	}
+	if !login.Success || login.SessionToken == "" {
+		return "", secrets.Value{}, errors.New("log in to Cap: no session")
+	}
+	tok, err := json.Marshal(map[string]string{"token": login.SessionToken, "hash": login.HashedToken})
+	if err != nil {
+		return "", secrets.Value{}, err
+	}
+	var key struct {
+		SiteKey   string `json:"siteKey"`
+		SecretKey string `json:"secretKey"`
+	}
+	if err := post("/server/keys", "Bearer "+base64.StdEncoding.EncodeToString(tok), map[string]string{"name": name}, &key); err != nil {
+		return "", secrets.Value{}, fmt.Errorf("create a Cap site key: %w", err)
+	}
+	if key.SiteKey == "" || !strings.HasPrefix(key.SecretKey, "sk-") {
+		return "", secrets.Value{}, errors.New("create a Cap site key: unexpected answer")
+	}
+	return key.SiteKey, secrets.New(key.SecretKey), nil
 }

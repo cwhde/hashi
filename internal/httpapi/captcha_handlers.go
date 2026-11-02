@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -19,8 +20,25 @@ import (
 	"git.juzo.io/juzo/hashi/internal/vault"
 )
 
+// captchaDefaults fills what Hashi knows when nothing is saved yet: Cap runs on the Docker host Hashi runs on, at the
+// compose port (06 §11).
+func (s *Server) captchaDefaults(ctx context.Context, c settings.Captcha) settings.Captcha {
+	if c.CapAddress == "" {
+		if g, err := settings.Get[settings.General](ctx, s.Store.R); err == nil {
+			if u, err := url.Parse(g.InternalURL); err == nil {
+				c.CapAddress = u.Hostname()
+			}
+		}
+	}
+	if s.CapPort > 0 && c.CapPort == settings.DefaultOf[settings.Captcha]().CapPort {
+		c.CapPort = s.CapPort
+	}
+	return c
+}
+
 func (s *Server) captchaBody(ctx context.Context, c settings.Captcha) (gen.CaptchaSettings, error) {
-	out := gen.CaptchaSettings{Enabled: c.Enabled, ChallengeDomain: c.ChallengeDomain, CapAddress: c.CapAddress,
+	c = s.captchaDefaults(ctx, c)
+	out := gen.CaptchaSettings{CanCreateKey: ptr(s.CapEnvFile != ""), Enabled: c.Enabled, ChallengeDomain: c.ChallengeDomain, CapAddress: c.CapAddress,
 		CapPort: c.CapPort, VerifyUrl: c.VerifyURL, SiteKey: c.SiteKey, TimeoutSeconds: c.TimeoutSeconds,
 		AdminServiceId: strPtr(c.AdminServiceID)}
 	if _, err := s.Store.R.GetSecretByPurpose(ctx, CaptchaSecretPurpose); err == nil {
@@ -124,6 +142,73 @@ func (s *Server) PutCaptchaSettings(ctx context.Context, req gen.PutCaptchaSetti
 		return nil, err
 	}
 	return gen.PutCaptchaSettings200JSONResponse{Settings: b, Plans: plans, CertificatePending: pending}, nil
+}
+
+// CreateCaptchaKey asks the Cap next to Hashi for a site key (Hashi reads Cap's password from cap.env) and stores the
+// key in the settings and its secret in the vault, so the admin never copies either.
+func (s *Server) CreateCaptchaKey(ctx context.Context, _ gen.CreateCaptchaKeyRequestObject) (gen.CreateCaptchaKeyResponseObject, error) {
+	ri := info(ctx)
+	if s.CapEnvFile == "" {
+		return nil, conflict("Hashi has no access to Cap's password (HASHI_CAP_ENV_FILE): enter a site key and secret instead.")
+	}
+	admin, err := captcha.AdminKey(s.CapEnvFile)
+	if err != nil {
+		return nil, conflict("Cap's password file cannot be read: " + err.Error())
+	}
+	c, err := settings.Get[settings.Captcha](ctx, s.Store.R)
+	if err != nil {
+		return nil, err
+	}
+	c = s.captchaDefaults(ctx, c)
+	kctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	siteKey, secret, err := captcha.CreateKey(kctx, http.DefaultClient, c.VerifyURL, admin, "hashi")
+	if err != nil {
+		return nil, conflict(err.Error())
+	}
+	c.SiteKey = siteKey
+	err = s.Store.Tx(ctx, func(q *db.Queries) error {
+		if err := settings.Put(ctx, q, c); err != nil {
+			return err
+		}
+		p, err := s.Vault.Seal(vault.Service, CaptchaSecretPurpose, secret)
+		if err != nil {
+			return err
+		}
+		if err := q.DeleteSecretsByPurpose(ctx, CaptchaSecretPurpose); err != nil {
+			return err
+		}
+		if err := q.InsertSecret(ctx, p); err != nil {
+			return err
+		}
+		return s.Audit.Record(ctx, q, audit.Event{Actor: s.actor(ri), Action: "captcha.key_created", IP: ri.ipString(),
+			Target: "captcha", Outcome: audit.Success, Detail: map[string]any{"site_key": siteKey}})
+	})
+	if err != nil {
+		return nil, err
+	}
+	if s.Captcha != nil {
+		s.Captcha.Set(c)
+	}
+	b, err := s.captchaBody(ctx, c)
+	if err != nil {
+		return nil, err
+	}
+	return gen.CreateCaptchaKey200JSONResponse(b), nil
+}
+
+func (s *Server) GetEngineSettings(ctx context.Context, _ gen.GetEngineSettingsRequestObject) (gen.GetEngineSettingsResponseObject, error) {
+	e, err := settings.Get[settings.Engine](ctx, s.Store.R)
+	if err != nil {
+		return nil, err
+	}
+	return gen.GetEngineSettings200JSONResponse{WafDefaultMode: e.WAFDefaultMode, WafViolations: e.WAFViolations,
+		WafWindowSeconds: e.WAFWindowSeconds, RateRequests: e.RateRequests, RateWindowSeconds: e.RateWindowSeconds,
+		ChallengeExpirySeconds: e.ChallengeExpirySecs, ChallengeMaxFailed: e.ChallengeMaxFailed,
+		CaptchaClearanceHours: e.ClearanceHours, MetersEnabled: e.MetersEnabled,
+		BanFunction: gen.EngineSettingsBanFunction(e.BanFunction), BanBaseSeconds: e.BanBaseSeconds, BanK: float32(e.BanK),
+		BanMaxSeconds: e.BanMaxSeconds, BanPermanentAfter: e.BanPermanentAfter, CounterDecaySeconds: e.DecaySeconds,
+		FeedRefreshSeconds: e.FeedRefreshSeconds, FeedStaleSeconds: e.FeedStaleSeconds}, nil
 }
 
 func (s *Server) TestCaptcha(ctx context.Context, _ gen.TestCaptchaRequestObject) (gen.TestCaptchaResponseObject, error) {

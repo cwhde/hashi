@@ -401,6 +401,27 @@ func (e DNSRecordInputType) Valid() bool {
 	}
 }
 
+// Defines values for EngineSettingsBanFunction.
+const (
+	Constant    EngineSettingsBanFunction = "constant"
+	Exponential EngineSettingsBanFunction = "exponential"
+	Linear      EngineSettingsBanFunction = "linear"
+)
+
+// Valid indicates whether the value is a known member of the EngineSettingsBanFunction enum.
+func (e EngineSettingsBanFunction) Valid() bool {
+	switch e {
+	case Constant:
+		return true
+	case Exponential:
+		return true
+	case Linear:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for FeedFormat.
 const (
 	Csv        FeedFormat = "csv"
@@ -2214,6 +2235,9 @@ type CaptchaSettings struct {
 	// AdminServiceId The Cap dashboard's service: never behind Pass CAPTCHA
 	AdminServiceId *string `json:"admin_service_id,omitempty"`
 
+	// CanCreateKey Hashi can read Cap's password and create its own key
+	CanCreateKey *bool `json:"can_create_key,omitempty"`
+
 	// CapAddress Where edges reach Cap's public paths
 	CapAddress string `json:"cap_address"`
 	CapPort    int    `json:"cap_port"`
@@ -2591,6 +2615,30 @@ type EdgeSSOSettings struct {
 	MaxSessionHours  int  `json:"max_session_hours"`
 	RememberDevice   bool `json:"remember_device"`
 }
+
+// EngineSettings defines model for EngineSettings.
+type EngineSettings struct {
+	BanBaseSeconds         int                       `json:"ban_base_seconds"`
+	BanFunction            EngineSettingsBanFunction `json:"ban_function"`
+	BanK                   float32                   `json:"ban_k"`
+	BanMaxSeconds          int                       `json:"ban_max_seconds"`
+	BanPermanentAfter      int                       `json:"ban_permanent_after"`
+	CaptchaClearanceHours  int                       `json:"captcha_clearance_hours"`
+	ChallengeExpirySeconds int                       `json:"challenge_expiry_seconds"`
+	ChallengeMaxFailed     int                       `json:"challenge_max_failed"`
+	CounterDecaySeconds    int                       `json:"counter_decay_seconds"`
+	FeedRefreshSeconds     int                       `json:"feed_refresh_seconds"`
+	FeedStaleSeconds       int                       `json:"feed_stale_seconds"`
+	MetersEnabled          bool                      `json:"meters_enabled"`
+	RateRequests           int                       `json:"rate_requests"`
+	RateWindowSeconds      int                       `json:"rate_window_seconds"`
+	WafDefaultMode         string                    `json:"waf_default_mode"`
+	WafViolations          int                       `json:"waf_violations"`
+	WafWindowSeconds       int                       `json:"waf_window_seconds"`
+}
+
+// EngineSettingsBanFunction defines model for EngineSettings.BanFunction.
+type EngineSettingsBanFunction string
 
 // Feed defines model for Feed.
 type Feed struct {
@@ -5293,6 +5341,9 @@ type ServerInterface interface {
 	// PutRuleSetEntries Replace a rule set's entries in order; decisions change within seconds
 	// (PUT /api/rule-sets/{id}/entries)
 	PutRuleSetEntries(w http.ResponseWriter, r *http.Request, id string)
+	// CreateCaptchaKey Create a site key in the Cap next to Hashi (read from its cap.env) and store it with its secret
+	// (POST /api/security/captcha/key)
+	CreateCaptchaKey(w http.ResponseWriter, r *http.Request)
 	// GetCaptchaSettings How Hashi reaches Cap and the challenge service's name (06 §11)
 	// (GET /api/security/captcha/settings)
 	GetCaptchaSettings(w http.ResponseWriter, r *http.Request)
@@ -5374,6 +5425,9 @@ type ServerInterface interface {
 
 	// (PUT /api/settings/edge-sso)
 	PutEdgeSSOSettings(w http.ResponseWriter, r *http.Request)
+	// GetEngineSettings The abuse engine's thresholds, ban function, WAF default and feed timing (06 §10)
+	// (GET /api/settings/engine)
+	GetEngineSettings(w http.ResponseWriter, r *http.Request)
 
 	// (GET /api/settings/general)
 	GetGeneralSettings(w http.ResponseWriter, r *http.Request)
@@ -8058,6 +8112,20 @@ func (siw *ServerInterfaceWrapper) PutRuleSetEntries(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// CreateCaptchaKey operation middleware
+func (siw *ServerInterfaceWrapper) CreateCaptchaKey(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateCaptchaKey(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetCaptchaSettings operation middleware
 func (siw *ServerInterfaceWrapper) GetCaptchaSettings(w http.ResponseWriter, r *http.Request) {
 
@@ -8583,6 +8651,20 @@ func (siw *ServerInterfaceWrapper) PutEdgeSSOSettings(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PutEdgeSSOSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetEngineSettings operation middleware
+func (siw *ServerInterfaceWrapper) GetEngineSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetEngineSettings(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -9770,6 +9852,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/security/sso/providers/{id}", wrapper.UpdateSSOProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/security/captcha/settings", wrapper.GetCaptchaSettings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/security/captcha/settings", wrapper.PutCaptchaSettings)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/security/captcha/key", wrapper.CreateCaptchaKey)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/security/captcha/test", wrapper.TestCaptcha)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/security/geoip", wrapper.GetGeoIP)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/security/geoip", wrapper.PutGeoIP)
@@ -9848,6 +9931,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/settings/general", wrapper.PutGeneralSettings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings/security", wrapper.GetSecuritySettings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/settings/security", wrapper.PutSecuritySettings)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings/engine", wrapper.GetEngineSettings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings/appearance", wrapper.GetAppearanceSettings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/settings/appearance", wrapper.PutAppearanceSettings)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/pulse/{agentId}/heartbeat", wrapper.PulseHeartbeat)
@@ -14213,6 +14297,44 @@ func (response PutRuleSetEntriesdefaultApplicationProblemPlusJSONResponse) Visit
 	return err
 }
 
+type CreateCaptchaKeyRequestObject struct {
+}
+
+type CreateCaptchaKeyResponseObject interface {
+	VisitCreateCaptchaKeyResponse(w http.ResponseWriter) error
+}
+
+type CreateCaptchaKey200JSONResponse CaptchaSettings
+
+func (response CreateCaptchaKey200JSONResponse) VisitCreateCaptchaKeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateCaptchaKeydefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response CreateCaptchaKeydefaultApplicationProblemPlusJSONResponse) VisitCreateCaptchaKeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetCaptchaSettingsRequestObject struct {
 }
 
@@ -15240,6 +15362,44 @@ type PutEdgeSSOSettingsdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response PutEdgeSSOSettingsdefaultApplicationProblemPlusJSONResponse) VisitPutEdgeSSOSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEngineSettingsRequestObject struct {
+}
+
+type GetEngineSettingsResponseObject interface {
+	VisitGetEngineSettingsResponse(w http.ResponseWriter) error
+}
+
+type GetEngineSettings200JSONResponse EngineSettings
+
+func (response GetEngineSettings200JSONResponse) VisitGetEngineSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEngineSettingsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetEngineSettingsdefaultApplicationProblemPlusJSONResponse) VisitGetEngineSettingsResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -17998,6 +18158,9 @@ type StrictServerInterface interface {
 	// PutRuleSetEntries Replace a rule set's entries in order; decisions change within seconds
 	// (PUT /api/rule-sets/{id}/entries)
 	PutRuleSetEntries(ctx context.Context, request PutRuleSetEntriesRequestObject) (PutRuleSetEntriesResponseObject, error)
+	// CreateCaptchaKey Create a site key in the Cap next to Hashi (read from its cap.env) and store it with its secret
+	// (POST /api/security/captcha/key)
+	CreateCaptchaKey(ctx context.Context, request CreateCaptchaKeyRequestObject) (CreateCaptchaKeyResponseObject, error)
 	// GetCaptchaSettings How Hashi reaches Cap and the challenge service's name (06 §11)
 	// (GET /api/security/captcha/settings)
 	GetCaptchaSettings(ctx context.Context, request GetCaptchaSettingsRequestObject) (GetCaptchaSettingsResponseObject, error)
@@ -18079,6 +18242,9 @@ type StrictServerInterface interface {
 
 	// (PUT /api/settings/edge-sso)
 	PutEdgeSSOSettings(ctx context.Context, request PutEdgeSSOSettingsRequestObject) (PutEdgeSSOSettingsResponseObject, error)
+	// GetEngineSettings The abuse engine's thresholds, ban function, WAF default and feed timing (06 §10)
+	// (GET /api/settings/engine)
+	GetEngineSettings(ctx context.Context, request GetEngineSettingsRequestObject) (GetEngineSettingsResponseObject, error)
 
 	// (GET /api/settings/general)
 	GetGeneralSettings(ctx context.Context, request GetGeneralSettingsRequestObject) (GetGeneralSettingsResponseObject, error)
@@ -21375,6 +21541,30 @@ func (sh *strictHandler) PutRuleSetEntries(w http.ResponseWriter, r *http.Reques
 	}
 }
 
+// CreateCaptchaKey operation middleware
+func (sh *strictHandler) CreateCaptchaKey(w http.ResponseWriter, r *http.Request) {
+	var request CreateCaptchaKeyRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateCaptchaKey(ctx, request.(CreateCaptchaKeyRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateCaptchaKey")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateCaptchaKeyResponseObject); ok {
+		if err := validResponse.VisitCreateCaptchaKeyResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetCaptchaSettings operation middleware
 func (sh *strictHandler) GetCaptchaSettings(w http.ResponseWriter, r *http.Request) {
 	var request GetCaptchaSettingsRequestObject
@@ -22119,6 +22309,30 @@ func (sh *strictHandler) PutEdgeSSOSettings(w http.ResponseWriter, r *http.Reque
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(PutEdgeSSOSettingsResponseObject); ok {
 		if err := validResponse.VisitPutEdgeSSOSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetEngineSettings operation middleware
+func (sh *strictHandler) GetEngineSettings(w http.ResponseWriter, r *http.Request) {
+	var request GetEngineSettingsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetEngineSettings(ctx, request.(GetEngineSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetEngineSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetEngineSettingsResponseObject); ok {
+		if err := validResponse.VisitGetEngineSettingsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
