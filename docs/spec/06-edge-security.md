@@ -335,9 +335,13 @@ Coraza Traefik plugin with OWASP CRS, free, local, pinned version (verified to e
 | `enabled` | `SecRuleEngine On`, `SecRequestBodyAccess On` | also bodies; **not offered** until the plugin is fixed (below) |
 | `disabled` | no WAF middleware | |
 
-Per path, independent of the mode: **uploads** widens CRS's request policy (`tx.allowed_methods` with `PUT PATCH DELETE`
-and the WebDAV methods, `tx.allowed_request_content_type` with `application/octet-stream` and the other upload types),
-because CRS refuses these from the headers alone (rules 911100, 920420) even with body access off.
+CRS refuses methods and content types outside its policy from the headers alone (rules 911100, 920420), even with
+body access off. Hashi's base policy allows `GET HEAD POST OPTIONS PUT PATCH DELETE`, since ordinary APIs use them.
+Per service or path, **uploads** also allows the WebDAV methods (`PROPFIND PROPPATCH MKCOL COPY MOVE LOCK UNLOCK REPORT
+SEARCH`) and removes the content type check (920420); a path's uploads and exclusions add to the service's. System
+services (Hashi's own) get the default mode with uploads on and cannot be changed (invariant 10). The WAF middleware
+runs after forward auth, so Stage A rejects blocked and challenged addresses before any rule is evaluated. Proven on
+the real Traefik with the pinned plugin through plan and apply (`internal/traefik/integration_waf_test.go`).
 
 Decision 2026-11-02 (user): headers only. With the pinned plugin, body access breaks every request body above about
 160 KB (lost or `500`; captured, plugin issues #8 and #15), so `enabled` stays in the data model but the UI does not
