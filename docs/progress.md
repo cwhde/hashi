@@ -32,12 +32,14 @@ PR B contracts captured 2026-11-02 (local throwaway containers, nothing in the h
 allowed methods and content types, matches read from Traefik's general log. Spec 06 §9 and §6.2 updated; body checking
 waits for a fixed plugin (bugs 13).
 
-PR B, CAPTCHA, WAF, feeds:
-- [ ] Cap contract; challenge service, start/verify, clearance cookie; `pass_captcha` allowed on save
+PR B, WAF (split from CAPTCHA and feeds 2026-11-02: about 2,200 lines on its own):
 - [x] WAF: `headers_only` / `disabled` per service and path, *uploads* and rule exclusions, rendered into Traefik's files; matches counted from a tail of the general log. Found with a real Traefik: `experimental.plugins` downloads the plugin at every start and, without network, leaves every WAF router at 404, so Hashi installs the pinned plugin as local files (spec 04 §3). Real Traefik through plan and apply: SQL injection, PUT octet-stream and PROPFIND get 403; a 3 MB PUT and PROPFIND pass on an uploads path; the WAF-off path passes; one block per refused request
+
+PR C, CAPTCHA and feeds:
+- [ ] Cap settings (secret in the vault), challenge system service on its own domain, start/verify/status, clearance cookie; `pass_captcha` allowed on save; browsers redirected to the challenge page
 - [ ] Feeds: SSRF-safe fetcher, parsers per format, refresh job, preview; firewall block binding
 
-PR C, UI: Security dashboard, Counters, Challenge, Engine; service WAF tab; feed add; dynamic sets on the IP sets page.
+PR D, UI: Security dashboard, Counters, Challenge, Engine; service WAF tab; feed add; dynamic sets on the IP sets page.
 
 - [ ] Gate on the real edges (needs a Cap instance and the user's OK for each production change)
 
