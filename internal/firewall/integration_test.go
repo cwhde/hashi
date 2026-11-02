@@ -413,9 +413,24 @@ func TestIntegrationMeterStagesAndHostLinkBans(t *testing.T) {
 	fw.Connect(t, lanNet, l(2))
 	traefik := itest.RunOn(t, lanNet, l(10), []string{"--cap-add", "NET_ADMIN"}, stub,
 		"sh", "-c", "mkdir -p /www && echo entrypoint > /www/index.html && httpd -f -p 8443 -h /www")
-	bad := itest.RunOn(t, wanNet, w(3), nil, stub, "sleep", "3600")
+	bad := itest.RunOn(t, wanNet, w(3), []string{"--cap-add", "NET_ADMIN"}, stub, "sleep", "3600")
 	good := itest.RunOn(t, wanNet, w(4), nil, stub, "sleep", "3600")
 	traefik.Exec(t, "ip", "route", "replace", "default", "via", l(2))
+	// Same precondition as TestIntegrationDNATReachesTraefik: some Docker hosts (the CI runners) drop traffic routed
+	// between their bridges, and there this test cannot say anything about the kernel path.
+	bad.Exec(t, "ip", "route", "add", l(0)+"/24", "via", w(2))
+	routed := false
+	for range 10 {
+		if out, err := bad.Try("wget", "-qO-", "-T", "1", "http://"+l(10)+":8443/"); err == nil && strings.Contains(out, "entrypoint") {
+			routed = true
+			break
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	if !routed {
+		t.Skip("this Docker host drops traffic routed between its bridges; meters are proven on a local Docker and at the S10 gate")
+	}
+	bad.Exec(t, "ip", "route", "del", l(0)+"/24")
 
 	wan := strings.TrimSpace(fw.Exec(t, "sh", "-c", "ip -o -4 addr show | awk '/"+w(2)+"\\// {print $2}'"))
 	meters := DefaultMeters
