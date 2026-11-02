@@ -16,10 +16,10 @@ local Traefik container), Cap Standalone's verify API (throwaway local container
 
 PR A, engine:
 - [x] Contracts: `staging`/`dyn` element list, add with timeout, delete (dev target 108); recommended feed formats
-- [ ] Tables (dynamic entry state and hosts, address counters, security events, buckets, top addresses, host link) and the Security settings category (06 §10)
-- [ ] `internal/security`: `T_ban`, step-decay counters, dynamic entries with expiry, escalation (allowed addresses skipped)
-- [ ] Stage A in forward auth: A1 block guard, A2 rate window (SSO exempt, IPv6 per /64), A3 challenge, escalation; invariant 20 and stage-order tests
-- [ ] Host link per managed firewall host: drain staging, push `dyn`, reconcile every 5 min; meters on
+- [x] Tables (dynamic entry state and hosts, address counters, security events, buckets, top addresses, host link) and the engine settings category (06 §10; key `engine`, next to `edge_sso`)
+- [x] `internal/security`: `T_ban`, step-decay counters, dynamic entries with expiry, escalation (allowed addresses skipped)
+- [x] Stage A in forward auth: A1 block guard, A2 rate window (SSO exempt, IPv6 per /64), A3 challenge, escalation; invariant 20 and stage-order tests. Without CAPTCHA a challenge answers 429 (spec clarified)
+- [x] Host link per managed firewall host: drain staging, push `dyn`, reconcile every 5 min; meters on (rendered from the engine settings, so the next firewall plan per host adds the meter rules and waits for approval). Real kernel in the integration test: meter trip → staging → ban in `dyn4` with `T_ban` → dropped → unban; an allowed source is never staged
 - [ ] Access-log tail per Traefik host over SSH (cursor, rotation), telemetry buckets and events
 
 PR B, CAPTCHA, WAF, feeds:
