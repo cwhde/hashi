@@ -39,7 +39,7 @@ Every setting has a runtime consumer and a test proving it changes behaviour. Th
 | Traefik | config paths, log paths, ACME defaults, pinned version display, middleware editor options |
 | Firewall | port confirmation behaviour, NetBird default mode, default interface, routed-network behaviour, MSS clamping (allow/block and host access are IP set bindings on the Firewall page, not settings) |
 | Notifications | default provider/route, cooldowns |
-| Pulse | heartbeat interval, stale threshold |
+| Pulse | heartbeat interval, stale threshold, update agents automatically (default on, ADR 0003) |
 | Internal agent DNS | enabled, domain (reauth), IP mode, stale behaviour |
 | CAPTCHA | see 06-edge-security.md §11 |
 
