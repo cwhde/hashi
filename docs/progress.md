@@ -35,6 +35,8 @@ waits for a fixed plugin (bugs 13).
 PR B, WAF (split from CAPTCHA and feeds 2026-11-02: about 2,200 lines on its own):
 - [x] WAF: `headers_only` / `disabled` per service and path, *uploads* and rule exclusions, rendered into Traefik's files; matches counted from a tail of the general log. Found with a real Traefik: `experimental.plugins` downloads the plugin at every start and, without network, leaves every WAF router at 404, so Hashi installs the pinned plugin as local files (spec 04 §3). Real Traefik through plan and apply: SQL injection, PUT octet-stream and PROPFIND get 403; a 3 MB PUT and PROPFIND pass on an uploads path; the WAF-off path passes; one block per refused request
 
+PR B merged 2026-11-02 (#56, CI green; the check job needed one rerun: bug 10). Not deployed.
+
 PR C, CAPTCHA and feeds:
 - [ ] Cap settings (secret in the vault), challenge system service on its own domain, start/verify/status, clearance cookie; `pass_captcha` allowed on save; browsers redirected to the challenge page
 - [ ] Feeds: SSRF-safe fetcher, parsers per format, refresh job, preview; firewall block binding
