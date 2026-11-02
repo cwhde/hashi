@@ -61,3 +61,31 @@ ON CONFLICT (firewall_host_id) DO UPDATE SET state = excluded.state,
 
 -- name: GetFirewallHostLink :one
 SELECT * FROM firewall_host_link WHERE firewall_host_id = ?;
+
+-- name: GetAccessLogCursor :one
+SELECT * FROM access_log_cursors WHERE traefik_connection_id = ?;
+
+-- name: PutAccessLogCursor :exec
+INSERT INTO access_log_cursors (traefik_connection_id, inode, offset, lag_ms, last_read_at, error, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT (traefik_connection_id) DO UPDATE SET inode = excluded.inode, offset = excluded.offset,
+    lag_ms = excluded.lag_ms, last_read_at = COALESCE(excluded.last_read_at, access_log_cursors.last_read_at),
+    error = excluded.error, updated_at = excluded.updated_at;
+
+-- name: AddSecurityBucket :exec
+INSERT INTO security_buckets_1m (bucket_start, service_id, root_domain, traefik_connection_id, country, asn, decision,
+    status_class, path_prefix, request_count, denied_count, challenged_count, challenge_failed_count, banned_count)
+VALUES (?, ?, '', '', ?, ?, ?, '', ?, ?, ?, ?, ?, ?)
+ON CONFLICT DO UPDATE SET request_count = request_count + excluded.request_count,
+    denied_count = denied_count + excluded.denied_count, challenged_count = challenged_count + excluded.challenged_count,
+    challenge_failed_count = challenge_failed_count + excluded.challenge_failed_count,
+    banned_count = banned_count + excluded.banned_count;
+
+-- name: AddSecurityTop :exec
+INSERT INTO security_ip_top_1m (bucket_start, address, service_id, request_count, denied_count, challenged_count)
+VALUES (?, ?, ?, ?, ?, ?)
+ON CONFLICT DO UPDATE SET request_count = request_count + excluded.request_count,
+    denied_count = denied_count + excluded.denied_count, challenged_count = challenged_count + excluded.challenged_count;
+
+-- name: ListSecurityBuckets :many
+SELECT * FROM security_buckets_1m WHERE bucket_start >= ? ORDER BY bucket_start;

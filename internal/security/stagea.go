@@ -241,6 +241,9 @@ func (e *Engine) Sweep(ctx context.Context) (string, error) {
 		}
 	}
 	e.ev.flush(ctx)
+	if err := e.flushBuckets(ctx, now); err != nil {
+		return "", fmt.Errorf("store buckets: %w", err)
+	}
 	if ended == 0 {
 		return "", nil
 	}

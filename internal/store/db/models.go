@@ -8,6 +8,16 @@ import (
 	"database/sql"
 )
 
+type AccessLogCursor struct {
+	TraefikConnectionID string
+	Inode               int64
+	Offset              int64
+	LagMs               int64
+	LastReadAt          sql.NullInt64
+	Error               string
+	UpdatedAt           int64
+}
+
 type AcmeAccount struct {
 	ID                  string
 	Directory           string

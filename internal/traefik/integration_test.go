@@ -160,16 +160,45 @@ func TestIntegrationApplyVerifyFallback(t *testing.T) {
 	if out := c.Exec(t, "sh", "-c", "command -v logrotate"); !strings.Contains(out, "logrotate") {
 		t.Fatalf("logrotate not installed: %q", out)
 	}
-	request := func() {
-		_, _ = h.Run(ctx, "wget -qO- --no-check-certificate -T 5 https://127.0.0.1"+traefik.HealthPath+"/open", nil)
+	// 06 §6.2: the tail starts at the end, reads new lines, and across a rotation finishes the old file first.
+	follow := func(cur traefik.Cursor) ([]traefik.AccessLine, traefik.Cursor) {
+		t.Helper()
+		b, next, note, err := traefik.Follow(ctx, h, traefik.LogDir, cur)
+		if err != nil || note != "" {
+			t.Fatalf("follow: %v %s", err, note)
+		}
+		lines, bad := traefik.ParseAccessLines(b)
+		if bad != 0 {
+			t.Fatalf("%d lines that are not JSON", bad)
+		}
+		return lines, next
 	}
-	request()
+	// The health routes are answered by ping@internal, which Traefik does not log; a request no router matches is logged.
+	unrouted := func() {
+		_, _ = h.Run(ctx, "wget -qO- --no-check-certificate -T 5 https://127.0.0.1/hashi-tail-test", nil)
+	}
+	unrouted()
+	time.Sleep(500 * time.Millisecond)
+	_, cur := follow(traefik.Cursor{})
+	unrouted()
+	time.Sleep(500 * time.Millisecond)
+	lines, cur := follow(cur)
+	if len(lines) != 1 || lines[0].Path != "/hashi-tail-test" || !lines[0].Client.IsLoopback() || lines[0].Status != 404 {
+		t.Fatalf("tail before rotation: %+v", lines)
+	}
+	unrouted() // written to the file that is about to be renamed
+	time.Sleep(500 * time.Millisecond)
 	c.Exec(t, "sh", "-c", "logrotate -f /etc/logrotate.d/hashi-traefik")
-	request()
+	unrouted()
 	itest.WaitFor(t, 10*time.Second, "access log reopened after rotation", func() bool {
 		out := c.Exec(t, "sh", "-c", "ls /var/log/hashi/traefik/; test -s /var/log/hashi/traefik/access.log && echo REOPENED")
 		return strings.Contains(out, "REOPENED") && strings.Contains(out, "access.log-")
 	})
+	time.Sleep(500 * time.Millisecond)
+	lines, next := follow(cur)
+	if len(lines) != 2 || next.Inode == cur.Inode {
+		t.Fatalf("tail across rotation: %d lines, cursor %+v → %+v", len(lines), cur, next)
+	}
 	// The general log too (S5 gate: after a rotation Traefik kept writing into the renamed traefik.log-<date>).
 	itest.WaitFor(t, 10*time.Second, "general log present after rotation", func() bool {
 		out := c.Exec(t, "sh", "-c", "test -e /var/log/hashi/traefik/traefik.log && echo PRESENT || true")

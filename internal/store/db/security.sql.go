@@ -10,6 +10,47 @@ import (
 	"database/sql"
 )
 
+const addSecurityBucket = `-- name: AddSecurityBucket :exec
+INSERT INTO security_buckets_1m (bucket_start, service_id, root_domain, traefik_connection_id, country, asn, decision,
+    status_class, path_prefix, request_count, denied_count, challenged_count, challenge_failed_count, banned_count)
+VALUES (?, ?, '', '', ?, ?, ?, '', ?, ?, ?, ?, ?, ?)
+ON CONFLICT DO UPDATE SET request_count = request_count + excluded.request_count,
+    denied_count = denied_count + excluded.denied_count, challenged_count = challenged_count + excluded.challenged_count,
+    challenge_failed_count = challenge_failed_count + excluded.challenge_failed_count,
+    banned_count = banned_count + excluded.banned_count
+`
+
+type AddSecurityBucketParams struct {
+	BucketStart          int64
+	ServiceID            string
+	Country              string
+	Asn                  int64
+	Decision             string
+	PathPrefix           string
+	RequestCount         int64
+	DeniedCount          int64
+	ChallengedCount      int64
+	ChallengeFailedCount int64
+	BannedCount          int64
+}
+
+func (q *Queries) AddSecurityBucket(ctx context.Context, arg AddSecurityBucketParams) error {
+	_, err := q.db.ExecContext(ctx, addSecurityBucket,
+		arg.BucketStart,
+		arg.ServiceID,
+		arg.Country,
+		arg.Asn,
+		arg.Decision,
+		arg.PathPrefix,
+		arg.RequestCount,
+		arg.DeniedCount,
+		arg.ChallengedCount,
+		arg.ChallengeFailedCount,
+		arg.BannedCount,
+	)
+	return err
+}
+
 const addSecurityEventSuppressed = `-- name: AddSecurityEventSuppressed :exec
 UPDATE security_events SET suppressed = suppressed + ? WHERE id = ?
 `
@@ -24,6 +65,34 @@ func (q *Queries) AddSecurityEventSuppressed(ctx context.Context, arg AddSecurit
 	return err
 }
 
+const addSecurityTop = `-- name: AddSecurityTop :exec
+INSERT INTO security_ip_top_1m (bucket_start, address, service_id, request_count, denied_count, challenged_count)
+VALUES (?, ?, ?, ?, ?, ?)
+ON CONFLICT DO UPDATE SET request_count = request_count + excluded.request_count,
+    denied_count = denied_count + excluded.denied_count, challenged_count = challenged_count + excluded.challenged_count
+`
+
+type AddSecurityTopParams struct {
+	BucketStart     int64
+	Address         string
+	ServiceID       string
+	RequestCount    int64
+	DeniedCount     int64
+	ChallengedCount int64
+}
+
+func (q *Queries) AddSecurityTop(ctx context.Context, arg AddSecurityTopParams) error {
+	_, err := q.db.ExecContext(ctx, addSecurityTop,
+		arg.BucketStart,
+		arg.Address,
+		arg.ServiceID,
+		arg.RequestCount,
+		arg.DeniedCount,
+		arg.ChallengedCount,
+	)
+	return err
+}
+
 const deleteDynamicElement = `-- name: DeleteDynamicElement :exec
 DELETE FROM ip_set_elements WHERE id = ? AND ip_set_id IN ('sys-dynamic-challenge', 'sys-dynamic-blocked')
 `
@@ -31,6 +100,25 @@ DELETE FROM ip_set_elements WHERE id = ? AND ip_set_id IN ('sys-dynamic-challeng
 func (q *Queries) DeleteDynamicElement(ctx context.Context, id string) error {
 	_, err := q.db.ExecContext(ctx, deleteDynamicElement, id)
 	return err
+}
+
+const getAccessLogCursor = `-- name: GetAccessLogCursor :one
+SELECT traefik_connection_id, inode, "offset", lag_ms, last_read_at, error, updated_at FROM access_log_cursors WHERE traefik_connection_id = ?
+`
+
+func (q *Queries) GetAccessLogCursor(ctx context.Context, traefikConnectionID string) (AccessLogCursor, error) {
+	row := q.db.QueryRowContext(ctx, getAccessLogCursor, traefikConnectionID)
+	var i AccessLogCursor
+	err := row.Scan(
+		&i.TraefikConnectionID,
+		&i.Inode,
+		&i.Offset,
+		&i.LagMs,
+		&i.LastReadAt,
+		&i.Error,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const getAddressCounters = `-- name: GetAddressCounters :one
@@ -301,6 +389,48 @@ func (q *Queries) ListManagedFirewallHostIDs(ctx context.Context) ([]string, err
 	return items, nil
 }
 
+const listSecurityBuckets = `-- name: ListSecurityBuckets :many
+SELECT bucket_start, service_id, root_domain, traefik_connection_id, country, asn, decision, status_class, path_prefix, request_count, denied_count, challenged_count, challenge_failed_count, banned_count FROM security_buckets_1m WHERE bucket_start >= ? ORDER BY bucket_start
+`
+
+func (q *Queries) ListSecurityBuckets(ctx context.Context, bucketStart int64) ([]SecurityBuckets1m, error) {
+	rows, err := q.db.QueryContext(ctx, listSecurityBuckets, bucketStart)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SecurityBuckets1m{}
+	for rows.Next() {
+		var i SecurityBuckets1m
+		if err := rows.Scan(
+			&i.BucketStart,
+			&i.ServiceID,
+			&i.RootDomain,
+			&i.TraefikConnectionID,
+			&i.Country,
+			&i.Asn,
+			&i.Decision,
+			&i.StatusClass,
+			&i.PathPrefix,
+			&i.RequestCount,
+			&i.DeniedCount,
+			&i.ChallengedCount,
+			&i.ChallengeFailedCount,
+			&i.BannedCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSecurityEventsForAddress = `-- name: ListSecurityEventsForAddress :many
 SELECT id, occurred_at, address, service_id, firewall_host_id, traefik_connection_id, event_type, severity, decision, source, reason, request_method, request_path, status_code, user_agent_hash, request_id, suppressed, metadata_json FROM security_events WHERE address = ? ORDER BY occurred_at DESC LIMIT ?
 `
@@ -350,6 +480,37 @@ func (q *Queries) ListSecurityEventsForAddress(ctx context.Context, arg ListSecu
 		return nil, err
 	}
 	return items, nil
+}
+
+const putAccessLogCursor = `-- name: PutAccessLogCursor :exec
+INSERT INTO access_log_cursors (traefik_connection_id, inode, offset, lag_ms, last_read_at, error, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT (traefik_connection_id) DO UPDATE SET inode = excluded.inode, offset = excluded.offset,
+    lag_ms = excluded.lag_ms, last_read_at = COALESCE(excluded.last_read_at, access_log_cursors.last_read_at),
+    error = excluded.error, updated_at = excluded.updated_at
+`
+
+type PutAccessLogCursorParams struct {
+	TraefikConnectionID string
+	Inode               int64
+	Offset              int64
+	LagMs               int64
+	LastReadAt          sql.NullInt64
+	Error               string
+	UpdatedAt           int64
+}
+
+func (q *Queries) PutAccessLogCursor(ctx context.Context, arg PutAccessLogCursorParams) error {
+	_, err := q.db.ExecContext(ctx, putAccessLogCursor,
+		arg.TraefikConnectionID,
+		arg.Inode,
+		arg.Offset,
+		arg.LagMs,
+		arg.LastReadAt,
+		arg.Error,
+		arg.UpdatedAt,
+	)
+	return err
 }
 
 const putFirewallHostLink = `-- name: PutFirewallHostLink :exec

@@ -64,6 +64,15 @@ func (s *Server) edgeForward(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Every decision is counted per minute for the dashboard (06 §6.1).
+	decision := security.DecisionDeny
+	if s.Security != nil {
+		defer func() {
+			s.Security.Record(security.Hit{At: time.Now(), Addr: ri.ip, ServiceID: d.ServiceID, Decision: decision,
+				Path: edge.NormalizePath(uri)})
+		}()
+	}
+
 	// Stage A runs before the service's rules, for every service (06 §3).
 	if s.Security != nil {
 		o, err := s.Security.StageA(r.Context(), security.Request{Addr: ri.ip, SSO: sess != nil,
@@ -73,14 +82,17 @@ func (s *Server) edgeForward(w http.ResponseWriter, r *http.Request) {
 		}
 		switch o.Step {
 		case security.Blocked, security.BannedNow:
+			decision = security.DecisionBlocked
 			edgePage(w, http.StatusForbidden, "Access denied.")
 			return
 		case security.Challenged:
+			decision = security.DecisionChallenge
 			s.challenge(w, r)
 			return
 		}
 	}
 	allow := func() {
+		decision = security.DecisionAllow
 		if sess != nil {
 			w.Header().Set(traefik.HeaderUser, sess.Username)
 		}
@@ -104,8 +116,10 @@ func (s *Server) edgeForward(w http.ResponseWriter, r *http.Request) {
 		case sess != nil && sess.ProviderID == want:
 			edgePage(w, http.StatusForbidden, "Your account is not allowed here.")
 		case browserRequest(r):
+			decision = security.DecisionAuth
 			s.redirectToLogin(w, r, host, uri, provider)
 		default:
+			decision = security.DecisionAuth
 			edgePage(w, http.StatusUnauthorized, "Authentication required.")
 		}
 	default: // deny, and anything this build does not know

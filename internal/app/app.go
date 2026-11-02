@@ -342,6 +342,8 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	go abuse.Run(ctx)
 	if !devBuild {
 		go link.Run(ctx)
+		// Access-log tail per installed Traefik (06 §6.2); the WAF's matches arrive through it.
+		go traefik.NewTailer(traefikMgr, log.With("component", "accesslog"), nil).Run(ctx)
 	}
 	cfgSettings.Subscribe(func(c settings.Category) {
 		if _, ok := c.(settings.Engine); ok { // meter thresholds re-render pre_meter through a plan (05 §3.3)

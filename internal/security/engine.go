@@ -79,7 +79,8 @@ type Engine struct {
 	banned     map[netip.Prefix]*Entry
 	rate, waf  map[netip.Prefix]*window
 
-	ev *events
+	ev      *events
+	buckets *buckets
 	// changed is told after a dynamic set changed: the IP set recompile (rules may use these sets) and the host link.
 	changed atomic.Pointer[func()]
 }
@@ -91,7 +92,7 @@ func NewEngine(st *store.Store, log *slog.Logger, now func() time.Time) *Engine 
 	}
 	e := &Engine{st: st, log: log, now: now, challenged: map[netip.Prefix]*Entry{}, banned: map[netip.Prefix]*Entry{},
 		rate: map[netip.Prefix]*window{}, waf: map[netip.Prefix]*window{}}
-	e.ev = newEvents(st, log, now)
+	e.ev, e.buckets = newEvents(st, log, now), newBuckets()
 	cfg := settings.DefaultOf[settings.Engine]()
 	e.cfg.Store(&cfg)
 	no := func(netip.Addr) bool { return false }

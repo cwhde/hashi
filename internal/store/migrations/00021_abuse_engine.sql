@@ -122,7 +122,19 @@ CREATE TABLE firewall_host_link (
     updated_at       INTEGER NOT NULL
 ) STRICT;
 
+-- Where the access-log tail of each Traefik host stands (06 §6.2): inode and byte offset of the next unread line.
+CREATE TABLE access_log_cursors (
+    traefik_connection_id TEXT PRIMARY KEY REFERENCES traefik_connections (id) ON DELETE CASCADE,
+    inode                 INTEGER NOT NULL,
+    offset                INTEGER NOT NULL,
+    lag_ms                INTEGER NOT NULL DEFAULT 0,
+    last_read_at          INTEGER,
+    error                 TEXT NOT NULL DEFAULT '',
+    updated_at            INTEGER NOT NULL
+) STRICT;
+
 -- +goose Down
+DROP TABLE access_log_cursors;
 DROP TABLE firewall_host_link;
 DROP TABLE security_ip_top_1m;
 DROP TABLE security_buckets_1m;

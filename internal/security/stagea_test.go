@@ -269,3 +269,39 @@ func TestChallengeExpiresAndLoadRestores(t *testing.T) {
 		t.Fatalf("expired challenge still enforced: %+v", o)
 	}
 }
+
+// Closed minutes are written without addresses; path prefixes are cut at the first segment and capped per service.
+func TestBucketsFlushClosedMinutes(t *testing.T) {
+	ctx := context.Background()
+	e, c := testEngine(t)
+	at := c.now()
+	e.Record(Hit{At: at, Addr: bad, ServiceID: "", Decision: DecisionAllow, Path: "/api/v1/x"})
+	e.Record(Hit{At: at, Addr: bad, ServiceID: "", Decision: DecisionAllow, Path: "/api/v2"})
+	e.Record(Hit{At: at, Addr: bad, ServiceID: "", Decision: DecisionChallenge, Path: "/"})
+	if _, err := e.Sweep(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if rows, _ := e.st.R.ListSecurityBuckets(ctx, 0); len(rows) != 0 {
+		t.Fatalf("open minute written: %+v", rows)
+	}
+	c.add(time.Minute)
+	if _, err := e.Sweep(ctx); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := e.st.R.ListSecurityBuckets(ctx, 0)
+	if err != nil || len(rows) != 2 {
+		t.Fatalf("buckets %+v %v", rows, err)
+	}
+	for _, r := range rows {
+		switch r.Decision {
+		case DecisionAllow:
+			if r.PathPrefix != "/api" || r.RequestCount != 2 {
+				t.Fatalf("allow bucket %+v", r)
+			}
+		case DecisionChallenge:
+			if r.ChallengedCount != 1 {
+				t.Fatalf("challenge bucket %+v", r)
+			}
+		}
+	}
+}
