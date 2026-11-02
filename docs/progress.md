@@ -41,6 +41,8 @@ PR C, CAPTCHA and feeds:
 - [x] Cap next to Hashi in its compose project (optional profile; the user decided 2026-11-02), started locally from that file: Cap serves the pinned widget and WASM itself. Cap settings (secret in the vault), challenge system service on its own name (only the flow's paths pass), start/verify/status, clearance cookie; `pass_captcha` allowed on save, never on Cap's own services; challenged browsers go to the challenge page. Local: the real widget loads on the page with no third-party request and no console error (screenshot sent); solving it is the user's step at the gate
 - [x] Feeds: SSRF-safe fetcher (URL, redirects and the dialed address checked), parsers per format, reserved ranges rejected, refresh job, stale expiry, preview, run history; binding uses the existing IP set bindings. Local against the real lists (2026-11-02): all five recommended feeds parse with no malformed line (Feodo 1, Spamhaus DROP 1,752, DROPv6 89, DShield 20, FireHOL Level 1 4,636 kept and 13 private or reserved rejected)
 
+PR C merged 2026-11-02 (#57, CI green). Not deployed.
+
 PR D, UI: Security dashboard, Counters, Challenge, Engine; service WAF tab; feed add; dynamic sets on the IP sets page.
 
 - [ ] Gate on the real edges (needs a Cap instance and the user's OK for each production change)
