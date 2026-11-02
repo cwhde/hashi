@@ -36,4 +36,16 @@ run deploy test B
 run deploy test B   # redeploy of the same tag must keep A as rollback target
 run rollback test
 [[ $(tag) == A ]] || { echo "FAIL: rollback after redeploy went to $(tag), want A"; exit 1; }
+[[ -f $work/host/app/cap.env && ! -s $work/host/app/cap.env ]] || { echo "FAIL: without Cap, cap.env must exist and be empty"; exit 1; }
+grep -q COMPOSE_PROFILES "$work/host/app/.env" && { echo "FAIL: Cap profile on without DEPLOY_CAP_PORT"; exit 1; }
+
+# With Cap: its dashboard password is created once (64 hex characters, owner-only) and kept on the next deploy.
+echo "DEPLOY_CAP_PORT=4" >> "$work/deploy/targets/test.env"
+run deploy test C
+key=$(cat "$work/host/app/cap.env")
+[[ $key =~ ^ADMIN_KEY=[0-9a-f]{64}$ ]] || { echo "FAIL: cap.env is not a fresh key"; exit 1; }
+[[ $(stat -c %a "$work/host/app/cap.env" 2>/dev/null || stat -f %Lp "$work/host/app/cap.env") == 600 ]] || { echo "FAIL: cap.env mode"; exit 1; }
+grep -qx COMPOSE_PROFILES=cap "$work/host/app/.env" && grep -qx HASHI_CAP_PORT=4 "$work/host/app/.env" || { echo "FAIL: .env without the Cap profile"; cat "$work/host/app/.env"; exit 1; }
+run deploy test C
+[[ $(cat "$work/host/app/cap.env") == "$key" ]] || { echo "FAIL: redeploy replaced the Cap key"; exit 1; }
 echo "deploy rollback test: ok"

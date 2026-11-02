@@ -21,6 +21,43 @@ services:
       - no-new-privileges:true
     cap_drop: [ALL]
 
+  # CAPTCHA (06 §11), optional: compose profile `cap`, set by `make deploy` when the target has DEPLOY_CAP_PORT. Edges reach
+  # Cap's public challenge paths on HASHI_CAP_PORT; Hashi verifies tokens over this network at http://cap:3000.
+  cap:
+    image: tiago2/cap:3.1.15
+    container_name: cap
+    profiles: [cap]
+    restart: unless-stopped
+    ports:
+      - "${HASHI_CAP_PORT:-3343}:3000"
+    env_file: [cap.env] # ADMIN_KEY, the dashboard password: created once on the host, never in the repo
+    environment:
+      REDIS_URL: redis://cap-valkey:6379
+      ENABLE_ASSETS_SERVER: "true" # the widget and WASM come from Cap itself, not from a CDN in the visitor's browser
+      WIDGET_VERSION: "0.1.58"
+      WASM_VERSION: "0.0.8"
+      RATELIMIT_IP_HEADER: X-Real-Ip # set by Traefik to the client address
+    depends_on:
+      cap-valkey:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+  cap-valkey:
+    image: valkey/valkey:9.0.0-alpine
+    container_name: cap-valkey
+    profiles: [cap]
+    restart: unless-stopped
+    command: valkey-server --save 60 1 --loglevel warning --maxmemory-policy noeviction
+    volumes:
+      - ${HASHI_CAP_DATA_DIR:-./cap-data}:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    security_opt:
+      - no-new-privileges:true
+
 # 02-setup-auth.md §5.2: the master key never lives in the image, the repo or the data volume. Create it once next to
 # this file (`hashi keygen`), owned by uid 65532, mode 0400. Back it up in a password manager.
 secrets:

@@ -43,10 +43,20 @@ up() { # write compose + .env, pull, start
   # The master key is created once on the host by the operator (never by this script, never in the repo).
   on_host "test -s '$DEPLOY_DIR/master.key'" || { echo "missing $DEPLOY_DIR/master.key on the host:" \
     "create it once with \`docker run --rm git.juzo.io/juzo/hashi:$t keygen\`, owner 65532, mode 0400"; exit 1; }
+  # Cap (06 §11) is optional: with DEPLOY_CAP_PORT set, its dashboard password is created once on the host (random, never
+  # printed) and the `cap` profile is switched on. Without it, cap.env stays an empty file so compose can parse the project.
+  local cap=""
+  if [[ -n ${DEPLOY_CAP_PORT:-} ]]; then
+    cap="COMPOSE_PROFILES=cap\nHASHI_CAP_PORT=$DEPLOY_CAP_PORT\n"
+    on_host "cd '$DEPLOY_DIR' && { grep -q '^ADMIN_KEY=.\{12,\}' cap.env 2>/dev/null || \
+      { umask 077 && printf 'ADMIN_KEY=%s\n' \"\$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')\" > cap.env; }; } && chmod 600 cap.env"
+  else
+    on_host "cd '$DEPLOY_DIR' && { [ -e cap.env ] || { umask 077 && : > cap.env; }; }"
+  fi
   on_host "cd '$DEPLOY_DIR' && mv compose.yaml.new compose.yaml && chmod 600 compose.yaml \
     && cur=\$( (grep -E '^HASHI_TAG=' .env 2>/dev/null || true) | cut -d= -f2) \
     && { [ -z \"\$cur\" ] || [ \"\$cur\" = '$t' ] || echo \"\$cur\" > .previous-tag; } \
-    && printf 'HASHI_TAG=%s\nHASHI_ADMIN_PORT=%s\nHASHI_PUBLIC_APPS_PORT=%s\nHASHI_PUBLIC_STATUS_PORT=%s\nHASHI_DATA_DIR=%s\n' \
+    && printf 'HASHI_TAG=%s\nHASHI_ADMIN_PORT=%s\nHASHI_PUBLIC_APPS_PORT=%s\nHASHI_PUBLIC_STATUS_PORT=%s\nHASHI_DATA_DIR=%s\n$cap' \
        '$t' '$DEPLOY_ADMIN_PORT' '$DEPLOY_PUBLIC_APPS_PORT' '$DEPLOY_PUBLIC_STATUS_PORT' '$DEPLOY_DATA_DIR' > .env && chmod 600 .env \
     && docker compose pull --quiet && docker compose up -d --remove-orphans && docker compose ps"
 }
