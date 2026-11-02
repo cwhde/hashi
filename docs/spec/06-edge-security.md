@@ -107,6 +107,9 @@ If the address is in `dynamic-challenge`:
 | Any other request | `f ← f + 1`. If `f < F_max`: browser → `302` to the challenge page; API → `429 challenge_required`. If `f ≥ F_max`: escalate (§3.4), `403` |
 
 Requests to the challenge flow itself (challenge page, its assets, verify) never count as failures and stay reachable.
+The request that trips A2 is answered with the challenge and is not a failure itself. Without CAPTCHA (it is optional,
+invariant 11) there is nothing to solve: browsers and API clients both get `429` `{"error":"challenge_required"}` until
+the entry expires, and unsolved requests still count towards `F_max`.
 A3 runs before authentication: someone flooding an SSO login is stopped by a CAPTCHA before reaching the IdP.
 
 Browser vs API: `Accept` contains `text/html` and method is GET/HEAD → browser redirect to
