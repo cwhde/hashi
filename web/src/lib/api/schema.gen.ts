@@ -2000,6 +2000,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/services/{id}/waf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The service's WAF mode, uploads, rule exclusions and paths (06 §9) */
+        get: operations["getServiceWAF"];
+        /** Replace a user service's WAF configuration (system services keep the default with uploads on) */
+        put: operations["setServiceWAF"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/traefik/plan": {
         parameters: {
             query?: never;
@@ -3807,6 +3825,42 @@ export interface components {
         };
         ServiceSaveResult: {
             service: components["schemas"]["Service"];
+            plans: components["schemas"]["SyncPlan"][];
+            certificate_pending: boolean;
+        };
+        /**
+         * @description headers_only checks addresses, headers, cookies and query strings; bodies are not checked until the plugin is fixed (06 §9)
+         * @enum {string}
+         */
+        WAFMode: "headers_only" | "disabled";
+        ServiceWAFPath: {
+            /** @description Kept across saves; empty for a new path */
+            id?: string;
+            /** @enum {string} */
+            match: "prefix" | "exact";
+            path: string;
+            /** @description Absent: the service's mode */
+            mode?: components["schemas"]["WAFMode"];
+            /** @description Allows WebDAV methods and any content type (adds to the service's) */
+            uploads?: boolean;
+            /** @description CRS rule IDs not applied (adds to the service's) */
+            exclusions?: number[];
+        };
+        ServiceWAF: {
+            /** @description Absent: waf_default_mode */
+            mode?: components["schemas"]["WAFMode"];
+            uploads?: boolean;
+            exclusions?: number[];
+            paths?: components["schemas"]["ServiceWAFPath"][];
+        };
+        ServiceWAFView: components["schemas"]["ServiceWAF"] & {
+            /** @description waf_default_mode from the engine settings */
+            default_mode: string;
+            /** @description False for system and TCP/UDP services */
+            editable: boolean;
+        };
+        ServiceWAFSaveResult: {
+            waf: components["schemas"]["ServiceWAFView"];
             plans: components["schemas"]["SyncPlan"][];
             certificate_pending: boolean;
         };
@@ -7662,6 +7716,56 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ServiceEffective"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getServiceWAF: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description WAF configuration with the default it falls back to */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceWAFView"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    setServiceWAF: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServiceWAF"];
+            };
+        };
+        responses: {
+            /** @description Saved, with the Traefik plans it caused */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceWAFSaveResult"];
                 };
             };
             default: components["responses"]["Problem"];

@@ -63,12 +63,12 @@ ON CONFLICT (firewall_host_id) DO UPDATE SET state = excluded.state,
 SELECT * FROM firewall_host_link WHERE firewall_host_id = ?;
 
 -- name: GetAccessLogCursor :one
-SELECT * FROM access_log_cursors WHERE traefik_connection_id = ?;
+SELECT * FROM access_log_cursors WHERE traefik_connection_id = ? AND file = ?;
 
 -- name: PutAccessLogCursor :exec
-INSERT INTO access_log_cursors (traefik_connection_id, inode, offset, lag_ms, last_read_at, error, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT (traefik_connection_id) DO UPDATE SET inode = excluded.inode, offset = excluded.offset,
+INSERT INTO access_log_cursors (traefik_connection_id, file, inode, offset, lag_ms, last_read_at, error, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT (traefik_connection_id, file) DO UPDATE SET inode = excluded.inode, offset = excluded.offset,
     lag_ms = excluded.lag_ms, last_read_at = COALESCE(excluded.last_read_at, access_log_cursors.last_read_at),
     error = excluded.error, updated_at = excluded.updated_at;
 

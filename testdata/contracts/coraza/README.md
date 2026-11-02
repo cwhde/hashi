@@ -26,3 +26,15 @@ Second try (same day): `SecRequestBodyInMemoryLimit 13107200` in `enabled` mode 
 `500` with a broken pipe at the upstream, so large bodies stay broken there. In `headers_only`, widening
 `tx.allowed_methods` (rule 900200) lets `PROPFIND` through to the upstream; content types are matched against a list
 (`|*/*|` is no wildcard), so 920420 still refuses `application/octet-stream` until it is listed or excluded.
+
+Third try, plugin loading (`plugin_load.txt`, `plugin_traefik.yml`):
+
+6. **`experimental.plugins` downloads at every start.** Traefik clears `plugins-storage/` in its working directory and
+   fetches the plugin from plugins.traefik.io on each start, even with an earlier copy. Without network every router
+   using the middleware is `disabled` (API `status`, `error`) and answers 404; other routers and `/ping` stay fine, so a
+   ping-only health check misses it.
+7. **`experimental.localPlugins` needs no network.** The catalog zip (same bytes as the GitHub release asset) unpacked
+   to `<working directory>/plugins-local/src/<moduleName>/` loads offline, with the full CRS, from any working directory.
+8. Only lines with `Access denied` are blocking decisions (anomaly score evaluation, 949110); the `Warning` lines before
+   them are single rule contributions, also for harmless requests (e.g. 920350 for a numeric `Host`). All lines of one
+   request share `unique_id`.

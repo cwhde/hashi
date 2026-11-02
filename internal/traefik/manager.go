@@ -79,7 +79,9 @@ type Manager struct {
 	audit   *audit.Log
 	connect Connector
 	binary  BinarySource
-	now     func() time.Time
+	// plugin returns the verified WAF plugin files (DownloadPlugin, kept after the first success).
+	plugin func(ctx context.Context) (map[string][]byte, error)
+	now    func() time.Time
 	// pingTimeout overrides PingTimeout (tests).
 	pingTimeout time.Duration
 	// tlsDial reaches an edge's websecure port for the certificate check; tlsTimeout bounds the wait for Traefik to
@@ -184,6 +186,9 @@ func (m *Manager) UseFakes(connect Connector, binary BinarySource,
 	m.connect, m.binary, m.scan, m.tlsDial = connect, binary, scan, tlsDial
 }
 
+// UsePlugin replaces the WAF plugin download (tests and the dev build).
+func (m *Manager) UsePlugin(f func(ctx context.Context) (map[string][]byte, error)) { m.plugin = f }
+
 // ScanHostKey reads the host's SSH key for the admin to compare with the host before Hashi pins it.
 func (m *Manager) ScanHostKey(ctx context.Context, host string, port int) (sshx.HostKey, error) {
 	return m.scan(ctx, sshx.Addr(host, port), 10*time.Second)
@@ -191,7 +196,8 @@ func (m *Manager) ScanHostKey(ctx context.Context, host string, port int) (sshx.
 
 // NewManager returns the Traefik manager.
 func NewManager(st *store.Store, v *vault.Vault, a *audit.Log, connect Connector, binary BinarySource) *Manager {
-	return &Manager{st: st, vault: v, audit: a, connect: connect, binary: binary, now: time.Now, tlsTimeout: 30 * time.Second, scan: sshx.Scan,
+	return &Manager{st: st, vault: v, audit: a, connect: connect, binary: binary, plugin: cachedPlugin(), now: time.Now,
+		tlsTimeout: 30 * time.Second, scan: sshx.Scan,
 		tlsDial: func(ctx context.Context, addr string) (net.Conn, error) {
 			var d net.Dialer
 			return d.DialContext(ctx, "tcp", addr)
@@ -412,8 +418,12 @@ func (m *Manager) desired(ctx context.Context, connID string) (db.TraefikConnect
 		return row, Desired{}, fmt.Errorf("edge token: %w", err)
 	}
 	paths := Paths{Binary: row.TraefikBinary, ConfigDir: row.ConfigDir}
+	eng, err := settings.Get[settings.Engine](ctx, m.st.R)
+	if err != nil {
+		return row, Desired{}, err
+	}
 	opts := Options{Paths: paths, APIPort: int(row.ApiPort), ForwardAuthPort: int(row.ApiPort) + 1, HashiURL: hashiURL, Certs: certs,
-		Services: svcs, EdgeToken: edge}
+		Services: svcs, EdgeToken: edge, WAFDefault: eng.WAFDefaultMode}
 	files, err := Render(opts)
 	if err != nil {
 		return row, Desired{}, err
@@ -425,6 +435,7 @@ func (m *Manager) desired(ctx context.Context, connID string) (db.TraefikConnect
 	d := Desired{Paths: paths, APIPort: opts.APIPort, Files: files, Service: svc, Backup: disc.pendingBackup(),
 		PingTimeout: m.pingTimeout, Certs: certs, PackageManager: probe.PackageManager, Init: probe.Init}
 	d.Binary = func(ctx context.Context) ([]byte, error) { return m.binary(ctx, probe.Arch) }
+	d.Plugin = m.plugin
 	return row, d, nil
 }
 

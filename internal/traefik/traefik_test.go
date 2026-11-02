@@ -385,7 +385,7 @@ func TestRouteKindOverridesService(t *testing.T) {
 			{ID: "A", Enabled: true, Kind: services.KindH2C, PathMatch: services.MatchPrefix, PathValue: "/m", Priority: 1, Targets: []services.Target{{Address: "192.0.2.1", Port: 80}}},
 			{ID: "B", Enabled: true, PathMatch: services.MatchPrefix, PathValue: "/w", Priority: 2, Targets: []services.Target{{Address: "192.0.2.1", Port: 80}}},
 		}}
-	b, err := EffectiveYAML(s)
+	b, err := EffectiveYAML(s, "")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -163,7 +163,7 @@ func TestIntegrationApplyVerifyFallback(t *testing.T) {
 	// 06 §6.2: the tail starts at the end, reads new lines, and across a rotation finishes the old file first.
 	follow := func(cur traefik.Cursor) ([]traefik.AccessLine, traefik.Cursor) {
 		t.Helper()
-		b, next, note, err := traefik.Follow(ctx, h, traefik.LogDir, cur)
+		b, next, note, err := traefik.Follow(ctx, h, traefik.LogDir, traefik.AccessLogFile, cur)
 		if err != nil || note != "" {
 			t.Fatalf("follow: %v %s", err, note)
 		}

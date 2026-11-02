@@ -37,6 +37,8 @@ func ServiceFor(init string, paths Paths) (Service, error) {
 			"",
 			`command="` + paths.Binary + `"`,
 			`command_args="--configFile=` + paths.Static() + `"`,
+			// Local plugins load from <working directory>/plugins-local (06 §9).
+			`directory="` + StateDir + `"`,
 			"",
 			"healthcheck_timer=30",
 			"",
@@ -66,6 +68,7 @@ func ServiceFor(init string, paths Paths) (Service, error) {
 			"",
 			"[Service]",
 			"ExecStart=" + run,
+			"WorkingDirectory=" + StateDir,
 			"Restart=on-failure",
 			"RestartSec=2",
 			"LimitNOFILE=1048576",

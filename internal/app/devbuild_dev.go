@@ -74,6 +74,7 @@ func devEdge(cfg Config, tm *traefik.Manager, cm *certs.Manager) error {
 		return err
 	}
 	tm.UseFakes(edge.Connect, edge.Binary, edge.Scan, edge.DialTLS)
+	tm.UsePlugin(edge.Plugin)
 	ca, err := certstest.NewCA()
 	if err != nil {
 		return err

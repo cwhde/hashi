@@ -29,7 +29,7 @@ func (q *Queries) DeleteServiceRoutes(ctx context.Context, serviceID string) err
 }
 
 const getService = `-- name: GetService :one
-SELECT id, name, slug, kind, domain_mode, host_name, enabled, origin, owner_feature, target_address, target_port, tls_skip_verify, tls_server_name, tls_min_version, advanced_routes, dashboard_visible, monitoring_visible, adguard_rewrite, created_at, updated_at, target_set_id, entry_host_id, public_port, proxy_protocol FROM services WHERE id = ?
+SELECT id, name, slug, kind, domain_mode, host_name, enabled, origin, owner_feature, target_address, target_port, tls_skip_verify, tls_server_name, tls_min_version, advanced_routes, dashboard_visible, monitoring_visible, adguard_rewrite, created_at, updated_at, target_set_id, entry_host_id, public_port, proxy_protocol, waf_json FROM services WHERE id = ?
 `
 
 func (q *Queries) GetService(ctx context.Context, id string) (Service, error) {
@@ -60,12 +60,13 @@ func (q *Queries) GetService(ctx context.Context, id string) (Service, error) {
 		&i.EntryHostID,
 		&i.PublicPort,
 		&i.ProxyProtocol,
+		&i.WafJson,
 	)
 	return i, err
 }
 
 const getServiceByOwner = `-- name: GetServiceByOwner :one
-SELECT id, name, slug, kind, domain_mode, host_name, enabled, origin, owner_feature, target_address, target_port, tls_skip_verify, tls_server_name, tls_min_version, advanced_routes, dashboard_visible, monitoring_visible, adguard_rewrite, created_at, updated_at, target_set_id, entry_host_id, public_port, proxy_protocol FROM services WHERE owner_feature = ?
+SELECT id, name, slug, kind, domain_mode, host_name, enabled, origin, owner_feature, target_address, target_port, tls_skip_verify, tls_server_name, tls_min_version, advanced_routes, dashboard_visible, monitoring_visible, adguard_rewrite, created_at, updated_at, target_set_id, entry_host_id, public_port, proxy_protocol, waf_json FROM services WHERE owner_feature = ?
 `
 
 func (q *Queries) GetServiceByOwner(ctx context.Context, ownerFeature string) (Service, error) {
@@ -96,6 +97,7 @@ func (q *Queries) GetServiceByOwner(ctx context.Context, ownerFeature string) (S
 		&i.EntryHostID,
 		&i.PublicPort,
 		&i.ProxyProtocol,
+		&i.WafJson,
 	)
 	return i, err
 }
@@ -288,7 +290,7 @@ func (q *Queries) ListServiceRoutes(ctx context.Context, serviceID string) ([]Se
 }
 
 const listServices = `-- name: ListServices :many
-SELECT id, name, slug, kind, domain_mode, host_name, enabled, origin, owner_feature, target_address, target_port, tls_skip_verify, tls_server_name, tls_min_version, advanced_routes, dashboard_visible, monitoring_visible, adguard_rewrite, created_at, updated_at, target_set_id, entry_host_id, public_port, proxy_protocol FROM services ORDER BY origin = 'system' DESC, name, id
+SELECT id, name, slug, kind, domain_mode, host_name, enabled, origin, owner_feature, target_address, target_port, tls_skip_verify, tls_server_name, tls_min_version, advanced_routes, dashboard_visible, monitoring_visible, adguard_rewrite, created_at, updated_at, target_set_id, entry_host_id, public_port, proxy_protocol, waf_json FROM services ORDER BY origin = 'system' DESC, name, id
 `
 
 func (q *Queries) ListServices(ctx context.Context) ([]Service, error) {
@@ -325,6 +327,7 @@ func (q *Queries) ListServices(ctx context.Context) ([]Service, error) {
 			&i.EntryHostID,
 			&i.PublicPort,
 			&i.ProxyProtocol,
+			&i.WafJson,
 		); err != nil {
 			return nil, err
 		}
@@ -383,6 +386,21 @@ type SetServiceEnabledParams struct {
 
 func (q *Queries) SetServiceEnabled(ctx context.Context, arg SetServiceEnabledParams) error {
 	_, err := q.db.ExecContext(ctx, setServiceEnabled, arg.Enabled, arg.UpdatedAt, arg.ID)
+	return err
+}
+
+const setServiceWAF = `-- name: SetServiceWAF :exec
+UPDATE services SET waf_json = ?, updated_at = ? WHERE id = ?
+`
+
+type SetServiceWAFParams struct {
+	WafJson   string
+	UpdatedAt int64
+	ID        string
+}
+
+func (q *Queries) SetServiceWAF(ctx context.Context, arg SetServiceWAFParams) error {
+	_, err := q.db.ExecContext(ctx, setServiceWAF, arg.WafJson, arg.UpdatedAt, arg.ID)
 	return err
 }
 

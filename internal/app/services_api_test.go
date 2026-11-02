@@ -75,6 +75,27 @@ func TestServicesAPI(t *testing.T) {
 	if y := r.body["yaml"].(string); !strings.Contains(y, "svc-search:") || !strings.Contains(y, "stripPrefix") {
 		t.Errorf("effective: %s", y)
 	}
+	// WAF (06 §9): headers only by default, a path with uploads, body checking refused until the plugin is fixed.
+	r = c.mustStatus(c.do(http.MethodGet, "/api/services/"+id+"/waf", nil), 200)
+	if r.body["default_mode"] != "headers_only" || r.body["editable"] != true || r.body["paths"] != nil {
+		t.Fatalf("waf: %s", r.raw)
+	}
+	r = c.mustStatus(c.do(http.MethodPut, "/api/services/"+id+"/waf", map[string]any{"exclusions": []int{942100, 942100},
+		"paths": []map[string]any{{"match": "prefix", "path": "/dav", "uploads": true}}}), 200)
+	waf := r.body["waf"].(map[string]any)
+	pathID, _ := waf["paths"].([]any)[0].(map[string]any)["id"].(string)
+	if pathID == "" || len(waf["exclusions"].([]any)) != 1 {
+		t.Fatalf("waf saved: %s", r.raw)
+	}
+	r = c.mustStatus(c.do(http.MethodGet, "/api/services/"+id+"/effective", nil), 200)
+	if y := r.body["yaml"].(string); !strings.Contains(y, "svc-search-w-"+strings.ToLower(pathID)+":") ||
+		!strings.Contains(y, "hashi-waf-") || !strings.Contains(y, "PathPrefix(`/dav`)") {
+		t.Errorf("effective with WAF paths: %s", y)
+	}
+	c.mustStatus(c.do(http.MethodPut, "/api/services/"+id+"/waf", map[string]any{"mode": "enabled"}), 422)
+	c.mustStatus(c.do(http.MethodPut, "/api/services/"+id+"/waf", map[string]any{
+		"paths": []map[string]any{{"match": "prefix", "path": "no-slash"}}}), 422)
+
 	upd := bad(func(m map[string]any) { m["target"] = map[string]any{"address": "192.0.2.20", "port": 8081} })
 	r = c.mustStatus(c.do(http.MethodPut, "/api/services/"+id, upd), 200)
 	if r.body["service"].(map[string]any)["target"].(map[string]any)["port"] != float64(8081) {

@@ -23,7 +23,7 @@ http:
         - hashi-auth-open
         - svc-grpc-r-01jr0000000000000000000001
       service: svc-grpc-r-01jr0000000000000000000001
-      priority: 1030
+      priority: 1960
       tls:
         options: hashi-tls12
     svc-grpc-r-01jr0000000000000000000002:
@@ -36,7 +36,7 @@ http:
         - hashi-auth-open
         - svc-grpc-r-01jr0000000000000000000002
       service: svc-grpc-r-01jr0000000000000000000002
-      priority: 1020
+      priority: 1640
       tls:
         options: hashi-tls12
     svc-grpc-r-01jr0000000000000000000003:
@@ -49,7 +49,7 @@ http:
         - hashi-auth-open
         - svc-grpc-r-01jr0000000000000000000003
       service: svc-grpc-r-01jr0000000000000000000003
-      priority: 1010
+      priority: 1320
       tls:
         options: hashi-tls12
     svc-grpc-r-01jr0000000000000000000004:
@@ -62,7 +62,7 @@ http:
         - hashi-auth-open
         - svc-grpc-r-01jr0000000000000000000004
       service: svc-grpc-r-01jr0000000000000000000004
-      priority: 1040
+      priority: 2280
       tls:
         options: hashi-tls12
     svc-hashi-admin:

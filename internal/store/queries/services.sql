@@ -43,3 +43,6 @@ SELECT * FROM service_routes ORDER BY service_id, priority DESC, id;
 
 -- name: ListServicesByEntryHost :many
 SELECT id, name FROM services WHERE entry_host_id = ? ORDER BY name;
+
+-- name: SetServiceWAF :exec
+UPDATE services SET waf_json = ?, updated_at = ? WHERE id = ?;

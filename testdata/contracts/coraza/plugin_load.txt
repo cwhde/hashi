@@ -1,0 +1,27 @@
+# captured_at: 2026-11-02, traefik:v3.7.16, plugin github.com/jcchavezs/coraza-http-wasm-traefik v0.3.0
+# docs_url: https://doc.traefik.io/traefik/plugins/
+# Catalog download (public): https://plugins.traefik.io/public/download/github.com/jcchavezs/coraza-http-wasm-traefik/v0.3.0
+#   200, 1014369 bytes, zip sha256 b96680b46e61287faae243e360db5de34e4f315e2a8ee105fedddc176e79b1e7  hashi:allow-secret-pattern (sha256 of a public file)
+#   = the GitHub release asset coraza-http-wasm-v0.3.0.zip (same size)
+#   contents: .traefik.yml (309), coraza-http-wasm.wasm (3141012, sha256 b59fd2266c03699da2de9d6d281ffc2a3e791eb6646069d2b9744543ccd90b1c), LICENSE  hashi:allow-secret-pattern (sha256 of a public file)
+
+## experimental.plugins, network on, cwd /
+{"level":"info","plugins":["coraza"],"message":"Loading plugins..."}
+{"level":"info","plugins":["coraza"],"message":"Plugins loaded."}
+# /plugins-storage/{archives,sources} created in the working directory, 4.0M
+GET /waf (router with the plugin middleware) -> 200; GET /plain -> 200
+
+## experimental.plugins, no network (also after an earlier successful download: the restart clears and re-downloads)
+{"level":"error","plugins":["coraza"],"error":"unable to set up plugins environment: unable to install plugin coraza: unable to download plugin github.com/jcchavezs/coraza-http-wasm-traefik: failed to call service: Get \"https://plugins.traefik.io/public/download/github.com/jcchavezs/coraza-http-wasm-traefik/v0.3.0\": ..."}
+{"level":"error","entryPointName":"web","routerName":"waf@file","error":"invalid middleware \"w@file\" configuration: invalid middleware type or middleware does not exist"}
+GET /waf -> 404; GET /plain -> 200; /ping -> OK
+GET /api/http/routers/waf@file ->
+{"entryPoints":["web"],"middlewares":["w@file"],"service":"ping@internal","rule":"PathPrefix(`/waf`)","priority":18,"error":["invalid middleware \"w@file\" configuration: invalid middleware type or middleware does not exist"],"status":"disabled","using":["web"],"name":"waf@file","provider":"file","priorityStr":"18"}
+
+## experimental.localPlugins (moduleName only, no version), no network
+# files at <working directory>/plugins-local/src/github.com/jcchavezs/coraza-http-wasm-traefik/{.traefik.yml,coraza-http-wasm.wasm}
+{"level":"info","plugins":["coraza"],"message":"Loading plugins..."}
+{"level":"info","plugins":["coraza"],"message":"Plugins loaded."}
+# working directory /var/lib/hashi-traefik, full CRS (headers only), Host app.example.test:
+GET /waf -> 200
+GET /waf?id=1'%20OR%201=1-- -> 403 (one "Access denied" line in the general log)

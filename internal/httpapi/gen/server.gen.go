@@ -1511,6 +1511,24 @@ func (e ServiceRouteRewriteMode) Valid() bool {
 	}
 }
 
+// Defines values for ServiceWAFPathMatch.
+const (
+	ServiceWAFPathMatchExact  ServiceWAFPathMatch = "exact"
+	ServiceWAFPathMatchPrefix ServiceWAFPathMatch = "prefix"
+)
+
+// Valid indicates whether the value is a known member of the ServiceWAFPathMatch enum.
+func (e ServiceWAFPathMatch) Valid() bool {
+	switch e {
+	case ServiceWAFPathMatchExact:
+		return true
+	case ServiceWAFPathMatchPrefix:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SetupStepStatus.
 const (
 	SetupStepStatusDone       SetupStepStatus = "done"
@@ -1772,6 +1790,24 @@ func (e VaultStateMode) Valid() bool {
 	case VaultStateModeService:
 		return true
 	case VaultStateModeStrict:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WAFMode.
+const (
+	WAFModeDisabled    WAFMode = "disabled"
+	WAFModeHeadersOnly WAFMode = "headers_only"
+)
+
+// Valid indicates whether the value is a known member of the WAFMode enum.
+func (e WAFMode) Valid() bool {
+	switch e {
+	case WAFModeDisabled:
+		return true
+	case WAFModeHeadersOnly:
 		return true
 	default:
 		return false
@@ -3719,6 +3755,58 @@ type ServiceTarget struct {
 	Weight *int `json:"weight,omitempty"`
 }
 
+// ServiceWAF defines model for ServiceWAF.
+type ServiceWAF struct {
+	Exclusions *[]int `json:"exclusions,omitempty"`
+
+	// Mode Absent: waf_default_mode
+	Mode    *WAFMode          `json:"mode,omitempty"`
+	Paths   *[]ServiceWAFPath `json:"paths,omitempty"`
+	Uploads *bool             `json:"uploads,omitempty"`
+}
+
+// ServiceWAFPath defines model for ServiceWAFPath.
+type ServiceWAFPath struct {
+	// Exclusions CRS rule IDs not applied (adds to the service's)
+	Exclusions *[]int `json:"exclusions,omitempty"`
+
+	// Id Kept across saves; empty for a new path
+	Id    *string             `json:"id,omitempty"`
+	Match ServiceWAFPathMatch `json:"match"`
+
+	// Mode Absent: the service's mode
+	Mode *WAFMode `json:"mode,omitempty"`
+	Path string   `json:"path"`
+
+	// Uploads Allows WebDAV methods and any content type (adds to the service's)
+	Uploads *bool `json:"uploads,omitempty"`
+}
+
+// ServiceWAFPathMatch defines model for ServiceWAFPath.Match.
+type ServiceWAFPathMatch string
+
+// ServiceWAFSaveResult defines model for ServiceWAFSaveResult.
+type ServiceWAFSaveResult struct {
+	CertificatePending bool           `json:"certificate_pending"`
+	Plans              []SyncPlan     `json:"plans"`
+	Waf                ServiceWAFView `json:"waf"`
+}
+
+// ServiceWAFView defines model for ServiceWAFView.
+type ServiceWAFView struct {
+	// DefaultMode waf_default_mode from the engine settings
+	DefaultMode string `json:"default_mode"`
+
+	// Editable False for system and TCP/UDP services
+	Editable   bool   `json:"editable"`
+	Exclusions *[]int `json:"exclusions,omitempty"`
+
+	// Mode Absent: waf_default_mode
+	Mode    *WAFMode          `json:"mode,omitempty"`
+	Paths   *[]ServiceWAFPath `json:"paths,omitempty"`
+	Uploads *bool             `json:"uploads,omitempty"`
+}
+
 // SessionInfo defines model for SessionInfo.
 type SessionInfo struct {
 	AbsoluteExpiresAt time.Time `json:"absolute_expires_at"`
@@ -4020,6 +4108,9 @@ type Version struct {
 	Version string `json:"version"`
 }
 
+// WAFMode headers_only checks addresses, headers, cookies and query strings; bodies are not checked until the plugin is fixed (06 §9)
+type WAFMode string
+
 // ListAuditEventsParams defines parameters for ListAuditEvents.
 type ListAuditEventsParams struct {
 	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -4232,6 +4323,9 @@ type PutServiceAccessJSONRequestBody = RuleEntriesInput
 
 // PutServiceDashboardJSONRequestBody defines body for PutServiceDashboard for application/json ContentType.
 type PutServiceDashboardJSONRequestBody PutServiceDashboardJSONBody
+
+// SetServiceWAFJSONRequestBody defines body for SetServiceWAF for application/json ContentType.
+type SetServiceWAFJSONRequestBody = ServiceWAF
 
 // PutAppearanceSettingsJSONRequestBody defines body for PutAppearanceSettings for application/json ContentType.
 type PutAppearanceSettingsJSONRequestBody = AppearanceSettings
@@ -4954,6 +5048,12 @@ type ServerInterface interface {
 	// EnableService Turn a user service on (it is rendered again)
 	// (POST /api/services/{id}/enable)
 	EnableService(w http.ResponseWriter, r *http.Request, id string)
+	// GetServiceWAF The service's WAF mode, uploads, rule exclusions and paths (06 §9)
+	// (GET /api/services/{id}/waf)
+	GetServiceWAF(w http.ResponseWriter, r *http.Request, id string)
+	// SetServiceWAF Replace a user service's WAF configuration (system services keep the default with uploads on)
+	// (PUT /api/services/{id}/waf)
+	SetServiceWAF(w http.ResponseWriter, r *http.Request, id string)
 	// GetSettings All settings categories
 	// (GET /api/settings)
 	GetSettings(w http.ResponseWriter, r *http.Request)
@@ -7929,6 +8029,58 @@ func (siw *ServerInterfaceWrapper) EnableService(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// GetServiceWAF operation middleware
+func (siw *ServerInterfaceWrapper) GetServiceWAF(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetServiceWAF(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetServiceWAF operation middleware
+func (siw *ServerInterfaceWrapper) SetServiceWAF(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetServiceWAF(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetSettings operation middleware
 func (siw *ServerInterfaceWrapper) GetSettings(w http.ResponseWriter, r *http.Request) {
 
@@ -9304,6 +9456,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/services/{id}/enable", wrapper.EnableService)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/services/{id}/disable", wrapper.DisableService)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/services/{id}/effective", wrapper.GetServiceEffective)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/services/{id}/waf", wrapper.GetServiceWAF)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/services/{id}/waf", wrapper.SetServiceWAF)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/traefik/plan", wrapper.PlanTraefik)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/firewall/hosts", wrapper.ListFirewallHosts)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/firewall/hosts", wrapper.CreateFirewallHost)
@@ -14068,6 +14222,85 @@ func (response EnableServicedefaultApplicationProblemPlusJSONResponse) VisitEnab
 	return err
 }
 
+type GetServiceWAFRequestObject struct {
+	Id string `json:"id"`
+}
+
+type GetServiceWAFResponseObject interface {
+	VisitGetServiceWAFResponse(w http.ResponseWriter) error
+}
+
+type GetServiceWAF200JSONResponse ServiceWAFView
+
+func (response GetServiceWAF200JSONResponse) VisitGetServiceWAFResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetServiceWAFdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetServiceWAFdefaultApplicationProblemPlusJSONResponse) VisitGetServiceWAFResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetServiceWAFRequestObject struct {
+	Id   string `json:"id"`
+	Body *SetServiceWAFJSONRequestBody
+}
+
+type SetServiceWAFResponseObject interface {
+	VisitSetServiceWAFResponse(w http.ResponseWriter) error
+}
+
+type SetServiceWAF200JSONResponse ServiceWAFSaveResult
+
+func (response SetServiceWAF200JSONResponse) VisitSetServiceWAFResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetServiceWAFdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response SetServiceWAFdefaultApplicationProblemPlusJSONResponse) VisitSetServiceWAFResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetSettingsRequestObject struct {
 }
 
@@ -17043,6 +17276,12 @@ type StrictServerInterface interface {
 	// EnableService Turn a user service on (it is rendered again)
 	// (POST /api/services/{id}/enable)
 	EnableService(ctx context.Context, request EnableServiceRequestObject) (EnableServiceResponseObject, error)
+	// GetServiceWAF The service's WAF mode, uploads, rule exclusions and paths (06 §9)
+	// (GET /api/services/{id}/waf)
+	GetServiceWAF(ctx context.Context, request GetServiceWAFRequestObject) (GetServiceWAFResponseObject, error)
+	// SetServiceWAF Replace a user service's WAF configuration (system services keep the default with uploads on)
+	// (PUT /api/services/{id}/waf)
+	SetServiceWAF(ctx context.Context, request SetServiceWAFRequestObject) (SetServiceWAFResponseObject, error)
 	// GetSettings All settings categories
 	// (GET /api/settings)
 	GetSettings(ctx context.Context, request GetSettingsRequestObject) (GetSettingsResponseObject, error)
@@ -20688,6 +20927,65 @@ func (sh *strictHandler) EnableService(w http.ResponseWriter, r *http.Request, i
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(EnableServiceResponseObject); ok {
 		if err := validResponse.VisitEnableServiceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetServiceWAF operation middleware
+func (sh *strictHandler) GetServiceWAF(w http.ResponseWriter, r *http.Request, id string) {
+	var request GetServiceWAFRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetServiceWAF(ctx, request.(GetServiceWAFRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetServiceWAF")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetServiceWAFResponseObject); ok {
+		if err := validResponse.VisitGetServiceWAFResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetServiceWAF operation middleware
+func (sh *strictHandler) SetServiceWAF(w http.ResponseWriter, r *http.Request, id string) {
+	var request SetServiceWAFRequestObject
+
+	request.Id = id
+
+	var body SetServiceWAFJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetServiceWAF(ctx, request.(SetServiceWAFRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetServiceWAF")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetServiceWAFResponseObject); ok {
+		if err := validResponse.VisitSetServiceWAFResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

@@ -10,6 +10,7 @@ import (
 
 type AccessLogCursor struct {
 	TraefikConnectionID string
+	File                string
 	Inode               int64
 	Offset              int64
 	LagMs               int64
@@ -685,6 +686,7 @@ type Service struct {
 	EntryHostID       sql.NullString
 	PublicPort        sql.NullInt64
 	ProxyProtocol     int64
+	WafJson           string
 }
 
 type ServiceRoute struct {

@@ -1903,6 +1903,34 @@ paths:
           description: Rendered YAML
           content: { application/json: { schema: { $ref: "#/components/schemas/ServiceEffective" } } }
         default: { $ref: "#/components/responses/Problem" }
+  /api/services/{id}/waf:
+    get:
+      operationId: getServiceWAF
+      summary: The service's WAF mode, uploads, rule exclusions and paths (06 §9)
+      tags: [services]
+      x-hashi-scopes: [services.manage]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: WAF configuration with the default it falls back to
+          content: { application/json: { schema: { $ref: "#/components/schemas/ServiceWAFView" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      operationId: setServiceWAF
+      summary: Replace a user service's WAF configuration (system services keep the default with uploads on)
+      tags: [services]
+      x-hashi-scopes: [services.manage]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ServiceWAF" } } }
+      responses:
+        "200":
+          description: Saved, with the Traefik plans it caused
+          content: { application/json: { schema: { $ref: "#/components/schemas/ServiceWAFSaveResult" } } }
+        default: { $ref: "#/components/responses/Problem" }
   /api/traefik/plan:
     post:
       operationId: planTraefik
@@ -3722,6 +3750,42 @@ components:
       required: [service, plans, certificate_pending]
       properties:
         service: { $ref: "#/components/schemas/Service" }
+        plans: { type: array, items: { $ref: "#/components/schemas/SyncPlan" } }
+        certificate_pending: { type: boolean }
+    WAFMode:
+      type: string
+      description: headers_only checks addresses, headers, cookies and query strings; bodies are not checked until the plugin is fixed (06 §9)
+      enum: [headers_only, disabled]
+    ServiceWAFPath:
+      type: object
+      required: [match, path]
+      properties:
+        id: { type: string, description: "Kept across saves; empty for a new path" }
+        match: { type: string, enum: [prefix, exact] }
+        path: { type: string }
+        mode: { $ref: "#/components/schemas/WAFMode", description: "Absent: the service's mode" }
+        uploads: { type: boolean, description: "Allows WebDAV methods and any content type (adds to the service's)" }
+        exclusions: { type: array, items: { type: integer }, description: "CRS rule IDs not applied (adds to the service's)" }
+    ServiceWAF:
+      type: object
+      properties:
+        mode: { $ref: "#/components/schemas/WAFMode", description: "Absent: waf_default_mode" }
+        uploads: { type: boolean }
+        exclusions: { type: array, items: { type: integer } }
+        paths: { type: array, items: { $ref: "#/components/schemas/ServiceWAFPath" } }
+    ServiceWAFView:
+      allOf:
+        - $ref: "#/components/schemas/ServiceWAF"
+        - type: object
+          required: [default_mode, editable]
+          properties:
+            default_mode: { type: string, description: "waf_default_mode from the engine settings" }
+            editable: { type: boolean, description: "False for system and TCP/UDP services" }
+    ServiceWAFSaveResult:
+      type: object
+      required: [waf, plans, certificate_pending]
+      properties:
+        waf: { $ref: "#/components/schemas/ServiceWAFView" }
         plans: { type: array, items: { $ref: "#/components/schemas/SyncPlan" } }
         certificate_pending: { type: boolean }
     ServiceEffective:

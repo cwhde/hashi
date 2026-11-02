@@ -93,7 +93,11 @@ Because Traefik is not installed through the OS package manager, Hashi owns its 
   any configured header dropped; rotation via logrotate (Hashi-installed config).
 - General log: JSON, `/var/log/hashi/traefik/traefik.log`.
 - `ping` enabled on an internal entry point; API/dashboard enabled on `127.0.0.1` only (used for Verify), never public unless exposed as a protected system service.
-- Plugins (Coraza WAF etc.) pinned by version; the pinned version must exist in the Traefik plugin catalog (checked by `make contract-capture PROVIDER=traefik-plugins`).
+- Plugins (Coraza WAF) pinned by version and by the sha256 of the catalog archive, loaded as `experimental.localPlugins`:
+  Hashi downloads the archive once, checks the hash and puts its files under the Traefik service's working directory
+  (`/var/lib/hashi/traefik/plugins-local/src/<moduleName>/`), like the binary. Reason (captured,
+  `testdata/contracts/coraza/plugin_load.txt`): `experimental.plugins` downloads again at every start, and without
+  network every router using the plugin answers 404. Verify checks that no Hashi router is `disabled`.
 - `serversTransport` defaults; `forwardedHeaders.trustedIPs` = firewall-host internal IPs so client IPs survive DNAT.
 
 Static changes require a Traefik restart and are high-risk.
