@@ -72,8 +72,9 @@ jobs:
         id: pulsemeta
         with:
           images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/hashi-pulse
+          # latest follows version tags, not main: Docker agents on :latest run a released agent (ADR 0003).
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
             type=sha,prefix=,format=short
             type=semver,pattern={{version}}
 
@@ -102,6 +103,10 @@ jobs:
         run: grep -q 'ReleaseTag = "${{ github.ref_name }}"' internal/pulse/release.go
       - name: Build
         run: make pulse-dist VERSION=${{ github.ref_name }}
+      - name: Sign (ADR 0003); fails without the key, so no unsigned release goes out
+        env:
+          PULSE_SIGNING_KEY: ${{ secrets.PULSE_SIGNING_KEY }}
+        run: make pulse-sign VERSION=${{ github.ref_name }}
       - name: Publish
         env:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}

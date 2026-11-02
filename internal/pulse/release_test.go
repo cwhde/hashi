@@ -5,9 +5,9 @@ import (
 	"testing"
 )
 
-// The agent image carries the Hashi image's tag, never a floating one.
-func TestImageMatchesRelease(t *testing.T) {
-	if got := Image(); !strings.HasSuffix(got, ":"+strings.TrimPrefix(ReleaseTag, "v")) {
+// Docker agents follow the newest release through :latest, which moves only with version tags (ADR 0003).
+func TestImageIsLatest(t *testing.T) {
+	if got := Image(); !strings.HasSuffix(got, "/hashi-pulse:latest") {
 		t.Fatal(got)
 	}
 }

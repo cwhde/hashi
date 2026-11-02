@@ -10,6 +10,8 @@ import (
 	"debug/elf"
 	"encoding/json"
 	"encoding/pem"
+	"go/parser"
+	"go/token"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -153,6 +155,23 @@ func TestStateSurvivesTheSleeper(t *testing.T) {
 		if got := decodeState(bad); got.Due || got.Root != nil {
 			t.Errorf("%q: %+v", bad, got)
 		}
+	}
+}
+
+// The state handed to the next run replaces the old one; a second entry would be ignored.
+func TestWithState(t *testing.T) {
+	env := withState([]string{"A=1", stateEnv + "=old", "B=2"}, state{Tried: "v1.2.3"})
+	n := 0
+	for _, e := range env {
+		if strings.HasPrefix(e, stateEnv+"=") {
+			n++
+			if decodeState(strings.TrimPrefix(e, stateEnv+"=")).Tried != "v1.2.3" {
+				t.Fatal(e)
+			}
+		}
+	}
+	if n != 1 || len(env) != 3 {
+		t.Fatalf("%v", env)
 	}
 }
 
@@ -328,5 +347,28 @@ func TestOpenDNSContract(t *testing.T) {
 	}
 	if !netip.MustParseAddr(fields[4]).Is4() {
 		t.Fatal(fields[4])
+	}
+}
+
+// The agent image copies only agents/ and internal/semver (deploy/docker/Pulse.Dockerfile), and the agent stays small:
+// any other Hashi package needs both changed on purpose.
+func TestHashiImports(t *testing.T) {
+	allowed := map[string]bool{`"git.juzo.io/juzo/hashi/internal/semver"`: true}
+	for _, dir := range []string{".", "../../internal/semver"} {
+		files, _ := filepath.Glob(filepath.Join(dir, "*.go"))
+		for _, f := range files {
+			if strings.HasSuffix(f, "_test.go") {
+				continue
+			}
+			parsed, err := parser.ParseFile(token.NewFileSet(), f, nil, parser.ImportsOnly)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, imp := range parsed.Imports {
+				if strings.HasPrefix(imp.Path.Value, `"git.juzo.io/`) && !allowed[imp.Path.Value] {
+					t.Errorf("%s imports %s", f, imp.Path.Value)
+				}
+			}
+		}
 	}
 }

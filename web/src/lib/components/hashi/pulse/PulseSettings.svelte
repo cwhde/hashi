@@ -4,6 +4,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
+	import { Switch } from '$lib/components/ui/switch';
 	import { api, problemText, type Schemas } from '$lib/api/client';
 
 	// 09 §2: what agents are told, and when one counts as stale.
@@ -49,6 +50,16 @@
 					/>
 				</div>
 			</div>
+			<label class="flex items-start gap-2">
+				<Switch bind:checked={v.auto_update} class="mt-0.5" />
+				<span
+					>Update agents automatically
+					<span class="block text-muted-foreground"
+						>Agents installed on a machine update themselves to the version this Hashi installs.
+						Docker agents follow the <code>latest</code> image through your image updater instead.</span
+					></span
+				>
+			</label>
 			<div class="flex items-center justify-end gap-3">
 				{#if notice}<span role="status" class="text-ok-text">{notice}</span>{/if}
 				<Button size="sm" onclick={save} disabled={busy}>Save</Button>

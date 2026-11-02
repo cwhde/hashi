@@ -159,6 +159,10 @@
 						<div class="text-[12px] text-muted-foreground">
 							{a.version || 'No heartbeat yet'}{a.hostname ? ` · ${a.hostname}` : ''}
 						</div>
+						{#if a.version_state === 'older'}<Tag tone="warn">older than {a.expected_version}</Tag>
+						{:else if a.version_state === 'newer'}<Tag tone="info"
+								>newer than {a.expected_version}</Tag
+							>{/if}
 					</Table.Cell>
 					<Table.Cell><Mono>{a.selected_ip || '—'}</Mono></Table.Cell>
 					<Table.Cell class="hidden md:table-cell"

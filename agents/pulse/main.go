@@ -99,6 +99,8 @@ type beat struct {
 type reply struct {
 	CheckPublicIP   bool
 	IntervalSeconds int
+	// Version is the agent version Hashi installs; UpdateFrom is where its release is, while updates are on (ADR 0003).
+	Version, UpdateFrom string
 }
 
 // Outside services are asked by address, not name: a filtering DNS server blocks the well-known names
@@ -272,6 +274,19 @@ func beatOnce(ctx context.Context, c *config, st *state, host string) time.Durat
 		return wait
 	}
 	st.Failures = 0
+	if r.UpdateFrom != "" && r.Version != st.Tried && !inDocker() && newer(r.Version, Version) {
+		st.Tried = r.Version
+		self, err := os.Executable()
+		if err == nil {
+			err = update(ctx, r.UpdateFrom, r.Version, self)
+		}
+		if err != nil {
+			log.Printf("update to %s failed, trying again after a restart: %q", r.Version, err.Error()) //nolint:gosec // quoted, see above
+		} else {
+			log.Printf("updated to %s; the next heartbeat runs it", r.Version) //nolint:gosec // a version Hashi named, checked by update
+			st.Restart = true
+		}
+	}
 	checkNow := r.CheckPublicIP && !st.Check
 	st.Check = r.CheckPublicIP
 	if r.IntervalSeconds >= 10 {
@@ -303,7 +318,14 @@ func deliver(ctx context.Context, c config, st *state, b beat) (reply, error) {
 // pauser waits between beats and reports whether to go on.
 type pauser func(ctx context.Context, wait time.Duration, st state) bool
 
-func residentPause(ctx context.Context, wait time.Duration, _ state) bool {
+func residentPause(ctx context.Context, wait time.Duration, st state) bool {
+	if st.Restart { // the file was updated: start it, which waits for this agent's slot
+		if self, err := os.Executable(); err == nil {
+			st.Restart, st.Due = false, false
+			err = syscall.Exec(self, []string{self}, withState(os.Environ(), st)) //nolint:gosec // this agent's own, just verified file
+			log.Printf("could not start the updated agent: %v", err)
+		}
+	}
 	debug.FreeOSMemory()
 	select {
 	case <-ctx.Done():
@@ -328,6 +350,18 @@ func sleepingPause(ctx context.Context, wait time.Duration, st state) bool {
 
 var sleeperBroken bool
 
+// withState replaces the state in env. Only replacing works: a program reading its environment takes the first entry of
+// a name, so an appended one would never be seen.
+func withState(env []string, st state) []string {
+	out := make([]string, 0, len(env)+1)
+	for _, e := range env {
+		if !strings.HasPrefix(e, stateEnv+"=") {
+			out = append(out, e)
+		}
+	}
+	return append(out, stateEnv+"="+st.encode())
+}
+
 func execSleeper(wait time.Duration, st state) error {
 	if len(sleeperImage) == 0 || sleeperBroken {
 		return errors.New("not available")
@@ -344,7 +378,7 @@ func execSleeper(wait time.Duration, st state) error {
 	if _, err := syscall.Write(fd, sleeperImage); err != nil {
 		return err
 	}
-	env := append(os.Environ(), stateEnv+"="+st.encode())
+	env := withState(os.Environ(), st)
 	return syscall.Exec("/proc/self/fd/"+strconv.Itoa(fd), []string{"hashi-pulse-sleep", strconv.FormatInt(wait.Milliseconds(), 10), self}, env) //nolint:gosec // runs the built-in sleeper, then this same binary
 }
 

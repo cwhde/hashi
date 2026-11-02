@@ -3005,6 +3005,10 @@ export interface components {
             check_public_ip: boolean;
             /** @description Default interval; an agent with its own keeps it */
             interval_seconds: number;
+            /** @description The agent version this Hashi installs */
+            version: string;
+            /** @description Where that release's files are; present while agents update themselves (ADR 0003) */
+            update_from?: string;
         };
         PulseAgent: {
             id: string;
@@ -3017,6 +3021,13 @@ export interface components {
             candidates: string[];
             hostname: string;
             version: string;
+            /** @description The agent version this Hashi installs */
+            expected_version: string;
+            /**
+             * @description version against expected_version; unknown before a heartbeat or for a development build
+             * @enum {string}
+             */
+            version_state: "current" | "older" | "newer" | "unknown";
             interval_seconds: number;
             /** Format: date-time */
             last_seen_at?: string;
@@ -3093,6 +3104,8 @@ export interface components {
         PulseSettings: {
             heartbeat_interval_seconds: number;
             stale_factor: number;
+            /** @description Agents installed on a machine update themselves to this Hashi's version (ADR 0003) */
+            auto_update: boolean;
         };
         PulseConsumers: {
             sets: string[];

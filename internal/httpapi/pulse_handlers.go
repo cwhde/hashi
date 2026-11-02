@@ -51,7 +51,7 @@ func (s *Server) pulseBody(ctx context.Context, r db.PulseAgent) gen.PulseAgent 
 		cands = append(cands, c.Address)
 	}
 	return gen.PulseAgent{Id: r.ID, Name: r.Name, Status: gen.PulseAgentStatus(pulse.Status(r, time.Now(), c.StaleFactor)), InstallType: r.InstallType, PublicIp: r.PublicIp, SelectedIp: r.SelectedIp,
-		Candidates: cands, Hostname: r.Hostname, Version: r.Version, IntervalSeconds: int(r.IntervalSeconds), LastSeenAt: millis(r.LastSeenAt), DnsEnabled: r.DnsEnabled == 1, DnsName: r.DnsName, TrustReportedIp: r.TrustReportedIp == 1, PublicIpSource: gen.PulseAgentPublicIpSource(r.PublicIpSource), ReachPort: int(r.ReachPort), Reachable: reachable(r)}
+		Candidates: cands, Hostname: r.Hostname, Version: r.Version, ExpectedVersion: pulse.ReleaseTag, VersionState: gen.PulseAgentVersionState(pulse.VersionState(r.Version)), IntervalSeconds: int(r.IntervalSeconds), LastSeenAt: millis(r.LastSeenAt), DnsEnabled: r.DnsEnabled == 1, DnsName: r.DnsName, TrustReportedIp: r.TrustReportedIp == 1, PublicIpSource: gen.PulseAgentPublicIpSource(r.PublicIpSource), ReachPort: int(r.ReachPort), Reachable: reachable(r)}
 }
 
 // PulseHeartbeat takes an agent's report. It needs the agent's token and nothing else (08 §3).
@@ -78,7 +78,11 @@ func (s *Server) PulseHeartbeat(ctx context.Context, req gen.PulseHeartbeatReque
 	if err != nil {
 		return nil, pulseError(err)
 	}
-	return gen.PulseHeartbeat200JSONResponse{CheckPublicIp: r.CheckPublicIP, IntervalSeconds: r.IntervalSeconds}, nil
+	out := gen.PulseHeartbeat200JSONResponse{CheckPublicIp: r.CheckPublicIP, IntervalSeconds: r.IntervalSeconds, Version: r.Version}
+	if r.UpdateFrom != "" {
+		out.UpdateFrom = &r.UpdateFrom
+	}
+	return out, nil
 }
 
 func (s *Server) ListPulseAgents(ctx context.Context, _ gen.ListPulseAgentsRequestObject) (gen.ListPulseAgentsResponseObject, error) {
@@ -224,15 +228,15 @@ func (s *Server) GetPulseSettings(ctx context.Context, _ gen.GetPulseSettingsReq
 	if err != nil {
 		return nil, err
 	}
-	return gen.GetPulseSettings200JSONResponse{HeartbeatIntervalSeconds: v.HeartbeatIntervalSeconds, StaleFactor: v.StaleFactor}, nil
+	return gen.GetPulseSettings200JSONResponse{HeartbeatIntervalSeconds: v.HeartbeatIntervalSeconds, StaleFactor: v.StaleFactor, AutoUpdate: v.AutoUpdate}, nil
 }
 
 func (s *Server) PutPulseSettings(ctx context.Context, req gen.PutPulseSettingsRequestObject) (gen.PutPulseSettingsResponseObject, error) {
-	v := settings.Pulse{HeartbeatIntervalSeconds: req.Body.HeartbeatIntervalSeconds, StaleFactor: req.Body.StaleFactor}
+	v := settings.Pulse{HeartbeatIntervalSeconds: req.Body.HeartbeatIntervalSeconds, StaleFactor: req.Body.StaleFactor, AutoUpdate: req.Body.AutoUpdate}
 	if err := saveSetting(ctx, s, v, nil); err != nil {
 		return nil, err
 	}
-	return gen.PutPulseSettings200JSONResponse{HeartbeatIntervalSeconds: v.HeartbeatIntervalSeconds, StaleFactor: v.StaleFactor}, nil
+	return gen.PutPulseSettings200JSONResponse{HeartbeatIntervalSeconds: v.HeartbeatIntervalSeconds, StaleFactor: v.StaleFactor, AutoUpdate: v.AutoUpdate}, nil
 }
 
 func (s *Server) GetPulseConsumers(ctx context.Context, req gen.GetPulseConsumersRequestObject) (gen.GetPulseConsumersResponseObject, error) {

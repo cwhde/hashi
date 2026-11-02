@@ -13,14 +13,20 @@ Pulse lets a host report its current addresses without holding any provider cred
   timestamp, whether it runs in a container. Retries with jittered backoff.
 - Footprint: small enough to run in every Compose stack, dozens of instances per host. Targets: idle RSS ≤ 15 MB
   (S8), average ≤ 6 MB per agent with the short peak of a beat counted in, and no two agents of a host awake together
-  by design. No disk writes, no local state, no busy loops or polling.
+  by design. No disk writes (except the new file of an update), no local state, no busy loops or polling.
 - Between beats the agent replaces itself with a sleeper of about 1 KB (built in, run from memory), which starts it
   again for the next beat; so the config is read again at every beat. A machine that forbids this gets a log line and an
   agent that stays in memory; `HASHI_PULSE_RESIDENT=1` chooses that up front.
 - Each agent beats at a fixed point of its interval, taken from its ID, so agents started together (a host boot)
   spread out by themselves. A fresh start waits for that point, at most one interval, before its first beat.
 - The agent keeps only the root certificate that verified Hashi, for at most 24 hours, and goes back to the machine's
-  full list when that root no longer fits. The public address check always uses the full list. Pulse stays heartbeat-only; firewall or other root-level host functions never go into it
+  full list when that root no longer fits. The public address check always uses the full list.
+- Updates (ADR 0003): the heartbeat reply names the version this Hashi installs (`ReleaseTag`) and, while the Pulse
+  setting "update agents automatically" is on (default on, one switch for all agents), where to fetch it. An agent
+  installed on the machine whose version is older downloads its binary, checks the release signature (the public key
+  is built in; the signed text names version, architecture and SHA-256), checks that the file runs and reports that
+  version, then renames it over its own file; the next beat runs it. Never a downgrade; a failed update is tried again
+  after a restart, not at every beat. Docker agents never update themselves: the Compose snippet uses `:latest`. Pulse stays heartbeat-only; firewall or other root-level host functions never go into it
   (ADR 0002, "Host link vs host agent").
 
 ## 2. Server model (`pulse_agents`)
@@ -87,12 +93,17 @@ API: `/api/pulse/agents` CRUD, `POST /api/pulse/agents/{id}/rotate-token|revoke`
 
 ## 6. Releases
 
-Pulse binaries (amd64/arm64) with SHA-256 checksums attached to Gitea releases on tags; a tag must match the release this
-Hashi version installs from. Multi-arch image, tagged like the main image, published to
-`git.juzo.io/juzo/hashi-pulse`.
+Pulse binaries (amd64/arm64) with SHA-256 checksums and Ed25519 signatures (`.sig`, over
+`hashi-pulse <version> <arch> <sha256>`) attached to Gitea releases on tags; a tag must match the release this Hashi
+version installs from, and the release job fails without the signing key. Multi-arch image, tagged like the main image,
+published to `git.juzo.io/juzo/hashi-pulse`; `latest` moves with every version tag.
+
+The agent list shows each agent's version against the expected one: current, older (update pending, or an agent that
+cannot update itself) or newer (Hashi was rolled back, or a Docker agent ran ahead).
 
 ## 7. Tests that must exist
 
 Token hashing and revocation; heartbeat validation; IP matching → CNAME vs A; `pulse` item resolution for each scope and
 selector; a heartbeat change reaches every consumer type (firewall, DNS, Traefik, connection);
-stale handling; installer script shellcheck; image size check in CI.
+stale handling; installer script shellcheck; image size check in CI; update: a newer signed release is installed, a
+bad signature, other version, other architecture, older version or a file that does not run is refused.
