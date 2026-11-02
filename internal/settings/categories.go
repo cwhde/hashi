@@ -2,6 +2,7 @@ package settings
 
 import (
 	"net/url"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -61,6 +62,23 @@ type EdgeSSO struct {
 type GeoIP struct {
 	AccountID string `json:"account_id"`
 	URL       string `json:"url"`
+}
+
+// Captcha connects Hashi to Cap Standalone (06 §11). The secret key is in the vault, not here.
+type Captcha struct {
+	Enabled bool `json:"enabled"`
+	// ChallengeDomain is the challenge service's name (e.g. cap.hashi.example.com); the browser reaches Cap's public
+	// paths and Hashi's challenge page there.
+	ChallengeDomain string `json:"challenge_domain"`
+	// CapAddress and CapPort are where edges reach Cap's public paths (the compose host port).
+	CapAddress string `json:"cap_address"`
+	CapPort    int    `json:"cap_port"`
+	// VerifyURL is where Hashi checks tokens (over the compose network: http://cap:3000).
+	VerifyURL      string `json:"verify_url"`
+	SiteKey        string `json:"site_key"`
+	TimeoutSeconds int    `json:"timeout_seconds"`
+	// AdminServiceID is the Cap dashboard's service, if any: pass_captcha never applies to it (06 §11).
+	AdminServiceID string `json:"admin_service_id,omitempty"`
 }
 
 // Engine: the abuse engine's numbers and timers (06 §10). Rules decide who; these decide how much and how long.
@@ -141,6 +159,8 @@ func defaults(c Category) Category {
 		return EdgeSSO{MaxSessionHours: 30 * 24, IdleTimeoutHours: 7 * 24, RememberDevice: true}
 	case GeoIP:
 		return GeoIP{}
+	case Captcha:
+		return Captcha{VerifyURL: "http://cap:3000", CapPort: 3343, TimeoutSeconds: 5}
 	case Engine:
 		return Engine{WAFDefaultMode: WAFHeadersOnly, WAFViolations: 5, WAFWindowSeconds: 60, RateRequests: 300,
 			RateWindowSeconds: 10, ChallengeExpirySecs: 30 * 60, ChallengeMaxFailed: 15, ClearanceHours: 24,
@@ -166,6 +186,40 @@ func (Pulse) Key() string { return "pulse" }
 func (EdgeSSO) Key() string { return "edge_sso" }
 func (GeoIP) Key() string   { return "geoip" }
 func (Engine) Key() string  { return "engine" }
+func (Captcha) Key() string { return "captcha" }
+
+var siteKeyRe = regexp.MustCompile(`^[0-9a-f]{10}$`)
+
+// Validate checks Captcha. Off, only the shape of what is filled in is checked.
+func (c Captcha) Validate() error {
+	if c.TimeoutSeconds < 1 || c.TimeoutSeconds > 30 {
+		return invalid("the verification timeout is between 1 and 30 seconds")
+	}
+	if c.SiteKey != "" && !siteKeyRe.MatchString(c.SiteKey) {
+		return invalid("a Cap site key is 10 hexadecimal characters")
+	}
+	if c.VerifyURL != "" {
+		if u, err := url.Parse(c.VerifyURL); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" ||
+			(u.Path != "" && u.Path != "/") || u.RawQuery != "" || u.User != nil {
+			return invalid("the verify address is http(s)://host[:port]")
+		}
+	}
+	if c.CapPort < 1 || c.CapPort > 65535 {
+		return invalid("the Cap port is between 1 and 65535")
+	}
+	if !c.Enabled {
+		return nil
+	}
+	switch {
+	case c.ChallengeDomain == "" || strings.ContainsAny(c.ChallengeDomain, "/: "):
+		return invalid("CAPTCHA needs a challenge domain")
+	case c.CapAddress == "":
+		return invalid("CAPTCHA needs the address edges reach Cap on")
+	case c.SiteKey == "" || c.VerifyURL == "":
+		return invalid("CAPTCHA needs a site key and the verify address")
+	}
+	return nil
+}
 
 // Validate checks EdgeSSO.
 func (e EdgeSSO) Validate() error {

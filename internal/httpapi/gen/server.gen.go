@@ -401,6 +401,81 @@ func (e DNSRecordInputType) Valid() bool {
 	}
 }
 
+// Defines values for FeedFormat.
+const (
+	Csv        FeedFormat = "csv"
+	JsonArray  FeedFormat = "json_array"
+	JsonLines  FeedFormat = "json_lines"
+	JsonObject FeedFormat = "json_object"
+	Lines      FeedFormat = "lines"
+)
+
+// Valid indicates whether the value is a known member of the FeedFormat enum.
+func (e FeedFormat) Valid() bool {
+	switch e {
+	case Csv:
+		return true
+	case JsonArray:
+		return true
+	case JsonLines:
+		return true
+	case JsonObject:
+		return true
+	case Lines:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FeedOptionsSeparator.
+const (
+	Comma     FeedOptionsSeparator = "comma"
+	Semicolon FeedOptionsSeparator = "semicolon"
+	Space     FeedOptionsSeparator = "space"
+	Tab       FeedOptionsSeparator = "tab"
+)
+
+// Valid indicates whether the value is a known member of the FeedOptionsSeparator enum.
+func (e FeedOptionsSeparator) Valid() bool {
+	switch e {
+	case Comma:
+		return true
+	case Semicolon:
+		return true
+	case Space:
+		return true
+	case Tab:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FeedRunOutcome.
+const (
+	FeedRunOutcomeFailed    FeedRunOutcome = "failed"
+	FeedRunOutcomeStale     FeedRunOutcome = "stale"
+	FeedRunOutcomeUnchanged FeedRunOutcome = "unchanged"
+	FeedRunOutcomeUpdated   FeedRunOutcome = "updated"
+)
+
+// Valid indicates whether the value is a known member of the FeedRunOutcome enum.
+func (e FeedRunOutcome) Valid() bool {
+	switch e {
+	case FeedRunOutcomeFailed:
+		return true
+	case FeedRunOutcomeStale:
+		return true
+	case FeedRunOutcomeUnchanged:
+		return true
+	case FeedRunOutcomeUpdated:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for FirewallHostAuth.
 const (
 	FirewallHostAuthHashiKey   FirewallHostAuth = "hashi_key"
@@ -994,22 +1069,22 @@ func (e PulseAgentPublicIpSource) Valid() bool {
 
 // Defines values for PulseAgentStatus.
 const (
-	Fresh   PulseAgentStatus = "fresh"
-	Revoked PulseAgentStatus = "revoked"
-	Stale   PulseAgentStatus = "stale"
-	Waiting PulseAgentStatus = "waiting"
+	PulseAgentStatusFresh   PulseAgentStatus = "fresh"
+	PulseAgentStatusRevoked PulseAgentStatus = "revoked"
+	PulseAgentStatusStale   PulseAgentStatus = "stale"
+	PulseAgentStatusWaiting PulseAgentStatus = "waiting"
 )
 
 // Valid indicates whether the value is a known member of the PulseAgentStatus enum.
 func (e PulseAgentStatus) Valid() bool {
 	switch e {
-	case Fresh:
+	case PulseAgentStatusFresh:
 		return true
-	case Revoked:
+	case PulseAgentStatusRevoked:
 		return true
-	case Stale:
+	case PulseAgentStatusStale:
 		return true
-	case Waiting:
+	case PulseAgentStatusWaiting:
 		return true
 	default:
 		return false
@@ -1052,6 +1127,27 @@ func (e PulseAgentCreateInstallType) Valid() bool {
 	case Docker:
 		return true
 	case Linux:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RecommendedFeedRisk.
+const (
+	RecommendedFeedRiskHigh   RecommendedFeedRisk = "high"
+	RecommendedFeedRiskLow    RecommendedFeedRisk = "low"
+	RecommendedFeedRiskMedium RecommendedFeedRisk = "medium"
+)
+
+// Valid indicates whether the value is a known member of the RecommendedFeedRisk enum.
+func (e RecommendedFeedRisk) Valid() bool {
+	switch e {
+	case RecommendedFeedRiskHigh:
+		return true
+	case RecommendedFeedRiskLow:
+		return true
+	case RecommendedFeedRiskMedium:
 		return true
 	default:
 		return false
@@ -2106,6 +2202,65 @@ type BootstrapLogin struct {
 	Username string `json:"username"`
 }
 
+// CaptchaSaveResult defines model for CaptchaSaveResult.
+type CaptchaSaveResult struct {
+	CertificatePending bool            `json:"certificate_pending"`
+	Plans              []SyncPlan      `json:"plans"`
+	Settings           CaptchaSettings `json:"settings"`
+}
+
+// CaptchaSettings defines model for CaptchaSettings.
+type CaptchaSettings struct {
+	// AdminServiceId The Cap dashboard's service: never behind Pass CAPTCHA
+	AdminServiceId *string `json:"admin_service_id,omitempty"`
+
+	// CapAddress Where edges reach Cap's public paths
+	CapAddress string `json:"cap_address"`
+	CapPort    int    `json:"cap_port"`
+
+	// ChallengeDomain The challenge service's name, e.g. cap.hashi.example.com
+	ChallengeDomain    string  `json:"challenge_domain"`
+	ChallengeServiceId *string `json:"challenge_service_id,omitempty"`
+	Enabled            bool    `json:"enabled"`
+	HasSecret          bool    `json:"has_secret"`
+
+	// SecretKey Empty keeps the stored one
+	SecretKey      *string `json:"secret_key,omitempty"`
+	SiteKey        string  `json:"site_key"`
+	TimeoutSeconds int     `json:"timeout_seconds"`
+
+	// VerifyUrl Where Hashi checks tokens, e.g. http://cap:3000
+	VerifyUrl string `json:"verify_url"`
+}
+
+// CaptchaSettingsInput defines model for CaptchaSettingsInput.
+type CaptchaSettingsInput struct {
+	// AdminServiceId The Cap dashboard's service: never behind Pass CAPTCHA
+	AdminServiceId *string `json:"admin_service_id,omitempty"`
+
+	// CapAddress Where edges reach Cap's public paths
+	CapAddress string `json:"cap_address"`
+	CapPort    int    `json:"cap_port"`
+
+	// ChallengeDomain The challenge service's name, e.g. cap.hashi.example.com
+	ChallengeDomain string `json:"challenge_domain"`
+	Enabled         bool   `json:"enabled"`
+
+	// SecretKey Empty keeps the stored one
+	SecretKey      *string `json:"secret_key,omitempty"`
+	SiteKey        string  `json:"site_key"`
+	TimeoutSeconds int     `json:"timeout_seconds"`
+
+	// VerifyUrl Where Hashi checks tokens, e.g. http://cap:3000
+	VerifyUrl string `json:"verify_url"`
+}
+
+// CaptchaTest defines model for CaptchaTest.
+type CaptchaTest struct {
+	Message string `json:"message"`
+	Ok      bool   `json:"ok"`
+}
+
 // CeremonyOptions defines model for CeremonyOptions.
 type CeremonyOptions struct {
 	CeremonyId string `json:"ceremony_id"`
@@ -2435,6 +2590,103 @@ type EdgeSSOSettings struct {
 	IdleTimeoutHours int  `json:"idle_timeout_hours"`
 	MaxSessionHours  int  `json:"max_session_hours"`
 	RememberDevice   bool `json:"remember_device"`
+}
+
+// Feed defines model for Feed.
+type Feed struct {
+	// AllowHttp Plain HTTP, only with this explicit choice
+	AllowHttp     *bool        `json:"allow_http,omitempty"`
+	CatalogKey    string       `json:"catalog_key"`
+	EntryCount    int          `json:"entry_count"`
+	Format        FeedFormat   `json:"format"`
+	LastAttemptAt *time.Time   `json:"last_attempt_at,omitempty"`
+	LastError     string       `json:"last_error"`
+	LastSuccessAt *time.Time   `json:"last_success_at,omitempty"`
+	Options       *FeedOptions `json:"options,omitempty"`
+	RejectedCount int          `json:"rejected_count"`
+	Runs          []FeedRun    `json:"runs"`
+	Url           string       `json:"url"`
+}
+
+// FeedCreated defines model for FeedCreated.
+type FeedCreated struct {
+	Run   FeedRun `json:"run"`
+	SetId string  `json:"set_id"`
+}
+
+// FeedFormat defines model for FeedFormat.
+type FeedFormat string
+
+// FeedInput defines model for FeedInput.
+type FeedInput struct {
+	// AllowHttp Plain HTTP, only with this explicit choice
+	AllowHttp *bool `json:"allow_http,omitempty"`
+
+	// CatalogKey The recommended feed this is, if any
+	CatalogKey  *string      `json:"catalog_key,omitempty"`
+	Description *string      `json:"description,omitempty"`
+	Format      FeedFormat   `json:"format"`
+	Name        string       `json:"name"`
+	Options     *FeedOptions `json:"options,omitempty"`
+	Slug        string       `json:"slug"`
+	Url         string       `json:"url"`
+}
+
+// FeedOptions defines model for FeedOptions.
+type FeedOptions struct {
+	// Column CSV: the address column, from 1
+	Column *int `json:"column,omitempty"`
+
+	// Field JSON object and lines: the field with the addresses
+	Field *string `json:"field,omitempty"`
+
+	// PrefixColumn CSV: the prefix-length column, if any
+	PrefixColumn *int                  `json:"prefix_column,omitempty"`
+	Separator    *FeedOptionsSeparator `json:"separator,omitempty"`
+}
+
+// FeedOptionsSeparator defines model for FeedOptions.Separator.
+type FeedOptionsSeparator string
+
+// FeedPreview defines model for FeedPreview.
+type FeedPreview struct {
+	Count    int          `json:"count"`
+	Hash     string       `json:"hash"`
+	Ignored  int          `json:"ignored"`
+	Rejected int          `json:"rejected"`
+	Rejects  []FeedReject `json:"rejects"`
+	Sample   []string     `json:"sample"`
+}
+
+// FeedReject defines model for FeedReject.
+type FeedReject struct {
+	Line   int    `json:"line"`
+	Reason string `json:"reason"`
+	Text   string `json:"text"`
+}
+
+// FeedRun defines model for FeedRun.
+type FeedRun struct {
+	Added     int            `json:"added"`
+	Error     string         `json:"error"`
+	Outcome   FeedRunOutcome `json:"outcome"`
+	Parsed    int            `json:"parsed"`
+	Rejected  int            `json:"rejected"`
+	Removed   int            `json:"removed"`
+	StartedAt time.Time      `json:"started_at"`
+	Unchanged int            `json:"unchanged"`
+}
+
+// FeedRunOutcome defines model for FeedRun.Outcome.
+type FeedRunOutcome string
+
+// FeedSource defines model for FeedSource.
+type FeedSource struct {
+	// AllowHttp Plain HTTP, only with this explicit choice
+	AllowHttp *bool        `json:"allow_http,omitempty"`
+	Format    FeedFormat   `json:"format"`
+	Options   *FeedOptions `json:"options,omitempty"`
+	Url       string       `json:"url"`
 }
 
 // FirewallBindings defines model for FirewallBindings.
@@ -3376,6 +3628,26 @@ type PulseSettings struct {
 	StaleFactor              int  `json:"stale_factor"`
 }
 
+// RecommendedFeed defines model for RecommendedFeed.
+type RecommendedFeed struct {
+	Description string      `json:"description"`
+	Format      FeedFormat  `json:"format"`
+	Key         string      `json:"key"`
+	Licence     string      `json:"licence"`
+	Name        string      `json:"name"`
+	Options     FeedOptions `json:"options"`
+
+	// Risk False-positive risk
+	Risk RecommendedFeedRisk `json:"risk"`
+
+	// SetId The set of this feed, once added
+	SetId *string `json:"set_id,omitempty"`
+	Url   string  `json:"url"`
+}
+
+// RecommendedFeedRisk False-positive risk
+type RecommendedFeedRisk string
+
 // RecoverLogin defines model for RecoverLogin.
 type RecoverLogin struct {
 	Token string `json:"token"`
@@ -4231,6 +4503,12 @@ type CreateDNSRecordJSONRequestBody = DNSRecordInput
 // UpdateDNSRecordJSONRequestBody defines body for UpdateDNSRecord for application/json ContentType.
 type UpdateDNSRecordJSONRequestBody = DNSRecordUpdate
 
+// CreateFeedJSONRequestBody defines body for CreateFeed for application/json ContentType.
+type CreateFeedJSONRequestBody = FeedInput
+
+// PreviewFeedJSONRequestBody defines body for PreviewFeed for application/json ContentType.
+type PreviewFeedJSONRequestBody = FeedSource
+
 // PutFirewallBindingsJSONRequestBody defines body for PutFirewallBindings for application/json ContentType.
 type PutFirewallBindingsJSONRequestBody = FirewallBindings
 
@@ -4302,6 +4580,9 @@ type UpdateRuleSetJSONRequestBody = RuleSetInput
 
 // PutRuleSetEntriesJSONRequestBody defines body for PutRuleSetEntries for application/json ContentType.
 type PutRuleSetEntriesJSONRequestBody = RuleEntriesInput
+
+// PutCaptchaSettingsJSONRequestBody defines body for PutCaptchaSettings for application/json ContentType.
+type PutCaptchaSettingsJSONRequestBody = CaptchaSettingsInput
 
 // PutGeoIPJSONRequestBody defines body for PutGeoIP for application/json ContentType.
 type PutGeoIPJSONRequestBody = GeoIPInput
@@ -4808,6 +5089,15 @@ type ServerInterface interface {
 	// ListDNSRRSets Observed RRSets of a zone with Hashi's ownership
 	// (GET /api/dns/zones/{id}/rrsets)
 	ListDNSRRSets(w http.ResponseWriter, r *http.Request, id string, params ListDNSRRSetsParams)
+	// CreateFeed Add a feed as an IP set of kind feed and download it once; binding it is a separate step
+	// (POST /api/feeds)
+	CreateFeed(w http.ResponseWriter, r *http.Request)
+	// PreviewFeed Download and parse a feed without storing it
+	// (POST /api/feeds/preview)
+	PreviewFeed(w http.ResponseWriter, r *http.Request)
+	// ListRecommendedFeeds The blocklists Hashi offers (all off until added), with the set of each one already added (06 §8)
+	// (GET /api/feeds/recommended)
+	ListRecommendedFeeds(w http.ResponseWriter, r *http.Request)
 	// GetFirewallBindings The IP sets bound to global firewall allow and block
 	// (GET /api/firewall/bindings)
 	GetFirewallBindings(w http.ResponseWriter, r *http.Request)
@@ -4898,6 +5188,12 @@ type ServerInterface interface {
 	// UpdateIPSetElement Replace an element's item, note and expiry
 	// (PATCH /api/ip-sets/{id}/elements/{elementId})
 	UpdateIPSetElement(w http.ResponseWriter, r *http.Request, id string, elementId string)
+	// GetFeed A feed set's source, state and recent downloads
+	// (GET /api/ip-sets/{id}/feed)
+	GetFeed(w http.ResponseWriter, r *http.Request, id string)
+	// RefreshFeed Download the feed now
+	// (POST /api/ip-sets/{id}/feed/refresh)
+	RefreshFeed(w http.ResponseWriter, r *http.Request, id string)
 	// GetIPSetResolved The set compiled now (prefixes merged per family, single addresses for target positions, problems)
 	// (GET /api/ip-sets/{id}/resolved)
 	GetIPSetResolved(w http.ResponseWriter, r *http.Request, id string, params GetIPSetResolvedParams)
@@ -4997,6 +5293,15 @@ type ServerInterface interface {
 	// PutRuleSetEntries Replace a rule set's entries in order; decisions change within seconds
 	// (PUT /api/rule-sets/{id}/entries)
 	PutRuleSetEntries(w http.ResponseWriter, r *http.Request, id string)
+	// GetCaptchaSettings How Hashi reaches Cap and the challenge service's name (06 §11)
+	// (GET /api/security/captcha/settings)
+	GetCaptchaSettings(w http.ResponseWriter, r *http.Request)
+	// PutCaptchaSettings Save the CAPTCHA settings; an empty secret key keeps the stored one. Creates, moves or removes the challenge service
+	// (PUT /api/security/captcha/settings)
+	PutCaptchaSettings(w http.ResponseWriter, r *http.Request)
+	// TestCaptcha Ask Cap with the stored site key and secret whether they are right (no visitor needed)
+	// (POST /api/security/captcha/test)
+	TestCaptcha(w http.ResponseWriter, r *http.Request)
 	// GetGeoIP GeoIP databases on hand and where downloads come from
 	// (GET /api/security/geoip)
 	GetGeoIP(w http.ResponseWriter, r *http.Request)
@@ -6145,6 +6450,48 @@ func (siw *ServerInterfaceWrapper) ListDNSRRSets(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// CreateFeed operation middleware
+func (siw *ServerInterfaceWrapper) CreateFeed(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateFeed(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PreviewFeed operation middleware
+func (siw *ServerInterfaceWrapper) PreviewFeed(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PreviewFeed(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListRecommendedFeeds operation middleware
+func (siw *ServerInterfaceWrapper) ListRecommendedFeeds(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListRecommendedFeeds(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetFirewallBindings operation middleware
 func (siw *ServerInterfaceWrapper) GetFirewallBindings(w http.ResponseWriter, r *http.Request) {
 
@@ -6887,6 +7234,58 @@ func (siw *ServerInterfaceWrapper) UpdateIPSetElement(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateIPSetElement(w, r, id, elementId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetFeed operation middleware
+func (siw *ServerInterfaceWrapper) GetFeed(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetFeed(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RefreshFeed operation middleware
+func (siw *ServerInterfaceWrapper) RefreshFeed(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RefreshFeed(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -7650,6 +8049,48 @@ func (siw *ServerInterfaceWrapper) PutRuleSetEntries(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PutRuleSetEntries(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetCaptchaSettings operation middleware
+func (siw *ServerInterfaceWrapper) GetCaptchaSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetCaptchaSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutCaptchaSettings operation middleware
+func (siw *ServerInterfaceWrapper) PutCaptchaSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutCaptchaSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TestCaptcha operation middleware
+func (siw *ServerInterfaceWrapper) TestCaptcha(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TestCaptcha(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -9327,6 +9768,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/security/sso/providers", wrapper.CreateSSOProvider)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/security/sso/providers/{id}", wrapper.DeleteSSOProvider)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/security/sso/providers/{id}", wrapper.UpdateSSOProvider)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/security/captcha/settings", wrapper.GetCaptchaSettings)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/security/captcha/settings", wrapper.PutCaptchaSettings)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/security/captcha/test", wrapper.TestCaptcha)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/security/geoip", wrapper.GetGeoIP)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/security/geoip", wrapper.PutGeoIP)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/auth/session", wrapper.GetAuthSession)
@@ -9478,6 +9922,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/firewall/hosts/{id}/takeover", wrapper.PutFirewallTakeover)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/firewall/bindings", wrapper.GetFirewallBindings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/firewall/bindings", wrapper.PutFirewallBindings)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/feeds/recommended", wrapper.ListRecommendedFeeds)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/feeds/preview", wrapper.PreviewFeed)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/feeds", wrapper.CreateFeed)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/ip-sets/{id}/feed", wrapper.GetFeed)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/ip-sets/{id}/feed/refresh", wrapper.RefreshFeed)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/ip-sets", wrapper.ListIPSets)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/ip-sets", wrapper.CreateIPSet)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/ip-sets/{id}", wrapper.DeleteIPSet)
@@ -11165,6 +11614,122 @@ func (response ListDNSRRSetsdefaultApplicationProblemPlusJSONResponse) VisitList
 	return err
 }
 
+type CreateFeedRequestObject struct {
+	Body *CreateFeedJSONRequestBody
+}
+
+type CreateFeedResponseObject interface {
+	VisitCreateFeedResponse(w http.ResponseWriter) error
+}
+
+type CreateFeed200JSONResponse FeedCreated
+
+func (response CreateFeed200JSONResponse) VisitCreateFeedResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateFeeddefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response CreateFeeddefaultApplicationProblemPlusJSONResponse) VisitCreateFeedResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PreviewFeedRequestObject struct {
+	Body *PreviewFeedJSONRequestBody
+}
+
+type PreviewFeedResponseObject interface {
+	VisitPreviewFeedResponse(w http.ResponseWriter) error
+}
+
+type PreviewFeed200JSONResponse FeedPreview
+
+func (response PreviewFeed200JSONResponse) VisitPreviewFeedResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PreviewFeeddefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PreviewFeeddefaultApplicationProblemPlusJSONResponse) VisitPreviewFeedResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListRecommendedFeedsRequestObject struct {
+}
+
+type ListRecommendedFeedsResponseObject interface {
+	VisitListRecommendedFeedsResponse(w http.ResponseWriter) error
+}
+
+type ListRecommendedFeeds200JSONResponse []RecommendedFeed
+
+func (response ListRecommendedFeeds200JSONResponse) VisitListRecommendedFeedsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListRecommendedFeedsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ListRecommendedFeedsdefaultApplicationProblemPlusJSONResponse) VisitListRecommendedFeedsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetFirewallBindingsRequestObject struct {
 }
 
@@ -12307,6 +12872,84 @@ type UpdateIPSetElementdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response UpdateIPSetElementdefaultApplicationProblemPlusJSONResponse) VisitUpdateIPSetElementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetFeedRequestObject struct {
+	Id string `json:"id"`
+}
+
+type GetFeedResponseObject interface {
+	VisitGetFeedResponse(w http.ResponseWriter) error
+}
+
+type GetFeed200JSONResponse Feed
+
+func (response GetFeed200JSONResponse) VisitGetFeedResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetFeeddefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetFeeddefaultApplicationProblemPlusJSONResponse) VisitGetFeedResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RefreshFeedRequestObject struct {
+	Id string `json:"id"`
+}
+
+type RefreshFeedResponseObject interface {
+	VisitRefreshFeedResponse(w http.ResponseWriter) error
+}
+
+type RefreshFeed200JSONResponse FeedRun
+
+func (response RefreshFeed200JSONResponse) VisitRefreshFeedResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RefreshFeeddefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response RefreshFeeddefaultApplicationProblemPlusJSONResponse) VisitRefreshFeedResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -13559,6 +14202,121 @@ type PutRuleSetEntriesdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response PutRuleSetEntriesdefaultApplicationProblemPlusJSONResponse) VisitPutRuleSetEntriesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetCaptchaSettingsRequestObject struct {
+}
+
+type GetCaptchaSettingsResponseObject interface {
+	VisitGetCaptchaSettingsResponse(w http.ResponseWriter) error
+}
+
+type GetCaptchaSettings200JSONResponse CaptchaSettings
+
+func (response GetCaptchaSettings200JSONResponse) VisitGetCaptchaSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetCaptchaSettingsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetCaptchaSettingsdefaultApplicationProblemPlusJSONResponse) VisitGetCaptchaSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutCaptchaSettingsRequestObject struct {
+	Body *PutCaptchaSettingsJSONRequestBody
+}
+
+type PutCaptchaSettingsResponseObject interface {
+	VisitPutCaptchaSettingsResponse(w http.ResponseWriter) error
+}
+
+type PutCaptchaSettings200JSONResponse CaptchaSaveResult
+
+func (response PutCaptchaSettings200JSONResponse) VisitPutCaptchaSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutCaptchaSettingsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutCaptchaSettingsdefaultApplicationProblemPlusJSONResponse) VisitPutCaptchaSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestCaptchaRequestObject struct {
+}
+
+type TestCaptchaResponseObject interface {
+	VisitTestCaptchaResponse(w http.ResponseWriter) error
+}
+
+type TestCaptcha200JSONResponse CaptchaTest
+
+func (response TestCaptcha200JSONResponse) VisitTestCaptchaResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type TestCaptchadefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response TestCaptchadefaultApplicationProblemPlusJSONResponse) VisitTestCaptchaResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -17036,6 +17794,15 @@ type StrictServerInterface interface {
 	// ListDNSRRSets Observed RRSets of a zone with Hashi's ownership
 	// (GET /api/dns/zones/{id}/rrsets)
 	ListDNSRRSets(ctx context.Context, request ListDNSRRSetsRequestObject) (ListDNSRRSetsResponseObject, error)
+	// CreateFeed Add a feed as an IP set of kind feed and download it once; binding it is a separate step
+	// (POST /api/feeds)
+	CreateFeed(ctx context.Context, request CreateFeedRequestObject) (CreateFeedResponseObject, error)
+	// PreviewFeed Download and parse a feed without storing it
+	// (POST /api/feeds/preview)
+	PreviewFeed(ctx context.Context, request PreviewFeedRequestObject) (PreviewFeedResponseObject, error)
+	// ListRecommendedFeeds The blocklists Hashi offers (all off until added), with the set of each one already added (06 §8)
+	// (GET /api/feeds/recommended)
+	ListRecommendedFeeds(ctx context.Context, request ListRecommendedFeedsRequestObject) (ListRecommendedFeedsResponseObject, error)
 	// GetFirewallBindings The IP sets bound to global firewall allow and block
 	// (GET /api/firewall/bindings)
 	GetFirewallBindings(ctx context.Context, request GetFirewallBindingsRequestObject) (GetFirewallBindingsResponseObject, error)
@@ -17126,6 +17893,12 @@ type StrictServerInterface interface {
 	// UpdateIPSetElement Replace an element's item, note and expiry
 	// (PATCH /api/ip-sets/{id}/elements/{elementId})
 	UpdateIPSetElement(ctx context.Context, request UpdateIPSetElementRequestObject) (UpdateIPSetElementResponseObject, error)
+	// GetFeed A feed set's source, state and recent downloads
+	// (GET /api/ip-sets/{id}/feed)
+	GetFeed(ctx context.Context, request GetFeedRequestObject) (GetFeedResponseObject, error)
+	// RefreshFeed Download the feed now
+	// (POST /api/ip-sets/{id}/feed/refresh)
+	RefreshFeed(ctx context.Context, request RefreshFeedRequestObject) (RefreshFeedResponseObject, error)
 	// GetIPSetResolved The set compiled now (prefixes merged per family, single addresses for target positions, problems)
 	// (GET /api/ip-sets/{id}/resolved)
 	GetIPSetResolved(ctx context.Context, request GetIPSetResolvedRequestObject) (GetIPSetResolvedResponseObject, error)
@@ -17225,6 +17998,15 @@ type StrictServerInterface interface {
 	// PutRuleSetEntries Replace a rule set's entries in order; decisions change within seconds
 	// (PUT /api/rule-sets/{id}/entries)
 	PutRuleSetEntries(ctx context.Context, request PutRuleSetEntriesRequestObject) (PutRuleSetEntriesResponseObject, error)
+	// GetCaptchaSettings How Hashi reaches Cap and the challenge service's name (06 §11)
+	// (GET /api/security/captcha/settings)
+	GetCaptchaSettings(ctx context.Context, request GetCaptchaSettingsRequestObject) (GetCaptchaSettingsResponseObject, error)
+	// PutCaptchaSettings Save the CAPTCHA settings; an empty secret key keeps the stored one. Creates, moves or removes the challenge service
+	// (PUT /api/security/captcha/settings)
+	PutCaptchaSettings(ctx context.Context, request PutCaptchaSettingsRequestObject) (PutCaptchaSettingsResponseObject, error)
+	// TestCaptcha Ask Cap with the stored site key and secret whether they are right (no visitor needed)
+	// (POST /api/security/captcha/test)
+	TestCaptcha(ctx context.Context, request TestCaptchaRequestObject) (TestCaptchaResponseObject, error)
 	// GetGeoIP GeoIP databases on hand and where downloads come from
 	// (GET /api/security/geoip)
 	GetGeoIP(ctx context.Context, request GetGeoIPRequestObject) (GetGeoIPResponseObject, error)
@@ -18687,6 +19469,92 @@ func (sh *strictHandler) ListDNSRRSets(w http.ResponseWriter, r *http.Request, i
 	}
 }
 
+// CreateFeed operation middleware
+func (sh *strictHandler) CreateFeed(w http.ResponseWriter, r *http.Request) {
+	var request CreateFeedRequestObject
+
+	var body CreateFeedJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateFeed(ctx, request.(CreateFeedRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateFeed")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateFeedResponseObject); ok {
+		if err := validResponse.VisitCreateFeedResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PreviewFeed operation middleware
+func (sh *strictHandler) PreviewFeed(w http.ResponseWriter, r *http.Request) {
+	var request PreviewFeedRequestObject
+
+	var body PreviewFeedJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PreviewFeed(ctx, request.(PreviewFeedRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PreviewFeed")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PreviewFeedResponseObject); ok {
+		if err := validResponse.VisitPreviewFeedResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListRecommendedFeeds operation middleware
+func (sh *strictHandler) ListRecommendedFeeds(w http.ResponseWriter, r *http.Request) {
+	var request ListRecommendedFeedsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListRecommendedFeeds(ctx, request.(ListRecommendedFeedsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListRecommendedFeeds")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListRecommendedFeedsResponseObject); ok {
+		if err := validResponse.VisitListRecommendedFeedsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetFirewallBindings operation middleware
 func (sh *strictHandler) GetFirewallBindings(w http.ResponseWriter, r *http.Request) {
 	var request GetFirewallBindingsRequestObject
@@ -19531,6 +20399,58 @@ func (sh *strictHandler) UpdateIPSetElement(w http.ResponseWriter, r *http.Reque
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(UpdateIPSetElementResponseObject); ok {
 		if err := validResponse.VisitUpdateIPSetElementResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetFeed operation middleware
+func (sh *strictHandler) GetFeed(w http.ResponseWriter, r *http.Request, id string) {
+	var request GetFeedRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetFeed(ctx, request.(GetFeedRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetFeed")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetFeedResponseObject); ok {
+		if err := validResponse.VisitGetFeedResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RefreshFeed operation middleware
+func (sh *strictHandler) RefreshFeed(w http.ResponseWriter, r *http.Request, id string) {
+	var request RefreshFeedRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RefreshFeed(ctx, request.(RefreshFeedRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RefreshFeed")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RefreshFeedResponseObject); ok {
+		if err := validResponse.VisitRefreshFeedResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -20448,6 +21368,85 @@ func (sh *strictHandler) PutRuleSetEntries(w http.ResponseWriter, r *http.Reques
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(PutRuleSetEntriesResponseObject); ok {
 		if err := validResponse.VisitPutRuleSetEntriesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetCaptchaSettings operation middleware
+func (sh *strictHandler) GetCaptchaSettings(w http.ResponseWriter, r *http.Request) {
+	var request GetCaptchaSettingsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetCaptchaSettings(ctx, request.(GetCaptchaSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetCaptchaSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetCaptchaSettingsResponseObject); ok {
+		if err := validResponse.VisitGetCaptchaSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutCaptchaSettings operation middleware
+func (sh *strictHandler) PutCaptchaSettings(w http.ResponseWriter, r *http.Request) {
+	var request PutCaptchaSettingsRequestObject
+
+	var body PutCaptchaSettingsJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutCaptchaSettings(ctx, request.(PutCaptchaSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutCaptchaSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutCaptchaSettingsResponseObject); ok {
+		if err := validResponse.VisitPutCaptchaSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// TestCaptcha operation middleware
+func (sh *strictHandler) TestCaptcha(w http.ResponseWriter, r *http.Request) {
+	var request TestCaptchaRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.TestCaptcha(ctx, request.(TestCaptchaRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "TestCaptcha")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(TestCaptchaResponseObject); ok {
+		if err := validResponse.VisitTestCaptchaResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

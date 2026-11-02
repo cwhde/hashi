@@ -52,6 +52,11 @@ func (s *Server) edgeForward(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	d := s.Edge.DecideHost(host, ri.ip, uri)
+	// The challenge service passes only the challenge flow's paths: Cap's dashboard is never reachable there (06 §11).
+	if d.Challenge && !challengeFlowPath(edge.NormalizePath(uri)) {
+		edgePage(w, http.StatusNotFound, "Not found.")
+		return
+	}
 
 	var sess *edge.Session
 	if c, err := r.Cookie(edge.CookieSession); err == nil && c.Value != "" {
@@ -75,7 +80,8 @@ func (s *Server) edgeForward(w http.ResponseWriter, r *http.Request) {
 
 	// Stage A runs before the service's rules, for every service (06 §3).
 	if s.Security != nil {
-		o, err := s.Security.StageA(r.Context(), security.Request{Addr: ri.ip, SSO: sess != nil,
+		// The challenge flow gets A1 only: a challenged address must always reach it, and it never challenges (06 §11).
+		o, err := s.Security.StageA(r.Context(), security.Request{Addr: ri.ip, SSO: sess != nil, ChallengeFlow: d.Challenge,
 			StaticBlock: s.Edge.StaticBlocked(ri.ip), ServiceID: d.ServiceID})
 		if err != nil { // the state change was not stored: answer as if it had been, and say so in the log
 			s.Log.Error("abuse engine", "err", err)
@@ -87,9 +93,14 @@ func (s *Server) edgeForward(w http.ResponseWriter, r *http.Request) {
 			return
 		case security.Challenged:
 			decision = security.DecisionChallenge
-			s.challenge(w, r)
+			s.challenge(w, r, "https://"+host+uri, scopeGlobal, "")
 			return
 		}
+	}
+	if d.Challenge {
+		decision = security.DecisionAllow
+		w.WriteHeader(http.StatusNoContent)
+		return
 	}
 	allow := func() {
 		decision = security.DecisionAllow
@@ -101,6 +112,17 @@ func (s *Server) edgeForward(w http.ResponseWriter, r *http.Request) {
 	switch d.Action {
 	case rules.ActionNone:
 		allow()
+	case rules.ActionCaptcha:
+		switch {
+		case !s.captchaSettings(r.Context()).Enabled: // nothing to solve: the item stays shut (06 §11)
+			s.Log.Warn("a rule asks for a CAPTCHA, but CAPTCHA is not set up", "service", d.ServiceID)
+			edgePage(w, http.StatusForbidden, "Access denied.")
+		case s.cleared(r, d.ServiceID):
+			allow()
+		default:
+			decision = security.DecisionChallenge
+			s.challenge(w, r, "https://"+host+uri, scopeService, d.ServiceID)
+		}
 	case rules.ActionAuth:
 		provider := d.Item.Entry.Provider
 		want := provider
@@ -127,9 +149,15 @@ func (s *Server) edgeForward(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// challenge answers a request from a challenged address (06 §3.3). Until a CAPTCHA is set up there is nothing to
-// solve, so browsers and API clients both get 429 until the challenge expires; unsolved requests still count.
-func (s *Server) challenge(w http.ResponseWriter, _ *http.Request) {
+// challenge answers a request that has to solve a CAPTCHA first (06 §3.3): a browser goes to the challenge page, an API
+// client gets 429. Until a CAPTCHA is set up there is nothing to solve, so browsers get 429 too; unsolved requests
+// still count.
+func (s *Server) challenge(w http.ResponseWriter, r *http.Request, rd, scope, serviceID string) {
+	if c := s.captchaSettings(r.Context()); c.Enabled && browserRequest(r) {
+		w.Header().Set("Cache-Control", "no-store")
+		http.Redirect(w, r, challengeURL(c, scope, serviceID, rd), http.StatusFound)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(http.StatusTooManyRequests)

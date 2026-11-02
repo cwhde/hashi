@@ -371,6 +371,40 @@ type IpSetElement struct {
 	UpdatedAt    int64
 }
 
+type IpSetFeed struct {
+	IpSetID       string
+	Url           string
+	Format        string
+	OptionsJson   string
+	AllowHttp     int64
+	CatalogKey    string
+	Etag          string
+	LastModified  string
+	ContentHash   string
+	EntryCount    int64
+	RejectedCount int64
+	LastAttemptAt sql.NullInt64
+	LastSuccessAt sql.NullInt64
+	LastError     string
+	CreatedAt     int64
+	UpdatedAt     int64
+}
+
+type IpSetFeedRun struct {
+	ID          string
+	IpSetID     string
+	StartedAt   int64
+	FinishedAt  int64
+	Outcome     string
+	Error       string
+	Parsed      int64
+	Added       int64
+	Removed     int64
+	Unchanged   int64
+	Rejected    int64
+	ContentHash string
+}
+
 type IpSetTarget struct {
 	Consumer         string
 	IpSetID          string

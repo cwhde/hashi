@@ -119,11 +119,15 @@ func TestForwardAuthRules(t *testing.T) {
 	}
 	c.mustStatus(c.do(http.MethodPut, "/api/services/"+b+"/access", map[string]any{"entries": []map[string]any{}, "fallback": "deny"}), 200)
 
-	// Attached set can't be deleted; a cycle and Pass CAPTCHA are refused; sign-in without a provider stays shut.
+	// Attached set can't be deleted; a cycle is refused; Pass CAPTCHA without CAPTCHA set up and sign-in without a
+	// provider stay shut.
 	c.mustStatus(c.do(http.MethodDelete, "/api/rule-sets/"+rs, nil), 409)
 	c.mustStatus(c.do(http.MethodPut, "/api/rule-sets/"+rs+"/entries", map[string]any{"entries": []map[string]any{{"type": "set", "child_id": rs}}}), 400)
 	c.mustStatus(c.do(http.MethodPut, "/api/rule-sets/"+rs+"/entries", map[string]any{"entries": []map[string]any{
-		{"type": "item", "applies_to": set, "action": "pass_captcha"}}}), 422)
+		{"type": "item", "applies_to": set, "action": "pass_captcha", "enabled": true}}}), 200)
+	if got := forward("aaa.example.com", "/"); got != 403 {
+		t.Errorf("Pass CAPTCHA without CAPTCHA set up: %d", got)
+	}
 	c.mustStatus(c.do(http.MethodPut, "/api/services/"+a+"/access", map[string]any{"entries": []map[string]any{
 		{"type": "item", "applies_to": set, "action": "pass_authentication", "enabled": true}}}), 200)
 	if got := forward("aaa.example.com", "/"); got != 403 {

@@ -88,6 +88,11 @@ func httpServices(svcs []services.Service, edge bool, wafDefault string) (dynami
 			}
 			name := base + "-r-" + strings.ToLower(r.ID)
 			mws := chain(s, edge)
+			if edge && s.IsChallenge() && r.PathValue == services.ChallengePath+"/" {
+				// Hashi's half of the challenge service needs the client address, so it gets the edge token; Cap's half
+				// (the main router) never sees the token.
+				mws = append([]string{MiddlewareEdge}, mws...)
+			}
 			if mw, ok := rewrite(r); ok {
 				h.Middlewares[name] = mw
 				mws = append(mws, name)

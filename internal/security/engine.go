@@ -188,6 +188,15 @@ func (e *Engine) Banned(a netip.Addr) bool {
 	return ok && x.live(now)
 }
 
+// IsChallenged reports whether a's key is in dynamic-challenge now (the challenge page's status).
+func (e *Engine) IsChallenged(a netip.Addr) bool {
+	k, now := Key(a), e.now()
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	x, ok := e.challenged[k]
+	return ok && x.live(now)
+}
+
 // Bans returns the live entries of dynamic-blocked, for the host link.
 func (e *Engine) Bans() []Entry {
 	now := e.now()

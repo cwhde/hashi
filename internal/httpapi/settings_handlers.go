@@ -116,8 +116,16 @@ func (s *Server) PutGeneralSettings(ctx context.Context, req gen.PutGeneralSetti
 			return err
 		}
 		sv, changed, err := services.EnsureSystem(ctx, q, s.now())
-		if err != nil || !changed {
+		if err != nil {
 			return err
+		}
+		// The challenge service's Hashi half follows the internal URL too (06 §11).
+		_, capChanged, err := services.EnsureChallenge(ctx, q, s.now())
+		if err != nil {
+			return err
+		}
+		if !changed && !capChanged {
+			return nil
 		}
 		if err := rules.EnsureRoots(ctx, q, s.now()); err != nil {
 			return err

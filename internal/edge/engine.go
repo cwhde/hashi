@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/netip"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -18,6 +19,7 @@ import (
 
 	"git.juzo.io/juzo/hashi/internal/ipsets"
 	"git.juzo.io/juzo/hashi/internal/rules"
+	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/store"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 )
@@ -40,6 +42,8 @@ type GeoLookup func(a netip.Addr) (country, region string, asn uint, ok bool)
 type serviceView struct {
 	ID, Name string
 	List     []rules.Flat
+	// Challenge marks the CAPTCHA challenge service: Stage A runs A1 only and only the flow's paths pass (06 §11).
+	Challenge bool
 }
 
 type snapshot struct {
@@ -127,6 +131,10 @@ func (e *Engine) Rebuild(ctx context.Context) error {
 				return nil, err
 			}
 		}
+		capCfg, err := settings.Get[settings.Captcha](ctx, e.st.R)
+		if err != nil {
+			return nil, err
+		}
 		roots := map[string]string{}
 		for _, s := range g {
 			if s.Kind == rules.KindServiceRoot {
@@ -147,7 +155,12 @@ func (e *Engine) Rebuild(ctx context.Context) error {
 				}
 				continue
 			}
-			v := serviceView{ID: row.ID, Name: row.Name, List: g.Flatten(root, row.Origin == "system")}
+			v := serviceView{ID: row.ID, Name: row.Name, List: g.Flatten(root, row.Origin == "system"),
+				Challenge: row.Origin == "system" && row.OwnerFeature == "captcha"}
+			if v.Challenge || row.ID == capCfg.AdminServiceID {
+				// No CAPTCHA in front of CAPTCHA (06 §11): pass_captcha items, also from the global set, are left out.
+				v.List = slices.DeleteFunc(slices.Clone(v.List), func(f rules.Flat) bool { return f.Entry.Action == rules.ActionCaptcha })
+			}
 			next.byID[row.ID] = v
 			if row.HostName != "" {
 				next.byHost[strings.ToLower(row.HostName)] = v
@@ -217,6 +230,8 @@ func (e *Engine) in(s *snapshot, id string, a netip.Addr) bool {
 // Decision is one Stage B outcome with its trace (06 §4.3).
 type Decision struct {
 	ServiceID string
+	// Challenge: the request is for the CAPTCHA challenge service.
+	Challenge bool
 	Action    string
 	Item      *rules.Flat
 	Index     int
@@ -251,7 +266,7 @@ func (e *Engine) DecideService(serviceID string, a netip.Addr, path string) (Dec
 }
 
 func (e *Engine) decide(s *snapshot, v serviceView, a netip.Addr, path string) Decision {
-	d := Decision{ServiceID: v.ID, List: v.List, Index: -1}
+	d := Decision{ServiceID: v.ID, Challenge: v.Challenge, List: v.List, Index: -1}
 	d.Index = rules.Evaluate(v.List, NormalizePath(path), func(id string) bool { return e.in(s, id, a) })
 	if d.Index < 0 {
 		// The fallback covers everyone, so this means an address no compiled set contains (none): nothing matched means denied.

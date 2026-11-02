@@ -234,6 +234,42 @@ paths:
       responses:
         "204": { description: Deleted }
         default: { $ref: "#/components/responses/Problem" }
+  /api/security/captcha/settings:
+    get:
+      operationId: getCaptchaSettings
+      summary: How Hashi reaches Cap and the challenge service's name (06 §11)
+      tags: [security]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Settings; the secret key is never returned
+          content: { application/json: { schema: { $ref: "#/components/schemas/CaptchaSettings" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      operationId: putCaptchaSettings
+      summary: Save the CAPTCHA settings; an empty secret key keeps the stored one. Creates, moves or removes the challenge service
+      tags: [security]
+      x-hashi-scopes: [security.manage]
+      x-hashi-reauth: true
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CaptchaSettingsInput" } } }
+      responses:
+        "200":
+          description: Saved, with the Traefik plans it caused
+          content: { application/json: { schema: { $ref: "#/components/schemas/CaptchaSaveResult" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/security/captcha/test:
+    post:
+      operationId: testCaptcha
+      summary: Ask Cap with the stored site key and secret whether they are right (no visitor needed)
+      tags: [security]
+      x-hashi-scopes: [security.manage]
+      responses:
+        "200":
+          description: The answer; ok false carries the reason
+          content: { application/json: { schema: { $ref: "#/components/schemas/CaptchaTest" } } }
+        default: { $ref: "#/components/responses/Problem" }
   /api/security/geoip:
     get:
       operationId: getGeoIP
@@ -2193,6 +2229,71 @@ paths:
           description: Saved, with the plans it caused
           content: { application/json: { schema: { $ref: "#/components/schemas/FirewallPlans" } } }
         default: { $ref: "#/components/responses/Problem" }
+  /api/feeds/recommended:
+    get:
+      operationId: listRecommendedFeeds
+      summary: The blocklists Hashi offers (all off until added), with the set of each one already added (06 §8)
+      tags: [ip-sets]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Catalog
+          content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/RecommendedFeed" } } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/feeds/preview:
+    post:
+      operationId: previewFeed
+      summary: Download and parse a feed without storing it
+      tags: [ip-sets]
+      x-hashi-scopes: [security.manage]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/FeedSource" } } }
+      responses:
+        "200":
+          description: What the feed would contain
+          content: { application/json: { schema: { $ref: "#/components/schemas/FeedPreview" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/feeds:
+    post:
+      operationId: createFeed
+      summary: Add a feed as an IP set of kind feed and download it once; binding it is a separate step
+      tags: [ip-sets]
+      x-hashi-scopes: [security.manage]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/FeedInput" } } }
+      responses:
+        "200":
+          description: The new set and its first download
+          content: { application/json: { schema: { $ref: "#/components/schemas/FeedCreated" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/ip-sets/{id}/feed:
+    get:
+      operationId: getFeed
+      summary: A feed set's source, state and recent downloads
+      tags: [ip-sets]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Feed
+          content: { application/json: { schema: { $ref: "#/components/schemas/Feed" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/ip-sets/{id}/feed/refresh:
+    post:
+      operationId: refreshFeed
+      summary: Download the feed now
+      tags: [ip-sets]
+      x-hashi-scopes: [security.manage]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The download's result
+          content: { application/json: { schema: { $ref: "#/components/schemas/FeedRun" } } }
+        default: { $ref: "#/components/responses/Problem" }
   /api/ip-sets:
     get:
       operationId: listIPSets
@@ -2700,6 +2801,127 @@ components:
         built_at: { type: string, format: date-time }
         fetched_at: { type: string, format: date-time }
         stale: { type: boolean }
+    FeedFormat: { type: string, enum: [lines, csv, json_array, json_object, json_lines] }
+    FeedOptions:
+      type: object
+      properties:
+        separator: { type: string, enum: [tab, comma, semicolon, space] }
+        column: { type: integer, description: "CSV: the address column, from 1" }
+        prefix_column: { type: integer, description: "CSV: the prefix-length column, if any" }
+        field: { type: string, description: "JSON object and lines: the field with the addresses" }
+    FeedSource:
+      type: object
+      required: [url, format]
+      properties:
+        url: { type: string }
+        format: { $ref: "#/components/schemas/FeedFormat" }
+        options: { $ref: "#/components/schemas/FeedOptions" }
+        allow_http: { type: boolean, description: "Plain HTTP, only with this explicit choice" }
+    FeedInput:
+      allOf:
+        - $ref: "#/components/schemas/FeedSource"
+        - type: object
+          required: [name, slug]
+          properties:
+            name: { type: string }
+            slug: { type: string }
+            description: { type: string }
+            catalog_key: { type: string, description: "The recommended feed this is, if any" }
+    RecommendedFeed:
+      type: object
+      required: [key, name, url, format, options, description, risk, licence]
+      properties:
+        key: { type: string }
+        name: { type: string }
+        url: { type: string }
+        format: { $ref: "#/components/schemas/FeedFormat" }
+        options: { $ref: "#/components/schemas/FeedOptions" }
+        description: { type: string }
+        risk: { type: string, enum: [low, medium, high], description: "False-positive risk" }
+        licence: { type: string }
+        set_id: { type: string, description: "The set of this feed, once added" }
+    FeedReject:
+      type: object
+      required: [line, text, reason]
+      properties:
+        line: { type: integer }
+        text: { type: string }
+        reason: { type: string }
+    FeedPreview:
+      type: object
+      required: [count, sample, rejected, rejects, ignored, hash]
+      properties:
+        count: { type: integer }
+        sample: { type: array, items: { type: string } }
+        rejected: { type: integer }
+        rejects: { type: array, items: { $ref: "#/components/schemas/FeedReject" } }
+        ignored: { type: integer }
+        hash: { type: string }
+    FeedRun:
+      type: object
+      required: [started_at, outcome, error, parsed, added, removed, unchanged, rejected]
+      properties:
+        started_at: { type: string, format: date-time }
+        outcome: { type: string, enum: [updated, unchanged, failed, stale] }
+        error: { type: string }
+        parsed: { type: integer }
+        added: { type: integer }
+        removed: { type: integer }
+        unchanged: { type: integer }
+        rejected: { type: integer }
+    Feed:
+      allOf:
+        - $ref: "#/components/schemas/FeedSource"
+        - type: object
+          required: [catalog_key, entry_count, rejected_count, last_error, runs]
+          properties:
+            catalog_key: { type: string }
+            entry_count: { type: integer }
+            rejected_count: { type: integer }
+            last_attempt_at: { type: string, format: date-time }
+            last_success_at: { type: string, format: date-time }
+            last_error: { type: string }
+            runs: { type: array, items: { $ref: "#/components/schemas/FeedRun" } }
+    FeedCreated:
+      type: object
+      required: [set_id, run]
+      properties:
+        set_id: { type: string }
+        run: { $ref: "#/components/schemas/FeedRun" }
+    CaptchaSettingsInput:
+      type: object
+      required: [enabled, challenge_domain, cap_address, cap_port, verify_url, site_key, timeout_seconds]
+      properties:
+        enabled: { type: boolean }
+        challenge_domain: { type: string, description: "The challenge service's name, e.g. cap.hashi.example.com" }
+        cap_address: { type: string, description: "Where edges reach Cap's public paths" }
+        cap_port: { type: integer }
+        verify_url: { type: string, description: "Where Hashi checks tokens, e.g. http://cap:3000" }
+        site_key: { type: string }
+        secret_key: { type: string, format: password, description: "Empty keeps the stored one" }
+        timeout_seconds: { type: integer }
+        admin_service_id: { type: string, description: "The Cap dashboard's service: never behind Pass CAPTCHA" }
+    CaptchaSettings:
+      allOf:
+        - $ref: "#/components/schemas/CaptchaSettingsInput"
+        - type: object
+          required: [has_secret]
+          properties:
+            has_secret: { type: boolean }
+            challenge_service_id: { type: string }
+    CaptchaSaveResult:
+      type: object
+      required: [settings, plans, certificate_pending]
+      properties:
+        settings: { $ref: "#/components/schemas/CaptchaSettings" }
+        plans: { type: array, items: { $ref: "#/components/schemas/SyncPlan" } }
+        certificate_pending: { type: boolean }
+    CaptchaTest:
+      type: object
+      required: [ok, message]
+      properties:
+        ok: { type: boolean }
+        message: { type: string }
     GeoIPStatus:
       type: object
       required: [databases, account_id, has_key, url, error]
