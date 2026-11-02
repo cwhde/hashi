@@ -3,6 +3,8 @@ FROM --platform=$BUILDPLATFORM golang:1.27.3-alpine AS go
 WORKDIR /src
 COPY go.mod go.sum ./
 COPY agents/ agents/
+# the one Hashi package the agent shares; it imports nothing else of Hashi
+COPY internal/semver/ internal/semver/
 ARG TARGETOS TARGETARCH VERSION=dev
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags "-s -w -X main.Version=${VERSION}" -o /out/hashi-pulse ./agents/pulse
 
