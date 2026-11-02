@@ -755,6 +755,7 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-11-02 · housekeeping · V1 deleted everywhere (container, image, `:old` tag, folders, `legacy/v1`, its workflow); Hashi's container and project renamed `hashi`, data mounted from `/home/hashi`; pre-swap backups of CT 101/105 deleted from `novacloud-smb`. **To do:** delete the older pre-swap backups on `uta` when it is online again (it was offline 2026-11-01 and 2026-11-02).
 - 2026-11-02 · `/deploy 0.9.3` (user's OK in chat) · `472617a` · readyz and smoke ok, admin name 200. All five agents (3 systemd, 2 OpenRC, all amd64) upgraded by hand to v0.9.3 (checksum and version checked, old file kept as `hashi-pulse.old-v0`, systemd units now allow writing `/usr/local/bin`); Hashi saw each one's next heartbeat with v0.9.3, no address changes. Real network: a beat keeps the agent awake 0.016 s (same server as Hashi) to 0.07 s (home over NetBird), peak 6.6 to 6.8 MB. From now on they update themselves.
 - 2026-11-02 · release `v0.9.3` · `472617a` · Pulse auto-update (ADR 0003, PR #54): signed agent binaries, verified locally against the built-in key after download. Release image job and two CI jobs failed on GitHub checkout timeouts and were re-run; the `internal/app` readiness test timed out once on a busy runner (bugs.md #10).
 - 2026-11-02 · `/deploy 0.9.2` · `83fce65` · readyz and smoke ok, admin name 200. Ships the Pulse sleeper (PR #53); the five running agents (all native) stay on their old versions until upgraded. Main CI failed only on checkout (GitHub TLS timeout), PR CI and release green.

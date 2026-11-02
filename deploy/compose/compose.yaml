@@ -1,9 +1,9 @@
 # Hashi on a Docker host. Copied to the host by `make deploy`; the host's .env sets HASHI_TAG and ports.
-name: hashi-v3
+name: hashi
 services:
   hashi:
     image: git.juzo.io/juzo/hashi:${HASHI_TAG:?set HASHI_TAG in .env}
-    container_name: hashi-v3
+    container_name: hashi
     restart: unless-stopped
     ports:
       - "${HASHI_ADMIN_PORT:-8080}:8080"
