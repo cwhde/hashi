@@ -382,7 +382,31 @@ starting point; the dashboard shows challenge → ban conversions so they can be
 
 ## 11. CAPTCHA (Cap)
 
-Hashi integrates with an **existing** Cap Standalone instance; it does not deploy Cap.
+Cap Standalone ships next to Hashi as an optional part of Hashi's compose project (decided by the user 2026-11-02;
+earlier: "an existing instance"): containers `cap` (pinned `tiago2/cap`) and `cap-valkey` (its store), compose profile
+`cap`. The dashboard password (`ADMIN_KEY`, at least 12 characters) lives in `cap.env` next to the compose file, created
+once on the host, never in the repo. Hashi verifies tokens over the compose network (`http://cap:3000`); edges reach
+Cap's public paths on the host port `HASHI_CAP_PORT`. Cap serves its widget and WASM itself
+(`ENABLE_ASSETS_SERVER=true`, pinned versions), so the challenge page loads nothing from third parties, and takes the
+client address for its own rate limit from `X-Real-Ip`, which Traefik sets.
+
+Cap has a dashboard (site keys, statistics), so it gets two names:
+
+- **Cap admin service**, e.g. `cap.example.com`: the dashboard, a normal user service, sign-in required.
+- **Challenge service**, e.g. `cap.hashi.example.com`: Hashi's system service with only the paths the flow needs:
+  Hashi's challenge page and its API under `/api/edge-challenge/`, and Cap's `/<site key>/challenge`,
+  `/<site key>/redeem` and `/assets/`. Anything else answers 404 there; the dashboard is never reachable on it.
+
+No loops (06 §4.5, invariant 20):
+
+- A challenged address must always reach the flow: the challenge service runs A1 only, its requests never count as
+  failures or towards the rate trigger, and it is never challenged, so it never redirects to itself.
+- `pass_captcha` cannot apply to the challenge service or the Cap admin service: refused on save in their rule sets,
+  and skipped (with a trace line) when it reaches them through the global rule set.
+- A1 still applies: a banned address is dropped in the kernel and cannot reach the challenge either, by design (a ban
+  is not solvable; it expires or the admin lifts it).
+- Cap unreachable: a challenge cannot be solved, so challenged addresses wait for their entry to expire; a
+  `pass_captcha` item does not pass (fails closed) and the page says verification is unavailable.
 
 Setup/settings: enable, Cap public challenge base URL, site key (visible), secret key (service secret), verification
 timeout, public challenge service domain, optional Cap admin service domain (recommend `pass_authentication`), test
