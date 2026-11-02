@@ -1,26 +1,28 @@
 // Command pulse reports this machine's current addresses to Hashi (08 §1). It holds one token that can only send this
-// agent's heartbeat, keeps no local state and writes nothing to disk.
+// agent's heartbeat, keeps no local state and writes nothing to disk. Between beats it replaces itself with a tiny
+// sleeper, so memory is used only for the moment of a beat; net/http and encoding/json stay out for the same reason.
 package main
 
 import (
 	"bufio"
-	"bytes"
 	"context"
-	"encoding/json"
+	"crypto/x509"
 	"errors"
 	"fmt"
-	"io"
+	"hash/fnv"
 	"log"
 	"math/rand/v2"
 	"net"
-	"net/http"
 	"net/netip"
 	"os"
 	"os/signal"
+	"runtime"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
+	"unsafe"
 )
 
 // Version is set at build time.
@@ -33,6 +35,8 @@ type config struct {
 	Interval                       time.Duration
 	// OwnInterval: the config names an interval, so Hashi's default does not replace it.
 	OwnInterval bool
+	// Resident keeps the process in memory between beats, for a machine that forbids running the sleeper.
+	Resident bool
 }
 
 // readConfig takes flat "key: value" lines from path, then environment variables over them. Nothing else in the format
@@ -64,7 +68,7 @@ func readConfig(path string, env func(string) string) (config, error) {
 			vals[key] = v
 		}
 	}
-	c := config{URL: strings.TrimRight(vals["url"], "/"), AgentID: vals["agent_id"], Token: vals["token"], Interface: vals["interface"], Interval: time.Minute}
+	c := config{URL: strings.TrimRight(vals["url"], "/"), AgentID: vals["agent_id"], Token: vals["token"], Interface: vals["interface"], Interval: time.Minute, Resident: env("HASHI_PULSE_RESIDENT") != ""}
 	if v := vals["interval"]; v != "" {
 		secs, err := strconv.Atoi(v)
 		if err != nil || secs < 10 {
@@ -78,27 +82,23 @@ func readConfig(path string, env func(string) string) (config, error) {
 	return c, nil
 }
 
-type candidate struct {
-	Interface string `json:"interface"`
-	Address   string `json:"address"`
-}
+type candidate struct{ Interface, Address string }
 
 type beat struct {
-	Version    string      `json:"version"`
-	Hostname   string      `json:"hostname"`
-	Candidates []candidate `json:"candidates"`
-	Selected   string      `json:"selected_interface,omitempty"`
-	Interval   int         `json:"interval_seconds"`
-	SentAt     time.Time   `json:"sent_at"`
-	InDocker   bool        `json:"in_docker,omitempty"`
+	Version, Hostname string
+	Candidates        []candidate
+	Selected          string
+	Interval          int
+	SentAt            time.Time
+	InDocker          bool
 	// ReportedPublic is this machine's public address as outside services see it. Sent only when Hashi asks for it.
-	ReportedPublic string `json:"reported_public_ip,omitempty"`
+	ReportedPublic string
 }
 
 // reply is Hashi's answer to a heartbeat.
 type reply struct {
-	CheckPublicIP   bool `json:"check_public_ip"`
-	IntervalSeconds int  `json:"interval_seconds"`
+	CheckPublicIP   bool
+	IntervalSeconds int
 }
 
 // Outside services are asked by address, not name: a filtering DNS server blocks the well-known names
@@ -120,21 +120,15 @@ func parseTrace(body string) (netip.Addr, error) {
 	return netip.Addr{}, errors.New("no address in the answer")
 }
 
-func traceIP(ctx context.Context, h *http.Client) (netip.Addr, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, traceURL, nil)
+func traceIP(ctx context.Context) (netip.Addr, error) {
+	res, err := roundTrip(ctx, request{Method: "GET", URL: traceURL}, nil)
 	if err != nil {
 		return netip.Addr{}, err
 	}
-	res, err := h.Do(req)
-	if err != nil {
-		return netip.Addr{}, err
+	if res.Status != 200 {
+		return netip.Addr{}, fmt.Errorf("the address check answered HTTP %d", res.Status)
 	}
-	defer func() { _ = res.Body.Close() }()
-	body, err := io.ReadAll(io.LimitReader(res.Body, 4096))
-	if err != nil {
-		return netip.Addr{}, err
-	}
-	return parseTrace(string(body))
+	return parseTrace(res.Body)
 }
 
 func openDNSIP(ctx context.Context) (netip.Addr, error) {
@@ -160,10 +154,10 @@ func agreed(a, b netip.Addr) (string, bool) {
 	return a.String(), true
 }
 
-func publicIP(ctx context.Context, h *http.Client) string {
+func publicIP(ctx context.Context) string {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	a, err := traceIP(ctx, h)
+	a, err := traceIP(ctx)
 	if err != nil {
 		log.Printf("public address check: %v", err)
 		return ""
@@ -209,28 +203,18 @@ func candidates() ([]candidate, error) {
 	return out, nil
 }
 
-func send(ctx context.Context, h *http.Client, c config, b beat) (reply, error) {
+// send delivers one heartbeat. root, when given, is the only certificate trusted for it.
+func send(ctx context.Context, c config, b beat, root *x509.CertPool) (reply, *response, error) {
 	var out reply
-	body, err := json.Marshal(b)
+	res, err := roundTrip(ctx, request{Method: "POST", URL: c.URL + "/api/pulse/" + c.AgentID + "/heartbeat", Bearer: c.Token, Body: b.json()}, root)
 	if err != nil {
-		return out, err
+		return out, nil, err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.URL+"/api/pulse/"+c.AgentID+"/heartbeat", bytes.NewReader(body))
-	if err != nil {
-		return out, err
+	if res.Status != 200 {
+		return out, nil, fmt.Errorf("Hashi answered HTTP %d", res.Status) //nolint:staticcheck // a name
 	}
-	req.Header.Set("Authorization", "Bearer "+c.Token)
-	req.Header.Set("Content-Type", "application/json")
-	res, err := h.Do(req)
-	if err != nil {
-		return out, err
-	}
-	defer func() { _ = res.Body.Close() }()
-	if res.StatusCode != http.StatusOK {
-		_, _ = io.Copy(io.Discard, io.LimitReader(res.Body, 4096))
-		return out, fmt.Errorf("Hashi answered HTTP %d", res.StatusCode) //nolint:staticcheck // a name
-	}
-	return out, json.NewDecoder(io.LimitReader(res.Body, 4096)).Decode(&out)
+	out, err = parseReply(res.Body)
+	return out, res, err
 }
 
 // inDocker reports whether this process runs in a Docker container.
@@ -239,50 +223,166 @@ func inDocker() bool {
 	return err == nil
 }
 
-// jitter spreads many agents over time: ±10 %.
+// jitter spreads retries over time: ±10 %.
 func jitter(d time.Duration) time.Duration {
 	return d + time.Duration(rand.Int64N(int64(d/5)+1)) - d/10 //nolint:gosec // not security relevant
 }
 
-func run(ctx context.Context, c config) error {
-	h := &http.Client{Timeout: 15 * time.Second}
+// slotWait is the time until this agent's next slot. Each agent beats at a fixed point of the interval, taken from its
+// ID, so a whole server starting at once, or restarting, never wakes up together and no agent has to know of another.
+func slotWait(id string, interval time.Duration, now time.Time) time.Duration {
+	h := fnv.New64a()
+	_, _ = h.Write([]byte(id))
+	ms := interval.Milliseconds()
+	return time.Duration((int64(h.Sum64()%uint64(ms))-now.UnixMilli()%ms+ms)%ms) * time.Millisecond //nolint:gosec // ms is positive
+}
+
+// nextBeat is the next slot, at least half an interval away so that a change of interval cannot make two beats touch.
+func nextBeat(id string, interval time.Duration, now time.Time) time.Duration {
+	w := slotWait(id, interval, now)
+	if w < interval/2 {
+		w += interval
+	}
+	return w
+}
+
+// rootMaxAge is how long a beat trusts the one root it kept, so a root removed from the machine's list stops being used.
+const rootMaxAge = 24 * time.Hour
+
+// beatOnce sends one heartbeat, keeping in st only the root that vouched for Hashi and going back to the full list when
+// that root no longer does. It returns the time to wait.
+func beatOnce(ctx context.Context, c *config, st *state, host string) time.Duration {
+	if !c.OwnInterval && st.Interval >= 10 {
+		c.Interval = time.Duration(st.Interval) * time.Second
+	}
+	if !st.Check {
+		st.Reported = ""
+	} else if time.Since(time.Unix(st.Checked, 0)) >= publicIPRecheck { // outside services hear from this machine only this often
+		st.Reported, st.Checked = publicIP(ctx), time.Now().Unix()
+	}
+	cs, err := candidates()
+	var r reply
+	if err == nil {
+		r, err = deliver(ctx, *c, st, beat{Version: Version, Hostname: host, Candidates: cs, Selected: c.Interface, Interval: int(c.Interval.Seconds()), SentAt: time.Now().UTC(), InDocker: inDocker(), ReportedPublic: st.Reported})
+	}
+	if err != nil {
+		st.Failures++
+		wait := jitter(min(c.Interval, 5*time.Second<<min(st.Failures-1, 8)))
+		log.Printf("heartbeat failed, retrying in %s: %q", wait.Round(time.Second), err.Error()) //nolint:gosec // a duration and a quoted error: nothing can start a new log line
+		return wait
+	}
+	st.Failures = 0
+	checkNow := r.CheckPublicIP && !st.Check
+	st.Check = r.CheckPublicIP
+	if r.IntervalSeconds >= 10 {
+		st.Interval = r.IntervalSeconds
+		if !c.OwnInterval {
+			c.Interval = time.Duration(r.IntervalSeconds) * time.Second
+		}
+	}
+	if checkNow {
+		return 0
+	}
+	return nextBeat(c.AgentID, c.Interval, time.Now())
+}
+
+func deliver(ctx context.Context, c config, st *state, b beat) (reply, error) {
+	pool := st.pool(time.Now())
+	r, res, err := send(ctx, c, b, pool)
+	var bad *tlsVerifyError
+	if pool != nil && errors.As(err, &bad) { // the kept root no longer fits, say after Hashi changed its certificate authority
+		st.Root = nil
+		r, res, err = send(ctx, c, b, nil)
+	}
+	if err == nil && st.Root == nil && res.Root != nil {
+		st.Root, st.RootAt = res.Root, time.Now().Unix()
+	}
+	return r, err
+}
+
+// pauser waits between beats and reports whether to go on.
+type pauser func(ctx context.Context, wait time.Duration, st state) bool
+
+func residentPause(ctx context.Context, wait time.Duration, _ state) bool {
+	debug.FreeOSMemory()
+	select {
+	case <-ctx.Done():
+		return false
+	case <-time.After(wait):
+		return true
+	}
+}
+
+// sleepingPause gives up the process to the sleeper, which starts the agent again when the wait is over. If the machine
+// refuses that, the agent stays in memory instead: it uses more, and it still works.
+func sleepingPause(ctx context.Context, wait time.Duration, st state) bool {
+	if ctx.Err() != nil {
+		return false
+	}
+	if err := execSleeper(wait, st); err != nil {
+		log.Printf("staying in memory between heartbeats, the sleeper could not start: %v", err)
+		sleeperBroken = true
+	}
+	return residentPause(ctx, wait, st)
+}
+
+var sleeperBroken bool
+
+func execSleeper(wait time.Duration, st state) error {
+	if len(sleeperImage) == 0 || sleeperBroken {
+		return errors.New("not available")
+	}
+	self, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	fd, err := memfd()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = syscall.Close(fd) }()
+	if _, err := syscall.Write(fd, sleeperImage); err != nil {
+		return err
+	}
+	env := append(os.Environ(), stateEnv+"="+st.encode())
+	return syscall.Exec("/proc/self/fd/"+strconv.Itoa(fd), []string{"hashi-pulse-sleep", strconv.FormatInt(wait.Milliseconds(), 10), self}, env) //nolint:gosec // runs the built-in sleeper, then this same binary
+}
+
+// memfd opens an unnamed in-memory file for the sleeper, so the agent stays one file and writes nothing to disk.
+func memfd() (int, error) {
+	const cloexec, exec = 0x1, 0x10
+	name := []byte("hashi-pulse-sleep\x00")
+	fd, _, e := syscall.Syscall(sysMemfdCreate, uintptr(unsafe.Pointer(&name[0])), cloexec|exec, 0) //nolint:gosec // the syscall package has no memfd_create
+	if e == syscall.EINVAL {                                                                        // kernels before 6.3 do not know the exec flag, and allow it anyway
+		fd, _, e = syscall.Syscall(sysMemfdCreate, uintptr(unsafe.Pointer(&name[0])), cloexec, 0) //nolint:gosec // as above
+	}
+	if e != 0 {
+		return -1, e
+	}
+	return int(fd), nil
+}
+
+func run(ctx context.Context, c config, st state, pause pauser) error {
 	host, _ := os.Hostname()
+	if !c.OwnInterval && st.Interval >= 10 {
+		c.Interval = time.Duration(st.Interval) * time.Second
+	}
 	wait := time.Duration(0)
-	failures := 0
-	check, reported := false, ""
-	var checked time.Time
+	if !st.Due { // a fresh start: nothing has been loaded yet, so wake up only at this agent's slot
+		wait = slotWait(c.AgentID, c.Interval, time.Now())
+	}
 	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		case <-time.After(wait):
-		}
-		if !check {
-			reported = ""
-		} else if time.Since(checked) >= publicIPRecheck { // outside services hear from this machine only this often
-			reported, checked = publicIP(ctx, h), time.Now()
-		}
-		cs, err := candidates()
-		if err == nil {
-			var r reply
-			r, err = send(ctx, h, c, beat{Version: Version, Hostname: host, Candidates: cs, Selected: c.Interface, Interval: int(c.Interval.Seconds()), SentAt: time.Now().UTC(), InDocker: inDocker(), ReportedPublic: reported})
-			if err == nil {
-				if r.CheckPublicIP && !check {
-					wait = 0
-				}
-				check = r.CheckPublicIP
-				if !c.OwnInterval && r.IntervalSeconds >= 10 {
-					c.Interval = time.Duration(r.IntervalSeconds) * time.Second
-				}
+		if wait > 0 {
+			st.Due = true
+			if !pause(ctx, wait, st) {
+				return nil
 			}
 		}
-		if err == nil {
-			failures, wait = 0, jitter(c.Interval)
-			continue
+		if ctx.Err() != nil {
+			return nil
 		}
-		failures++
-		wait = jitter(min(c.Interval, 5*time.Second<<min(failures-1, 8)))
-		log.Printf("heartbeat failed, retrying in %s: %v", wait.Round(time.Second), err)
+		st.Due = false
+		wait = beatOnce(ctx, &c, &st, host)
 	}
 }
 
@@ -291,6 +391,8 @@ func main() {
 		fmt.Println(Version)
 		return
 	}
+	runtime.GOMAXPROCS(1)
+	debug.SetGCPercent(25)
 	path := defaultConfig
 	if v := os.Getenv("HASHI_PULSE_CONFIG"); v != "" {
 		path = v
@@ -301,7 +403,11 @@ func main() {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	if err := run(ctx, c); err != nil {
+	pause := sleepingPause
+	if c.Resident {
+		pause = residentPause
+	}
+	if err := run(ctx, c, decodeState(os.Getenv(stateEnv)), pause); err != nil {
 		log.Fatal(err)
 	}
 }

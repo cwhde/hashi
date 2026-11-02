@@ -11,9 +11,16 @@ Pulse lets a host report its current addresses without holding any provider cred
 - Config: Hashi URL, agent ID, token, interval, optional interface selector.
 - Heartbeat: agent version, hostname, private IPv4/IPv6 candidates (per interface), optional user-selected interface,
   timestamp, whether it runs in a container. Retries with jittered backoff.
-- Footprint: small enough to run in every Compose stack, dozens of instances per host. Targets, measured in S8: idle
-  RSS ≤ 15 MB, no disk writes after start (config read once, no local state), sleeps between heartbeats (no busy
-  loops or polling). Pulse stays heartbeat-only; firewall or other root-level host functions never go into it
+- Footprint: small enough to run in every Compose stack, dozens of instances per host. Targets: idle RSS ≤ 15 MB
+  (S8), average ≤ 6 MB per agent with the short peak of a beat counted in, and no two agents of a host awake together
+  by design. No disk writes, no local state, no busy loops or polling.
+- Between beats the agent replaces itself with a sleeper of about 1 KB (built in, run from memory), which starts it
+  again for the next beat; so the config is read again at every beat. A machine that forbids this gets a log line and an
+  agent that stays in memory; `HASHI_PULSE_RESIDENT=1` chooses that up front.
+- Each agent beats at a fixed point of its interval, taken from its ID, so agents started together (a host boot)
+  spread out by themselves. A fresh start waits for that point, at most one interval, before its first beat.
+- The agent keeps only the root certificate that verified Hashi, for at most 24 hours, and goes back to the machine's
+  full list when that root no longer fits. The public address check always uses the full list. Pulse stays heartbeat-only; firewall or other root-level host functions never go into it
   (ADR 0002, "Host link vs host agent").
 
 ## 2. Server model (`pulse_agents`)

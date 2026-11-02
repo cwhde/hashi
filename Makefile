@@ -9,7 +9,7 @@ VERSION   ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo de
 COMMIT    ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 LDFLAGS   := -s -w -X git.juzo.io/juzo/hashi/internal/app.Version=$(VERSION) -X git.juzo.io/juzo/hashi/internal/app.Commit=$(COMMIT)
 
-.PHONY: pulse-image-size pulse-size pulse-dist test-integration test-e2e contract-capture contract-drift deploy-test build-config-check help image deploy rollback smoke check fmt-check lint test generate generate-check web-install web-check build-web build dev clean
+.PHONY: pulse-sleeper pulse-image-size pulse-size pulse-dist test-integration test-e2e contract-capture contract-drift deploy-test build-config-check help image deploy rollback smoke check fmt-check lint test generate generate-check web-install web-check build-web build dev clean
 
 help: ## list targets
 	@awk 'BEGIN{FS=":.*## "} /^[a-z-]+:.*## /{printf "  %-18s %s\n",$$1,$$2}' $(MAKEFILE_LIST)
@@ -95,6 +95,9 @@ pulse-dist: ## Pulse binaries and SHA-256 checksums in dist/pulse (VERSION=...)
 		CGO_ENABLED=0 GOOS=linux GOARCH=$$a go build -trimpath -ldflags "-s -w -X main.Version=$(or $(VERSION),dev)" -o dist/pulse/hashi-pulse-linux-$$a ./agents/pulse; \
 		(cd dist/pulse && sha256sum hashi-pulse-linux-$$a | cut -d' ' -f1 > hashi-pulse-linux-$$a.sha256); \
 	done
+
+pulse-sleeper: ## rebuild the committed sleeper binaries from their source (needs Docker)
+	agents/pulse/sleeper/build.sh
 
 pulse-size: pulse-dist ## the agent stays under 10 MB compressed (08 §1)
 	for a in amd64 arm64; do n=$$(gzip -c dist/pulse/hashi-pulse-linux-$$a | wc -c); echo "agent $$a: $$n bytes"; [ $$n -lt 10000000 ]; done
