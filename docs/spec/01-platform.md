@@ -126,7 +126,6 @@ hashi/
   docs/spec/                this specification
   docs/adr/                 architecture decisions
   docs/progress.md          slice status + prod-proof log
-  legacy/v1/                V1 (Node) — runs production until cutover, then deleted
   .gitea/workflows/
 ```
 

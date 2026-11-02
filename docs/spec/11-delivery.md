@@ -110,7 +110,6 @@ Tokens, IDs that embed account data, IPs and domains are replaced deterministica
 - `ci.yml` — on PR and push: path-filtered jobs; `make check`; integration tests (Docker); E2E only when `web/` or API changed; Pulse vet/test/build.
 - `security.yml` — on PR, push to main, weekly schedule, manual: gitleaks, govulncheck, osv-scanner (Go + pnpm lockfiles), Semgrep, Trivy filesystem; Trivy image scan of the **pushed digest** for main/tags (local single-platform build only for PRs). Docs-only changes skip heavy scans unless scheduled/dispatched.
 - `release.yml` — on main and `v*` tags: multi-arch images `git.juzo.io/juzo/hashi` and `git.juzo.io/juzo/hashi-pulse` (linux/amd64 + linux/arm64), tags `latest` (main), short SHA, semver; Pulse binaries + SHA-256 checksums attached to tag releases.
-- `v1-docker-build.yml` — legacy V1 image (paths `legacy/v1/**`), kept multi-arch until cutover, then removed with `legacy/`.
 
 Versions: `v0.<slice>.<patch>`: the middle number is the slice that passed its gate, so `v0.8.0` when S8 passes, up to
 `v0.11.x`; S12 is `v1.0.0`. The last number counts fixes after it. While a slice's gate is open, `v0.8.0-beta.1`, `-beta.2`, …
@@ -150,7 +149,8 @@ Hashi takes over in this order, each step reversible:
    rescue timer. The topology TXT record is no longer needed afterwards.
 4. **S8 (AdGuard):** Hashi writes rewrites to every AdGuard instance directly; adguardhome-sync is then retired.
 5. **After S9 → cutover:** monitoring covers all former Gatus endpoints, and each app Pangolin protects has a Hashi rule set requiring SSO, tested on the test edge first. Move traffic to the new edge; a signed-out browser on each protected public name must get the login. Then stop V1, Gatus, Pangolin (+ its Traefik) and the old
-   Traefik LXC; keep their data for one week as rollback; then delete them, `legacy/v1/` and its workflow.
+   Traefik LXC; keep their data for one week as rollback; then delete them, `legacy/v1/` and its workflow. (Done 2026-11-02, a day after the
+   cutover, at the user's request.)
 
 ## 8. Operations
 
