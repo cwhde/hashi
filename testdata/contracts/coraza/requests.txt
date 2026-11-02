@@ -1,0 +1,64 @@
+# captured_at: 2026-11-02, traefik:v3.7.16 + plugin github.com/jcchavezs/coraza-http-wasm-traefik v0.3.0 (embedded OWASP CRS 4.0.0), local containers
+# requests with Host: app.example.com, then (first block) with a numeric Host
+### full: plain GET
+200
+{"method": "GET", "path": "/full/hello", "body_len": 0, "body_head": ""}
+### full: SQLi in query
+403
+
+### full: small JSON POST
+200
+{"method": "POST", "path": "/full/p", "body_len": 9, "body_head": "{\"a\":\"b\"}"}
+### full: form POST, harmless
+200
+{"method": "POST", "path": "/full/p", "body_len": 10, "body_head": "name=hello"}
+### full: SQLi in POST body
+403
+
+### full: 3 MB octet-stream
+200
+
+### full: 3 MB json-ish text
+200
+
+### headers: plain GET
+200
+{"method": "GET", "path": "/hdr/hello", "body_len": 0, "body_head": ""}
+### headers: SQLi in POST body
+200
+{"method": "POST", "path": "/hdr/p", "body_len": 39, "body_head": "q=1' UNION SELECT password FROM users--"}
+### headers: harmless form POST
+200
+{"method": "POST", "path": "/hdr/p", "body_len": 10, "body_head": "name=hello"}
+### headers: 3 MB text upload
+403
+
+### headers: SQLi in query
+403
+
+
+# numeric Host
+### full: plain GET
+403 0.006470s
+
+### full: SQLi in query
+403 0.456284s
+
+### full: small JSON POST
+403 0.002752s
+
+### full: SQLi in POST body
+403 1.670795s
+
+### full: 3 MB upload
+200 0.004541s
+
+### headers: SQLi in POST body
+403 0.589079s
+
+### headers: 3 MB upload
+403 0.773396s
+
+### headers: SQLi in query
+403 0.002910s
+

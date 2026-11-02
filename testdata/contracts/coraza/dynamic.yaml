@@ -1,0 +1,25 @@
+http:
+  routers:
+    full: {rule: "PathPrefix(`/full`)", service: up, middlewares: [waf-full], entryPoints: [web]}
+    headers: {rule: "PathPrefix(`/hdr`)", service: up, middlewares: [waf-headers], entryPoints: [web]}
+  services:
+    up: {loadBalancer: {servers: [{url: "http://upstream:8080"}]}}
+  middlewares:
+    waf-full:
+      plugin:
+        coraza:
+          directives:
+            - Include @coraza.conf-recommended
+            - SecRuleEngine On
+            - SecRequestBodyAccess On
+            - Include @crs-setup.conf.example
+            - Include @owasp_crs/*.conf
+    waf-headers:
+      plugin:
+        coraza:
+          directives:
+            - Include @coraza.conf-recommended
+            - SecRuleEngine On
+            - SecRequestBodyAccess Off
+            - Include @crs-setup.conf.example
+            - Include @owasp_crs/*.conf

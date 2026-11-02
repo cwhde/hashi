@@ -1,0 +1,43 @@
+# captured_at: 2026-11-02, Cap Standalone tiago2/cap:3.1.15 + valkey 9.0.0 (throwaway local containers), widget @cap.js/widget@0.1.58
+# docs_url: https://capjs.js.org/guide/standalone/ ; source read in the image: src/siteverify.js
+# request: POST <base>/<site key>/siteverify, Content-Type: application/json, body {"secret":…,"response":…}
+### wrong secret
+HTTP/1.1 403 Forbidden
+Content-Type: application/json;charset=utf-8
+{"success":false,"error":"Invalid site key or secret"}
+
+### success
+HTTP/1.1 200 OK
+Content-Type: application/json;charset=utf-8
+{"success":true}
+
+### same token again
+HTTP/1.1 404 Not Found
+Content-Type: application/json;charset=utf-8
+{"success":false,"error":"Token not found"}
+
+### token of another site key in the path
+HTTP/1.1 404 Not Found
+Content-Type: application/json;charset=utf-8
+{"success":false,"error":"Invalid site key or secret"}
+
+### malformed token
+HTTP/1.1 400 Bad Request
+Content-Type: application/json;charset=utf-8
+{"success":false,"error":"Missing required parameters"}
+
+### missing response
+HTTP/1.1 500 Internal Server Error
+Content-Type: application/json;charset=utf-8
+{"success":false,"error":"Internal server error","detail":{"troubleshooting":"http://trycap.dev/guide/standalone/options.html#error-messages","id":"000000000000"}}
+
+### not JSON
+HTTP/1.1 400 Bad Request
+Content-Type: application/json;charset=utf-8
+{"success":false,"error":"PARSE","detail":{"troubleshooting":"http://trycap.dev/guide/standalone/options.html#error-messages","id":"000000000000"}}
+
+### unknown site key, well-formed token
+HTTP/1.1 404 Not Found
+Content-Type: application/json;charset=utf-8
+{"success":false,"error":"Invalid site key or secret"}
+

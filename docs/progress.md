@@ -23,6 +23,15 @@ PR A, engine:
 - [x] Access-log tail per Traefik host over SSH (cursor stored, rotation), telemetry buckets and events. Found with real Traefik: every protected request is logged twice (the loopback forward-auth hop too; dropped), and `ping@internal` routes are not logged at all. Buckets come from forward auth's own decisions, not from status codes
 - Local proof for PR A (2026-11-02): `make check`, the firewall/traefik/edge integration packages and `make test-e2e` green; host link over real SSH on dev target 108 (Debian 13, nft 1.1.3): staged address → ban in `dyn4` (~900 s), staging drained, a stranger removed, unban pushed
 
+PR A merged 2026-11-02 (#55, CI green; one integration rerun: bug 11, and the meter test now skips where the runner drops routed traffic). Not deployed.
+
+PR B contracts captured 2026-11-02 (local throwaway containers, nothing in the homelab touched):
+`testdata/contracts/cap/` (Cap 3.1.15: verify answers, single-use tokens, widget needs `blob:` workers) and
+`testdata/contracts/coraza/` (plugin v0.3.0, CRS 4.0.0). **Waiting for the user's decision on the WAF:** matches land in
+Traefik's general log, not the access log; with body inspection on, uploads over about 160 KB never reach the app;
+"headers only" still refuses PUT and upload content types under CRS's default policy. Proposal: no body inspection
+anywhere until the plugin is fixed; an "uploads" mode that also widens allowed methods and content types.
+
 PR B, CAPTCHA, WAF, feeds:
 - [ ] Cap contract; challenge service, start/verify, clearance cookie; `pass_captcha` allowed on save
 - [ ] Coraza contract; WAF modes per path and exclusions in Traefik's files; matches counted from the tail

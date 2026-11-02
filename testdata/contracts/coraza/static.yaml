@@ -1,0 +1,11 @@
+entryPoints:
+  web: {address: ":80"}
+providers:
+  file: {filename: /etc/traefik/dynamic.yaml}
+log: {level: INFO, format: json}
+accessLog: {format: json, filePath: /logs/access.log}
+experimental:
+  plugins:
+    coraza:
+      moduleName: github.com/jcchavezs/coraza-http-wasm-traefik
+      version: v0.3.0
