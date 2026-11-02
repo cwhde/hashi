@@ -6,15 +6,11 @@ on:
     paths-ignore:
       - "docs/**"
       - "**/*.md"
-      - "legacy/**"
-      - ".gitea/workflows/v1-docker-build.yml"
   push:
     branches: [main]
     paths-ignore:
       - "docs/**"
       - "**/*.md"
-      - "legacy/**"
-      - ".gitea/workflows/v1-docker-build.yml"
   workflow_dispatch:
 
 concurrency:

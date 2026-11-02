@@ -5,7 +5,7 @@ forwarding with NetBird, internal DNS rewrites, monitoring with public status an
 host scripts and dynamic endpoint discovery — one interface instead of hand-editing zones, proxy files and firewall scripts.
 
 **Status:** walking skeleton deployed next to V1 and the UI designed for every feature; setup and auth (S1) is next. See [docs/progress.md](docs/progress.md) and the specification in
-[docs/spec/](docs/spec/README.md). The previous Node version still runs production from [legacy/v1](legacy/v1/README.md).
+[docs/spec/](docs/spec/README.md).
 
 ## Progress
 

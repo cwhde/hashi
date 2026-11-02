@@ -13,7 +13,6 @@ Go backend + embedded SvelteKit SPA + SQLite, one container. Pulse agent in `age
 - Decisions: `docs/adr/`. `docs/archive/` holds raw historical input (e.g. the user's security-model draft): never read
   it for implementation; the spec and ADRs are the only source.
 - Real infrastructure facts: `CLAUDE.local.md` (gitignored, not in the public repo).
-- `legacy/v1/` is the old Node app still running production until cutover. Don't copy its patterns.
 
 ## Commands
 
