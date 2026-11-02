@@ -124,3 +124,9 @@ func (s *Service) notify(v Category) {
 		fn(v)
 	}
 }
+
+// DefaultOf returns a category's defaults, for consumers that start before the stored values are loaded.
+func DefaultOf[T Category]() T {
+	var v T
+	return defaults(v).(T)
+}

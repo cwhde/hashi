@@ -78,8 +78,9 @@ func Key(a netip.Addr) netip.Prefix {
 }
 
 // KeyString is Key in its stored form: a bare IPv4 address, or the IPv6 /64 in CIDR form.
-func KeyString(a netip.Addr) string {
-	k := Key(a)
+func KeyString(a netip.Addr) string { return prefixKey(Key(a)) }
+
+func prefixKey(k netip.Prefix) string {
 	if k.Addr().Is4() {
 		return k.Addr().String()
 	}
