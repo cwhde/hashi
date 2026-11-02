@@ -1,0 +1,5 @@
+{"cidr":"198.18.0.0/20","sblid":"SBL256894","rir":"apnic"}
+{"cidr":"198.18.0.0/16","sblid":"SBL434604","rir":"apnic"}
+{"cidr":"198.18.0.0/18","sblid":"SBL286275","rir":"apnic"}
+{"cidr":"198.18.16.0/24","sblid":"SBL698389","rir":"ripencc"}
+{"type":"metadata","timestamp":1793614442,"size":107020,"records":1754,"copyright":"(c) 2026 The Spamhaus Project SLU","terms":"https://www.spamhaus.org/drop/terms/"}

@@ -7,6 +7,7 @@ produced or checked by the real `nft` binary.
 | --- | --- |
 | `shapes.nft` | Every rule and set shape of 05 §3.2 in nft text syntax (documentation and neutral private addresses) |
 | `list_table.json` | `nft -j list table inet hashi` after loading `shapes.nft` (nftables 1.1.3, Debian 13), `handle` fields removed |
+| `dynamic_sets.txt` (+ `dynamic_sets.sh`) | Host link operations (05 §6), captured 2026-11-02 on the Debian dev target, kernel 7.0.14: list `staging`/`dyn` as JSON, push batch (add with timeout, delete), permanent entry, re-add, delete of a missing element, `destroy`, missing set |
 | `apply_batch.json` | The §3.3 transaction built from `list_table.json`: add table, add sets (definitions only), add + flush chains, add rules, flush + add elements of the plan-owned sets |
 
 ## Where it was checked
@@ -32,6 +33,14 @@ produced or checked by the real `nft` binary.
 5. `dyn6` with `flags interval, timeout` takes /64 elements with a timeout.
 6. Debian's default `/etc/nftables.conf` starts with `flush ruleset`. The Debian dev target has `nftables.service`
    enabled and a `table inet filter` loaded from it; the first real host has the unit disabled and no nft tables.
+
+7. Host link (`dynamic_sets.txt`): a listed element is either a bare string (no timeout, a permanent entry) or
+   `{"elem":{"val":…,"timeout":s,"expires":s}}`; a `dyn6` value is `{"prefix":{"addr":…,"len":64}}`; staging
+   elements carry only `expires` (the set's own `timeout` is on the set); an empty set has no `elem` key.
+8. `add element` of an element that already exists **replaces its timeout** (900 s → 60 s), so a re-push sets the
+   remaining time. `delete element` of a missing element fails the **whole** batch (`No such file or directory`, exit 1,
+   nothing applied); `destroy element` of a missing one succeeds. The host link uses `destroy` for drains and unbans.
+9. `list set` of a missing set exits 1 with `Error: No such file or directory` on stderr.
 
 ## NetBird backend choice (05 §10 open question)
 
