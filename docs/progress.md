@@ -27,14 +27,14 @@ PR A merged 2026-11-02 (#55, CI green; one integration rerun: bug 11, and the me
 
 PR B contracts captured 2026-11-02 (local throwaway containers, nothing in the homelab touched):
 `testdata/contracts/cap/` (Cap 3.1.15: verify answers, single-use tokens, widget needs `blob:` workers) and
-`testdata/contracts/coraza/` (plugin v0.3.0, CRS 4.0.0). **Waiting for the user's decision on the WAF:** matches land in
-Traefik's general log, not the access log; with body inspection on, uploads over about 160 KB never reach the app;
-"headers only" still refuses PUT and upload content types under CRS's default policy. Proposal: no body inspection
-anywhere until the plugin is fixed; an "uploads" mode that also widens allowed methods and content types.
+`testdata/contracts/coraza/` (plugin v0.3.0, CRS 4.0.0). WAF decided by the user 2026-11-02: headers only everywhere
+(with body inspection on, uploads over about 160 KB never reach the app), an *uploads* option per path that widens CRS's
+allowed methods and content types, matches read from Traefik's general log. Spec 06 §9 and §6.2 updated; body checking
+waits for a fixed plugin (bugs 13).
 
 PR B, CAPTCHA, WAF, feeds:
 - [ ] Cap contract; challenge service, start/verify, clearance cookie; `pass_captcha` allowed on save
-- [ ] Coraza contract; WAF modes per path and exclusions in Traefik's files; matches counted from the tail
+- [ ] WAF: `headers_only` / `disabled` per service and path, *uploads* and rule exclusions, rendered into Traefik's files (plugin pinned in the static config); matches counted from a tail of the general log
 - [ ] Feeds: SSRF-safe fetcher, parsers per format, refresh job, preview; firewall block binding
 
 PR C, UI: Security dashboard, Counters, Challenge, Engine; service WAF tab; feed add; dynamic sets on the IP sets page.
