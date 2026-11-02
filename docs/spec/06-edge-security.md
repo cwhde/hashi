@@ -297,14 +297,17 @@ A feed is an IP set of kind `feed` (05a §3). What it does depends only on where
 block* → kernel + A1; used in a rule's `applies_to` → that rule only.
 
 - Offered individually in setup and on the IP sets page; **all disabled until explicitly added**; warning about false positives.
-- Recommended: Feodo Tracker botnet C2 IPs, Spamhaus DROP, Spamhaus DROPv6, DShield recommended block list, FireHOL
-  Level 1. Plus custom URL.
+- Recommended: Feodo Tracker botnet C2 IPs, Spamhaus DROP, Spamhaus DROPv6 (their `.txt` lists), DShield recommended
+  block list, FireHOL Level 1. Plus custom URL. Real formats: `testdata/contracts/feeds/`.
 - Each shows: name, URL, description, false-positive risk, refresh interval, format, licence/user-responsibility note,
   last success, entry count, where it is used.
-- Formats: plain IP/CIDR lines, with comments, FireHOL `.ipset`/`.netset`, CSV/TSV (configurable column), JSON array of
-  strings, JSON object with a configured array field. Out of scope: Suricata/Snort rules, domain/URL lists.
+- Formats: plain IP/CIDR lines with `#` or `;` comments (whole-line and inline), FireHOL `.ipset`/`.netset`, CSV/TSV
+  (configurable address column, optional prefix-length column, as DShield's), JSON array of strings, JSON object with a
+  configured array field, JSON lines with a configured field. Out of scope: Suricata/Snort rules, domain/URL lists.
 - Parsing: normalize IPv4/IPv6/CIDR, reject invalid, dedupe, keep line numbers, record errors and ignored lines, preview
-  before adding, never partially apply a failed update.
+  before adding, never partially apply a failed update. Private, loopback, link-local, shared (100.64.0.0/10),
+  multicast, ULA and other reserved ranges are rejected with that reason (FireHOL Level 1 lists `10.0.0.0/8` and
+  `100.64.0.0/10`; bound to the global block it would block every internal client).
 - Fetcher (SSRF-safe): HTTPS only by default (HTTP only with explicit warning), TLS verification, max redirects, max size,
   timeout, Hashi user agent, ETag/Last-Modified. Validate the URL, every DNS answer, every redirect target **and the
   final dialed IP** (custom `net.Dialer.Control` hook) against denied ranges: loopback, RFC 1918, link-local, multicast,

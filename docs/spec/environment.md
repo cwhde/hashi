@@ -32,10 +32,16 @@ host-A firewall script. Their current configuration is reference material only, 
 | AdGuard Home ×2 (+ adguardhome-sync) | internal rewrites | 2026-10-31, rewrite API from local containers of both versions; real instances not yet read |
 | Pocket ID | edge SSO | `testdata/contracts/oidc` (2.19.1) |
 | MaxMind GeoLite2 | GeoIP (Pangolin already downloads Country) | Mirror archives read for real by `internal/geoip` integration test; MaxMind's own endpoint not captured (no key) |
+| nftables dynamic sets (host link) | bans, staging drain | 2026-11-02 on the Debian dev target: `testdata/contracts/nft/dynamic_sets.txt` |
+| Blocklist feeds (Feodo, Spamhaus DROP/DROPv6, DShield, FireHOL Level 1) | feed IP sets | 2026-11-02, one GET each: `testdata/contracts/feeds/` |
 | Gitea (`git.juzo.io`) | repo, act_runner CI, container registry | — |
 
 ## Constraints discovered
 
+- FireHOL Level 1 includes the bogons (`10.0.0.0/8`, `100.64.0.0/10`, `192.168.0.0/16` …); feeds never contribute private
+  or reserved ranges (06 §8). Spamhaus's `.json` lists are JSON lines; the `.txt` lists are used instead.
+- nft: `delete element` of a missing element fails the whole batch; `destroy element` does not; re-adding an element
+  replaces its timeout (`testdata/contracts/nft/README.md` 7–9).
 - Hetzner legacy DNS API is shut down; the Cloud API works with the existing project token.
 - Hetzner RRSets carry `labels` (key/value) and a `protection.change` flag; records carry a `comment`; `ttl: null` means zone default.
 - Hetzner Cloud DNS (captured 2026-10-28): RRSet `id` is `<name>/<TYPE>` with relative names (`@` for the apex); a zone can
