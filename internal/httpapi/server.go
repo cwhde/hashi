@@ -24,6 +24,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/logring"
 	"git.juzo.io/juzo/hashi/internal/monitor"
 	"git.juzo.io/juzo/hashi/internal/notify"
+	"git.juzo.io/juzo/hashi/internal/security"
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/setup"
 	"git.juzo.io/juzo/hashi/internal/store"
@@ -52,6 +53,8 @@ type Server struct {
 	Firewall *firewall.Manager
 	Edge     *edge.Engine
 	SSO      *edge.SSO
+	// Security is Stage A (06 §3); nil runs Stage B only.
+	Security *security.Engine
 	GeoIP    *geoip.Service
 	// CertsSoon runs the certificate job now (a new service name needs a certificate); nil in tests without a runner.
 	CertsSoon func(ctx context.Context) error

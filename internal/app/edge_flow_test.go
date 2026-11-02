@@ -130,3 +130,52 @@ func TestForwardAuthRules(t *testing.T) {
 		t.Errorf("sign-in rule without a provider: %d", got)
 	}
 }
+
+// Stage A over HTTP (06 §3): a flood is challenged before the service's rules, ignoring the challenge ends in a ban,
+// and the ban is enforced by A1 from then on. Without a CAPTCHA the challenge answers 429.
+func TestForwardAuthStageA(t *testing.T) {
+	_, srv := hetznertest.NewSimServer(t)
+	cfg := newConfig(t)
+	cfg.dnsProviders = func(_ string, token secrets.Value) (dns.Provider, error) {
+		return hetzner.New(token, hetzner.WithBaseURL(srv.URL+"/v1")), nil
+	}
+	in := start(t, cfg)
+	c := in.client()
+	c.bootstrapLogin()
+	c.mustStatus(c.do(http.MethodPut, "/api/setup/base-settings", map[string]any{"root_domain": "example.com",
+		"admin_domain": "dev.hashi.example.com", "internal_url": "http://192.0.2.10:3340", "sync_interval_seconds": 3600,
+		"theme": "graphite", "public_dashboard_enabled": true, "public_status_enabled": true}), 200)
+	c.mustStatus(c.do(http.MethodPut, "/api/setup/dns/provider", map[string]any{"type": "hetzner", "token": hetznertest.Token, "default_ttl": 3600}), 200)
+	c.mustStatus(c.do(http.MethodPost, "/api/services", map[string]any{"name": "aaa", "slug": "aaa", "kind": "http", "domain_mode": "subdomain",
+		"host_name": "aaa.example.com", "target": map[string]any{"address": "192.0.2.20", "port": 8080}}), 200)
+
+	forward := func() int {
+		t.Helper()
+		req, err := http.NewRequest(http.MethodGet, "http://"+in.addr+"/api/edge-auth/forward", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("X-Forwarded-Host", "aaa.example.com")
+		req.Header.Set("X-Forwarded-Uri", "/")
+		req.Header.Set("X-Forwarded-Method", "GET")
+		resp, err := http.DefaultTransport.RoundTrip(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+		return resp.StatusCode
+	}
+	seen := map[int]int{}
+	first429 := -1
+	for i := range 300 + 15 + 3 {
+		code := forward()
+		seen[code]++
+		if code == 429 && first429 < 0 {
+			first429 = i
+		}
+	}
+	// 300 within 10 s pass, the 301st is challenged, 14 more are challenged and the 15th unsolved request bans.
+	if seen[204] != 300 || first429 != 300 || seen[429] != 15 || seen[403] != 3 {
+		t.Fatalf("answers %v, first 429 at %d", seen, first429)
+	}
+}

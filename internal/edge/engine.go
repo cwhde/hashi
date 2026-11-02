@@ -1,5 +1,6 @@
 // Package edge is forward auth (06 §2): it resolves the service, runs the rule list and answers Traefik. Every input lives
-// in an in-memory snapshot, refreshed on changes and every 30 s; Stage A arrives with S10.
+// in an in-memory snapshot, refreshed on changes and every 30 s. Stage A's state lives in internal/security; its static
+// half, the folded allow and block partition, is part of the snapshot.
 package edge
 
 import (
@@ -46,7 +47,12 @@ type snapshot struct {
 	byID   map[string]serviceView
 	sets   map[string]Compiled
 	allID  string
+	// allow and block are the firewall's folded partition (05 §4.2): the same ranges the kernel's sets receive.
+	allow, block *netipx.IPSet
 }
+
+// Partition returns the folded allow and block ranges; app wires it to the firewall's folding.
+type Partition func(ctx context.Context) (allow, block []netip.Prefix, err error)
 
 // Engine answers rule decisions from the current snapshot.
 type Engine struct {
@@ -54,6 +60,7 @@ type Engine struct {
 	sets *ipsets.Service
 	log  *slog.Logger
 	geo  atomic.Pointer[GeoLookup]
+	part atomic.Pointer[Partition]
 	cur  atomic.Pointer[snapshot]
 	once singleflight.Group
 }
@@ -65,6 +72,29 @@ func NewEngine(st *store.Store, sets *ipsets.Service, log *slog.Logger) *Engine 
 
 // UseGeo sets the GeoIP lookup rules with countries or networks ask.
 func (e *Engine) UseGeo(l GeoLookup) { e.geo.Store(&l) }
+
+// UsePartition sets the source of the folded allow and block ranges. Without one nothing is allowed or blocked.
+func (e *Engine) UsePartition(p Partition) { e.part.Store(&p) }
+
+// Allowed reports whether a is in the folded allow ranges: never challenged, banned or counted (invariant 20).
+func (e *Engine) Allowed(a netip.Addr) bool {
+	s := e.cur.Load()
+	return s != nil && s.allow != nil && s.allow.Contains(a.Unmap())
+}
+
+// StaticBlocked reports whether a is in the folded block ranges (A1's static half).
+func (e *Engine) StaticBlocked(a netip.Addr) bool {
+	s := e.cur.Load()
+	return s != nil && s.block != nil && s.block.Contains(a.Unmap())
+}
+
+func ipSet(ps []netip.Prefix) (*netipx.IPSet, error) {
+	var b netipx.IPSetBuilder
+	for _, p := range ps {
+		b.AddPrefix(p)
+	}
+	return b.IPSet()
+}
 
 func isHTTP(kind string) bool { return kind == "http" || kind == "https" || kind == "h2c" }
 
@@ -85,6 +115,18 @@ func (e *Engine) Rebuild(ctx context.Context) error {
 			return nil, fmt.Errorf("the all set: %w", err)
 		}
 		next.allID = all.ID
+		if p := e.part.Load(); p != nil {
+			allow, block, err := (*p)(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("folded allow and block: %w", err)
+			}
+			if next.allow, err = ipSet(allow); err != nil {
+				return nil, err
+			}
+			if next.block, err = ipSet(block); err != nil {
+				return nil, err
+			}
+		}
 		roots := map[string]string{}
 		for _, s := range g {
 			if s.Kind == rules.KindServiceRoot {
@@ -132,14 +174,7 @@ func (e *Engine) compile(ctx context.Context, q *db.Queries, id string) (Compile
 	if err != nil {
 		return Compiled{}, fmt.Errorf("compile set %s: %w", id, err)
 	}
-	var b netipx.IPSetBuilder
-	for _, p := range res.V4 {
-		b.AddPrefix(p)
-	}
-	for _, p := range res.V6 {
-		b.AddPrefix(p)
-	}
-	ips, err := b.IPSet()
+	ips, err := ipSet(append(append([]netip.Prefix{}, res.V4...), res.V6...))
 	if err != nil {
 		return Compiled{}, fmt.Errorf("set %s: %w", id, err)
 	}
