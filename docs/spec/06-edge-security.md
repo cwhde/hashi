@@ -281,7 +281,8 @@ few seconds). On reconnect it resumes from the cursor, bounded per read (1 MB, t
 WAF matches are not in the access log (captured, `testdata/contracts/coraza/`): Coraza writes each matched rule as a line
 of the general log `/var/log/hashi/traefik/traefik.log` (router, middleware, client, rule ID, severity, URI, unique ID).
 Hashi tails that file the same way; it is rotated with `copytruncate`, so a file shorter than the cursor restarts at 0.
-One request can match several rules: matches with the same unique ID count once.
+Only blocking decisions count (`Access denied` lines); the single-rule `Warning` lines before them do not, and one
+request counts once (same unique ID).
 
 ## 7. Edge SSO
 
