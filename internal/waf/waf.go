@@ -23,12 +23,17 @@ type Config struct {
 	Exclusions []int
 }
 
-// CRS request policy for self-hosted apps: every method sync clients and APIs use (WebDAV included) and any content
-// type (git, sync clients and APIs send their own). CRS would refuse these from the headers alone (rules 911100,
+// CRS request policy for self-hosted apps: every method sync clients and APIs use (WebDAV included), any content
+// type (git, sync clients and APIs send their own) and the headers they send. CRS would refuse these from the headers alone (rules 911100,
 // 920420) and break Nextcloud, WebDAV and git over HTTPS; the attack rules (injection, XSS, traversal, …) stay.
 const (
-	methods         = "GET HEAD POST OPTIONS PUT PATCH DELETE PROPFIND PROPPATCH MKCOL COPY MOVE LOCK UNLOCK REPORT SEARCH"
-	ruleContentType = 920420
+	methods = "GET HEAD POST OPTIONS PUT PATCH DELETE PROPFIND PROPPATCH MKCOL COPY MOVE LOCK UNLOCK REPORT SEARCH"
+	// restrictedHeaders is CRS's basic list (rule 920450) without the headers sync clients, WebDAV and git send:
+	// Content-Encoding (git compresses fetch bodies; the rule guards body inspection, which forward auth never does),
+	// Lock-Token and If (WebDAV locks), Expect (large git pushes, curl uploads), Content-Range (resumed uploads). The
+	// ones that are only ever attacks stay: Proxy (httpoxy), the method overrides, X-Middleware-Subrequest.
+	restrictedHeaders = "/proxy/ /x-http-method-override/ /x-http-method/ /x-method-override/ /x-middleware-subrequest/"
+	ruleContentType   = 920420
 	// ruleNoLength flags a POST without Content-Length: forward auth never receives that header (captured,
 	// testdata/contracts/traefik/forward_auth_request.txt), so every POST would score.
 	ruleNoLength = 920180
@@ -46,6 +51,7 @@ func Directives(c Config) []string {
 		"SecResponseBodyAccess Off",
 		"Include @crs-setup.conf.example",
 		`SecAction "id:900200,phase:1,pass,t:none,nolog,setvar:'tx.allowed_methods=` + methods + `'"`,
+		`SecAction "id:900250,phase:1,pass,t:none,nolog,setvar:'tx.restricted_headers_basic=` + restrictedHeaders + `'"`,
 		"Include @owasp_crs/*.conf",
 	}
 	remove := append(slices.Clone(c.Exclusions), ruleContentType, ruleNoLength)

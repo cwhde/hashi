@@ -16,6 +16,11 @@ func req(method, uri, contentType string) Request {
 	return Request{Client: netip.MustParseAddr("198.51.100.7"), Method: method, URI: uri, Host: "files.example.com", Header: h}
 }
 
+func with(r Request, k, v string) Request {
+	r.Header[k] = []string{v}
+	return r
+}
+
 // Plain pages, sync clients, WebDAV and git pass; attacks in the query and unknown methods are refused.
 func TestCheck(t *testing.T) {
 	e := New()
@@ -36,6 +41,12 @@ func TestCheck(t *testing.T) {
 		{"git push over HTTPS", base, req("POST", "/owner/repo.git/git-receive-pack", "application/x-git-receive-pack-request"), false},
 		{"git fetch refs", base, req("GET", "/owner/repo.git/info/refs?service=git-upload-pack", ""), false},
 		{"git LFS", base, req("POST", "/owner/repo.git/info/lfs/objects/batch", "application/vnd.git-lfs+json"), false},
+		{"git fetch without .git (seen in CI, 920450)", base, with(req("POST", "/owner/repo/git-upload-pack", "application/x-git-upload-pack-request"), "Content-Encoding", "gzip"), false},
+		{"large git push", base, with(req("POST", "/owner/repo/git-receive-pack", "application/x-git-receive-pack-request"), "Expect", "100-continue"), false},
+		{"WebDAV LOCK", base, with(with(req("LOCK", "/remote.php/dav/files/a/x.txt", "application/xml"), "Lock-Token", "<opaquelocktoken:1>"), "If", "(<opaquelocktoken:1>)"), false},
+		{"resumed upload", base, with(req("PUT", "/remote.php/dav/files/a/x.bin", "application/octet-stream"), "Content-Range", "bytes 0-99/200"), false},
+		{"httpoxy", base, with(req("GET", "/", ""), "Proxy", "http://198.51.100.9"), true},
+		{"method override", base, with(req("POST", "/api/items", "application/json"), "X-HTTP-Method-Override", "DELETE"), true},
 		{"probe for a site's .git folder", base, req("GET", "/.git/config", ""), true},
 		{"probe dressed as git", base, req("GET", "/.git/info/refs?service=git-upload-pack", ""), true},
 		{"unknown method", base, req("TRACE", "/", ""), true},
