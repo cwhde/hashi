@@ -188,6 +188,32 @@ func (e *Engine) Solve(ctx context.Context, a netip.Addr) (bool, error) {
 	return true, nil
 }
 
+// LiftAllowed removes challenges and bans of addresses that are allowed now (invariant 20): an address that became
+// one of the admin's own, or was added to the allow list after the engine caught it. It reports how many it lifted.
+func (e *Engine) LiftAllowed(ctx context.Context) (int, error) {
+	var keys []netip.Prefix
+	e.mu.Lock()
+	for _, m := range []map[netip.Prefix]*Entry{e.challenged, e.banned} {
+		for k := range m {
+			if e.Allowed(k.Addr()) {
+				keys = append(keys, k)
+			}
+		}
+	}
+	e.mu.Unlock()
+	lifted := 0
+	for _, k := range keys {
+		ok, err := e.Remove(ctx, k, "hashi", "the address is allowed")
+		if err != nil {
+			return lifted, err
+		}
+		if ok {
+			lifted++
+		}
+	}
+	return lifted, nil
+}
+
 // SweepJob drops ended entries and idle windows from memory and stores failure counts (every minute).
 const (
 	SweepJobKind     = "security.sweep"
@@ -241,6 +267,11 @@ func (e *Engine) Sweep(ctx context.Context) (string, error) {
 		}
 	}
 	e.ev.flush(ctx)
+	lifted, err := e.LiftAllowed(ctx)
+	if err != nil {
+		return "", fmt.Errorf("lift allowed addresses: %w", err)
+	}
+	ended += lifted
 	if err := e.flushBuckets(ctx, now); err != nil {
 		return "", fmt.Errorf("store buckets: %w", err)
 	}

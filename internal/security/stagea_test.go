@@ -305,3 +305,30 @@ func TestBucketsFlushClosedMinutes(t *testing.T) {
 		}
 	}
 }
+
+// An address banned before it became allowed (the admin's own address, a meter trip from home) is lifted: once at
+// start and by the sweep, so a ban never outlives the allow (invariant 20).
+func TestInvariant_20_AllowLiftsExistingBan(t *testing.T) {
+	ctx := context.Background()
+	e, _ := testEngine(t)
+	allowed := false
+	e.UseAllowed(func(a netip.Addr) bool { return allowed && a == bad })
+	if ok, err := e.Ban(ctx, bad, Cause{Source: SourceMeter, Reason: "tripped an L4 meter"}); !ok || err != nil {
+		t.Fatalf("ban %v %v", ok, err)
+	}
+	if n, _ := e.LiftAllowed(ctx); n != 0 || !e.Banned(bad) {
+		t.Fatal("lifted a ban of an address that is not allowed")
+	}
+	allowed = true
+	if _, err := e.Sweep(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if e.Banned(bad) || len(e.Bans()) != 0 {
+		t.Fatal("ban of an allowed address survived the sweep")
+	}
+	// Stored too: a restart does not bring it back.
+	e2 := NewEngine(e.st, slog.New(slog.NewTextHandler(io.Discard, nil)), time.Now)
+	if err := e2.Load(ctx); err != nil || e2.Banned(bad) {
+		t.Fatalf("after reload banned=%v err=%v", e2.Banned(bad), err)
+	}
+}

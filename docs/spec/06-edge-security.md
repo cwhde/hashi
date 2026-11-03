@@ -364,8 +364,8 @@ All in Settings → Security (09-scripts-settings.md §2).
 | `challenge.expiry` (`T_exp`) | 30 m (0 = never) | fixed lifetime of a challenge entry |
 | `challenge.max_failed` (`F_max`) | 15 | unsolved requests while challenged → ban |
 | `captcha.clearance_ttl` | 24 h | `pass_captcha` cookie lifetime |
-| `l4.tcp_new_conn_rate` | 150/min, burst 30 | kernel meter |
-| `l4.tcp_max_concurrent` | 250 | kernel meter (per source) |
+| `l4.tcp_new_conn_rate` | 600/min, burst 120 | kernel meter (150/min banned a home network on the first day) |
+| `l4.tcp_max_concurrent` | 1000 | kernel meter (per source) |
 | `l4.udp_new_flow_rate` | 200/min, burst 50 | kernel meter (L4 UDP stream ports) |
 | `l4.udp_pps_rate` | 5000/s, burst 1000 | kernel meter (L4 UDP stream ports) |
 | `l4.staging_timeout` | 5 m | kernel drop time before Hashi drains an entry |

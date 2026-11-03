@@ -69,8 +69,9 @@ These hold in every slice. Each has at least one automated test named `TestInvar
 17. Custom scripts are root-capable operations: passkey reauthentication to save or run, full audit.
 18. Critical security, crypto, SSH, DNS, OIDC, WebAuthn and YAML handling use proven libraries or the standard library — never hand-rolled.
 19. The repository is public: no secret, real token, private host inventory or production config is ever committed.
-20. A manual allow outranks every dynamic decision: an address in the folded allow ranges is never challenged, never
-    banned, never staged-dropped by Hashi's kernel rules, and never added to a dynamic set.
+20. A manual allow outranks every dynamic decision: an address in the folded allow ranges or in a host's host access
+    (the admin's own addresses) is never challenged, never banned, never staged-dropped by Hashi's kernel rules, and never
+    added to a dynamic set; an entry it already has is lifted.
 21. A target position (DNS value, upstream, connection) whose IP set resolves to no address keeps its last applied state;
     a failed resolution never deletes or empties anything.
 22. IP set and rule set references form acyclic graphs; every evaluation is deterministic (flattened priority order,

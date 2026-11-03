@@ -626,6 +626,58 @@
          }
         },
         "op": "==",
+        "right": "@host_access4"
+       }
+      },
+      {
+       "return": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "pre_guard",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip6"
+         }
+        },
+        "op": "==",
+        "right": "@host_access6"
+       }
+      },
+      {
+       "return": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "pre_guard",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
         "right": "@dyn4"
        }
       },
@@ -782,6 +834,58 @@
         },
         "op": "==",
         "right": "@allow6"
+       }
+      },
+      {
+       "return": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "pre_meter",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip"
+         }
+        },
+        "op": "==",
+        "right": "@host_access4"
+       }
+      },
+      {
+       "return": null
+      }
+     ]
+    }
+   }
+  },
+  {
+   "add": {
+    "rule": {
+     "family": "inet",
+     "table": "hashi",
+     "chain": "pre_meter",
+     "expr": [
+      {
+       "match": {
+        "left": {
+         "payload": {
+          "field": "saddr",
+          "protocol": "ip6"
+         }
+        },
+        "op": "==",
+        "right": "@host_access6"
        }
       },
       {

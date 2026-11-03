@@ -308,7 +308,12 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	edgeEngine.UseGeo(geoSvc.Lookup)
 	edgeEngine.UsePartition(func(ctx context.Context) ([]netip.Prefix, []netip.Prefix, error) {
 		f, _, _, err := fwMgr.Folded(ctx, st.R)
-		return append(f.Allow4, f.Allow6...), append(f.Block4, f.Block6...), err
+		if err != nil {
+			return nil, nil, err
+		}
+		// The admin's own addresses count as allowed for the abuse engine too (06 §3).
+		own, err := fwMgr.OwnAddresses(ctx, st.R)
+		return append(append(f.Allow4, f.Allow6...), own...), append(f.Block4, f.Block6...), err
 	})
 	if err := edgeEngine.Rebuild(ctx); err != nil {
 		return fmt.Errorf("forward auth: %w", err)
@@ -339,6 +344,11 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	})
 	if err := abuse.Load(ctx); err != nil {
 		return fmt.Errorf("abuse engine: %w", err)
+	}
+	if n, err := abuse.LiftAllowed(ctx); err != nil {
+		log.Warn("abuse engine: lift allowed addresses", "err", err)
+	} else if n > 0 {
+		log.Info("abuse engine: lifted entries of allowed addresses", "count", n)
 	}
 	go abuse.Run(ctx)
 	if !devBuild {

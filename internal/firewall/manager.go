@@ -844,6 +844,30 @@ func (m *Manager) Folded(ctx context.Context, q *db.Queries) (Folded, []netip.Pr
 	return Fold(allow, block), allow, block, nil
 }
 
+// OwnAddresses are the admin's own addresses: every firewall host's host-access sets (05 §4.3). The abuse engine
+// never challenges or bans them, and the kernel never meters them (06 §3, invariant 20).
+func (m *Manager) OwnAddresses(ctx context.Context, q *db.Queries) ([]netip.Prefix, error) {
+	rows, err := q.ListAllFirewallHostAccess(ctx)
+	if err != nil {
+		return nil, err
+	}
+	g, err := ipsets.LoadGraph(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	r, now := m.sets.Resolver(ctx), m.now()
+	seen := map[string]bool{}
+	var out []netip.Prefix
+	for _, a := range rows {
+		if seen[a.IpSetID] {
+			continue
+		}
+		seen[a.IpSetID] = true
+		out = append(out, g.Compile(a.IpSetID, r, now).Leaves...)
+	}
+	return out, nil
+}
+
 // ---- validation ----
 
 // Validate logs in with the pinned host key, reads the host (05 §2) and stores the facts. The first validation also

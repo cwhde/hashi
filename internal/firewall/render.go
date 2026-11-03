@@ -337,17 +337,28 @@ func chains(s Spec) []chainOut {
 	for _, v4 := range both {
 		guard.rules = append(guard.rules, []any{inSet(v4, "allow"+suffix(v4)), verdict("return")})
 	}
-	for _, name := range []string{"block", "dyn", "staging"} {
+	for _, v4 := range both {
+		guard.rules = append(guard.rules, []any{inSet(v4, "block"+suffix(v4)), verdict("drop")})
+	}
+	// The admin's own addresses (host access) are never banned or held by the engine (06 §3, invariant 20); a manual
+	// block still applies to them.
+	for _, v4 := range both {
+		guard.rules = append(guard.rules, []any{inSet(v4, "host_access"+suffix(v4)), verdict("return")})
+	}
+	for _, name := range []string{"dyn", "staging"} {
 		for _, v4 := range both {
 			guard.rules = append(guard.rules, []any{inSet(v4, name+suffix(v4)), verdict("drop")})
 		}
 	}
 
-	// 2. pre_meter: after conntrack, before DNAT; allowed sources are never metered.
+	// 2. pre_meter: after conntrack, before DNAT; allowed sources and the admin's own addresses are never metered (a home
+	// network behind one address opens many connections).
 	meter := chainOut{def: base("pre_meter", "filter", "prerouting", -150)}
 	meter.rules = append(meter.rules, []any{notIif(s.WAN), verdict("return")})
-	for _, v4 := range both {
-		meter.rules = append(meter.rules, []any{inSet(v4, "allow"+suffix(v4)), verdict("return")})
+	for _, set := range []string{"allow", "host_access"} {
+		for _, v4 := range both {
+			meter.rules = append(meter.rules, []any{inSet(v4, set+suffix(v4)), verdict("return")})
+		}
 	}
 	if m := s.Meters; m.Enabled {
 		limit := func(rate, burst int, per string) any {

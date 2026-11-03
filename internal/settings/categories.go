@@ -164,7 +164,7 @@ func defaults(c Category) Category {
 	case Engine:
 		return Engine{WAFDefaultMode: WAFHeadersOnly, WAFViolations: 5, WAFWindowSeconds: 60, RateRequests: 300,
 			RateWindowSeconds: 10, ChallengeExpirySecs: 30 * 60, ChallengeMaxFailed: 15, ClearanceHours: 24,
-			MetersEnabled: true, TCPNewPerMinute: 150, TCPBurst: 30, TCPMaxConcurrent: 250, UDPNewPerMinute: 200,
+			MetersEnabled: true, TCPNewPerMinute: 600, TCPBurst: 120, TCPMaxConcurrent: 1000, UDPNewPerMinute: 200,
 			UDPBurst: 50, UDPPerSecond: 5000, UDPPPSBurst: 1000, StagingSeconds: 5 * 60, PollIntervalSecs: 3,
 			BanFunction: BanExponential, BanBaseSeconds: 15 * 60, BanK: 2, BanMaxSeconds: 30 * 24 * 3600,
 			DecaySeconds: 7 * 24 * 3600, FeedRefreshSeconds: 6 * 3600, FeedStaleSeconds: 72 * 3600}

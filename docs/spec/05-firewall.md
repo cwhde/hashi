@@ -76,9 +76,11 @@ Sets:
 Chains (hook · priority):
 
 1. `pre_guard` · prerouting · raw (−300). Only `iifname` = WAN: the NetBird WireGuard listen port → `return`;
-   `@allow` → `return`; `@block` → drop; `@dyn` → drop; `@staging` → drop.
+   `@allow` → `return`; `@block` → drop; `@host_access` → `return`; `@dyn` → drop; `@staging` → drop. The admin's own
+   addresses (host access) are never held by the engine; a manual block still applies to them.
 2. `pre_meter` · prerouting · −150 (after conntrack, before DNAT). Only WAN, only `@pub_tcp` / `@metered_udp`, not
-   `@allow`:
+   `@allow` and not `@host_access` (a home network behind one address opens many connections; found 2026-11-03 when the
+   admin's home address was banned by the first meters):
    - TCP new-connection rate: `tcp flags syn ct state new update @m_tcp_new { ip saddr limit rate over R_tcp/minute burst B_tcp packets } add @staging { ip saddr } drop`
    - TCP concurrency: `ct state new add @m_tcp_conc { ip saddr ct count over C_tcp_max } add @staging { ip saddr } drop`
    - UDP new-flow rate (`@metered_udp` only): `ct state new update @m_udp_new { ip saddr limit rate over R_udp_flow/minute burst … } add @staging { ip saddr } drop`
