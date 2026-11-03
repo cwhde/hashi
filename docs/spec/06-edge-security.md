@@ -263,7 +263,10 @@ Kept from the first spec, with the address as the subject:
 
 - `security_buckets_1m`: bucket start, service, root domain, Traefik connection, country, ASN, decision/action, status
   class, path prefix (first segment, ≤ 50 per service per minute, else `other`), request/denied/challenged/
-  challenge-failed/banned counts. **No address.**
+  challenge-failed/banned counts. **No address.** Forward auth writes the decision rows (status class empty); the
+  access-log tail (§6.2) writes rows with decision `response` and the status class (`2xx` … `5xx`, `other`) of what the
+  edge answered. One request is in both, so totals are taken per kind, never summed across them. Lines read after a
+  Hashi outage land in their own minutes, which fills in the outage window (§2.1).
 - `security_ip_top_1m`: top 500 addresses per closed minute (address, service, counts).
 - `security_events`: only non-allow decisions and state changes (challenge entered/solved/expired/escalated, ban
   created/applied per host/expired/removed, WAF match, meter trip, manual actions). At most 10 events per address per
