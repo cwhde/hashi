@@ -815,6 +815,12 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-11-03 · release and deploy `v0.10.0-beta.7` (`d0268af`, the user's OK in chat) · access-log lines become
+  response rows (status class) in the telemetry; the WAF lets git, WebDAV and upload headers through. Found in CI: a
+  checkout over HTTPS got 403 from the production WAF, CRS 920450 refusing git's `Content-Encoding: gzip` on a fetch
+  (also `Lock-Token`, `If`, `Expect`, `Content-Range`), so every HTTPS git fetch was refused since beta.5. After the
+  deploy: a clone from the laptop through the edge works, CI's e2e checkout passes, and the last 30 minutes show
+  response rows next to the decisions (2xx 2402, 3xx 77, 4xx 395, 5xx 44 beside 5244 allow). Smoke ok.
 - 2026-11-03 · release and deploy `v0.10.0-beta.6` (`a8dac69`, the user's OK in chat) · a service on a Pulse agent
   gets one upstream (the agent's selected address; before: LAN, ULA and Docker bridge, two of three dead), Add host
   picks the Traefik and the entry host for a home server, bugs 10 and the Stage A timing test fixed (frozen clock).
