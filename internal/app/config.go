@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"git.juzo.io/juzo/hashi/internal/dns"
 	"git.juzo.io/juzo/hashi/internal/logring"
@@ -37,6 +38,8 @@ type Config struct {
 
 	// dnsProviders replaces the real provider adapters (tests point them at the recorded fixtures).
 	dnsProviders dns.Factory
+	// abuseNow replaces the abuse engine's clock (tests freeze it so rate windows don't depend on runner speed).
+	abuseNow func() time.Time
 }
 
 // DBPath is the SQLite file inside DataDir.

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"git.juzo.io/juzo/hashi/internal/dns"
 	"git.juzo.io/juzo/hashi/internal/dns/hetzner"
@@ -143,6 +144,9 @@ func TestForwardAuthStageA(t *testing.T) {
 	cfg.dnsProviders = func(_ string, token secrets.Value) (dns.Provider, error) {
 		return hetzner.New(token, hetzner.WithBaseURL(srv.URL+"/v1")), nil
 	}
+	// One frozen instant: the 318 requests fall in one 10 s window however slow the runner is (CI took 9.6 s).
+	at := time.Now()
+	cfg.abuseNow = func() time.Time { return at }
 	in := start(t, cfg)
 	c := in.client()
 	c.bootstrapLogin()

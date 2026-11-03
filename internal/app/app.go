@@ -321,7 +321,11 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	}
 
 	// Stage A (06 §3): the dynamic sets in memory, persisted on change.
-	abuse := security.NewEngine(st, log.With("component", "abuse"), time.Now)
+	abuseNow := cfg.abuseNow
+	if abuseNow == nil {
+		abuseNow = time.Now
+	}
+	abuse := security.NewEngine(st, log.With("component", "abuse"), abuseNow)
 	if c, err := settings.Get[settings.Engine](ctx, st.R); err == nil {
 		abuse.UseSettings(c)
 	} else {
