@@ -565,7 +565,7 @@ func Resolve(ctx context.Context, svcs []Service, resolve TargetResolver) ([]Ser
 			}
 			return res, reason, nil
 		}
-		simple, reason, err := expand("service:"+s.ID+":target", []Target{s.Target})
+		simple, reason, err := expand(ipsets.UpstreamConsumer+s.ID+":target", []Target{s.Target})
 		if err != nil {
 			return nil, fmt.Errorf("service %s: %w", s.Slug, err)
 		}
@@ -576,7 +576,7 @@ func Resolve(ctx context.Context, svcs []Service, resolve TargetResolver) ([]Ser
 		routes := make([]Route, len(s.Routes))
 		for k, r := range s.Routes {
 			if s.AdvancedRoutes && r.Enabled { // only rendered routes resolve (05a §5.2); the rest stay as stored
-				if r.Targets, reason, err = expand("service:"+s.ID+":route:"+r.ID, r.Targets); err != nil {
+				if r.Targets, reason, err = expand(ipsets.UpstreamConsumer+s.ID+":route:"+r.ID, r.Targets); err != nil {
 					return nil, fmt.Errorf("service %s: %w", s.Slug, err)
 				}
 				// A route that never resolved is left out; its paths fall to the main router (invariant 21: the

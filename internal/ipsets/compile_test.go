@@ -171,6 +171,31 @@ func TestCompileUnionMergeAndSplit(t *testing.T) {
 	}
 }
 
+// One Pulse agent is one machine: a service upstream takes its selected address only, not its Docker bridge and
+// every other interface (seen 2026-11-03: Traefik spread requests over three addresses, two of them dead). The
+// firewall and connection fallbacks keep all of them.
+func TestUpstreamsTakeOneAddressPerMachine(t *testing.T) {
+	lan, ula, bridge := netip.MustParseAddr("192.0.2.5"), netip.MustParseAddr("fd00::5"), netip.MustParseAddr("172.17.0.1")
+	r := fakeResolver{
+		hosts: map[string][]netip.Addr{"pulse:a/internal": {lan, ula, bridge}, "h1/internal": {netip.MustParseAddr("192.0.2.9"), netip.MustParseAddr("192.0.2.10")}},
+		dns:   map[string][]netip.Addr{"pool.example.com": {netip.MustParseAddr("198.51.100.1"), netip.MustParseAddr("198.51.100.2")}},
+	}
+	child := &Set{ID: "child", Elements: []Element{el("c1", Host{HostID: "h1", Scope: ScopeInternal})}}
+	s := &Set{ID: "s", Elements: []Element{
+		el("1", Pulse{AgentID: "a", Scope: ScopeInternal}),
+		el("2", mustItem(t, "203.0.113.7")),
+		el("3", DNS{FQDN: "pool.example.com"}),
+		el("4", SetRef{SetID: "child"}),
+	}}
+	res := graph(s, child).Compile("s", r, now)
+	if fmt.Sprint(res.Upstreams) != "[192.0.2.5 203.0.113.7 198.51.100.1 198.51.100.2 192.0.2.9 192.0.2.10]" {
+		t.Fatalf("upstreams %v", res.Upstreams)
+	}
+	if len(res.Addresses) != 8 {
+		t.Fatalf("addresses keep every address: %v", res.Addresses)
+	}
+}
+
 func TestCompileStatusAndProblems(t *testing.T) {
 	r := fakeResolver{
 		hosts: map[string][]netip.Addr{"h1/public": {netip.MustParseAddr("203.0.113.10")}},

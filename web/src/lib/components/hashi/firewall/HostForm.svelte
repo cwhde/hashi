@@ -12,8 +12,10 @@
 	import { lines, subnetOf, type FirewallInput } from '$lib/firewall';
 
 	type Props = {
-		traefikId: string;
-		traefikHost: string;
+		/** The Traefik hosts to pick from; the first is the default. */
+		conns: Schemas['TraefikConnection'][];
+		/** Existing firewall hosts: a host behind a router can enter through one of them. */
+		hosts: Schemas['FirewallHost'][];
 		busy: boolean;
 		scan: (host: string, port: number) => Promise<Schemas['HostKey'] | undefined>;
 		save: (body: FirewallInput) => Promise<void>;
@@ -21,7 +23,8 @@
 		/** Adds Hashi's key with a one-time credential; false when it failed and the parent shows why. */
 		install: (body: Schemas['KeyInstallInput']) => Promise<boolean>;
 	};
-	let { traefikId, traefikHost, busy, scan, save, publicKey, install }: Props = $props();
+	let { conns, hosts, busy, scan, save, publicKey, install }: Props = $props();
+	const addrOf = (c: Schemas['TraefikConnection'] | undefined) => c?.internal_ip || c?.host || '';
 	let access = $state(newAccess());
 
 	let form = $state({
@@ -33,10 +36,18 @@
 		auth: 'hashi_key' as NonNullable<FirewallInput['auth']>,
 		credential: '',
 		passphrase: '',
-		traefikIp: untrack(() => traefikHost),
-		subnets: untrack(() => subnetOf(traefikHost)),
-		publicIp: ''
+		traefikId: untrack(() => conns[0]?.id ?? ''),
+		traefikIp: untrack(() => addrOf(conns[0])),
+		subnets: untrack(() => subnetOf(addrOf(conns[0]))),
+		publicIp: '',
+		entry: ''
 	});
+	// Another Traefik means another network: its address and subnet follow, the admin can still edit both.
+	function pickTraefik() {
+		const a = addrOf(conns.find((c) => c.id === form.traefikId));
+		form.traefikIp = a;
+		form.subnets = subnetOf(a);
+	}
 	let scanned = $state<Schemas['HostKey'] | null>(null);
 	let rejected = $state(false);
 
@@ -53,10 +64,11 @@
 				? form.passphrase || undefined
 				: undefined,
 		host_key: key,
-		traefik_connection_id: traefikId,
+		traefik_connection_id: form.traefikId,
 		internal_traefik_ip: form.traefikIp.trim(),
 		subnets: lines(form.subnets),
 		public_ip_override: form.publicIp.trim() || undefined,
+		route_via_host_id: form.mode === 'external_nat' ? form.entry : '',
 		netbird_mode: 'disabled'
 	});
 
@@ -174,6 +186,32 @@
 		<div class="space-y-1.5">
 			<Label for="fw-pub">Public address</Label>
 			<Input id="fw-pub" bind:value={form.publicIp} class="h-10" required />
+		</div>
+		{#if hosts.length}
+			<div class="space-y-1.5">
+				<Label for="fw-entry">Public traffic enters through</Label>
+				<select
+					id="fw-entry"
+					bind:value={form.entry}
+					class="h-10 w-full rounded-[10px] border bg-transparent px-3 text-[13px]"
+				>
+					<option value="">This host (ports forwarded on its router)</option>
+					{#each hosts as h (h.id)}<option value={h.id}>{h.name}</option>{/each}
+				</select>
+			</div>
+		{/if}
+	{/if}
+	{#if conns.length > 1}
+		<div class="space-y-1.5">
+			<Label for="fw-traefik">Traefik on this network</Label>
+			<select
+				id="fw-traefik"
+				bind:value={form.traefikId}
+				onchange={pickTraefik}
+				class="h-10 w-full rounded-[10px] border bg-transparent px-3 text-[13px]"
+			>
+				{#each conns as c (c.id)}<option value={c.id}>{c.name}</option>{/each}
+			</select>
 		</div>
 	{/if}
 	<div class="space-y-1.5">

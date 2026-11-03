@@ -24,6 +24,9 @@ type Target struct {
 	Unresolved string
 }
 
+// UpstreamConsumer starts the consumer key of a service upstream position ("service:<id>:target", …).
+const UpstreamConsumer = "service:"
+
 // ErrNotAddressSet: a target position names a set that holds more than single addresses.
 var ErrNotAddressSet = fmt.Errorf("%w: targets take only address sets (ip, pulse, host and dns items)", ErrInvalid)
 
@@ -183,6 +186,7 @@ func UsesPulse(ctx context.Context, q *db.Queries, id string) (bool, error) {
 // ResolveTarget resolves set id for consumer, a stable key of the position ("service:<id>", "dns_record:<id>", …).
 // A non-empty resolution is stored as the position's last good one; an empty one returns the stored addresses with
 // the reason and records it for Overview → needs attention. Nothing is ever emptied because a resolution failed.
+// Service upstreams (UpstreamConsumer) get one address per machine; every other position gets all of them.
 func (s *Service) ResolveTarget(ctx context.Context, consumer, id string) (Target, error) {
 	res, err := s.Compile(ctx, s.st.R, id)
 	if err != nil {
@@ -190,6 +194,9 @@ func (s *Service) ResolveTarget(ctx context.Context, consumer, id string) (Targe
 	}
 	if !res.AddressSet {
 		return Target{}, ErrNotAddressSet
+	}
+	if strings.HasPrefix(consumer, UpstreamConsumer) {
+		res.Addresses = res.Upstreams
 	}
 	now := s.now().UnixMilli()
 	if len(res.Addresses) > 0 {

@@ -78,6 +78,9 @@ type Result struct {
 	// Addresses are the single addresses every target-capable leaf resolved to, in item order (first = primary,
 	// 05a §5.2), without duplicates. Only meaningful when AddressSet is true.
 	Addresses []netip.Addr
+	// Upstreams are Addresses with one address per agent: a Pulse item gives only its first (selected) address, the
+	// rest are other interfaces of the same machine (05a §5.2). Service upstreams use these.
+	Upstreams []netip.Addr
 	// AddressSet: every leaf, through nesting, is ip, pulse, host or dns (05a §5.2).
 	AddressSet bool
 	// Geo are the geo items through nesting, for lookups at L7 (05a §4.1). The firewall's prefixes for them are in the
@@ -182,7 +185,8 @@ func (g Graph) Compile(id string, r Resolver, now time.Time) Result {
 		b.AddPrefix(pre)
 	}
 	ips, _ := b.IPSet() // the builder only errors on invalid input, which normalization excludes
-	res := Result{AddressSet: p.addressSet, Geo: p.geo, Problems: p.problems, Addresses: dedup(p.addresses), Leaves: leaves(p.prefixes)}
+	res := Result{AddressSet: p.addressSet, Geo: p.geo, Problems: p.problems, Addresses: dedup(p.addresses),
+		Upstreams: dedup(p.upstreams), Leaves: leaves(p.prefixes)}
 	for _, pre := range ips.Prefixes() {
 		if pre.Addr().Is4() {
 			res.V4 = append(res.V4, pre)
@@ -204,6 +208,7 @@ func (g Graph) Compile(id string, r Resolver, now time.Time) Result {
 type partial struct {
 	prefixes   []netip.Prefix
 	addresses  []netip.Addr
+	upstreams  []netip.Addr
 	addressSet bool
 	geo        []Geo
 	problems   []Problem
@@ -249,15 +254,17 @@ func (c *compiler) set(id string) *partial {
 		case IP:
 			out.prefixes = append(out.prefixes, netip.PrefixFrom(v.Addr, v.Addr.BitLen()))
 			out.addresses = append(out.addresses, v.Addr)
+			out.upstreams = append(out.upstreams, v.Addr)
 		case CIDR:
 			out.prefixes = append(out.prefixes, v.Prefix)
 			out.addressSet = false
 		case Host:
-			c.leaf(out, e, fail, func() ([]netip.Addr, error) { return c.r.Host(v.HostID, v.Scope) }, "host")
+			c.leaf(out, e, fail, func() ([]netip.Addr, error) { return c.r.Host(v.HostID, v.Scope) }, "host", false)
 		case Pulse:
-			c.leaf(out, e, fail, func() ([]netip.Addr, error) { return c.r.Pulse(v.AgentID, v.Scope, v.Selector) }, "Pulse agent")
+			c.leaf(out, e, fail, func() ([]netip.Addr, error) { return c.r.Pulse(v.AgentID, v.Scope, v.Selector) }, "Pulse agent", true)
 		case DNS:
-			c.leaf(out, e, fail, func() ([]netip.Addr, error) { return c.r.DNS(v.FQDN) }, v.FQDN)
+			// A name with several answers is several machines (round robin): every answer is an upstream.
+			c.leaf(out, e, fail, func() ([]netip.Addr, error) { return c.r.DNS(v.FQDN) }, v.FQDN, false)
 		case Geo:
 			out.addressSet = false
 			out.geo = append(out.geo, v)
@@ -277,6 +284,7 @@ func (c *compiler) set(id string) *partial {
 			out.geo = append(out.geo, child.geo...)
 			out.prefixes = append(out.prefixes, child.prefixes...)
 			out.addresses = append(out.addresses, child.addresses...)
+			out.upstreams = append(out.upstreams, child.upstreams...)
 			for _, p := range child.problems {
 				p.Path = append([]string{s.Slug}, p.Path...)
 				out.problems = append(out.problems, p)
@@ -288,7 +296,8 @@ func (c *compiler) set(id string) *partial {
 	return out
 }
 
-func (c *compiler) leaf(out *partial, e Element, fail func(Element, string), resolve func() ([]netip.Addr, error), what string) {
+// leaf adds a resolved item. oneMachine: the answers are one agent's interfaces, so only the first is an upstream.
+func (c *compiler) leaf(out *partial, e Element, fail func(Element, string), resolve func() ([]netip.Addr, error), what string, oneMachine bool) {
 	if c.r == nil {
 		fail(e, what+": no resolver")
 		return
@@ -305,10 +314,13 @@ func (c *compiler) leaf(out *partial, e Element, fail func(Element, string), res
 		fail(e, what+": resolved to no address")
 		return
 	}
-	for _, a := range addrs {
+	for i, a := range addrs {
 		a = a.Unmap()
 		out.prefixes = append(out.prefixes, netip.PrefixFrom(a, a.BitLen()))
 		out.addresses = append(out.addresses, a)
+		if i == 0 || !oneMachine {
+			out.upstreams = append(out.upstreams, a)
+		}
 	}
 }
 

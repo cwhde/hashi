@@ -445,6 +445,17 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByLabel('Public port').fill('19132');
 	await page.getByRole('button', { name: 'Save and publish' }).click();
 	await expect(page.getByRole('status')).toContainText('need your approval');
+	// A home server behind a router: no SSH, public traffic enters through edge-a, its own network.
+	await page.goto(`${state.baseURL}/firewall/new`);
+	await page.getByLabel('Name').fill('home-a');
+	await page.getByLabel('How it is reached').selectOption('external_nat');
+	await page.getByLabel('Public address').fill('198.51.100.40');
+	await page.getByLabel('Public traffic enters through').selectOption({ label: 'edge-a' });
+	await page.getByLabel("Traefik's address on this network").fill('10.33.0.10');
+	await page.getByLabel('Networks behind this host').fill('10.33.0.0/24');
+	await page.getByRole('button', { name: 'Save' }).click();
+	await expect(page.locator('#entry option:checked')).toHaveText('edge-a');
+	await expect(page.getByText('via.edge-a')).toBeVisible();
 	await page.goto(`${state.baseURL}/firewall`);
 	await page.screenshot({ path: 'test-results/firewall-hosts.png', fullPage: true });
 

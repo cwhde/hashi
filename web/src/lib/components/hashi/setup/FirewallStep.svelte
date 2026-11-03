@@ -121,8 +121,8 @@
 {#if !host}
 	<div class="mt-5">
 		<HostForm
-			traefikId={setup.traefik?.id ?? ''}
-			traefikHost={setup.traefik?.host ?? ''}
+			conns={setup.traefik ? [setup.traefik] : []}
+			hosts={[]}
 			busy={!!busy}
 			{scan}
 			{save}

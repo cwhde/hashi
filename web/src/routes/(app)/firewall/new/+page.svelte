@@ -7,7 +7,8 @@
 	import { withReauth } from '$lib/auth/reauth';
 	import type { FirewallInput } from '$lib/firewall';
 
-	let conn = $state<Schemas['TraefikConnection'] | null>(null);
+	let conns = $state<Schemas['TraefikConnection'][]>([]);
+	let hosts = $state<Schemas['FirewallHost'][]>([]);
 	let busy = $state(false);
 	let error = $state('');
 	let publicKey = $state('');
@@ -26,8 +27,12 @@
 	}
 	onMount(async () => {
 		publicKey = (await api.POST('/api/firewall/identity')).data?.public_key ?? '';
-		const r = await api.GET('/api/traefik/connections');
-		conn = r.data?.connections[0] ?? null;
+		const [r, h] = await Promise.all([
+			api.GET('/api/traefik/connections'),
+			api.GET('/api/firewall/hosts')
+		]);
+		conns = r.data?.connections ?? [];
+		hosts = h.data?.hosts ?? [];
 	});
 	async function scan(host: string, port: number) {
 		error = '';
@@ -67,16 +72,8 @@
 	>
 		{error}
 	</p>{/if}
-{#if conn}
-	<HostForm
-		traefikId={conn.id}
-		traefikHost={conn.host}
-		{busy}
-		{scan}
-		{save}
-		{publicKey}
-		{install}
-	/>
+{#if conns.length}
+	<HostForm {conns} {hosts} {busy} {scan} {save} {publicKey} {install} />
 {:else}
 	<p class="text-[13px] text-muted-foreground">
 		Connect a Traefik host first: public traffic is forwarded to it.
