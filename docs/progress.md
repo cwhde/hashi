@@ -805,12 +805,16 @@ Decisions made in S0:
 
 - S1 review (#26): Activity → Live log keeps its last sequence number across a server restart (sequence restarts at 0),
   so an open tab could skip the startup lines after a restart. Read from code, not observed.
-- S0 review: for a `v1.2.3` git tag the image tag is `1.2.3` (metadata-action `{{version}}`) but the binary reports
-  `v1.2.3`, so `make deploy TAG=1.2.3` would fail its smoke version match (`deploy/deploy.sh` smoke). Not observed;
-  only short-SHA deploys exist so far.
 
 ## Log
 
+- 2026-11-03 · release and deploy `v0.10.0-beta.6` (`a8dac69`, the user's OK in chat) · a service on a Pulse agent
+  gets one upstream (the agent's selected address; before: LAN, ULA and Docker bridge, two of three dead), Add host
+  picks the Traefik and the entry host for a home server, bugs 10 and the Stage A timing test fixed (frozen clock).
+  Smoke ok. On the edges the agents service now has one server on both. Its container's own ufw let only the two edge
+  subnets in, but the fra1 edge arrives as the home router (NetBird route, masqueraded): port allowed from that
+  address with the user's OK. `make deploy TAG=0.10.0-beta.6` (image tag without the v) passes the smoke version match;
+  `TAG=v0.10.0-beta.6` finds no image and stops before changing anything.
 - 2026-11-03 · deploy `v0.10.0-beta.5` (`8da6957`, the user's OK in chat) · WAF in forward auth, on by default: on the real edge a normal page and a search load, SQL injection and a `/.git/config` probe get 403. First real false positives on Gitea: browsing source files trips 920440 (file extensions), 930130 (`.env` and similar) and 930140 (AI-assistant folders); the user excludes those three on the Gitea service. Old plugin files removed from both edges.
 - 2026-11-03 · WAF moved into Hashi's forward auth (Coraza library, CRS 4.25). Measured with the real Traefik plugin: one plugin instance per route, 0.7 GB for 1 route, 1.3 GB for 10, 2.5 GB and 16 s for 60; the library: 50 ms and 23 MB per configuration, 0.25 ms per check. Plugin, plugin files, general-log tail and route-per-path rendering removed; the WAF is on by default again (headers only). Also: challenge page allows run-time code for Cap's anti-bot check (it timed out: Cap's 429 "Instrumentation timeout"), engine settings editable (Security → Engine). Captured what forward auth receives from Traefik (`testdata/contracts/traefik/forward_auth_request.txt`).
 - 2026-11-03 · incident · the user's home address was banned at about 07:00 UTC by the first kernel meters (150 new TCP connections per minute from one address; a home network behind NAT crossed it) and every service went dark for the home network. Not a user error: the default was too low and the admin's own addresses (host access) were not exempt. Fix `v0.10.0-beta.3`: host-access addresses are never metered, held or banned (firewall chains and abuse engine), existing entries are lifted at start and by the sweep, meter defaults 600/min burst 120 and 1,000 concurrent. Same moment, second failure: the Traefik plan on the Frankfurt edge restarted with the WAF, did not answer ping within 30 s (it compiles the WAF rules per route), the automatic undo was cut off when the approving request ended, and the restore put the old static config back but left route files pointing at the plugin: every WAF route answered 404 for everyone. Fixed by hand at 07:22 UTC with the user's "fix it" (WAF references removed from the route file); in the release: a started plan runs to the end, the undo restores route files too, WAF off by default until its start-up cost is solved (bugs 17).
