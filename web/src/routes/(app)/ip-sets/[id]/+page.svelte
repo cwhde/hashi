@@ -8,6 +8,7 @@
 	import IpItemView from '$lib/components/hashi/ipsets/IpItemView.svelte';
 	import IpItemEditor from '$lib/components/hashi/ipsets/IpItemEditor.svelte';
 	import AddressLink from '$lib/components/hashi/ipsets/AddressLink.svelte';
+	import DynamicEntries from '$lib/components/hashi/security/DynamicEntries.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -292,100 +293,105 @@
 
 	<Tabs.Root value="items">
 		<Tabs.List class="mb-4">
-			<Tabs.Trigger value="items">Items</Tabs.Trigger>
-			<Tabs.Trigger value="resolved">Resolved</Tabs.Trigger>
+			<Tabs.Trigger value="items">{s.kind === 'dynamic' ? 'Entries' : 'Items'}</Tabs.Trigger>
+			{#if s.kind !== 'dynamic'}<Tabs.Trigger value="resolved">Resolved</Tabs.Trigger>{/if}
 			<Tabs.Trigger value="used">Used by</Tabs.Trigger>
 			<Tabs.Trigger value="history">History</Tabs.Trigger>
 		</Tabs.List>
 
 		<Tabs.Content value="items">
-			<div class="rounded-2xl border bg-card">
-				<div class="flex flex-wrap items-center gap-2 border-b px-3 py-2.5">
-					<div class="relative w-full max-w-80">
-						<Search
-							class="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
-						/>
-						<Input
-							bind:value={q}
-							placeholder="Address, prefix or note"
-							class="pl-8"
-							aria-label="Search items"
-						/>
+			{#if s.kind === 'dynamic' && (s.id === 'sys-dynamic-challenge' || s.id === 'sys-dynamic-blocked')}
+				<DynamicEntries setId={s.id} />
+			{:else}
+				<div class="rounded-2xl border bg-card">
+					<div class="flex flex-wrap items-center gap-2 border-b px-3 py-2.5">
+						<div class="relative w-full max-w-80">
+							<Search
+								class="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
+							/>
+							<Input
+								bind:value={q}
+								placeholder="Address, prefix or note"
+								class="pl-8"
+								aria-label="Search items"
+							/>
+						</div>
+						<span class="ml-auto text-[12.5px] text-muted-foreground"
+							>{#if total > elements.length}Showing {elements.length} of {total}{:else}{count(
+									total,
+									'item'
+								)}{/if}</span
+						>
 					</div>
-					<span class="ml-auto text-[12.5px] text-muted-foreground"
-						>{#if total > elements.length}Showing {elements.length} of {total}{:else}{count(
-								total,
-								'item'
-							)}{/if}</span
-					>
-				</div>
-				{#if elements.length}
-					<ul class="divide-y">
-						{#each elements as e (e.id)}
-							<li
-								class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-4 py-2.5 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_9rem_auto]"
-							>
-								<IpItemView item={e.item} {sets} />
-								<span class="hidden truncate text-[12.5px] text-muted-foreground md:block"
-									>{e.note}{#each s.problems.filter((p) => p.element_id === e.id) as p (p.message)}<Tag
-											tone="warn">{p.message}</Tag
-										>{/each}</span
+					{#if elements.length}
+						<ul class="divide-y">
+							{#each elements as e (e.id)}
+								<li
+									class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-4 py-2.5 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_9rem_auto]"
 								>
-								<span class="hidden text-[12.5px] text-muted-foreground md:block"
-									>{e.expires_at
-										? 'expires ' + dateTime(e.expires_at)
-										: e.origin === 'system'
-											? ''
-											: 'added ' + dateTime(e.created_at)}</span
+									<IpItemView item={e.item} {sets} />
+									<span class="hidden truncate text-[12.5px] text-muted-foreground md:block"
+										>{e.note}{#each s.problems.filter((p) => p.element_id === e.id) as p (p.message)}<Tag
+												tone="warn">{p.message}</Tag
+											>{/each}</span
+									>
+									<span class="hidden text-[12.5px] text-muted-foreground md:block"
+										>{e.expires_at
+											? 'expires ' + dateTime(e.expires_at)
+											: e.origin === 'system'
+												? ''
+												: 'added ' + dateTime(e.created_at)}</span
+									>
+									{#if s.editable}
+										<DropdownMenu.Root>
+											<DropdownMenu.Trigger>
+												{#snippet child({ props })}<Button
+														{...props}
+														variant="ghost"
+														size="icon-sm"
+														aria-label="Actions for {e.label}"><MoreHorizontal /></Button
+													>{/snippet}
+											</DropdownMenu.Trigger>
+											<DropdownMenu.Content align="end">
+												<DropdownMenu.Item onclick={() => openItem(e)}>Edit</DropdownMenu.Item>
+												<DropdownMenu.Separator />
+												<DropdownMenu.Item class="text-bad-text" onclick={() => removeItem(e)}
+													>Remove</DropdownMenu.Item
+												>
+											</DropdownMenu.Content>
+										</DropdownMenu.Root>
+									{:else}<span></span>{/if}
+								</li>
+							{/each}
+						</ul>
+						{#if nextCursor}
+							<div class="border-t px-4 py-2.5 text-center">
+								<Button
+									variant="ghost"
+									size="sm"
+									onclick={() => loadElements(true).catch((e) => (loadError = problemText(e)))}
+									>Show more</Button
 								>
-								{#if s.editable}
-									<DropdownMenu.Root>
-										<DropdownMenu.Trigger>
-											{#snippet child({ props })}<Button
-													{...props}
-													variant="ghost"
-													size="icon-sm"
-													aria-label="Actions for {e.label}"><MoreHorizontal /></Button
-												>{/snippet}
-										</DropdownMenu.Trigger>
-										<DropdownMenu.Content align="end">
-											<DropdownMenu.Item onclick={() => openItem(e)}>Edit</DropdownMenu.Item>
-											<DropdownMenu.Separator />
-											<DropdownMenu.Item class="text-bad-text" onclick={() => removeItem(e)}
-												>Remove</DropdownMenu.Item
-											>
-										</DropdownMenu.Content>
-									</DropdownMenu.Root>
-								{:else}<span></span>{/if}
-							</li>
-						{/each}
-					</ul>
-					{#if nextCursor}
-						<div class="border-t px-4 py-2.5 text-center">
-							<Button
-								variant="ghost"
-								size="sm"
-								onclick={() => loadElements(true).catch((e) => (loadError = problemText(e)))}
-								>Show more</Button
-							>
+							</div>
+						{/if}
+					{:else}
+						<div class="px-4 py-10 text-center text-[13px] text-muted-foreground">
+							{#if q}Nothing in this set matches “{q}”.{:else}This set is empty, so it matches
+								nobody.
+								{#if s.editable}<Button
+										size="sm"
+										variant="outline"
+										class="ml-2"
+										onclick={() => openItem(null)}>Add item</Button
+									>{/if}{/if}
 						</div>
 					{/if}
-				{:else}
-					<div class="px-4 py-10 text-center text-[13px] text-muted-foreground">
-						{#if q}Nothing in this set matches “{q}”.{:else}This set is empty, so it matches nobody.
-							{#if s.editable}<Button
-									size="sm"
-									variant="outline"
-									class="ml-2"
-									onclick={() => openItem(null)}>Add item</Button
-								>{/if}{/if}
-					</div>
-				{/if}
-			</div>
-			{#if usedAsTarget}<p class="mt-2 text-[12.5px] text-muted-foreground">
-					Used as a DNS value, upstream or SSH target, so only addresses can be added. If it ever
-					resolves to nothing, those places keep their last working address.
-				</p>{/if}
+				</div>
+				{#if usedAsTarget}<p class="mt-2 text-[12.5px] text-muted-foreground">
+						Used as a DNS value, upstream or SSH target, so only addresses can be added. If it ever
+						resolves to nothing, those places keep their last working address.
+					</p>{/if}
+			{/if}
 		</Tabs.Content>
 
 		<Tabs.Content value="resolved">

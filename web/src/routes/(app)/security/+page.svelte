@@ -16,6 +16,10 @@
 	import { dateTime } from '$lib/format';
 	import ChallengeSettings from '$lib/components/hashi/security/ChallengeSettings.svelte';
 	import EngineSummary from '$lib/components/hashi/security/EngineSummary.svelte';
+	import SecurityDashboard from '$lib/components/hashi/security/SecurityDashboard.svelte';
+	import CountersView from '$lib/components/hashi/security/CountersView.svelte';
+
+	let tab = $state('dash');
 
 	// Security for S9: who may sign in at the edge, and the country database (06 §7, §12). The dashboard, counters, CAPTCHA
 	// and engine tabs arrive with the abuse engine.
@@ -132,8 +136,10 @@
 	</p>
 {/if}
 
-<Tabs.Root value="captcha">
+<Tabs.Root bind:value={tab}>
 	<Tabs.List class="mb-4 max-w-full justify-start overflow-x-auto">
+		<Tabs.Trigger value="dash">Dashboard</Tabs.Trigger>
+		<Tabs.Trigger value="counters">Counters</Tabs.Trigger>
 		<Tabs.Trigger value="captcha">Challenge</Tabs.Trigger>
 		<Tabs.Trigger value="sso">Sign-in providers</Tabs.Trigger>
 		<Tabs.Trigger value="limits">Sessions</Tabs.Trigger>
@@ -141,6 +147,13 @@
 		<Tabs.Trigger value="geo">GeoIP</Tabs.Trigger>
 	</Tabs.List>
 
+	<!-- Built when opened, so both show fresh numbers each time. -->
+	<Tabs.Content value="dash"
+		>{#if tab === 'dash'}<SecurityDashboard />{/if}</Tabs.Content
+	>
+	<Tabs.Content value="counters"
+		>{#if tab === 'counters'}<CountersView />{/if}</Tabs.Content
+	>
 	<Tabs.Content value="captcha"><ChallengeSettings /></Tabs.Content>
 	<Tabs.Content value="engine"><EngineSummary /></Tabs.Content>
 
