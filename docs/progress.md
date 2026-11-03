@@ -821,6 +821,10 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-11-03 · release and deploy `v0.10.0-beta.8` (`a2800b2`, PR #60, the user's OK in chat) · S10 D2: Security
+  dashboard, Counters, dynamic sets' entries; WAF events with path and scoring rules. Smoke ok; the screens on
+  production are the user's to open (they need the admin sign-in). Gate runs with load from an outside address are
+  still open: the agent's attempt to run them through a VPN was stopped by a safety check, so they wait for the user.
 - 2026-11-03 · release and deploy `v0.10.0-beta.7` (`d0268af`, the user's OK in chat) · access-log lines become
   response rows (status class) in the telemetry; the WAF lets git, WebDAV and upload headers through. Found in CI: a
   checkout over HTTPS got 403 from the production WAF, CRS 920450 refusing git's `Content-Encoding: gzip` on a fetch
