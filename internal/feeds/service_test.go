@@ -130,6 +130,25 @@ func TestRefreshLifecycle(t *testing.T) {
 	if r, _ := sets.Compile(ctx, st.R, id2); len(r.V4) != 1 {
 		t.Errorf("garbage replaced the entries: %v", r.V4)
 	}
+	// The same for a line-based list (all recommended feeds are lines, netset or CSV): an error page that answers 200
+	// must not replace the entries with nothing. Seen in review: "updated, added 0 removed 2", the set emptied.
+	before, _ := sets.Compile(ctx, st.R, id)
+	fs.set("<!doctype html>\n<html><body>Down for maintenance</body></html>\n", false)
+	if run, _ := svc.Refresh(ctx, id); run.Outcome != OutcomeFailed {
+		t.Fatalf("an HTML page on a lines feed: %+v", run)
+	}
+	if r, _ := sets.Compile(ctx, st.R, id); len(r.V4) != len(before.V4) || len(r.V4) == 0 {
+		t.Errorf("an error page replaced the entries: %v, had %v", r.V4, before.V4)
+	}
+	// A list that is really empty (nothing rejected) is still an update.
+	fs.set("# no entries today\n", false)
+	if run, _ := svc.Refresh(ctx, id); run.Outcome != OutcomeUpdated {
+		t.Fatalf("an empty list: %+v", run)
+	}
+	fs.set("45.9.9.1\n45.9.9.2\n", false) // entries again for the stale check below
+	if run, _ := svc.Refresh(ctx, id); run.Outcome != OutcomeUpdated {
+		t.Fatalf("refill: %+v", run)
+	}
 
 	// Stale: no success for longer than the stale time empties the set.
 	fs.set("", true)
