@@ -151,6 +151,7 @@ var Requirements = map[string]Requirement{
 	"PutCaptchaSettings":         {Scopes: []string{"security.manage"}, Session: false, Reauth: true},
 	"PutDNSImportDecisions":      {Scopes: []string{"admin.write"}, Session: false, Reauth: false},
 	"PutEdgeSSOSettings":         {Scopes: []string{"settings.manage"}, Session: false, Reauth: false},
+	"PutEngineSettings":          {Scopes: []string{"security.manage"}, Session: false, Reauth: true},
 	"PutFirewallBindings":        {Scopes: []string{"firewall.apply"}, Session: false, Reauth: true},
 	"PutFirewallHostAccess":      {Scopes: []string{"firewall.apply"}, Session: false, Reauth: true},
 	"PutFirewallHostSSHTarget":   {Scopes: []string{"admin.write"}, Session: false, Reauth: true},

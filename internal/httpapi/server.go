@@ -32,6 +32,7 @@ import (
 	hsync "git.juzo.io/juzo/hashi/internal/sync"
 	"git.juzo.io/juzo/hashi/internal/traefik"
 	"git.juzo.io/juzo/hashi/internal/vault"
+	"git.juzo.io/juzo/hashi/internal/waf"
 )
 
 // Server implements gen.StrictServerInterface. Fields are wired in internal/app.
@@ -60,6 +61,8 @@ type Server struct {
 	// CapEnvFile is Cap's password file when Cap runs next to Hashi (06 §11); CapPort is its host port.
 	CapEnvFile string
 	CapPort    int
+	// WAF checks requests in forward auth (06 §9); nil checks nothing.
+	WAF *waf.Engine
 	// Feeds owns the feed sets (06 §8).
 	Feeds *feeds.Service
 	// Captcha caches the CAPTCHA settings for forward auth; nil reads them from the database.

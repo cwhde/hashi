@@ -50,6 +50,7 @@ import (
 	hsync "git.juzo.io/juzo/hashi/internal/sync"
 	"git.juzo.io/juzo/hashi/internal/traefik"
 	"git.juzo.io/juzo/hashi/internal/vault"
+	"git.juzo.io/juzo/hashi/internal/waf"
 	"git.juzo.io/juzo/hashi/internal/web"
 )
 
@@ -353,8 +354,8 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	go abuse.Run(ctx)
 	if !devBuild {
 		go link.Run(ctx)
-		// Log tail per installed Traefik (06 §6.2): the WAF's blocks come from the general log and count per address.
-		go traefik.NewTailer(traefikMgr, log.With("component", "logtail"), nil, wafSink(st, abuse, log)).Run(ctx)
+		// Access-log tail per installed Traefik (06 §6.2).
+		go traefik.NewTailer(traefikMgr, log.With("component", "logtail"), nil).Run(ctx)
 	}
 	cfgSettings.Subscribe(func(c settings.Category) {
 		if _, ok := c.(settings.Engine); ok { // meter thresholds re-render pre_meter through a plan (05 §3.3)
@@ -418,7 +419,12 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	} else {
 		return err
 	}
-	api := &httpapi.Server{Captcha: capCache, Feeds: feedSvc, CapEnvFile: cfg.CapEnvFile, CapPort: cfg.CapPort,
+	// The WAF runs in forward auth (06 §9); the default configuration is built now, not on the first request.
+	wafs := waf.New()
+	if err := wafs.Warm(waf.Config{}); err != nil {
+		return fmt.Errorf("WAF: %w", err)
+	}
+	api := &httpapi.Server{WAF: wafs, Captcha: capCache, Feeds: feedSvc, CapEnvFile: cfg.CapEnvFile, CapPort: cfg.CapPort,
 		Health: health, Version: gen.Version{Version: Version, Commit: Commit}, Store: st, Sessions: sessions,
 		Passkeys: passkeys, Setup: setupSvc, Settings: cfgSettings, DNS: dnsSvc, Traefik: traefikMgr, Certs: certMgr, IPSets: ipSets, AdGuard: adguardSvc, Pulse: pulseSvc, Monitor: monitorSvc, Notify: notifier, Firewall: fwMgr, Edge: edgeEngine, SSO: sso, Security: abuse, GeoIP: geoSvc, Sync: syncEngine, Vault: v, Audit: al, IP: ip, Logs: cfg.Logs,
 		CertsSoon: func(ctx context.Context) error { return runner.Soon(ctx, certs.JobKind) },
@@ -654,25 +660,4 @@ func targetsUse(ctx context.Context, q *db.Queries, sets []string) (bool, error)
 		}
 	}
 	return false, nil
-}
-
-// wafSink counts each WAF block for its address and service (06 §3.2).
-func wafSink(st *store.Store, abuse *security.Engine, log *slog.Logger) traefik.WAFSink {
-	return func(ctx context.Context, _ string, blocks []traefik.WAFBlock) {
-		svcs, err := st.R.ListServices(ctx)
-		if err != nil {
-			log.Warn("WAF blocks: list services", "err", err)
-			return
-		}
-		slugs, ids := make([]string, len(svcs)), map[string]string{}
-		for i, s := range svcs {
-			slugs[i], ids[s.Slug] = s.Slug, s.ID
-		}
-		for _, b := range blocks {
-			slug, _ := traefik.RouterService(b.Router, slugs)
-			if err := abuse.WAFMatch(ctx, b.Client, ids[slug]); err != nil {
-				log.Warn("WAF block", "err", err)
-			}
-		}
-	}
 }

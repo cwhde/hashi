@@ -2632,9 +2632,16 @@ type EngineSettings struct {
 	MetersEnabled          bool                      `json:"meters_enabled"`
 	RateRequests           int                       `json:"rate_requests"`
 	RateWindowSeconds      int                       `json:"rate_window_seconds"`
-	WafDefaultMode         string                    `json:"waf_default_mode"`
-	WafViolations          int                       `json:"waf_violations"`
-	WafWindowSeconds       int                       `json:"waf_window_seconds"`
+	TcpBurst               int                       `json:"tcp_burst"`
+
+	// TcpMaxConcurrent Open TCP connections from one address
+	TcpMaxConcurrent int `json:"tcp_max_concurrent"`
+
+	// TcpNewPerMinute New TCP connections per minute from one address before the firewall holds it
+	TcpNewPerMinute  int    `json:"tcp_new_per_minute"`
+	WafDefaultMode   string `json:"waf_default_mode"`
+	WafViolations    int    `json:"waf_violations"`
+	WafWindowSeconds int    `json:"waf_window_seconds"`
 }
 
 // EngineSettingsBanFunction defines model for EngineSettings.BanFunction.
@@ -4662,6 +4669,9 @@ type PutAppearanceSettingsJSONRequestBody = AppearanceSettings
 // PutEdgeSSOSettingsJSONRequestBody defines body for PutEdgeSSOSettings for application/json ContentType.
 type PutEdgeSSOSettingsJSONRequestBody = EdgeSSOSettings
 
+// PutEngineSettingsJSONRequestBody defines body for PutEngineSettings for application/json ContentType.
+type PutEngineSettingsJSONRequestBody = EngineSettings
+
 // PutGeneralSettingsJSONRequestBody defines body for PutGeneralSettings for application/json ContentType.
 type PutGeneralSettingsJSONRequestBody = GeneralSettings
 
@@ -5428,6 +5438,9 @@ type ServerInterface interface {
 	// GetEngineSettings The abuse engine's thresholds, ban function, WAF default and feed timing (06 §10)
 	// (GET /api/settings/engine)
 	GetEngineSettings(w http.ResponseWriter, r *http.Request)
+	// PutEngineSettings Save the abuse engine's settings; the firewall and every Traefik host are planned again
+	// (PUT /api/settings/engine)
+	PutEngineSettings(w http.ResponseWriter, r *http.Request)
 
 	// (GET /api/settings/general)
 	GetGeneralSettings(w http.ResponseWriter, r *http.Request)
@@ -8674,6 +8687,20 @@ func (siw *ServerInterfaceWrapper) GetEngineSettings(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// PutEngineSettings operation middleware
+func (siw *ServerInterfaceWrapper) PutEngineSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutEngineSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetGeneralSettings operation middleware
 func (siw *ServerInterfaceWrapper) GetGeneralSettings(w http.ResponseWriter, r *http.Request) {
 
@@ -9932,6 +9959,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings/security", wrapper.GetSecuritySettings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/settings/security", wrapper.PutSecuritySettings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings/engine", wrapper.GetEngineSettings)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/settings/engine", wrapper.PutEngineSettings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings/appearance", wrapper.GetAppearanceSettings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/settings/appearance", wrapper.PutAppearanceSettings)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/pulse/{agentId}/heartbeat", wrapper.PulseHeartbeat)
@@ -15411,6 +15439,45 @@ func (response GetEngineSettingsdefaultApplicationProblemPlusJSONResponse) Visit
 	return err
 }
 
+type PutEngineSettingsRequestObject struct {
+	Body *PutEngineSettingsJSONRequestBody
+}
+
+type PutEngineSettingsResponseObject interface {
+	VisitPutEngineSettingsResponse(w http.ResponseWriter) error
+}
+
+type PutEngineSettings200JSONResponse EngineSettings
+
+func (response PutEngineSettings200JSONResponse) VisitPutEngineSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutEngineSettingsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutEngineSettingsdefaultApplicationProblemPlusJSONResponse) VisitPutEngineSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetGeneralSettingsRequestObject struct {
 }
 
@@ -18245,6 +18312,9 @@ type StrictServerInterface interface {
 	// GetEngineSettings The abuse engine's thresholds, ban function, WAF default and feed timing (06 §10)
 	// (GET /api/settings/engine)
 	GetEngineSettings(ctx context.Context, request GetEngineSettingsRequestObject) (GetEngineSettingsResponseObject, error)
+	// PutEngineSettings Save the abuse engine's settings; the firewall and every Traefik host are planned again
+	// (PUT /api/settings/engine)
+	PutEngineSettings(ctx context.Context, request PutEngineSettingsRequestObject) (PutEngineSettingsResponseObject, error)
 
 	// (GET /api/settings/general)
 	GetGeneralSettings(ctx context.Context, request GetGeneralSettingsRequestObject) (GetGeneralSettingsResponseObject, error)
@@ -22333,6 +22403,37 @@ func (sh *strictHandler) GetEngineSettings(w http.ResponseWriter, r *http.Reques
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetEngineSettingsResponseObject); ok {
 		if err := validResponse.VisitGetEngineSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutEngineSettings operation middleware
+func (sh *strictHandler) PutEngineSettings(w http.ResponseWriter, r *http.Request) {
+	var request PutEngineSettingsRequestObject
+
+	var body PutEngineSettingsJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutEngineSettings(ctx, request.(PutEngineSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutEngineSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutEngineSettingsResponseObject); ok {
+		if err := validResponse.VisitPutEngineSettingsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

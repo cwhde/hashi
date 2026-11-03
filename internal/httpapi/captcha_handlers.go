@@ -197,18 +197,48 @@ func (s *Server) CreateCaptchaKey(ctx context.Context, _ gen.CreateCaptchaKeyReq
 	return gen.CreateCaptchaKey200JSONResponse(b), nil
 }
 
-func (s *Server) GetEngineSettings(ctx context.Context, _ gen.GetEngineSettingsRequestObject) (gen.GetEngineSettingsResponseObject, error) {
-	e, err := settings.Get[settings.Engine](ctx, s.Store.R)
-	if err != nil {
-		return nil, err
-	}
-	return gen.GetEngineSettings200JSONResponse{WafDefaultMode: e.WAFDefaultMode, WafViolations: e.WAFViolations,
+func engineBody(e settings.Engine) gen.EngineSettings {
+	return gen.EngineSettings{TcpNewPerMinute: e.TCPNewPerMinute, TcpBurst: e.TCPBurst, TcpMaxConcurrent: e.TCPMaxConcurrent,
+		WafDefaultMode: e.WAFDefaultMode, WafViolations: e.WAFViolations,
 		WafWindowSeconds: e.WAFWindowSeconds, RateRequests: e.RateRequests, RateWindowSeconds: e.RateWindowSeconds,
 		ChallengeExpirySeconds: e.ChallengeExpirySecs, ChallengeMaxFailed: e.ChallengeMaxFailed,
 		CaptchaClearanceHours: e.ClearanceHours, MetersEnabled: e.MetersEnabled,
 		BanFunction: gen.EngineSettingsBanFunction(e.BanFunction), BanBaseSeconds: e.BanBaseSeconds, BanK: float32(e.BanK),
 		BanMaxSeconds: e.BanMaxSeconds, BanPermanentAfter: e.BanPermanentAfter, CounterDecaySeconds: e.DecaySeconds,
-		FeedRefreshSeconds: e.FeedRefreshSeconds, FeedStaleSeconds: e.FeedStaleSeconds}, nil
+		FeedRefreshSeconds: e.FeedRefreshSeconds, FeedStaleSeconds: e.FeedStaleSeconds}
+}
+
+func (s *Server) GetEngineSettings(ctx context.Context, _ gen.GetEngineSettingsRequestObject) (gen.GetEngineSettingsResponseObject, error) {
+	e, err := settings.Get[settings.Engine](ctx, s.Store.R)
+	if err != nil {
+		return nil, err
+	}
+	return gen.GetEngineSettings200JSONResponse(engineBody(e)), nil
+}
+
+// PutEngineSettings saves what the Engine tab shows; fields it does not show (the UDP meters, timers) stay as they are.
+// The firewall replans through the settings subscription; the Traefik hosts are planned here, since the default WAF
+// mode is part of their files.
+func (s *Server) PutEngineSettings(ctx context.Context, req gen.PutEngineSettingsRequestObject) (gen.PutEngineSettingsResponseObject, error) {
+	b := req.Body
+	e, err := settings.Get[settings.Engine](ctx, s.Store.R)
+	if err != nil {
+		return nil, err
+	}
+	e.WAFDefaultMode, e.WAFViolations, e.WAFWindowSeconds = b.WafDefaultMode, b.WafViolations, b.WafWindowSeconds
+	e.RateRequests, e.RateWindowSeconds = b.RateRequests, b.RateWindowSeconds
+	e.ChallengeExpirySecs, e.ChallengeMaxFailed, e.ClearanceHours = b.ChallengeExpirySeconds, b.ChallengeMaxFailed, b.CaptchaClearanceHours
+	e.MetersEnabled, e.TCPNewPerMinute, e.TCPBurst, e.TCPMaxConcurrent = b.MetersEnabled, b.TcpNewPerMinute, b.TcpBurst, b.TcpMaxConcurrent
+	e.BanFunction, e.BanBaseSeconds, e.BanK = string(b.BanFunction), b.BanBaseSeconds, float64(b.BanK)
+	e.BanMaxSeconds, e.BanPermanentAfter, e.DecaySeconds = b.BanMaxSeconds, b.BanPermanentAfter, b.CounterDecaySeconds
+	e.FeedRefreshSeconds, e.FeedStaleSeconds = b.FeedRefreshSeconds, b.FeedStaleSeconds
+	if err := saveSetting(ctx, s, e, nil); err != nil {
+		return nil, err
+	}
+	if _, _, err := s.syncServices(ctx); err != nil {
+		s.Log.Warn("Traefik plans after engine settings", "err", err)
+	}
+	return gen.PutEngineSettings200JSONResponse(engineBody(e)), nil
 }
 
 func (s *Server) TestCaptcha(ctx context.Context, _ gen.TestCaptchaRequestObject) (gen.TestCaptchaResponseObject, error) {

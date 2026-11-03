@@ -1,0 +1,154 @@
+// Package waf checks requests with Coraza and the OWASP CRS inside Hashi's forward auth (06 §9). Forward auth sees
+// the method, the URI and every header but never the body, which is exactly the headers-only mode. One compiled WAF
+// per distinct configuration serves every service: the Traefik plugin built one per route and needed 2.5 GB and 16 s
+// for 60 routes (measured 2026-11-03), which no edge container can carry.
+package waf
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"net/netip"
+	"slices"
+	"strconv"
+	"strings"
+	"sync"
+
+	coreruleset "github.com/corazawaf/coraza-coreruleset/v4"
+	"github.com/corazawaf/coraza/v3"
+)
+
+// Config is one effective WAF: what a request's service and path resolve to (services.EffectiveWAF without the mode).
+type Config struct {
+	Uploads    bool
+	Exclusions []int
+}
+
+// CRS request policy: the base allows the methods ordinary APIs use; uploads adds WebDAV and lifts the content type
+// check (rules 911100, 920420 refuse these from the headers alone).
+const (
+	methods         = "GET HEAD POST OPTIONS PUT PATCH DELETE"
+	uploadMethods   = methods + " PROPFIND PROPPATCH MKCOL COPY MOVE LOCK UNLOCK REPORT SEARCH"
+	ruleContentType = 920420
+)
+
+// Directives is the Coraza configuration for c: recommended base, engine on, no body access (forward auth has no body),
+// CRS setup, the request policy, the CRS rules, then removals (they must follow the rules they remove).
+func Directives(c Config) []string {
+	m := methods
+	if c.Uploads {
+		m = uploadMethods
+	}
+	d := []string{
+		"Include @coraza.conf-recommended",
+		"SecRuleEngine On",
+		"SecRequestBodyAccess Off",
+		"SecResponseBodyAccess Off",
+		"Include @crs-setup.conf.example",
+		`SecAction "id:900200,phase:1,pass,t:none,nolog,setvar:'tx.allowed_methods=` + m + `'"`,
+		"Include @owasp_crs/*.conf",
+	}
+	remove := slices.Clone(c.Exclusions)
+	if c.Uploads {
+		remove = append(remove, ruleContentType)
+	}
+	slices.Sort(remove)
+	for _, id := range slices.Compact(remove) {
+		d = append(d, "SecRuleRemoveById "+strconv.Itoa(id))
+	}
+	return d
+}
+
+func key(c Config) string {
+	s := sha256.Sum256([]byte(strings.Join(Directives(c), "\n")))
+	return hex.EncodeToString(s[:8])
+}
+
+// Request is what forward auth knows of the original request.
+type Request struct {
+	Client netip.Addr
+	Method string
+	URI    string // path and query
+	Proto  string
+	Host   string
+	Header map[string][]string
+}
+
+// Verdict is the WAF's answer. RuleID is the deciding rule (949110 for the anomaly score) when Blocked.
+type Verdict struct {
+	Blocked bool
+	RuleID  int
+	Status  int
+}
+
+// Engine keeps one compiled WAF per configuration, built on first use.
+type Engine struct {
+	mu   sync.Mutex
+	wafs map[string]coraza.WAF
+}
+
+// New returns an empty engine.
+func New() *Engine { return &Engine{wafs: map[string]coraza.WAF{}} }
+
+func (e *Engine) get(c Config) (coraza.WAF, error) {
+	k := key(c)
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if w, ok := e.wafs[k]; ok {
+		return w, nil
+	}
+	w, err := coraza.NewWAF(coraza.NewWAFConfig().WithRootFS(coreruleset.FS).WithDirectives(strings.Join(Directives(c), "\n")))
+	if err != nil {
+		return nil, fmt.Errorf("build WAF: %w", err)
+	}
+	e.wafs[k] = w
+	return w, nil
+}
+
+// Warm builds the WAF for c ahead of the first request (startup), so no visitor waits for the rule compilation.
+func (e *Engine) Warm(c Config) error {
+	_, err := e.get(c)
+	return err
+}
+
+// Check runs phase 1 and 2 (headers only) for r.
+func (e *Engine) Check(c Config, r Request) (Verdict, error) {
+	w, err := e.get(c)
+	if err != nil {
+		return Verdict{}, err
+	}
+	tx := w.NewTransaction()
+	defer func() {
+		tx.ProcessLogging()
+		_ = tx.Close()
+	}()
+	if r.Client.IsValid() {
+		tx.ProcessConnection(r.Client.String(), 0, "", 443)
+	}
+	proto := r.Proto
+	if proto == "" {
+		proto = "HTTP/1.1"
+	}
+	tx.ProcessURI(r.URI, r.Method, proto)
+	if r.Host != "" {
+		tx.AddRequestHeader("Host", r.Host)
+		tx.SetServerName(r.Host)
+	}
+	for k, vs := range r.Header {
+		for _, v := range vs {
+			tx.AddRequestHeader(k, v)
+		}
+	}
+	if it := tx.ProcessRequestHeaders(); it != nil {
+		return Verdict{Blocked: true, RuleID: it.RuleID, Status: it.Status}, nil
+	}
+	// Phase 2 evaluates the anomaly score (949110) even without a body.
+	it, err := tx.ProcessRequestBody()
+	if err != nil {
+		return Verdict{}, err
+	}
+	if it != nil {
+		return Verdict{Blocked: true, RuleID: it.RuleID, Status: it.Status}, nil
+	}
+	return Verdict{}, nil
+}

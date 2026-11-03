@@ -8,7 +8,7 @@ http:
       middlewares:
         - hashi-auth-closed
       service: ping@internal
-      priority: 1000000
+      priority: 100000
       tls: {}
     hashi-health-open:
       rule: PathPrefix(`/.well-known/hashi/health/open`)
@@ -17,5 +17,5 @@ http:
       middlewares:
         - hashi-auth-open
       service: ping@internal
-      priority: 1000000
+      priority: 100000
       tls: {}

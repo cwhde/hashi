@@ -8,7 +8,6 @@ import (
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
 	"git.juzo.io/juzo/hashi/internal/rules"
 	"git.juzo.io/juzo/hashi/internal/services"
-	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 	"git.juzo.io/juzo/hashi/internal/traefik"
 )
@@ -308,11 +307,7 @@ func (s *Server) GetServiceEffective(ctx context.Context, req gen.GetServiceEffe
 	if err := traefik.MarkFailClosed(ctx, s.Store.R, one); err != nil {
 		return nil, err
 	}
-	eng, err := settings.Get[settings.Engine](ctx, s.Store.R)
-	if err != nil {
-		return nil, err
-	}
-	b, err := traefik.EffectiveYAML(one[0], eng.WAFDefaultMode)
+	b, err := traefik.EffectiveYAML(one[0])
 	if err != nil {
 		return nil, err
 	}

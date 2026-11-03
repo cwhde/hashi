@@ -82,7 +82,7 @@ ban reaches every firewall host.
 ### 3.2 A2 — WAF and request rate
 
 **WAF** (§9) runs in Traefik before the request reaches the upstream. A blocking match rejects that request at the proxy.
-Hashi learns of every match from the continuously tailed Traefik general log (§6.2) and counts it for the address.
+The WAF runs inside forward auth, so every refused request is counted for the address right there.
 
 **Rate:** forward auth counts every request per address in a sliding window.
 
@@ -278,12 +278,6 @@ byte offset; rotation handled by finishing the old inode from `.1`), parsing JSO
 few seconds). On reconnect it resumes from the cursor, bounded per read (1 MB, the SSH output cap). Lines from the
 `hashi-fa` entry point are the forward-auth hop and are skipped.
 
-WAF matches are not in the access log (captured, `testdata/contracts/coraza/`): Coraza writes each matched rule as a line
-of the general log `/var/log/hashi/traefik/traefik.log` (router, middleware, client, rule ID, severity, URI, unique ID).
-Hashi tails that file the same way; it is rotated with `copytruncate`, so a file shorter than the cursor restarts at 0.
-Only blocking decisions count (`Access denied` lines); the single-rule `Warning` lines before them do not, and one
-request counts once (same unique ID).
-
 ## 7. Edge SSO
 
 - One or more OIDC providers (issuer discovery, client ID, client secret in vault, scopes, claim mapping for
@@ -327,30 +321,37 @@ block* → kernel + A1; used in a rule's `applies_to` → that rule only.
 
 ## 9. WAF
 
-Coraza Traefik plugin with OWASP CRS, free, local, pinned version (verified to exist in the plugin catalog), full CRS.
+Coraza (Go library, pinned) with the OWASP CRS from `coraza-coreruleset`, run **inside Hashi's forward auth**, after
+Stage A and before the rules. Forward auth receives the method, the URI with its query and every client header, never
+the body (captured: `testdata/contracts/traefik/forward_auth_request.txt`), which is the headers-only mode. One
+compiled WAF per distinct configuration serves every service: about 50 ms to build and 23 MB, about 0.25 ms per check
+(measured 2026-11-03). A refused request is answered 403 and counted towards the address's WAF trigger; a WAF that
+cannot run lets the request through and logs it. When Hashi is down, fail-open services go unchecked, like their
+rules (§2.1).
+
+Why not in Traefik: the Coraza Traefik plugin was built first (S10 PR B) and dropped on 2026-11-03. Traefik builds one
+plugin instance per route: 0.7 GB for one route, 2.5 GB and 16 s for 60 routes on a laptop, more than an edge
+container has; on the first real edge the restart missed the health check and the routes went down
+(`testdata/contracts/coraza/`, progress log). The plugin also broke request bodies above about 160 KB.
 
 | Mode | Coraza | Use |
 | --- | --- | --- |
-| `headers_only` (default) | `SecRuleEngine On`, `SecRequestBodyAccess Off` | URI, headers, cookies and query inspected |
-| `enabled` | `SecRuleEngine On`, `SecRequestBodyAccess On` | also bodies; **not offered** until the plugin is fixed (below) |
-| `disabled` | no WAF middleware | |
+| `headers_only` (default) | `SecRuleEngine On`, no body | URI, headers, cookies and query inspected |
+| `enabled` | with body | **not offered**: forward auth never sees the body |
+| `disabled` | not checked | |
 
 CRS refuses methods and content types outside its policy from the headers alone (rules 911100, 920420), even with
 body access off. Hashi's base policy allows `GET HEAD POST OPTIONS PUT PATCH DELETE`, since ordinary APIs use them.
 Per service or path, **uploads** also allows the WebDAV methods (`PROPFIND PROPPATCH MKCOL COPY MOVE LOCK UNLOCK REPORT
 SEARCH`) and removes the content type check (920420); a path's uploads and exclusions add to the service's. System
-services (Hashi's own) get the default mode with uploads on and cannot be changed (invariant 10). The WAF middleware
-runs after forward auth, so Stage A rejects blocked and challenged addresses before any rule is evaluated. Proven on
-the real Traefik with the pinned plugin through plan and apply (`internal/traefik/integration_waf_test.go`).
+services (Hashi's own) get the default mode with uploads on and cannot be changed (invariant 10). Stage A rejects
+blocked and challenged addresses before the WAF runs.
 
-Decision 2026-11-02 (user): headers only. With the pinned plugin, body access breaks every request body above about
-160 KB (lost or `500`; captured, plugin issues #8 and #15), so `enabled` stays in the data model but the UI does not
-offer it. Reconsider when the upstream bug is fixed (`docs/bugs.md`).
+Decision 2026-11-02 (user): headers only; body checking would need the WAF in front of the upstream again.
 
-Resolution per request: most specific path mode of the service → the service's root mode → `waf.default_mode`. Per-path
-modes are rendered as additional Traefik routers with the path match and a higher priority, each with its own WAF
-middleware instance. Per service/path rule exclusions (CRS rule IDs) handle false positives without disabling the WAF.
-Hashi never implements a WAF engine.
+Resolution per request: the most specific matching path of the service (an exact path beats every prefix, a longer
+prefix beats a shorter one) → the service's own mode → `waf.default_mode`. Per service/path rule exclusions (CRS rule
+IDs) handle false positives without disabling the WAF. Hashi never implements a WAF engine; it runs Coraza's.
 
 ## 10. Settings
 
@@ -424,6 +425,9 @@ One challenge page serves both scopes: `scope=global` (A3: a solve removes the a
 `scope=service` (`pass_captcha`: a solve sets the clearance cookie for that service). The page is minimal, loads only
 required assets, shows the domain being accessed, submits the Cap token to `POST /api/edge-challenge/verify`, handles
 failure without leaking details and never exposes the Cap secret. Hashi verifies the token with Cap server-side.
+Its policy allows `'unsafe-eval'`: Cap's anti-bot check ("block headless browsers") runs obfuscated code built at run
+time in a sandboxed frame that inherits the page's policy, and without it never answers (Cap refuses with
+"Instrumentation timeout", seen 2026-11-03). The page holds nothing a visitor controls.
 
 ## 12. GeoIP
 
@@ -471,7 +475,7 @@ kind feed and downloads once), `GET /api/ip-sets/{id}/feed` (source, state, the 
 `POST /api/ip-sets/{id}/feed/refresh`. A feed is removed by deleting its set.
 CAPTCHA: `GET|PUT /api/security/captcha/settings`, `POST /api/security/captcha/test`, `GET /api/edge-challenge/start`,
 `POST /api/edge-challenge/verify`, `GET /api/edge-challenge/status`.
-Dashboard: `GET /api/security/dashboard?range=&service=&traefik=&host=&action=`. Engine settings: `/api/settings/security`.
+Dashboard: `GET /api/security/dashboard?range=&service=&traefik=&host=&action=`. Engine settings: `GET|PUT /api/settings/engine` (PUT plans the firewall and every Traefik host again).
 
 ## 15. Jobs
 

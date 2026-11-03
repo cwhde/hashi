@@ -1275,6 +1275,20 @@ paths:
           description: Engine settings
           content: { application/json: { schema: { $ref: "#/components/schemas/EngineSettings" } } }
         default: { $ref: "#/components/responses/Problem" }
+    put:
+      operationId: putEngineSettings
+      summary: Save the abuse engine's settings; the firewall and every Traefik host are planned again
+      tags: [settings]
+      x-hashi-scopes: [security.manage]
+      x-hashi-reauth: true
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/EngineSettings" } } }
+      responses:
+        "200":
+          description: Saved
+          content: { application/json: { schema: { $ref: "#/components/schemas/EngineSettings" } } }
+        default: { $ref: "#/components/responses/Problem" }
   /api/settings/appearance:
     get:
       operationId: getAppearanceSettings
@@ -2914,7 +2928,8 @@ components:
     EngineSettings:
       type: object
       required: [waf_default_mode, waf_violations, waf_window_seconds, rate_requests, rate_window_seconds,
-        challenge_expiry_seconds, challenge_max_failed, captcha_clearance_hours, meters_enabled, ban_function,
+        challenge_expiry_seconds, challenge_max_failed, captcha_clearance_hours, meters_enabled, tcp_new_per_minute,
+        tcp_burst, tcp_max_concurrent, ban_function,
         ban_base_seconds, ban_k, ban_max_seconds, ban_permanent_after, counter_decay_seconds, feed_refresh_seconds,
         feed_stale_seconds]
       properties:
@@ -2927,6 +2942,9 @@ components:
         challenge_max_failed: { type: integer }
         captcha_clearance_hours: { type: integer }
         meters_enabled: { type: boolean }
+        tcp_new_per_minute: { type: integer, description: "New TCP connections per minute from one address before the firewall holds it" }
+        tcp_burst: { type: integer }
+        tcp_max_concurrent: { type: integer, description: "Open TCP connections from one address" }
         ban_function: { type: string, enum: [constant, linear, exponential] }
         ban_base_seconds: { type: integer }
         ban_k: { type: number }

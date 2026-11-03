@@ -4,14 +4,13 @@ package traefik
 // the captured v3.7.16 files in testdata/contracts/traefik/. Maps marshal with sorted keys, so output is deterministic.
 
 type staticConfig struct {
-	Experimental *experimental         `yaml:"experimental,omitempty"`
-	Global       global                `yaml:"global"`
-	EntryPoints  map[string]entryPoint `yaml:"entryPoints"`
-	API          api                   `yaml:"api"`
-	Ping         ping                  `yaml:"ping"`
-	Providers    providers             `yaml:"providers"`
-	Log          logConfig             `yaml:"log"`
-	AccessLog    accessLog             `yaml:"accessLog"`
+	Global      global                `yaml:"global"`
+	EntryPoints map[string]entryPoint `yaml:"entryPoints"`
+	API         api                   `yaml:"api"`
+	Ping        ping                  `yaml:"ping"`
+	Providers   providers             `yaml:"providers"`
+	Log         logConfig             `yaml:"log"`
+	AccessLog   accessLog             `yaml:"accessLog"`
 }
 
 // global turns off the update check and usage reporting: edges make no outbound calls of their own.
@@ -160,12 +159,6 @@ type middleware struct {
 	StripPrefix      *stripPrefix      `yaml:"stripPrefix,omitempty"`
 	ReplacePath      *replacePath      `yaml:"replacePath,omitempty"`
 	ReplacePathRegex *replacePathRegex `yaml:"replacePathRegex,omitempty"`
-	// Plugin is keyed by the plugin's name in the static config (testdata/contracts/coraza/dynamic.yaml).
-	Plugin map[string]pluginConfig `yaml:"plugin,omitempty"`
-}
-
-type pluginConfig struct {
-	Directives []string `yaml:"directives"`
 }
 
 type stripPrefix struct {
@@ -234,14 +227,4 @@ type tlsOption struct {
 type certFile struct {
 	CertFile string `yaml:"certFile"`
 	KeyFile  string `yaml:"keyFile"`
-}
-
-// experimental loads local plugins from <working directory>/plugins-local/src/<moduleName>
-// (testdata/contracts/coraza/plugin_load.txt).
-type experimental struct {
-	LocalPlugins map[string]localPlugin `yaml:"localPlugins"`
-}
-
-type localPlugin struct {
-	ModuleName string `yaml:"moduleName"`
 }

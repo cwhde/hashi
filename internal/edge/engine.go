@@ -6,6 +6,7 @@ package edge
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/netip"
@@ -19,6 +20,7 @@ import (
 
 	"git.juzo.io/juzo/hashi/internal/ipsets"
 	"git.juzo.io/juzo/hashi/internal/rules"
+	"git.juzo.io/juzo/hashi/internal/services"
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/store"
 	"git.juzo.io/juzo/hashi/internal/store/db"
@@ -44,6 +46,9 @@ type serviceView struct {
 	List     []rules.Flat
 	// Challenge marks the CAPTCHA challenge service: Stage A runs A1 only and only the flow's paths pass (06 §11).
 	Challenge bool
+	// WAF and System decide the service's WAF per path (services.ResolveWAF).
+	WAF    services.WAF
+	System bool
 }
 
 type snapshot struct {
@@ -156,7 +161,10 @@ func (e *Engine) Rebuild(ctx context.Context) error {
 				continue
 			}
 			v := serviceView{ID: row.ID, Name: row.Name, List: g.Flatten(root, row.Origin == "system"),
-				Challenge: row.Origin == "system" && row.OwnerFeature == "captcha"}
+				Challenge: row.Origin == "system" && row.OwnerFeature == "captcha", System: row.Origin == "system"}
+			if err := json.Unmarshal([]byte(row.WafJson), &v.WAF); err != nil {
+				return nil, fmt.Errorf("service %s WAF: %w", row.ID, err)
+			}
 			if v.Challenge || row.ID == capCfg.AdminServiceID {
 				// No CAPTCHA in front of CAPTCHA (06 §11): pass_captcha items, also from the global set, are left out.
 				v.List = slices.DeleteFunc(slices.Clone(v.List), func(f rules.Flat) bool { return f.Entry.Action == rules.ActionCaptcha })
@@ -232,10 +240,13 @@ type Decision struct {
 	ServiceID string
 	// Challenge: the request is for the CAPTCHA challenge service.
 	Challenge bool
-	Action    string
-	Item      *rules.Flat
-	Index     int
-	List      []rules.Flat
+	// WAF and System are the service's WAF settings, resolved per path by the caller.
+	WAF    services.WAF
+	System bool
+	Action string
+	Item   *rules.Flat
+	Index  int
+	List   []rules.Flat
 }
 
 // DecideHost resolves the service by host and evaluates. A name no service has is denied: it may be an old name Traefik
@@ -266,7 +277,7 @@ func (e *Engine) DecideService(serviceID string, a netip.Addr, path string) (Dec
 }
 
 func (e *Engine) decide(s *snapshot, v serviceView, a netip.Addr, path string) Decision {
-	d := Decision{ServiceID: v.ID, Challenge: v.Challenge, List: v.List, Index: -1}
+	d := Decision{ServiceID: v.ID, Challenge: v.Challenge, WAF: v.WAF, System: v.System, List: v.List, Index: -1}
 	d.Index = rules.Evaluate(v.List, NormalizePath(path), func(id string) bool { return e.in(s, id, a) })
 	if d.Index < 0 {
 		// The fallback covers everyone, so this means an address no compiled set contains (none): nothing matched means denied.

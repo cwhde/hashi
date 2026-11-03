@@ -77,7 +77,7 @@ func TestServicesAPI(t *testing.T) {
 	}
 	// WAF (06 §9): headers only by default, a path with uploads, body checking refused until the plugin is fixed.
 	r = c.mustStatus(c.do(http.MethodGet, "/api/services/"+id+"/waf", nil), 200)
-	if r.body["default_mode"] != "disabled" || r.body["editable"] != true || r.body["paths"] != nil {
+	if r.body["default_mode"] != "headers_only" || r.body["editable"] != true || r.body["paths"] != nil {
 		t.Fatalf("waf: %s", r.raw)
 	}
 	r = c.mustStatus(c.do(http.MethodPut, "/api/services/"+id+"/waf", map[string]any{"mode": "headers_only", "exclusions": []int{942100, 942100},
@@ -87,10 +87,10 @@ func TestServicesAPI(t *testing.T) {
 	if pathID == "" || len(waf["exclusions"].([]any)) != 1 {
 		t.Fatalf("waf saved: %s", r.raw)
 	}
+	// The WAF runs in forward auth: Traefik's files carry nothing of it.
 	r = c.mustStatus(c.do(http.MethodGet, "/api/services/"+id+"/effective", nil), 200)
-	if y := r.body["yaml"].(string); !strings.Contains(y, "svc-search-w-"+strings.ToLower(pathID)+":") ||
-		!strings.Contains(y, "hashi-waf-") || !strings.Contains(y, "PathPrefix(`/dav`)") {
-		t.Errorf("effective with WAF paths: %s", y)
+	if y := r.body["yaml"].(string); strings.Contains(y, "waf") || strings.Contains(y, "/dav") {
+		t.Errorf("WAF in Traefik's files: %s", y)
 	}
 	c.mustStatus(c.do(http.MethodPut, "/api/services/"+id+"/waf", map[string]any{"mode": "enabled"}), 422)
 	c.mustStatus(c.do(http.MethodPut, "/api/services/"+id+"/waf", map[string]any{

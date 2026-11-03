@@ -7,7 +7,6 @@ description="Traefik reverse proxy managed by Hashi"
 
 command="/usr/local/bin/traefik"
 command_args="--configFile=/etc/hashi/traefik/traefik.yaml"
-directory="/var/lib/hashi/traefik"
 
 healthcheck_timer=30
 

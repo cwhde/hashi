@@ -240,6 +240,7 @@ func TestChallengeFlow(t *testing.T) {
 	csp := pageHeader.Get("Content-Security-Policy")
 	if pageStatus != 200 || !strings.Contains(string(body), `data-cap-api-endpoint="/0123456789/"`) ||
 		!strings.Contains(string(body), "aaa.example.com") || !strings.Contains(csp, "connect-src 'self'") ||
+		!strings.Contains(csp, "'unsafe-eval'") || !strings.Contains(string(body), `addEventListener("error"`) ||
 		strings.Contains(string(body), "sk-test") || strings.Contains(string(body), "jsdelivr") {
 		t.Fatalf("page %d, CSP %q:\n%s", pageStatus, csp, body)
 	}

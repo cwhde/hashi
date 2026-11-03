@@ -18,8 +18,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/store/db"
 )
 
-// Log tail (06 §6.2): Hashi follows every installed Traefik's JSON access log and general log (the WAF's matches) over
-// one SSH connection per host.
+// Access-log tail (06 §6.2): Hashi follows every installed Traefik's JSON access log over one SSH connection per host.
 // The cursor is the file's inode and the byte offset of the next unread line; it is stored, so a restart or a lost
 // connection resumes where it stopped. After a rotation (logrotate renames the file, 04 §3) the rest of the old inode is
 // read first. Commands were tried on BusyBox 1.37 (Alpine) and GNU coreutils.
@@ -86,29 +85,22 @@ func ParseAccessLines(b []byte) (out []AccessLine, bad int) {
 // LineSink receives the access-log lines of one Traefik host in order.
 type LineSink func(ctx context.Context, connID string, lines []AccessLine)
 
-// WAFSink receives the WAF's blocking decisions of one Traefik host in order.
-type WAFSink func(ctx context.Context, connID string, matches []WAFBlock)
-
-// The files the tail follows in LogDir.
-const (
-	AccessLogFile  = "access.log"
-	GeneralLogFile = "traefik.log"
-)
+// AccessLogFile is the file the tail follows in LogDir.
+const AccessLogFile = "access.log"
 
 // Tailer runs one tail per installed Traefik host.
 type Tailer struct {
 	m    *Manager
 	log  *slog.Logger
 	sink LineSink
-	waf  WAFSink
 	dir  string // LogDir; tests use another
 	mu   sync.Mutex
 	runs map[string]context.CancelFunc
 }
 
-// NewTailer returns the tails of m's installed hosts, delivering access-log lines to sink and WAF blocks to waf.
-func NewTailer(m *Manager, log *slog.Logger, sink LineSink, waf WAFSink) *Tailer {
-	return &Tailer{m: m, log: log, sink: sink, waf: waf, dir: LogDir, runs: map[string]context.CancelFunc{}}
+// NewTailer returns the tails of m's installed hosts, delivering access-log lines to sink.
+func NewTailer(m *Manager, log *slog.Logger, sink LineSink) *Tailer {
+	return &Tailer{m: m, log: log, sink: sink, dir: LogDir, runs: map[string]context.CancelFunc{}}
 }
 
 // Run starts a tail per installed host and stops tails of hosts that are gone, until ctx ends.
@@ -159,11 +151,9 @@ func (t *Tailer) host(ctx context.Context, id string) {
 		conn, err := t.m.dial(ctx, row)
 		if err == nil {
 			backoff = time.Second
-			acc, gen := t.cursor(ctx, id, AccessLogFile), t.cursor(ctx, id, GeneralLogFile)
+			acc := t.cursor(ctx, id, AccessLogFile)
 			for err == nil {
-				if acc, err = t.Poll(ctx, conn, id, AccessLogFile, acc); err == nil {
-					gen, err = t.Poll(ctx, conn, id, GeneralLogFile, gen)
-				}
+				acc, err = t.Poll(ctx, conn, id, AccessLogFile, acc)
 				if err == nil && !wait(ctx, TailEvery) {
 					err = ctx.Err()
 				}
@@ -174,7 +164,6 @@ func (t *Tailer) host(ctx context.Context, id string) {
 			return
 		}
 		t.save(ctx, id, AccessLogFile, Cursor{}, 0, false, err.Error(), true)
-		t.save(ctx, id, GeneralLogFile, Cursor{}, 0, false, err.Error(), true)
 		t.log.Warn("access log tail down", "connection", row.Name, "err", err)
 		if !wait(ctx, backoff) {
 			return
@@ -235,19 +224,13 @@ func (t *Tailer) Poll(ctx context.Context, h Host, id, file string, cur Cursor) 
 	if note != "" {
 		t.log.Warn(file+": "+note, "connection", id)
 	}
-	var lag time.Duration
-	if file == GeneralLogFile {
-		lag = t.deliverWAF(ctx, id, b)
-	} else {
-		lag = t.deliver(ctx, id, b)
-	}
+	lag := t.deliver(ctx, id, b)
 	t.save(ctx, id, file, next, lag, true, "", false)
 	return next, nil
 }
 
 // Follow reads the whole lines written to dir/name since cur and returns them with the next cursor. A zero cursor
-// starts at the current end. A file renamed by logrotate is finished first; one copied and truncated in place (the
-// general log, 04 §3) restarts at 0. note says when lines were lost (a rotated file compressed before it was finished).
+// starts at the current end. A file renamed by logrotate is finished first; one truncated in place restarts at 0. note says when lines were lost (a rotated file compressed before it was finished).
 func Follow(ctx context.Context, h Host, dir, name string, cur Cursor) (lines []byte, next Cursor, note string, err error) {
 	file := dir + "/" + name
 	ino, size, err := statFile(ctx, h, file)

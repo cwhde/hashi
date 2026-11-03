@@ -39,8 +39,6 @@ type Desired struct {
 	Backup []string
 	// Binary returns the verified Traefik binary (Download + Binary); called only when the host needs it.
 	Binary func(ctx context.Context) ([]byte, error)
-	// Plugin returns the verified WAF plugin files by host path (DownloadPlugin); called only when a plugin file differs.
-	Plugin func(ctx context.Context) (map[string][]byte, error)
 	// PingTimeout overrides the default wait after a restart (tests).
 	PingTimeout time.Duration
 	// Certs are the certificates in Files; the manager checks each by TLS handshake after Verify (03 §5.3).
@@ -125,11 +123,7 @@ func Observe(ctx context.Context, h Host, d Desired) (Diff, error) {
 	}
 	diff.Service.File = svc
 	for _, f := range d.Files {
-		get := hostHash
-		if f.Kind == KindPlugin {
-			get = func(p string) (string, error) { return remoteSum(ctx, h, p) }
-		}
-		hh, err := get(f.Path)
+		hh, err := hostHash(f.Path)
 		if err != nil {
 			return diff, err
 		}
@@ -194,14 +188,10 @@ func (d Diff) Items() []hsync.Item {
 	}
 	for _, c := range d.Files {
 		risk := hsync.Low
-		if c.File.Kind == KindStatic || c.File.Kind == KindPlugin {
+		if c.File.Kind == KindStatic {
 			risk = hsync.High
 		}
-		it := file(c, risk)
-		if c.File.Kind == KindPlugin {
-			it.Note = "WAF plugin " + PluginVersion + ": download, verify the pinned checksum, upload; restarts Traefik"
-		}
-		items = append(items, it)
+		items = append(items, file(c, risk))
 	}
 	return items
 }
@@ -291,12 +281,11 @@ func Apply(ctx context.Context, h Host, d Desired, diff Diff, now time.Time) (Ap
 		}
 	}
 
-	// Certificates first, then hashi-certs.yaml (Render's order), then the other dynamic files and the plugin. What a
+	// Certificates first, then hashi-certs.yaml (Render's order), then the other dynamic files. What a
 	// written dynamic or certificate file held before is kept: a restart that fails puts it back too, so the routes never
-	// point at something the restored static config does not load (seen 2026-11-03: routes using the WAF plugin after the
+	// point at something the restored static config does not load (seen 2026-11-03: routes using a plugin after the
 	// static config without it was restored).
 	var static *FileChange
-	var plugin map[string][]byte
 	type before struct {
 		path string
 		data []byte // nil: the file did not exist
@@ -309,31 +298,15 @@ func Apply(ctx context.Context, h Host, d Desired, diff Diff, now time.Time) (Ap
 			continue
 		}
 		f := c.File
-		if f.Kind == KindPlugin {
-			if plugin == nil {
-				if d.Plugin == nil {
-					return out, errors.New("WAF plugin needed but no download configured")
-				}
-				var err error
-				if plugin, err = d.Plugin(ctx); err != nil {
-					return out, err
-				}
+		b := before{path: f.Path, mode: f.Mode}
+		if c.HostHash != "" {
+			data, err := h.ReadFile(f.Path)
+			if err != nil {
+				return out, fmt.Errorf("keep previous %s: %w", f.Path, err)
 			}
-			if f.Data = plugin[f.Path]; f.Data == nil {
-				return out, fmt.Errorf("WAF plugin has no %s", f.Path)
-			}
-			restart = true // plugins load only at start
-		} else {
-			b := before{path: f.Path, mode: f.Mode}
-			if c.HostHash != "" {
-				data, err := h.ReadFile(f.Path)
-				if err != nil {
-					return out, fmt.Errorf("keep previous %s: %w", f.Path, err)
-				}
-				b.data = data
-			}
-			prevFiles = append(prevFiles, b)
+			b.data = data
 		}
+		prevFiles = append(prevFiles, b)
 		if err := write(f); err != nil {
 			return out, err
 		}
@@ -393,7 +366,7 @@ func Apply(ctx context.Context, h Host, d Desired, diff Diff, now time.Time) (Ap
 		}
 	}
 	if len(prevFiles) > 0 {
-		out.Written = slices.DeleteFunc(out.Written, func(f File) bool { return f.Kind != KindPlugin })
+		out.Written = nil
 	}
 	if prevStatic == nil && prevService == nil && !prevBinary {
 		return out, fmt.Errorf("traefik did not start: %w", err)
