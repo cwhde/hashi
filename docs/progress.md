@@ -821,6 +821,21 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-11-03 · S10 gate, L4 meter + large upload proven; L7 rate challenge pre-empted by the meter · A second
+  outside source (195.206.105.2, GeoIP CH, ASN 9009) drove steps 1/3/4. Hashi's event log for it shows two
+  `ban_created` with source `l4_meter`, an L4-meter ban: 16:11:44 (ban 1, 15 min) during the step-3
+  flood and 16:27:10 (ban 2, 30 min) during step 4; the client saw exactly 30 min of unreachability for the second.
+  So **L4 meter → staged → banned with T_ban(c) is proven, and the exponential ban curve (15 then 30 min) with it.**
+  The 100 MB POST to /readyz got 405 with no `waf_match` recorded → **the WAF does not block a large body (headers
+  only); large-upload gate met.** The L7 rate→challenge gate point was NOT reached: step 3 sends each request over a
+  new TCP connection, so the L4 connection-rate meter banned the source four seconds in, before the L7 300-in-10s
+  counter could trip — zero `waf_match`/`challenge_entered` for that address. Layers firing in order (L4 before L7),
+  not a fault. To reach the L7 rate challenge in isolation, send 300+ requests within 10 s over a few kept-alive
+  (HTTP/2) connections, from an unbanned source — a ~30 s test, no long wait.
+  Gate status: WAF count, WAF→challenge, ignored→ban, ban curve, L4 meter ban, feed enforcement, large upload all
+  proven on the real edge; only the isolated L7 rate challenge is open. (Note: the run went through a VPN profile
+  borrowed from another of the owner's servers, which briefly interrupted that server's VPN/torrent stack; the
+  agent restored it.)
 - 2026-11-03 · S10 gate, partial proof on `v0.10.0-beta.8` · A test agent drove requests at the real edge from an
   outside source (a free VPN exit, 83.217.9.70, GeoIP TR). Confirmed from Hashi's own event log for that address:
   five `waf_match` (CRS rule 942100, SQL injection) at 15:26:27–29, then `challenge_entered` (source l7_waf, "5 WAF
