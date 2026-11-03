@@ -398,3 +398,31 @@ func TestBanOfABannedAddressIsNoNewOffence(t *testing.T) {
 		t.Fatalf("concurrent bans counted %d offences, want 1", c.BanCount)
 	}
 }
+
+// Bans and challenges that end are security events too (06 §6.1: ban expired, challenge expired).
+func TestSweepRecordsExpiries(t *testing.T) {
+	ctx := context.Background()
+	e, c := testEngine(t)
+	other := netip.MustParseAddr("203.0.113.9")
+	if ok, err := e.Ban(ctx, bad, Cause{Source: SourceManual, Duration: time.Minute}); !ok || err != nil {
+		t.Fatalf("ban %v %v", ok, err)
+	}
+	if ok, err := e.Challenge(ctx, other, Cause{Source: SourceManual, Duration: time.Minute}); !ok || err != nil {
+		t.Fatalf("challenge %v %v", ok, err)
+	}
+	c.add(2 * time.Minute)
+	if _, err := e.Sweep(ctx); err != nil {
+		t.Fatal(err)
+	}
+	e.ev.drain(ctx)
+	got := map[string]bool{}
+	for _, a := range []netip.Addr{bad, other} {
+		evs, _ := e.st.R.ListSecurityEventsForAddress(ctx, db.ListSecurityEventsForAddressParams{Address: KeyString(a), Limit: 10})
+		for _, x := range evs {
+			got[KeyString(a)+" "+x.EventType] = true
+		}
+	}
+	if !got[KeyString(bad)+" ban_expired"] || !got[KeyString(other)+" challenge_expired"] {
+		t.Fatalf("expiry events missing: %v", got)
+	}
+}
