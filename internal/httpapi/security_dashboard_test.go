@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/netip"
 	"testing"
 	"time"
 
+	"git.juzo.io/juzo/hashi/internal/audit"
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
 	"git.juzo.io/juzo/hashi/internal/security"
 	"git.juzo.io/juzo/hashi/internal/store/db"
@@ -80,5 +82,60 @@ func TestSecurityDashboard(t *testing.T) {
 	}
 	if len(d.Events) != 5 || d.Events[0].Type != "waf_match" || fmt.Sprint(d.Events[0].Rules) != "[941100 941110]" {
 		t.Fatalf("events, newest first with the WAF rules: %+v", d.Events)
+	}
+}
+
+// The counters endpoints page the view, edit one address and reset by filter (06 §13.1, §14).
+func TestSecurityCountersEndpoints(t *testing.T) {
+	ctx := context.Background()
+	st := storetest.New(t)
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	eng := security.NewEngine(st, log, time.Now)
+	s := &Server{Store: st, Log: log, Security: eng, Audit: audit.New([]byte("k"))}
+	for i := range 3 {
+		a := netip.MustParseAddr(fmt.Sprintf("198.51.100.%d", 10+i))
+		if ok, err := eng.Challenge(ctx, a, security.Cause{Source: security.SourceRate}); !ok || err != nil {
+			t.Fatalf("challenge %v %v", ok, err)
+		}
+	}
+	limit := 2
+	res, err := s.ListSecurityCounters(ctx, gen.ListSecurityCountersRequestObject{Params: gen.ListSecurityCountersParams{Limit: &limit}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := gen.CounterList(res.(gen.ListSecurityCounters200JSONResponse))
+	if page.Total != 3 || len(page.Rows) != 2 || page.NextCursor == nil {
+		t.Fatalf("first page %+v", page)
+	}
+	res, _ = s.ListSecurityCounters(ctx, gen.ListSecurityCountersRequestObject{Params: gen.ListSecurityCountersParams{Limit: &limit, Cursor: page.NextCursor}})
+	if p := gen.CounterList(res.(gen.ListSecurityCounters200JSONResponse)); len(p.Rows) != 1 || p.NextCursor != nil {
+		t.Fatalf("second page %+v", p)
+	}
+	bad := "not-an-address"
+	if _, err := s.ListSecurityCounters(ctx, gen.ListSecurityCountersRequestObject{Params: gen.ListSecurityCountersParams{Q: &bad}}); err == nil {
+		t.Fatal("a bad q must be refused")
+	}
+
+	three := 3
+	er, err := s.EditAddressCounters(ctx, gen.EditAddressCountersRequestObject{Address: "198.51.100.10", Body: &gen.EditAddressCountersJSONRequestBody{BanCount: &three}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r := gen.CounterRow(er.(gen.EditAddressCounters200JSONResponse)); r.BanCount != 3 || r.State != gen.CounterRowStateChallenged {
+		t.Fatalf("edited %+v", r)
+	}
+	if _, err := s.EditAddressCounters(ctx, gen.EditAddressCountersRequestObject{Address: "198.51.100.10", Body: &gen.EditAddressCountersJSONRequestBody{}}); err == nil {
+		t.Fatal("an empty edit must be refused")
+	}
+
+	q := "198.51.100.0/24"
+	minBan := 1
+	rr, err := s.ResetSecurityCounters(ctx, gen.ResetSecurityCountersRequestObject{Body: &gen.ResetSecurityCountersJSONRequestBody{
+		AllMatching: &gen.CounterFilter{Q: &q, MinBan: &minBan}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := rr.(gen.ResetSecurityCounters200JSONResponse).Count; n != 1 {
+		t.Fatalf("reset by filter changed %d records, want the one with a ban counter", n)
 	}
 }

@@ -297,6 +297,43 @@ paths:
           description: Dashboard
           content: { application/json: { schema: { $ref: "#/components/schemas/SecurityDashboard" } } }
         default: { $ref: "#/components/responses/Problem" }
+  /api/security/counters:
+    get:
+      operationId: listSecurityCounters
+      summary: Every address with a ban or challenge counter, decayed, with its state now (06 section 13.1)
+      tags: [security]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: state, in: query, schema: { type: string, enum: [banned, challenged, active, all], default: all } }
+        - { name: min_ban, in: query, schema: { type: integer, minimum: 0 } }
+        - { name: min_challenge, in: query, schema: { type: integer, minimum: 0 } }
+        - { name: source, in: query, schema: { $ref: "#/components/schemas/SecuritySource" } }
+        - { name: country, in: query, schema: { type: string } }
+        - { name: asn, in: query, schema: { type: integer } }
+        - { name: since, in: query, description: "Last offence at or after", schema: { type: string, format: date-time } }
+        - { name: q, in: query, description: "An address or CIDR: rows inside it", schema: { type: string } }
+        - { name: sort, in: query, schema: { type: string, enum: [last, ban, challenge], default: last } }
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 500, default: 100 } }
+      responses:
+        "200":
+          description: One page of counters
+          content: { application/json: { schema: { $ref: "#/components/schemas/CounterList" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/security/counters/reset:
+    post:
+      operationId: resetSecurityCounters
+      summary: Set both counters to 0 for the given addresses, or for every row the filter matches
+      tags: [security]
+      x-hashi-scopes: [security.manage]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CounterResetInput" } } }
+      responses:
+        "200":
+          description: How many records changed
+          content: { application/json: { schema: { type: object, required: [count], properties: { count: { type: integer } } } } }
+        default: { $ref: "#/components/responses/Problem" }
   /api/security/geoip:
     get:
       operationId: getGeoIP
@@ -2510,6 +2547,22 @@ paths:
           description: Consumers
           content: { application/json: { schema: { $ref: "#/components/schemas/IPSetConsumerList" } } }
         default: { $ref: "#/components/responses/Problem" }
+  /api/addresses/{address}/counters:
+    patch:
+      operationId: editAddressCounters
+      summary: Set an address's ban or challenge counter (it decays from now) or restart a challenge's failure count
+      tags: [security]
+      x-hashi-scopes: [security.manage]
+      parameters:
+        - { name: address, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CounterEditInput" } } }
+      responses:
+        "200":
+          description: The address's counters now
+          content: { application/json: { schema: { $ref: "#/components/schemas/CounterRow" } } }
+        default: { $ref: "#/components/responses/Problem" }
   /api/addresses/{address}:
     get:
       operationId: lookupAddress
@@ -3060,6 +3113,56 @@ components:
         set_id: { type: string }
         name: { type: string }
         last_success: { type: string, format: date-time, description: "Missing when the feed never succeeded" }
+    SecuritySource: { type: string, enum: [l7_rate, l7_waf, l7_challenge_failed, l4_meter, manual] }
+    CounterRow:
+      type: object
+      required: [address, country, asn, ban_count, challenge_count, state, failures, max_failures, last_source]
+      properties:
+        address: { type: string, description: "An IPv4 address, or an IPv6 /64" }
+        country: { type: string }
+        asn: { type: integer }
+        ban_count: { type: integer }
+        challenge_count: { type: integer }
+        state: { type: string, enum: [banned, challenged, none] }
+        until: { type: string, format: date-time, description: "End of the ban or challenge; missing: none, or no expiry" }
+        failures: { type: integer, description: "Challenged: unsolved requests so far" }
+        max_failures: { type: integer, description: "Challenged: the ban limit" }
+        last_ban: { type: string, format: date-time }
+        last_challenge: { type: string, format: date-time }
+        next_ban_decrement: { type: string, format: date-time }
+        next_challenge_decrement: { type: string, format: date-time }
+        last_source: { type: string }
+    CounterList:
+      type: object
+      required: [rows, total]
+      properties:
+        rows: { type: array, items: { $ref: "#/components/schemas/CounterRow" } }
+        total: { type: integer, description: "Rows matching the filter" }
+        next_cursor: { type: string }
+    CounterEditInput:
+      type: object
+      properties:
+        ban_count: { type: integer, minimum: 0 }
+        challenge_count: { type: integer, minimum: 0 }
+        reset_failures: { type: boolean }
+    CounterResetInput:
+      type: object
+      description: Either addresses, or all_matching with the same filter as the list
+      properties:
+        addresses: { type: array, items: { type: string }, maxItems: 1000 }
+        all_matching: { $ref: "#/components/schemas/CounterFilter" }
+    CounterFilter:
+      type: object
+      description: The counters list's filter
+      properties:
+        state: { type: string, enum: [banned, challenged, active, all] }
+        min_ban: { type: integer }
+        min_challenge: { type: integer }
+        source: { $ref: "#/components/schemas/SecuritySource" }
+        country: { type: string }
+        asn: { type: integer }
+        since: { type: string, format: date-time }
+        q: { type: string }
     SecurityPoint:
       type: object
       required: [allowed, auth_required, challenged, denied, waf_matches, bans]

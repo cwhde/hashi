@@ -278,6 +278,66 @@ func (q *Queries) InsertSecurityEvent(ctx context.Context, arg InsertSecurityEve
 	return err
 }
 
+const listAddressCounters = `-- name: ListAddressCounters :many
+SELECT address, ban_count, ban_quiet_since, challenge_count, challenge_quiet_since, last_ban_at, last_ban_ends_at, last_challenge_at, last_source, country, asn, created_at, updated_at FROM address_counters
+WHERE (CAST(?1 AS TEXT) = '' OR last_source = CAST(?1 AS TEXT))
+    AND (CAST(?2 AS TEXT) = '' OR country = CAST(?2 AS TEXT))
+    AND (CAST(?3 AS INTEGER) = 0 OR asn = CAST(?3 AS INTEGER))
+    AND (CAST(?4 AS INTEGER) = 0 OR COALESCE(last_ban_at, 0) >= CAST(?4 AS INTEGER) OR COALESCE(last_challenge_at, 0) >= CAST(?4 AS INTEGER))
+ORDER BY address
+`
+
+type ListAddressCountersParams struct {
+	Source  string
+	Country string
+	Asn     int64
+	Since   int64
+}
+
+// Counters view (06 section 13.1): the cheap filters here; state, minimums and decay are computed in Go. An empty
+// source or country, and asn or since 0, mean any.
+func (q *Queries) ListAddressCounters(ctx context.Context, arg ListAddressCountersParams) ([]AddressCounter, error) {
+	rows, err := q.db.QueryContext(ctx, listAddressCounters,
+		arg.Source,
+		arg.Country,
+		arg.Asn,
+		arg.Since,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AddressCounter{}
+	for rows.Next() {
+		var i AddressCounter
+		if err := rows.Scan(
+			&i.Address,
+			&i.BanCount,
+			&i.BanQuietSince,
+			&i.ChallengeCount,
+			&i.ChallengeQuietSince,
+			&i.LastBanAt,
+			&i.LastBanEndsAt,
+			&i.LastChallengeAt,
+			&i.LastSource,
+			&i.Country,
+			&i.Asn,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listDynamicEntries = `-- name: ListDynamicEntries :many
 SELECT e.id, e.ip_set_id, e.address, e.prefix, e.expires_at, e.created_at, d.source, d.meter, d.firewall_host_id,
     d.service_id, d.reason, d.failure_count

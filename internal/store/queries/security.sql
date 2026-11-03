@@ -144,3 +144,13 @@ FROM security_events e
     LEFT JOIN firewall_hosts h ON h.id = e.firewall_host_id
 WHERE e.occurred_at >= sqlc.arg(since)
 ORDER BY e.occurred_at DESC LIMIT 30;
+
+-- Counters view (06 section 13.1): the cheap filters here; state, minimums and decay are computed in Go. An empty
+-- source or country, and asn or since 0, mean any.
+-- name: ListAddressCounters :many
+SELECT * FROM address_counters
+WHERE (CAST(sqlc.arg(source) AS TEXT) = '' OR last_source = CAST(sqlc.arg(source) AS TEXT))
+    AND (CAST(sqlc.arg(country) AS TEXT) = '' OR country = CAST(sqlc.arg(country) AS TEXT))
+    AND (CAST(sqlc.arg(asn) AS INTEGER) = 0 OR asn = CAST(sqlc.arg(asn) AS INTEGER))
+    AND (CAST(sqlc.arg(since) AS INTEGER) = 0 OR COALESCE(last_ban_at, 0) >= CAST(sqlc.arg(since) AS INTEGER) OR COALESCE(last_challenge_at, 0) >= CAST(sqlc.arg(since) AS INTEGER))
+ORDER BY address;
