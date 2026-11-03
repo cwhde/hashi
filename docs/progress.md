@@ -53,8 +53,9 @@ Left for PR D2: Security dashboard and Counters (need their APIs), engine settin
 PR D2, UI: Security dashboard, Counters, Challenge, Engine; service WAF tab; feed add; dynamic sets on the IP sets page.
 
 Left before the gate (2026-11-03):
-- [ ] Access-log lines into the telemetry: the tail runs and reads, but its line sink has been `nil` since it was
-  added (`74584c7`), so buckets have no status class and a Hashi outage is not ingested afterwards (06 §2.1, §6.1).
+- [x] Access-log lines into the telemetry: the tail ran and read, but its line sink had been `nil` since it was added
+  (`74584c7`), so buckets had no status class and a Hashi outage was not ingested afterwards. Now every service line
+  becomes a `response` row with its status class (06 §6.1); the tail's cursor fills an outage window in afterwards.
 - [ ] PR D2: Security dashboard, Counters, dynamic sets on the IP sets page.
 - [ ] Gate runs that need a source outside the own addresses (own addresses are exempt by design): L7 load →
   challenge, ignored challenge → ban on every host, L4 meter trip → staged → banned, large upload through headers_only.

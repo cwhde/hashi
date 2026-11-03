@@ -2,6 +2,7 @@ package security
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/netip"
@@ -303,6 +304,38 @@ func TestBucketsFlushClosedMinutes(t *testing.T) {
 				t.Fatalf("challenge bucket %+v", r)
 			}
 		}
+	}
+}
+
+// Access-log lines add response rows with the status class (06 §6.1): their own decision, so the forward-auth decision
+// counts stay as they are, and the top addresses aren't counted twice.
+func TestBucketsCountResponsesByStatusClass(t *testing.T) {
+	ctx := context.Background()
+	e, c := testEngine(t)
+	at := c.now()
+	e.Record(Hit{At: at, Addr: bad, ServiceID: "s1", Decision: DecisionAllow, Path: "/"})
+	for _, st := range []int{200, 204, 404, 502} {
+		e.RecordResponse(Response{At: at, Addr: bad, ServiceID: "s1", Path: "/", Status: st})
+	}
+	c.add(time.Minute)
+	if _, err := e.Sweep(ctx); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := e.st.R.ListSecurityBuckets(ctx, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]int64{}
+	for _, r := range rows {
+		got[r.Decision+"/"+r.StatusClass] += r.RequestCount
+	}
+	want := map[string]int64{"allow/": 1, "response/2xx": 2, "response/4xx": 1, "response/5xx": 1}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("buckets %v, want %v", got, want)
+	}
+	var n int64
+	if err := e.st.Reader.QueryRowContext(ctx, "SELECT sum(request_count) FROM security_ip_top_1m").Scan(&n); err != nil || n != 1 {
+		t.Fatalf("top addresses count forward-auth decisions only: %d %v", n, err)
 	}
 }
 

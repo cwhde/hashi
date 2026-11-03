@@ -393,3 +393,20 @@ func TestRouteKindOverridesService(t *testing.T) {
 		t.Fatalf("got:\n%s", b)
 	}
 }
+
+// Access-log router names lead back to the service: main router, advanced routes, and nothing for Hashi's own routers.
+func TestServiceSlugOfRouter(t *testing.T) {
+	for router, want := range map[string]string{
+		"svc-wiki@file":   "wiki",
+		"svc-my-app@file": "my-app",
+		"svc-my-app-r-01m6gcwzyksk7rhytz5pheypg0@file": "my-app",
+		"svc-git":           "git",
+		"hashi-fa@file":     "",
+		"hashi-health@file": "",
+		"":                  "",
+	} {
+		if got, _ := ServiceSlug(router); got != want {
+			t.Errorf("%q → %q, want %q", router, got, want)
+		}
+	}
+}

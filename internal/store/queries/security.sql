@@ -75,7 +75,7 @@ ON CONFLICT (traefik_connection_id, file) DO UPDATE SET inode = excluded.inode, 
 -- name: AddSecurityBucket :exec
 INSERT INTO security_buckets_1m (bucket_start, service_id, root_domain, traefik_connection_id, country, asn, decision,
     status_class, path_prefix, request_count, denied_count, challenged_count, challenge_failed_count, banned_count)
-VALUES (?, ?, '', '', ?, ?, ?, '', ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, '', '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT DO UPDATE SET request_count = request_count + excluded.request_count,
     denied_count = denied_count + excluded.denied_count, challenged_count = challenged_count + excluded.challenged_count,
     challenge_failed_count = challenge_failed_count + excluded.challenge_failed_count,

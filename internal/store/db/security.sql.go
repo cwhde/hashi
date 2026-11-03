@@ -13,7 +13,7 @@ import (
 const addSecurityBucket = `-- name: AddSecurityBucket :exec
 INSERT INTO security_buckets_1m (bucket_start, service_id, root_domain, traefik_connection_id, country, asn, decision,
     status_class, path_prefix, request_count, denied_count, challenged_count, challenge_failed_count, banned_count)
-VALUES (?, ?, '', '', ?, ?, ?, '', ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, '', '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT DO UPDATE SET request_count = request_count + excluded.request_count,
     denied_count = denied_count + excluded.denied_count, challenged_count = challenged_count + excluded.challenged_count,
     challenge_failed_count = challenge_failed_count + excluded.challenge_failed_count,
@@ -26,6 +26,7 @@ type AddSecurityBucketParams struct {
 	Country              string
 	Asn                  int64
 	Decision             string
+	StatusClass          string
 	PathPrefix           string
 	RequestCount         int64
 	DeniedCount          int64
@@ -41,6 +42,7 @@ func (q *Queries) AddSecurityBucket(ctx context.Context, arg AddSecurityBucketPa
 		arg.Country,
 		arg.Asn,
 		arg.Decision,
+		arg.StatusClass,
 		arg.PathPrefix,
 		arg.RequestCount,
 		arg.DeniedCount,

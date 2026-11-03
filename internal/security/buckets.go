@@ -19,6 +19,9 @@ const (
 	DecisionChallenge = "challenge"
 	DecisionBlocked   = "blocked"
 	DecisionAuth      = "auth_required"
+	// DecisionResponse marks rows from the access log: what the edge answered, by status class. They sit beside the
+	// forward-auth decisions (one request is in both), so sums per decision never mix the two.
+	DecisionResponse = "response"
 )
 
 const (
@@ -38,7 +41,7 @@ type Hit struct {
 type bucketKey struct {
 	minute                     int64
 	service, country, decision string
-	prefix                     string
+	prefix, status             string
 	asn                        int64
 }
 
@@ -78,20 +81,34 @@ func firstSegment(p string) string {
 	return "/" + p
 }
 
-// Record counts one decision.
-func (e *Engine) Record(h Hit) {
-	country, asn := e.lookup(h.Addr.Unmap())
-	minute := h.At.Unix() / 60 * 60_000
-	b := e.buckets
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	pk := fmt.Sprintf("%d/%s", minute, h.ServiceID)
+// Response is one access-log line of a service router (06 §6.2).
+type Response struct {
+	At        time.Time
+	Addr      netip.Addr
+	ServiceID string
+	Path      string
+	Status    int
+}
+
+// statusClass is "2xx" … "5xx"; anything else (0 for a client that went away) is "other".
+func statusClass(code int) string {
+	if code >= 100 && code < 600 {
+		return fmt.Sprintf("%dxx", code/100)
+	}
+	return "other"
+}
+
+// count adds one request to its minute bucket; b.mu is held.
+func (b *buckets) count(at time.Time, addr netip.Addr, serviceID, decision, path, status string, lookup func(netip.Addr) (string, int64)) (*bucketCount, int64) {
+	country, asn := lookup(addr.Unmap())
+	minute := at.Unix() / 60 * 60_000
+	pk := fmt.Sprintf("%d/%s", minute, serviceID)
 	seen := b.prefixes[pk]
 	if seen == nil {
 		seen = map[string]bool{}
 		b.prefixes[pk] = seen
 	}
-	prefix := firstSegment(h.Path)
+	prefix := firstSegment(path)
 	if !seen[prefix] {
 		if len(seen) >= maxPrefixes {
 			prefix = "other"
@@ -99,13 +116,31 @@ func (e *Engine) Record(h Hit) {
 			seen[prefix] = true
 		}
 	}
-	k := bucketKey{minute: minute, service: h.ServiceID, country: country, asn: asn, decision: h.Decision, prefix: prefix}
+	k := bucketKey{minute: minute, service: serviceID, country: country, asn: asn, decision: decision, prefix: prefix, status: status}
 	c := b.b[k]
 	if c == nil {
 		c = &bucketCount{}
 		b.b[k] = c
 	}
 	c.requests++
+	return c, minute
+}
+
+// RecordResponse counts what the edge answered. Lines Hashi reads after an outage land in their own minutes, so the
+// outage window is filled in afterwards (06 §2.1). Top addresses stay forward-auth only: the request is already there.
+func (e *Engine) RecordResponse(r Response) {
+	b := e.buckets
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.count(r.At, r.Addr, r.ServiceID, DecisionResponse, r.Path, statusClass(r.Status), e.lookup)
+}
+
+// Record counts one decision.
+func (e *Engine) Record(h Hit) {
+	b := e.buckets
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	c, minute := b.count(h.At, h.Addr, h.ServiceID, h.Decision, h.Path, "", e.lookup)
 	tk := topKey{minute: minute, addr: KeyString(h.Addr), service: h.ServiceID}
 	t := b.top[tk]
 	if t == nil {
@@ -134,7 +169,7 @@ func (e *Engine) flushBuckets(ctx context.Context, now time.Time) error {
 			continue
 		}
 		rows = append(rows, db.AddSecurityBucketParams{BucketStart: k.minute, ServiceID: k.service, Country: k.country,
-			Asn: k.asn, Decision: k.decision, PathPrefix: k.prefix, RequestCount: c.requests, DeniedCount: c.denied,
+			Asn: k.asn, Decision: k.decision, StatusClass: k.status, PathPrefix: k.prefix, RequestCount: c.requests, DeniedCount: c.denied,
 			ChallengedCount: c.challenged, ChallengeFailedCount: c.failed, BannedCount: c.banned})
 		delete(b.b, k)
 	}

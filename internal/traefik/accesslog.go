@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/netip"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -58,6 +59,19 @@ type rawLine struct {
 // FAEntryPoint is the loopback entry point of the forward-auth hop (06 §2.1). Every protected request is logged twice,
 // once there with Traefik itself as the client (integration test); the tail drops those lines.
 const FAEntryPoint = "hashi-fa"
+
+// serviceRouter is a service's router name (render_services.go): svc-<slug>, or svc-<slug>-r-<route ULID> for an
+// advanced route, with the provider suffix in the access log.
+var serviceRouter = regexp.MustCompile(`^svc-(.+?)(?:-r-[0-9a-z]{26})?(?:@[a-z]+)?$`)
+
+// ServiceSlug names the service an access-log router belongs to; false for Hashi's own routers.
+func ServiceSlug(router string) (string, bool) {
+	m := serviceRouter.FindStringSubmatch(router)
+	if m == nil {
+		return "", false
+	}
+	return m[1], true
+}
 
 // ParseAccessLines decodes complete lines of client requests; a line that is not JSON is skipped and counted, a
 // forward-auth hop is skipped.
