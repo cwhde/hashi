@@ -291,9 +291,18 @@ func Apply(ctx context.Context, h Host, d Desired, diff Diff, now time.Time) (Ap
 		}
 	}
 
-	// Certificates first, then hashi-certs.yaml (Render's order), then the other dynamic files and the plugin.
+	// Certificates first, then hashi-certs.yaml (Render's order), then the other dynamic files and the plugin. What a
+	// written dynamic or certificate file held before is kept: a restart that fails puts it back too, so the routes never
+	// point at something the restored static config does not load (seen 2026-11-03: routes using the WAF plugin after the
+	// static config without it was restored).
 	var static *FileChange
 	var plugin map[string][]byte
+	type before struct {
+		path string
+		data []byte // nil: the file did not exist
+		mode uint32
+	}
+	var prevFiles []before
 	for i, c := range diff.Files {
 		if c.File.Kind == KindStatic {
 			static = &diff.Files[i]
@@ -314,6 +323,16 @@ func Apply(ctx context.Context, h Host, d Desired, diff Diff, now time.Time) (Ap
 				return out, fmt.Errorf("WAF plugin has no %s", f.Path)
 			}
 			restart = true // plugins load only at start
+		} else {
+			b := before{path: f.Path, mode: f.Mode}
+			if c.HostHash != "" {
+				data, err := h.ReadFile(f.Path)
+				if err != nil {
+					return out, fmt.Errorf("keep previous %s: %w", f.Path, err)
+				}
+				b.data = data
+			}
+			prevFiles = append(prevFiles, b)
 		}
 		if err := write(f); err != nil {
 			return out, err
@@ -361,6 +380,20 @@ func Apply(ctx context.Context, h Host, d Desired, diff Diff, now time.Time) (Ap
 	}
 	if err == nil {
 		return out, nil
+	}
+	for _, b := range prevFiles {
+		var rerr error
+		if b.data == nil {
+			rerr = run("remove "+b.path, "rm -f "+sshx.Quote(b.path))
+		} else {
+			_, rerr = h.WriteFileAtomic(b.path, b.data, fs.FileMode(b.mode))
+		}
+		if rerr != nil {
+			return out, fmt.Errorf("%w; restoring %s failed too: %w", err, b.path, rerr)
+		}
+	}
+	if len(prevFiles) > 0 {
+		out.Written = slices.DeleteFunc(out.Written, func(f File) bool { return f.Kind != KindPlugin })
 	}
 	if prevStatic == nil && prevService == nil && !prevBinary {
 		return out, fmt.Errorf("traefik did not start: %w", err)

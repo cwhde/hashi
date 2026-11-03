@@ -592,9 +592,7 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	// S10: the WAF tab (headers only by default, a path with uploads), saved through the API.
 	await page.getByRole('tab', { name: 'WAF' }).click();
 	await expect(page.getByText('Mode per path')).toBeVisible();
-	await expect(page.getByLabel('WAF mode for the whole service')).toContainText(
-		'default (headers only)'
-	);
+	await expect(page.getByLabel('WAF mode for the whole service')).toContainText('default (off)');
 	await page.getByRole('button', { name: 'Add path' }).click();
 	await page.getByLabel('Path', { exact: true }).fill('/upload');
 	await page.getByText('Uploads and WebDAV on this path').click();

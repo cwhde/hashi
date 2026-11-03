@@ -358,6 +358,9 @@ func (e *Engine) run(ctx context.Context, sub Subsystem, p *Plan, actor, ip stri
 	if n == 0 {
 		return nil, e.stateErr(ctx, e.st.R, p.ID)
 	}
+	// Once a plan starts changing a provider or host it runs to the end, rollback included, even if the request that
+	// approved it goes away (a phone's request ended mid-restore on 2026-11-03 and left an edge half-changed).
+	ctx = context.WithoutCancel(ctx)
 	runID := ulid.Make().String()
 	start := e.now()
 	if err := e.st.Q.InsertSyncRun(ctx, db.InsertSyncRunParams{ID: runID, PlanID: p.ID, StartedAt: start.UnixMilli()}); err != nil {

@@ -162,7 +162,7 @@ func defaults(c Category) Category {
 	case Captcha:
 		return Captcha{VerifyURL: "http://cap:3000", CapPort: 3343, TimeoutSeconds: 5}
 	case Engine:
-		return Engine{WAFDefaultMode: WAFHeadersOnly, WAFViolations: 5, WAFWindowSeconds: 60, RateRequests: 300,
+		return Engine{WAFDefaultMode: WAFDisabled, WAFViolations: 5, WAFWindowSeconds: 60, RateRequests: 300,
 			RateWindowSeconds: 10, ChallengeExpirySecs: 30 * 60, ChallengeMaxFailed: 15, ClearanceHours: 24,
 			MetersEnabled: true, TCPNewPerMinute: 600, TCPBurst: 120, TCPMaxConcurrent: 1000, UDPNewPerMinute: 200,
 			UDPBurst: 50, UDPPerSecond: 5000, UDPPPSBurst: 1000, StagingSeconds: 5 * 60, PollIntervalSecs: 3,

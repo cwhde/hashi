@@ -260,8 +260,13 @@ func TestStaticRestartFailureRestores(t *testing.T) {
 	good := h.files[d.Paths.Static()]
 	h.startOK = func(static []byte) bool { return string(static) == string(good) }
 
+	before := map[string]string{}
+	for p, b := range h.files {
+		before[p] = string(b)
+	}
 	o := testOptions()
-	o.APIPort = 9080 // a static change
+	o.APIPort = 9080                     // a static change
+	o.HashiURL = "http://192.0.2.6:3340" // and a dynamic one in the same plan
 	d.Files, _ = Render(o)
 	diff, _ := Observe(ctx, h, d)
 	if hsync.RiskOf(diff.Items()) != hsync.High {
@@ -275,8 +280,14 @@ func TestStaticRestartFailureRestores(t *testing.T) {
 		t.Error("previous static config not restored or Traefik not back up")
 	}
 	for _, f := range out.Written {
-		if f.Kind == KindStatic {
-			t.Error("restored static file reported as applied")
+		if f.Kind == KindStatic || f.Kind == KindDynamic {
+			t.Errorf("restored file %s reported as applied", f.Path)
+		}
+	}
+	// The dynamic files go back too: routes never point at something the restored static config does not load.
+	for p, b := range before {
+		if string(h.files[p]) != b {
+			t.Errorf("%s not restored", p)
 		}
 	}
 }

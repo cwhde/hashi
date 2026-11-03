@@ -77,10 +77,10 @@ func TestServicesAPI(t *testing.T) {
 	}
 	// WAF (06 §9): headers only by default, a path with uploads, body checking refused until the plugin is fixed.
 	r = c.mustStatus(c.do(http.MethodGet, "/api/services/"+id+"/waf", nil), 200)
-	if r.body["default_mode"] != "headers_only" || r.body["editable"] != true || r.body["paths"] != nil {
+	if r.body["default_mode"] != "disabled" || r.body["editable"] != true || r.body["paths"] != nil {
 		t.Fatalf("waf: %s", r.raw)
 	}
-	r = c.mustStatus(c.do(http.MethodPut, "/api/services/"+id+"/waf", map[string]any{"exclusions": []int{942100, 942100},
+	r = c.mustStatus(c.do(http.MethodPut, "/api/services/"+id+"/waf", map[string]any{"mode": "headers_only", "exclusions": []int{942100, 942100},
 		"paths": []map[string]any{{"match": "prefix", "path": "/dav", "uploads": true}}}), 200)
 	waf := r.body["waf"].(map[string]any)
 	pathID, _ := waf["paths"].([]any)[0].(map[string]any)["id"].(string)

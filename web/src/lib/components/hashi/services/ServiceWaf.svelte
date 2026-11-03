@@ -59,9 +59,7 @@
 
 	const label = (m: string | undefined, inherit: string) =>
 		!m ? inherit : m === 'headers_only' ? 'headers only' : 'off';
-	const serviceMode = $derived(
-		label(mode, `default (${(view?.default_mode ?? '').replace('_', ' ')})`)
-	);
+	const serviceMode = $derived(label(mode, `default (${label(view?.default_mode, '')})`));
 
 	async function save() {
 		busy = true;
