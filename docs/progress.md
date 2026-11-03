@@ -52,6 +52,12 @@ Left for PR D2: Security dashboard and Counters (need their APIs), engine settin
 
 PR D2, UI: Security dashboard, Counters, Challenge, Engine; service WAF tab; feed add; dynamic sets on the IP sets page.
 
+Left before the gate (2026-11-03):
+- [ ] Access-log lines into the telemetry: the tail runs and reads, but its line sink has been `nil` since it was
+  added (`74584c7`), so buckets have no status class and a Hashi outage is not ingested afterwards (06 §2.1, §6.1).
+- [ ] PR D2: Security dashboard, Counters, dynamic sets on the IP sets page.
+- [ ] Gate runs that need a source outside the own addresses (own addresses are exempt by design): L7 load →
+  challenge, ignored challenge → ban on every host, L4 meter trip → staged → banned, large upload through headers_only.
 - [ ] Gate on the real edges (needs a Cap instance and the user's OK for each production change). 2026-11-03 on
   `v0.10.0-beta.5`: the user solved the real CAPTCHA (anti-bot check on) and landed on the target; WAF blocks attacks
   with 403 on both edges; four blocklists bound to the global block. Left: meters and dynamic sets under load, Gitea
