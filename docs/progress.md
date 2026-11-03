@@ -821,6 +821,15 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-11-03 · S10 gate, partial proof on `v0.10.0-beta.8` · A test agent drove requests at the real edge from an
+  outside source (a free VPN exit, 83.217.9.70, GeoIP TR). Confirmed from Hashi's own event log for that address:
+  five `waf_match` (CRS rule 942100, SQL injection) at 15:26:27–29, then `challenge_entered` (source l7_waf, "5 WAF
+  matches within 60 s"), then `ban_created` (source l7_challenge_failed, "15 requests without solving") at 15:26:56
+  with expiry exactly 900 s later; the client saw the drop recover at ~15:42, matching the 15-min first ban. So
+  **WAF match counted, L7 WAF→challenge, ignored challenge→ban, and T_ban(1)=15 min are proven.** The rate-limit
+  challenge, the L4-meter ban and the large-upload pass were NOT proven: the free VPN could not carry the load
+  (320 HTTPS in a 46 s window instead of 10 s; only 19 of 200 parallel TCP connects opened), so Hashi recorded no
+  rate or meter event in 15:42–15:46. Re-run steps 1/3/4 from a host that can actually push traffic.
 - 2026-11-03 · release and deploy `v0.10.0-beta.8` (`a2800b2`, PR #60, the user's OK in chat) · S10 D2: Security
   dashboard, Counters, dynamic sets' entries; WAF events with path and scoring rules. Smoke ok; the screens on
   production are the user's to open (they need the admin sign-in). Gate runs with load from an outside address are
