@@ -21,48 +21,45 @@ const MaxWAFPaths = 30
 // WAF is a service's WAF configuration (06 §9). Mode "" uses waf.default_mode.
 type WAF struct {
 	Mode       string    `json:"mode,omitempty"`
-	Uploads    bool      `json:"uploads,omitempty"`
 	Exclusions []int     `json:"exclusions,omitempty"`
 	Paths      []WAFPath `json:"paths,omitempty"`
 }
 
-// WAFPath overrides the service's WAF for requests whose path matches. Mode "" uses the service's mode; uploads and
-// exclusions add to the service's.
+// WAFPath overrides the service's WAF for requests whose path matches. Mode "" uses the service's mode; exclusions add
+// to the service's.
 type WAFPath struct {
 	ID         string `json:"id"`
 	Match      string `json:"match"` // MatchPrefix or MatchExact
 	Path       string `json:"path"`
 	Mode       string `json:"mode,omitempty"`
-	Uploads    bool   `json:"uploads,omitempty"`
 	Exclusions []int  `json:"exclusions,omitempty"`
 }
 
 // EffectiveWAF is what one router gets after resolution: path → service → default.
 type EffectiveWAF struct {
 	Mode       string
-	Uploads    bool
 	Exclusions []int
 }
 
 // Off reports whether the router gets no WAF middleware.
 func (e EffectiveWAF) Off() bool { return e.Mode == settings.WAFDisabled }
 
-// RootWAF resolves the service's own WAF against the default mode. System services keep the default mode with uploads
-// on: Hashi's own API uses PUT and DELETE, and their settings change only through their owning workflow (invariant 10).
+// RootWAF resolves the service's own WAF against the default mode. System services keep the default mode: their
+// settings change only through their owning workflow (invariant 10).
 func (s Service) RootWAF(defaultMode string) EffectiveWAF {
 	if s.System() {
-		return EffectiveWAF{Mode: defaultMode, Uploads: true}
+		return EffectiveWAF{Mode: defaultMode}
 	}
 	m := s.WAF.Mode
 	if m == "" {
 		m = defaultMode
 	}
-	return EffectiveWAF{Mode: m, Uploads: s.WAF.Uploads, Exclusions: s.WAF.Exclusions}
+	return EffectiveWAF{Mode: m, Exclusions: s.WAF.Exclusions}
 }
 
 // For resolves one path entry on top of the service's root.
 func (e EffectiveWAF) For(p WAFPath) EffectiveWAF {
-	out := EffectiveWAF{Mode: e.Mode, Uploads: e.Uploads || p.Uploads}
+	out := EffectiveWAF{Mode: e.Mode}
 	if p.Mode != "" {
 		out.Mode = p.Mode
 	}
@@ -170,11 +167,11 @@ func SetWAF(ctx context.Context, q *db.Queries, id string, w WAF, now time.Time)
 
 // ResolveWAF is the WAF that applies to a request path of a service (06 §9): the most specific matching path entry
 // (an exact path beats every prefix, a longer prefix beats a shorter one), else the service's own setting, else the
-// default. System services keep the default with uploads on.
+// default. System services keep the default.
 func ResolveWAF(w WAF, system bool, defaultMode, path string) EffectiveWAF {
 	root := Service{WAF: w}.RootWAF(defaultMode)
 	if system {
-		return EffectiveWAF{Mode: defaultMode, Uploads: true}
+		return EffectiveWAF{Mode: defaultMode}
 	}
 	best, bestLen, exact := -1, -1, false
 	for i, p := range w.Paths {

@@ -2077,9 +2077,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The service's WAF mode, uploads, rule exclusions and paths (06 §9) */
+        /** The service's WAF mode, rule exclusions and paths (06 §9) */
         get: operations["getServiceWAF"];
-        /** Replace a user service's WAF configuration (system services keep the default with uploads on) */
+        /** Replace a user service's WAF configuration (system services keep the default) */
         put: operations["setServiceWAF"];
         post?: never;
         delete?: never;
@@ -4137,15 +4137,12 @@ export interface components {
             path: string;
             /** @description Absent: the service's mode */
             mode?: components["schemas"]["WAFMode"];
-            /** @description Allows WebDAV methods and any content type (adds to the service's) */
-            uploads?: boolean;
             /** @description CRS rule IDs not applied (adds to the service's) */
             exclusions?: number[];
         };
         ServiceWAF: {
             /** @description Absent: waf_default_mode */
             mode?: components["schemas"]["WAFMode"];
-            uploads?: boolean;
             exclusions?: number[];
             paths?: components["schemas"]["ServiceWAFPath"][];
         };

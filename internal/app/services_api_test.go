@@ -81,7 +81,7 @@ func TestServicesAPI(t *testing.T) {
 		t.Fatalf("waf: %s", r.raw)
 	}
 	r = c.mustStatus(c.do(http.MethodPut, "/api/services/"+id+"/waf", map[string]any{"mode": "headers_only", "exclusions": []int{942100, 942100},
-		"paths": []map[string]any{{"match": "prefix", "path": "/dav", "uploads": true}}}), 200)
+		"paths": []map[string]any{{"match": "prefix", "path": "/dav", "mode": "disabled"}}}), 200)
 	waf := r.body["waf"].(map[string]any)
 	pathID, _ := waf["paths"].([]any)[0].(map[string]any)["id"].(string)
 	if pathID == "" || len(waf["exclusions"].([]any)) != 1 {

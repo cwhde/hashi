@@ -16,12 +16,10 @@ func req(method, uri, contentType string) Request {
 	return Request{Client: netip.MustParseAddr("198.51.100.7"), Method: method, URI: uri, Host: "files.example.com", Header: h}
 }
 
-// The same requests as the Traefik plugin's integration test (internal/traefik/integration_waf_test.go, removed with
-// the plugin): plain pages pass; SQL injection in the query, a PUT of octet-stream and PROPFIND are refused; uploads
-// lets PUT and WebDAV through; an exclusion removes a rule.
+// Plain pages, sync clients, WebDAV and git pass; attacks in the query and unknown methods are refused.
 func TestCheck(t *testing.T) {
 	e := New()
-	base, up := Config{}, Config{Uploads: true}
+	base := Config{}
 	cases := []struct {
 		name    string
 		c       Config
@@ -33,11 +31,15 @@ func TestCheck(t *testing.T) {
 		{"json api", base, req("POST", "/api/items", "application/json"), false},
 		{"sql injection in the query", base, req("GET", "/?id=1%27%20OR%201=1--", ""), true},
 		{"path traversal", base, req("GET", "/files?name=../../etc/passwd", ""), true},
-		{"PUT octet-stream", base, req("PUT", "/file", "application/octet-stream"), true},
-		{"PROPFIND", base, req("PROPFIND", "/", ""), true},
-		{"PUT octet-stream with uploads", up, req("PUT", "/up/file", "application/octet-stream"), false},
-		{"PROPFIND with uploads", up, req("PROPFIND", "/up/", ""), false},
-		{"sql injection with uploads", up, req("GET", "/?id=1%27%20OR%201=1--", ""), true},
+		{"PUT octet-stream (sync clients)", base, req("PUT", "/remote.php/dav/files/a/x.bin", "application/octet-stream"), false},
+		{"PROPFIND (WebDAV)", base, req("PROPFIND", "/remote.php/dav/", ""), false},
+		{"git push over HTTPS", base, req("POST", "/owner/repo.git/git-receive-pack", "application/x-git-receive-pack-request"), false},
+		{"git fetch refs", base, req("GET", "/owner/repo.git/info/refs?service=git-upload-pack", ""), false},
+		{"git LFS", base, req("POST", "/owner/repo.git/info/lfs/objects/batch", "application/vnd.git-lfs+json"), false},
+		{"probe for a site's .git folder", base, req("GET", "/.git/config", ""), true},
+		{"probe dressed as git", base, req("GET", "/.git/info/refs?service=git-upload-pack", ""), true},
+		{"unknown method", base, req("TRACE", "/", ""), true},
+		{"xss in the query", base, req("GET", "/?q=%3Cscript%3Ealert(1)%3C/script%3E", ""), true},
 	}
 	for _, c := range cases {
 		v, err := e.Check(c.c, c.r)
@@ -49,18 +51,20 @@ func TestCheck(t *testing.T) {
 		}
 	}
 	if len(e.wafs) != 2 {
-		t.Errorf("%d compiled WAFs, want one per configuration (2)", len(e.wafs))
+		t.Errorf("%d compiled WAFs, want one per configuration (2: plain, and git over HTTPS)", len(e.wafs))
 	}
 }
 
 func TestExclusionRemovesARule(t *testing.T) {
 	e := New()
-	r := req("PUT", "/file", "application/octet-stream")
-	if v, _ := e.Check(Config{}, r); !v.Blocked {
-		t.Fatal("not blocked without the exclusion")
+	r := req("GET", "/?q=%3Cscript%3Ealert(1)%3C/script%3E", "")
+	v, _ := e.Check(Config{}, r)
+	if !v.Blocked {
+		t.Fatal("not blocked without exclusions")
 	}
-	if v, _ := e.Check(Config{Exclusions: []int{920420}}, r); v.Blocked {
-		t.Fatalf("blocked by %d with 920420 excluded", v.RuleID)
+	// Excluding the anomaly evaluation lets it pass: exclusions are how a false positive is silenced.
+	if v, _ := e.Check(Config{Exclusions: []int{949110}}, r); v.Blocked {
+		t.Fatalf("blocked by %d with the deciding rule excluded", v.RuleID)
 	}
 }
 

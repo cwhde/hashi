@@ -4,14 +4,13 @@
 	import Mono from '$lib/components/hashi/Mono.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { Switch } from '$lib/components/ui/switch';
 	import * as Select from '$lib/components/ui/select';
 	import { Plus, Trash2 } from '@lucide/svelte';
 	import { api, problemText, type Schemas } from '$lib/api/client';
 	import { pendingPlans } from '$lib/sync-pending.svelte';
 
-	// WAF per path (06 §9): headers only or off. Request bodies are not checked until the plugin's upload bug is fixed,
-	// so the mock's "enabled" mode is not offered. Uploads widens what the rules accept (WebDAV, any content type).
+	// WAF per path (06 §9): headers only or off. It runs in forward auth, which never sees request bodies, so the mock's
+	// "enabled" mode is not offered.
 	let { serviceId }: { serviceId: string } = $props();
 
 	// A path row as the form edits it: mode '' follows the service.
@@ -20,12 +19,10 @@
 		match: 'prefix' | 'exact';
 		path: string;
 		mode: string;
-		uploads: boolean;
 		exclusions: number[];
 	};
 	let view = $state<Schemas['ServiceWAFView'] | null>(null);
 	let mode = $state(''); // '' = the default
-	let uploads = $state(false);
 	let exclusions = $state('');
 	let paths = $state<Path[]>([]);
 	let note = $state('');
@@ -40,14 +37,12 @@
 	function take(v: Schemas['ServiceWAFView']) {
 		view = v;
 		mode = v.mode ?? '';
-		uploads = v.uploads ?? false;
 		exclusions = (v.exclusions ?? []).join(', ');
 		paths = (v.paths ?? []).map((p) => ({
 			id: p.id,
 			match: p.match,
 			path: p.path,
 			mode: p.mode ?? '',
-			uploads: p.uploads ?? false,
 			exclusions: p.exclusions ?? []
 		}));
 	}
@@ -66,7 +61,6 @@
 		error = note = '';
 		const body: Schemas['ServiceWAF'] = {
 			mode: (mode || undefined) as Schemas['WAFMode'] | undefined,
-			uploads,
 			exclusions: ids(exclusions),
 			paths: paths.map((p) => ({
 				...p,
@@ -94,9 +88,7 @@
 {#if view && !view.editable}
 	<Panel title="WAF">
 		<p class="text-[13px] text-muted-foreground">
-			{view.uploads
-				? 'Hashi’s own services use the default mode with uploads allowed; they change only through their settings.'
-				: 'TCP and UDP services are protected at the firewall.'}
+			Hashi’s own services use the default mode. TCP and UDP services are protected at the firewall.
 		</p>
 	</Panel>
 {:else if view}
@@ -110,10 +102,8 @@
 					size="sm"
 					variant="outline"
 					onclick={() =>
-						(paths = [
-							...paths,
-							{ match: 'prefix', path: '/', mode: '', uploads: false, exclusions: [] }
-						])}><Plus />Add path</Button
+						(paths = [...paths, { match: 'prefix', path: '/', mode: '', exclusions: [] }])}
+					><Plus />Add path</Button
 				>{/snippet}
 			<ul class="divide-y text-[13px]">
 				<li class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5">
@@ -160,18 +150,12 @@
 								onclick={() => (paths = paths.filter((_, j) => j !== i))}><Trash2 /></Button
 							>
 						</div>
-						<label class="flex items-center gap-2 text-muted-foreground"
-							><Switch bind:checked={p.uploads} />Uploads and WebDAV on this path</label
-						>
 					</li>
 				{/each}
 			</ul>
-			<label class="flex items-center gap-2 border-t px-4 py-3 text-[13px]"
-				><Switch bind:checked={uploads} />Uploads and WebDAV on the whole service</label
-			>
 			<p class="border-t px-4 py-3 text-[12.5px] text-muted-foreground">
-				The WAF checks addresses, headers, cookies and query strings. Request bodies are not checked
-				yet. Turn on uploads where files are sent (file sharing, git pushes, WebDAV).
+				The WAF checks addresses, headers, cookies and query strings for attacks; uploads, WebDAV
+				and git work everywhere. Request bodies are not checked.
 			</p>
 		</Panel>
 		<Panel title="Exclusions" description="Rules switched off where they misfire">

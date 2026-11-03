@@ -10,13 +10,12 @@ import (
 )
 
 func wafFromBody(b gen.ServiceWAF) services.WAF {
-	w := services.WAF{Uploads: deref(b.Uploads), Exclusions: deref(b.Exclusions)}
+	w := services.WAF{Exclusions: deref(b.Exclusions)}
 	if b.Mode != nil {
 		w.Mode = string(*b.Mode)
 	}
 	for _, p := range deref(b.Paths) {
-		wp := services.WAFPath{ID: deref(p.Id), Match: string(p.Match), Path: p.Path, Uploads: deref(p.Uploads),
-			Exclusions: deref(p.Exclusions)}
+		wp := services.WAFPath{ID: deref(p.Id), Match: string(p.Match), Path: p.Path, Exclusions: deref(p.Exclusions)}
 		if p.Mode != nil {
 			wp.Mode = string(*p.Mode)
 		}
@@ -39,25 +38,19 @@ func optMode(m string) *gen.WAFMode {
 	return ptr(gen.WAFMode(m))
 }
 
-// wafView shows what applies: a system service shows its fixed WAF (default mode, uploads on), not stored fields.
+// wafView shows what applies: a system service shows its fixed WAF (the default mode), not stored fields.
 func wafView(sv services.Service, defaultMode string) gen.ServiceWAFView {
 	w := sv.WAF
 	if sv.System() {
-		w = services.WAF{Uploads: true}
+		w = services.WAF{}
 	}
 	out := gen.ServiceWAFView{DefaultMode: defaultMode, Editable: !sv.System() && !sv.Stream(), Mode: optMode(w.Mode),
 		Exclusions: optInts(w.Exclusions)}
-	if w.Uploads {
-		out.Uploads = ptr(true)
-	}
 	if len(w.Paths) > 0 {
 		paths := make([]gen.ServiceWAFPath, 0, len(w.Paths))
 		for _, p := range w.Paths {
 			gp := gen.ServiceWAFPath{Id: ptr(p.ID), Match: gen.ServiceWAFPathMatch(p.Match), Path: p.Path,
 				Mode: optMode(p.Mode), Exclusions: optInts(p.Exclusions)}
-			if p.Uploads {
-				gp.Uploads = ptr(true)
-			}
 			paths = append(paths, gp)
 		}
 		out.Paths = &paths

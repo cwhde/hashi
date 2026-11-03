@@ -597,7 +597,6 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	);
 	await page.getByRole('button', { name: 'Add path' }).click();
 	await page.getByLabel('Path', { exact: true }).fill('/upload');
-	await page.getByText('Uploads and WebDAV on this path').click();
 	await page.getByRole('button', { name: 'Save WAF' }).click();
 	await expect(page.getByRole('status')).toContainText('Saved');
 	await page.setViewportSize({ width: 390, height: 844 });

@@ -1979,7 +1979,7 @@ paths:
   /api/services/{id}/waf:
     get:
       operationId: getServiceWAF
-      summary: The service's WAF mode, uploads, rule exclusions and paths (06 §9)
+      summary: The service's WAF mode, rule exclusions and paths (06 §9)
       tags: [services]
       x-hashi-scopes: [services.manage]
       parameters:
@@ -1991,7 +1991,7 @@ paths:
         default: { $ref: "#/components/responses/Problem" }
     put:
       operationId: setServiceWAF
-      summary: Replace a user service's WAF configuration (system services keep the default with uploads on)
+      summary: Replace a user service's WAF configuration (system services keep the default)
       tags: [services]
       x-hashi-scopes: [services.manage]
       parameters:
@@ -4052,13 +4052,11 @@ components:
         match: { type: string, enum: [prefix, exact] }
         path: { type: string }
         mode: { $ref: "#/components/schemas/WAFMode", description: "Absent: the service's mode" }
-        uploads: { type: boolean, description: "Allows WebDAV methods and any content type (adds to the service's)" }
         exclusions: { type: array, items: { type: integer }, description: "CRS rule IDs not applied (adds to the service's)" }
     ServiceWAF:
       type: object
       properties:
         mode: { $ref: "#/components/schemas/WAFMode", description: "Absent: waf_default_mode" }
-        uploads: { type: boolean }
         exclusions: { type: array, items: { type: integer } }
         paths: { type: array, items: { $ref: "#/components/schemas/ServiceWAFPath" } }
     ServiceWAFView:

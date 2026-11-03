@@ -109,7 +109,7 @@ func (s *Server) edgeForward(w http.ResponseWriter, r *http.Request) {
 	if s.WAF != nil && s.Security != nil {
 		eff := services.ResolveWAF(d.WAF, d.System, s.Security.Settings().WAFDefaultMode, edge.NormalizePath(uri))
 		if eff.Mode == settings.WAFHeadersOnly {
-			v, err := s.WAF.Check(waf.Config{Uploads: eff.Uploads, Exclusions: eff.Exclusions}, wafRequest(r, ri.ip, host, uri))
+			v, err := s.WAF.Check(waf.Config{Exclusions: eff.Exclusions}, wafRequest(r, ri.ip, host, uri))
 			switch {
 			case err != nil: // a WAF that cannot run never takes the service down
 				s.Log.Warn("WAF", "service", d.ServiceID, "err", err)

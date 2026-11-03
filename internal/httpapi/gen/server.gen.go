@@ -4087,9 +4087,8 @@ type ServiceWAF struct {
 	Exclusions *[]int `json:"exclusions,omitempty"`
 
 	// Mode Absent: waf_default_mode
-	Mode    *WAFMode          `json:"mode,omitempty"`
-	Paths   *[]ServiceWAFPath `json:"paths,omitempty"`
-	Uploads *bool             `json:"uploads,omitempty"`
+	Mode  *WAFMode          `json:"mode,omitempty"`
+	Paths *[]ServiceWAFPath `json:"paths,omitempty"`
 }
 
 // ServiceWAFPath defines model for ServiceWAFPath.
@@ -4104,9 +4103,6 @@ type ServiceWAFPath struct {
 	// Mode Absent: the service's mode
 	Mode *WAFMode `json:"mode,omitempty"`
 	Path string   `json:"path"`
-
-	// Uploads Allows WebDAV methods and any content type (adds to the service's)
-	Uploads *bool `json:"uploads,omitempty"`
 }
 
 // ServiceWAFPathMatch defines model for ServiceWAFPath.Match.
@@ -4129,9 +4125,8 @@ type ServiceWAFView struct {
 	Exclusions *[]int `json:"exclusions,omitempty"`
 
 	// Mode Absent: waf_default_mode
-	Mode    *WAFMode          `json:"mode,omitempty"`
-	Paths   *[]ServiceWAFPath `json:"paths,omitempty"`
-	Uploads *bool             `json:"uploads,omitempty"`
+	Mode  *WAFMode          `json:"mode,omitempty"`
+	Paths *[]ServiceWAFPath `json:"paths,omitempty"`
 }
 
 // SessionInfo defines model for SessionInfo.
@@ -5414,10 +5409,10 @@ type ServerInterface interface {
 	// EnableService Turn a user service on (it is rendered again)
 	// (POST /api/services/{id}/enable)
 	EnableService(w http.ResponseWriter, r *http.Request, id string)
-	// GetServiceWAF The service's WAF mode, uploads, rule exclusions and paths (06 §9)
+	// GetServiceWAF The service's WAF mode, rule exclusions and paths (06 §9)
 	// (GET /api/services/{id}/waf)
 	GetServiceWAF(w http.ResponseWriter, r *http.Request, id string)
-	// SetServiceWAF Replace a user service's WAF configuration (system services keep the default with uploads on)
+	// SetServiceWAF Replace a user service's WAF configuration (system services keep the default)
 	// (PUT /api/services/{id}/waf)
 	SetServiceWAF(w http.ResponseWriter, r *http.Request, id string)
 	// GetSettings All settings categories
@@ -18288,10 +18283,10 @@ type StrictServerInterface interface {
 	// EnableService Turn a user service on (it is rendered again)
 	// (POST /api/services/{id}/enable)
 	EnableService(ctx context.Context, request EnableServiceRequestObject) (EnableServiceResponseObject, error)
-	// GetServiceWAF The service's WAF mode, uploads, rule exclusions and paths (06 §9)
+	// GetServiceWAF The service's WAF mode, rule exclusions and paths (06 §9)
 	// (GET /api/services/{id}/waf)
 	GetServiceWAF(ctx context.Context, request GetServiceWAFRequestObject) (GetServiceWAFResponseObject, error)
-	// SetServiceWAF Replace a user service's WAF configuration (system services keep the default with uploads on)
+	// SetServiceWAF Replace a user service's WAF configuration (system services keep the default)
 	// (PUT /api/services/{id}/waf)
 	SetServiceWAF(ctx context.Context, request SetServiceWAFRequestObject) (SetServiceWAFResponseObject, error)
 	// GetSettings All settings categories

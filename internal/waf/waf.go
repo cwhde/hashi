@@ -20,38 +20,35 @@ import (
 
 // Config is one effective WAF: what a request's service and path resolve to (services.EffectiveWAF without the mode).
 type Config struct {
-	Uploads    bool
 	Exclusions []int
 }
 
-// CRS request policy: the base allows the methods ordinary APIs use; uploads adds WebDAV and lifts the content type
-// check (rules 911100, 920420 refuse these from the headers alone).
+// CRS request policy for self-hosted apps: every method sync clients and APIs use (WebDAV included) and any content
+// type (git, sync clients and APIs send their own). CRS would refuse these from the headers alone (rules 911100,
+// 920420) and break Nextcloud, WebDAV and git over HTTPS; the attack rules (injection, XSS, traversal, …) stay.
 const (
-	methods         = "GET HEAD POST OPTIONS PUT PATCH DELETE"
-	uploadMethods   = methods + " PROPFIND PROPPATCH MKCOL COPY MOVE LOCK UNLOCK REPORT SEARCH"
+	methods         = "GET HEAD POST OPTIONS PUT PATCH DELETE PROPFIND PROPPATCH MKCOL COPY MOVE LOCK UNLOCK REPORT SEARCH"
 	ruleContentType = 920420
+	// ruleNoLength flags a POST without Content-Length: forward auth never receives that header (captured,
+	// testdata/contracts/traefik/forward_auth_request.txt), so every POST would score.
+	ruleNoLength = 920180
+	// ruleRestrictedFile flags ".git/" and similar in the path; git over HTTPS (Gitea, Forgejo) uses exactly such paths.
+	ruleRestrictedFile = 930130
 )
 
 // Directives is the Coraza configuration for c: recommended base, engine on, no body access (forward auth has no body),
 // CRS setup, the request policy, the CRS rules, then removals (they must follow the rules they remove).
 func Directives(c Config) []string {
-	m := methods
-	if c.Uploads {
-		m = uploadMethods
-	}
 	d := []string{
 		"Include @coraza.conf-recommended",
 		"SecRuleEngine On",
 		"SecRequestBodyAccess Off",
 		"SecResponseBodyAccess Off",
 		"Include @crs-setup.conf.example",
-		`SecAction "id:900200,phase:1,pass,t:none,nolog,setvar:'tx.allowed_methods=` + m + `'"`,
+		`SecAction "id:900200,phase:1,pass,t:none,nolog,setvar:'tx.allowed_methods=` + methods + `'"`,
 		"Include @owasp_crs/*.conf",
 	}
-	remove := slices.Clone(c.Exclusions)
-	if c.Uploads {
-		remove = append(remove, ruleContentType)
-	}
+	remove := append(slices.Clone(c.Exclusions), ruleContentType, ruleNoLength)
 	slices.Sort(remove)
 	for _, id := range slices.Compact(remove) {
 		d = append(d, "SecRuleRemoveById "+strconv.Itoa(id))
@@ -111,8 +108,23 @@ func (e *Engine) Warm(c Config) error {
 	return err
 }
 
+// gitSmartHTTP reports whether uri is git's smart HTTP protocol or git LFS on a repository (".git/" in the path), the
+// one legitimate use of a restricted-file path; probes for a website's .git folder look different (/.git/config, …).
+func gitSmartHTTP(uri string) bool {
+	path, query, _ := strings.Cut(uri, "?")
+	if !strings.Contains(path, ".git/") || strings.Contains(path, "/.git/") {
+		return false
+	}
+	return strings.HasSuffix(path, "/git-upload-pack") || strings.HasSuffix(path, "/git-receive-pack") ||
+		(strings.HasSuffix(path, "/info/refs") && strings.HasPrefix(query, "service=git-")) ||
+		strings.Contains(path, "/info/lfs/")
+}
+
 // Check runs phase 1 and 2 (headers only) for r.
 func (e *Engine) Check(c Config, r Request) (Verdict, error) {
+	if gitSmartHTTP(r.URI) {
+		c.Exclusions = append(slices.Clone(c.Exclusions), ruleRestrictedFile)
+	}
 	w, err := e.get(c)
 	if err != nil {
 		return Verdict{}, err

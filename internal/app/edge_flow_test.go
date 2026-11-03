@@ -184,8 +184,8 @@ func TestForwardAuthStageA(t *testing.T) {
 	}
 }
 
-// The WAF in forward auth (06 §9) with the default headers-only mode: plain requests pass, SQL injection and a refused
-// method get 403, a path with uploads lets WebDAV through, a path with the WAF off passes everything, and five blocks
+// The WAF in forward auth (06 §9) with the default headers-only mode: plain requests, WebDAV, uploads and git pass;
+// SQL injection, path traversal and an unknown method get 403; a path with the WAF off passes everything; five blocks
 // within a minute challenge the address (429 for an API client).
 func TestForwardAuthWAF(t *testing.T) {
 	_, srv := hetznertest.NewSimServer(t)
@@ -204,7 +204,7 @@ func TestForwardAuthWAF(t *testing.T) {
 		"domain_mode": "subdomain", "host_name": "files.example.com", "target": map[string]any{"address": "192.0.2.20", "port": 8080}}), 200)
 	id := r.body["service"].(map[string]any)["id"].(string)
 	c.mustStatus(c.do(http.MethodPut, "/api/services/"+id+"/waf", map[string]any{"paths": []map[string]any{
-		{"match": "prefix", "path": "/dav", "uploads": true}, {"match": "prefix", "path": "/raw", "mode": "disabled"}}}), 200)
+		{"match": "prefix", "path": "/raw", "mode": "disabled"}}}), 200)
 
 	forward := func(method, uri, contentType string) int {
 		t.Helper()
@@ -235,10 +235,12 @@ func TestForwardAuthWAF(t *testing.T) {
 		{"POST", "/api/items", "application/json", 204},
 		{"PROPFIND", "/dav/", "", 204},
 		{"PUT", "/dav/file", "application/octet-stream", 204},
+		{"POST", "/owner/repo.git/git-receive-pack", "application/x-git-receive-pack-request", 204},
+		{"GET", "/.git/config", "", 403},
 		{"GET", "/raw?id=1%27%20OR%201=1--", "", 204},
 		{"GET", "/?id=1%27%20OR%201=1--", "", 403},
-		{"PROPFIND", "/", "", 403},
-		{"PUT", "/file", "application/octet-stream", 403},
+		{"GET", "/files?name=../../etc/passwd", "", 403},
+		{"TRACE", "/", "", 403},
 	} {
 		if got := forward(x.method, x.uri, x.ct); got != x.want {
 			t.Errorf("%s %s: %d, want %d", x.method, x.uri, got, x.want)
@@ -246,7 +248,7 @@ func TestForwardAuthWAF(t *testing.T) {
 	}
 	// Three blocks so far; two more within the minute reach the WAF trigger (5): the address is challenged.
 	forward("GET", "/?q=%3Cscript%3Ealert(1)%3C/script%3E", "")
-	forward("GET", "/?id=1%27%20OR%201=1--", "")
+	forward("GET", "/?id=1%27%20OR%202=2--", "")
 	if got := forward("GET", "/index.html", ""); got != 429 {
 		t.Errorf("after five WAF blocks: %d, want 429 (challenged)", got)
 	}

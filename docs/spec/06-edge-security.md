@@ -340,12 +340,13 @@ container has; on the first real edge the restart missed the health check and th
 | `enabled` | with body | **not offered**: forward auth never sees the body |
 | `disabled` | not checked | |
 
-CRS refuses methods and content types outside its policy from the headers alone (rules 911100, 920420), even with
-body access off. Hashi's base policy allows `GET HEAD POST OPTIONS PUT PATCH DELETE`, since ordinary APIs use them.
-Per service or path, **uploads** also allows the WebDAV methods (`PROPFIND PROPPATCH MKCOL COPY MOVE LOCK UNLOCK REPORT
-SEARCH`) and removes the content type check (920420); a path's uploads and exclusions add to the service's. System
-services (Hashi's own) get the default mode with uploads on and cannot be changed (invariant 10). Stage A rejects
-blocked and challenged addresses before the WAF runs.
+Policy for self-hosted apps: every method sync clients and APIs use (WebDAV included) is allowed and the content type
+check (920420) is off, so Nextcloud, WebDAV and git over HTTPS work on every service without a setting; the attack
+rules (injection, XSS, RCE, traversal, …) stay. "POST without Content-Length" (920180) is off because forward auth
+never receives that header. Git's smart HTTP and LFS on a repository path (`….git/info/refs?service=git-…`,
+`…/git-upload-pack`, `…/git-receive-pack`, `…/info/lfs/…`) skip the restricted-file rule (930130), which still
+catches probes such as `/.git/config`. A path's exclusions add to the service's. System services (Hashi's own) get the
+default mode and cannot be changed (invariant 10). Stage A rejects blocked and challenged addresses before the WAF runs.
 
 Decision 2026-11-02 (user): headers only; body checking would need the WAF in front of the upstream again.
 
