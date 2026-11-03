@@ -115,7 +115,7 @@ func (s *Server) edgeForward(w http.ResponseWriter, r *http.Request) {
 				s.Log.Warn("WAF", "service", d.ServiceID, "err", err)
 			case v.Blocked:
 				decision = security.DecisionDeny
-				if err := s.Security.WAFMatch(r.Context(), ri.ip, d.ServiceID); err != nil {
+				if err := s.Security.WAFMatch(r.Context(), ri.ip, d.ServiceID, security.WAFDetail{Method: r.Header.Get("X-Forwarded-Method"), Path: pathOnly(uri), Rules: v.Rules}); err != nil {
 					s.Log.Error("WAF match", "err", err)
 				}
 				edgePage(w, http.StatusForbidden, "Request refused.")
@@ -326,4 +326,10 @@ func (s *Server) edgeLogout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	edgePage(w, http.StatusOK, "Signed out.")
+}
+
+// pathOnly drops the query: it can carry tokens, and events keep requests for weeks.
+func pathOnly(uri string) string {
+	p, _, _ := strings.Cut(uri, "?")
+	return p
 }

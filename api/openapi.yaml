@@ -282,6 +282,21 @@ paths:
           description: The answer; ok false carries the reason
           content: { application/json: { schema: { $ref: "#/components/schemas/CaptchaTest" } } }
         default: { $ref: "#/components/responses/Problem" }
+  /api/security/dashboard:
+    get:
+      operationId: getSecurityDashboard
+      summary: What the abuse engine let through, challenged and banned in a period, and why (06 section 13)
+      tags: [security]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - name: range
+          in: query
+          schema: { type: string, enum: ["1h", "24h", "7d", "30d"], default: "24h" }
+      responses:
+        "200":
+          description: Dashboard
+          content: { application/json: { schema: { $ref: "#/components/schemas/SecurityDashboard" } } }
+        default: { $ref: "#/components/responses/Problem" }
   /api/security/geoip:
     get:
       operationId: getGeoIP
@@ -2988,6 +3003,91 @@ components:
       properties:
         ok: { type: boolean }
         message: { type: string }
+    SecurityDashboard:
+      type: object
+      required: [range, step_seconds, totals, series, top_addresses, countries, services, funnel, meters, events, stale_feeds]
+      properties:
+        range: { type: string }
+        step_seconds: { type: integer, description: "Width of one series point" }
+        totals: { $ref: "#/components/schemas/SecurityPoint" }
+        series: { type: array, items: { $ref: "#/components/schemas/SecurityPoint" } }
+        top_addresses: { type: array, items: { $ref: "#/components/schemas/SecurityTopAddress" } }
+        countries: { type: array, items: { $ref: "#/components/schemas/SecurityCountry" } }
+        services: { type: array, items: { $ref: "#/components/schemas/SecurityService" } }
+        funnel: { $ref: "#/components/schemas/SecurityFunnel" }
+        meters: { type: array, description: "Bans by a kernel meter per firewall host", items: { $ref: "#/components/schemas/SecurityMeters" } }
+        events: { type: array, items: { $ref: "#/components/schemas/SecurityEvent" } }
+        stale_feeds: { type: array, items: { $ref: "#/components/schemas/SecurityStaleFeed" } }
+    SecurityTopAddress:
+      type: object
+      required: [address, requests, refused, country, asn, state]
+      properties:
+        address: { type: string }
+        requests: { type: integer }
+        refused: { type: integer, description: "Denied plus challenged requests" }
+        country: { type: string }
+        asn: { type: integer }
+        state: { type: string, enum: [banned, challenged, none] }
+        until: { type: string, format: date-time }
+        reason: { type: string }
+    SecurityCountry:
+      type: object
+      required: [country, refused]
+      properties: { country: { type: string }, refused: { type: integer } }
+    SecurityService:
+      type: object
+      required: [service_id, name, refused]
+      properties: { service_id: { type: string }, name: { type: string }, refused: { type: integer } }
+    SecurityFunnel:
+      type: object
+      required: [challenged, solved, banned]
+      properties:
+        challenged: { type: integer, description: "Challenges entered" }
+        solved: { type: integer }
+        banned: { type: integer, description: "Bans after an ignored challenge" }
+    SecurityMeters:
+      type: object
+      description: The staging set is shared by all meters, so a ban knows its host, not which meter tripped
+      required: [host_id, host, bans]
+      properties:
+        host_id: { type: string }
+        host: { type: string }
+        bans: { type: integer }
+    SecurityStaleFeed:
+      type: object
+      required: [set_id, name]
+      properties:
+        set_id: { type: string }
+        name: { type: string }
+        last_success: { type: string, format: date-time, description: "Missing when the feed never succeeded" }
+    SecurityPoint:
+      type: object
+      required: [allowed, auth_required, challenged, denied, waf_matches, bans]
+      properties:
+        at: { type: string, format: date-time }
+        allowed: { type: integer }
+        auth_required: { type: integer }
+        challenged: { type: integer, description: "Requests answered with a challenge" }
+        denied: { type: integer, description: "Requests refused by a rule, the WAF or a ban" }
+        waf_matches: { type: integer }
+        bans: { type: integer }
+    SecurityEvent:
+      type: object
+      required: [at, address, type, severity, source, reason, method, path, service_id, service, host, suppressed, rules]
+      properties:
+        at: { type: string, format: date-time }
+        address: { type: string }
+        type: { type: string }
+        severity: { type: string, enum: [info, warning, critical] }
+        source: { type: string }
+        reason: { type: string }
+        method: { type: string }
+        path: { type: string }
+        service_id: { type: string }
+        service: { type: string }
+        host: { type: string }
+        suppressed: { type: integer, description: "Further events of this address in the same minute" }
+        rules: { type: array, items: { type: integer }, description: "WAF rules that scored" }
     GeoIPStatus:
       type: object
       required: [databases, account_id, has_key, url, error]

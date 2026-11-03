@@ -397,6 +397,70 @@ func (q *Queries) ListManagedFirewallHostIDs(ctx context.Context) ([]string, err
 	return items, nil
 }
 
+const listRecentSecurityEvents = `-- name: ListRecentSecurityEvents :many
+SELECT e.occurred_at, e.address, e.event_type, e.severity, e.source, e.reason, e.request_method, e.request_path,
+    COALESCE(e.service_id, '') AS service_id, COALESCE(s.name, '') AS service, COALESCE(h.name, '') AS host,
+    e.suppressed, e.metadata_json
+FROM security_events e
+    LEFT JOIN services s ON s.id = e.service_id
+    LEFT JOIN firewall_hosts h ON h.id = e.firewall_host_id
+WHERE e.occurred_at >= ?1
+ORDER BY e.occurred_at DESC LIMIT 30
+`
+
+type ListRecentSecurityEventsRow struct {
+	OccurredAt    int64
+	Address       string
+	EventType     string
+	Severity      string
+	Source        string
+	Reason        string
+	RequestMethod string
+	RequestPath   string
+	ServiceID     string
+	Service       string
+	Host          string
+	Suppressed    int64
+	MetadataJson  string
+}
+
+func (q *Queries) ListRecentSecurityEvents(ctx context.Context, since int64) ([]ListRecentSecurityEventsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listRecentSecurityEvents, since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListRecentSecurityEventsRow{}
+	for rows.Next() {
+		var i ListRecentSecurityEventsRow
+		if err := rows.Scan(
+			&i.OccurredAt,
+			&i.Address,
+			&i.EventType,
+			&i.Severity,
+			&i.Source,
+			&i.Reason,
+			&i.RequestMethod,
+			&i.RequestPath,
+			&i.ServiceID,
+			&i.Service,
+			&i.Host,
+			&i.Suppressed,
+			&i.MetadataJson,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSecurityBuckets = `-- name: ListSecurityBuckets :many
 SELECT bucket_start, service_id, root_domain, traefik_connection_id, country, asn, decision, status_class, path_prefix, request_count, denied_count, challenged_count, challenge_failed_count, banned_count FROM security_buckets_1m WHERE bucket_start >= ? ORDER BY bucket_start
 `
@@ -553,6 +617,252 @@ func (q *Queries) PutFirewallHostLink(ctx context.Context, arg PutFirewallHostLi
 		arg.UpdatedAt,
 	)
 	return err
+}
+
+const securityDecisionSeries = `-- name: SecurityDecisionSeries :many
+SELECT CAST(bucket_start / ?1 * ?1 AS INTEGER) AS at, decision,
+    CAST(SUM(request_count) AS INTEGER) AS requests
+FROM security_buckets_1m
+WHERE bucket_start >= ?2 AND decision != 'response'
+GROUP BY 1, 2 ORDER BY 1
+`
+
+type SecurityDecisionSeriesParams struct {
+	Step  int64
+	Since int64
+}
+
+type SecurityDecisionSeriesRow struct {
+	At       int64
+	Decision string
+	Requests int64
+}
+
+// Security dashboard (06 section 13): decisions per step, without the response rows of the access log.
+func (q *Queries) SecurityDecisionSeries(ctx context.Context, arg SecurityDecisionSeriesParams) ([]SecurityDecisionSeriesRow, error) {
+	rows, err := q.db.QueryContext(ctx, securityDecisionSeries, arg.Step, arg.Since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SecurityDecisionSeriesRow{}
+	for rows.Next() {
+		var i SecurityDecisionSeriesRow
+		if err := rows.Scan(&i.At, &i.Decision, &i.Requests); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const securityEventSeries = `-- name: SecurityEventSeries :many
+SELECT CAST(occurred_at / ?1 * ?1 AS INTEGER) AS at, event_type, source,
+    CAST(COUNT(*) + SUM(suppressed) AS INTEGER) AS events
+FROM security_events
+WHERE occurred_at >= ?2
+    AND event_type IN ('waf_match', 'ban_created', 'challenge_entered', 'challenge_solved')
+GROUP BY 1, 2, 3 ORDER BY 1
+`
+
+type SecurityEventSeriesParams struct {
+	Step  int64
+	Since int64
+}
+
+type SecurityEventSeriesRow struct {
+	At        int64
+	EventType string
+	Source    string
+	Events    int64
+}
+
+func (q *Queries) SecurityEventSeries(ctx context.Context, arg SecurityEventSeriesParams) ([]SecurityEventSeriesRow, error) {
+	rows, err := q.db.QueryContext(ctx, securityEventSeries, arg.Step, arg.Since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SecurityEventSeriesRow{}
+	for rows.Next() {
+		var i SecurityEventSeriesRow
+		if err := rows.Scan(
+			&i.At,
+			&i.EventType,
+			&i.Source,
+			&i.Events,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const securityMeterBans = `-- name: SecurityMeterBans :many
+SELECT COALESCE(e.firewall_host_id, '') AS host_id, COALESCE(h.name, '') AS host, CAST(COUNT(*) AS INTEGER) AS bans
+FROM security_events e LEFT JOIN firewall_hosts h ON h.id = e.firewall_host_id
+WHERE e.occurred_at >= ?1 AND e.event_type = 'ban_created' AND e.source = 'l4_meter'
+GROUP BY 1, 2 ORDER BY 2
+`
+
+type SecurityMeterBansRow struct {
+	HostID string
+	Host   string
+	Bans   int64
+}
+
+func (q *Queries) SecurityMeterBans(ctx context.Context, since int64) ([]SecurityMeterBansRow, error) {
+	rows, err := q.db.QueryContext(ctx, securityMeterBans, since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SecurityMeterBansRow{}
+	for rows.Next() {
+		var i SecurityMeterBansRow
+		if err := rows.Scan(&i.HostID, &i.Host, &i.Bans); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const securityRefusedByCountry = `-- name: SecurityRefusedByCountry :many
+SELECT country, CAST(SUM(denied_count + challenged_count) AS INTEGER) AS refused
+FROM security_buckets_1m
+WHERE bucket_start >= ?1 AND decision != 'response'
+GROUP BY country HAVING SUM(denied_count + challenged_count) > 0
+ORDER BY 2 DESC LIMIT 8
+`
+
+type SecurityRefusedByCountryRow struct {
+	Country string
+	Refused int64
+}
+
+func (q *Queries) SecurityRefusedByCountry(ctx context.Context, since int64) ([]SecurityRefusedByCountryRow, error) {
+	rows, err := q.db.QueryContext(ctx, securityRefusedByCountry, since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SecurityRefusedByCountryRow{}
+	for rows.Next() {
+		var i SecurityRefusedByCountryRow
+		if err := rows.Scan(&i.Country, &i.Refused); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const securityRefusedByService = `-- name: SecurityRefusedByService :many
+SELECT b.service_id, COALESCE(s.name, '') AS name, CAST(SUM(b.denied_count + b.challenged_count) AS INTEGER) AS refused
+FROM security_buckets_1m b LEFT JOIN services s ON s.id = b.service_id
+WHERE b.bucket_start >= ?1 AND b.decision != 'response'
+GROUP BY b.service_id HAVING SUM(b.denied_count + b.challenged_count) > 0
+ORDER BY 3 DESC LIMIT 8
+`
+
+type SecurityRefusedByServiceRow struct {
+	ServiceID string
+	Name      string
+	Refused   int64
+}
+
+func (q *Queries) SecurityRefusedByService(ctx context.Context, since int64) ([]SecurityRefusedByServiceRow, error) {
+	rows, err := q.db.QueryContext(ctx, securityRefusedByService, since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SecurityRefusedByServiceRow{}
+	for rows.Next() {
+		var i SecurityRefusedByServiceRow
+		if err := rows.Scan(&i.ServiceID, &i.Name, &i.Refused); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const securityTopRefused = `-- name: SecurityTopRefused :many
+SELECT address, CAST(SUM(request_count) AS INTEGER) AS requests, CAST(SUM(denied_count) AS INTEGER) AS denied,
+    CAST(SUM(challenged_count) AS INTEGER) AS challenged
+FROM security_ip_top_1m
+WHERE bucket_start >= ?1
+GROUP BY address HAVING SUM(denied_count) + SUM(challenged_count) > 0
+ORDER BY SUM(denied_count) + SUM(challenged_count) DESC, SUM(request_count) DESC
+LIMIT 10
+`
+
+type SecurityTopRefusedRow struct {
+	Address    string
+	Requests   int64
+	Denied     int64
+	Challenged int64
+}
+
+func (q *Queries) SecurityTopRefused(ctx context.Context, since int64) ([]SecurityTopRefusedRow, error) {
+	rows, err := q.db.QueryContext(ctx, securityTopRefused, since)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SecurityTopRefusedRow{}
+	for rows.Next() {
+		var i SecurityTopRefusedRow
+		if err := rows.Scan(
+			&i.Address,
+			&i.Requests,
+			&i.Denied,
+			&i.Challenged,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const setDynamicEntryFailures = `-- name: SetDynamicEntryFailures :exec

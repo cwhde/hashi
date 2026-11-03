@@ -232,6 +232,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/security/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What the abuse engine let through, challenged and banned in a period, and why (06 section 13) */
+        get: operations["getSecurityDashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/security/geoip": {
         parameters: {
             query?: never;
@@ -3063,6 +3080,96 @@ export interface components {
             ok: boolean;
             message: string;
         };
+        SecurityDashboard: {
+            range: string;
+            /** @description Width of one series point */
+            step_seconds: number;
+            totals: components["schemas"]["SecurityPoint"];
+            series: components["schemas"]["SecurityPoint"][];
+            top_addresses: components["schemas"]["SecurityTopAddress"][];
+            countries: components["schemas"]["SecurityCountry"][];
+            services: components["schemas"]["SecurityService"][];
+            funnel: components["schemas"]["SecurityFunnel"];
+            /** @description Bans by a kernel meter per firewall host */
+            meters: components["schemas"]["SecurityMeters"][];
+            events: components["schemas"]["SecurityEvent"][];
+            stale_feeds: components["schemas"]["SecurityStaleFeed"][];
+        };
+        SecurityTopAddress: {
+            address: string;
+            requests: number;
+            /** @description Denied plus challenged requests */
+            refused: number;
+            country: string;
+            asn: number;
+            /** @enum {string} */
+            state: "banned" | "challenged" | "none";
+            /** Format: date-time */
+            until?: string;
+            reason?: string;
+        };
+        SecurityCountry: {
+            country: string;
+            refused: number;
+        };
+        SecurityService: {
+            service_id: string;
+            name: string;
+            refused: number;
+        };
+        SecurityFunnel: {
+            /** @description Challenges entered */
+            challenged: number;
+            solved: number;
+            /** @description Bans after an ignored challenge */
+            banned: number;
+        };
+        /** @description The staging set is shared by all meters, so a ban knows its host, not which meter tripped */
+        SecurityMeters: {
+            host_id: string;
+            host: string;
+            bans: number;
+        };
+        SecurityStaleFeed: {
+            set_id: string;
+            name: string;
+            /**
+             * Format: date-time
+             * @description Missing when the feed never succeeded
+             */
+            last_success?: string;
+        };
+        SecurityPoint: {
+            /** Format: date-time */
+            at?: string;
+            allowed: number;
+            auth_required: number;
+            /** @description Requests answered with a challenge */
+            challenged: number;
+            /** @description Requests refused by a rule, the WAF or a ban */
+            denied: number;
+            waf_matches: number;
+            bans: number;
+        };
+        SecurityEvent: {
+            /** Format: date-time */
+            at: string;
+            address: string;
+            type: string;
+            /** @enum {string} */
+            severity: "info" | "warning" | "critical";
+            source: string;
+            reason: string;
+            method: string;
+            path: string;
+            service_id: string;
+            service: string;
+            host: string;
+            /** @description Further events of this address in the same minute */
+            suppressed: number;
+            /** @description WAF rules that scored */
+            rules: number[];
+        };
         GeoIPStatus: {
             databases: components["schemas"]["GeoIPDatabase"][];
             account_id: string;
@@ -5107,6 +5214,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CaptchaTest"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getSecurityDashboard: {
+        parameters: {
+            query?: {
+                range?: "1h" | "24h" | "7d" | "30d";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Dashboard */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecurityDashboard"];
                 };
             };
             default: components["responses"]["Problem"];

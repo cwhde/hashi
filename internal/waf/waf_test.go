@@ -3,6 +3,7 @@ package waf
 import (
 	"net/netip"
 	"runtime"
+	"slices"
 	"testing"
 	"time"
 )
@@ -74,6 +75,9 @@ func TestExclusionRemovesARule(t *testing.T) {
 		t.Fatal("not blocked without exclusions")
 	}
 	// Excluding the anomaly evaluation lets it pass: exclusions are how a false positive is silenced.
+	if len(v.Rules) == 0 || slices.Contains(v.Rules, 949110) {
+		t.Fatalf("scoring rules %v: the XSS rules, not the anomaly check", v.Rules)
+	}
 	if v, _ := e.Check(Config{Exclusions: []int{949110}}, r); v.Blocked {
 		t.Fatalf("blocked by %d with the deciding rule excluded", v.RuleID)
 	}

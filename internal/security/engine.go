@@ -225,6 +225,9 @@ func (e *Engine) Challenges() []Entry {
 	return out
 }
 
+// Locate gives an address's country and ASN from GeoIP ("", 0 without a database).
+func (e *Engine) Locate(a netip.Addr) (string, int64) { return e.lookup(a.Unmap()) }
+
 func (e *Engine) lookup(a netip.Addr) (string, int64) {
 	if g := e.geo.Load(); g != nil {
 		if c, asn, ok := (*g)(a); ok {

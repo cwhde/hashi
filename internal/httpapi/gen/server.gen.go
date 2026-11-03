@@ -1370,6 +1370,48 @@ func (e SecretMetaClass) Valid() bool {
 	}
 }
 
+// Defines values for SecurityEventSeverity.
+const (
+	SecurityEventSeverityCritical SecurityEventSeverity = "critical"
+	SecurityEventSeverityInfo     SecurityEventSeverity = "info"
+	SecurityEventSeverityWarning  SecurityEventSeverity = "warning"
+)
+
+// Valid indicates whether the value is a known member of the SecurityEventSeverity enum.
+func (e SecurityEventSeverity) Valid() bool {
+	switch e {
+	case SecurityEventSeverityCritical:
+		return true
+	case SecurityEventSeverityInfo:
+		return true
+	case SecurityEventSeverityWarning:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SecurityTopAddressState.
+const (
+	SecurityTopAddressStateBanned     SecurityTopAddressState = "banned"
+	SecurityTopAddressStateChallenged SecurityTopAddressState = "challenged"
+	SecurityTopAddressStateNone       SecurityTopAddressState = "none"
+)
+
+// Valid indicates whether the value is a known member of the SecurityTopAddressState enum.
+func (e SecurityTopAddressState) Valid() bool {
+	switch e {
+	case SecurityTopAddressStateBanned:
+		return true
+	case SecurityTopAddressStateChallenged:
+		return true
+	case SecurityTopAddressStateNone:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ServiceDomainMode.
 const (
 	ServiceDomainModeCustom    ServiceDomainMode = "custom"
@@ -2002,22 +2044,46 @@ func (e GetIPSetResolvedParamsFamily) Valid() bool {
 
 // Defines values for GetMonitorEndpointParamsRange.
 const (
-	N1h  GetMonitorEndpointParamsRange = "1h"
-	N24h GetMonitorEndpointParamsRange = "24h"
-	N30d GetMonitorEndpointParamsRange = "30d"
-	N7d  GetMonitorEndpointParamsRange = "7d"
+	GetMonitorEndpointParamsRangeN1h  GetMonitorEndpointParamsRange = "1h"
+	GetMonitorEndpointParamsRangeN24h GetMonitorEndpointParamsRange = "24h"
+	GetMonitorEndpointParamsRangeN30d GetMonitorEndpointParamsRange = "30d"
+	GetMonitorEndpointParamsRangeN7d  GetMonitorEndpointParamsRange = "7d"
 )
 
 // Valid indicates whether the value is a known member of the GetMonitorEndpointParamsRange enum.
 func (e GetMonitorEndpointParamsRange) Valid() bool {
 	switch e {
-	case N1h:
+	case GetMonitorEndpointParamsRangeN1h:
 		return true
-	case N24h:
+	case GetMonitorEndpointParamsRangeN24h:
 		return true
-	case N30d:
+	case GetMonitorEndpointParamsRangeN30d:
 		return true
-	case N7d:
+	case GetMonitorEndpointParamsRangeN7d:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetSecurityDashboardParamsRange.
+const (
+	GetSecurityDashboardParamsRangeN1h  GetSecurityDashboardParamsRange = "1h"
+	GetSecurityDashboardParamsRangeN24h GetSecurityDashboardParamsRange = "24h"
+	GetSecurityDashboardParamsRangeN30d GetSecurityDashboardParamsRange = "30d"
+	GetSecurityDashboardParamsRangeN7d  GetSecurityDashboardParamsRange = "7d"
+)
+
+// Valid indicates whether the value is a known member of the GetSecurityDashboardParamsRange enum.
+func (e GetSecurityDashboardParamsRange) Valid() bool {
+	switch e {
+	case GetSecurityDashboardParamsRangeN1h:
+		return true
+	case GetSecurityDashboardParamsRangeN24h:
+		return true
+	case GetSecurityDashboardParamsRangeN30d:
+		return true
+	case GetSecurityDashboardParamsRangeN7d:
 		return true
 	default:
 		return false
@@ -3893,11 +3959,124 @@ type SecretMeta struct {
 // SecretMetaClass defines model for SecretMeta.Class.
 type SecretMetaClass string
 
+// SecurityCountry defines model for SecurityCountry.
+type SecurityCountry struct {
+	Country string `json:"country"`
+	Refused int    `json:"refused"`
+}
+
+// SecurityDashboard defines model for SecurityDashboard.
+type SecurityDashboard struct {
+	Countries []SecurityCountry `json:"countries"`
+	Events    []SecurityEvent   `json:"events"`
+	Funnel    SecurityFunnel    `json:"funnel"`
+
+	// Meters Bans by a kernel meter per firewall host
+	Meters     []SecurityMeters    `json:"meters"`
+	Range      string              `json:"range"`
+	Series     []SecurityPoint     `json:"series"`
+	Services   []SecurityService   `json:"services"`
+	StaleFeeds []SecurityStaleFeed `json:"stale_feeds"`
+
+	// StepSeconds Width of one series point
+	StepSeconds  int                  `json:"step_seconds"`
+	TopAddresses []SecurityTopAddress `json:"top_addresses"`
+	Totals       SecurityPoint        `json:"totals"`
+}
+
+// SecurityEvent defines model for SecurityEvent.
+type SecurityEvent struct {
+	Address string    `json:"address"`
+	At      time.Time `json:"at"`
+	Host    string    `json:"host"`
+	Method  string    `json:"method"`
+	Path    string    `json:"path"`
+	Reason  string    `json:"reason"`
+
+	// Rules WAF rules that scored
+	Rules     []int                 `json:"rules"`
+	Service   string                `json:"service"`
+	ServiceId string                `json:"service_id"`
+	Severity  SecurityEventSeverity `json:"severity"`
+	Source    string                `json:"source"`
+
+	// Suppressed Further events of this address in the same minute
+	Suppressed int    `json:"suppressed"`
+	Type       string `json:"type"`
+}
+
+// SecurityEventSeverity defines model for SecurityEvent.Severity.
+type SecurityEventSeverity string
+
+// SecurityFunnel defines model for SecurityFunnel.
+type SecurityFunnel struct {
+	// Banned Bans after an ignored challenge
+	Banned int `json:"banned"`
+
+	// Challenged Challenges entered
+	Challenged int `json:"challenged"`
+	Solved     int `json:"solved"`
+}
+
+// SecurityMeters The staging set is shared by all meters, so a ban knows its host, not which meter tripped
+type SecurityMeters struct {
+	Bans   int    `json:"bans"`
+	Host   string `json:"host"`
+	HostId string `json:"host_id"`
+}
+
+// SecurityPoint defines model for SecurityPoint.
+type SecurityPoint struct {
+	Allowed      int        `json:"allowed"`
+	At           *time.Time `json:"at,omitempty"`
+	AuthRequired int        `json:"auth_required"`
+	Bans         int        `json:"bans"`
+
+	// Challenged Requests answered with a challenge
+	Challenged int `json:"challenged"`
+
+	// Denied Requests refused by a rule, the WAF or a ban
+	Denied     int `json:"denied"`
+	WafMatches int `json:"waf_matches"`
+}
+
+// SecurityService defines model for SecurityService.
+type SecurityService struct {
+	Name      string `json:"name"`
+	Refused   int    `json:"refused"`
+	ServiceId string `json:"service_id"`
+}
+
 // SecuritySettings defines model for SecuritySettings.
 type SecuritySettings struct {
 	AdminIdleTimeoutMinutes int      `json:"admin_idle_timeout_minutes"`
 	BootstrapAllowedCidrs   []string `json:"bootstrap_allowed_cidrs"`
 }
+
+// SecurityStaleFeed defines model for SecurityStaleFeed.
+type SecurityStaleFeed struct {
+	// LastSuccess Missing when the feed never succeeded
+	LastSuccess *time.Time `json:"last_success,omitempty"`
+	Name        string     `json:"name"`
+	SetId       string     `json:"set_id"`
+}
+
+// SecurityTopAddress defines model for SecurityTopAddress.
+type SecurityTopAddress struct {
+	Address string  `json:"address"`
+	Asn     int     `json:"asn"`
+	Country string  `json:"country"`
+	Reason  *string `json:"reason,omitempty"`
+
+	// Refused Denied plus challenged requests
+	Refused  int                     `json:"refused"`
+	Requests int                     `json:"requests"`
+	State    SecurityTopAddressState `json:"state"`
+	Until    *time.Time              `json:"until,omitempty"`
+}
+
+// SecurityTopAddressState defines model for SecurityTopAddress.State.
+type SecurityTopAddressState string
 
 // Service defines model for Service.
 type Service struct {
@@ -4499,6 +4678,14 @@ type GetMonitorEndpointParamsRange string
 type PulseHeartbeatParams struct {
 	Authorization string `json:"Authorization"`
 }
+
+// GetSecurityDashboardParams defines parameters for GetSecurityDashboard.
+type GetSecurityDashboardParams struct {
+	Range *GetSecurityDashboardParamsRange `form:"range,omitempty" json:"range,omitempty"`
+}
+
+// GetSecurityDashboardParamsRange defines parameters for GetSecurityDashboard.
+type GetSecurityDashboardParamsRange string
 
 // PutServiceDashboardJSONBody defines parameters for PutServiceDashboard.
 type PutServiceDashboardJSONBody struct {
@@ -5358,6 +5545,9 @@ type ServerInterface interface {
 	// TestCaptcha Ask Cap with the stored site key and secret whether they are right (no visitor needed)
 	// (POST /api/security/captcha/test)
 	TestCaptcha(w http.ResponseWriter, r *http.Request)
+	// GetSecurityDashboard What the abuse engine let through, challenged and banned in a period, and why (06 section 13)
+	// (GET /api/security/dashboard)
+	GetSecurityDashboard(w http.ResponseWriter, r *http.Request, params GetSecurityDashboardParams)
 	// GetGeoIP GeoIP databases on hand and where downloads come from
 	// (GET /api/security/geoip)
 	GetGeoIP(w http.ResponseWriter, r *http.Request)
@@ -8176,6 +8366,39 @@ func (siw *ServerInterfaceWrapper) TestCaptcha(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// GetSecurityDashboard operation middleware
+func (siw *ServerInterfaceWrapper) GetSecurityDashboard(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetSecurityDashboardParams
+
+	// ------------- Optional query parameter "range" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "range", r.URL.Query(), &params.Range, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "range"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "range", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSecurityDashboard(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetGeoIP operation middleware
 func (siw *ServerInterfaceWrapper) GetGeoIP(w http.ResponseWriter, r *http.Request) {
 
@@ -9876,6 +10099,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/security/captcha/settings", wrapper.PutCaptchaSettings)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/security/captcha/key", wrapper.CreateCaptchaKey)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/security/captcha/test", wrapper.TestCaptcha)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/security/dashboard", wrapper.GetSecurityDashboard)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/security/geoip", wrapper.GetGeoIP)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/security/geoip", wrapper.PutGeoIP)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/auth/session", wrapper.GetAuthSession)
@@ -14473,6 +14697,45 @@ func (response TestCaptchadefaultApplicationProblemPlusJSONResponse) VisitTestCa
 	return err
 }
 
+type GetSecurityDashboardRequestObject struct {
+	Params GetSecurityDashboardParams
+}
+
+type GetSecurityDashboardResponseObject interface {
+	VisitGetSecurityDashboardResponse(w http.ResponseWriter) error
+}
+
+type GetSecurityDashboard200JSONResponse SecurityDashboard
+
+func (response GetSecurityDashboard200JSONResponse) VisitGetSecurityDashboardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetSecurityDashboarddefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetSecurityDashboarddefaultApplicationProblemPlusJSONResponse) VisitGetSecurityDashboardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetGeoIPRequestObject struct {
 }
 
@@ -18232,6 +18495,9 @@ type StrictServerInterface interface {
 	// TestCaptcha Ask Cap with the stored site key and secret whether they are right (no visitor needed)
 	// (POST /api/security/captcha/test)
 	TestCaptcha(ctx context.Context, request TestCaptchaRequestObject) (TestCaptchaResponseObject, error)
+	// GetSecurityDashboard What the abuse engine let through, challenged and banned in a period, and why (06 section 13)
+	// (GET /api/security/dashboard)
+	GetSecurityDashboard(ctx context.Context, request GetSecurityDashboardRequestObject) (GetSecurityDashboardResponseObject, error)
 	// GetGeoIP GeoIP databases on hand and where downloads come from
 	// (GET /api/security/geoip)
 	GetGeoIP(ctx context.Context, request GetGeoIPRequestObject) (GetGeoIPResponseObject, error)
@@ -21702,6 +21968,32 @@ func (sh *strictHandler) TestCaptcha(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(TestCaptchaResponseObject); ok {
 		if err := validResponse.VisitTestCaptchaResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetSecurityDashboard operation middleware
+func (sh *strictHandler) GetSecurityDashboard(w http.ResponseWriter, r *http.Request, params GetSecurityDashboardParams) {
+	var request GetSecurityDashboardRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetSecurityDashboard(ctx, request.(GetSecurityDashboardRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetSecurityDashboard")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetSecurityDashboardResponseObject); ok {
+		if err := validResponse.VisitGetSecurityDashboardResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

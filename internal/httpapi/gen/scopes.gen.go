@@ -88,6 +88,7 @@ var Requirements = map[string]Requirement{
 	"GetPulseSettings":           {Scopes: []string{"admin.read"}, Session: false, Reauth: false},
 	"GetReadyz":                  {Scopes: []string{}, Session: false, Reauth: false},
 	"GetRuleSet":                 {Scopes: []string{"admin.read"}, Session: false, Reauth: false},
+	"GetSecurityDashboard":       {Scopes: []string{"admin.read"}, Session: false, Reauth: false},
 	"GetSecuritySettings":        {Scopes: []string{"admin.read"}, Session: false, Reauth: false},
 	"GetService":                 {Scopes: []string{"services.manage"}, Session: false, Reauth: false},
 	"GetServiceAccess":           {Scopes: []string{"admin.read"}, Session: false, Reauth: false},

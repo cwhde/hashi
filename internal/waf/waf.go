@@ -16,6 +16,7 @@ import (
 
 	coreruleset "github.com/corazawaf/coraza-coreruleset/v4"
 	"github.com/corazawaf/coraza/v3"
+	"github.com/corazawaf/coraza/v3/types"
 )
 
 // Config is one effective WAF: what a request's service and path resolve to (services.EffectiveWAF without the mode).
@@ -77,11 +78,30 @@ type Request struct {
 	Header map[string][]string
 }
 
-// Verdict is the WAF's answer. RuleID is the deciding rule (949110 for the anomaly score) when Blocked.
+// Verdict is the WAF's answer. RuleID is the deciding rule (949110 for the anomaly score) when Blocked; Rules are the
+// rules that scored, the ones an exclusion names.
 type Verdict struct {
 	Blocked bool
 	RuleID  int
 	Status  int
+	Rules   []int
+}
+
+// ruleAnomaly is the anomaly-score check; it decides but never names what scored.
+const ruleAnomaly = 949110
+
+// scored lists the matched detection rules: those with a message, without the setup rules (9000xx–9019xx) and the
+// anomaly check itself.
+func scored(tx types.Transaction) []int {
+	var out []int
+	for _, m := range tx.MatchedRules() {
+		id := m.Rule().ID()
+		if m.Message() == "" || id < 902000 || id == ruleAnomaly || slices.Contains(out, id) {
+			continue
+		}
+		out = append(out, id)
+	}
+	return out
 }
 
 // Engine keeps one compiled WAF per configuration, built on first use.
@@ -158,7 +178,7 @@ func (e *Engine) Check(c Config, r Request) (Verdict, error) {
 		}
 	}
 	if it := tx.ProcessRequestHeaders(); it != nil {
-		return Verdict{Blocked: true, RuleID: it.RuleID, Status: it.Status}, nil
+		return Verdict{Blocked: true, RuleID: it.RuleID, Status: it.Status, Rules: scored(tx)}, nil
 	}
 	// Phase 2 evaluates the anomaly score (949110) even without a body.
 	it, err := tx.ProcessRequestBody()
@@ -166,7 +186,7 @@ func (e *Engine) Check(c Config, r Request) (Verdict, error) {
 		return Verdict{}, err
 	}
 	if it != nil {
-		return Verdict{Blocked: true, RuleID: it.RuleID, Status: it.Status}, nil
+		return Verdict{Blocked: true, RuleID: it.RuleID, Status: it.Status, Rules: scored(tx)}, nil
 	}
 	return Verdict{}, nil
 }
