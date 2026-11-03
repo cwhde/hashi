@@ -143,8 +143,9 @@ func TestChallengeFlow(t *testing.T) {
 	sec.OnChange(func() {})
 	cache := &CaptchaCache{}
 	cache.Set(c)
+	sso := edge.NewSSO(st, v, http.DefaultClient, time.Now)
 	s := &Server{Store: st, Audit: al, Vault: v, Sessions: auth.NewManager(st, al, []byte("csrf")), Edge: eng, Security: sec,
-		Captcha: cache, IP: clientip.New([]netip.Prefix{netip.MustParsePrefix("127.0.0.0/8")}), Log: slog.Default()}
+		Captcha: cache, SSO: sso, IP: clientip.New([]netip.Prefix{netip.MustParsePrefix("127.0.0.0/8")}), Log: slog.Default()}
 	srv := httptest.NewServer(s.Handler(http.NewServeMux()))
 	defer srv.Close()
 	visitor := netip.MustParseAddr("198.51.100.7")
@@ -291,6 +292,19 @@ func TestChallengeFlow(t *testing.T) {
 	}
 	if got := forward("aaa.example.com", "/x", true, &http.Cookie{Name: clear.Name, Value: clear.Value + "x"}).StatusCode; got != http.StatusFound {
 		t.Errorf("with a tampered clearance: %d", got)
+	}
+	// A valid edge SSO session satisfies Pass CAPTCHA: a signed-in user is never asked for one (06 §4.1).
+	if err := st.Q.InsertOIDCProvider(ctx, db.InsertOIDCProviderParams{ID: "idp", Name: "IdP", Issuer: "https://id.example.com",
+		ClientID: "hashi", SecretID: rec.ID, Scopes: "openid", UsernameClaim: "preferred_username", EmailClaim: "email",
+		GroupsClaim: "groups", IsDefault: 1, CreatedAt: 1, UpdatedAt: 1}); err != nil {
+		t.Fatal(err)
+	}
+	cookie, _, err := sso.OpenSession(ctx, "idp", edge.Identity{Subject: "u1", Username: "alice"}, "198.51.100.7", "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := forward("aaa.example.com", "/x", true, &http.Cookie{Name: edge.CookieSession, Value: cookie}).StatusCode; got != 204 {
+		t.Errorf("signed in, still asked for a CAPTCHA: %d", got)
 	}
 
 	// Cap unreachable: "unavailable", and nothing is cleared.

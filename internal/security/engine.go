@@ -226,6 +226,15 @@ func (e *Engine) Challenges() []Entry {
 	return out
 }
 
+// DrainEvents writes every queued security event now (tests, shutdown).
+func (e *Engine) DrainEvents(ctx context.Context) { e.ev.drain(ctx) }
+
+// HostEvent records what the host link did to dyn on one firewall host. Invariant 7 allows those kernel changes
+// outside a plan only if each is a security event (06 §6.1: applied per host, removed).
+func (e *Engine) HostEvent(k netip.Prefix, typ, severity, hostID, reason string) {
+	e.ev.add(event{at: e.now(), key: k, typ: typ, severity: severity, host: hostID, reason: reason})
+}
+
 // Locate gives an address's country and ASN from GeoIP ("", 0 without a database).
 func (e *Engine) Locate(a netip.Addr) (string, int64) { return e.lookup(a.Unmap()) }
 
@@ -318,6 +327,13 @@ func (e *Engine) Ban(ctx context.Context, a netip.Addr, c Cause) (bool, error) {
 
 	e.mu.Lock()
 	ch, oldBan := e.challenged[k], e.banned[k]
+	// Already banned: no new offence. Another address of the same /64 in one drain, a second host's meter or requests
+	// racing past the failure limit must not raise c again (06 §3.4, §5.1). Checked under the lock, so racing calls
+	// see the first one's entry.
+	if oldBan != nil && oldBan.live(now) {
+		e.mu.Unlock()
+		return false, nil
+	}
 	delete(e.challenged, k)
 	e.banned[k] = x
 	e.mu.Unlock()
@@ -346,7 +362,10 @@ func (e *Engine) Ban(ctx context.Context, a netip.Addr, c Cause) (bool, error) {
 		end := never
 		if !permanent {
 			end = now.Add(dur)
+			// x is already in e.banned, where readers hold e.mu: the write takes it too.
+			e.mu.Lock()
 			x.Expires = end
+			e.mu.Unlock()
 		}
 		if err := insertEntry(ctx, q, SetBlocked, x, now); err != nil {
 			return err

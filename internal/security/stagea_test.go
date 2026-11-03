@@ -365,3 +365,64 @@ func TestInvariant_20_AllowLiftsExistingBan(t *testing.T) {
 		t.Fatalf("after reload banned=%v err=%v", e2.Banned(bad), err)
 	}
 }
+
+// One offence is one c ← c+1 (06 §3.4, §5.1): an address that is already banned is not banned again, whether the
+// second call comes from another address of the same IPv6 /64 in one drain, a second host's meter, or requests racing
+// past the failure limit. Seen in review: three /64 addresses in one drain gave c = 3 and a 1 h ban instead of 15 min.
+func TestBanOfABannedAddressIsNoNewOffence(t *testing.T) {
+	ctx := context.Background()
+	e, _ := testEngine(t)
+	a1, a2, a3 := netip.MustParseAddr("2001:db8:7::1"), netip.MustParseAddr("2001:db8:7::2"), netip.MustParseAddr("2001:db8:7::3")
+	for i, a := range []netip.Addr{a1, a2, a3} {
+		ok, err := e.Ban(ctx, a, Cause{Source: SourceMeter})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ok != (i == 0) {
+			t.Fatalf("ban %d created=%v, want only the first", i, ok)
+		}
+	}
+	c, err := e.st.R.GetAddressCounters(ctx, KeyString(a1))
+	if err != nil || c.BanCount != 1 {
+		t.Fatalf("ban counter %d %v, want 1", c.BanCount, err)
+	}
+
+	// Racing requests at the failure limit: many concurrent Bans, one offence.
+	var wg sync.WaitGroup
+	for range 50 {
+		wg.Add(1)
+		go func() { defer wg.Done(); _, _ = e.Ban(ctx, bad, Cause{Source: SourceChallengeFailed}) }()
+	}
+	wg.Wait()
+	if c, _ := e.st.R.GetAddressCounters(ctx, KeyString(bad)); c.BanCount != 1 {
+		t.Fatalf("concurrent bans counted %d offences, want 1", c.BanCount)
+	}
+}
+
+// Bans and challenges that end are security events too (06 §6.1: ban expired, challenge expired).
+func TestSweepRecordsExpiries(t *testing.T) {
+	ctx := context.Background()
+	e, c := testEngine(t)
+	other := netip.MustParseAddr("203.0.113.9")
+	if ok, err := e.Ban(ctx, bad, Cause{Source: SourceManual, Duration: time.Minute}); !ok || err != nil {
+		t.Fatalf("ban %v %v", ok, err)
+	}
+	if ok, err := e.Challenge(ctx, other, Cause{Source: SourceManual, Duration: time.Minute}); !ok || err != nil {
+		t.Fatalf("challenge %v %v", ok, err)
+	}
+	c.add(2 * time.Minute)
+	if _, err := e.Sweep(ctx); err != nil {
+		t.Fatal(err)
+	}
+	e.ev.drain(ctx)
+	got := map[string]bool{}
+	for _, a := range []netip.Addr{bad, other} {
+		evs, _ := e.st.R.ListSecurityEventsForAddress(ctx, db.ListSecurityEventsForAddressParams{Address: KeyString(a), Limit: 10})
+		for _, x := range evs {
+			got[KeyString(a)+" "+x.EventType] = true
+		}
+	}
+	if !got[KeyString(bad)+" ban_expired"] || !got[KeyString(other)+" challenge_expired"] {
+		t.Fatalf("expiry events missing: %v", got)
+	}
+}

@@ -145,6 +145,29 @@ func TestHostLinkTick(t *testing.T) {
 	if err != nil || len(st) != 1 || st[0].State != "applied" {
 		t.Fatalf("entry hosts %+v %v", st, err)
 	}
+	// Invariant 7: every change the link makes to dyn outside a plan is a security event, per host.
+	hostEvents := func() map[string]string {
+		t.Helper()
+		eng.DrainEvents(ctx)
+		out := map[string]string{}
+		rows, err := e.st.R.ListRecentSecurityEvents(ctx, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, r := range rows {
+			if r.Host == row.Name {
+				out[r.Address+" "+r.EventType] = r.Host
+			}
+		}
+		return out
+	}
+	ev := hostEvents()
+	if _, ok := ev["198.51.100.7 ban_applied"]; !ok {
+		t.Errorf("no ban_applied event for the pushed ban: %v", ev)
+	}
+	if _, ok := ev["203.0.113.9 ban_removed_host"]; !ok {
+		t.Errorf("no ban_removed_host event for the entry taken off the host: %v", ev)
+	}
 
 	// Next tick: the host now holds the ban (as Hashi believes); staging is empty; nothing to push.
 	sh.staging = listing("staging4") + "\n" + listing("staging6")
@@ -164,5 +187,8 @@ func TestHostLinkTick(t *testing.T) {
 	}
 	if len(sh.pushes) != 2 || !strings.Contains(sh.pushes[1], `"destroy"`) || !strings.Contains(sh.pushes[1], "198.51.100.7") {
 		t.Fatalf("unban push: %v", sh.pushes)
+	}
+	if _, ok := hostEvents()["198.51.100.7 ban_removed_host"]; !ok {
+		t.Error("no ban_removed_host event after the unban reached the host")
 	}
 }

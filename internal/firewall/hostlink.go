@@ -233,9 +233,11 @@ func (s *linkSession) tick(ctx context.Context) error {
 		batch = append(batch, obj{"add": obj{"element": obj{"family": "inet", "table": TableName, "name": dynName(b.Prefix), "elem": []any{el}}}})
 		added = append(added, b)
 	}
+	var removed []netip.Prefix
 	for p := range s.believed {
 		if _, ok := desired[p]; !ok {
 			batch = append(batch, obj{"destroy": obj{"element": obj{"family": "inet", "table": TableName, "name": dynName(p), "elem": []any{prefixVal(p)}}}})
+			removed = append(removed, p)
 		}
 	}
 	for _, e := range staged {
@@ -258,13 +260,19 @@ func (s *linkSession) tick(ctx context.Context) error {
 		if r.ExitCode != 0 {
 			for _, b := range added {
 				s.mark(ctx, b.ElementID, "failed", string(r.Stderr))
+				l.eng.HostEvent(b.Prefix, "ban_apply_failed", "warning", s.row.ID, string(bytes.TrimSpace(r.Stderr)))
 			}
 			s.believed = nil // read back next tick
 			return fmt.Errorf("push to %s: %s", s.row.Name, bytes.TrimSpace(r.Stderr))
 		}
 		pushed = true
+		// Invariant 7: each change to dyn made here, outside a plan, is a security event for this host.
 		for _, b := range added {
 			s.mark(ctx, b.ElementID, "applied", "")
+			l.eng.HostEvent(b.Prefix, "ban_applied", "info", s.row.ID, "in the kernel ban set on "+s.row.Name)
+		}
+		for _, p := range removed {
+			l.eng.HostEvent(p, "ban_removed_host", "info", s.row.ID, "taken off the kernel ban set on "+s.row.Name)
 		}
 		s.believed = desired
 	}

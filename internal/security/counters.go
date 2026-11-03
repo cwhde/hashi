@@ -159,13 +159,22 @@ func (e *Engine) EditCounters(ctx context.Context, a netip.Addr, ed CounterEdit,
 	k, now := Key(a.Unmap()), e.now()
 	// Memory first, then the write: the engine never holds its lock while waiting for the database.
 	var failuresOf string
-	if ed.ResetFailures {
-		e.mu.Lock()
-		if x, ok := e.challenged[k]; ok {
-			x.Failures, x.dirty, failuresOf = 0, false, x.ElementID
-		}
-		e.mu.Unlock()
+	// A set ban counter starts its quiet time at the later of now and the end of a running ban, as a ban itself does
+	// (06 §5.1): it must not decay while that ban runs. A permanent ban never ends.
+	banQuiet := now
+	e.mu.Lock()
+	if x, ok := e.challenged[k]; ok && ed.ResetFailures {
+		x.Failures, x.dirty, failuresOf = 0, false, x.ElementID
 	}
+	if b, ok := e.banned[k]; ok && b.live(now) {
+		switch {
+		case b.Expires.IsZero():
+			banQuiet = never
+		case b.Expires.After(now):
+			banQuiet = b.Expires
+		}
+	}
+	e.mu.Unlock()
 	err := e.st.Tx(ctx, func(q *db.Queries) error {
 		if ed.Ban != nil || ed.Challenge != nil {
 			c, err := counters(ctx, q, prefixKey(k))
@@ -173,7 +182,7 @@ func (e *Engine) EditCounters(ctx context.Context, a netip.Addr, ed CounterEdit,
 				return err
 			}
 			if ed.Ban != nil {
-				c.BanCount, c.BanQuietSince = int64(max(*ed.Ban, 0)), now.UnixMilli()
+				c.BanCount, c.BanQuietSince = int64(max(*ed.Ban, 0)), banQuiet.UnixMilli()
 			}
 			if ed.Challenge != nil {
 				c.ChallengeCount, c.ChallengeQuietSince = int64(max(*ed.Challenge, 0)), now.UnixMilli()

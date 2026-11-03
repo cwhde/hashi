@@ -81,3 +81,34 @@ func TestCountersViewEditAndReset(t *testing.T) {
 		t.Fatalf("after reset %+v", rows)
 	}
 }
+
+// A ban counter set by hand while a ban runs starts its quiet time when that ban ends, not now (06 §5.1, §18 "running
+// ban unchanged"): the counter must not decay during the ban.
+func TestEditDuringARunningBanDecaysAfterIt(t *testing.T) {
+	ctx := context.Background()
+	e, c := testEngine(t)
+	d := time.Duration(e.Settings().DecaySeconds) * time.Second
+	if ok, err := e.Ban(ctx, bad, Cause{Source: SourceManual, Duration: 5 * d}); !ok || err != nil {
+		t.Fatalf("ban %v %v", ok, err)
+	}
+	three := 3
+	if err := e.EditCounters(ctx, bad, CounterEdit{Ban: &three}, "admin"); err != nil {
+		t.Fatal(err)
+	}
+	ban := func() int {
+		t.Helper()
+		rows, err := e.Counters(ctx, CounterFilter{Within: netip.PrefixFrom(bad, 32)})
+		if err != nil || len(rows) != 1 {
+			t.Fatalf("rows %+v %v", rows, err)
+		}
+		return rows[0].Ban
+	}
+	c.add(2 * d) // still inside the ban
+	if got := ban(); got != 3 {
+		t.Fatalf("decayed during the running ban: %d, want 3", got)
+	}
+	c.add(3*d + d) // the ban ended 3d after the edit point; one quiet period after it
+	if got := ban(); got != 2 {
+		t.Fatalf("one quiet period after the ban: %d, want 2", got)
+	}
+}

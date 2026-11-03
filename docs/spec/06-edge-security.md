@@ -522,7 +522,8 @@ increment and decay; manual counter edits (next ban uses the edited `c`, running
 `TestInvariant_20_ManualAllowBeatsDynamic` (L7 side), `TestInvariant_22_SetGraphsAcyclic` (rule sets),
 `TestInvariant_StageOrder_*` (Stage A always before Stage B; A1 before A2 before A3).
 Integration: forward auth through a real Traefik container for every action; fail-closed vs fail-open by rule content
-with Hashi stopped; Cap verify success/failure/unavailable (stub from recorded contract); WAF modes per path through the
-pinned plugin; access-log tail across rotation; edge SSO against a local OIDC test provider.
+with Hashi stopped; Cap verify success/failure/unavailable (stub from recorded contract); WAF modes per path in forward
+auth (§9: the WAF runs inside Hashi, not as a Traefik plugin); access-log tail across rotation; edge SSO against a
+local OIDC test provider.
 E2E: build a rule set and attach it; IP set with a Pulse item used in a rule; ban now / remove; feed add with preview;
 trigger and solve a challenge.

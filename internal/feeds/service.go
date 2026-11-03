@@ -111,7 +111,13 @@ func (s *Service) download(ctx context.Context, set Settings, etag, lastModified
 	if err != nil {
 		return d, Parsed{}, err
 	}
-	return d, Filter(p), nil
+	p = Filter(p)
+	// Nothing valid but lines rejected is not an empty list: it is an error page or the wrong format answering 200.
+	// Applying it would empty a blocklist silently (06 §8: never partially apply a failed update).
+	if len(p.Prefixes) == 0 && p.Rejected > 0 {
+		return d, Parsed{}, fmt.Errorf("no valid entry, %d lines not understood: not a list in this format (an error page?)", p.Rejected)
+	}
+	return d, p, nil
 }
 
 // Preview downloads and parses without storing.

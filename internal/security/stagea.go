@@ -244,6 +244,7 @@ func (e *Engine) Sweep(ctx context.Context) (string, error) {
 		if !x.live(now) {
 			delete(e.challenged, k)
 			ended++
+			e.ev.add(event{at: now, key: k, typ: "challenge_expired", severity: "info", source: x.Source, service: x.ServiceID})
 			continue
 		}
 		if x.dirty {
@@ -255,6 +256,7 @@ func (e *Engine) Sweep(ctx context.Context) (string, error) {
 		if !x.live(now) {
 			delete(e.banned, k)
 			ended++
+			e.ev.add(event{at: now, key: k, typ: "ban_expired", severity: "info", source: x.Source, host: x.HostID})
 		}
 	}
 	for k, w := range e.rate {

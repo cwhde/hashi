@@ -135,6 +135,8 @@ func (s *Server) edgeForward(w http.ResponseWriter, r *http.Request) {
 		allow()
 	case rules.ActionCaptcha:
 		switch {
+		case sess != nil: // a valid edge SSO session satisfies it: a signed-in user is never asked (06 §4.1)
+			allow()
 		case !s.captchaSettings(r.Context()).Enabled: // nothing to solve: the item stays shut (06 §11)
 			s.Log.Warn("a rule asks for a CAPTCHA, but CAPTCHA is not set up", "service", d.ServiceID)
 			edgePage(w, http.StatusForbidden, "Access denied.")
