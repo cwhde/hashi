@@ -825,6 +825,10 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-11-03 · release and deploy `v0.10.0-beta.9` (`c1e95c0`, PR #61, the user's OK in chat) · S10 review fixes.
+  Smoke ok. Invariant 7 seen live: when the rate test's third ban ended, the host link recorded `ban_removed_host` for
+  the edge's firewall host and the sweep `ban_expired`; before this release both left no event. The release image job
+  needed two reruns (same code, transient). S10 closed.
 - 2026-11-03 · S10 review: 5 reproduced findings fixed with regression tests. A valid edge SSO session now satisfies
   Pass CAPTCHA (it sent signed-in users to the challenge). Banning an already banned address is no new offence (three
   addresses of one IPv6 /64 in one drain gave c = 3 and a 1 h ban; racing requests counted twice); the race detector
