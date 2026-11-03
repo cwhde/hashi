@@ -52,7 +52,10 @@ Left for PR D2: Security dashboard and Counters (need their APIs), engine settin
 
 PR D2, UI: Security dashboard, Counters, Challenge, Engine; service WAF tab; feed add; dynamic sets on the IP sets page.
 
-- [ ] Gate on the real edges (needs a Cap instance and the user's OK for each production change)
+- [ ] Gate on the real edges (needs a Cap instance and the user's OK for each production change). 2026-11-03 on
+  `v0.10.0-beta.5`: the user solved the real CAPTCHA (anti-bot check on) and landed on the target; WAF blocks attacks
+  with 403 on both edges; four blocklists bound to the global block. Left: meters and dynamic sets under load, Gitea
+  exclusions confirmed.
 
 **S9 — Forward auth, rule sets, edge SSO** · status: **done** (gate passed 2026-11-01 on `0.9.0-beta.1`). V1 cutover done 2026-11-01; after a week remove old data, `legacy/v1/` and its workflow. Next: S10. Gate: 11-delivery.md §3 row S9.
 
