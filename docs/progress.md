@@ -5,7 +5,7 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
-**S10 — Abuse engine, WAF, CAPTCHA, feeds** · status: **done** (gate passed 2026-11-03 on `v0.10.0-beta.8`). Gate: 11-delivery.md §3 row S10. Next: S11.
+**S10 — Abuse engine, WAF, CAPTCHA, feeds** · status: **done** (gate passed 2026-11-03 on `v0.10.0-beta.8`; review fixes in `v0.10.0-beta.9`). Gate: 11-delivery.md §3 row S10. Next: S11.
 Scope: 06 §3, §5–6, §8–11, §13 (Security dashboard, Engine), dynamic sets, host link, kernel meters on.
 
 Contracts: Traefik access log JSON exists (`testdata/contracts/traefik`), nft meter and set shapes exist
@@ -825,6 +825,13 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-11-03 · S10 review: 5 reproduced findings fixed with regression tests. A valid edge SSO session now satisfies
+  Pass CAPTCHA (it sent signed-in users to the challenge). Banning an already banned address is no new offence (three
+  addresses of one IPv6 /64 in one drain gave c = 3 and a 1 h ban; racing requests counted twice); the race detector
+  then found the ban's end time written outside the engine lock, fixed too. A feed answering 200 with an error page
+  no longer empties its set. A ban counter set by hand decays only after the running ban. Every change the host link
+  makes to dyn is now a security event (invariant 7: applied, failed, removed per host; expired from the sweep). The
+  reauth/audit question for manual counter actions is under Unverified; the §18 plugin line fixed in the spec.
 - 2026-11-03 · S10 gate PASSED on `v0.10.0-beta.8` · The last open point, the L7 request-rate challenge, is proven:
   from an outside source, 400 requests over a single HTTP/2(/3) connection (so the connection meter stayed at one
   connection) tripped the request counter, and Hashi recorded `challenge_entered` source `l7_rate` "more than 300
