@@ -318,6 +318,13 @@ func (e *Engine) Ban(ctx context.Context, a netip.Addr, c Cause) (bool, error) {
 
 	e.mu.Lock()
 	ch, oldBan := e.challenged[k], e.banned[k]
+	// Already banned: no new offence. Another address of the same /64 in one drain, a second host's meter or requests
+	// racing past the failure limit must not raise c again (06 §3.4, §5.1). Checked under the lock, so racing calls
+	// see the first one's entry.
+	if oldBan != nil && oldBan.live(now) {
+		e.mu.Unlock()
+		return false, nil
+	}
 	delete(e.challenged, k)
 	e.banned[k] = x
 	e.mu.Unlock()
@@ -346,7 +353,10 @@ func (e *Engine) Ban(ctx context.Context, a netip.Addr, c Cause) (bool, error) {
 		end := never
 		if !permanent {
 			end = now.Add(dur)
+			// x is already in e.banned, where readers hold e.mu: the write takes it too.
+			e.mu.Lock()
 			x.Expires = end
+			e.mu.Unlock()
 		}
 		if err := insertEntry(ctx, q, SetBlocked, x, now); err != nil {
 			return err
