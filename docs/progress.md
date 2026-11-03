@@ -5,7 +5,7 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
-**S10 — Abuse engine, WAF, CAPTCHA, feeds** · status: **in progress** (started 2026-11-02). Gate: 11-delivery.md §3 row S10.
+**S10 — Abuse engine, WAF, CAPTCHA, feeds** · status: **done** (gate passed 2026-11-03 on `v0.10.0-beta.8`). Gate: 11-delivery.md §3 row S10. Next: S11.
 Scope: 06 §3, §5–6, §8–11, §13 (Security dashboard, Engine), dynamic sets, host link, kernel meters on.
 
 Contracts: Traefik access log JSON exists (`testdata/contracts/traefik`), nft meter and set shapes exist
@@ -821,6 +821,15 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-11-03 · S10 gate PASSED on `v0.10.0-beta.8` · The last open point, the L7 request-rate challenge, is proven:
+  from an outside source, 400 requests over a single HTTP/2(/3) connection (so the connection meter stayed at one
+  connection) tripped the request counter, and Hashi recorded `challenge_entered` source `l7_rate` "more than 300
+  requests within 10 s" at 18:01:15, then `ban_created` source `l7_challenge_failed` (ban 3, 60 min). The single
+  connection is why the meter did not pre-empt it this time. Full gate, all proven on the live edge: WAF match
+  counted (rule 942100); WAF→challenge and rate→challenge; ignored challenge→ban; the exponential ban curve across
+  three real bans (15, 30, 60 min); L4 meter trip → staged → banned; a blocklist enforced in the kernel block set;
+  large upload passes headers-only without a WAF block; allowed addresses exempt (invariant 20, in code). Remaining
+  slice-closure: run the review skill on the S10 diff.
 - 2026-11-03 · S10 gate, L4 meter + large upload proven; L7 rate challenge pre-empted by the meter · A second
   outside source (195.206.105.2, GeoIP CH, ASN 9009) drove steps 1/3/4. Hashi's event log for it shows two
   `ban_created` with source `l4_meter`, an L4-meter ban: 16:11:44 (ban 1, 15 min) during the step-3
