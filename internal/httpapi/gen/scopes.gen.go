@@ -14,6 +14,7 @@ func (r Requirement) NeedsSession() bool { return r.Session || r.Reauth || len(r
 
 // Requirements is keyed by the operation name passed to strict middleware.
 var Requirements = map[string]Requirement{
+	"AddDynamicEntry":            {Scopes: []string{"security.manage"}, Session: false, Reauth: false},
 	"AddIPSetElement":            {Scopes: []string{"security.manage"}, Session: false, Reauth: false},
 	"AddTraefikHost":             {Scopes: []string{"services.manage"}, Session: false, Reauth: true},
 	"ApplyAgentDNS":              {Scopes: []string{"admin.write"}, Session: false, Reauth: false},
@@ -184,6 +185,7 @@ var Requirements = map[string]Requirement{
 	"RecoverPasskeyVerify":       {Scopes: []string{"recovery.passkey"}, Session: false, Reauth: false},
 	"RefreshDNSZone":             {Scopes: []string{"admin.write"}, Session: false, Reauth: false},
 	"RefreshFeed":                {Scopes: []string{"security.manage"}, Session: false, Reauth: false},
+	"RemoveDynamicEntry":         {Scopes: []string{"security.manage"}, Session: false, Reauth: false},
 	"RemoveTraefikHost":          {Scopes: []string{"services.manage"}, Session: false, Reauth: true},
 	"RenamePasskey":              {Scopes: []string{"admin.write"}, Session: false, Reauth: false},
 	"RenewCertificate":           {Scopes: []string{"admin.write"}, Session: false, Reauth: false},

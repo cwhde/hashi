@@ -57,7 +57,8 @@ func (x *Entry) live(now time.Time) bool { return x.Expires.IsZero() || now.Befo
 // Cause describes an escalation or a new challenge for the record.
 type Cause struct {
 	Source, Reason, Meter, HostID, ServiceID string
-	Actor                                    string // manual actions
+	Actor                                    string        // manual actions
+	Duration                                 time.Duration // manual actions: instead of T_ban(c) or the challenge expiry
 }
 
 // GeoLookup gives the country and ASN recorded with an offence; ok is false without a database.
@@ -249,7 +250,10 @@ func (e *Engine) Challenge(ctx context.Context, a netip.Addr, c Cause) (bool, er
 	cfg := e.Settings()
 	x := &Entry{ElementID: ulid.Make().String(), Prefix: k, Created: now, Source: c.Source, Reason: c.Reason,
 		ServiceID: c.ServiceID}
-	if cfg.ChallengeExpirySecs > 0 {
+	switch {
+	case c.Duration > 0:
+		x.Expires = now.Add(c.Duration)
+	case cfg.ChallengeExpirySecs > 0:
 		x.Expires = now.Add(time.Duration(cfg.ChallengeExpirySecs) * time.Second)
 	}
 	e.mu.Lock()
@@ -336,6 +340,9 @@ func (e *Engine) Ban(ctx context.Context, a netip.Addr, c Cause) (bool, error) {
 		count = Effective(int(cnt.BanCount), time.UnixMilli(cnt.BanQuietSince), now, d) + 1
 		var dur time.Duration
 		dur, permanent = BanParamsFrom(cfg).Duration(count)
+		if c.Duration > 0 {
+			dur, permanent = c.Duration, false
+		}
 		end := never
 		if !permanent {
 			end = now.Add(dur)

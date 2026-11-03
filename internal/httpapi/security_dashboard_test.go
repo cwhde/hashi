@@ -139,3 +139,40 @@ func TestSecurityCountersEndpoints(t *testing.T) {
 		t.Fatalf("reset by filter changed %d records, want the one with a ban counter", n)
 	}
 }
+
+// "Ban now" with a duration, "challenge now" on an allowed address (refused, invariant 20) and removal (05a §8).
+func TestDynamicEntriesByHand(t *testing.T) {
+	ctx := context.Background()
+	st := storetest.New(t)
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	eng := security.NewEngine(st, log, time.Now)
+	home := netip.MustParseAddr("192.0.2.50")
+	eng.UseAllowed(func(a netip.Addr) bool { return a == home })
+	s := &Server{Store: st, Log: log, Security: eng, Audit: audit.New([]byte("k"))}
+	two := 120
+	res, err := s.AddDynamicEntry(ctx, gen.AddDynamicEntryRequestObject{Id: security.SetBlocked,
+		Body: &gen.AddDynamicEntryJSONRequestBody{Address: "198.51.100.7", DurationSeconds: &two}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := res.(gen.AddDynamicEntry200JSONResponse)
+	if !r.Created || r.Counters.State != gen.CounterRowStateBanned || r.Counters.Until == nil ||
+		time.Until(*r.Counters.Until) > 2*time.Minute || r.Counters.BanCount != 1 {
+		t.Fatalf("ban now %+v", r)
+	}
+	res, err = s.AddDynamicEntry(ctx, gen.AddDynamicEntryRequestObject{Id: security.SetChallenge,
+		Body: &gen.AddDynamicEntryJSONRequestBody{Address: home.String()}})
+	if err != nil || res.(gen.AddDynamicEntry200JSONResponse).Created {
+		t.Fatalf("an allowed address must not be challenged: %+v %v", res, err)
+	}
+	if _, err := s.AddDynamicEntry(ctx, gen.AddDynamicEntryRequestObject{Id: "some-set",
+		Body: &gen.AddDynamicEntryJSONRequestBody{Address: "198.51.100.8"}}); err == nil {
+		t.Fatal("only the dynamic sets take entries")
+	}
+	if _, err := s.RemoveDynamicEntry(ctx, gen.RemoveDynamicEntryRequestObject{Id: security.SetBlocked, Address: "198.51.100.7"}); err != nil {
+		t.Fatal(err)
+	}
+	if eng.Banned(netip.MustParseAddr("198.51.100.7")) {
+		t.Fatal("still banned after removal")
+	}
+}

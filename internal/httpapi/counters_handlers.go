@@ -122,16 +122,11 @@ func (s *Server) EditAddressCounters(ctx context.Context, req gen.EditAddressCou
 	}); err != nil {
 		return nil, err
 	}
-	rows, err := s.Security.Counters(ctx, security.CounterFilter{Within: security.Key(a.Unmap())})
+	row, err := s.counterOf(ctx, a)
 	if err != nil {
 		return nil, err
 	}
-	for _, r := range rows {
-		if r.Address == key {
-			return gen.EditAddressCounters200JSONResponse(counterRow(r)), nil
-		}
-	}
-	return gen.EditAddressCounters200JSONResponse(gen.CounterRow{Address: key, State: gen.CounterRowStateNone}), nil
+	return gen.EditAddressCounters200JSONResponse(row), nil
 }
 
 // ResetSecurityCounters zeroes the counters of the given addresses or of every row the filter matches.
@@ -186,4 +181,88 @@ func (s *Server) ResetSecurityCounters(ctx context.Context, req gen.ResetSecurit
 		return nil, err
 	}
 	return gen.ResetSecurityCounters200JSONResponse{Count: n}, nil
+}
+
+// counterOf is one address's counters row, or an empty one.
+func (s *Server) counterOf(ctx context.Context, a netip.Addr) (gen.CounterRow, error) {
+	key := security.KeyString(a)
+	rows, err := s.Security.Counters(ctx, security.CounterFilter{Within: security.Key(a.Unmap())})
+	if err != nil {
+		return gen.CounterRow{}, err
+	}
+	for _, r := range rows {
+		if r.Address == key {
+			return counterRow(r), nil
+		}
+	}
+	return gen.CounterRow{Address: key, State: gen.CounterRowStateNone}, nil
+}
+
+// AddDynamicEntry is "challenge now" or "ban now" (05a §8): the engine's own path, so counters, events and the
+// host link follow as for any other trigger. An allowed address is never challenged or banned (invariant 20).
+func (s *Server) AddDynamicEntry(ctx context.Context, req gen.AddDynamicEntryRequestObject) (gen.AddDynamicEntryResponseObject, error) {
+	a, err := netip.ParseAddr(req.Body.Address)
+	if err != nil {
+		return nil, invalid("not an address")
+	}
+	ri := info(ctx)
+	c := security.Cause{Source: security.SourceManual, Actor: s.actor(ri), Reason: or(req.Body.Reason, "")}
+	if d := req.Body.DurationSeconds; d != nil {
+		if *d < 60 {
+			return nil, invalid("a duration is at least 60 seconds")
+		}
+		c.Duration = time.Duration(*d) * time.Second
+	}
+	if c.Reason == "" {
+		c.Reason = "by hand"
+	}
+	var created bool
+	switch req.Id {
+	case security.SetChallenge:
+		created, err = s.Security.Challenge(ctx, a, c)
+	case security.SetBlocked:
+		created, err = s.Security.Ban(ctx, a, c)
+	default:
+		return nil, invalid("entries go into " + security.SetChallenge + " or " + security.SetBlocked)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if err := s.Store.Tx(ctx, func(q *db.Queries) error {
+		return s.Audit.Record(ctx, q, audit.Event{Actor: c.Actor, Action: "security.dynamic_added", IP: ri.ipString(),
+			Target: "address:" + security.KeyString(a), Outcome: audit.Success, Detail: map[string]any{"set": req.Id, "created": created,
+				"duration_seconds": req.Body.DurationSeconds}})
+	}); err != nil {
+		return nil, err
+	}
+	row, err := s.counterOf(ctx, a)
+	if err != nil {
+		return nil, err
+	}
+	return gen.AddDynamicEntry200JSONResponse{Created: created, Counters: row}, nil
+}
+
+// RemoveDynamicEntry takes an address out of both dynamic sets; its counters stay (06 §5.1).
+func (s *Server) RemoveDynamicEntry(ctx context.Context, req gen.RemoveDynamicEntryRequestObject) (gen.RemoveDynamicEntryResponseObject, error) {
+	if req.Id != security.SetChallenge && req.Id != security.SetBlocked {
+		return nil, invalid("entries live in " + security.SetChallenge + " or " + security.SetBlocked)
+	}
+	a, err := netip.ParseAddr(req.Address)
+	if err != nil {
+		return nil, invalid("not an address")
+	}
+	ri := info(ctx)
+	removed, err := s.Security.Remove(ctx, security.Key(a.Unmap()), s.actor(ri), "removed by hand")
+	if err != nil {
+		return nil, err
+	}
+	if removed {
+		if err := s.Store.Tx(ctx, func(q *db.Queries) error {
+			return s.Audit.Record(ctx, q, audit.Event{Actor: s.actor(ri), Action: "security.dynamic_removed", IP: ri.ipString(),
+				Target: "address:" + security.KeyString(a), Outcome: audit.Success})
+		}); err != nil {
+			return nil, err
+		}
+	}
+	return gen.RemoveDynamicEntry204Response{}, nil
 }

@@ -2575,6 +2575,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ip-sets/{id}/entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Challenge or ban an address now, in sys-dynamic-challenge or sys-dynamic-blocked (05a section 8) */
+        post: operations["addDynamicEntry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ip-sets/{id}/entries/{address}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Take an address out of the dynamic sets (challenge and ban) */
+        delete: operations["removeDynamicEntry"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ip-sets/{id}/consumers": {
         parameters: {
             query?: never;
@@ -3189,6 +3223,16 @@ export interface components {
              * @description Missing when the feed never succeeded
              */
             last_success?: string;
+        };
+        DynamicEntryInput: {
+            address: string;
+            /** @description Instead of the ban function or the challenge expiry */
+            duration_seconds?: number;
+            reason?: string;
+        };
+        DynamicEntryResult: {
+            created: boolean;
+            counters: components["schemas"]["CounterRow"];
         };
         /** @enum {string} */
         SecuritySource: "l7_rate" | "l7_waf" | "l7_challenge_failed" | "l4_meter" | "manual";
@@ -9357,6 +9401,55 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["IPSetSources"];
                 };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    addDynamicEntry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DynamicEntryInput"];
+            };
+        };
+        responses: {
+            /** @description The address's counters now; created is false when the address is allowed or already there */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DynamicEntryResult"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    removeDynamicEntry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                address: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             default: components["responses"]["Problem"];
         };

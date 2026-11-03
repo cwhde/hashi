@@ -2859,6 +2859,21 @@ type DNSZoneRef struct {
 	ZoneId string `json:"zone_id"`
 }
 
+// DynamicEntryInput defines model for DynamicEntryInput.
+type DynamicEntryInput struct {
+	Address string `json:"address"`
+
+	// DurationSeconds Instead of the ban function or the challenge expiry
+	DurationSeconds *int    `json:"duration_seconds,omitempty"`
+	Reason          *string `json:"reason,omitempty"`
+}
+
+// DynamicEntryResult defines model for DynamicEntryResult.
+type DynamicEntryResult struct {
+	Counters CounterRow `json:"counters"`
+	Created  bool       `json:"created"`
+}
+
 // EdgeSSOSettings defines model for EdgeSSOSettings.
 type EdgeSSOSettings struct {
 	IdleTimeoutHours int  `json:"idle_timeout_hours"`
@@ -4997,6 +5012,9 @@ type AddIPSetElementJSONRequestBody = IPSetElementInput
 // UpdateIPSetElementJSONRequestBody defines body for UpdateIPSetElement for application/json ContentType.
 type UpdateIPSetElementJSONRequestBody = IPSetElementInput
 
+// AddDynamicEntryJSONRequestBody defines body for AddDynamicEntry for application/json ContentType.
+type AddDynamicEntryJSONRequestBody = DynamicEntryInput
+
 // CreateMonitorEndpointJSONRequestBody defines body for CreateMonitorEndpoint for application/json ContentType.
 type CreateMonitorEndpointJSONRequestBody = MonitorEndpointCreate
 
@@ -5649,6 +5667,12 @@ type ServerInterface interface {
 	// UpdateIPSetElement Replace an element's item, note and expiry
 	// (PATCH /api/ip-sets/{id}/elements/{elementId})
 	UpdateIPSetElement(w http.ResponseWriter, r *http.Request, id string, elementId string)
+	// AddDynamicEntry Challenge or ban an address now, in sys-dynamic-challenge or sys-dynamic-blocked (05a section 8)
+	// (POST /api/ip-sets/{id}/entries)
+	AddDynamicEntry(w http.ResponseWriter, r *http.Request, id string)
+	// RemoveDynamicEntry Take an address out of the dynamic sets (challenge and ban)
+	// (DELETE /api/ip-sets/{id}/entries/{address})
+	RemoveDynamicEntry(w http.ResponseWriter, r *http.Request, id string, address string)
 	// GetFeed A feed set's source, state and recent downloads
 	// (GET /api/ip-sets/{id}/feed)
 	GetFeed(w http.ResponseWriter, r *http.Request, id string)
@@ -7739,6 +7763,67 @@ func (siw *ServerInterfaceWrapper) UpdateIPSetElement(w http.ResponseWriter, r *
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateIPSetElement(w, r, id, elementId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddDynamicEntry operation middleware
+func (siw *ServerInterfaceWrapper) AddDynamicEntry(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddDynamicEntry(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveDynamicEntry operation middleware
+func (siw *ServerInterfaceWrapper) RemoveDynamicEntry(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "address" -------------
+	var address string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "address", r.PathValue("address"), &address, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "address", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveDynamicEntry(w, r, id, address)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -10701,6 +10786,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/ip-sets/{id}/elements/{elementId}", wrapper.UpdateIPSetElement)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/ip-sets/{id}/resolved", wrapper.GetIPSetResolved)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/ip-sets/{id}/sources", wrapper.GetIPSetSources)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/ip-sets/{id}/entries", wrapper.AddDynamicEntry)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/ip-sets/{id}/entries/{address}", wrapper.RemoveDynamicEntry)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/ip-sets/{id}/consumers", wrapper.GetIPSetConsumers)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/addresses/{address}/counters", wrapper.EditAddressCounters)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/addresses/{address}", wrapper.LookupAddress)
@@ -13676,6 +13763,80 @@ type UpdateIPSetElementdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response UpdateIPSetElementdefaultApplicationProblemPlusJSONResponse) VisitUpdateIPSetElementResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddDynamicEntryRequestObject struct {
+	Id   string `json:"id"`
+	Body *AddDynamicEntryJSONRequestBody
+}
+
+type AddDynamicEntryResponseObject interface {
+	VisitAddDynamicEntryResponse(w http.ResponseWriter) error
+}
+
+type AddDynamicEntry200JSONResponse DynamicEntryResult
+
+func (response AddDynamicEntry200JSONResponse) VisitAddDynamicEntryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddDynamicEntrydefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response AddDynamicEntrydefaultApplicationProblemPlusJSONResponse) VisitAddDynamicEntryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveDynamicEntryRequestObject struct {
+	Id      string `json:"id"`
+	Address string `json:"address"`
+}
+
+type RemoveDynamicEntryResponseObject interface {
+	VisitRemoveDynamicEntryResponse(w http.ResponseWriter) error
+}
+
+type RemoveDynamicEntry204Response struct {
+}
+
+func (response RemoveDynamicEntry204Response) VisitRemoveDynamicEntryResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RemoveDynamicEntrydefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response RemoveDynamicEntrydefaultApplicationProblemPlusJSONResponse) VisitRemoveDynamicEntryResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -18934,6 +19095,12 @@ type StrictServerInterface interface {
 	// UpdateIPSetElement Replace an element's item, note and expiry
 	// (PATCH /api/ip-sets/{id}/elements/{elementId})
 	UpdateIPSetElement(ctx context.Context, request UpdateIPSetElementRequestObject) (UpdateIPSetElementResponseObject, error)
+	// AddDynamicEntry Challenge or ban an address now, in sys-dynamic-challenge or sys-dynamic-blocked (05a section 8)
+	// (POST /api/ip-sets/{id}/entries)
+	AddDynamicEntry(ctx context.Context, request AddDynamicEntryRequestObject) (AddDynamicEntryResponseObject, error)
+	// RemoveDynamicEntry Take an address out of the dynamic sets (challenge and ban)
+	// (DELETE /api/ip-sets/{id}/entries/{address})
+	RemoveDynamicEntry(ctx context.Context, request RemoveDynamicEntryRequestObject) (RemoveDynamicEntryResponseObject, error)
 	// GetFeed A feed set's source, state and recent downloads
 	// (GET /api/ip-sets/{id}/feed)
 	GetFeed(ctx context.Context, request GetFeedRequestObject) (GetFeedResponseObject, error)
@@ -21491,6 +21658,66 @@ func (sh *strictHandler) UpdateIPSetElement(w http.ResponseWriter, r *http.Reque
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(UpdateIPSetElementResponseObject); ok {
 		if err := validResponse.VisitUpdateIPSetElementResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AddDynamicEntry operation middleware
+func (sh *strictHandler) AddDynamicEntry(w http.ResponseWriter, r *http.Request, id string) {
+	var request AddDynamicEntryRequestObject
+
+	request.Id = id
+
+	var body AddDynamicEntryJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AddDynamicEntry(ctx, request.(AddDynamicEntryRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AddDynamicEntry")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AddDynamicEntryResponseObject); ok {
+		if err := validResponse.VisitAddDynamicEntryResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RemoveDynamicEntry operation middleware
+func (sh *strictHandler) RemoveDynamicEntry(w http.ResponseWriter, r *http.Request, id string, address string) {
+	var request RemoveDynamicEntryRequestObject
+
+	request.Id = id
+	request.Address = address
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RemoveDynamicEntry(ctx, request.(RemoveDynamicEntryRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RemoveDynamicEntry")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RemoveDynamicEntryResponseObject); ok {
+		if err := validResponse.VisitRemoveDynamicEntryResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

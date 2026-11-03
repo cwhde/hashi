@@ -2534,6 +2534,34 @@ paths:
           description: Sources
           content: { application/json: { schema: { $ref: "#/components/schemas/IPSetSources" } } }
         default: { $ref: "#/components/responses/Problem" }
+  /api/ip-sets/{id}/entries:
+    post:
+      operationId: addDynamicEntry
+      summary: Challenge or ban an address now, in sys-dynamic-challenge or sys-dynamic-blocked (05a section 8)
+      tags: [ip-sets]
+      x-hashi-scopes: [security.manage]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/DynamicEntryInput" } } }
+      responses:
+        "200":
+          description: The address's counters now; created is false when the address is allowed or already there
+          content: { application/json: { schema: { $ref: "#/components/schemas/DynamicEntryResult" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/ip-sets/{id}/entries/{address}:
+    delete:
+      operationId: removeDynamicEntry
+      summary: Take an address out of the dynamic sets (challenge and ban)
+      tags: [ip-sets]
+      x-hashi-scopes: [security.manage]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+        - { name: address, in: path, required: true, schema: { type: string } }
+      responses:
+        "204": { description: Removed, or it was not there }
+        default: { $ref: "#/components/responses/Problem" }
   /api/ip-sets/{id}/consumers:
     get:
       operationId: getIPSetConsumers
@@ -3113,6 +3141,19 @@ components:
         set_id: { type: string }
         name: { type: string }
         last_success: { type: string, format: date-time, description: "Missing when the feed never succeeded" }
+    DynamicEntryInput:
+      type: object
+      required: [address]
+      properties:
+        address: { type: string }
+        duration_seconds: { type: integer, minimum: 60, description: "Instead of the ban function or the challenge expiry" }
+        reason: { type: string, maxLength: 200 }
+    DynamicEntryResult:
+      type: object
+      required: [created, counters]
+      properties:
+        created: { type: boolean }
+        counters: { $ref: "#/components/schemas/CounterRow" }
     SecuritySource: { type: string, enum: [l7_rate, l7_waf, l7_challenge_failed, l4_meter, manual] }
     CounterRow:
       type: object
