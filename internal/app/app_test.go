@@ -24,7 +24,8 @@ func TestRunServesHealthAndShutsDownCleanly(t *testing.T) {
 	case addr = <-addrCh:
 	case err := <-done:
 		t.Fatalf("Run exited early: %v", err)
-	case <-time.After(5 * time.Second):
+	// Start takes ~0.2 s alone; a busy CI runner or two parallel `make check` runs took over 5 s (bugs.md #10).
+	case <-time.After(readyWait):
 		t.Fatal("not ready in time")
 	}
 

@@ -25,6 +25,9 @@ type syncBuffer struct {
 	b  bytes.Buffer
 }
 
+// readyWait bounds how long a test waits for Run to accept connections.
+const readyWait = 30 * time.Second
+
 func (s *syncBuffer) Write(p []byte) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -78,7 +81,8 @@ func start(t *testing.T, cfg Config) *instance {
 	case err := <-done:
 		cancel()
 		t.Fatalf("Run exited early: %v", err)
-	case <-time.After(10 * time.Second):
+	// Start takes ~0.2 s alone; a busy CI runner or two parallel `make check` runs took over 5 s (bugs.md #10).
+	case <-time.After(readyWait):
 		cancel()
 		t.Fatal("not ready in time")
 	}
