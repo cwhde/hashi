@@ -615,6 +615,54 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.setViewportSize({ width: 1280, height: 800 });
 
 	await page.goto(`${state.baseURL}/security`);
+	// Dashboard first: live tiles and the period switch.
+	await expect(page.getByText('Most refused addresses')).toBeVisible();
+	await expect(page.getByText('WAF matches', { exact: true }).first()).toBeVisible();
+	await page.getByRole('radio', { name: '7d' }).click();
+	await expect(page.getByText('Kernel meters')).toBeVisible();
+	await page.setViewportSize({ width: 390, height: 844 });
+	expect(
+		await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+		'the dashboard is wider than a phone'
+	).toBe(true);
+	await page.screenshot({ path: 'test-results/s10-dashboard-phone.png', fullPage: true });
+	await page.setViewportSize({ width: 1280, height: 800 });
+	// A ban by hand shows in Counters with its state; ending it from the row menu leaves the counter.
+	const ban = await page.request.post(`${state.baseURL}/api/ip-sets/sys-dynamic-blocked/entries`, {
+		data: { address: '198.51.100.77', duration_seconds: 600, reason: 'e2e' },
+		headers: {
+			'X-Hashi-CSRF': (await (await page.request.get(`${state.baseURL}/api/auth/session`)).json())
+				.csrf_token
+		}
+	});
+	expect(ban.status()).toBe(200);
+	expect((await ban.json()).created, JSON.stringify(await ban.json())).toBe(true);
+	await page.getByRole('tab', { name: 'Counters' }).click();
+	await expect(page.getByRole('row', { name: /198\.51\.100\.77/ })).toContainText('banned');
+	await page.getByRole('button', { name: 'Actions for 198.51.100.77' }).click();
+	await page.getByRole('menuitem', { name: 'Unban' }).click();
+	await expect(page.getByRole('row', { name: /198\.51\.100\.77/ })).not.toContainText('banned');
+	await page.setViewportSize({ width: 390, height: 844 });
+	// The row menu must be reachable without scrolling sideways.
+	await expect(page.getByRole('button', { name: 'Actions for 198.51.100.77' })).toBeInViewport();
+	await page.screenshot({ path: 'test-results/s10-counters-phone.png', fullPage: true });
+	await page.setViewportSize({ width: 1280, height: 800 });
+	// The dynamic sets on the IP sets page: challenge by hand with a duration, then end it.
+	await page.goto(`${state.baseURL}/ip-sets/sys-dynamic-challenge`);
+	await expect(page.getByText('Nobody is challenged right now.')).toBeVisible();
+	await page.getByLabel('Address', { exact: true }).fill('198.51.100.78');
+	await page.getByLabel('Minutes').fill('10');
+	await page.getByRole('button', { name: 'Challenge now' }).click();
+	await expect(page.getByText('1 challenged address')).toBeVisible();
+	await page.setViewportSize({ width: 390, height: 844 });
+	await expect(page.getByRole('button', { name: 'Actions for 198.51.100.78' })).toBeInViewport();
+	await page.screenshot({ path: 'test-results/s10-dynamic-phone.png', fullPage: true });
+	await page.setViewportSize({ width: 1280, height: 800 });
+	await page.getByRole('button', { name: 'Actions for 198.51.100.78' }).click();
+	await page.getByRole('menuitem', { name: 'End challenge' }).click();
+	await expect(page.getByText('Nobody is challenged right now.')).toBeVisible();
+	await page.goto(`${state.baseURL}/security`);
+	await page.getByRole('tab', { name: 'Challenge', exact: true }).click();
 	await expect(page.getByText('Cap challenge')).toBeVisible();
 	await expect(page.getByLabel('Challenge page')).toHaveValue(/^captcha\.hashi\./);
 	await page.setViewportSize({ width: 390, height: 844 });

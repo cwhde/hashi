@@ -140,7 +140,13 @@ func (e *Engine) StageA(ctx context.Context, r Request) (Outcome, error) {
 }
 
 // WAFMatch counts one WAF match from the access log (06 §3.2); SSO sessions do not exempt it.
-func (e *Engine) WAFMatch(ctx context.Context, a netip.Addr, serviceID string) error {
+// WAFDetail is what a WAF refusal records: the request line and the rules that scored, for finding false positives.
+type WAFDetail struct {
+	Method, Path string
+	Rules        []int
+}
+
+func (e *Engine) WAFMatch(ctx context.Context, a netip.Addr, serviceID string, d WAFDetail) error {
 	a = a.Unmap()
 	if e.Allowed(a) {
 		return nil
@@ -155,7 +161,8 @@ func (e *Engine) WAFMatch(ctx context.Context, a netip.Addr, serviceID string) e
 	}
 	n := w.hit(now, time.Duration(cfg.WAFWindowSeconds)*time.Second)
 	e.mu.Unlock()
-	e.ev.add(event{at: now, key: k, typ: "waf_match", severity: "warning", source: SourceWAF, service: serviceID})
+	e.ev.add(event{at: now, key: k, typ: "waf_match", severity: "warning", source: SourceWAF, service: serviceID,
+		method: d.Method, path: d.Path, meta: map[string]any{"rules": d.Rules}})
 	if n < float64(cfg.WAFViolations) {
 		return nil
 	}

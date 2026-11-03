@@ -263,6 +263,51 @@ func (e CertificateProviderInputDirectory) Valid() bool {
 	}
 }
 
+// Defines values for CounterFilterState.
+const (
+	CounterFilterStateActive     CounterFilterState = "active"
+	CounterFilterStateAll        CounterFilterState = "all"
+	CounterFilterStateBanned     CounterFilterState = "banned"
+	CounterFilterStateChallenged CounterFilterState = "challenged"
+)
+
+// Valid indicates whether the value is a known member of the CounterFilterState enum.
+func (e CounterFilterState) Valid() bool {
+	switch e {
+	case CounterFilterStateActive:
+		return true
+	case CounterFilterStateAll:
+		return true
+	case CounterFilterStateBanned:
+		return true
+	case CounterFilterStateChallenged:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for CounterRowState.
+const (
+	CounterRowStateBanned     CounterRowState = "banned"
+	CounterRowStateChallenged CounterRowState = "challenged"
+	CounterRowStateNone       CounterRowState = "none"
+)
+
+// Valid indicates whether the value is a known member of the CounterRowState enum.
+func (e CounterRowState) Valid() bool {
+	switch e {
+	case CounterRowStateBanned:
+		return true
+	case CounterRowStateChallenged:
+		return true
+	case CounterRowStateNone:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DNSDecision.
 const (
 	DNSDecisionImport DNSDecision = "import"
@@ -1370,6 +1415,75 @@ func (e SecretMetaClass) Valid() bool {
 	}
 }
 
+// Defines values for SecurityEventSeverity.
+const (
+	SecurityEventSeverityCritical SecurityEventSeverity = "critical"
+	SecurityEventSeverityInfo     SecurityEventSeverity = "info"
+	SecurityEventSeverityWarning  SecurityEventSeverity = "warning"
+)
+
+// Valid indicates whether the value is a known member of the SecurityEventSeverity enum.
+func (e SecurityEventSeverity) Valid() bool {
+	switch e {
+	case SecurityEventSeverityCritical:
+		return true
+	case SecurityEventSeverityInfo:
+		return true
+	case SecurityEventSeverityWarning:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SecuritySource.
+const (
+	SecuritySourceL4Meter           SecuritySource = "l4_meter"
+	SecuritySourceL7ChallengeFailed SecuritySource = "l7_challenge_failed"
+	SecuritySourceL7Rate            SecuritySource = "l7_rate"
+	SecuritySourceL7Waf             SecuritySource = "l7_waf"
+	SecuritySourceManual            SecuritySource = "manual"
+)
+
+// Valid indicates whether the value is a known member of the SecuritySource enum.
+func (e SecuritySource) Valid() bool {
+	switch e {
+	case SecuritySourceL4Meter:
+		return true
+	case SecuritySourceL7ChallengeFailed:
+		return true
+	case SecuritySourceL7Rate:
+		return true
+	case SecuritySourceL7Waf:
+		return true
+	case SecuritySourceManual:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SecurityTopAddressState.
+const (
+	SecurityTopAddressStateBanned     SecurityTopAddressState = "banned"
+	SecurityTopAddressStateChallenged SecurityTopAddressState = "challenged"
+	SecurityTopAddressStateNone       SecurityTopAddressState = "none"
+)
+
+// Valid indicates whether the value is a known member of the SecurityTopAddressState enum.
+func (e SecurityTopAddressState) Valid() bool {
+	switch e {
+	case SecurityTopAddressStateBanned:
+		return true
+	case SecurityTopAddressStateChallenged:
+		return true
+	case SecurityTopAddressStateNone:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ServiceDomainMode.
 const (
 	ServiceDomainModeCustom    ServiceDomainMode = "custom"
@@ -2002,22 +2116,91 @@ func (e GetIPSetResolvedParamsFamily) Valid() bool {
 
 // Defines values for GetMonitorEndpointParamsRange.
 const (
-	N1h  GetMonitorEndpointParamsRange = "1h"
-	N24h GetMonitorEndpointParamsRange = "24h"
-	N30d GetMonitorEndpointParamsRange = "30d"
-	N7d  GetMonitorEndpointParamsRange = "7d"
+	GetMonitorEndpointParamsRangeN1h  GetMonitorEndpointParamsRange = "1h"
+	GetMonitorEndpointParamsRangeN24h GetMonitorEndpointParamsRange = "24h"
+	GetMonitorEndpointParamsRangeN30d GetMonitorEndpointParamsRange = "30d"
+	GetMonitorEndpointParamsRangeN7d  GetMonitorEndpointParamsRange = "7d"
 )
 
 // Valid indicates whether the value is a known member of the GetMonitorEndpointParamsRange enum.
 func (e GetMonitorEndpointParamsRange) Valid() bool {
 	switch e {
-	case N1h:
+	case GetMonitorEndpointParamsRangeN1h:
 		return true
-	case N24h:
+	case GetMonitorEndpointParamsRangeN24h:
 		return true
-	case N30d:
+	case GetMonitorEndpointParamsRangeN30d:
 		return true
-	case N7d:
+	case GetMonitorEndpointParamsRangeN7d:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListSecurityCountersParamsState.
+const (
+	ListSecurityCountersParamsStateActive     ListSecurityCountersParamsState = "active"
+	ListSecurityCountersParamsStateAll        ListSecurityCountersParamsState = "all"
+	ListSecurityCountersParamsStateBanned     ListSecurityCountersParamsState = "banned"
+	ListSecurityCountersParamsStateChallenged ListSecurityCountersParamsState = "challenged"
+)
+
+// Valid indicates whether the value is a known member of the ListSecurityCountersParamsState enum.
+func (e ListSecurityCountersParamsState) Valid() bool {
+	switch e {
+	case ListSecurityCountersParamsStateActive:
+		return true
+	case ListSecurityCountersParamsStateAll:
+		return true
+	case ListSecurityCountersParamsStateBanned:
+		return true
+	case ListSecurityCountersParamsStateChallenged:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListSecurityCountersParamsSort.
+const (
+	Ban       ListSecurityCountersParamsSort = "ban"
+	Challenge ListSecurityCountersParamsSort = "challenge"
+	Last      ListSecurityCountersParamsSort = "last"
+)
+
+// Valid indicates whether the value is a known member of the ListSecurityCountersParamsSort enum.
+func (e ListSecurityCountersParamsSort) Valid() bool {
+	switch e {
+	case Ban:
+		return true
+	case Challenge:
+		return true
+	case Last:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GetSecurityDashboardParamsRange.
+const (
+	GetSecurityDashboardParamsRangeN1h  GetSecurityDashboardParamsRange = "1h"
+	GetSecurityDashboardParamsRangeN24h GetSecurityDashboardParamsRange = "24h"
+	GetSecurityDashboardParamsRangeN30d GetSecurityDashboardParamsRange = "30d"
+	GetSecurityDashboardParamsRangeN7d  GetSecurityDashboardParamsRange = "7d"
+)
+
+// Valid indicates whether the value is a known member of the GetSecurityDashboardParamsRange enum.
+func (e GetSecurityDashboardParamsRange) Valid() bool {
+	switch e {
+	case GetSecurityDashboardParamsRangeN1h:
+		return true
+	case GetSecurityDashboardParamsRangeN24h:
+		return true
+	case GetSecurityDashboardParamsRangeN30d:
+		return true
+	case GetSecurityDashboardParamsRangeN7d:
 		return true
 	default:
 		return false
@@ -2395,6 +2578,73 @@ type CertificateProviderInput struct {
 // CertificateProviderInputDirectory defines model for CertificateProviderInput.Directory.
 type CertificateProviderInputDirectory string
 
+// CounterEditInput defines model for CounterEditInput.
+type CounterEditInput struct {
+	BanCount       *int  `json:"ban_count,omitempty"`
+	ChallengeCount *int  `json:"challenge_count,omitempty"`
+	ResetFailures  *bool `json:"reset_failures,omitempty"`
+}
+
+// CounterFilter The counters list's filter
+type CounterFilter struct {
+	Asn          *int                `json:"asn,omitempty"`
+	Country      *string             `json:"country,omitempty"`
+	MinBan       *int                `json:"min_ban,omitempty"`
+	MinChallenge *int                `json:"min_challenge,omitempty"`
+	Q            *string             `json:"q,omitempty"`
+	Since        *time.Time          `json:"since,omitempty"`
+	Source       *SecuritySource     `json:"source,omitempty"`
+	State        *CounterFilterState `json:"state,omitempty"`
+}
+
+// CounterFilterState defines model for CounterFilter.State.
+type CounterFilterState string
+
+// CounterList defines model for CounterList.
+type CounterList struct {
+	NextCursor *string      `json:"next_cursor,omitempty"`
+	Rows       []CounterRow `json:"rows"`
+
+	// Total Rows matching the filter
+	Total int `json:"total"`
+}
+
+// CounterResetInput Either addresses, or all_matching with the same filter as the list
+type CounterResetInput struct {
+	Addresses *[]string `json:"addresses,omitempty"`
+
+	// AllMatching The counters list's filter
+	AllMatching *CounterFilter `json:"all_matching,omitempty"`
+}
+
+// CounterRow defines model for CounterRow.
+type CounterRow struct {
+	// Address An IPv4 address, or an IPv6 /64
+	Address        string `json:"address"`
+	Asn            int    `json:"asn"`
+	BanCount       int    `json:"ban_count"`
+	ChallengeCount int    `json:"challenge_count"`
+	Country        string `json:"country"`
+
+	// Failures Challenged: unsolved requests so far
+	Failures      int        `json:"failures"`
+	LastBan       *time.Time `json:"last_ban,omitempty"`
+	LastChallenge *time.Time `json:"last_challenge,omitempty"`
+	LastSource    string     `json:"last_source"`
+
+	// MaxFailures Challenged: the ban limit
+	MaxFailures            int             `json:"max_failures"`
+	NextBanDecrement       *time.Time      `json:"next_ban_decrement,omitempty"`
+	NextChallengeDecrement *time.Time      `json:"next_challenge_decrement,omitempty"`
+	State                  CounterRowState `json:"state"`
+
+	// Until End of the ban or challenge; missing: none, or no expiry
+	Until *time.Time `json:"until,omitempty"`
+}
+
+// CounterRowState defines model for CounterRow.State.
+type CounterRowState string
+
 // DNSConnectResult `provider` and `zone` are absent when no zone was chosen (nothing stored)
 type DNSConnectResult struct {
 	Provider *DNSProvider `json:"provider,omitempty"`
@@ -2607,6 +2857,21 @@ type DNSZoneList struct {
 // DNSZoneRef defines model for DNSZoneRef.
 type DNSZoneRef struct {
 	ZoneId string `json:"zone_id"`
+}
+
+// DynamicEntryInput defines model for DynamicEntryInput.
+type DynamicEntryInput struct {
+	Address string `json:"address"`
+
+	// DurationSeconds Instead of the ban function or the challenge expiry
+	DurationSeconds *int    `json:"duration_seconds,omitempty"`
+	Reason          *string `json:"reason,omitempty"`
+}
+
+// DynamicEntryResult defines model for DynamicEntryResult.
+type DynamicEntryResult struct {
+	Counters CounterRow `json:"counters"`
+	Created  bool       `json:"created"`
 }
 
 // EdgeSSOSettings defines model for EdgeSSOSettings.
@@ -3893,11 +4158,127 @@ type SecretMeta struct {
 // SecretMetaClass defines model for SecretMeta.Class.
 type SecretMetaClass string
 
+// SecurityCountry defines model for SecurityCountry.
+type SecurityCountry struct {
+	Country string `json:"country"`
+	Refused int    `json:"refused"`
+}
+
+// SecurityDashboard defines model for SecurityDashboard.
+type SecurityDashboard struct {
+	Countries []SecurityCountry `json:"countries"`
+	Events    []SecurityEvent   `json:"events"`
+	Funnel    SecurityFunnel    `json:"funnel"`
+
+	// Meters Bans by a kernel meter per firewall host
+	Meters     []SecurityMeters    `json:"meters"`
+	Range      string              `json:"range"`
+	Series     []SecurityPoint     `json:"series"`
+	Services   []SecurityService   `json:"services"`
+	StaleFeeds []SecurityStaleFeed `json:"stale_feeds"`
+
+	// StepSeconds Width of one series point
+	StepSeconds  int                  `json:"step_seconds"`
+	TopAddresses []SecurityTopAddress `json:"top_addresses"`
+	Totals       SecurityPoint        `json:"totals"`
+}
+
+// SecurityEvent defines model for SecurityEvent.
+type SecurityEvent struct {
+	Address string    `json:"address"`
+	At      time.Time `json:"at"`
+	Host    string    `json:"host"`
+	Method  string    `json:"method"`
+	Path    string    `json:"path"`
+	Reason  string    `json:"reason"`
+
+	// Rules WAF rules that scored
+	Rules     []int                 `json:"rules"`
+	Service   string                `json:"service"`
+	ServiceId string                `json:"service_id"`
+	Severity  SecurityEventSeverity `json:"severity"`
+	Source    string                `json:"source"`
+
+	// Suppressed Further events of this address in the same minute
+	Suppressed int    `json:"suppressed"`
+	Type       string `json:"type"`
+}
+
+// SecurityEventSeverity defines model for SecurityEvent.Severity.
+type SecurityEventSeverity string
+
+// SecurityFunnel defines model for SecurityFunnel.
+type SecurityFunnel struct {
+	// Banned Bans after an ignored challenge
+	Banned int `json:"banned"`
+
+	// Challenged Challenges entered
+	Challenged int `json:"challenged"`
+	Solved     int `json:"solved"`
+}
+
+// SecurityMeters The staging set is shared by all meters, so a ban knows its host, not which meter tripped
+type SecurityMeters struct {
+	Bans   int    `json:"bans"`
+	Host   string `json:"host"`
+	HostId string `json:"host_id"`
+}
+
+// SecurityPoint defines model for SecurityPoint.
+type SecurityPoint struct {
+	Allowed      int        `json:"allowed"`
+	At           *time.Time `json:"at,omitempty"`
+	AuthRequired int        `json:"auth_required"`
+	Bans         int        `json:"bans"`
+
+	// Challenged Requests answered with a challenge
+	Challenged int `json:"challenged"`
+
+	// Denied Requests refused by a rule, the WAF or a ban
+	Denied     int `json:"denied"`
+	WafMatches int `json:"waf_matches"`
+}
+
+// SecurityService defines model for SecurityService.
+type SecurityService struct {
+	Name      string `json:"name"`
+	Refused   int    `json:"refused"`
+	ServiceId string `json:"service_id"`
+}
+
 // SecuritySettings defines model for SecuritySettings.
 type SecuritySettings struct {
 	AdminIdleTimeoutMinutes int      `json:"admin_idle_timeout_minutes"`
 	BootstrapAllowedCidrs   []string `json:"bootstrap_allowed_cidrs"`
 }
+
+// SecuritySource defines model for SecuritySource.
+type SecuritySource string
+
+// SecurityStaleFeed defines model for SecurityStaleFeed.
+type SecurityStaleFeed struct {
+	// LastSuccess Missing when the feed never succeeded
+	LastSuccess *time.Time `json:"last_success,omitempty"`
+	Name        string     `json:"name"`
+	SetId       string     `json:"set_id"`
+}
+
+// SecurityTopAddress defines model for SecurityTopAddress.
+type SecurityTopAddress struct {
+	Address string  `json:"address"`
+	Asn     int     `json:"asn"`
+	Country string  `json:"country"`
+	Reason  *string `json:"reason,omitempty"`
+
+	// Refused Denied plus challenged requests
+	Refused  int                     `json:"refused"`
+	Requests int                     `json:"requests"`
+	State    SecurityTopAddressState `json:"state"`
+	Until    *time.Time              `json:"until,omitempty"`
+}
+
+// SecurityTopAddressState defines model for SecurityTopAddress.State.
+type SecurityTopAddressState string
 
 // Service defines model for Service.
 type Service struct {
@@ -4500,10 +4881,46 @@ type PulseHeartbeatParams struct {
 	Authorization string `json:"Authorization"`
 }
 
+// ListSecurityCountersParams defines parameters for ListSecurityCounters.
+type ListSecurityCountersParams struct {
+	State        *ListSecurityCountersParamsState `form:"state,omitempty" json:"state,omitempty"`
+	MinBan       *int                             `form:"min_ban,omitempty" json:"min_ban,omitempty"`
+	MinChallenge *int                             `form:"min_challenge,omitempty" json:"min_challenge,omitempty"`
+	Source       *SecuritySource                  `form:"source,omitempty" json:"source,omitempty"`
+	Country      *string                          `form:"country,omitempty" json:"country,omitempty"`
+	Asn          *int                             `form:"asn,omitempty" json:"asn,omitempty"`
+
+	// Since Last offence at or after
+	Since *time.Time `form:"since,omitempty" json:"since,omitempty"`
+
+	// Q An address or CIDR: rows inside it
+	Q      *string                         `form:"q,omitempty" json:"q,omitempty"`
+	Sort   *ListSecurityCountersParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
+	Cursor *string                         `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Limit  *int                            `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ListSecurityCountersParamsState defines parameters for ListSecurityCounters.
+type ListSecurityCountersParamsState string
+
+// ListSecurityCountersParamsSort defines parameters for ListSecurityCounters.
+type ListSecurityCountersParamsSort string
+
+// GetSecurityDashboardParams defines parameters for GetSecurityDashboard.
+type GetSecurityDashboardParams struct {
+	Range *GetSecurityDashboardParamsRange `form:"range,omitempty" json:"range,omitempty"`
+}
+
+// GetSecurityDashboardParamsRange defines parameters for GetSecurityDashboard.
+type GetSecurityDashboardParamsRange string
+
 // PutServiceDashboardJSONBody defines parameters for PutServiceDashboard.
 type PutServiceDashboardJSONBody struct {
 	Visible bool `json:"visible"`
 }
+
+// EditAddressCountersJSONRequestBody defines body for EditAddressCounters for application/json ContentType.
+type EditAddressCountersJSONRequestBody = CounterEditInput
 
 // TraceAddressJSONRequestBody defines body for TraceAddress for application/json ContentType.
 type TraceAddressJSONRequestBody = TraceInput
@@ -4595,6 +5012,9 @@ type AddIPSetElementJSONRequestBody = IPSetElementInput
 // UpdateIPSetElementJSONRequestBody defines body for UpdateIPSetElement for application/json ContentType.
 type UpdateIPSetElementJSONRequestBody = IPSetElementInput
 
+// AddDynamicEntryJSONRequestBody defines body for AddDynamicEntry for application/json ContentType.
+type AddDynamicEntryJSONRequestBody = DynamicEntryInput
+
 // CreateMonitorEndpointJSONRequestBody defines body for CreateMonitorEndpoint for application/json ContentType.
 type CreateMonitorEndpointJSONRequestBody = MonitorEndpointCreate
 
@@ -4633,6 +5053,9 @@ type PutRuleSetEntriesJSONRequestBody = RuleEntriesInput
 
 // PutCaptchaSettingsJSONRequestBody defines body for PutCaptchaSettings for application/json ContentType.
 type PutCaptchaSettingsJSONRequestBody = CaptchaSettingsInput
+
+// ResetSecurityCountersJSONRequestBody defines body for ResetSecurityCounters for application/json ContentType.
+type ResetSecurityCountersJSONRequestBody = CounterResetInput
 
 // PutGeoIPJSONRequestBody defines body for PutGeoIP for application/json ContentType.
 type PutGeoIPJSONRequestBody = GeoIPInput
@@ -5028,6 +5451,9 @@ type ServerInterface interface {
 	// LookupAddress Every set that contains the address, with the nesting path to the element that holds it
 	// (GET /api/addresses/{address})
 	LookupAddress(w http.ResponseWriter, r *http.Request, address string)
+	// EditAddressCounters Set an address's ban or challenge counter (it decays from now) or restart a challenge's failure count
+	// (PATCH /api/addresses/{address}/counters)
+	EditAddressCounters(w http.ResponseWriter, r *http.Request, address string)
 	// TraceAddress What a request from this address to this service and path would get, and which rule decides (05a §8)
 	// (POST /api/addresses/{address}/trace)
 	TraceAddress(w http.ResponseWriter, r *http.Request, address string)
@@ -5241,6 +5667,12 @@ type ServerInterface interface {
 	// UpdateIPSetElement Replace an element's item, note and expiry
 	// (PATCH /api/ip-sets/{id}/elements/{elementId})
 	UpdateIPSetElement(w http.ResponseWriter, r *http.Request, id string, elementId string)
+	// AddDynamicEntry Challenge or ban an address now, in sys-dynamic-challenge or sys-dynamic-blocked (05a section 8)
+	// (POST /api/ip-sets/{id}/entries)
+	AddDynamicEntry(w http.ResponseWriter, r *http.Request, id string)
+	// RemoveDynamicEntry Take an address out of the dynamic sets (challenge and ban)
+	// (DELETE /api/ip-sets/{id}/entries/{address})
+	RemoveDynamicEntry(w http.ResponseWriter, r *http.Request, id string, address string)
 	// GetFeed A feed set's source, state and recent downloads
 	// (GET /api/ip-sets/{id}/feed)
 	GetFeed(w http.ResponseWriter, r *http.Request, id string)
@@ -5358,6 +5790,15 @@ type ServerInterface interface {
 	// TestCaptcha Ask Cap with the stored site key and secret whether they are right (no visitor needed)
 	// (POST /api/security/captcha/test)
 	TestCaptcha(w http.ResponseWriter, r *http.Request)
+	// ListSecurityCounters Every address with a ban or challenge counter, decayed, with its state now (06 section 13.1)
+	// (GET /api/security/counters)
+	ListSecurityCounters(w http.ResponseWriter, r *http.Request, params ListSecurityCountersParams)
+	// ResetSecurityCounters Set both counters to 0 for the given addresses, or for every row the filter matches
+	// (POST /api/security/counters/reset)
+	ResetSecurityCounters(w http.ResponseWriter, r *http.Request)
+	// GetSecurityDashboard What the abuse engine let through, challenged and banned in a period, and why (06 section 13)
+	// (GET /api/security/dashboard)
+	GetSecurityDashboard(w http.ResponseWriter, r *http.Request, params GetSecurityDashboardParams)
 	// GetGeoIP GeoIP databases on hand and where downloads come from
 	// (GET /api/security/geoip)
 	GetGeoIP(w http.ResponseWriter, r *http.Request)
@@ -5762,6 +6203,32 @@ func (siw *ServerInterfaceWrapper) LookupAddress(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.LookupAddress(w, r, address)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// EditAddressCounters operation middleware
+func (siw *ServerInterfaceWrapper) EditAddressCounters(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "address" -------------
+	var address string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "address", r.PathValue("address"), &address, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "address", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.EditAddressCounters(w, r, address)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -7305,6 +7772,67 @@ func (siw *ServerInterfaceWrapper) UpdateIPSetElement(w http.ResponseWriter, r *
 	handler.ServeHTTP(w, r)
 }
 
+// AddDynamicEntry operation middleware
+func (siw *ServerInterfaceWrapper) AddDynamicEntry(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddDynamicEntry(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveDynamicEntry operation middleware
+func (siw *ServerInterfaceWrapper) RemoveDynamicEntry(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "address" -------------
+	var address string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "address", r.PathValue("address"), &address, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "address", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveDynamicEntry(w, r, id, address)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetFeed operation middleware
 func (siw *ServerInterfaceWrapper) GetFeed(w http.ResponseWriter, r *http.Request) {
 
@@ -8167,6 +8695,216 @@ func (siw *ServerInterfaceWrapper) TestCaptcha(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.TestCaptcha(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListSecurityCounters operation middleware
+func (siw *ServerInterfaceWrapper) ListSecurityCounters(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListSecurityCountersParams
+
+	// ------------- Optional query parameter "state" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "state", r.URL.Query(), &params.State, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "state"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "state", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "min_ban" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "min_ban", r.URL.Query(), &params.MinBan, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "min_ban"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "min_ban", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "min_challenge" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "min_challenge", r.URL.Query(), &params.MinChallenge, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "min_challenge"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "min_challenge", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "source" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "source", r.URL.Query(), &params.Source, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "source"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "source", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "country" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "country", r.URL.Query(), &params.Country, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "country"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "country", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "asn" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "asn", r.URL.Query(), &params.Asn, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "asn"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "asn", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "since" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "since", r.URL.Query(), &params.Since, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "since"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "since", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "q", r.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "sort" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "sort", r.URL.Query(), &params.Sort, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "sort"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "sort", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListSecurityCounters(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ResetSecurityCounters operation middleware
+func (siw *ServerInterfaceWrapper) ResetSecurityCounters(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ResetSecurityCounters(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSecurityDashboard operation middleware
+func (siw *ServerInterfaceWrapper) GetSecurityDashboard(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetSecurityDashboardParams
+
+	// ------------- Optional query parameter "range" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "range", r.URL.Query(), &params.Range, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "range"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "range", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSecurityDashboard(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -9876,6 +10614,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/security/captcha/settings", wrapper.PutCaptchaSettings)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/security/captcha/key", wrapper.CreateCaptchaKey)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/security/captcha/test", wrapper.TestCaptcha)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/security/dashboard", wrapper.GetSecurityDashboard)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/security/counters", wrapper.ListSecurityCounters)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/security/counters/reset", wrapper.ResetSecurityCounters)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/security/geoip", wrapper.GetGeoIP)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/security/geoip", wrapper.PutGeoIP)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/auth/session", wrapper.GetAuthSession)
@@ -10045,7 +10786,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/ip-sets/{id}/elements/{elementId}", wrapper.UpdateIPSetElement)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/ip-sets/{id}/resolved", wrapper.GetIPSetResolved)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/ip-sets/{id}/sources", wrapper.GetIPSetSources)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/ip-sets/{id}/entries", wrapper.AddDynamicEntry)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/ip-sets/{id}/entries/{address}", wrapper.RemoveDynamicEntry)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/ip-sets/{id}/consumers", wrapper.GetIPSetConsumers)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/addresses/{address}/counters", wrapper.EditAddressCounters)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/addresses/{address}", wrapper.LookupAddress)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/certificates", wrapper.ListCertificates)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/certificates/{id}/renew", wrapper.RenewCertificate)
@@ -10210,6 +10954,46 @@ type LookupAddressdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response LookupAddressdefaultApplicationProblemPlusJSONResponse) VisitLookupAddressResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EditAddressCountersRequestObject struct {
+	Address string `json:"address"`
+	Body    *EditAddressCountersJSONRequestBody
+}
+
+type EditAddressCountersResponseObject interface {
+	VisitEditAddressCountersResponse(w http.ResponseWriter) error
+}
+
+type EditAddressCounters200JSONResponse CounterRow
+
+func (response EditAddressCounters200JSONResponse) VisitEditAddressCountersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EditAddressCountersdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response EditAddressCountersdefaultApplicationProblemPlusJSONResponse) VisitEditAddressCountersResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -12990,6 +13774,80 @@ func (response UpdateIPSetElementdefaultApplicationProblemPlusJSONResponse) Visi
 	return err
 }
 
+type AddDynamicEntryRequestObject struct {
+	Id   string `json:"id"`
+	Body *AddDynamicEntryJSONRequestBody
+}
+
+type AddDynamicEntryResponseObject interface {
+	VisitAddDynamicEntryResponse(w http.ResponseWriter) error
+}
+
+type AddDynamicEntry200JSONResponse DynamicEntryResult
+
+func (response AddDynamicEntry200JSONResponse) VisitAddDynamicEntryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddDynamicEntrydefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response AddDynamicEntrydefaultApplicationProblemPlusJSONResponse) VisitAddDynamicEntryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RemoveDynamicEntryRequestObject struct {
+	Id      string `json:"id"`
+	Address string `json:"address"`
+}
+
+type RemoveDynamicEntryResponseObject interface {
+	VisitRemoveDynamicEntryResponse(w http.ResponseWriter) error
+}
+
+type RemoveDynamicEntry204Response struct {
+}
+
+func (response RemoveDynamicEntry204Response) VisitRemoveDynamicEntryResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type RemoveDynamicEntrydefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response RemoveDynamicEntrydefaultApplicationProblemPlusJSONResponse) VisitRemoveDynamicEntryResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetFeedRequestObject struct {
 	Id string `json:"id"`
 }
@@ -14462,6 +15320,125 @@ type TestCaptchadefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response TestCaptchadefaultApplicationProblemPlusJSONResponse) VisitTestCaptchaResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListSecurityCountersRequestObject struct {
+	Params ListSecurityCountersParams
+}
+
+type ListSecurityCountersResponseObject interface {
+	VisitListSecurityCountersResponse(w http.ResponseWriter) error
+}
+
+type ListSecurityCounters200JSONResponse CounterList
+
+func (response ListSecurityCounters200JSONResponse) VisitListSecurityCountersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListSecurityCountersdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ListSecurityCountersdefaultApplicationProblemPlusJSONResponse) VisitListSecurityCountersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResetSecurityCountersRequestObject struct {
+	Body *ResetSecurityCountersJSONRequestBody
+}
+
+type ResetSecurityCountersResponseObject interface {
+	VisitResetSecurityCountersResponse(w http.ResponseWriter) error
+}
+
+type ResetSecurityCounters200JSONResponse struct {
+	Count int `json:"count"`
+}
+
+func (response ResetSecurityCounters200JSONResponse) VisitResetSecurityCountersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ResetSecurityCountersdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ResetSecurityCountersdefaultApplicationProblemPlusJSONResponse) VisitResetSecurityCountersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetSecurityDashboardRequestObject struct {
+	Params GetSecurityDashboardParams
+}
+
+type GetSecurityDashboardResponseObject interface {
+	VisitGetSecurityDashboardResponse(w http.ResponseWriter) error
+}
+
+type GetSecurityDashboard200JSONResponse SecurityDashboard
+
+func (response GetSecurityDashboard200JSONResponse) VisitGetSecurityDashboardResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetSecurityDashboarddefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetSecurityDashboarddefaultApplicationProblemPlusJSONResponse) VisitGetSecurityDashboardResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -17902,6 +18879,9 @@ type StrictServerInterface interface {
 	// LookupAddress Every set that contains the address, with the nesting path to the element that holds it
 	// (GET /api/addresses/{address})
 	LookupAddress(ctx context.Context, request LookupAddressRequestObject) (LookupAddressResponseObject, error)
+	// EditAddressCounters Set an address's ban or challenge counter (it decays from now) or restart a challenge's failure count
+	// (PATCH /api/addresses/{address}/counters)
+	EditAddressCounters(ctx context.Context, request EditAddressCountersRequestObject) (EditAddressCountersResponseObject, error)
 	// TraceAddress What a request from this address to this service and path would get, and which rule decides (05a §8)
 	// (POST /api/addresses/{address}/trace)
 	TraceAddress(ctx context.Context, request TraceAddressRequestObject) (TraceAddressResponseObject, error)
@@ -18115,6 +19095,12 @@ type StrictServerInterface interface {
 	// UpdateIPSetElement Replace an element's item, note and expiry
 	// (PATCH /api/ip-sets/{id}/elements/{elementId})
 	UpdateIPSetElement(ctx context.Context, request UpdateIPSetElementRequestObject) (UpdateIPSetElementResponseObject, error)
+	// AddDynamicEntry Challenge or ban an address now, in sys-dynamic-challenge or sys-dynamic-blocked (05a section 8)
+	// (POST /api/ip-sets/{id}/entries)
+	AddDynamicEntry(ctx context.Context, request AddDynamicEntryRequestObject) (AddDynamicEntryResponseObject, error)
+	// RemoveDynamicEntry Take an address out of the dynamic sets (challenge and ban)
+	// (DELETE /api/ip-sets/{id}/entries/{address})
+	RemoveDynamicEntry(ctx context.Context, request RemoveDynamicEntryRequestObject) (RemoveDynamicEntryResponseObject, error)
 	// GetFeed A feed set's source, state and recent downloads
 	// (GET /api/ip-sets/{id}/feed)
 	GetFeed(ctx context.Context, request GetFeedRequestObject) (GetFeedResponseObject, error)
@@ -18232,6 +19218,15 @@ type StrictServerInterface interface {
 	// TestCaptcha Ask Cap with the stored site key and secret whether they are right (no visitor needed)
 	// (POST /api/security/captcha/test)
 	TestCaptcha(ctx context.Context, request TestCaptchaRequestObject) (TestCaptchaResponseObject, error)
+	// ListSecurityCounters Every address with a ban or challenge counter, decayed, with its state now (06 section 13.1)
+	// (GET /api/security/counters)
+	ListSecurityCounters(ctx context.Context, request ListSecurityCountersRequestObject) (ListSecurityCountersResponseObject, error)
+	// ResetSecurityCounters Set both counters to 0 for the given addresses, or for every row the filter matches
+	// (POST /api/security/counters/reset)
+	ResetSecurityCounters(ctx context.Context, request ResetSecurityCountersRequestObject) (ResetSecurityCountersResponseObject, error)
+	// GetSecurityDashboard What the abuse engine let through, challenged and banned in a period, and why (06 section 13)
+	// (GET /api/security/dashboard)
+	GetSecurityDashboard(ctx context.Context, request GetSecurityDashboardRequestObject) (GetSecurityDashboardResponseObject, error)
 	// GetGeoIP GeoIP databases on hand and where downloads come from
 	// (GET /api/security/geoip)
 	GetGeoIP(ctx context.Context, request GetGeoIPRequestObject) (GetGeoIPResponseObject, error)
@@ -18638,6 +19633,39 @@ func (sh *strictHandler) LookupAddress(w http.ResponseWriter, r *http.Request, a
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(LookupAddressResponseObject); ok {
 		if err := validResponse.VisitLookupAddressResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// EditAddressCounters operation middleware
+func (sh *strictHandler) EditAddressCounters(w http.ResponseWriter, r *http.Request, address string) {
+	var request EditAddressCountersRequestObject
+
+	request.Address = address
+
+	var body EditAddressCountersJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.EditAddressCounters(ctx, request.(EditAddressCountersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "EditAddressCounters")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(EditAddressCountersResponseObject); ok {
+		if err := validResponse.VisitEditAddressCountersResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -20637,6 +21665,66 @@ func (sh *strictHandler) UpdateIPSetElement(w http.ResponseWriter, r *http.Reque
 	}
 }
 
+// AddDynamicEntry operation middleware
+func (sh *strictHandler) AddDynamicEntry(w http.ResponseWriter, r *http.Request, id string) {
+	var request AddDynamicEntryRequestObject
+
+	request.Id = id
+
+	var body AddDynamicEntryJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AddDynamicEntry(ctx, request.(AddDynamicEntryRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AddDynamicEntry")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AddDynamicEntryResponseObject); ok {
+		if err := validResponse.VisitAddDynamicEntryResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RemoveDynamicEntry operation middleware
+func (sh *strictHandler) RemoveDynamicEntry(w http.ResponseWriter, r *http.Request, id string, address string) {
+	var request RemoveDynamicEntryRequestObject
+
+	request.Id = id
+	request.Address = address
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RemoveDynamicEntry(ctx, request.(RemoveDynamicEntryRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RemoveDynamicEntry")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RemoveDynamicEntryResponseObject); ok {
+		if err := validResponse.VisitRemoveDynamicEntryResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetFeed operation middleware
 func (sh *strictHandler) GetFeed(w http.ResponseWriter, r *http.Request, id string) {
 	var request GetFeedRequestObject
@@ -21702,6 +22790,89 @@ func (sh *strictHandler) TestCaptcha(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(TestCaptchaResponseObject); ok {
 		if err := validResponse.VisitTestCaptchaResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListSecurityCounters operation middleware
+func (sh *strictHandler) ListSecurityCounters(w http.ResponseWriter, r *http.Request, params ListSecurityCountersParams) {
+	var request ListSecurityCountersRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListSecurityCounters(ctx, request.(ListSecurityCountersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListSecurityCounters")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListSecurityCountersResponseObject); ok {
+		if err := validResponse.VisitListSecurityCountersResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ResetSecurityCounters operation middleware
+func (sh *strictHandler) ResetSecurityCounters(w http.ResponseWriter, r *http.Request) {
+	var request ResetSecurityCountersRequestObject
+
+	var body ResetSecurityCountersJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ResetSecurityCounters(ctx, request.(ResetSecurityCountersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ResetSecurityCounters")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ResetSecurityCountersResponseObject); ok {
+		if err := validResponse.VisitResetSecurityCountersResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetSecurityDashboard operation middleware
+func (sh *strictHandler) GetSecurityDashboard(w http.ResponseWriter, r *http.Request, params GetSecurityDashboardParams) {
+	var request GetSecurityDashboardRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetSecurityDashboard(ctx, request.(GetSecurityDashboardRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetSecurityDashboard")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetSecurityDashboardResponseObject); ok {
+		if err := validResponse.VisitGetSecurityDashboardResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

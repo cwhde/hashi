@@ -153,6 +153,8 @@
 				<ToggleGroup.Item value="all">All</ToggleGroup.Item>
 				<ToggleGroup.Item value="user">{kindLabel.user}</ToggleGroup.Item>
 				<ToggleGroup.Item value="system">{kindLabel.system}</ToggleGroup.Item>
+				<ToggleGroup.Item value="feed">{kindLabel.feed}</ToggleGroup.Item>
+				<ToggleGroup.Item value="dynamic">{kindLabel.dynamic}</ToggleGroup.Item>
 			</ToggleGroup.Root>
 			<span class="ml-auto text-[12.5px] text-muted-foreground">{rows.length} of {sets.length}</span
 			>

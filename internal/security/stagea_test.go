@@ -100,7 +100,7 @@ func TestSSOExemptFromRateOnly(t *testing.T) {
 	}
 	// WAF matches still count with a session.
 	for range 5 {
-		if err := e.WAFMatch(ctx, bad, ""); err != nil {
+		if err := e.WAFMatch(ctx, bad, "", WAFDetail{}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -183,7 +183,7 @@ func TestInvariant_20_ManualAllowBeatsDynamic_L7(t *testing.T) {
 		}
 	}
 	for range 20 {
-		_ = e.WAFMatch(ctx, bad, "")
+		_ = e.WAFMatch(ctx, bad, "", WAFDetail{})
 	}
 	if ok, _ := e.Challenge(ctx, bad, Cause{Source: SourceManual}); ok {
 		t.Fatal("allowed address challenged")

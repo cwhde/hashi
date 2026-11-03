@@ -14,6 +14,7 @@ func (r Requirement) NeedsSession() bool { return r.Session || r.Reauth || len(r
 
 // Requirements is keyed by the operation name passed to strict middleware.
 var Requirements = map[string]Requirement{
+	"AddDynamicEntry":            {Scopes: []string{"security.manage"}, Session: false, Reauth: false},
 	"AddIPSetElement":            {Scopes: []string{"security.manage"}, Session: false, Reauth: false},
 	"AddTraefikHost":             {Scopes: []string{"services.manage"}, Session: false, Reauth: true},
 	"ApplyAgentDNS":              {Scopes: []string{"admin.write"}, Session: false, Reauth: false},
@@ -55,6 +56,7 @@ var Requirements = map[string]Requirement{
 	"DisableService":             {Scopes: []string{"services.manage"}, Session: false, Reauth: false},
 	"DiscardSyncPlan":            {Scopes: []string{"sync.apply"}, Session: false, Reauth: false},
 	"DiscoverTelegramChats":      {Scopes: []string{"admin.write"}, Session: false, Reauth: false},
+	"EditAddressCounters":        {Scopes: []string{"security.manage"}, Session: false, Reauth: false},
 	"EnableService":              {Scopes: []string{"services.manage"}, Session: false, Reauth: false},
 	"FirewallIdentity":           {Scopes: []string{"admin.read"}, Session: false, Reauth: false},
 	"GetAdGuardRewrites":         {Scopes: []string{"admin.read"}, Session: false, Reauth: false},
@@ -88,6 +90,7 @@ var Requirements = map[string]Requirement{
 	"GetPulseSettings":           {Scopes: []string{"admin.read"}, Session: false, Reauth: false},
 	"GetReadyz":                  {Scopes: []string{}, Session: false, Reauth: false},
 	"GetRuleSet":                 {Scopes: []string{"admin.read"}, Session: false, Reauth: false},
+	"GetSecurityDashboard":       {Scopes: []string{"admin.read"}, Session: false, Reauth: false},
 	"GetSecuritySettings":        {Scopes: []string{"admin.read"}, Session: false, Reauth: false},
 	"GetService":                 {Scopes: []string{"services.manage"}, Session: false, Reauth: false},
 	"GetServiceAccess":           {Scopes: []string{"admin.read"}, Session: false, Reauth: false},
@@ -123,6 +126,7 @@ var Requirements = map[string]Requirement{
 	"ListRuleSets":               {Scopes: []string{"admin.read"}, Session: false, Reauth: false},
 	"ListSSOProviders":           {Scopes: []string{"admin.read"}, Session: false, Reauth: false},
 	"ListSecrets":                {Scopes: []string{"secrets.manage"}, Session: false, Reauth: false},
+	"ListSecurityCounters":       {Scopes: []string{"admin.read"}, Session: false, Reauth: false},
 	"ListServices":               {Scopes: []string{"services.manage"}, Session: false, Reauth: false},
 	"ListSessions":               {Scopes: []string{"admin.read"}, Session: false, Reauth: false},
 	"ListSyncPlans":              {Scopes: []string{"admin.read"}, Session: false, Reauth: false},
@@ -181,9 +185,11 @@ var Requirements = map[string]Requirement{
 	"RecoverPasskeyVerify":       {Scopes: []string{"recovery.passkey"}, Session: false, Reauth: false},
 	"RefreshDNSZone":             {Scopes: []string{"admin.write"}, Session: false, Reauth: false},
 	"RefreshFeed":                {Scopes: []string{"security.manage"}, Session: false, Reauth: false},
+	"RemoveDynamicEntry":         {Scopes: []string{"security.manage"}, Session: false, Reauth: false},
 	"RemoveTraefikHost":          {Scopes: []string{"services.manage"}, Session: false, Reauth: true},
 	"RenamePasskey":              {Scopes: []string{"admin.write"}, Session: false, Reauth: false},
 	"RenewCertificate":           {Scopes: []string{"admin.write"}, Session: false, Reauth: false},
+	"ResetSecurityCounters":      {Scopes: []string{"security.manage"}, Session: false, Reauth: false},
 	"RevealSecret":               {Scopes: []string{"secrets.manage"}, Session: false, Reauth: true},
 	"RevokeOtherSessions":        {Scopes: []string{"security.manage"}, Session: false, Reauth: true},
 	"RevokePulseAgent":           {Scopes: []string{"admin.write"}, Session: false, Reauth: true},

@@ -48,7 +48,7 @@ Hashi reads Cap's password from `cap.env` and makes its own key, test), Security
 mock), IP sets → Add blocklist (recommended lists, another list by address with preview), service → WAF tab (mode per
 path, uploads, exclusions). Browser test at phone width for each. A one-screen "switch on" shortcut was built and
 removed again at the user's request: the normal screens are the way.
-Left for PR D2: Security dashboard and Counters (need their APIs), engine settings editor, dynamic sets on the IP sets page.
+
 
 PR D2, UI: Security dashboard, Counters, Challenge, Engine; service WAF tab; feed add; dynamic sets on the IP sets page.
 
@@ -56,7 +56,11 @@ Left before the gate (2026-11-03):
 - [x] Access-log lines into the telemetry: the tail ran and read, but its line sink had been `nil` since it was added
   (`74584c7`), so buckets had no status class and a Hashi outage was not ingested afterwards. Now every service line
   becomes a `response` row with its status class (06 §6.1); the tail's cursor fills an outage window in afterwards.
-- [ ] PR D2: Security dashboard, Counters, dynamic sets on the IP sets page.
+- [x] PR D2: Security dashboard (tiles with curves, most refused addresses with their state, countries, services,
+  challenge funnel, meter bans per host, recent events with the WAF rules that scored, stale feeds), Counters (filters,
+  edit, reset one or all matching, ban/challenge now, unban), dynamic sets on the IP sets page (entries, add by hand
+  with a duration, end, reset failures). APIs: `/api/security/dashboard`, `/api/security/counters` (+ reset),
+  `PATCH /api/addresses/{a}/counters`, `/api/ip-sets/{id}/entries`. Browser test at phone width for each.
 - [ ] Gate runs that need a source outside the own addresses (own addresses are exempt by design): L7 load →
   challenge, ignored challenge → ban on every host, L4 meter trip → staged → banned, large upload through headers_only.
 - [ ] Gate on the real edges (needs a Cap instance and the user's OK for each production change). 2026-11-03 on

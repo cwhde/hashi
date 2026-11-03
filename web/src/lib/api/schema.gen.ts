@@ -232,6 +232,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/security/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What the abuse engine let through, challenged and banned in a period, and why (06 section 13) */
+        get: operations["getSecurityDashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/counters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every address with a ban or challenge counter, decayed, with its state now (06 section 13.1) */
+        get: operations["listSecurityCounters"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/counters/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Set both counters to 0 for the given addresses, or for every row the filter matches */
+        post: operations["resetSecurityCounters"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/security/geoip": {
         parameters: {
             query?: never;
@@ -2524,6 +2575,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ip-sets/{id}/entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Challenge or ban an address now, in sys-dynamic-challenge or sys-dynamic-blocked (05a section 8) */
+        post: operations["addDynamicEntry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ip-sets/{id}/entries/{address}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Take an address out of the dynamic sets (challenge and ban) */
+        delete: operations["removeDynamicEntry"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ip-sets/{id}/consumers": {
         parameters: {
             query?: never;
@@ -2539,6 +2624,23 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/addresses/{address}/counters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Set an address's ban or challenge counter (it decays from now) or restart a challenge's failure count */
+        patch: operations["editAddressCounters"];
         trace?: never;
     };
     "/api/addresses/{address}": {
@@ -3062,6 +3164,165 @@ export interface components {
         CaptchaTest: {
             ok: boolean;
             message: string;
+        };
+        SecurityDashboard: {
+            range: string;
+            /** @description Width of one series point */
+            step_seconds: number;
+            totals: components["schemas"]["SecurityPoint"];
+            series: components["schemas"]["SecurityPoint"][];
+            top_addresses: components["schemas"]["SecurityTopAddress"][];
+            countries: components["schemas"]["SecurityCountry"][];
+            services: components["schemas"]["SecurityService"][];
+            funnel: components["schemas"]["SecurityFunnel"];
+            /** @description Bans by a kernel meter per firewall host */
+            meters: components["schemas"]["SecurityMeters"][];
+            events: components["schemas"]["SecurityEvent"][];
+            stale_feeds: components["schemas"]["SecurityStaleFeed"][];
+        };
+        SecurityTopAddress: {
+            address: string;
+            requests: number;
+            /** @description Denied plus challenged requests */
+            refused: number;
+            country: string;
+            asn: number;
+            /** @enum {string} */
+            state: "banned" | "challenged" | "none";
+            /** Format: date-time */
+            until?: string;
+            reason?: string;
+        };
+        SecurityCountry: {
+            country: string;
+            refused: number;
+        };
+        SecurityService: {
+            service_id: string;
+            name: string;
+            refused: number;
+        };
+        SecurityFunnel: {
+            /** @description Challenges entered */
+            challenged: number;
+            solved: number;
+            /** @description Bans after an ignored challenge */
+            banned: number;
+        };
+        /** @description The staging set is shared by all meters, so a ban knows its host, not which meter tripped */
+        SecurityMeters: {
+            host_id: string;
+            host: string;
+            bans: number;
+        };
+        SecurityStaleFeed: {
+            set_id: string;
+            name: string;
+            /**
+             * Format: date-time
+             * @description Missing when the feed never succeeded
+             */
+            last_success?: string;
+        };
+        DynamicEntryInput: {
+            address: string;
+            /** @description Instead of the ban function or the challenge expiry */
+            duration_seconds?: number;
+            reason?: string;
+        };
+        DynamicEntryResult: {
+            created: boolean;
+            counters: components["schemas"]["CounterRow"];
+        };
+        /** @enum {string} */
+        SecuritySource: "l7_rate" | "l7_waf" | "l7_challenge_failed" | "l4_meter" | "manual";
+        CounterRow: {
+            /** @description An IPv4 address, or an IPv6 /64 */
+            address: string;
+            country: string;
+            asn: number;
+            ban_count: number;
+            challenge_count: number;
+            /** @enum {string} */
+            state: "banned" | "challenged" | "none";
+            /**
+             * Format: date-time
+             * @description End of the ban or challenge; missing: none, or no expiry
+             */
+            until?: string;
+            /** @description Challenged: unsolved requests so far */
+            failures: number;
+            /** @description Challenged: the ban limit */
+            max_failures: number;
+            /** Format: date-time */
+            last_ban?: string;
+            /** Format: date-time */
+            last_challenge?: string;
+            /** Format: date-time */
+            next_ban_decrement?: string;
+            /** Format: date-time */
+            next_challenge_decrement?: string;
+            last_source: string;
+        };
+        CounterList: {
+            rows: components["schemas"]["CounterRow"][];
+            /** @description Rows matching the filter */
+            total: number;
+            next_cursor?: string;
+        };
+        CounterEditInput: {
+            ban_count?: number;
+            challenge_count?: number;
+            reset_failures?: boolean;
+        };
+        /** @description Either addresses, or all_matching with the same filter as the list */
+        CounterResetInput: {
+            addresses?: string[];
+            all_matching?: components["schemas"]["CounterFilter"];
+        };
+        /** @description The counters list's filter */
+        CounterFilter: {
+            /** @enum {string} */
+            state?: "banned" | "challenged" | "active" | "all";
+            min_ban?: number;
+            min_challenge?: number;
+            source?: components["schemas"]["SecuritySource"];
+            country?: string;
+            asn?: number;
+            /** Format: date-time */
+            since?: string;
+            q?: string;
+        };
+        SecurityPoint: {
+            /** Format: date-time */
+            at?: string;
+            allowed: number;
+            auth_required: number;
+            /** @description Requests answered with a challenge */
+            challenged: number;
+            /** @description Requests refused by a rule, the WAF or a ban */
+            denied: number;
+            waf_matches: number;
+            bans: number;
+        };
+        SecurityEvent: {
+            /** Format: date-time */
+            at: string;
+            address: string;
+            type: string;
+            /** @enum {string} */
+            severity: "info" | "warning" | "critical";
+            source: string;
+            reason: string;
+            method: string;
+            path: string;
+            service_id: string;
+            service: string;
+            host: string;
+            /** @description Further events of this address in the same minute */
+            suppressed: number;
+            /** @description WAF rules that scored */
+            rules: number[];
         };
         GeoIPStatus: {
             databases: components["schemas"]["GeoIPDatabase"][];
@@ -5107,6 +5368,91 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CaptchaTest"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getSecurityDashboard: {
+        parameters: {
+            query?: {
+                range?: "1h" | "24h" | "7d" | "30d";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Dashboard */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecurityDashboard"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listSecurityCounters: {
+        parameters: {
+            query?: {
+                state?: "banned" | "challenged" | "active" | "all";
+                min_ban?: number;
+                min_challenge?: number;
+                source?: components["schemas"]["SecuritySource"];
+                country?: string;
+                asn?: number;
+                /** @description Last offence at or after */
+                since?: string;
+                /** @description An address or CIDR: rows inside it */
+                q?: string;
+                sort?: "last" | "ban" | "challenge";
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of counters */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CounterList"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    resetSecurityCounters: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CounterResetInput"];
+            };
+        };
+        responses: {
+            /** @description How many records changed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        count: number;
+                    };
                 };
             };
             default: components["responses"]["Problem"];
@@ -9059,6 +9405,55 @@ export interface operations {
             default: components["responses"]["Problem"];
         };
     };
+    addDynamicEntry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DynamicEntryInput"];
+            };
+        };
+        responses: {
+            /** @description The address's counters now; created is false when the address is allowed or already there */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DynamicEntryResult"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    removeDynamicEntry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                address: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
     getIPSetConsumers: {
         parameters: {
             query?: never;
@@ -9077,6 +9472,33 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IPSetConsumerList"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    editAddressCounters: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                address: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CounterEditInput"];
+            };
+        };
+        responses: {
+            /** @description The address's counters now */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CounterRow"];
                 };
             };
             default: components["responses"]["Problem"];
