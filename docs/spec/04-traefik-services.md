@@ -80,7 +80,6 @@ Because Traefik is not installed through the OS package manager, Hashi owns its 
 - Hosts are upgraded one at a time; the next host starts only after the previous one verified.
 - Before a major upgrade, Hashi validates its rendered static and dynamic config against the target version's config
   schema and blocks the upgrade if anything Hashi generates is no longer valid.
-- Pinned plugin versions (e.g. Coraza) are checked the same way against the plugin catalog.
 
 ## 3. Static configuration (fully Hashi-managed)
 
@@ -88,16 +87,12 @@ Because Traefik is not installed through the OS package manager, Hashi owns its 
   entry point per public TCP/UDP service port, named `tcp-<port>` / `udp-<port>`.
 - Providers: file provider, directory `/etc/hashi/traefik/dynamic`, `watch: true`.
 - No certificate resolvers: certificates are files issued and distributed by Hashi (03-dns.md §5.3), loaded via the file provider's `tls.certificates`.
-- Access log: JSON, `/var/log/hashi/traefik/access.log`, fields limited to what the continuous tail needs (incl. the WAF
-  plugin's match fields, 06 §6.2), `Authorization`/`Cookie`/`Set-Cookie` and
+- Access log: JSON, `/var/log/hashi/traefik/access.log`, fields limited to what the continuous tail needs (06 §6.2), `Authorization`/`Cookie`/`Set-Cookie` and
   any configured header dropped; rotation via logrotate (Hashi-installed config).
 - General log: JSON, `/var/log/hashi/traefik/traefik.log`.
 - `ping` enabled on an internal entry point; API/dashboard enabled on `127.0.0.1` only (used for Verify), never public unless exposed as a protected system service.
-- Plugins (Coraza WAF) pinned by version and by the sha256 of the catalog archive, loaded as `experimental.localPlugins`:
-  Hashi downloads the archive once, checks the hash and puts its files under the Traefik service's working directory
-  (`/var/lib/hashi/traefik/plugins-local/src/<moduleName>/`), like the binary. Reason (captured,
-  `testdata/contracts/coraza/plugin_load.txt`): `experimental.plugins` downloads again at every start, and without
-  network every router using the plugin answers 404. Verify checks that no Hashi router is `disabled`.
+- No plugins. The WAF runs in Hashi's forward auth (06 §9); the Coraza Traefik plugin was tried and dropped
+  (`testdata/contracts/coraza/`: it downloads at every start, and it builds one WAF per route, 2.5 GB and 16 s for 60).
 - `serversTransport` defaults; `forwardedHeaders.trustedIPs` = firewall-host internal IPs so client IPs survive DNAT.
 
 Static changes require a Traefik restart and are high-risk.

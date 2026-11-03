@@ -6,7 +6,6 @@ Wants=network-online.target
 
 [Service]
 ExecStart=/usr/local/bin/traefik --configFile=/etc/hashi/traefik/traefik.yaml
-WorkingDirectory=/var/lib/hashi/traefik
 Restart=on-failure
 RestartSec=2
 LimitNOFILE=1048576

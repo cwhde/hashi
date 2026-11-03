@@ -1375,7 +1375,8 @@ export interface paths {
         };
         /** The abuse engine's thresholds, ban function, WAF default and feed timing (06 §10) */
         get: operations["getEngineSettings"];
-        put?: never;
+        /** Save the abuse engine's settings; the firewall and every Traefik host are planned again */
+        put: operations["putEngineSettings"];
         post?: never;
         delete?: never;
         options?: never;
@@ -3013,6 +3014,11 @@ export interface components {
             challenge_max_failed: number;
             captcha_clearance_hours: number;
             meters_enabled: boolean;
+            /** @description New TCP connections per minute from one address before the firewall holds it */
+            tcp_new_per_minute: number;
+            tcp_burst: number;
+            /** @description Open TCP connections from one address */
+            tcp_max_concurrent: number;
             /** @enum {string} */
             ban_function: "constant" | "linear" | "exponential";
             ban_base_seconds: number;
@@ -6884,6 +6890,31 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Engine settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EngineSettings"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putEngineSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EngineSettings"];
+            };
+        };
+        responses: {
+            /** @description Saved */
             200: {
                 headers: {
                     [name: string]: unknown;

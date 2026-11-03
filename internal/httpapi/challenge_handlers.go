@@ -97,6 +97,10 @@ h1{font-size:1.15rem;margin:0 0 .5rem}p{margin:.5rem 0;opacity:.8;font-size:.95r
 window.CAP_CUSTOM_WASM_URL = "/assets/cap_wasm_bg.wasm";
 window.CAP_CUSTOM_HASHWX_URL = "/assets/hashwx.wasm";
 window.CAP_SCRIPT_NONCE = window.CAP_CSS_NONCE = "{{.Nonce}}";
+document.querySelector("cap-widget").addEventListener("error", (e) => {
+  document.getElementById("msg").textContent = "The check could not finish. Reload the page to try again.";
+  console.warn("cap", e.detail);
+});
 document.querySelector("cap-widget").addEventListener("solve", async (e) => {
   const msg = document.getElementById("msg");
   msg.textContent = "Checking…";
@@ -152,7 +156,10 @@ func (s *Server) challengeStart(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Referrer-Policy", "no-referrer")
 	w.Header().Set("X-Frame-Options", "DENY")
 	// The widget runs its work in blob: workers and compiles WASM; everything else comes from this origin (Cap finding 4, 8).
-	w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'nonce-"+n+"' 'wasm-unsafe-eval'; "+
+	// Cap's anti-bot check ("block headless browsers") runs obfuscated code built at run time in a sandboxed srcdoc frame,
+	// which inherits this policy: without 'unsafe-eval' it never answers and Cap refuses the solve (seen 2026-11-03). The
+	// page holds nothing a visitor controls (escaped parameters only), so run-time code adds no injection path.
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; script-src 'nonce-"+n+"' 'unsafe-eval' 'wasm-unsafe-eval'; "+
 		"style-src 'nonce-"+n+"'; connect-src 'self'; worker-src blob:; img-src 'self' data:; base-uri 'none'; "+
 		"form-action 'none'; frame-ancestors 'none'")
 	_ = challengePage.Execute(w, map[string]string{"Nonce": n, "Host": host, "SiteKey": c.SiteKey,

@@ -592,7 +592,9 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	// S10: the WAF tab (headers only by default, a path with uploads), saved through the API.
 	await page.getByRole('tab', { name: 'WAF' }).click();
 	await expect(page.getByText('Mode per path')).toBeVisible();
-	await expect(page.getByLabel('WAF mode for the whole service')).toContainText('default (off)');
+	await expect(page.getByLabel('WAF mode for the whole service')).toContainText(
+		'default (headers only)'
+	);
 	await page.getByRole('button', { name: 'Add path' }).click();
 	await page.getByLabel('Path', { exact: true }).fill('/upload');
 	await page.getByText('Uploads and WebDAV on this path').click();
@@ -612,6 +614,11 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.setViewportSize({ width: 1280, height: 800 });
 	await page.getByRole('tab', { name: 'Engine' }).click();
 	await expect(page.getByText('300 in 10 s')).toBeVisible();
+	await expect(page.getByText('600/min, 1000 open per address')).toBeVisible();
+	await page.getByRole('button', { name: 'Edit' }).click();
+	await page.getByLabel('New connections per minute from one address').fill('700');
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page.getByText('700/min, 1000 open per address')).toBeVisible();
 	await page.getByRole('tab', { name: 'Sign-in providers' }).click();
 	await expect(page.getByText('No provider yet')).toBeVisible();
 

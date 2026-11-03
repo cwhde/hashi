@@ -51,7 +51,6 @@ func TestDevEdgeAndCAThroughTheManagers(t *testing.T) {
 	a := audit.New([]byte("k"))
 	tm := traefik.NewManager(st, v, a, nil, nil)
 	tm.UseFakes(edge.Connect, edge.Binary, edge.Scan, edge.DialTLS)
-	tm.UsePlugin(edge.Plugin)
 	eng := hsync.New(st, a, tm.Subsystems()...)
 
 	hk, _ := tm.ScanHostKey(ctx, "192.0.2.10", 22)

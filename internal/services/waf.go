@@ -167,3 +167,28 @@ func SetWAF(ctx context.Context, q *db.Queries, id string, w WAF, now time.Time)
 	cur.WAF = w
 	return cur, nil
 }
+
+// ResolveWAF is the WAF that applies to a request path of a service (06 §9): the most specific matching path entry
+// (an exact path beats every prefix, a longer prefix beats a shorter one), else the service's own setting, else the
+// default. System services keep the default with uploads on.
+func ResolveWAF(w WAF, system bool, defaultMode, path string) EffectiveWAF {
+	root := Service{WAF: w}.RootWAF(defaultMode)
+	if system {
+		return EffectiveWAF{Mode: defaultMode, Uploads: true}
+	}
+	best, bestLen, exact := -1, -1, false
+	for i, p := range w.Paths {
+		switch {
+		case p.Match == MatchExact && p.Path == path:
+			if !exact {
+				best, exact = i, true
+			}
+		case !exact && p.Match == MatchPrefix && strings.HasPrefix(path, p.Path) && len(p.Path) > bestLen:
+			best, bestLen = i, len(p.Path)
+		}
+	}
+	if best < 0 {
+		return root
+	}
+	return root.For(w.Paths[best])
+}

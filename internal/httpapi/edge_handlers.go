@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"strings"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/services"
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/traefik"
+	"git.juzo.io/juzo/hashi/internal/waf"
 )
 
 const (
@@ -102,6 +104,25 @@ func (s *Server) edgeForward(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
+	// The WAF (06 §9) sees what forward auth sees: method, URI and headers, never the body. A refused request counts
+	// towards the address's WAF trigger; an allowed address is refused too but never challenged for it.
+	if s.WAF != nil && s.Security != nil {
+		eff := services.ResolveWAF(d.WAF, d.System, s.Security.Settings().WAFDefaultMode, edge.NormalizePath(uri))
+		if eff.Mode == settings.WAFHeadersOnly {
+			v, err := s.WAF.Check(waf.Config{Uploads: eff.Uploads, Exclusions: eff.Exclusions}, wafRequest(r, ri.ip, host, uri))
+			switch {
+			case err != nil: // a WAF that cannot run never takes the service down
+				s.Log.Warn("WAF", "service", d.ServiceID, "err", err)
+			case v.Blocked:
+				decision = security.DecisionDeny
+				if err := s.Security.WAFMatch(r.Context(), ri.ip, d.ServiceID); err != nil {
+					s.Log.Error("WAF match", "err", err)
+				}
+				edgePage(w, http.StatusForbidden, "Request refused.")
+				return
+			}
+		}
+	}
 	allow := func() {
 		decision = security.DecisionAllow
 		if sess != nil {
@@ -147,6 +168,24 @@ func (s *Server) edgeForward(w http.ResponseWriter, r *http.Request) {
 	default: // deny, and anything this build does not know
 		edgePage(w, http.StatusForbidden, "Access denied.")
 	}
+}
+
+// wafRequest is the original request as forward auth received it: Traefik copies the client's headers and adds the
+// X-Forwarded-* ones, which are Hashi's and Traefik's, not the client's.
+func wafRequest(r *http.Request, client netip.Addr, host, uri string) waf.Request {
+	h := map[string][]string{}
+	for k, v := range r.Header {
+		lk := strings.ToLower(k)
+		if strings.HasPrefix(lk, "x-forwarded-") || lk == "x-real-ip" || lk == strings.ToLower(traefik.EdgeHeader) {
+			continue
+		}
+		h[k] = v
+	}
+	method := r.Header.Get("X-Forwarded-Method")
+	if method == "" {
+		method = http.MethodGet
+	}
+	return waf.Request{Client: client, Method: method, URI: uri, Host: host, Header: h}
 }
 
 // challenge answers a request that has to solve a CAPTCHA first (06 §3.3): a browser goes to the challenge page, an API

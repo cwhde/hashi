@@ -183,3 +183,71 @@ func TestForwardAuthStageA(t *testing.T) {
 		t.Fatalf("answers %v, first 429 at %d", seen, first429)
 	}
 }
+
+// The WAF in forward auth (06 §9) with the default headers-only mode: plain requests pass, SQL injection and a refused
+// method get 403, a path with uploads lets WebDAV through, a path with the WAF off passes everything, and five blocks
+// within a minute challenge the address (429 for an API client).
+func TestForwardAuthWAF(t *testing.T) {
+	_, srv := hetznertest.NewSimServer(t)
+	cfg := newConfig(t)
+	cfg.dnsProviders = func(_ string, token secrets.Value) (dns.Provider, error) {
+		return hetzner.New(token, hetzner.WithBaseURL(srv.URL+"/v1")), nil
+	}
+	in := start(t, cfg)
+	c := in.client()
+	c.bootstrapLogin()
+	c.mustStatus(c.do(http.MethodPut, "/api/setup/base-settings", map[string]any{"root_domain": "example.com",
+		"admin_domain": "dev.hashi.example.com", "internal_url": "http://192.0.2.10:3340", "sync_interval_seconds": 3600,
+		"theme": "graphite", "public_dashboard_enabled": true, "public_status_enabled": true}), 200)
+	c.mustStatus(c.do(http.MethodPut, "/api/setup/dns/provider", map[string]any{"type": "hetzner", "token": hetznertest.Token, "default_ttl": 3600}), 200)
+	r := c.mustStatus(c.do(http.MethodPost, "/api/services", map[string]any{"name": "files", "slug": "files", "kind": "http",
+		"domain_mode": "subdomain", "host_name": "files.example.com", "target": map[string]any{"address": "192.0.2.20", "port": 8080}}), 200)
+	id := r.body["service"].(map[string]any)["id"].(string)
+	c.mustStatus(c.do(http.MethodPut, "/api/services/"+id+"/waf", map[string]any{"paths": []map[string]any{
+		{"match": "prefix", "path": "/dav", "uploads": true}, {"match": "prefix", "path": "/raw", "mode": "disabled"}}}), 200)
+
+	forward := func(method, uri, contentType string) int {
+		t.Helper()
+		req, err := http.NewRequest(http.MethodGet, "http://"+in.addr+"/api/edge-auth/forward", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("X-Forwarded-Host", "files.example.com")
+		req.Header.Set("X-Forwarded-Uri", uri)
+		req.Header.Set("X-Forwarded-Method", method)
+		req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0")
+		req.Header.Set("Accept", "*/*")
+		if contentType != "" {
+			req.Header.Set("Content-Type", contentType)
+		}
+		resp, err := http.DefaultTransport.RoundTrip(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+		return resp.StatusCode
+	}
+	for _, x := range []struct {
+		method, uri, ct string
+		want            int
+	}{
+		{"GET", "/index.html", "", 204},
+		{"POST", "/api/items", "application/json", 204},
+		{"PROPFIND", "/dav/", "", 204},
+		{"PUT", "/dav/file", "application/octet-stream", 204},
+		{"GET", "/raw?id=1%27%20OR%201=1--", "", 204},
+		{"GET", "/?id=1%27%20OR%201=1--", "", 403},
+		{"PROPFIND", "/", "", 403},
+		{"PUT", "/file", "application/octet-stream", 403},
+	} {
+		if got := forward(x.method, x.uri, x.ct); got != x.want {
+			t.Errorf("%s %s: %d, want %d", x.method, x.uri, got, x.want)
+		}
+	}
+	// Three blocks so far; two more within the minute reach the WAF trigger (5): the address is challenged.
+	forward("GET", "/?q=%3Cscript%3Ealert(1)%3C/script%3E", "")
+	forward("GET", "/?id=1%27%20OR%201=1--", "")
+	if got := forward("GET", "/index.html", ""); got != 429 {
+		t.Errorf("after five WAF blocks: %d, want 429 (challenged)", got)
+	}
+}
