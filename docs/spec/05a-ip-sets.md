@@ -108,7 +108,7 @@ consumers).
 | Consumer | Uses | Spec |
 | --- | --- | --- |
 | DNS record values (A / AAAA) | all resolved addresses of the record's family; services keep the CNAME-to-host rule | 03-dns.md §5.2, §7 |
-| Service upstream targets | all resolved addresses, load-balanced | 04-traefik-services.md §1.1 |
+| Service upstream targets | load-balanced over every resolved address, except that a `pulse` item gives only its selected address: its other addresses are the same machine's other interfaces (Docker bridge, ULA, …). `host` items keep all their addresses | 04-traefik-services.md §1.1 |
 | Connection targets (Traefik host SSH, firewall host SSH, AdGuard, future connections) | resolved addresses in item order: first is primary, the rest are tried in order | 08-pulse.md §5 |
 | Internal agent DNS | the agent's addresses per the setting | 03-dns.md §9 |
 
