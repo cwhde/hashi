@@ -288,33 +288,43 @@ func (s *SSO) Finish(ctx context.Context, code, state, cookieState, callback, ip
 	if err != nil {
 		return "", "", expires, err
 	}
-	key, err := s.sessionKey(ctx)
+	cookie, expires, err = s.OpenSession(ctx, p.ID, id, ip, ua)
 	if err != nil {
 		return "", "", expires, err
+	}
+	return cookie, pend.rd, expires, nil
+}
+
+// OpenSession stores a session for an identity the provider confirmed and returns its signed cookie value. Finish calls
+// it after a successful login; nothing else should, since it trusts id as given.
+func (s *SSO) OpenSession(ctx context.Context, providerID string, id Identity, ip, ua string) (cookie string, expires time.Time, err error) {
+	key, err := s.sessionKey(ctx)
+	if err != nil {
+		return "", expires, err
 	}
 	sessionID, err := randomToken(32)
 	if err != nil {
-		return "", "", expires, err
+		return "", expires, err
 	}
 	cfg, err := settings.Get[settings.EdgeSSO](ctx, s.st.R)
 	if err != nil {
-		return "", "", expires, err
+		return "", expires, err
 	}
 	groups, err := json.Marshal(append([]string{}, id.Groups...))
 	if err != nil {
-		return "", "", expires, err
+		return "", expires, err
 	}
 	now := s.now()
 	expires = now.Add(time.Duration(cfg.MaxSessionHours) * time.Hour)
 	err = s.st.Tx(ctx, func(q *db.Queries) error {
-		return q.InsertEdgeSession(ctx, db.InsertEdgeSessionParams{IDHash: hashID(sessionID), ProviderID: p.ID, Subject: id.Subject,
+		return q.InsertEdgeSession(ctx, db.InsertEdgeSessionParams{IDHash: hashID(sessionID), ProviderID: providerID, Subject: id.Subject,
 			Username: id.Username, Email: id.Email, GroupsJson: string(groups), IDToken: id.IDToken, Ip: ip, UserAgent: ua,
 			CreatedAt: now.UnixMilli(), LastSeenAt: now.UnixMilli(), ExpiresAt: expires.UnixMilli()})
 	})
 	if err != nil {
-		return "", "", expires, fmt.Errorf("store session: %w", err)
+		return "", expires, fmt.Errorf("store session: %w", err)
 	}
-	return sessionID + "." + sign(key, sessionID), pend.rd, expires, nil
+	return sessionID + "." + sign(key, sessionID), expires, nil
 }
 
 func (s *SSO) exchange(ctx context.Context, p db.OidcProvider, code string, pend pending, callback string) (Identity, error) {
