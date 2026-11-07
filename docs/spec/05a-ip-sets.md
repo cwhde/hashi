@@ -151,7 +151,8 @@ convention:
 `PATCH /api/addresses/{address}/counters` (06 §5.1, §14) · `POST /api/addresses/{address}/trace` (service + path → Stage A/B trace).
 
 Scopes: read with any admin session; edits need `security.manage`; edits to sets bound to firewall positions also create
-a firewall plan (05 §4.4).
+a firewall plan (05 §4.4). Manual abuse-engine actions (entries in the dynamic sets, counter edits and resets) also need a
+fresh passkey, as 06 §5.1 says.
 
 ## 9. Audit
 
