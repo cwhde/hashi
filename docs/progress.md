@@ -778,10 +778,8 @@ Decisions made in S0:
 ## Unverified
 
 
-- S10 review: manual counter edits, resets and "ban/challenge now" do not ask for passkey reauthentication, and their
-  audit records only the new values. 06 §5.1 says "Manual actions (reauth, audited)" and 06 §16 asks for before/after
-  values on counter edits and resets, but 05a §8 only requires `security.manage`. The spec has to settle which rule
-  applies before the code changes (the screens already ask for the passkey via `withReauth` when the API asks).
+- S10 review: the audit of counter edits and resets records only the new values; 06 §16 asks for before/after. Waits
+  for the owner's decision (passkey part decided and done 2026-11-07).
 - S7 review: required display name on monitored DNS entries isn't enforced (falls back to the host name); Telegram channels aren't discovered (no channel captured); monitored A and AAAA of one name could repeat a list key; the test button's delivery can overlap the job's and send twice; no test asserts the 15 s public cache.
 
 (Review findings that were not reproduced. Not worked on unless promoted.)

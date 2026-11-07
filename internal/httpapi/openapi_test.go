@@ -58,3 +58,13 @@ func TestPlanApprovalNeedsReauth(t *testing.T) {
 		}
 	}
 }
+
+// Manual abuse-engine actions need a fresh passkey (06 §5.1 "Manual actions (reauth, audited)"; the owner decided
+// 2026-11-07): editing or resetting counters, and challenging, banning or freeing an address by hand.
+func TestManualSecurityActionsNeedReauth(t *testing.T) {
+	for _, op := range []string{"EditAddressCounters", "ResetSecurityCounters", "AddDynamicEntry", "RemoveDynamicEntry"} {
+		if r := gen.Requirements[op]; !r.Reauth || !slices.Contains(r.Scopes, "security.manage") {
+			t.Errorf("%s: %+v, want security.manage with reauth", op, r)
+		}
+	}
+}

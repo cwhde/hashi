@@ -326,6 +326,7 @@ paths:
       summary: Set both counters to 0 for the given addresses, or for every row the filter matches
       tags: [security]
       x-hashi-scopes: [security.manage]
+      x-hashi-reauth: true
       requestBody:
         required: true
         content: { application/json: { schema: { $ref: "#/components/schemas/CounterResetInput" } } }
@@ -2540,6 +2541,7 @@ paths:
       summary: Challenge or ban an address now, in sys-dynamic-challenge or sys-dynamic-blocked (05a section 8)
       tags: [ip-sets]
       x-hashi-scopes: [security.manage]
+      x-hashi-reauth: true
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
       requestBody:
@@ -2556,6 +2558,7 @@ paths:
       summary: Take an address out of the dynamic sets (challenge and ban)
       tags: [ip-sets]
       x-hashi-scopes: [security.manage]
+      x-hashi-reauth: true
       parameters:
         - { name: id, in: path, required: true, schema: { type: string } }
         - { name: address, in: path, required: true, schema: { type: string } }
@@ -2581,6 +2584,7 @@ paths:
       summary: Set an address's ban or challenge counter (it decays from now) or restart a challenge's failure count
       tags: [security]
       x-hashi-scopes: [security.manage]
+      x-hashi-reauth: true
       parameters:
         - { name: address, in: path, required: true, schema: { type: string } }
       requestBody:

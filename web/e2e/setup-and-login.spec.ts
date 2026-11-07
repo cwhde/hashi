@@ -628,15 +628,13 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.screenshot({ path: 'test-results/s10-dashboard-phone.png', fullPage: true });
 	await page.setViewportSize({ width: 1280, height: 800 });
 	// A ban by hand shows in Counters with its state; ending it from the row menu leaves the counter.
-	const ban = await page.request.post(`${state.baseURL}/api/ip-sets/sys-dynamic-blocked/entries`, {
-		data: { address: '198.51.100.77', duration_seconds: 600, reason: 'e2e' },
-		headers: {
-			'X-Hashi-CSRF': (await (await page.request.get(`${state.baseURL}/api/auth/session`)).json())
-				.csrf_token
-		}
-	});
-	expect(ban.status()).toBe(200);
-	expect((await ban.json()).created, JSON.stringify(await ban.json())).toBe(true);
+	// Banning by hand needs a fresh passkey (06 §5.1); the screen asks, the virtual authenticator answers.
+	await page.goto(`${state.baseURL}/ip-sets/sys-dynamic-blocked`);
+	await page.getByLabel('Address', { exact: true }).fill('198.51.100.77');
+	await page.getByLabel('Minutes').fill('10');
+	await page.getByRole('button', { name: 'Ban now' }).click();
+	await expect(page.getByText('1 banned address')).toBeVisible();
+	await page.goto(`${state.baseURL}/security`);
 	await page.getByRole('tab', { name: 'Counters' }).click();
 	await expect(page.getByRole('row', { name: /198\.51\.100\.77/ })).toContainText('banned');
 	await page.getByRole('button', { name: 'Actions for 198.51.100.77' }).click();
