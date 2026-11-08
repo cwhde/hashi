@@ -823,6 +823,10 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-11-08 · release and deploy `v0.10.0-beta.10` (`f91f237`, the owner's OK in chat) · manual abuse-engine actions
+  (counter edits and resets, challenge/ban/free by hand) need a fresh passkey, as the owner decided. Smoke ok. GitHub was
+  unreachable from the CI runners for most of an hour (TLS timeout at checkout, before any of our code); the jobs went
+  through on reruns. CI depends on github.com for `actions/checkout`: a mirror on Gitea would remove that.
 - 2026-11-03 · release and deploy `v0.10.0-beta.9` (`c1e95c0`, PR #61, the user's OK in chat) · S10 review fixes.
   Smoke ok. Invariant 7 seen live: when the rate test's third ban ended, the host link recorded `ban_removed_host` for
   the edge's firewall host and the sweep `ban_expired`; before this release both left no event. The release image job
