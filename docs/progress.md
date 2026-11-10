@@ -824,7 +824,9 @@ Decisions made in S0:
 - 2026-11-10 · counter edits and resets keep the values they replaced in the audit (06 §16 before/after, the owner's
   decision): an edit records `ban`/`challenge` as before and after, a reset lists every address that was above 0 with
   its previous counters. Activity shows them under the entry ("ban 1 → 4"; a reset names up to 20 addresses, the API
-  has all). Engine, handler and e2e tests cover it.
+  has all). Engine, handler and e2e tests cover it. Tagged `v0.10.0-beta.11` (`52124fb`; the first tag missed the Pulse
+  `ReleaseTag` bump and the release guard refused it). CI and release green after reruns of GitHub TLS timeouts. Seen once
+  in CI: `TestIntegrationPocketID` panicked on a nil interface conversion (passed on the next commit, flaky, unexamined).
 - 2026-11-08 · release and deploy `v0.10.0-beta.10` (`f91f237`, the owner's OK in chat) · manual abuse-engine actions
   (counter edits and resets, challenge/ban/free by hand) need a fresh passkey, as the owner decided. Smoke ok. GitHub was
   unreachable from the CI runners for most of an hour (TLS timeout at checkout, before any of our code); the jobs went
