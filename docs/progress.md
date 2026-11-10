@@ -6,6 +6,7 @@ Rules: docs/spec/11-delivery.md §2.
 ## Current slice
 
 **S10 — Abuse engine, WAF, CAPTCHA, feeds** · status: **done** (gate passed 2026-11-03 on `v0.10.0-beta.8`; review fixes in `v0.10.0-beta.9`). Gate: 11-delivery.md §3 row S10. Next: S11.
+Order after S11 (the owner, 2026-11-10): a large bug hunt and fix round over `docs/bugs.md` and the whole product, then S12 and `v1.0.0`.
 Scope: 06 §3, §5–6, §8–11, §13 (Security dashboard, Engine), dynamic sets, host link, kernel meters on.
 
 Contracts: Traefik access log JSON exists (`testdata/contracts/traefik`), nft meter and set shapes exist
