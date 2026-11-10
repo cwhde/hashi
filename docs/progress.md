@@ -821,6 +821,8 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-11-10 · deploy `v0.10.0-beta.11` (`52124fb`, the owner's OK in chat) · audit keeps counter values before an
+  edit or reset. Smoke ok (readyz, version, SPA, public apps, public status).
 - 2026-11-10 · counter edits and resets keep the values they replaced in the audit (06 §16 before/after, the owner's
   decision): an edit records `ban`/`challenge` as before and after, a reset lists every address that was above 0 with
   its previous counters. Activity shows them under the entry ("ban 1 → 4"; a reset names up to 20 addresses, the API
