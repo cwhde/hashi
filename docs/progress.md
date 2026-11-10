@@ -778,8 +778,6 @@ Decisions made in S0:
 ## Unverified
 
 
-- S10 review: the audit of counter edits and resets records only the new values; 06 §16 asks for before/after. Waits
-  for the owner's decision (passkey part decided and done 2026-11-07).
 - S7 review: required display name on monitored DNS entries isn't enforced (falls back to the host name); Telegram channels aren't discovered (no channel captured); monitored A and AAAA of one name could repeat a list key; the test button's delivery can overlap the job's and send twice; no test asserts the 15 s public cache.
 
 (Review findings that were not reproduced. Not worked on unless promoted.)
@@ -823,6 +821,10 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-11-10 · counter edits and resets keep the values they replaced in the audit (06 §16 before/after, the owner's
+  decision): an edit records `ban`/`challenge` as before and after, a reset lists every address that was above 0 with
+  its previous counters. Activity shows them under the entry ("ban 1 → 4"; a reset names up to 20 addresses, the API
+  has all). Engine, handler and e2e tests cover it.
 - 2026-11-08 · release and deploy `v0.10.0-beta.10` (`f91f237`, the owner's OK in chat) · manual abuse-engine actions
   (counter edits and resets, challenge/ban/free by hand) need a fresh passkey, as the owner decided. Smoke ok. GitHub was
   unreachable from the CI runners for most of an hour (TLS timeout at checkout, before any of our code); the jobs went

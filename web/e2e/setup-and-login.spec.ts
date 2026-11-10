@@ -645,6 +645,16 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await expect(page.getByRole('button', { name: 'Actions for 198.51.100.77' })).toBeInViewport();
 	await page.screenshot({ path: 'test-results/s10-counters-phone.png', fullPage: true });
 	await page.setViewportSize({ width: 1280, height: 800 });
+	// Editing a counter keeps the old value in the audit log, shown on Activity (06 §16).
+	await page.getByRole('button', { name: 'Actions for 198.51.100.77' }).click();
+	await page.getByRole('menuitem', { name: 'Edit counters' }).click();
+	await page.getByLabel('Ban counter').fill('4');
+	await page.getByRole('button', { name: 'Confirm with passkey and save' }).click();
+	await expect(page.getByRole('row', { name: /198\.51\.100\.77/ })).toContainText('4');
+	await page.goto(`${state.baseURL}/activity`);
+	await expect(page.getByRole('row', { name: /security\.counters_edited/ }).first()).toContainText(
+		'ban 1 → 4'
+	);
 	// The dynamic sets on the IP sets page: challenge by hand with a duration, then end it.
 	await page.goto(`${state.baseURL}/ip-sets/sys-dynamic-challenge`);
 	await expect(page.getByText('Nobody is challenged right now.')).toBeVisible();

@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net/netip"
+	"strings"
 	"testing"
 	"time"
 
@@ -137,6 +138,22 @@ func TestSecurityCountersEndpoints(t *testing.T) {
 	}
 	if n := rr.(gen.ResetSecurityCounters200JSONResponse).Count; n != 1 {
 		t.Fatalf("reset by filter changed %d records, want the one with a ban counter", n)
+	}
+
+	// The audit keeps before and after (06 §16): the edit 0 -> 3, the reset the values it replaced.
+	evs, err := st.Q.ListAuditEvents(ctx, db.ListAuditEventsParams{Lim: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	detail := map[string]string{}
+	for _, e := range evs {
+		detail[e.Action] = e.DetailJson
+	}
+	if d := detail["security.counters_edited"]; !strings.Contains(d, `"ban":{"after":3,"before":0}`) || strings.Contains(d, `"challenge"`) {
+		t.Errorf("edit detail %s", d)
+	}
+	if d := detail["security.counters_reset"]; !strings.Contains(d, `"before":[{"address":"198.51.100.10","ban":3,"challenge":1}]`) {
+		t.Errorf("reset detail %s", d)
 	}
 }
 

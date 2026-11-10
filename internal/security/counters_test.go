@@ -60,8 +60,13 @@ func TestCountersViewEditAndReset(t *testing.T) {
 	}
 
 	five := 5
-	if err := e.EditCounters(ctx, bad, CounterEdit{Ban: &five, ResetFailures: true}, "admin"); err != nil {
+	before, err := e.EditCounters(ctx, bad, CounterEdit{Ban: &five, ResetFailures: true}, "admin")
+	if err != nil {
 		t.Fatal(err)
+	}
+	// The values it replaced, as the counters view showed them (06 §16 before/after).
+	if before != (CounterValues{Address: bad.String(), Ban: 0, Challenge: 1}) {
+		t.Fatalf("before %+v", before)
 	}
 	rows, _ = e.Counters(ctx, CounterFilter{Within: netip.PrefixFrom(bad, 32)})
 	if r := rows[0]; r.Ban != 5 || r.Challenge != 1 || r.Failures != 0 {
@@ -73,9 +78,13 @@ func TestCountersViewEditAndReset(t *testing.T) {
 	if rows[0].Ban != 4 {
 		t.Fatalf("decay after the edit: %+v", rows[0])
 	}
-	n, err := e.ResetCounters(ctx, []string{bad.String(), other.String(), "192.0.2.99"}, "admin")
-	if err != nil || n != 2 {
-		t.Fatalf("reset %d %v", n, err)
+	prev, err := e.ResetCounters(ctx, []string{bad.String(), other.String(), "192.0.2.99"}, "admin")
+	if err != nil || len(prev) != 2 {
+		t.Fatalf("reset %+v %v", prev, err)
+	}
+	// The decayed values just before the reset, one per existing record; the unknown address has none.
+	if prev[0] != (CounterValues{Address: bad.String(), Ban: 4}) || prev[1].Address != other.String() {
+		t.Fatalf("reset before %+v", prev)
 	}
 	if rows, _ := e.Counters(ctx, CounterFilter{MinBan: 1}); len(rows) != 0 {
 		t.Fatalf("after reset %+v", rows)
@@ -92,7 +101,7 @@ func TestEditDuringARunningBanDecaysAfterIt(t *testing.T) {
 		t.Fatalf("ban %v %v", ok, err)
 	}
 	three := 3
-	if err := e.EditCounters(ctx, bad, CounterEdit{Ban: &three}, "admin"); err != nil {
+	if _, err := e.EditCounters(ctx, bad, CounterEdit{Ban: &three}, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	ban := func() int {

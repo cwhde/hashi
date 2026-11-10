@@ -102,6 +102,28 @@
 		return () => clearInterval(t);
 	});
 
+	// Counter changes show their before and after values (06 §16), so a mistaken edit or reset can be undone by hand.
+	type Pair = { before: number; after: number };
+	type Prev = { address: string; ban: number; challenge: number };
+	function counterLine(e: Schemas['AuditEvent']): string {
+		const d = e.detail as { ban?: Pair; challenge?: Pair; before?: Prev[]; count?: number };
+		if (e.action === 'security.counters_edited') {
+			const parts = [];
+			if (d.ban) parts.push(`ban ${d.ban.before} → ${d.ban.after}`);
+			if (d.challenge) parts.push(`challenge ${d.challenge.before} → ${d.challenge.after}`);
+			return parts.join(', ');
+		}
+		if (e.action === 'security.counters_reset' && d.before) {
+			const shown = d.before
+				.slice(0, 20)
+				.map((p) => `${p.address} (ban ${p.ban}, challenge ${p.challenge})`);
+			const more = d.before.length > 20 ? `, and ${d.before.length - 20} more` : '';
+			const word = d.count === 1 ? 'address' : 'addresses';
+			return `${d.count ?? 0} ${word} set to 0. Before: ${shown.join(', ') || 'all were 0'}${more}`;
+		}
+		return '';
+	}
+
 	const outcomeTone = { success: 'ok', failure: 'bad', denied: 'warn' } as const;
 	const jobTone = { succeeded: 'ok', failed: 'bad', interrupted: 'warn', running: 'info' } as const;
 </script>
@@ -161,7 +183,11 @@
 					<Table.Body
 						>{#each shown as e (e.id)}<Table.Row
 								><Table.Cell class="tnum pl-4">{dateTime(e.at)}</Table.Cell><Table.Cell
-									class="font-medium">{e.action}</Table.Cell
+									class="font-medium"
+									>{e.action}{#if counterLine(e)}<span
+											class="block font-normal whitespace-normal text-muted-foreground"
+											>{counterLine(e)}</span
+										>{/if}</Table.Cell
 								><Table.Cell class="hidden md:table-cell"><Mono>{e.actor}</Mono></Table.Cell
 								><Table.Cell class="hidden text-muted-foreground lg:table-cell"
 									>{e.target}</Table.Cell

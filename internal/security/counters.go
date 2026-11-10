@@ -154,9 +154,25 @@ type CounterEdit struct {
 	ResetFailures  bool // a live challenge starts counting unsolved requests again
 }
 
-// EditCounters applies ed to a's counters (06 §5.1, §13.1).
-func (e *Engine) EditCounters(ctx context.Context, a netip.Addr, ed CounterEdit, actor string) error {
+// CounterValues are one record's effective counters at a moment (decay applied), as the counters view shows them.
+type CounterValues struct {
+	Address        string
+	Ban, Challenge int
+}
+
+// effective is c's counters as they stand at now.
+func effective(c db.AddressCounter, now time.Time, d time.Duration) CounterValues {
+	return CounterValues{Address: c.Address,
+		Ban:       Effective(int(c.BanCount), time.UnixMilli(c.BanQuietSince), now, d),
+		Challenge: Effective(int(c.ChallengeCount), time.UnixMilli(c.ChallengeQuietSince), now, d)}
+}
+
+// EditCounters applies ed to a's counters (06 §5.1, §13.1) and returns the values it replaced, read in the same
+// transaction as the write, so the audit can show before and after (06 §16).
+func (e *Engine) EditCounters(ctx context.Context, a netip.Addr, ed CounterEdit, actor string) (CounterValues, error) {
 	k, now := Key(a.Unmap()), e.now()
+	d := time.Duration(e.Settings().DecaySeconds) * time.Second
+	before := CounterValues{Address: prefixKey(k)}
 	// Memory first, then the write: the engine never holds its lock while waiting for the database.
 	var failuresOf string
 	// A set ban counter starts its quiet time at the later of now and the end of a running ban, as a ban itself does
@@ -181,6 +197,7 @@ func (e *Engine) EditCounters(ctx context.Context, a netip.Addr, ed CounterEdit,
 			if err != nil {
 				return err
 			}
+			before = effective(c, now, d)
 			if ed.Ban != nil {
 				c.BanCount, c.BanQuietSince = int64(max(*ed.Ban, 0)), banQuiet.UnixMilli()
 			}
@@ -197,23 +214,27 @@ func (e *Engine) EditCounters(ctx context.Context, a netip.Addr, ed CounterEdit,
 		return q.SetDynamicEntryFailures(ctx, db.SetDynamicEntryFailuresParams{FailureCount: 0, ElementID: failuresOf})
 	})
 	if err != nil {
-		return err
+		return CounterValues{}, err
 	}
 	meta := map[string]any{"actor": actor, "reset_failures": ed.ResetFailures}
 	if ed.Ban != nil {
-		meta["ban_count"] = *ed.Ban
+		meta["ban_count"], meta["ban_count_before"] = *ed.Ban, before.Ban
 	}
 	if ed.Challenge != nil {
-		meta["challenge_count"] = *ed.Challenge
+		meta["challenge_count"], meta["challenge_count_before"] = *ed.Challenge, before.Challenge
 	}
 	e.ev.add(event{at: now, key: k, typ: "counters_edited", severity: "info", source: SourceManual, meta: meta})
-	return nil
+	return before, nil
 }
 
-// ResetCounters sets both counters of every given key to 0 and reports how many records changed.
-func (e *Engine) ResetCounters(ctx context.Context, keys []string, actor string) (int, error) {
-	now, n := e.now(), 0
+// ResetCounters sets both counters of every given key to 0. It returns each existing record's values before the
+// reset (records that were already 0 included), read in the same transaction as the write.
+func (e *Engine) ResetCounters(ctx context.Context, keys []string, actor string) ([]CounterValues, error) {
+	now := e.now()
+	d := time.Duration(e.Settings().DecaySeconds) * time.Second
+	var before []CounterValues
 	err := e.st.Tx(ctx, func(q *db.Queries) error {
+		before = before[:0] // a retried transaction starts over
 		for _, k := range keys {
 			c, err := q.GetAddressCounters(ctx, k)
 			if err != nil {
@@ -222,23 +243,23 @@ func (e *Engine) ResetCounters(ctx context.Context, keys []string, actor string)
 				}
 				return err
 			}
+			before = append(before, effective(c, now, d))
 			c.BanCount, c.BanQuietSince, c.ChallengeCount, c.ChallengeQuietSince = 0, now.UnixMilli(), 0, now.UnixMilli()
 			if err := putCounters(ctx, q, c, now); err != nil {
 				return err
 			}
-			n++
 		}
 		return nil
 	})
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	for _, k := range keys[:min(len(keys), 50)] { // one event per address, bounded for a bulk reset
 		if p, ok := parseKey(k); ok {
 			e.ev.add(event{at: now, key: p, typ: "counters_reset", severity: "info", source: SourceManual, meta: map[string]any{"actor": actor}})
 		}
 	}
-	return n, nil
+	return before, nil
 }
 
 func parseKey(k string) (netip.Prefix, bool) {

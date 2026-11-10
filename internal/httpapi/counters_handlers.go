@@ -111,14 +111,23 @@ func (s *Server) EditAddressCounters(ctx context.Context, req gen.EditAddressCou
 	}
 	ri := info(ctx)
 	ed := security.CounterEdit{Ban: b.BanCount, Challenge: b.ChallengeCount, ResetFailures: or(b.ResetFailures, false)}
-	if err := s.Security.EditCounters(ctx, a, ed, s.actor(ri)); err != nil {
+	before, err := s.Security.EditCounters(ctx, a, ed, s.actor(ri))
+	if err != nil {
 		return nil, err
 	}
 	key := security.KeyString(a)
+	// Before and after (06 §16): the before values are the effective ones the counters view showed, so setting
+	// them again restores the state.
+	detail := map[string]any{"reset_failures": ed.ResetFailures}
+	if b.BanCount != nil {
+		detail["ban"] = map[string]int{"before": before.Ban, "after": *b.BanCount}
+	}
+	if b.ChallengeCount != nil {
+		detail["challenge"] = map[string]int{"before": before.Challenge, "after": *b.ChallengeCount}
+	}
 	if err := s.Store.Tx(ctx, func(q *db.Queries) error {
 		return s.Audit.Record(ctx, q, audit.Event{Actor: s.actor(ri), Action: "security.counters_edited", IP: ri.ipString(),
-			Target: "address:" + key, Outcome: audit.Success, Detail: map[string]any{"ban_count": b.BanCount,
-				"challenge_count": b.ChallengeCount, "reset_failures": ed.ResetFailures}})
+			Target: "address:" + key, Outcome: audit.Success, Detail: detail})
 	}); err != nil {
 		return nil, err
 	}
@@ -170,13 +179,22 @@ func (s *Server) ResetSecurityCounters(ctx context.Context, req gen.ResetSecurit
 		return nil, invalid("give addresses or all_matching")
 	}
 	ri := info(ctx)
-	n, err := s.Security.ResetCounters(ctx, keys, s.actor(ri))
+	before, err := s.Security.ResetCounters(ctx, keys, s.actor(ri))
 	if err != nil {
 		return nil, err
 	}
+	n := len(before)
+	// Every record that was above 0 keeps its previous values here (06 §16), so a mistaken bulk reset can be undone.
+	prev := []map[string]any{}
+	for _, v := range before {
+		if v.Ban > 0 || v.Challenge > 0 {
+			prev = append(prev, map[string]any{"address": v.Address, "ban": v.Ban, "challenge": v.Challenge})
+		}
+	}
 	if err := s.Store.Tx(ctx, func(q *db.Queries) error {
 		return s.Audit.Record(ctx, q, audit.Event{Actor: s.actor(ri), Action: "security.counters_reset", IP: ri.ipString(),
-			Target: "counters", Outcome: audit.Success, Detail: map[string]any{"count": n, "by_filter": b.AllMatching != nil}})
+			Target: "counters", Outcome: audit.Success, Detail: map[string]any{"count": n, "by_filter": b.AllMatching != nil,
+				"before": prev}})
 	}); err != nil {
 		return nil, err
 	}
