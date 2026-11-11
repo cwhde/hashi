@@ -24,11 +24,19 @@ PR A, backups and keys (11 §8, 02 §5.2–5.3):
 - [ ] Restore drill for the gate: prod's nightly copy on a fresh test container, recovery key typed by the owner, start,
   reconcile shows no changes; written down as the operator's restore steps
 
-PR B, strict mode (02 §5.4–5.5): design questions open with the owner (Agenda).
-- [ ] Vault with a lock state: secret users get "locked" instead of a value; jobs that need secrets pause; public pages,
-  forward auth and Pulse keep working
-- [ ] Unlock with the recovery key, and with a passkey that supports PRF (enrol a PRF passkey, master key wrapped by it)
-- [ ] Settings → Security: switch modes with the trade-off explained; lock state in every page header; critical health warning
+PR B, strict mode (02 §5.4–5.5):
+- [x] Vault with a lock state: open and seal answer `ErrLocked` (API 423); kept in `vault_kept` while locked: the
+  operational keys, the edge session key and the edge token, so Pulse, sign-ins, CAPTCHA clearances, edge sessions and
+  forwarded addresses keep working. Jobs without `RunsLocked` wait, still due, and run after the unlock
+- [x] Unlock with the recovery key (UI), and with a PRF passkey: an unlocker wraps the master key under a key derived
+  from the passkey's PRF output; registration now asks for PRF so security keys can do it
+- [x] Settings → Account → Vault: mode with the trade-off, passkeys that unlock it, switch both ways (back only with the
+  key file in place); header pill and banner with Unlock on every page while locked
+- Local proof (2026-11-11): `make check`, `make test-e2e` green. The e2e adds a PRF passkey (Chrome virtual
+  authenticator with `hasPrf`), switches to strict mode, restarts Hashi: locked banner, unlock with the recovery key;
+  restarts again: unlock with the passkey; back to service mode. The session survives both restarts.
+- Found on the way: the first e2e run got no PRF output, because a credential made without the PRF request has no
+  secret for it; a locked start failed at the edge token (now kept, `TestStrictModeStartsLocked`)
 
 Then, straight to `main`:
 - [ ] Threat model (`docs/threat-model.md`): assets, attackers, trust boundaries, what each control stops, accepted risks
@@ -869,6 +877,9 @@ Decisions made in S0:
 (Problems that survived two fix attempts: hypothesis, evidence, question for the human.)
 
 ## Unverified
+
+- S12 strict mode: an edge session key created after strict mode was switched on is kept only from the next unlock;
+  a restart before that signs out visitors of protected apps until the unlock.
 
 - S11 review: a scheduled run is redacted with the secret values current when it is collected (up to 5 min later); a
   secret changed in between could appear in that run's stored output.
