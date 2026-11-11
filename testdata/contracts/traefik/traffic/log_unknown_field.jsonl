@@ -1,0 +1,1 @@
+{"level":"error","providerName":"file","error":"collecting file configs: /dyn/30-user-middlewares.yml: field not found, node: notAMiddleware","time":"2026-11-11T06:41:20Z","message":"Error while building configuration (for the first time)"}

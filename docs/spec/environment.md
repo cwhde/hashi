@@ -26,7 +26,7 @@ host-A firewall script. Their current configuration is reference material only, 
 | Service | Use | Contract captured |
 | --- | --- | --- |
 | Hetzner Cloud API (zones, RRSets) | public DNS, one zone managed | read side 2026-10-28: `testdata/contracts/hetzner/` (`make contract-capture PROVIDER=hetzner`); writes 2026-10-28 with `_hashi-test` probe RRSets: `testdata/contracts/hetzner/write/` (`tools/contract-capture/hetzner_write.py`) |
-| Traefik v3.7.16 (release binary, file provider, API) | reverse proxy on the edge LXCs | 2026-10-28 on a disposable Alpine LXC: `testdata/contracts/traefik/` (release checksums, `/api/rawdata`, cert reload, forward-auth fallback) |
+| Traefik v3.7.16 (release binary, file provider, API) | reverse proxy on the edge LXCs | 2026-10-28 on a disposable Alpine LXC: `testdata/contracts/traefik/` (release checksums, `/api/rawdata`, cert reload, forward-auth fallback); 2026-11-11 in a throwaway local container: `traefik/traffic/` (Host header, client address headers, extra headers, timeouts, user middleware file) |
 | Edge host OS probe over SSH | Traefik/firewall host validation | 2026-10-28, Alpine 3.23, Debian 12 and 13, Fedora 44: `testdata/contracts/os/` |
 | Google Trust Services ACME (EAB) | certificates | — |
 | AdGuard Home ×2 (+ adguardhome-sync) | internal rewrites | 2026-10-31, rewrite API from local containers of both versions; real instances not yet read |
@@ -69,6 +69,9 @@ host-A firewall script. Their current configuration is reference material only, 
   `ping@internal` answers 200 on any path; a loopback entry point used as a forward-auth hop must trust loopback
   forwarded headers or the original host/URI are lost; GitHub's release list mixes v3 and v2 maintenance releases, so
   "latest" means the highest version of the installed major.
+- Traefik v3.7.16 traffic options (captured 2026-11-11, `testdata/contracts/traefik/traffic/README.md`): one unknown
+  key in any dynamic file makes the file provider load none of its files; a middleware name defined in two files is
+  skipped with a warning only; an empty `customRequestHeaders` value removes `X-Forwarded-For`/`X-Real-Ip` for good.
 - SSH (captured 2026-10-28 on the dev edge LXC and `alpine:3.23`): Alpine's sshd ships with `AllowTcpForwarding no`, so
   loopback tunnels are refused ("administratively prohibited"); busybox `wget` is always present on Alpine; minimal
   Debian images have neither `curl` nor `wget`.
