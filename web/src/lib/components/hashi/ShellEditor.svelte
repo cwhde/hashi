@@ -47,7 +47,7 @@
 		'.cm-cursor': { borderLeftColor: 'var(--color-foreground)' }
 	});
 	const colours = HighlightStyle.define([
-		{ tag: [tags.keyword, tags.controlKeyword], color: 'var(--color-primary)' },
+		{ tag: [tags.keyword, tags.controlKeyword], color: 'var(--color-info-text)' },
 		{ tag: [tags.string, tags.special(tags.string)], color: 'var(--color-ok-text)' },
 		{
 			tag: [tags.variableName, tags.definition(tags.variableName)],

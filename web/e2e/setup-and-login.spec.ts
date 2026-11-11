@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -806,6 +807,57 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.goto(`${state.baseURL}/settings?category=firewall`);
 	await expect(page.getByRole('radio', { name: 'Peer only' })).toBeChecked();
 	await page.screenshot({ path: 'test-results/s11-settings-firewall.png', fullPage: true });
+
+	// S11 visual tests (10-ui §2): every main page in every built-in theme keeps readable contrast (axe), fits a phone
+	// without sideways scrolling, and leaves a screenshot to look at.
+	const pages = [
+		'/services',
+		'/security',
+		'/scripts',
+		'/firewall',
+		'/status',
+		'/settings?category=appearance'
+	];
+	for (const [id, name] of [
+		['graphite', 'Graphite'],
+		['linen', 'Warm Linen'],
+		['verdant', 'Verdant'],
+		['violet', 'Violet Night']
+	]) {
+		await page.goto(`${state.baseURL}/services`);
+		await page.getByRole('button', { name: 'Theme', exact: true }).click();
+		await page.getByRole('menuitemradio', { name }).click();
+		await expect(page.locator('html')).toHaveAttribute('data-theme', id!);
+		// The theme is saved in the background; every page load applies the saved one, so wait for it.
+		await expect
+			.poll(async () => (await page.request.get(`${state.baseURL}/api/settings/appearance`)).json())
+			.toMatchObject({ theme: id });
+		for (const path of pages) {
+			await page.goto(`${state.baseURL}${path}`);
+			await expect(page.locator('main')).toBeVisible();
+			await expect(page.locator('html')).toHaveAttribute('data-theme', id!);
+			await page.waitForLoadState('networkidle');
+			const axe = await new AxeBuilder({ page }).withRules(['color-contrast']).analyze();
+			expect(
+				axe.violations.flatMap((v) =>
+					v.nodes.map((n) => `${n.target.join(' ')}: ${n.failureSummary}`)
+				),
+				`contrast in ${id} on ${path}`
+			).toEqual([]);
+			await page.setViewportSize({ width: 390, height: 844 });
+			expect(
+				await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+				`${path} is wider than a phone in ${id}`
+			).toBe(true);
+			const slug = path.replace(/[^a-z]+/g, '-').replace(/^-|-$/g, '');
+			await page.screenshot({
+				path: `test-results/visual/${id}-${slug}-phone.png`,
+				fullPage: true
+			});
+			await page.setViewportSize({ width: 1280, height: 800 });
+			await page.screenshot({ path: `test-results/visual/${id}-${slug}.png`, fullPage: true });
+		}
+	}
 
 	// Deleting the passkey this session signed in with ends the session: the page goes to sign-in.
 	await page.goto(`${state.baseURL}/settings?category=account`);

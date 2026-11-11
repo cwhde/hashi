@@ -246,7 +246,7 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 		return err
 	}
 	// Each run reads the zone fresh and reconciles Hashi's entries (01 §5.4 periodic reconcile).
-	if err := runner.Register(ctx, jobs.Job{Kind: "dns.refresh", Interval: time.Duration(general.SyncIntervalSeconds) * time.Second, Run: dnsSvc.Reconcile(syncEngine)}); err != nil {
+	if err := runner.Register(ctx, dnsRefreshJob(general, dnsSvc.Reconcile(syncEngine))); err != nil {
 		return err
 	}
 
@@ -406,8 +406,8 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	fetcher.AllowInternal = devBuild // the dev build's stand-in feeds run on loopback
 	feedSvc := feeds.NewService(st, al, ipSets, fetcher, log.With("component", "feeds"), time.Now)
 	if err := runner.Register(ctx, jobs.Job{Kind: feeds.JobKind, Interval: feeds.JobInterval, Run: func(ctx context.Context) (string, error) {
-		e := abuse.Settings()
-		return feedSvc.RunDue(ctx, time.Duration(e.FeedRefreshSeconds)*time.Second, time.Duration(e.FeedStaleSeconds)*time.Second)
+		refresh, stale := feedTimes(abuse.Settings())
+		return feedSvc.RunDue(ctx, refresh, stale)
 	}}); err != nil {
 		return err
 	}
@@ -694,4 +694,14 @@ func targetsUse(ctx context.Context, q *db.Queries, sets []string) (bool, error)
 		}
 	}
 	return false, nil
+}
+
+// dnsRefreshJob reconciles the DNS zones at the General settings' sync interval (01 §5.4), as read at start.
+func dnsRefreshJob(g settings.General, run jobs.Func) jobs.Job {
+	return jobs.Job{Kind: "dns.refresh", Interval: time.Duration(g.SyncIntervalSeconds) * time.Second, Run: run}
+}
+
+// feedTimes are the feed refresh interval and stale time from the engine settings (06 §8, §10).
+func feedTimes(e settings.Engine) (refresh, stale time.Duration) {
+	return time.Duration(e.FeedRefreshSeconds) * time.Second, time.Duration(e.FeedStaleSeconds) * time.Second
 }

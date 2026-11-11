@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"git.juzo.io/juzo/hashi/internal/settings"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -131,7 +132,8 @@ func TestIdleNeverExceedsConfiguredValueBetweenPersistedTouches(t *testing.T) {
 	st, c := storetest.New(t), &clock{t0}
 	m := newManager(t, st, c)
 	tok, _ := issue(t, m, st, ipA)
-	m.SetIdle(30 * time.Minute) // lowered after issuance
+	// Lowered after issuance, as the app does when the Security settings change (09 §2).
+	m.SetIdle(settings.Security{AdminIdleTimeoutMinutes: 30}.AdminIdle())
 	c.advance(31 * time.Minute)
 	mustReject(t, m, tok, ipA)
 	m.SetIdle(10 * time.Hour) // capped at 4 h

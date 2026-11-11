@@ -38,7 +38,7 @@
 	--h-elevated: #fffdfc;
 	--h-border: #d4c7b6;
 	--h-text: #2b251f;
-	--h-muted: #74695d;
+	--h-muted: #6b6156;
 	--h-accent: #b6533a;
 	--h-accent-text: #ffffff;
 	--h-accent-hover: #98432f;
@@ -78,8 +78,10 @@
 	color-scheme: dark;
 }
 
-/* Status colours are theme-independent (10-ui.md §2); only the text shade adapts to light vs dark canvases. */
-:root {
+/* Status colours are theme-independent (10-ui.md §2); only the text shade adapts to light vs dark canvases. A dark area
+ * inside a light page (a theme preview) gets the dark shades too. */
+:root,
+[data-mode='dark'] {
 	--h-ok: #22c55e;
 	--h-warn: #f59e0b;
 	--h-bad: #ef4444;
@@ -91,9 +93,9 @@
 	--h-info-text: #60a5fa;
 }
 [data-mode='light'] {
-	--h-ok-text: #15803d;
-	--h-warn-text: #a16207;
-	--h-bad-text: #b91c1c;
+	--h-ok-text: #126f35;
+	--h-warn-text: #8b5506;
+	--h-bad-text: #b31b1b;
 	--h-info-text: #1d4ed8;
 }
 
