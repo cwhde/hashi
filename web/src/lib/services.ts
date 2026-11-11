@@ -74,13 +74,23 @@ export function toInput(s: Service): ServiceInput {
 		tls_server_name: s.tls_server_name,
 		tls_min_version: s.tls_min_version,
 		advanced_routes: s.advanced_routes,
-		routes: s.routes.map((r) => ({ ...r, targets: r.targets.map((t) => ({ ...t })) })),
+		routes: s.routes.map((r) => ({
+			...r,
+			targets: r.targets.map((t) => ({ ...t })),
+			middlewares: [...(r.middlewares ?? [])]
+		})),
 		dashboard_visible: s.dashboard_visible,
 		monitoring_visible: s.monitoring_visible,
 		adguard_rewrite: s.adguard_rewrite,
 		public_port: s.public_port,
 		proxy_protocol: s.proxy_protocol,
-		entry_host_id: s.entry_host_id
+		entry_host_id: s.entry_host_id,
+		traffic: {
+			...s.traffic,
+			request_headers: (s.traffic.request_headers ?? []).map((h) => ({ ...h })),
+			response_headers: (s.traffic.response_headers ?? []).map((h) => ({ ...h }))
+		},
+		middlewares: [...s.middlewares]
 	};
 }
 
@@ -103,7 +113,8 @@ export function newRoute(routes: Route[], target: Target): Route {
 		priority: Math.min(top + 10, 9999),
 		rewrite_mode: 'none',
 		rewrite_pattern: '',
-		rewrite_value: ''
+		rewrite_value: '',
+		middlewares: []
 	};
 }
 

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import SshTarget from '$lib/components/hashi/SshTarget.svelte';
+	import UserMiddlewares from '$lib/components/hashi/traefik/UserMiddlewares.svelte';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
@@ -32,7 +33,8 @@
 	let busy = $state('');
 	let outcome = $state<{ text: string; review: boolean; bad?: boolean } | null>(null);
 
-	let tab = $state(page.url.searchParams.get('tab') === 'certificates' ? 'certificates' : 'hosts');
+	const tabs = ['hosts', 'middlewares', 'certificates'];
+	let tab = $state(tabs.find((t) => t === page.url.searchParams.get('tab')) ?? 'hosts');
 	const setTab = (t: string) =>
 		goto(t === 'hosts' ? '?' : `?tab=${t}`, {
 			replaceState: true,
@@ -251,6 +253,7 @@
 	<Tabs.Root value={tab} onValueChange={(t) => ((tab = t), setTab(t))}>
 		<Tabs.List class="mb-4">
 			<Tabs.Trigger value="hosts">Hosts</Tabs.Trigger>
+			<Tabs.Trigger value="middlewares">Your middlewares</Tabs.Trigger>
 			<Tabs.Trigger value="certificates">Certificates</Tabs.Trigger>
 		</Tabs.List>
 
@@ -326,6 +329,8 @@
 				</Panel>
 			{/each}
 		</Tabs.Content>
+
+		<Tabs.Content value="middlewares"><UserMiddlewares /></Tabs.Content>
 
 		<Tabs.Content value="certificates">
 			<Panel

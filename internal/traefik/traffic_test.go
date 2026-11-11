@@ -57,7 +57,7 @@ func trafficServices() []services.Service {
 			Traffic: services.Traffic{ResponseHeaderTimeout: 120}},
 		{Name: "Vault", Slug: "vault", Kind: services.KindHTTPS, HostName: "vault.example.com", Enabled: true,
 			Origin: services.OriginUser, Target: t("192.0.2.13", 8443), TLSServerName: "vault.internal.example",
-			Traffic: services.Traffic{DialTimeout: 5, ResponseHeaderTimeout: 30, IdleTimeout: 90, DropRealIP: true},
+			Traffic:     services.Traffic{DialTimeout: 5, ResponseHeaderTimeout: 30, IdleTimeout: 90, DropRealIP: true},
 			Middlewares: []string{"big-uploads"}},
 		{Name: "Files", Slug: "files", Kind: services.KindHTTP, HostName: "files.example.com", Enabled: true,
 			Origin: services.OriginUser, Target: t("192.0.2.14", 8080), Middlewares: []string{"office-only"},
