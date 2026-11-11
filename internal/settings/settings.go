@@ -112,6 +112,8 @@ func (s *Service) getAny(ctx context.Context, c Category) (Category, error) {
 		return Get[Dashboard](ctx, s.st.Q)
 	case FirewallDefaults:
 		return Get[FirewallDefaults](ctx, s.st.Q)
+	case TraefikMiddlewares:
+		return Get[TraefikMiddlewares](ctx, s.st.Q)
 	}
 	return nil, fmt.Errorf("unknown settings category %T", c)
 }
