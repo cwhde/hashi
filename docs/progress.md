@@ -19,8 +19,9 @@ written by hand, `systemctl list-timers --output=json`, `timeout` and exit codes
 Owner's questions open (see Agenda).
 
 PR A, scripts (09 §1):
-- [ ] Contracts on 108 (above); cron → `OnCalendar` conversion with a round-trip test against the captured
-  `systemd-analyze calendar` answers
+- [x] Contracts on 108 (`testdata/contracts/scripts`); cron → `OnCalendar` conversion with a round-trip test against
+  the captured `systemd-analyze calendar` answers. Found: weekday + day of month is AND in systemd, OR in cron → two
+  `OnCalendar=` lines
 - [ ] Tables: scripts, script targets, script env (secret values in the vault), runs with capped, redacted output
 - [ ] API `/api/scripts` CRUD, `plan|apply|run`, runs list and one run; save, apply and run need a fresh passkey and `scripts.manage`
 - [ ] Host sync over SSH: scripts at `/opt/hashi/scripts/<slug>.sh` (root, 0750), `manifest.json` with SHA-256, env file
