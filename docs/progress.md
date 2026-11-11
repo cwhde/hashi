@@ -5,7 +5,7 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
-**S11 — Scripts, custom themes, settings completeness** · status: **built, waiting for deploy and gate**: #63 and #64 merged, `v0.11.0-beta.1` released (started 2026-11-10). Gate: 11-delivery.md §3
+**S11 — Scripts, custom themes, settings completeness** · status: **done** (gate passed 2026-11-11 on `v0.11.0-beta.2`). Next: S12, then the bug hunt round. Gate: 11-delivery.md §3
 row S11: scheduled script runs on real hosts with history; custom theme editor works; visual tests pass in all four
 themes; every setting has a consumer test. Spec: 09, 10-ui §2. After S11: S12, then the bug hunt round.
 
@@ -827,7 +827,7 @@ Decisions made in S0:
 | S9 Edge SSO + rules | **done** | 2026-11-01 · `0.9.0-beta.1` · Throwaway services `gate-a`/`gate-b` on the home test edge with one shared rule set. A real browser signed in once through the real Pocket ID and reached both (upstream saw the user name); wrong group refused; sign-out ended it. By address, Pulse-backed set and country (CH allowed, US refused): right answers through the edge's own route; trace named `service root → gate-shared`. Deny fallback 403 through real Traefik; trailing-dot name refused; client-sent user header removed. Hashi stopped about 20 s: open service 200, rule-bearing services 503, normal after restart. Forward auth from the home Traefik: p50 16 ms, p99 22 ms, 200 calls; network round trip itself 15–20 ms. Test services, sets, rule set, two temporary DNS records (user OK) and test server removed. |
 | V1 cutover | **done** | 2026-11-01 · `0.9.1-beta.2` · Both Traefik LXCs replaced by fresh Alpine ones with the same ID, address and MAC; Hashi installed Traefik through approved plans. About 6 minutes public downtime. 47 of 48 names identical before and after, valid certificates; the admin name moved to its final address. NetBird, Gitea and laptop SSH unaffected. 14 protected names redirect signed-out browsers; a real browser completed sign-in through Pocket ID on the new edge (`edge.login` in the audit log). 5 Pulse agents report at the final address. Old data removal follows after a week. |
 | S10 Security engine, WAF, CAPTCHA, blocklists | — | |
-| S11 Scripts, themes, settings | — | |
+| S11 Scripts, themes, settings | 2026-11-11, `v0.11.0-beta.2` | scheduled script on the production firewall host ran and was collected; 77 settings proven; four themes pass contrast |
 | S12 Hardening + 1.0 | — | |
 
 ## Blocked
@@ -882,6 +882,16 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-11-11 · deploy `v0.11.0-beta.1`, then `v0.11.0-beta.2` (`bc69f83`, the owner's OK each time) · smoke ok both times.
+  Bug 29 fixed and proven live: CI containers (Docker network MTU 1500 behind the firewall host's 1280 bridge) failed 10/10 to
+  reach GitHub's Azure address and the Playwright CDN; at container MTU 1280 they worked, so it was path MTU. The fix
+  caps the MSS of new forwarded TCP through narrow bridges; after the owner approved the firewall host's plan (4 rules for vmbr1,
+  49 → 53 rules, nothing else changed), the same container at MTU 1500 got 10/10, GitHub in 0.17 s, the 200 MB browser
+  at 32 MB/s. **S11 gate passed**: the script "Disk usage report" (read-only `df`, every 5 min) saved and applied with
+  the owner's passkey; on the host the files are 750/600/640 root and the timer is active; its 15:15 run succeeded, was
+  collected into the history with its output, and the audit shows `script.saved` and `script.run`. Scheduled scripts
+  on 108 were proven by `TestRealScriptsOnDevTarget`; custom theme and visual tests by e2e; every setting by
+  `consumers_test.go`. Seen on the way: the firewall host's root file system is 78 % full (3.3 GB free).
 - 2026-11-11 · S11 merged (#63 scripts, #64 themes and settings) and released as `v0.11.0-beta.1` (`880c8f5`); not
   deployed. CI needed reruns for GitHub and Playwright download timeouts (bug 29); the Playwright cache now falls back to
   the last saved browser. One real CI catch: a test needed the built web UI, which the check job does not have.
