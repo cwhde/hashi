@@ -81,7 +81,10 @@ func httpServices(svcs []services.Service, edge bool, every []string) dynamicCon
 				continue
 			}
 			name := base + "-r-" + strings.ToLower(r.ID)
-			mws := appendNew(slices.Clone(svcChain), r.Middlewares...)
+			mws := slices.Clone(svcChain)
+			if !s.System() { // invariant 10: never a user middleware on a system service, route lists included
+				mws = appendNew(mws, r.Middlewares...)
+			}
 			if edge && s.IsChallenge() && r.PathValue == services.ChallengePath+"/" {
 				// Hashi's half of the challenge service needs the client address, so it gets the edge token; Cap's half
 				// (the main router) never sees the token.

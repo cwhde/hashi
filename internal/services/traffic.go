@@ -109,7 +109,11 @@ func validTimeout(n, maxS int, field string) error {
 func validateTraffic(s Service) error {
 	t := s.Traffic
 	if s.Stream() || s.System() {
-		if !t.Zero() || len(s.Middlewares) > 0 {
+		named := len(s.Middlewares) > 0
+		for _, r := range s.Routes {
+			named = named || len(r.Middlewares) > 0
+		}
+		if !t.Zero() || named {
 			return invalid("traffic", "TCP, UDP and system services take no traffic options or middlewares")
 		}
 	}

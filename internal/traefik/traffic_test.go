@@ -257,3 +257,27 @@ func TestTrafficRenderStable(t *testing.T) {
 		}
 	}
 }
+
+// Invariant 10: a system service never gets a user middleware, not even one a route of it names (Hashi builds those
+// routes itself, and validation refuses the list, so this guards the render on its own).
+func TestSystemRouteTakesNoUserMiddlewares(t *testing.T) {
+	o := trafficOptions(t, nil)
+	sys := services.Service{Name: "Challenge", Slug: "hashi-challenge", Kind: services.KindHTTP, HostName: "challenge.example.com",
+		Enabled: true, Origin: services.OriginSystem, OwnerFeature: services.OwnerCaptcha, AdvancedRoutes: true,
+		Target: services.Target{Address: "192.0.2.20", Port: 3000},
+		Routes: []services.Route{{ID: "01JR0000000000000000000099", Enabled: true, PathMatch: "prefix", PathValue: "/x",
+			Targets: []services.Target{{Address: "192.0.2.20", Port: 3000}}, Middlewares: []string{"office-only"}}}}
+	o.Services = append(o.Services, sys)
+	files, err := Render(o)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := routerMiddlewares(t, fileNamed(t, files, "10-hashi-http-services.yml").Data)
+	r := got["svc-hashi-challenge-r-01jr0000000000000000000099"]
+	if r == nil {
+		t.Fatalf("route not rendered: %v", got)
+	}
+	if slices.Contains(r, "office-only") {
+		t.Errorf("system route lists a user middleware: %v", r)
+	}
+}
