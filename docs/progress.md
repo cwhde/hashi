@@ -5,7 +5,7 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
-**S11 — Scripts, custom themes, settings completeness** · status: **in progress**, PR A (#63) and PR B ready, then deploy and gate (started 2026-11-10). Gate: 11-delivery.md §3
+**S11 — Scripts, custom themes, settings completeness** · status: **built, waiting for deploy and gate**: #63 and #64 merged, `v0.11.0-beta.1` released (started 2026-11-10). Gate: 11-delivery.md §3
 row S11: scheduled script runs on real hosts with history; custom theme editor works; visual tests pass in all four
 themes; every setting has a consumer test. Spec: 09, 10-ui §2. After S11: S12, then the bug hunt round.
 
@@ -882,6 +882,9 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-11-11 · S11 merged (#63 scripts, #64 themes and settings) and released as `v0.11.0-beta.1` (`880c8f5`); not
+  deployed. CI needed reruns for GitHub and Playwright download timeouts (bug 29); the Playwright cache now falls back to
+  the last saved browser. One real CI catch: a test needed the built web UI, which the check job does not have.
 - 2026-11-10 · deploy `v0.10.0-beta.11` (`52124fb`, the owner's OK in chat) · audit keeps counter values before an
   edit or reset. Smoke ok (readyz, version, SPA, public apps, public status).
 - 2026-11-10 · counter edits and resets keep the values they replaced in the audit (06 §16 before/after, the owner's
