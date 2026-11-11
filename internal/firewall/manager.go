@@ -1105,10 +1105,14 @@ func (m *Manager) build(ctx context.Context, id string, owned bool) (db.Firewall
 	if err != nil {
 		return row, Desired{}, err
 	}
+	fwDefaults, err := settings.Get[settings.FirewallDefaults](ctx, m.st.R)
+	if err != nil {
+		return row, Desired{}, err
+	}
 	traefikIP, _ := netip.ParseAddr(row.InternalTraefikIp)
 	spec := Spec{WAN: e.WAN, PublicIP: e.PublicIP, Subnets: e.Subnets, TraefikIP: traefikIP, Ports: ports, Folded: folded,
 		HostAccess: hostAccess, NetBird: NetBird{Mode: row.NetbirdMode, Iface: row.NetbirdIface, Port: int(row.NetbirdPort)},
-		DropOtherInbound: row.DropInboundAcceptedAt.Valid, Meters: MetersFrom(engine)}
+		DropOtherInbound: row.DropInboundAcceptedAt.Valid, Meters: MetersFrom(engine), NoMSSClamp: !fwDefaults.MSSClamp}
 	table, err := Render(spec)
 	if err != nil {
 		return row, Desired{}, fmt.Errorf("%w: %w", ErrNotReady, err)

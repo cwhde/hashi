@@ -387,17 +387,17 @@ func (s *Server) PutServiceDashboard(ctx context.Context, req gen.PutServiceDash
 	return gen.PutServiceDashboard204Response{}, nil
 }
 
-// publicLook gives the public pages their title and theme.
-func (s *Server) publicLook(ctx context.Context) (string, string, error) {
+// publicLook gives the public pages their title and theme (a custom theme's colours with it).
+func (s *Server) publicLook(ctx context.Context) (string, gen.AppearanceSettings, error) {
 	g, err := settings.Get[settings.General](ctx, s.Store.R)
 	if err != nil {
-		return "", "", err
+		return "", gen.AppearanceSettings{}, err
 	}
 	a, err := settings.Get[settings.Appearance](ctx, s.Store.R)
 	if err != nil {
-		return "", "", err
+		return "", gen.AppearanceSettings{}, err
 	}
-	return g.RootDomain, a.Theme, nil
+	return g.RootDomain, appearanceBody(a), nil
 }
 
 func nonZero(t time.Time) *time.Time {
@@ -408,7 +408,7 @@ func nonZero(t time.Time) *time.Time {
 }
 
 func (s *Server) GetPublicStatus(ctx context.Context, _ gen.GetPublicStatusRequestObject) (gen.GetPublicStatusResponseObject, error) {
-	title, theme, err := s.publicLook(ctx)
+	title, look, err := s.publicLook(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -416,7 +416,7 @@ func (s *Server) GetPublicStatus(ctx context.Context, _ gen.GetPublicStatusReque
 	if err != nil {
 		return nil, err
 	}
-	out := gen.GetPublicStatus200JSONResponse{Title: title, Theme: theme, UpdatedAt: nonZero(v.UpdatedAt), Endpoints: make([]gen.PublicEndpoint, 0, len(v.Endpoints))}
+	out := gen.GetPublicStatus200JSONResponse{Title: title, Theme: look.Theme, CustomTheme: look.CustomTheme, UpdatedAt: nonZero(v.UpdatedAt), Endpoints: make([]gen.PublicEndpoint, 0, len(v.Endpoints))}
 	for _, e := range v.Endpoints {
 		out.Endpoints = append(out.Endpoints, gen.PublicEndpoint{PendingDns: boolIf(e.PendingDNS), Name: e.Name, Group: e.Group, State: gen.MonitorState(e.State), Strip: stripBody(e.Strip), Uptime24h: e.Uptime24})
 	}
@@ -424,7 +424,11 @@ func (s *Server) GetPublicStatus(ctx context.Context, _ gen.GetPublicStatusReque
 }
 
 func (s *Server) GetPublicApps(ctx context.Context, _ gen.GetPublicAppsRequestObject) (gen.GetPublicAppsResponseObject, error) {
-	title, theme, err := s.publicLook(ctx)
+	title, look, err := s.publicLook(ctx)
+	if err != nil {
+		return nil, err
+	}
+	d, err := settings.Get[settings.Dashboard](ctx, s.Store.R)
 	if err != nil {
 		return nil, err
 	}
@@ -432,7 +436,7 @@ func (s *Server) GetPublicApps(ctx context.Context, _ gen.GetPublicAppsRequestOb
 	if err != nil {
 		return nil, err
 	}
-	out := gen.GetPublicApps200JSONResponse{Title: title, Theme: theme, UpdatedAt: nonZero(v.UpdatedAt), HostsOnline: v.HostsOnline, HostsTotal: v.HostsTotal,
+	out := gen.GetPublicApps200JSONResponse{Title: title, Theme: look.Theme, CustomTheme: look.CustomTheme, DefaultSort: gen.PublicAppsDefaultSort(d.DefaultSort), UpdatedAt: nonZero(v.UpdatedAt), HostsOnline: v.HostsOnline, HostsTotal: v.HostsTotal,
 		FirewallOnline: v.FirewallUp, FirewallTotal: v.FirewallTotal, Apps: make([]gen.PublicApp, 0, len(v.Apps))}
 	for _, a := range v.Apps {
 		out.Apps = append(out.Apps, gen.PublicApp{Name: a.Name, Group: a.Group, Url: a.URL, State: gen.MonitorState(a.State)})

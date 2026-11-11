@@ -185,3 +185,20 @@ func TestRenderRefusesBadSpecs(t *testing.T) {
 		}
 	}
 }
+
+// The Firewall settings' MSS clamp switch (09 §2): a routing peer clamps by default and not when it is off.
+func TestRenderMSSClampSetting(t *testing.T) {
+	routing := shapes()["netbird_routing.json"]
+	on, err := Render(routing)
+	if err != nil {
+		t.Fatal(err)
+	}
+	routing.NoMSSClamp = true
+	off, err := Render(routing)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(on, []byte(`"maxseg"`)) || bytes.Contains(off, []byte(`"maxseg"`)) {
+		t.Fatalf("clamp on %v, off %v", bytes.Contains(on, []byte(`"maxseg"`)), bytes.Contains(off, []byte(`"maxseg"`)))
+	}
+}

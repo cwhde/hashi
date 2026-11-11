@@ -3,6 +3,7 @@ package notify
 import (
 	"bytes"
 	"fmt"
+	"git.juzo.io/juzo/hashi/internal/settings"
 	"html"
 	"html/template"
 	"strconv"
@@ -180,6 +181,9 @@ var mailTemplate = template.Must(template.New("mail").Funcs(template.FuncMap{"pe
 
 func mailHTML(m Message) (string, error) {
 	p, ok := palettes[m.Theme]
+	if c := m.Custom; m.Theme == settings.ThemeCustom && c != nil { // a custom theme mails in its own colours
+		p, ok = palette{c.Canvas, c.Surface, c.Border, c.Text, c.Muted, c.Accent, c.AccentText()}, true
+	}
 	if !ok {
 		p = palettes["graphite"]
 	}

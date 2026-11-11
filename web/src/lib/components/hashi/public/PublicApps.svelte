@@ -6,7 +6,7 @@
 	import { Search } from '@lucide/svelte';
 	import { api, type Schemas } from '$lib/api/client';
 	import { stateOrder } from '$lib/monitor';
-	import { theme, type ThemeId } from '$lib/theme.svelte';
+	import { theme } from '$lib/theme.svelte';
 
 	// Public port: only names, links and state, no admin controls (07 §8).
 	let data = $state<Schemas['PublicApps'] | null>(null);
@@ -14,6 +14,7 @@
 	let searching = $state(false);
 	let query = $state('');
 	let sort = $state('group');
+	let sortChosen = false; // the visitor's choice wins over the default from the Dashboard settings
 
 	async function load() {
 		try {
@@ -21,7 +22,8 @@
 			if (!r.data) throw new Error('no data');
 			data = r.data;
 			failed = false;
-			theme.set(r.data.theme as ThemeId);
+			if (!sortChosen) sort = r.data.default_sort;
+			theme.apply(r.data);
 		} catch {
 			failed = true;
 		}
@@ -69,7 +71,7 @@
 				><Search class="size-4" />Search</button
 			>
 		{/if}
-		<Select.Root type="single" bind:value={sort}>
+		<Select.Root type="single" bind:value={sort} onValueChange={() => (sortChosen = true)}>
 			<Select.Trigger class="w-36" aria-label="Sort">Sort: {sortNames[sort]}</Select.Trigger>
 			<Select.Content>
 				{#each Object.entries(sortNames) as [v, l] (v)}<Select.Item value={v}>{l}</Select.Item

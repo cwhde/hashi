@@ -11,6 +11,7 @@ import (
 
 	"git.juzo.io/juzo/hashi/internal/ipsets"
 	"git.juzo.io/juzo/hashi/internal/services"
+	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/store"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 	"git.juzo.io/juzo/hashi/internal/store/storetest"
@@ -312,4 +313,34 @@ func hashiEndpointSource(t *testing.T, st *store.Store) string {
 	}
 	t.Fatal("no endpoint")
 	return ""
+}
+
+// The Monitoring settings (09 §2) reach new endpoints, the healthy-code range of new checks and the sample retention;
+// endpoints that exist keep their own values.
+func TestMonitoringSettingsApply(t *testing.T) {
+	s, st, _, _ := fixture(t)
+	ctx := t.Context()
+	s.UseDefaults(settings.Monitoring{IntervalSeconds: 120, TimeoutSeconds: 7, CodeMin: 200, CodeMax: 299, DegradedMs: 800, RetentionDays: 2})
+	id, err := s.CreateUser(ctx, "api", "", CheckSpec{Type: TypeHTTPS, Target: "https://example.com/health"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e, err := st.R.GetMonitorEndpoint(ctx, id)
+	if err != nil || e.IntervalSeconds != 120 || e.TimeoutSeconds != 7 || e.DegradedMs != 800 {
+		t.Fatalf("endpoint %+v %v", e, err)
+	}
+	checks, err := st.R.ListMonitorChecks(ctx, id)
+	if err != nil || len(checks) != 1 || checks[0].CodeMin != 200 || checks[0].CodeMax != 299 {
+		t.Fatalf("checks %+v %v", checks, err)
+	}
+	// Samples older than 2 days go; a 1-day-old one stays.
+	now := s.now()
+	for i, age := range []time.Duration{3 * 24 * time.Hour, 24 * time.Hour} {
+		if err := st.Q.InsertMonitorSample(ctx, db.InsertMonitorSampleParams{EndpointID: id, At: now.Add(-age).UnixMilli() + int64(i), Verdict: StateUp, Ok: 1}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n, err := s.retain(ctx); err != nil || n != 1 {
+		t.Fatalf("removed %d %v", n, err)
+	}
 }

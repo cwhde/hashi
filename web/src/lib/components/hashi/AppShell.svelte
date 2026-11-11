@@ -6,7 +6,7 @@
 	import { nav as designNav, liveNav, setupNav } from '$lib/design/nav';
 	import { session, setupServices } from '$lib/auth/session.svelte';
 	import { time } from '$lib/format';
-	import { theme, themes } from '$lib/theme.svelte';
+	import { theme, themes, customVars } from '$lib/theme.svelte';
 	import { cn } from '$lib/utils';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import * as Sheet from '$lib/components/ui/sheet';
@@ -273,6 +273,18 @@
 								{t.name}
 							</DropdownMenu.RadioItem>
 						{/each}
+						{#if theme.custom}<DropdownMenu.RadioItem value="custom">
+								<span
+									style={Object.entries(customVars(theme.custom))
+										.map(([k, v]) => `${k}:${v}`)
+										.join(';')}
+									data-theme="custom"
+									class="flex h-4 w-6 items-center justify-end rounded-sm border bg-card px-0.5"
+								>
+									<span class="size-2 rounded-full bg-primary"></span>
+								</span>
+								Custom
+							</DropdownMenu.RadioItem>{/if}
 					</DropdownMenu.RadioGroup>
 				</DropdownMenu.Content>
 			</DropdownMenu.Root>

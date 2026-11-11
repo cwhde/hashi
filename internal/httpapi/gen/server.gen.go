@@ -308,6 +308,27 @@ func (e CounterRowState) Valid() bool {
 	}
 }
 
+// Defines values for CustomThemeRoundness.
+const (
+	Default CustomThemeRoundness = "default"
+	Round   CustomThemeRoundness = "round"
+	Sharp   CustomThemeRoundness = "sharp"
+)
+
+// Valid indicates whether the value is a known member of the CustomThemeRoundness enum.
+func (e CustomThemeRoundness) Valid() bool {
+	switch e {
+	case Default:
+		return true
+	case Round:
+		return true
+	case Sharp:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DNSDecision.
 const (
 	DNSDecisionImport DNSDecision = "import"
@@ -446,6 +467,27 @@ func (e DNSRecordInputType) Valid() bool {
 	}
 }
 
+// Defines values for DashboardSettingsDefaultSort.
+const (
+	DashboardSettingsDefaultSortGroup  DashboardSettingsDefaultSort = "group"
+	DashboardSettingsDefaultSortName   DashboardSettingsDefaultSort = "name"
+	DashboardSettingsDefaultSortStatus DashboardSettingsDefaultSort = "status"
+)
+
+// Valid indicates whether the value is a known member of the DashboardSettingsDefaultSort enum.
+func (e DashboardSettingsDefaultSort) Valid() bool {
+	switch e {
+	case DashboardSettingsDefaultSortGroup:
+		return true
+	case DashboardSettingsDefaultSortName:
+		return true
+	case DashboardSettingsDefaultSortStatus:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for EngineSettingsBanFunction.
 const (
 	Constant    EngineSettingsBanFunction = "constant"
@@ -536,6 +578,27 @@ func (e FeedRunOutcome) Valid() bool {
 	case FeedRunOutcomeUnchanged:
 		return true
 	case FeedRunOutcomeUpdated:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FirewallDefaultsSettingsNetbirdMode.
+const (
+	FirewallDefaultsSettingsNetbirdModeDisabled FirewallDefaultsSettingsNetbirdMode = "disabled"
+	FirewallDefaultsSettingsNetbirdModePeer     FirewallDefaultsSettingsNetbirdMode = "peer"
+	FirewallDefaultsSettingsNetbirdModeRouting  FirewallDefaultsSettingsNetbirdMode = "routing"
+)
+
+// Valid indicates whether the value is a known member of the FirewallDefaultsSettingsNetbirdMode enum.
+func (e FirewallDefaultsSettingsNetbirdMode) Valid() bool {
+	switch e {
+	case FirewallDefaultsSettingsNetbirdModeDisabled:
+		return true
+	case FirewallDefaultsSettingsNetbirdModePeer:
+		return true
+	case FirewallDefaultsSettingsNetbirdModeRouting:
 		return true
 	default:
 		return false
@@ -683,6 +746,24 @@ func (e FirewallHostInputNetbirdMode) Valid() bool {
 	case FirewallHostInputNetbirdModePeer:
 		return true
 	case FirewallHostInputNetbirdModeRouting:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for GeneralSettingsTimeDisplay.
+const (
+	Local GeneralSettingsTimeDisplay = "local"
+	Utc   GeneralSettingsTimeDisplay = "utc"
+)
+
+// Valid indicates whether the value is a known member of the GeneralSettingsTimeDisplay enum.
+func (e GeneralSettingsTimeDisplay) Valid() bool {
+	switch e {
+	case Local:
+		return true
+	case Utc:
 		return true
 	default:
 		return false
@@ -1106,6 +1187,27 @@ func (e NotificationRouteMinSeverity) Valid() bool {
 	case NotificationRouteMinSeverityDegraded:
 		return true
 	case NotificationRouteMinSeverityDown:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PublicAppsDefaultSort.
+const (
+	PublicAppsDefaultSortGroup  PublicAppsDefaultSort = "group"
+	PublicAppsDefaultSortName   PublicAppsDefaultSort = "name"
+	PublicAppsDefaultSortStatus PublicAppsDefaultSort = "status"
+)
+
+// Valid indicates whether the value is a known member of the PublicAppsDefaultSort enum.
+func (e PublicAppsDefaultSort) Valid() bool {
+	switch e {
+	case PublicAppsDefaultSortGroup:
+		return true
+	case PublicAppsDefaultSortName:
+		return true
+	case PublicAppsDefaultSortStatus:
 		return true
 	default:
 		return false
@@ -2391,9 +2493,16 @@ type AllSettings struct {
 
 // AppearanceSettings defines model for AppearanceSettings.
 type AppearanceSettings struct {
-	PublicDashboardEnabled bool   `json:"public_dashboard_enabled"`
-	PublicStatusEnabled    bool   `json:"public_status_enabled"`
-	Theme                  string `json:"theme"`
+	// CustomTheme The admin's palette (10-ui §2); the other roles are derived. Refused when text is unreadable.
+	CustomTheme            *CustomTheme `json:"custom_theme,omitempty"`
+	PublicDashboardEnabled bool         `json:"public_dashboard_enabled"`
+	PublicStatusEnabled    bool         `json:"public_status_enabled"`
+
+	// ReduceTransparency Solid backgrounds instead of translucent overlays
+	ReduceTransparency *bool `json:"reduce_transparency,omitempty"`
+
+	// Theme A built-in theme id, or custom
+	Theme string `json:"theme"`
 }
 
 // AuditEvent defines model for AuditEvent.
@@ -2693,6 +2802,21 @@ type CounterRow struct {
 // CounterRowState defines model for CounterRow.State.
 type CounterRowState string
 
+// CustomTheme The admin's palette (10-ui §2); the other roles are derived. Refused when text is unreadable.
+type CustomTheme struct {
+	Accent    string               `json:"accent"`
+	Border    string               `json:"border"`
+	Canvas    string               `json:"canvas"`
+	Charts    *[]string            `json:"charts,omitempty"`
+	Muted     string               `json:"muted"`
+	Roundness CustomThemeRoundness `json:"roundness"`
+	Surface   string               `json:"surface"`
+	Text      string               `json:"text"`
+}
+
+// CustomThemeRoundness defines model for CustomTheme.Roundness.
+type CustomThemeRoundness string
+
 // DNSConnectResult `provider` and `zone` are absent when no zone was chosen (nothing stored)
 type DNSConnectResult struct {
 	Provider *DNSProvider `json:"provider,omitempty"`
@@ -2907,6 +3031,18 @@ type DNSZoneRef struct {
 	ZoneId string `json:"zone_id"`
 }
 
+// DashboardSettings defines model for DashboardSettings.
+type DashboardSettings struct {
+	// DefaultSort Order of the public app dashboard
+	DefaultSort DashboardSettingsDefaultSort `json:"default_sort"`
+
+	// NewServicesVisible New services show on the public dashboard
+	NewServicesVisible bool `json:"new_services_visible"`
+}
+
+// DashboardSettingsDefaultSort Order of the public app dashboard
+type DashboardSettingsDefaultSort string
+
 // DynamicEntryInput defines model for DynamicEntryInput.
 type DynamicEntryInput struct {
 	Address string `json:"address"`
@@ -3063,6 +3199,18 @@ type FirewallBindings struct {
 	Allow []string `json:"allow"`
 	Block []string `json:"block"`
 }
+
+// FirewallDefaultsSettings defines model for FirewallDefaultsSettings.
+type FirewallDefaultsSettings struct {
+	// MssClamp Clamp TCP MSS on NetBird-routed traffic (routing peers)
+	MssClamp bool `json:"mss_clamp"`
+
+	// NetbirdMode NetBird mode a new firewall host starts with
+	NetbirdMode FirewallDefaultsSettingsNetbirdMode `json:"netbird_mode"`
+}
+
+// FirewallDefaultsSettingsNetbirdMode NetBird mode a new firewall host starts with
+type FirewallDefaultsSettingsNetbirdMode string
 
 // FirewallFacts defines model for FirewallFacts.
 type FirewallFacts struct {
@@ -3249,12 +3397,18 @@ type FlatRule struct {
 
 // GeneralSettings defines model for GeneralSettings.
 type GeneralSettings struct {
-	AdminDomain         string   `json:"admin_domain"`
-	InternalUrl         string   `json:"internal_url"`
-	RootDomain          string   `json:"root_domain"`
-	SyncIntervalSeconds int      `json:"sync_interval_seconds"`
-	TrustedProxies      []string `json:"trusted_proxies"`
+	AdminDomain         string `json:"admin_domain"`
+	InternalUrl         string `json:"internal_url"`
+	RootDomain          string `json:"root_domain"`
+	SyncIntervalSeconds int    `json:"sync_interval_seconds"`
+
+	// TimeDisplay How the admin UI shows times; absent = local
+	TimeDisplay    *GeneralSettingsTimeDisplay `json:"time_display,omitempty"`
+	TrustedProxies []string                    `json:"trusted_proxies"`
 }
+
+// GeneralSettingsTimeDisplay How the admin UI shows times; absent = local
+type GeneralSettingsTimeDisplay string
 
 // GeoIPDatabase defines model for GeoIPDatabase.
 type GeoIPDatabase struct {
@@ -3707,6 +3861,27 @@ type MonitorStripSample struct {
 // MonitorStripSampleVerdict defines model for MonitorStripSample.Verdict.
 type MonitorStripSampleVerdict string
 
+// MonitoringSettings defines model for MonitoringSettings.
+type MonitoringSettings struct {
+	// CodeMax to
+	CodeMax int `json:"code_max"`
+
+	// CodeMin Healthy HTTP codes of new checks, from
+	CodeMin int `json:"code_min"`
+
+	// DegradedMs Latency above which a new endpoint is degraded; 0 = none
+	DegradedMs int `json:"degraded_ms"`
+
+	// IntervalSeconds Check interval of new endpoints
+	IntervalSeconds int `json:"interval_seconds"`
+
+	// RetentionDays How long raw samples stay
+	RetentionDays int `json:"retention_days"`
+
+	// TimeoutSeconds Check timeout of new endpoints
+	TimeoutSeconds int `json:"timeout_seconds"`
+}
+
 // NotificationDelivery defines model for NotificationDelivery.
 type NotificationDelivery struct {
 	Attempts      int64                      `json:"attempts"`
@@ -3838,15 +4013,24 @@ type PublicApp struct {
 
 // PublicApps defines model for PublicApps.
 type PublicApps struct {
-	Apps           []PublicApp `json:"apps"`
-	FirewallOnline int         `json:"firewall_online"`
-	FirewallTotal  int         `json:"firewall_total"`
-	HostsOnline    int         `json:"hosts_online"`
-	HostsTotal     int         `json:"hosts_total"`
-	Theme          string      `json:"theme"`
-	Title          string      `json:"title"`
-	UpdatedAt      *time.Time  `json:"updated_at,omitempty"`
+	Apps []PublicApp `json:"apps"`
+
+	// CustomTheme The admin's palette (10-ui §2); the other roles are derived. Refused when text is unreadable.
+	CustomTheme *CustomTheme `json:"custom_theme,omitempty"`
+
+	// DefaultSort The order the page starts with (Dashboard settings)
+	DefaultSort    PublicAppsDefaultSort `json:"default_sort"`
+	FirewallOnline int                   `json:"firewall_online"`
+	FirewallTotal  int                   `json:"firewall_total"`
+	HostsOnline    int                   `json:"hosts_online"`
+	HostsTotal     int                   `json:"hosts_total"`
+	Theme          string                `json:"theme"`
+	Title          string                `json:"title"`
+	UpdatedAt      *time.Time            `json:"updated_at,omitempty"`
 }
+
+// PublicAppsDefaultSort The order the page starts with (Dashboard settings)
+type PublicAppsDefaultSort string
 
 // PublicEndpoint defines model for PublicEndpoint.
 type PublicEndpoint struct {
@@ -3862,10 +4046,12 @@ type PublicEndpoint struct {
 
 // PublicStatus defines model for PublicStatus.
 type PublicStatus struct {
-	Endpoints []PublicEndpoint `json:"endpoints"`
-	Theme     string           `json:"theme"`
-	Title     string           `json:"title"`
-	UpdatedAt *time.Time       `json:"updated_at,omitempty"`
+	// CustomTheme The admin's palette (10-ui §2); the other roles are derived. Refused when text is unreadable.
+	CustomTheme *CustomTheme     `json:"custom_theme,omitempty"`
+	Endpoints   []PublicEndpoint `json:"endpoints"`
+	Theme       string           `json:"theme"`
+	Title       string           `json:"title"`
+	UpdatedAt   *time.Time       `json:"updated_at,omitempty"`
 }
 
 // PulseAgent defines model for PulseAgent.
@@ -5279,17 +5465,26 @@ type SetServiceWAFJSONRequestBody = ServiceWAF
 // PutAppearanceSettingsJSONRequestBody defines body for PutAppearanceSettings for application/json ContentType.
 type PutAppearanceSettingsJSONRequestBody = AppearanceSettings
 
+// PutDashboardSettingsJSONRequestBody defines body for PutDashboardSettings for application/json ContentType.
+type PutDashboardSettingsJSONRequestBody = DashboardSettings
+
 // PutEdgeSSOSettingsJSONRequestBody defines body for PutEdgeSSOSettings for application/json ContentType.
 type PutEdgeSSOSettingsJSONRequestBody = EdgeSSOSettings
 
 // PutEngineSettingsJSONRequestBody defines body for PutEngineSettings for application/json ContentType.
 type PutEngineSettingsJSONRequestBody = EngineSettings
 
+// PutFirewallDefaultsSettingsJSONRequestBody defines body for PutFirewallDefaultsSettings for application/json ContentType.
+type PutFirewallDefaultsSettingsJSONRequestBody = FirewallDefaultsSettings
+
 // PutGeneralSettingsJSONRequestBody defines body for PutGeneralSettings for application/json ContentType.
 type PutGeneralSettingsJSONRequestBody = GeneralSettings
 
 // PutAgentDNSSettingsJSONRequestBody defines body for PutAgentDNSSettings for application/json ContentType.
 type PutAgentDNSSettingsJSONRequestBody = AgentDNSSettings
+
+// PutMonitoringSettingsJSONRequestBody defines body for PutMonitoringSettings for application/json ContentType.
+type PutMonitoringSettingsJSONRequestBody = MonitoringSettings
 
 // PutPulseSettingsJSONRequestBody defines body for PutPulseSettings for application/json ContentType.
 type PutPulseSettingsJSONRequestBody = PulseSettings
@@ -6094,6 +6289,12 @@ type ServerInterface interface {
 	// (PUT /api/settings/appearance)
 	PutAppearanceSettings(w http.ResponseWriter, r *http.Request)
 
+	// (GET /api/settings/dashboard)
+	GetDashboardSettings(w http.ResponseWriter, r *http.Request)
+
+	// (PUT /api/settings/dashboard)
+	PutDashboardSettings(w http.ResponseWriter, r *http.Request)
+
 	// (GET /api/settings/edge-sso)
 	GetEdgeSSOSettings(w http.ResponseWriter, r *http.Request)
 
@@ -6105,6 +6306,12 @@ type ServerInterface interface {
 	// PutEngineSettings Save the abuse engine's settings; the firewall and every Traefik host are planned again
 	// (PUT /api/settings/engine)
 	PutEngineSettings(w http.ResponseWriter, r *http.Request)
+
+	// (GET /api/settings/firewall-defaults)
+	GetFirewallDefaultsSettings(w http.ResponseWriter, r *http.Request)
+
+	// (PUT /api/settings/firewall-defaults)
+	PutFirewallDefaultsSettings(w http.ResponseWriter, r *http.Request)
 
 	// (GET /api/settings/general)
 	GetGeneralSettings(w http.ResponseWriter, r *http.Request)
@@ -6123,6 +6330,12 @@ type ServerInterface interface {
 	// PreviewAgentDNS The rewrites agent DNS wants right now; changes nothing
 	// (POST /api/settings/internal-agent-dns/preview-sync)
 	PreviewAgentDNS(w http.ResponseWriter, r *http.Request)
+
+	// (GET /api/settings/monitoring)
+	GetMonitoringSettings(w http.ResponseWriter, r *http.Request)
+
+	// (PUT /api/settings/monitoring)
+	PutMonitoringSettings(w http.ResponseWriter, r *http.Request)
 
 	// (GET /api/settings/pulse)
 	GetPulseSettings(w http.ResponseWriter, r *http.Request)
@@ -9875,6 +10088,34 @@ func (siw *ServerInterfaceWrapper) PutAppearanceSettings(w http.ResponseWriter, 
 	handler.ServeHTTP(w, r)
 }
 
+// GetDashboardSettings operation middleware
+func (siw *ServerInterfaceWrapper) GetDashboardSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetDashboardSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutDashboardSettings operation middleware
+func (siw *ServerInterfaceWrapper) PutDashboardSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutDashboardSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetEdgeSSOSettings operation middleware
 func (siw *ServerInterfaceWrapper) GetEdgeSSOSettings(w http.ResponseWriter, r *http.Request) {
 
@@ -9922,6 +10163,34 @@ func (siw *ServerInterfaceWrapper) PutEngineSettings(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PutEngineSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetFirewallDefaultsSettings operation middleware
+func (siw *ServerInterfaceWrapper) GetFirewallDefaultsSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetFirewallDefaultsSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutFirewallDefaultsSettings operation middleware
+func (siw *ServerInterfaceWrapper) PutFirewallDefaultsSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutFirewallDefaultsSettings(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -10006,6 +10275,34 @@ func (siw *ServerInterfaceWrapper) PreviewAgentDNS(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.PreviewAgentDNS(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetMonitoringSettings operation middleware
+func (siw *ServerInterfaceWrapper) GetMonitoringSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetMonitoringSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutMonitoringSettings operation middleware
+func (siw *ServerInterfaceWrapper) PutMonitoringSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutMonitoringSettings(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -11206,6 +11503,12 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/traefik/connections/{id}/ssh-target", wrapper.PutTraefikSSHTarget)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings/edge-sso", wrapper.GetEdgeSSOSettings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/settings/edge-sso", wrapper.PutEdgeSSOSettings)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings/monitoring", wrapper.GetMonitoringSettings)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/settings/monitoring", wrapper.PutMonitoringSettings)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings/dashboard", wrapper.GetDashboardSettings)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/settings/dashboard", wrapper.PutDashboardSettings)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings/firewall-defaults", wrapper.GetFirewallDefaultsSettings)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/settings/firewall-defaults", wrapper.PutFirewallDefaultsSettings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/settings/pulse", wrapper.GetPulseSettings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/settings/pulse", wrapper.PutPulseSettings)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/pulse/agents/{id}/consumers", wrapper.GetPulseConsumers)
@@ -17228,6 +17531,83 @@ func (response PutAppearanceSettingsdefaultApplicationProblemPlusJSONResponse) V
 	return err
 }
 
+type GetDashboardSettingsRequestObject struct {
+}
+
+type GetDashboardSettingsResponseObject interface {
+	VisitGetDashboardSettingsResponse(w http.ResponseWriter) error
+}
+
+type GetDashboardSettings200JSONResponse DashboardSettings
+
+func (response GetDashboardSettings200JSONResponse) VisitGetDashboardSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetDashboardSettingsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetDashboardSettingsdefaultApplicationProblemPlusJSONResponse) VisitGetDashboardSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutDashboardSettingsRequestObject struct {
+	Body *PutDashboardSettingsJSONRequestBody
+}
+
+type PutDashboardSettingsResponseObject interface {
+	VisitPutDashboardSettingsResponse(w http.ResponseWriter) error
+}
+
+type PutDashboardSettings200JSONResponse DashboardSettings
+
+func (response PutDashboardSettings200JSONResponse) VisitPutDashboardSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutDashboardSettingsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutDashboardSettingsdefaultApplicationProblemPlusJSONResponse) VisitPutDashboardSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetEdgeSSOSettingsRequestObject struct {
 }
 
@@ -17371,6 +17751,83 @@ type PutEngineSettingsdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response PutEngineSettingsdefaultApplicationProblemPlusJSONResponse) VisitPutEngineSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetFirewallDefaultsSettingsRequestObject struct {
+}
+
+type GetFirewallDefaultsSettingsResponseObject interface {
+	VisitGetFirewallDefaultsSettingsResponse(w http.ResponseWriter) error
+}
+
+type GetFirewallDefaultsSettings200JSONResponse FirewallDefaultsSettings
+
+func (response GetFirewallDefaultsSettings200JSONResponse) VisitGetFirewallDefaultsSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetFirewallDefaultsSettingsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetFirewallDefaultsSettingsdefaultApplicationProblemPlusJSONResponse) VisitGetFirewallDefaultsSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutFirewallDefaultsSettingsRequestObject struct {
+	Body *PutFirewallDefaultsSettingsJSONRequestBody
+}
+
+type PutFirewallDefaultsSettingsResponseObject interface {
+	VisitPutFirewallDefaultsSettingsResponse(w http.ResponseWriter) error
+}
+
+type PutFirewallDefaultsSettings200JSONResponse FirewallDefaultsSettings
+
+func (response PutFirewallDefaultsSettings200JSONResponse) VisitPutFirewallDefaultsSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutFirewallDefaultsSettingsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutFirewallDefaultsSettingsdefaultApplicationProblemPlusJSONResponse) VisitPutFirewallDefaultsSettingsResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -17595,6 +18052,83 @@ type PreviewAgentDNSdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response PreviewAgentDNSdefaultApplicationProblemPlusJSONResponse) VisitPreviewAgentDNSResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMonitoringSettingsRequestObject struct {
+}
+
+type GetMonitoringSettingsResponseObject interface {
+	VisitGetMonitoringSettingsResponse(w http.ResponseWriter) error
+}
+
+type GetMonitoringSettings200JSONResponse MonitoringSettings
+
+func (response GetMonitoringSettings200JSONResponse) VisitGetMonitoringSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetMonitoringSettingsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetMonitoringSettingsdefaultApplicationProblemPlusJSONResponse) VisitGetMonitoringSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutMonitoringSettingsRequestObject struct {
+	Body *PutMonitoringSettingsJSONRequestBody
+}
+
+type PutMonitoringSettingsResponseObject interface {
+	VisitPutMonitoringSettingsResponse(w http.ResponseWriter) error
+}
+
+type PutMonitoringSettings200JSONResponse MonitoringSettings
+
+func (response PutMonitoringSettings200JSONResponse) VisitPutMonitoringSettingsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutMonitoringSettingsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutMonitoringSettingsdefaultApplicationProblemPlusJSONResponse) VisitPutMonitoringSettingsResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -20259,6 +20793,12 @@ type StrictServerInterface interface {
 	// (PUT /api/settings/appearance)
 	PutAppearanceSettings(ctx context.Context, request PutAppearanceSettingsRequestObject) (PutAppearanceSettingsResponseObject, error)
 
+	// (GET /api/settings/dashboard)
+	GetDashboardSettings(ctx context.Context, request GetDashboardSettingsRequestObject) (GetDashboardSettingsResponseObject, error)
+
+	// (PUT /api/settings/dashboard)
+	PutDashboardSettings(ctx context.Context, request PutDashboardSettingsRequestObject) (PutDashboardSettingsResponseObject, error)
+
 	// (GET /api/settings/edge-sso)
 	GetEdgeSSOSettings(ctx context.Context, request GetEdgeSSOSettingsRequestObject) (GetEdgeSSOSettingsResponseObject, error)
 
@@ -20270,6 +20810,12 @@ type StrictServerInterface interface {
 	// PutEngineSettings Save the abuse engine's settings; the firewall and every Traefik host are planned again
 	// (PUT /api/settings/engine)
 	PutEngineSettings(ctx context.Context, request PutEngineSettingsRequestObject) (PutEngineSettingsResponseObject, error)
+
+	// (GET /api/settings/firewall-defaults)
+	GetFirewallDefaultsSettings(ctx context.Context, request GetFirewallDefaultsSettingsRequestObject) (GetFirewallDefaultsSettingsResponseObject, error)
+
+	// (PUT /api/settings/firewall-defaults)
+	PutFirewallDefaultsSettings(ctx context.Context, request PutFirewallDefaultsSettingsRequestObject) (PutFirewallDefaultsSettingsResponseObject, error)
 
 	// (GET /api/settings/general)
 	GetGeneralSettings(ctx context.Context, request GetGeneralSettingsRequestObject) (GetGeneralSettingsResponseObject, error)
@@ -20288,6 +20834,12 @@ type StrictServerInterface interface {
 	// PreviewAgentDNS The rewrites agent DNS wants right now; changes nothing
 	// (POST /api/settings/internal-agent-dns/preview-sync)
 	PreviewAgentDNS(ctx context.Context, request PreviewAgentDNSRequestObject) (PreviewAgentDNSResponseObject, error)
+
+	// (GET /api/settings/monitoring)
+	GetMonitoringSettings(ctx context.Context, request GetMonitoringSettingsRequestObject) (GetMonitoringSettingsResponseObject, error)
+
+	// (PUT /api/settings/monitoring)
+	PutMonitoringSettings(ctx context.Context, request PutMonitoringSettingsRequestObject) (PutMonitoringSettingsResponseObject, error)
 
 	// (GET /api/settings/pulse)
 	GetPulseSettings(ctx context.Context, request GetPulseSettingsRequestObject) (GetPulseSettingsResponseObject, error)
@@ -24765,6 +25317,61 @@ func (sh *strictHandler) PutAppearanceSettings(w http.ResponseWriter, r *http.Re
 	}
 }
 
+// GetDashboardSettings operation middleware
+func (sh *strictHandler) GetDashboardSettings(w http.ResponseWriter, r *http.Request) {
+	var request GetDashboardSettingsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetDashboardSettings(ctx, request.(GetDashboardSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetDashboardSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetDashboardSettingsResponseObject); ok {
+		if err := validResponse.VisitGetDashboardSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutDashboardSettings operation middleware
+func (sh *strictHandler) PutDashboardSettings(w http.ResponseWriter, r *http.Request) {
+	var request PutDashboardSettingsRequestObject
+
+	var body PutDashboardSettingsJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutDashboardSettings(ctx, request.(PutDashboardSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutDashboardSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutDashboardSettingsResponseObject); ok {
+		if err := validResponse.VisitPutDashboardSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetEdgeSSOSettings operation middleware
 func (sh *strictHandler) GetEdgeSSOSettings(w http.ResponseWriter, r *http.Request) {
 	var request GetEdgeSSOSettingsRequestObject
@@ -24868,6 +25475,61 @@ func (sh *strictHandler) PutEngineSettings(w http.ResponseWriter, r *http.Reques
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(PutEngineSettingsResponseObject); ok {
 		if err := validResponse.VisitPutEngineSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetFirewallDefaultsSettings operation middleware
+func (sh *strictHandler) GetFirewallDefaultsSettings(w http.ResponseWriter, r *http.Request) {
+	var request GetFirewallDefaultsSettingsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetFirewallDefaultsSettings(ctx, request.(GetFirewallDefaultsSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetFirewallDefaultsSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetFirewallDefaultsSettingsResponseObject); ok {
+		if err := validResponse.VisitGetFirewallDefaultsSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutFirewallDefaultsSettings operation middleware
+func (sh *strictHandler) PutFirewallDefaultsSettings(w http.ResponseWriter, r *http.Request) {
+	var request PutFirewallDefaultsSettingsRequestObject
+
+	var body PutFirewallDefaultsSettingsJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutFirewallDefaultsSettings(ctx, request.(PutFirewallDefaultsSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutFirewallDefaultsSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutFirewallDefaultsSettingsResponseObject); ok {
+		if err := validResponse.VisitPutFirewallDefaultsSettingsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -25026,6 +25688,61 @@ func (sh *strictHandler) PreviewAgentDNS(w http.ResponseWriter, r *http.Request)
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(PreviewAgentDNSResponseObject); ok {
 		if err := validResponse.VisitPreviewAgentDNSResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetMonitoringSettings operation middleware
+func (sh *strictHandler) GetMonitoringSettings(w http.ResponseWriter, r *http.Request) {
+	var request GetMonitoringSettingsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMonitoringSettings(ctx, request.(GetMonitoringSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMonitoringSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetMonitoringSettingsResponseObject); ok {
+		if err := validResponse.VisitGetMonitoringSettingsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutMonitoringSettings operation middleware
+func (sh *strictHandler) PutMonitoringSettings(w http.ResponseWriter, r *http.Request) {
+	var request PutMonitoringSettingsRequestObject
+
+	var body PutMonitoringSettingsJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutMonitoringSettings(ctx, request.(PutMonitoringSettingsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutMonitoringSettings")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutMonitoringSettingsResponseObject); ok {
+		if err := validResponse.VisitPutMonitoringSettingsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

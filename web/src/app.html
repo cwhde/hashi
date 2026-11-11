@@ -8,12 +8,24 @@
 			// Apply the stored theme before first paint (10-ui.md §4: no flash of the wrong theme).
 			(function () {
 				try {
+					var r = document.documentElement;
 					var t = localStorage.getItem('hashi.theme');
 					var modes = { graphite: 'dark', linen: 'light', verdant: 'dark', violet: 'dark' };
 					if (t && modes[t]) {
-						document.documentElement.dataset.theme = t;
-						document.documentElement.dataset.mode = modes[t];
+						r.dataset.theme = t;
+						r.dataset.mode = modes[t];
+					} else if (t === 'custom') {
+						// The custom theme's variables as theme.svelte.ts last applied them.
+						var c = JSON.parse(localStorage.getItem('hashi.theme.vars') || 'null');
+						if (c && c.vars) {
+							for (var k in c.vars)
+								if (k.indexOf('--') === 0) r.style.setProperty(k, String(c.vars[k]));
+							r.dataset.theme = 'custom';
+							r.dataset.mode = c.mode === 'light' ? 'light' : 'dark';
+							r.style.colorScheme = r.dataset.mode;
+						}
 					}
+					if (localStorage.getItem('hashi.solid') === '1') r.dataset.solid = '';
 				} catch (e) {}
 			})();
 		</script>

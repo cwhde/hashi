@@ -60,6 +60,9 @@ func Get[T Category](ctx context.Context, q *db.Queries) (T, error) {
 	if err := json.Unmarshal([]byte(row.ValueJson), &v); err != nil {
 		return v, fmt.Errorf("decode %s settings: %w", v.Key(), err)
 	}
+	if r, ok := any(v).(interface{ repair() Category }); ok {
+		v = r.repair().(T)
+	}
 	if err := v.Validate(); err != nil {
 		return v, fmt.Errorf("stored %s settings: %w", v.Key(), err)
 	}
@@ -68,7 +71,8 @@ func Get[T Category](ctx context.Context, q *db.Queries) (T, error) {
 
 // Load reads every category once and notifies subscribers, so consumers start with the stored values.
 func (s *Service) Load(ctx context.Context) error {
-	for _, c := range []Category{General{}, Security{}, Appearance{}, AgentDNS{}, Pulse{}, EdgeSSO{}, GeoIP{}, Engine{}, Captcha{}} {
+	for _, c := range []Category{General{}, Security{}, Appearance{}, AgentDNS{}, Pulse{}, EdgeSSO{}, GeoIP{}, Engine{}, Captcha{},
+		Monitoring{}, Dashboard{}, FirewallDefaults{}} {
 		v, err := s.getAny(ctx, c)
 		if err != nil {
 			return err
@@ -98,6 +102,12 @@ func (s *Service) getAny(ctx context.Context, c Category) (Category, error) {
 		return Get[Engine](ctx, s.st.Q)
 	case Captcha:
 		return Get[Captcha](ctx, s.st.Q)
+	case Monitoring:
+		return Get[Monitoring](ctx, s.st.Q)
+	case Dashboard:
+		return Get[Dashboard](ctx, s.st.Q)
+	case FirewallDefaults:
+		return Get[FirewallDefaults](ctx, s.st.Q)
 	}
 	return nil, fmt.Errorf("unknown settings category %T", c)
 }

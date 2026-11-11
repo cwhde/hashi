@@ -72,6 +72,7 @@ type Spec struct {
 	// DropOtherInbound: the user accepted the "block all other inbound" warning for this host (05 §3.2 chain 4).
 	DropOtherInbound bool
 	Meters           Meters
+	NoMSSClamp       bool // Firewall settings: no MSS clamp on NetBird-routed traffic
 }
 
 // planSets are the sets whose elements a plan replaces; dyn, staging and meter sets are never flushed (05 §3.3).
@@ -448,9 +449,9 @@ func chains(s Spec) []chainOut {
 		}
 	}
 
-	// 7. mangle_fwd: MSS clamp on NetBird-routed traffic.
+	// 7. mangle_fwd: MSS clamp on NetBird-routed traffic, unless the Firewall settings switch it off (09 §2).
 	mangle := chainOut{def: base("mangle_fwd", "filter", "forward", -150)}
-	if s.NetBird.Mode == NetBirdRouting {
+	if s.NetBird.Mode == NetBirdRouting && !s.NoMSSClamp {
 		clamp := obj{"mangle": obj{"key": obj{"tcp option": obj{"name": "maxseg", "field": "size"}}, "value": obj{"rt": obj{"key": "mtu"}}}}
 		syn := match("in", payload("tcp", "flags"), "syn")
 		mangle.rules = append(mangle.rules, []any{iif(s.NetBird.Iface), syn, clamp},

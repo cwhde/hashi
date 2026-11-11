@@ -6,7 +6,8 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { api, problemText } from '$lib/api/client';
 	import { session, routeFor } from '$lib/auth/session.svelte';
-	import { theme, type ThemeId } from '$lib/theme.svelte';
+	import { theme } from '$lib/theme.svelte';
+	import { setTimeDisplay } from '$lib/format';
 
 	let { children } = $props();
 	let ready = $state(false);
@@ -22,9 +23,13 @@
 				return;
 			}
 			ready = true;
-			// The saved theme follows the admin to every browser (Settings → Appearance).
-			const a = await api.GET('/api/settings/appearance');
-			if (a.data) theme.set(a.data.theme as ThemeId);
+			// The saved theme and time display follow the admin to every browser (Settings).
+			const [a, g] = await Promise.all([
+				api.GET('/api/settings/appearance'),
+				api.GET('/api/settings/general')
+			]);
+			if (a.data) theme.apply(a.data);
+			if (g.data) setTimeDisplay(g.data.time_display ?? 'local');
 		} catch (e) {
 			failed = problemText(e);
 		}

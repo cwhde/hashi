@@ -19,6 +19,7 @@
 	import { withReauth } from '$lib/auth/reauth';
 	import { reviewItems, triggerText, outcomeText } from '$lib/sync';
 	import { cn } from '$lib/utils';
+	import { timeZone } from '$lib/format';
 
 	type Script = Schemas['Script'];
 	type Run = Schemas['ScriptRun'];
@@ -140,7 +141,9 @@
 			day: 'numeric',
 			month: 'short',
 			hour: '2-digit',
-			minute: '2-digit'
+			minute: '2-digit',
+			timeZone: timeZone(),
+			timeZoneName: timeZone() ? 'short' : undefined
 		});
 
 	function body(): Schemas['ScriptInput'] {
