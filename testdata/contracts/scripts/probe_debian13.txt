@@ -1,0 +1,86 @@
+# captured_at: 2026-11-11
+# docs_url: https://www.freedesktop.org/software/systemd/man/257/systemd.time.html , https://www.freedesktop.org/software/systemd/man/257/systemd.timer.html
+# remote: Debian 13 dev target (unprivileged LXC), systemd 257.13, coreutils 9.7, host timezone UTC
+# produced by: probe.sh in this folder
+
+### versions
+systemd 257 (257.13-1~deb13u1)
+timeout (GNU coreutils) 9.7
+
+### calendar: fixed base time
+-- Sun *-*-* 03:30:00
+Normalized form: Sun *-*-* 03:30:00
+    Next elapse: Sun 2026-11-15 03:30:00 UTC
+   Iteration #2: Sun 2026-11-22 03:30:00 UTC
+   Iteration #3: Sun 2026-11-29 03:30:00 UTC
+rc=0
+-- *-*-* *:00/15:00
+Normalized form: *-*-* *:00/15:00
+    Next elapse: Wed 2026-11-11 10:15:00 UTC
+   Iteration #2: Wed 2026-11-11 10:30:00 UTC
+   Iteration #3: Wed 2026-11-11 10:45:00 UTC
+rc=0
+-- *-*-01 04:00:00
+Normalized form: *-*-01 04:00:00
+    Next elapse: Tue 2026-12-01 04:00:00 UTC
+   Iteration #2: Fri 2027-01-01 04:00:00 UTC
+   Iteration #3: Mon 2027-02-01 04:00:00 UTC
+rc=0
+-- Mon..Fri *-*-* 00:00:00
+Normalized form: Mon..Fri *-*-* 00:00:00
+    Next elapse: Thu 2026-11-12 00:00:00 UTC
+   Iteration #2: Fri 2026-11-13 00:00:00 UTC
+   Iteration #3: Mon 2026-11-16 00:00:00 UTC
+rc=0
+-- Mon *-*-01 12:00:00
+Normalized form: Mon *-*-01 12:00:00
+    Next elapse: Mon 2027-02-01 12:00:00 UTC
+   Iteration #2: Mon 2027-03-01 12:00:00 UTC
+   Iteration #3: Mon 2027-11-01 12:00:00 UTC
+rc=0
+-- *-*-* 03:30:00
+Normalized form: *-*-* 03:30:00
+    Next elapse: Thu 2026-11-12 03:30:00 UTC
+   Iteration #2: Fri 2026-11-13 03:30:00 UTC
+   Iteration #3: Sat 2026-11-14 03:30:00 UTC
+rc=0
+-- bogus
+Failed to parse calendar specification 'bogus': Invalid argument
+rc=1
+
+### unit files
+750 root:root /opt/hashi-probe
+750 root:root /opt/hashi-probe/ok.sh
+600 root:root /opt/hashi-probe/ok.env
+start timer rc=0
+
+### list-timers json
+[{"next":1794454200000000,"left":1794454200000000,"last":0,"passed":0,"unit":"hashi-probe.timer","activates":"hashi-probe.service"}]
+
+
+### timer show
+NextElapseUSecRealtime=Thu 2026-11-12 03:30:00 UTC
+LastTriggerUSec=
+Result=success
+ActiveState=active
+
+### service run (exit 3)
+start rc=1
+Job for hashi-probe.service failed because the control process exited with error code.
+See "systemctl status hashi-probe.service" and "journalctl -xeu hashi-probe.service" for details.
+Result=exit-code
+ExecMainStartTimestamp=Wed 2026-11-11 06:37:01 UTC
+ExecMainExitTimestamp=Wed 2026-11-11 06:37:01 UTC
+ExecMainCode=1
+ExecMainStatus=3
+ActiveState=failed
+
+### timeout wrapper
+timeout rc=124
+timeout -k rc=124
+ok rc=0
+
+### cleanup
+[]
+
+done

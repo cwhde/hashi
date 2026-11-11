@@ -1,0 +1,100 @@
+# captured_at: 2026-11-11
+# docs_url: https://www.freedesktop.org/software/systemd/man/257/systemd.time.html
+# remote: Debian 13 dev target, systemd 257.13; produced by calendar.sh, base time 2026-11-11 10:00:00 UTC
+-- Sun *-*-* 03:30:00
+Normalized form: Sun *-*-* 03:30:00
+    Next elapse: Sun 2026-11-15 03:30:00 UTC
+   Iteration #2: Sun 2026-11-22 03:30:00 UTC
+   Iteration #3: Sun 2026-11-29 03:30:00 UTC
+   Iteration #4: Sun 2026-12-06 03:30:00 UTC
+   Iteration #5: Sun 2026-12-13 03:30:00 UTC
+rc=0
+-- *-*-* *:00,15,30,45:00
+Normalized form: *-*-* *:00,15,30,45:00
+    Next elapse: Wed 2026-11-11 10:15:00 UTC
+   Iteration #2: Wed 2026-11-11 10:30:00 UTC
+   Iteration #3: Wed 2026-11-11 10:45:00 UTC
+   Iteration #4: Wed 2026-11-11 11:00:00 UTC
+   Iteration #5: Wed 2026-11-11 11:15:00 UTC
+rc=0
+-- *-*-01 04:00:00
+Normalized form: *-*-01 04:00:00
+    Next elapse: Tue 2026-12-01 04:00:00 UTC
+   Iteration #2: Fri 2027-01-01 04:00:00 UTC
+   Iteration #3: Mon 2027-02-01 04:00:00 UTC
+   Iteration #4: Mon 2027-03-01 04:00:00 UTC
+   Iteration #5: Thu 2027-04-01 04:00:00 UTC
+rc=0
+-- Mon,Tue,Wed,Thu,Fri *-*-* 00:00:00
+  Original form: Mon,Tue,Wed,Thu,Fri *-*-* 00:00:00
+Normalized form: Mon..Fri *-*-* 00:00:00
+    Next elapse: Thu 2026-11-12 00:00:00 UTC
+   Iteration #2: Fri 2026-11-13 00:00:00 UTC
+   Iteration #3: Mon 2026-11-16 00:00:00 UTC
+   Iteration #4: Tue 2026-11-17 00:00:00 UTC
+   Iteration #5: Wed 2026-11-18 00:00:00 UTC
+rc=0
+-- Mon *-*-* 12:00:00
+Normalized form: Mon *-*-* 12:00:00
+    Next elapse: Mon 2026-11-16 12:00:00 UTC
+   Iteration #2: Mon 2026-11-23 12:00:00 UTC
+   Iteration #3: Mon 2026-11-30 12:00:00 UTC
+   Iteration #4: Mon 2026-12-07 12:00:00 UTC
+   Iteration #5: Mon 2026-12-14 12:00:00 UTC
+rc=0
+-- *-*-01 12:00:00
+Normalized form: *-*-01 12:00:00
+    Next elapse: Tue 2026-12-01 12:00:00 UTC
+   Iteration #2: Fri 2027-01-01 12:00:00 UTC
+   Iteration #3: Mon 2027-02-01 12:00:00 UTC
+   Iteration #4: Mon 2027-03-01 12:00:00 UTC
+   Iteration #5: Thu 2027-04-01 12:00:00 UTC
+rc=0
+-- *-*-* 00:00:00
+Normalized form: *-*-* 00:00:00
+    Next elapse: Thu 2026-11-12 00:00:00 UTC
+   Iteration #2: Fri 2026-11-13 00:00:00 UTC
+   Iteration #3: Sat 2026-11-14 00:00:00 UTC
+   Iteration #4: Sun 2026-11-15 00:00:00 UTC
+   Iteration #5: Mon 2026-11-16 00:00:00 UTC
+rc=0
+-- *-*-* 00,06,12,18:05,35:00
+Normalized form: *-*-* 00,06,12,18:05,35:00
+    Next elapse: Wed 2026-11-11 12:05:00 UTC
+   Iteration #2: Wed 2026-11-11 12:35:00 UTC
+   Iteration #3: Wed 2026-11-11 18:05:00 UTC
+   Iteration #4: Wed 2026-11-11 18:35:00 UTC
+   Iteration #5: Thu 2026-11-12 00:05:00 UTC
+rc=0
+-- *-01,06-* 09,13,17:00:00
+Normalized form: *-01,06-* 09,13,17:00:00
+    Next elapse: Fri 2027-01-01 09:00:00 UTC
+   Iteration #2: Fri 2027-01-01 13:00:00 UTC
+   Iteration #3: Fri 2027-01-01 17:00:00 UTC
+   Iteration #4: Sat 2027-01-02 09:00:00 UTC
+   Iteration #5: Sat 2027-01-02 13:00:00 UTC
+rc=0
+-- Fri *-*-* 00:00:00
+Normalized form: Fri *-*-* 00:00:00
+    Next elapse: Fri 2026-11-13 00:00:00 UTC
+   Iteration #2: Fri 2026-11-20 00:00:00 UTC
+   Iteration #3: Fri 2026-11-27 00:00:00 UTC
+   Iteration #4: Fri 2026-12-04 00:00:00 UTC
+   Iteration #5: Fri 2026-12-11 00:00:00 UTC
+rc=0
+-- *-*-13 00:00:00
+Normalized form: *-*-13 00:00:00
+    Next elapse: Fri 2026-11-13 00:00:00 UTC
+   Iteration #2: Sun 2026-12-13 00:00:00 UTC
+   Iteration #3: Wed 2027-01-13 00:00:00 UTC
+   Iteration #4: Sat 2027-02-13 00:00:00 UTC
+   Iteration #5: Sat 2027-03-13 00:00:00 UTC
+rc=0
+-- Sun *-*-* 02:15:00
+Normalized form: Sun *-*-* 02:15:00
+    Next elapse: Sun 2026-11-15 02:15:00 UTC
+   Iteration #2: Sun 2026-11-22 02:15:00 UTC
+   Iteration #3: Sun 2026-11-29 02:15:00 UTC
+   Iteration #4: Sun 2026-12-06 02:15:00 UTC
+   Iteration #5: Sun 2026-12-13 02:15:00 UTC
+rc=0

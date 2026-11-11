@@ -19,7 +19,8 @@ const subsystems: Record<Plan['subsystem'], PlanItem['subsystem']> = {
 	'dns-probe': 'DNS',
 	traefik: 'Traefik',
 	certificates: 'Certificates',
-	firewall: 'Firewall'
+	firewall: 'Firewall',
+	scripts: 'Scripts'
 };
 
 export function reviewItems(p: Plan): PlanItem[] {
@@ -31,7 +32,11 @@ export function reviewItems(p: Plan): PlanItem[] {
 		before: valueText(i.before) ?? i.before_text,
 		after: valueText(i.after) ?? i.after_text,
 		risk: i.risk,
-		note: i.note || undefined
+		note: i.note || undefined,
+		content:
+			i.before_content !== undefined || i.after_content !== undefined
+				? { before: i.before_content ?? '', after: i.after_content ?? '' }
+				: undefined
 	}));
 }
 

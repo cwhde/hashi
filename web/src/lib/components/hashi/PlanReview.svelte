@@ -5,6 +5,7 @@
 	import { cn } from '$lib/utils';
 	import Mono from './Mono.svelte';
 	import Tag from './Tag.svelte';
+	import { lineDiff } from '$lib/diff';
 	import { ShieldAlert, Fingerprint } from '@lucide/svelte';
 
 	// The exact preview of a sync plan (01-platform.md §5, principle 6). What is shown here is byte-for-byte what is
@@ -100,6 +101,22 @@
 							<span class="w-10 shrink-0 text-muted-foreground">after</span>
 							<Mono class="break-all">{item.after}</Mono>
 						</div>
+					{/if}
+					{#if item.content && !compact}
+						<pre
+							class="mt-1.5 max-h-80 overflow-auto rounded-lg border bg-surface-2/40 py-1.5 font-mono text-[12px] leading-relaxed"
+							aria-label="Changes to the file">{#each lineDiff(item.content.before, item.content.after) as l, n (n)}<span
+									class={cn(
+										'block px-2.5 whitespace-pre',
+										l.kind === 'add' && 'bg-ok/10 text-ok-text',
+										l.kind === 'del' && 'bg-bad/10 text-bad-text'
+									)}
+									><span class="text-muted-foreground select-none" aria-hidden="true"
+										>{l.kind === 'add' ? '+ ' : l.kind === 'del' ? '- ' : '  '}</span
+									><span class="sr-only"
+										>{l.kind === 'add' ? 'added: ' : l.kind === 'del' ? 'removed: ' : ''}</span
+									>{l.text}</span
+								>{/each}</pre>
 					{/if}
 					{#if item.note}<p class="text-[12.5px] text-muted-foreground">{item.note}</p>{/if}
 				</div>

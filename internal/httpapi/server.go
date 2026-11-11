@@ -25,6 +25,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/logring"
 	"git.juzo.io/juzo/hashi/internal/monitor"
 	"git.juzo.io/juzo/hashi/internal/notify"
+	"git.juzo.io/juzo/hashi/internal/scripts"
 	"git.juzo.io/juzo/hashi/internal/security"
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/setup"
@@ -53,6 +54,7 @@ type Server struct {
 	Monitor  *monitor.Service
 	Notify   *notify.Service
 	Firewall *firewall.Manager
+	Scripts  *scripts.Service
 	Edge     *edge.Engine
 	SSO      *edge.SSO
 	// Security is Stage A (06 §3); nil runs Stage B only.

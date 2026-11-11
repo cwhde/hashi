@@ -1397,6 +1397,51 @@ func (e RuleSetKind) Valid() bool {
 	}
 }
 
+// Defines values for ScriptRunTrigger.
+const (
+	ScriptRunTriggerManual    ScriptRunTrigger = "manual"
+	ScriptRunTriggerScheduled ScriptRunTrigger = "scheduled"
+)
+
+// Valid indicates whether the value is a known member of the ScriptRunTrigger enum.
+func (e ScriptRunTrigger) Valid() bool {
+	switch e {
+	case ScriptRunTriggerManual:
+		return true
+	case ScriptRunTriggerScheduled:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ScriptRunStatus.
+const (
+	ScriptRunStatusError     ScriptRunStatus = "error"
+	ScriptRunStatusFailed    ScriptRunStatus = "failed"
+	ScriptRunStatusRunning   ScriptRunStatus = "running"
+	ScriptRunStatusSucceeded ScriptRunStatus = "succeeded"
+	ScriptRunStatusTimedOut  ScriptRunStatus = "timed_out"
+)
+
+// Valid indicates whether the value is a known member of the ScriptRunStatus enum.
+func (e ScriptRunStatus) Valid() bool {
+	switch e {
+	case ScriptRunStatusError:
+		return true
+	case ScriptRunStatusFailed:
+		return true
+	case ScriptRunStatusRunning:
+		return true
+	case ScriptRunStatusSucceeded:
+		return true
+	case ScriptRunStatusTimedOut:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SecretMetaClass.
 const (
 	SecretMetaClassAdmin   SecretMetaClass = "admin"
@@ -1843,6 +1888,7 @@ const (
 	DnsRecordDeletes SyncPlanSubsystem = "dns-record-deletes"
 	DnsRecords       SyncPlanSubsystem = "dns-records"
 	Firewall         SyncPlanSubsystem = "firewall"
+	Scripts          SyncPlanSubsystem = "scripts"
 	Traefik          SyncPlanSubsystem = "traefik"
 )
 
@@ -1860,6 +1906,8 @@ func (e SyncPlanSubsystem) Valid() bool {
 	case DnsRecords:
 		return true
 	case Firewall:
+		return true
+	case Scripts:
 		return true
 	case Traefik:
 		return true
@@ -4141,6 +4189,133 @@ type SSOProviders struct {
 	Providers    []SSOProvider `json:"providers"`
 }
 
+// SchedulePreview defines model for SchedulePreview.
+type SchedulePreview struct {
+	// Next The next five firing times (UTC)
+	Next []time.Time `json:"next"`
+
+	// TimerLines OnCalendar lines of the systemd timer
+	TimerLines []string `json:"timer_lines"`
+}
+
+// Script defines model for Script.
+type Script struct {
+	AllHosts    bool           `json:"all_hosts"`
+	Body        string         `json:"body"`
+	CreatedAt   time.Time      `json:"created_at"`
+	Description string         `json:"description"`
+	Enabled     bool           `json:"enabled"`
+	Env         []ScriptEnvVar `json:"env"`
+	Hosts       []string       `json:"hosts"`
+	Id          string         `json:"id"`
+
+	// LastRuns Newest first, at most 10
+	LastRuns []ScriptRunStatus `json:"last_runs"`
+	Name     string            `json:"name"`
+	Schedule string            `json:"schedule"`
+
+	// Slug File name on the hosts; fixed after creation
+	Slug string `json:"slug"`
+
+	// Targets The hosts it runs on now
+	Targets        []ScriptHost `json:"targets"`
+	TimeoutSeconds int          `json:"timeout_seconds"`
+	UpdatedAt      time.Time    `json:"updated_at"`
+}
+
+// ScriptEnvVar defines model for ScriptEnvVar.
+type ScriptEnvVar struct {
+	// Name Letters, digits and _, not starting with a digit
+	Name string `json:"name"`
+
+	// Secret Kept in the vault and replaced in run output
+	Secret bool `json:"secret"`
+
+	// Value Plain variables only; never returned for a secret
+	Value *string `json:"value,omitempty"`
+}
+
+// ScriptHost defines model for ScriptHost.
+type ScriptHost struct {
+	Id   string `json:"id"`
+	Name string `json:"name"`
+
+	// Pending A scripts plan for this host waits for approval
+	Pending bool `json:"pending"`
+}
+
+// ScriptInput defines model for ScriptInput.
+type ScriptInput struct {
+	// AllHosts Every firewall host Hashi reaches over SSH
+	AllHosts bool `json:"all_hosts"`
+
+	// Body Starts with a #! line
+	Body        string         `json:"body"`
+	Description *string        `json:"description,omitempty"`
+	Enabled     bool           `json:"enabled"`
+	Env         []ScriptEnvVar `json:"env"`
+
+	// Hosts Used when all_hosts is false; empty = no host
+	Hosts []string `json:"hosts"`
+	Name  string   `json:"name"`
+
+	// Schedule Five-field cron in host time; empty = by hand only
+	Schedule       string `json:"schedule"`
+	TimeoutSeconds int    `json:"timeout_seconds"`
+}
+
+// ScriptList defines model for ScriptList.
+type ScriptList struct {
+	Scripts []Script `json:"scripts"`
+}
+
+// ScriptPlans defines model for ScriptPlans.
+type ScriptPlans struct {
+	Plans []SyncPlan `json:"plans"`
+}
+
+// ScriptRun defines model for ScriptRun.
+type ScriptRun struct {
+	Actor string `json:"actor"`
+
+	// Error Why Hashi could not run it
+	Error      string     `json:"error"`
+	ExitCode   *int       `json:"exit_code,omitempty"`
+	FinishedAt *time.Time `json:"finished_at,omitempty"`
+	HostId     string     `json:"host_id"`
+	HostName   string     `json:"host_name"`
+	Id         string     `json:"id"`
+
+	// Output Combined stdout and stderr, at most 1 MB, secrets replaced
+	Output    string           `json:"output"`
+	ScriptId  string           `json:"script_id"`
+	StartedAt time.Time        `json:"started_at"`
+	Status    ScriptRunStatus  `json:"status"`
+	Trigger   ScriptRunTrigger `json:"trigger"`
+	Truncated bool             `json:"truncated"`
+}
+
+// ScriptRunTrigger defines model for ScriptRun.Trigger.
+type ScriptRunTrigger string
+
+// ScriptRunList defines model for ScriptRunList.
+type ScriptRunList struct {
+	Runs []ScriptRun `json:"runs"`
+}
+
+// ScriptRunRequest defines model for ScriptRunRequest.
+type ScriptRunRequest struct {
+	HostId string `json:"host_id"`
+}
+
+// ScriptRunStarted defines model for ScriptRunStarted.
+type ScriptRunStarted struct {
+	RunId string `json:"run_id"`
+}
+
+// ScriptRunStatus defines model for ScriptRunStatus.
+type ScriptRunStatus string
+
 // SecretList defines model for SecretList.
 type SecretList struct {
 	Secrets []SecretMeta `json:"secrets"`
@@ -4632,11 +4807,17 @@ type SyncPlanItem struct {
 	// After Exact DNS RRSet sent and verified (TXT as plain text)
 	After *SyncPlanItemValue `json:"after,omitempty"`
 
+	// AfterContent A file's full text after (scripts)
+	AfterContent *string `json:"after_content,omitempty"`
+
 	// AfterText Summary of the after state for non-DNS items
 	AfterText *string `json:"after_text,omitempty"`
 
 	// Before Exact DNS RRSet sent and verified (TXT as plain text)
 	Before *SyncPlanItemValue `json:"before,omitempty"`
+
+	// BeforeContent A file's full text before (scripts), for a line diff
+	BeforeContent *string `json:"before_content,omitempty"`
 
 	// BeforeText Summary of the before state for non-DNS items (file hash, version, names)
 	BeforeText *string `json:"before_text,omitempty"`
@@ -4881,6 +5062,11 @@ type PulseHeartbeatParams struct {
 	Authorization string `json:"Authorization"`
 }
 
+// PreviewScriptScheduleParams defines parameters for PreviewScriptSchedule.
+type PreviewScriptScheduleParams struct {
+	Schedule string `form:"schedule" json:"schedule"`
+}
+
 // ListSecurityCountersParams defines parameters for ListSecurityCounters.
 type ListSecurityCountersParams struct {
 	State        *ListSecurityCountersParamsState `form:"state,omitempty" json:"state,omitempty"`
@@ -5050,6 +5236,15 @@ type UpdateRuleSetJSONRequestBody = RuleSetInput
 
 // PutRuleSetEntriesJSONRequestBody defines body for PutRuleSetEntries for application/json ContentType.
 type PutRuleSetEntriesJSONRequestBody = RuleEntriesInput
+
+// CreateScriptJSONRequestBody defines body for CreateScript for application/json ContentType.
+type CreateScriptJSONRequestBody = ScriptInput
+
+// UpdateScriptJSONRequestBody defines body for UpdateScript for application/json ContentType.
+type UpdateScriptJSONRequestBody = ScriptInput
+
+// RunScriptJSONRequestBody defines body for RunScript for application/json ContentType.
+type RunScriptJSONRequestBody = ScriptRunRequest
 
 // PutCaptchaSettingsJSONRequestBody defines body for PutCaptchaSettings for application/json ContentType.
 type PutCaptchaSettingsJSONRequestBody = CaptchaSettingsInput
@@ -5778,6 +5973,39 @@ type ServerInterface interface {
 	// PutRuleSetEntries Replace a rule set's entries in order; decisions change within seconds
 	// (PUT /api/rule-sets/{id}/entries)
 	PutRuleSetEntries(w http.ResponseWriter, r *http.Request, id string)
+	// GetScriptRun One run with its (capped, redacted) output
+	// (GET /api/script-runs/{runId})
+	GetScriptRun(w http.ResponseWriter, r *http.Request, runId string)
+	// ListScripts Scripts with their hosts, last runs and pending changes; secret values never appear
+	// (GET /api/scripts)
+	ListScripts(w http.ResponseWriter, r *http.Request)
+	// CreateScript Add a script; the plans for its hosts wait on Pending changes (09 §1)
+	// (POST /api/scripts)
+	CreateScript(w http.ResponseWriter, r *http.Request)
+	// PreviewScriptSchedule The next firing times of a cron schedule and the systemd timer lines it becomes
+	// (GET /api/scripts/schedule-preview)
+	PreviewScriptSchedule(w http.ResponseWriter, r *http.Request, params PreviewScriptScheduleParams)
+	// DeleteScript Remove a script; the next plan of each host removes its files and timer
+	// (DELETE /api/scripts/{id})
+	DeleteScript(w http.ResponseWriter, r *http.Request, id string)
+	// GetScript One script
+	// (GET /api/scripts/{id})
+	GetScript(w http.ResponseWriter, r *http.Request, id string)
+	// UpdateScript Replace a script; a secret variable sent without a value keeps the stored one
+	// (PUT /api/scripts/{id})
+	UpdateScript(w http.ResponseWriter, r *http.Request, id string)
+	// ApplyScript Approve and apply the pending scripts plans of the script's hosts
+	// (POST /api/scripts/{id}/apply)
+	ApplyScript(w http.ResponseWriter, r *http.Request, id string)
+	// PlanScript Plan every host the script runs on now; the plans show the exact diff and wait for approval
+	// (POST /api/scripts/{id}/plan)
+	PlanScript(w http.ResponseWriter, r *http.Request, id string)
+	// RunScript Run the installed script on one host now; answers at once with the run to follow
+	// (POST /api/scripts/{id}/run)
+	RunScript(w http.ResponseWriter, r *http.Request, id string)
+	// ListScriptRuns The newest 100 runs, without output
+	// (GET /api/scripts/{id}/runs)
+	ListScriptRuns(w http.ResponseWriter, r *http.Request, id string)
 	// CreateCaptchaKey Create a site key in the Cap next to Hashi (read from its cap.env) and store it with its secret
 	// (POST /api/security/captcha/key)
 	CreateCaptchaKey(w http.ResponseWriter, r *http.Request)
@@ -8648,6 +8876,275 @@ func (siw *ServerInterfaceWrapper) PutRuleSetEntries(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// GetScriptRun operation middleware
+func (siw *ServerInterfaceWrapper) GetScriptRun(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "runId" -------------
+	var runId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "runId", r.PathValue("runId"), &runId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "runId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetScriptRun(w, r, runId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListScripts operation middleware
+func (siw *ServerInterfaceWrapper) ListScripts(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListScripts(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateScript operation middleware
+func (siw *ServerInterfaceWrapper) CreateScript(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateScript(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PreviewScriptSchedule operation middleware
+func (siw *ServerInterfaceWrapper) PreviewScriptSchedule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PreviewScriptScheduleParams
+
+	// ------------- Required query parameter "schedule" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "schedule", r.URL.Query(), &params.Schedule, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "schedule"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "schedule", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PreviewScriptSchedule(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteScript operation middleware
+func (siw *ServerInterfaceWrapper) DeleteScript(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteScript(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetScript operation middleware
+func (siw *ServerInterfaceWrapper) GetScript(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetScript(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateScript operation middleware
+func (siw *ServerInterfaceWrapper) UpdateScript(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateScript(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ApplyScript operation middleware
+func (siw *ServerInterfaceWrapper) ApplyScript(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ApplyScript(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PlanScript operation middleware
+func (siw *ServerInterfaceWrapper) PlanScript(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PlanScript(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RunScript operation middleware
+func (siw *ServerInterfaceWrapper) RunScript(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RunScript(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListScriptRuns operation middleware
+func (siw *ServerInterfaceWrapper) ListScriptRuns(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListScriptRuns(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // CreateCaptchaKey operation middleware
 func (siw *ServerInterfaceWrapper) CreateCaptchaKey(w http.ResponseWriter, r *http.Request) {
 
@@ -10804,6 +11301,17 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/activity/audit", wrapper.ListAuditEvents)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/activity/jobs", wrapper.ListJobs)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/activity/logs", wrapper.ListLogLines)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/scripts", wrapper.ListScripts)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/scripts", wrapper.CreateScript)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/scripts/schedule-preview", wrapper.PreviewScriptSchedule)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/script-runs/{runId}", wrapper.GetScriptRun)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/scripts/{id}", wrapper.DeleteScript)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/scripts/{id}", wrapper.GetScript)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/scripts/{id}", wrapper.UpdateScript)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/scripts/{id}/plan", wrapper.PlanScript)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/scripts/{id}/apply", wrapper.ApplyScript)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/scripts/{id}/run", wrapper.RunScript)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/scripts/{id}/runs", wrapper.ListScriptRuns)
 
 	return m
 }
@@ -15178,6 +15686,430 @@ func (response PutRuleSetEntriesdefaultApplicationProblemPlusJSONResponse) Visit
 	return err
 }
 
+type GetScriptRunRequestObject struct {
+	RunId string `json:"runId"`
+}
+
+type GetScriptRunResponseObject interface {
+	VisitGetScriptRunResponse(w http.ResponseWriter) error
+}
+
+type GetScriptRun200JSONResponse ScriptRun
+
+func (response GetScriptRun200JSONResponse) VisitGetScriptRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetScriptRundefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetScriptRundefaultApplicationProblemPlusJSONResponse) VisitGetScriptRunResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListScriptsRequestObject struct {
+}
+
+type ListScriptsResponseObject interface {
+	VisitListScriptsResponse(w http.ResponseWriter) error
+}
+
+type ListScripts200JSONResponse ScriptList
+
+func (response ListScripts200JSONResponse) VisitListScriptsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListScriptsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ListScriptsdefaultApplicationProblemPlusJSONResponse) VisitListScriptsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateScriptRequestObject struct {
+	Body *CreateScriptJSONRequestBody
+}
+
+type CreateScriptResponseObject interface {
+	VisitCreateScriptResponse(w http.ResponseWriter) error
+}
+
+type CreateScript201JSONResponse Script
+
+func (response CreateScript201JSONResponse) VisitCreateScriptResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CreateScriptdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response CreateScriptdefaultApplicationProblemPlusJSONResponse) VisitCreateScriptResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PreviewScriptScheduleRequestObject struct {
+	Params PreviewScriptScheduleParams
+}
+
+type PreviewScriptScheduleResponseObject interface {
+	VisitPreviewScriptScheduleResponse(w http.ResponseWriter) error
+}
+
+type PreviewScriptSchedule200JSONResponse SchedulePreview
+
+func (response PreviewScriptSchedule200JSONResponse) VisitPreviewScriptScheduleResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PreviewScriptScheduledefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PreviewScriptScheduledefaultApplicationProblemPlusJSONResponse) VisitPreviewScriptScheduleResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteScriptRequestObject struct {
+	Id string `json:"id"`
+}
+
+type DeleteScriptResponseObject interface {
+	VisitDeleteScriptResponse(w http.ResponseWriter) error
+}
+
+type DeleteScript204Response struct {
+}
+
+func (response DeleteScript204Response) VisitDeleteScriptResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteScriptdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response DeleteScriptdefaultApplicationProblemPlusJSONResponse) VisitDeleteScriptResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetScriptRequestObject struct {
+	Id string `json:"id"`
+}
+
+type GetScriptResponseObject interface {
+	VisitGetScriptResponse(w http.ResponseWriter) error
+}
+
+type GetScript200JSONResponse Script
+
+func (response GetScript200JSONResponse) VisitGetScriptResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetScriptdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetScriptdefaultApplicationProblemPlusJSONResponse) VisitGetScriptResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateScriptRequestObject struct {
+	Id   string `json:"id"`
+	Body *UpdateScriptJSONRequestBody
+}
+
+type UpdateScriptResponseObject interface {
+	VisitUpdateScriptResponse(w http.ResponseWriter) error
+}
+
+type UpdateScript200JSONResponse Script
+
+func (response UpdateScript200JSONResponse) VisitUpdateScriptResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateScriptdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response UpdateScriptdefaultApplicationProblemPlusJSONResponse) VisitUpdateScriptResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApplyScriptRequestObject struct {
+	Id string `json:"id"`
+}
+
+type ApplyScriptResponseObject interface {
+	VisitApplyScriptResponse(w http.ResponseWriter) error
+}
+
+type ApplyScript200JSONResponse ScriptPlans
+
+func (response ApplyScript200JSONResponse) VisitApplyScriptResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ApplyScriptdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ApplyScriptdefaultApplicationProblemPlusJSONResponse) VisitApplyScriptResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PlanScriptRequestObject struct {
+	Id string `json:"id"`
+}
+
+type PlanScriptResponseObject interface {
+	VisitPlanScriptResponse(w http.ResponseWriter) error
+}
+
+type PlanScript200JSONResponse ScriptPlans
+
+func (response PlanScript200JSONResponse) VisitPlanScriptResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PlanScriptdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PlanScriptdefaultApplicationProblemPlusJSONResponse) VisitPlanScriptResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RunScriptRequestObject struct {
+	Id   string `json:"id"`
+	Body *RunScriptJSONRequestBody
+}
+
+type RunScriptResponseObject interface {
+	VisitRunScriptResponse(w http.ResponseWriter) error
+}
+
+type RunScript202JSONResponse ScriptRunStarted
+
+func (response RunScript202JSONResponse) VisitRunScriptResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type RunScriptdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response RunScriptdefaultApplicationProblemPlusJSONResponse) VisitRunScriptResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListScriptRunsRequestObject struct {
+	Id string `json:"id"`
+}
+
+type ListScriptRunsResponseObject interface {
+	VisitListScriptRunsResponse(w http.ResponseWriter) error
+}
+
+type ListScriptRuns200JSONResponse ScriptRunList
+
+func (response ListScriptRuns200JSONResponse) VisitListScriptRunsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListScriptRunsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response ListScriptRunsdefaultApplicationProblemPlusJSONResponse) VisitListScriptRunsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type CreateCaptchaKeyRequestObject struct {
 }
 
@@ -19206,6 +20138,39 @@ type StrictServerInterface interface {
 	// PutRuleSetEntries Replace a rule set's entries in order; decisions change within seconds
 	// (PUT /api/rule-sets/{id}/entries)
 	PutRuleSetEntries(ctx context.Context, request PutRuleSetEntriesRequestObject) (PutRuleSetEntriesResponseObject, error)
+	// GetScriptRun One run with its (capped, redacted) output
+	// (GET /api/script-runs/{runId})
+	GetScriptRun(ctx context.Context, request GetScriptRunRequestObject) (GetScriptRunResponseObject, error)
+	// ListScripts Scripts with their hosts, last runs and pending changes; secret values never appear
+	// (GET /api/scripts)
+	ListScripts(ctx context.Context, request ListScriptsRequestObject) (ListScriptsResponseObject, error)
+	// CreateScript Add a script; the plans for its hosts wait on Pending changes (09 §1)
+	// (POST /api/scripts)
+	CreateScript(ctx context.Context, request CreateScriptRequestObject) (CreateScriptResponseObject, error)
+	// PreviewScriptSchedule The next firing times of a cron schedule and the systemd timer lines it becomes
+	// (GET /api/scripts/schedule-preview)
+	PreviewScriptSchedule(ctx context.Context, request PreviewScriptScheduleRequestObject) (PreviewScriptScheduleResponseObject, error)
+	// DeleteScript Remove a script; the next plan of each host removes its files and timer
+	// (DELETE /api/scripts/{id})
+	DeleteScript(ctx context.Context, request DeleteScriptRequestObject) (DeleteScriptResponseObject, error)
+	// GetScript One script
+	// (GET /api/scripts/{id})
+	GetScript(ctx context.Context, request GetScriptRequestObject) (GetScriptResponseObject, error)
+	// UpdateScript Replace a script; a secret variable sent without a value keeps the stored one
+	// (PUT /api/scripts/{id})
+	UpdateScript(ctx context.Context, request UpdateScriptRequestObject) (UpdateScriptResponseObject, error)
+	// ApplyScript Approve and apply the pending scripts plans of the script's hosts
+	// (POST /api/scripts/{id}/apply)
+	ApplyScript(ctx context.Context, request ApplyScriptRequestObject) (ApplyScriptResponseObject, error)
+	// PlanScript Plan every host the script runs on now; the plans show the exact diff and wait for approval
+	// (POST /api/scripts/{id}/plan)
+	PlanScript(ctx context.Context, request PlanScriptRequestObject) (PlanScriptResponseObject, error)
+	// RunScript Run the installed script on one host now; answers at once with the run to follow
+	// (POST /api/scripts/{id}/run)
+	RunScript(ctx context.Context, request RunScriptRequestObject) (RunScriptResponseObject, error)
+	// ListScriptRuns The newest 100 runs, without output
+	// (GET /api/scripts/{id}/runs)
+	ListScriptRuns(ctx context.Context, request ListScriptRunsRequestObject) (ListScriptRunsResponseObject, error)
 	// CreateCaptchaKey Create a site key in the Cap next to Hashi (read from its cap.env) and store it with its secret
 	// (POST /api/security/captcha/key)
 	CreateCaptchaKey(ctx context.Context, request CreateCaptchaKeyRequestObject) (CreateCaptchaKeyResponseObject, error)
@@ -22687,6 +23652,309 @@ func (sh *strictHandler) PutRuleSetEntries(w http.ResponseWriter, r *http.Reques
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(PutRuleSetEntriesResponseObject); ok {
 		if err := validResponse.VisitPutRuleSetEntriesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetScriptRun operation middleware
+func (sh *strictHandler) GetScriptRun(w http.ResponseWriter, r *http.Request, runId string) {
+	var request GetScriptRunRequestObject
+
+	request.RunId = runId
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetScriptRun(ctx, request.(GetScriptRunRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetScriptRun")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetScriptRunResponseObject); ok {
+		if err := validResponse.VisitGetScriptRunResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListScripts operation middleware
+func (sh *strictHandler) ListScripts(w http.ResponseWriter, r *http.Request) {
+	var request ListScriptsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListScripts(ctx, request.(ListScriptsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListScripts")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListScriptsResponseObject); ok {
+		if err := validResponse.VisitListScriptsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateScript operation middleware
+func (sh *strictHandler) CreateScript(w http.ResponseWriter, r *http.Request) {
+	var request CreateScriptRequestObject
+
+	var body CreateScriptJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateScript(ctx, request.(CreateScriptRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateScript")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateScriptResponseObject); ok {
+		if err := validResponse.VisitCreateScriptResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PreviewScriptSchedule operation middleware
+func (sh *strictHandler) PreviewScriptSchedule(w http.ResponseWriter, r *http.Request, params PreviewScriptScheduleParams) {
+	var request PreviewScriptScheduleRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PreviewScriptSchedule(ctx, request.(PreviewScriptScheduleRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PreviewScriptSchedule")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PreviewScriptScheduleResponseObject); ok {
+		if err := validResponse.VisitPreviewScriptScheduleResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteScript operation middleware
+func (sh *strictHandler) DeleteScript(w http.ResponseWriter, r *http.Request, id string) {
+	var request DeleteScriptRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteScript(ctx, request.(DeleteScriptRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteScript")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteScriptResponseObject); ok {
+		if err := validResponse.VisitDeleteScriptResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetScript operation middleware
+func (sh *strictHandler) GetScript(w http.ResponseWriter, r *http.Request, id string) {
+	var request GetScriptRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetScript(ctx, request.(GetScriptRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetScript")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetScriptResponseObject); ok {
+		if err := validResponse.VisitGetScriptResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateScript operation middleware
+func (sh *strictHandler) UpdateScript(w http.ResponseWriter, r *http.Request, id string) {
+	var request UpdateScriptRequestObject
+
+	request.Id = id
+
+	var body UpdateScriptJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateScript(ctx, request.(UpdateScriptRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateScript")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateScriptResponseObject); ok {
+		if err := validResponse.VisitUpdateScriptResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ApplyScript operation middleware
+func (sh *strictHandler) ApplyScript(w http.ResponseWriter, r *http.Request, id string) {
+	var request ApplyScriptRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ApplyScript(ctx, request.(ApplyScriptRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ApplyScript")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ApplyScriptResponseObject); ok {
+		if err := validResponse.VisitApplyScriptResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PlanScript operation middleware
+func (sh *strictHandler) PlanScript(w http.ResponseWriter, r *http.Request, id string) {
+	var request PlanScriptRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PlanScript(ctx, request.(PlanScriptRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PlanScript")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PlanScriptResponseObject); ok {
+		if err := validResponse.VisitPlanScriptResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RunScript operation middleware
+func (sh *strictHandler) RunScript(w http.ResponseWriter, r *http.Request, id string) {
+	var request RunScriptRequestObject
+
+	request.Id = id
+
+	var body RunScriptJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RunScript(ctx, request.(RunScriptRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RunScript")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RunScriptResponseObject); ok {
+		if err := validResponse.VisitRunScriptResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListScriptRuns operation middleware
+func (sh *strictHandler) ListScriptRuns(w http.ResponseWriter, r *http.Request, id string) {
+	var request ListScriptRunsRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListScriptRuns(ctx, request.(ListScriptRunsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListScriptRuns")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListScriptRunsResponseObject); ok {
+		if err := validResponse.VisitListScriptRunsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

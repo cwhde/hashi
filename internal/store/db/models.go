@@ -635,6 +635,48 @@ type RuleSet struct {
 	UpdatedAt   int64
 }
 
+type Script struct {
+	ID             string
+	Slug           string
+	Name           string
+	Description    string
+	Body           string
+	Enabled        int64
+	Schedule       string
+	TimeoutSeconds int64
+	AllHosts       int64
+	CreatedAt      int64
+	UpdatedAt      int64
+}
+
+type ScriptEnv struct {
+	ScriptID string
+	Name     string
+	Value    string
+	SecretID sql.NullString
+}
+
+type ScriptRun struct {
+	ID         string
+	ScriptID   string
+	HostID     string
+	Trigger    string
+	Status     string
+	ExitCode   sql.NullInt64
+	StartedAt  int64
+	FinishedAt sql.NullInt64
+	Output     string
+	Truncated  int64
+	Error      string
+	Actor      string
+	SpoolName  string
+}
+
+type ScriptTarget struct {
+	ScriptID string
+	HostID   string
+}
+
 type SecretRecord struct {
 	ID         string
 	Class      string

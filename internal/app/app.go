@@ -39,6 +39,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/notify"
 	"git.juzo.io/juzo/hashi/internal/pulse"
 	"git.juzo.io/juzo/hashi/internal/rules"
+	"git.juzo.io/juzo/hashi/internal/scripts"
 	"git.juzo.io/juzo/hashi/internal/secrets"
 	"git.juzo.io/juzo/hashi/internal/security"
 	"git.juzo.io/juzo/hashi/internal/services"
@@ -191,6 +192,9 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	}
 	subs := append(dnsSvc.Subsystems(), traefikMgr.Subsystems()...)
 	subs = append(subs, fwMgr.Subsystems()...)
+	// Scripts on firewall hosts (09 §1) use the firewall's SSH credential and pinned host key.
+	scriptSvc := scripts.New(st, v, al, log, func(ctx context.Context, id string) (scripts.Host, error) { return fwMgr.Dial(ctx, id) })
+	subs = append(subs, scriptSvc.Subsystems()...)
 	pulseSvc := pulse.New(st, v, al)
 	ipSets.SetPulse(func(ctx context.Context, id, scope, selector string) ([]netip.Addr, error) {
 		return pulseSvc.Addrs(ctx, st.R, id, scope, selector)
@@ -225,6 +229,20 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	subs = append(subs, adguardSvc.Subsystems()...)
 	syncEngine := hsync.New(st, al, append(subs, certMgr.Subsystems()...)...)
 	if err := syncEngine.Start(ctx); err != nil {
+		return err
+	}
+	// A saved script plans its hosts; the plans are high risk and wait for approval (09 §1).
+	scriptSvc.OnSave(func(ctx context.Context, hostIDs []string, actor string) {
+		for _, h := range hostIDs {
+			if _, err := syncEngine.Propose(ctx, scripts.Subsystem, h, hsync.TriggerSave, actor); err != nil {
+				log.Warn("scripts plan after a save", "host", h, "err", err)
+			}
+		}
+	})
+	if err := scriptSvc.Interrupted(ctx); err != nil {
+		return err
+	}
+	if err := runner.Register(ctx, jobs.Job{Kind: scripts.CollectJobKind, Interval: scripts.CollectInterval, Run: scriptSvc.Collect}); err != nil {
 		return err
 	}
 	// Each run reads the zone fresh and reconciles Hashi's entries (01 §5.4 periodic reconcile).
@@ -430,7 +448,7 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	}
 	api := &httpapi.Server{WAF: wafs, Captcha: capCache, Feeds: feedSvc, CapEnvFile: cfg.CapEnvFile, CapPort: cfg.CapPort,
 		Health: health, Version: gen.Version{Version: Version, Commit: Commit}, Store: st, Sessions: sessions,
-		Passkeys: passkeys, Setup: setupSvc, Settings: cfgSettings, DNS: dnsSvc, Traefik: traefikMgr, Certs: certMgr, IPSets: ipSets, AdGuard: adguardSvc, Pulse: pulseSvc, Monitor: monitorSvc, Notify: notifier, Firewall: fwMgr, Edge: edgeEngine, SSO: sso, Security: abuse, GeoIP: geoSvc, Sync: syncEngine, Vault: v, Audit: al, IP: ip, Logs: cfg.Logs,
+		Passkeys: passkeys, Setup: setupSvc, Settings: cfgSettings, DNS: dnsSvc, Traefik: traefikMgr, Certs: certMgr, IPSets: ipSets, AdGuard: adguardSvc, Pulse: pulseSvc, Monitor: monitorSvc, Notify: notifier, Firewall: fwMgr, Scripts: scriptSvc, Edge: edgeEngine, SSO: sso, Security: abuse, GeoIP: geoSvc, Sync: syncEngine, Vault: v, Audit: al, IP: ip, Logs: cfg.Logs,
 		CertsSoon: func(ctx context.Context) error { return runner.Soon(ctx, certs.JobKind) },
 		Log:       log.With("component", "api"),
 	}

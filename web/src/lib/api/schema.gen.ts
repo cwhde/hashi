@@ -2881,6 +2881,145 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/scripts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Scripts with their hosts, last runs and pending changes; secret values never appear */
+        get: operations["listScripts"];
+        put?: never;
+        /** Add a script; the plans for its hosts wait on Pending changes (09 §1) */
+        post: operations["createScript"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/scripts/schedule-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The next firing times of a cron schedule and the systemd timer lines it becomes */
+        get: operations["previewScriptSchedule"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/script-runs/{runId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One run with its (capped, redacted) output */
+        get: operations["getScriptRun"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/scripts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One script */
+        get: operations["getScript"];
+        /** Replace a script; a secret variable sent without a value keeps the stored one */
+        put: operations["updateScript"];
+        post?: never;
+        /** Remove a script; the next plan of each host removes its files and timer */
+        delete: operations["deleteScript"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/scripts/{id}/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Plan every host the script runs on now; the plans show the exact diff and wait for approval */
+        post: operations["planScript"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/scripts/{id}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve and apply the pending scripts plans of the script's hosts */
+        post: operations["applyScript"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/scripts/{id}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run the installed script on one host now; answers at once with the run to follow */
+        post: operations["runScript"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/scripts/{id}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The newest 100 runs, without output */
+        get: operations["listScriptRuns"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -4216,6 +4355,10 @@ export interface components {
             before_text?: string;
             /** @description Summary of the after state for non-DNS items */
             after_text?: string;
+            /** @description A file's full text before (scripts), for a line diff */
+            before_content?: string;
+            /** @description A file's full text after (scripts) */
+            after_content?: string;
             /** @enum {string} */
             risk: "low" | "high";
             note: string;
@@ -4223,7 +4366,7 @@ export interface components {
         SyncPlan: {
             id: string;
             /** @enum {string} */
-            subsystem: "dns-records" | "dns-record-deletes" | "dns-prune" | "dns-probe" | "traefik" | "certificates" | "firewall";
+            subsystem: "dns-records" | "dns-record-deletes" | "dns-prune" | "dns-probe" | "traefik" | "certificates" | "firewall" | "scripts";
             target: string;
             /** @description e.g. the zone name */
             target_name: string;
@@ -4878,6 +5021,100 @@ export interface components {
         };
         FirewallPlans: {
             plans: components["schemas"]["SyncPlan"][];
+        };
+        ScriptEnvVar: {
+            /** @description Letters, digits and _, not starting with a digit */
+            name: string;
+            /** @description Plain variables only; never returned for a secret */
+            value?: string;
+            /** @description Kept in the vault and replaced in run output */
+            secret: boolean;
+        };
+        ScriptInput: {
+            name: string;
+            description?: string;
+            /** @description Starts with a #! line */
+            body: string;
+            enabled: boolean;
+            /** @description Five-field cron in host time; empty = by hand only */
+            schedule: string;
+            timeout_seconds: number;
+            /** @description Every firewall host Hashi reaches over SSH */
+            all_hosts: boolean;
+            /** @description Used when all_hosts is false; empty = no host */
+            hosts: string[];
+            env: components["schemas"]["ScriptEnvVar"][];
+        };
+        ScriptHost: {
+            id: string;
+            name: string;
+            /** @description A scripts plan for this host waits for approval */
+            pending: boolean;
+        };
+        Script: {
+            id: string;
+            /** @description File name on the hosts; fixed after creation */
+            slug: string;
+            name: string;
+            description: string;
+            body: string;
+            enabled: boolean;
+            schedule: string;
+            timeout_seconds: number;
+            all_hosts: boolean;
+            hosts: string[];
+            env: components["schemas"]["ScriptEnvVar"][];
+            /** @description The hosts it runs on now */
+            targets: components["schemas"]["ScriptHost"][];
+            /** @description Newest first, at most 10 */
+            last_runs: components["schemas"]["ScriptRunStatus"][];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        ScriptList: {
+            scripts: components["schemas"]["Script"][];
+        };
+        /** @enum {string} */
+        ScriptRunStatus: "running" | "succeeded" | "failed" | "timed_out" | "error";
+        ScriptRun: {
+            id: string;
+            script_id: string;
+            host_id: string;
+            host_name: string;
+            /** @enum {string} */
+            trigger: "manual" | "scheduled";
+            status: components["schemas"]["ScriptRunStatus"];
+            exit_code?: number;
+            /** Format: date-time */
+            started_at: string;
+            /** Format: date-time */
+            finished_at?: string;
+            /** @description Combined stdout and stderr, at most 1 MB, secrets replaced */
+            output: string;
+            truncated: boolean;
+            /** @description Why Hashi could not run it */
+            error: string;
+            actor: string;
+        };
+        ScriptRunList: {
+            runs: components["schemas"]["ScriptRun"][];
+        };
+        ScriptRunRequest: {
+            host_id: string;
+        };
+        ScriptRunStarted: {
+            run_id: string;
+        };
+        ScriptPlans: {
+            plans: components["schemas"]["SyncPlan"][];
+        };
+        SchedulePreview: {
+            /** @description The next five firing times (UTC) */
+            next: string[];
+            /** @description OnCalendar lines of the systemd timer */
+            timer_lines: string[];
         };
     };
     responses: {
@@ -9814,6 +10051,265 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LogPage"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listScripts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Scripts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScriptList"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    createScript: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScriptInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Script"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    previewScriptSchedule: {
+        parameters: {
+            query: {
+                schedule: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Preview */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SchedulePreview"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getScriptRun: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Run */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScriptRun"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getScript: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Script */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Script"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    updateScript: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScriptInput"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Script"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    deleteScript: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    planScript: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One plan per host that differs */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScriptPlans"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    applyScript: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The plans as they ran (a failed one carries its error) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScriptPlans"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    runScript: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScriptRunRequest"];
+            };
+        };
+        responses: {
+            /** @description Started */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScriptRunStarted"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    listScriptRuns: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Runs, newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScriptRunList"];
                 };
             };
             default: components["responses"]["Problem"];

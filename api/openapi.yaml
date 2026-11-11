@@ -2776,6 +2776,154 @@ paths:
           description: Log lines
           content: { application/json: { schema: { $ref: "#/components/schemas/LogPage" } } }
         default: { $ref: "#/components/responses/Problem" }
+  /api/scripts:
+    get:
+      operationId: listScripts
+      summary: Scripts with their hosts, last runs and pending changes; secret values never appear
+      tags: [scripts]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Scripts
+          content: { application/json: { schema: { $ref: "#/components/schemas/ScriptList" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    post:
+      operationId: createScript
+      summary: Add a script; the plans for its hosts wait on Pending changes (09 §1)
+      tags: [scripts]
+      x-hashi-scopes: [scripts.manage]
+      x-hashi-reauth: true
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ScriptInput" } } }
+      responses:
+        "201":
+          description: Created
+          content: { application/json: { schema: { $ref: "#/components/schemas/Script" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/scripts/schedule-preview:
+    get:
+      operationId: previewScriptSchedule
+      summary: The next firing times of a cron schedule and the systemd timer lines it becomes
+      tags: [scripts]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: schedule, in: query, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Preview
+          content: { application/json: { schema: { $ref: "#/components/schemas/SchedulePreview" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/script-runs/{runId}:
+    get:
+      operationId: getScriptRun
+      summary: One run with its (capped, redacted) output
+      tags: [scripts]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: runId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Run
+          content: { application/json: { schema: { $ref: "#/components/schemas/ScriptRun" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/scripts/{id}:
+    get:
+      operationId: getScript
+      summary: One script
+      tags: [scripts]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Script
+          content: { application/json: { schema: { $ref: "#/components/schemas/Script" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      operationId: updateScript
+      summary: Replace a script; a secret variable sent without a value keeps the stored one
+      tags: [scripts]
+      x-hashi-scopes: [scripts.manage]
+      x-hashi-reauth: true
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ScriptInput" } } }
+      responses:
+        "200":
+          description: Saved
+          content: { application/json: { schema: { $ref: "#/components/schemas/Script" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    delete:
+      operationId: deleteScript
+      summary: Remove a script; the next plan of each host removes its files and timer
+      tags: [scripts]
+      x-hashi-scopes: [scripts.manage]
+      x-hashi-reauth: true
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "204": { description: Deleted }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/scripts/{id}/plan:
+    post:
+      operationId: planScript
+      summary: Plan every host the script runs on now; the plans show the exact diff and wait for approval
+      tags: [scripts]
+      x-hashi-scopes: [scripts.manage]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: One plan per host that differs
+          content: { application/json: { schema: { $ref: "#/components/schemas/ScriptPlans" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/scripts/{id}/apply:
+    post:
+      operationId: applyScript
+      summary: Approve and apply the pending scripts plans of the script's hosts
+      tags: [scripts]
+      x-hashi-scopes: [scripts.manage]
+      x-hashi-reauth: true
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The plans as they ran (a failed one carries its error)
+          content: { application/json: { schema: { $ref: "#/components/schemas/ScriptPlans" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/scripts/{id}/run:
+    post:
+      operationId: runScript
+      summary: Run the installed script on one host now; answers at once with the run to follow
+      tags: [scripts]
+      x-hashi-scopes: [scripts.manage]
+      x-hashi-reauth: true
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ScriptRunRequest" } } }
+      responses:
+        "202":
+          description: Started
+          content: { application/json: { schema: { $ref: "#/components/schemas/ScriptRunStarted" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/scripts/{id}/runs:
+    get:
+      operationId: listScriptRuns
+      summary: The newest 100 runs, without output
+      tags: [scripts]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Runs, newest first
+          content: { application/json: { schema: { $ref: "#/components/schemas/ScriptRunList" } } }
+        default: { $ref: "#/components/responses/Problem" }
 components:
   headers:
     SetCookie:
@@ -4149,6 +4297,8 @@ components:
         after: { $ref: "#/components/schemas/SyncPlanItemValue" }
         before_text: { type: string, description: "Summary of the before state for non-DNS items (file hash, version, names)" }
         after_text: { type: string, description: "Summary of the after state for non-DNS items" }
+        before_content: { type: string, description: "A file's full text before (scripts), for a line diff" }
+        after_content: { type: string, description: "A file's full text after (scripts)" }
         risk: { type: string, enum: [low, high] }
         note: { type: string }
     SyncPlan:
@@ -4156,7 +4306,7 @@ components:
       required: [id, subsystem, target, target_name, title, trigger, risk, status, created_by, created_at, approved_by, result, error, items]
       properties:
         id: { type: string }
-        subsystem: { type: string, enum: [dns-records, dns-record-deletes, dns-prune, dns-probe, traefik, certificates, firewall] }
+        subsystem: { type: string, enum: [dns-records, dns-record-deletes, dns-prune, dns-probe, traefik, certificates, firewall, scripts] }
         target: { type: string }
         target_name: { type: string, description: "e.g. the zone name" }
         title: { type: string }
@@ -4799,3 +4949,98 @@ components:
       required: [plans]
       properties:
         plans: { type: array, items: { $ref: "#/components/schemas/SyncPlan" } }
+    ScriptEnvVar:
+      type: object
+      required: [name, secret]
+      properties:
+        name: { type: string, description: "Letters, digits and _, not starting with a digit" }
+        value: { type: string, description: "Plain variables only; never returned for a secret" }
+        secret: { type: boolean, description: "Kept in the vault and replaced in run output" }
+    ScriptInput:
+      type: object
+      required: [name, body, enabled, schedule, timeout_seconds, all_hosts, hosts, env]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        body: { type: string, description: "Starts with a #! line" }
+        enabled: { type: boolean }
+        schedule: { type: string, description: "Five-field cron in host time; empty = by hand only" }
+        timeout_seconds: { type: integer, minimum: 1, maximum: 86400 }
+        all_hosts: { type: boolean, description: "Every firewall host Hashi reaches over SSH" }
+        hosts: { type: array, items: { type: string }, description: "Used when all_hosts is false; empty = no host" }
+        env: { type: array, items: { $ref: "#/components/schemas/ScriptEnvVar" } }
+    ScriptHost:
+      type: object
+      required: [id, name, pending]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        pending: { type: boolean, description: "A scripts plan for this host waits for approval" }
+    Script:
+      type: object
+      required: [id, slug, name, description, body, enabled, schedule, timeout_seconds, all_hosts, hosts, env, targets, last_runs, created_at, updated_at]
+      properties:
+        id: { type: string }
+        slug: { type: string, description: "File name on the hosts; fixed after creation" }
+        name: { type: string }
+        description: { type: string }
+        body: { type: string }
+        enabled: { type: boolean }
+        schedule: { type: string }
+        timeout_seconds: { type: integer }
+        all_hosts: { type: boolean }
+        hosts: { type: array, items: { type: string } }
+        env: { type: array, items: { $ref: "#/components/schemas/ScriptEnvVar" } }
+        targets: { type: array, items: { $ref: "#/components/schemas/ScriptHost" }, description: "The hosts it runs on now" }
+        last_runs: { type: array, items: { $ref: "#/components/schemas/ScriptRunStatus" }, description: "Newest first, at most 10" }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ScriptList:
+      type: object
+      required: [scripts]
+      properties:
+        scripts: { type: array, items: { $ref: "#/components/schemas/Script" } }
+    ScriptRunStatus: { type: string, enum: [running, succeeded, failed, timed_out, error] }
+    ScriptRun:
+      type: object
+      required: [id, script_id, host_id, host_name, trigger, status, started_at, output, truncated, error, actor]
+      properties:
+        id: { type: string }
+        script_id: { type: string }
+        host_id: { type: string }
+        host_name: { type: string }
+        trigger: { type: string, enum: [manual, scheduled] }
+        status: { $ref: "#/components/schemas/ScriptRunStatus" }
+        exit_code: { type: integer }
+        started_at: { type: string, format: date-time }
+        finished_at: { type: string, format: date-time }
+        output: { type: string, description: "Combined stdout and stderr, at most 1 MB, secrets replaced" }
+        truncated: { type: boolean }
+        error: { type: string, description: "Why Hashi could not run it" }
+        actor: { type: string }
+    ScriptRunList:
+      type: object
+      required: [runs]
+      properties:
+        runs: { type: array, items: { $ref: "#/components/schemas/ScriptRun" } }
+    ScriptRunRequest:
+      type: object
+      required: [host_id]
+      properties:
+        host_id: { type: string }
+    ScriptRunStarted:
+      type: object
+      required: [run_id]
+      properties:
+        run_id: { type: string }
+    ScriptPlans:
+      type: object
+      required: [plans]
+      properties:
+        plans: { type: array, items: { $ref: "#/components/schemas/SyncPlan" } }
+    SchedulePreview:
+      type: object
+      required: [next, timer_lines]
+      properties:
+        next: { type: array, items: { type: string, format: date-time }, description: "The next five firing times (UTC)" }
+        timer_lines: { type: array, items: { type: string }, description: "OnCalendar lines of the systemd timer" }

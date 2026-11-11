@@ -5,7 +5,7 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
-**S11 — Scripts, custom themes, settings completeness** · status: **planning** (started 2026-11-10). Gate: 11-delivery.md §3
+**S11 — Scripts, custom themes, settings completeness** · status: **in progress**, PR A (scripts) ready (started 2026-11-10). Gate: 11-delivery.md §3
 row S11: scheduled script runs on real hosts with history; custom theme editor works; visual tests pass in all four
 themes; every setting has a consumer test. Spec: 09, 10-ui §2. After S11: S12, then the bug hunt round.
 
@@ -19,17 +19,25 @@ written by hand, `systemctl list-timers --output=json`, `timeout` and exit codes
 Owner's questions open (see Agenda).
 
 PR A, scripts (09 §1):
-- [ ] Contracts on 108 (above); cron → `OnCalendar` conversion with a round-trip test against the captured
-  `systemd-analyze calendar` answers
-- [ ] Tables: scripts, script targets, script env (secret values in the vault), runs with capped, redacted output
-- [ ] API `/api/scripts` CRUD, `plan|apply|run`, runs list and one run; save, apply and run need a fresh passkey and `scripts.manage`
-- [ ] Host sync over SSH: scripts at `/opt/hashi/scripts/<slug>.sh` (root, 0750), `manifest.json` with SHA-256, env file
-  0600, wrapper `run.sh <slug>` (env, timeout, spool), systemd timer per scheduled script; plan shows the diff per host
-- [ ] Manual run over SSH (timeout end to end, 1 MB cap, secret values replaced); a job collects the spool of scheduled
-  runs into the same history; locked vault → no run
-- [ ] UI from the mock: list with last runs, editor (CodeMirror shell), schedule with plain-language text, targets,
-  environment, run history; phone width; e2e
-- Local proof: integration test against a real sshd + systemd container or 108; then the gate run on 108
+- [x] Contracts on 108 (`testdata/contracts/scripts`); cron → `OnCalendar` conversion with a round-trip test against
+  the captured `systemd-analyze calendar` answers. Found: weekday + day of month is AND in systemd, OR in cron → two
+  `OnCalendar=` lines
+- [x] Tables: scripts, targets, variables (secrets in the vault), runs (capped, redacted); `sync_plans` accepts `scripts`
+- [x] API `/api/scripts` CRUD, `plan|apply|run`, runs, `/api/script-runs/{runId}` (spec fixed: the old path collided),
+  schedule preview; save, apply, run, delete need a fresh passkey and `scripts.manage`
+- [x] Host sync over SSH: runner `run.sh` (variables as base64 data, never evaluated; timeout; spool), script 0750, env
+  0600, systemd timer per scheduled script, manifest written last, everything read back; plans are high risk and show
+  the script as a line diff
+- [x] Manual run (background, refuses a host copy that differs from the saved script), scheduled runs collected every
+  5 min, once each; locked vault → no run
+- [x] Scripts page from the mock (CodeMirror shell editor, schedule with next times, variables, hosts, waiting change
+  with diff, runs with output); phone width; e2e
+- Local proof (2026-11-11): `make check`, `make test-e2e` green; `TestRealScriptsOnDevTarget` on 108 (Debian 13, systemd
+  257, dash): modes 750/600, the timer fired by itself and its run was collected with the secret shown as `[secret]`,
+  a 2 s timeout gave `timed_out`, delete left only `run.sh` and the manifest. Test binaries can't reach the home LAN from
+  this laptop (macOS local network permission), so it ran through `ssh -L 2222:<108>:22` (`HASHI_FW_PORT`).
+- Found on the way: a line split on `=` dropped base64 padding (wrapper test caught it); the plans table's subsystem
+  check needed `scripts` (only the engine test caught it, the fake-host tests did not).
 
 PR B, themes and settings (10-ui §2, 09 §2):
 - [ ] Custom theme: editor (canvas, surface, text, muted text, border, accent, optional chart colours, roundness,
