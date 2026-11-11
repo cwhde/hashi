@@ -8,7 +8,7 @@ kinds are L4 services (protected at the firewall). Formerly called "resource".
 Common fields: name, slug (unique, DNS-safe), kind (`http` | `https` | `h2c` | `tcp` | `udp`), domain mode (root /
 subdomain / full custom), enabled, origin, owning feature (for generated services), detected firewall host, explicit
 routing override (entry host, 03-dns.md §5.1), dashboard visible, monitoring visible, AdGuard rewrite enabled, extra middlewares (from the user
-middleware file), root rule set + default fallback and WAF modes (HTTP kinds, 06-edge-security.md §4, §9), sync state + last applied hash.
+middleware file), traffic options (§1.1a), root rule set + default fallback and WAF modes (HTTP kinds, 06-edge-security.md §4, §9), sync state + last applied hash.
 
 Kind semantics: `http` = upstream speaks HTTP; `https` = upstream speaks TLS (with per-service `insecureSkipVerify`
 and `serverName` options); `h2c` = upstream speaks cleartext HTTP/2. All three are served publicly on `websecure` (443)
@@ -20,13 +20,38 @@ A route may name its own upstream protocol (`http`, `https`, `h2c`); empty uses 
 - **Simple target:** scheme, address (an address set, [05a-ip-sets.md](05a-ip-sets.md) §5.2 — a single IP, a Pulse agent, a
   host or a DNS name; several resolved addresses are load-balanced), port.
 - **Advanced routes** (when enabled), each with: enabled, target list (address sets, load-balanced; weights optional), path match type
-  (prefix / exact / regex), path value, priority, rewrite, route-specific middleware list.
+  (prefix / exact / regex), path value, priority, rewrite, route-specific middleware list (names from the user
+  middleware file, §4).
 - **Rewrite modes:** replace prefix, rewrite exact path, regex replacement with capture groups, strip prefix.
 - TLS options (min version, client-auth off by default). Access control is the service's rule set (06-edge-security.md §4),
   not a per-service policy mode.
 
 Route identity is the route's ULID, never its priority.
 Every middleware a route references is emitted in the same render.
+
+### 1.1a Traffic options (HTTP kinds)
+
+What the upstream receives, set on the service's Traffic tab; routes inherit them. Behaviour captured from Traefik
+v3.7.16 (`testdata/contracts/traefik/traffic/`).
+
+- **Host header:** the public name (default), the upstream address as written in the target with its port
+  (`passHostHeader: false`), or a name the user sets (a headers middleware sets `Host`). For apps that answer only to
+  their own name. `X-Forwarded-Host` always keeps the public name.
+- **Client address headers:** `X-Forwarded-For` and `X-Real-IP` are sent by default (Traefik adds them); each can be
+  removed (an empty `customRequestHeaders` value removes the header completely).
+- **Extra headers:** request and response headers to set, or to remove (empty value), up to 20 each. Names are HTTP
+  token characters; `Host` is set through the Host option; `X-Hashi-*` and the two client address headers are
+  refused here (they have their own options or belong to forward auth).
+- **Timeouts** (serversTransport `forwardingTimeouts`, seconds, empty = Traefik's default): connect (`dialTimeout`,
+  1–300), wait for the answer's headers (`responseHeaderTimeout`, 1–3600; slower answers get 504), keep an idle
+  connection (`idleConnTimeout`, 1–3600).
+- **Extra middlewares:** names from the user middleware file (§4), in order; a route's own list follows the service's.
+
+Chain order on every router: Hashi's defaults (§4.1, forward auth included), the traffic headers middleware
+(`svc-<slug>-traffic`, only when a header option is set), the middlewares on every service (Traefik settings), the
+service's extra middlewares, the route's, then the route's rewrite. User middlewares therefore always run after
+forward auth and can never let a request skip it. System services take no traffic options and no user middlewares
+(invariant 10). A service that names a middleware the user file no longer defines is invalid with the reason (§1.5).
 
 ### 1.2 Stream targets (TCP/UDP)
 
@@ -108,8 +133,17 @@ Static changes require a Traefik restart and are high-risk.
 | `40-hashi-security.yml` | Forward-auth and WAF middlewares (one WAF instance per mode/exclusion set) | no |
 | `90-hashi-health.yml` | Health routers for monitoring | no |
 
-The user middleware editor (CodeMirror YAML) parses strictly, extracts middleware names, and offers valid names as
-toggles on services. Parse/validation errors keep the previously applied file and show the error inline.
+The user middleware editor (CodeMirror YAML) parses strictly, extracts middleware names, and offers valid names on
+services and routes. Parse/validation errors keep the previously applied file and show the error inline. Stored in
+`traefik_user_middlewares` (one row: the text as typed, with comments); saving plans every Traefik host.
+
+Strict means (captured, `testdata/contracts/traefik/traffic/` findings 5–6): one unknown key in any dynamic file makes
+Traefik load none of its files, and a name another file already defines is skipped silently. So a save is refused when:
+the YAML does not parse or repeats a key; the top level holds anything but `http.middlewares`; the file does not match
+the pinned Traefik file-provider schema; a name is not lowercase letters, digits and `-` (at most 63) or starts with
+`hashi` or `svc-` (Hashi's names); a headers middleware sets an `X-Hashi-*` request header; or a name still used by a
+service, a route or the Traefik settings would disappear (the error names the users). Hashi writes the parsed content
+marshalled back (anchors resolved, comments dropped) under its generated header; an empty file is comments only.
 
 ### 4.1 Default middlewares (per service chain)
 
@@ -164,3 +198,6 @@ preview), `/api/traefik/connections/*` (CRUD, validate, install, discover, adopt
 - Integration: real Traefik binary (pinned version) in a test container loads the rendered files and its API reports no errors;
   a request through it reaches a stub upstream (HTTP, H2C, HTTPS upstream, TCP, UDP).
 - Static-config restart failure → automatic restore.
+- Integration: through the real Traefik, the upstream receives each Host option, loses each removed client address
+  header, gets the extra headers; a slow upstream gets 504 after the timeout; a user middleware on a service and on a
+  route takes effect.
