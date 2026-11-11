@@ -6,7 +6,7 @@ import (
 
 // ReleaseTag names the Gitea release whose agent binaries installs use (08 §1, §6). The release job refuses a tag that
 // differs from it, so a release and the Hashi built with it always agree.
-const ReleaseTag = "v0.11.0-beta.1"
+const ReleaseTag = "v0.11.0-beta.2"
 
 // Image is the agent image for Compose: latest, which the release moves on every version tag, so an image updater keeps
 // Docker agents current (ADR 0003).

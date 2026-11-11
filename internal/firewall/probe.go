@@ -25,6 +25,7 @@ const ProbeCommand = `for c in "uname -r" "cat /etc/os-release" "nft --version" 
 type Iface struct {
 	Name  string
 	Up    bool
+	MTU   int
 	Addrs []netip.Prefix
 }
 
@@ -247,6 +248,7 @@ func parseAddrs(f *Facts, out string) error {
 	var links []struct {
 		Ifname   string   `json:"ifname"`
 		Flags    []string `json:"flags"`
+		MTU      int      `json:"mtu"`
 		AddrInfo []struct {
 			Local     string `json:"local"`
 			Prefixlen int    `json:"prefixlen"`
@@ -256,7 +258,7 @@ func parseAddrs(f *Facts, out string) error {
 		return fmt.Errorf("interfaces: %w", err)
 	}
 	for _, l := range links {
-		i := Iface{Name: l.Ifname, Up: slices.Contains(l.Flags, "UP")}
+		i := Iface{Name: l.Ifname, Up: slices.Contains(l.Flags, "UP"), MTU: l.MTU}
 		for _, a := range l.AddrInfo {
 			if addr, err := netip.ParseAddr(a.Local); err == nil {
 				i.Addrs = append(i.Addrs, netip.PrefixFrom(addr, a.Prefixlen))

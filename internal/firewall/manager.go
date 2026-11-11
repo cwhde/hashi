@@ -1112,7 +1112,8 @@ func (m *Manager) build(ctx context.Context, id string, owned bool) (db.Firewall
 	traefikIP, _ := netip.ParseAddr(row.InternalTraefikIp)
 	spec := Spec{WAN: e.WAN, PublicIP: e.PublicIP, Subnets: e.Subnets, TraefikIP: traefikIP, Ports: ports, Folded: folded,
 		HostAccess: hostAccess, NetBird: NetBird{Mode: row.NetbirdMode, Iface: row.NetbirdIface, Port: int(row.NetbirdPort)},
-		DropOtherInbound: row.DropInboundAcceptedAt.Valid, Meters: MetersFrom(engine), NoMSSClamp: !fwDefaults.MSSClamp}
+		DropOtherInbound: row.DropInboundAcceptedAt.Valid, Meters: MetersFrom(engine), NoMSSClamp: !fwDefaults.MSSClamp,
+		Narrow: narrowIfaces(e.Facts, e.WAN, e.Subnets)}
 	table, err := Render(spec)
 	if err != nil {
 		return row, Desired{}, fmt.Errorf("%w: %w", ErrNotReady, err)
@@ -1337,4 +1338,26 @@ func sshConsumers(ctx context.Context, q *db.Queries, id string) ([]ipsets.Consu
 		out = append(out, ipsets.Consumer{Type: "firewall_ssh", ID: r.ID, Name: "SSH to " + r.Name, Position: ipsets.PositionTarget})
 	}
 	return out, nil
+}
+
+// narrowIfaces are the interfaces holding a managed subnet with an MTU below the WAN interface's (bug 29).
+func narrowIfaces(f Facts, wan string, subnets []netip.Prefix) []IfaceMTU {
+	wanMTU := 1500
+	for _, i := range f.Ifaces {
+		if i.Name == wan && i.MTU > 0 {
+			wanMTU = i.MTU
+		}
+	}
+	var out []IfaceMTU
+	for _, i := range f.Ifaces {
+		if i.Name == wan || i.MTU < 1280 || i.MTU >= wanMTU {
+			continue
+		}
+		if slices.ContainsFunc(i.Addrs, func(a netip.Prefix) bool {
+			return slices.ContainsFunc(subnets, func(n netip.Prefix) bool { return n.Contains(a.Addr()) })
+		}) {
+			out = append(out, IfaceMTU{Name: i.Name, MTU: i.MTU})
+		}
+	}
+	return out
 }

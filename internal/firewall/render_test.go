@@ -243,3 +243,37 @@ func TestHostLinkPollSetting(t *testing.T) {
 		t.Fatalf("poll %v", got)
 	}
 }
+
+// Bug 29: a managed bridge narrower than the WAN gets its new forwarded TCP connections capped in both directions, per
+// family; the MSS setting switches that off too.
+func TestRenderNarrowBridgeClamp(t *testing.T) {
+	s := shapes()["bare.json"]
+	s.Narrow = []IfaceMTU{{Name: "vmbr1", MTU: 1280}}
+	out, err := Render(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`"right":\s*1240`, `"value":\s*1240`, `"right":\s*1220`, `"value":\s*1220`, `"oifname"`} {
+		if !regexp.MustCompile(want).Match(out) {
+			t.Errorf("table lacks %s", want)
+		}
+	}
+	s.NoMSSClamp = true
+	if out, _ := Render(s); regexp.MustCompile(`"value":\s*1240`).Match(out) {
+		t.Error("the MSS setting off still clamps the bridge")
+	}
+}
+
+// Only interfaces that hold a managed subnet and are narrower than the WAN count.
+func TestNarrowIfaces(t *testing.T) {
+	f := Facts{Ifaces: []Iface{
+		{Name: "vmbr0", MTU: 1500, Addrs: pfx("192.0.2.10/24")},
+		{Name: "vmbr1", MTU: 1280, Addrs: pfx("10.20.0.1/24")},
+		{Name: "wt0", MTU: 1280, Addrs: pfx("100.64.0.1/16")},
+		{Name: "lo", MTU: 65536, Addrs: pfx("127.0.0.1/8")},
+	}}
+	got := narrowIfaces(f, "vmbr0", pfx("10.20.0.0/24"))
+	if len(got) != 1 || got[0] != (IfaceMTU{Name: "vmbr1", MTU: 1280}) {
+		t.Fatalf("%+v", got)
+	}
+}

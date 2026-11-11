@@ -77,3 +77,18 @@ func TestParseProbeWithoutNft(t *testing.T) {
 		t.Fatalf("err %v", err)
 	}
 }
+
+// The probe keeps each interface's MTU (bug 29): the captured Proxmox host has 1280 bridges behind a 1500 uplink.
+func TestParseProbeMTU(t *testing.T) {
+	f, err := ParseProbe(fixture(t, "probe_debian13_pve_netbird.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	mtus := map[int]int{}
+	for _, i := range f.Ifaces {
+		mtus[i.MTU]++
+	}
+	if mtus[1280] == 0 || mtus[1500] == 0 || mtus[0] != 0 {
+		t.Fatalf("MTUs %v", mtus)
+	}
+}

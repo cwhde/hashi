@@ -72,7 +72,17 @@ type Spec struct {
 	// DropOtherInbound: the user accepted the "block all other inbound" warning for this host (05 §3.2 chain 4).
 	DropOtherInbound bool
 	Meters           Meters
-	NoMSSClamp       bool // Firewall settings: no MSS clamp on NetBird-routed traffic
+	NoMSSClamp       bool // Firewall settings: no MSS clamp on NetBird-routed traffic or narrow bridges
+	// Narrow are the interfaces of managed subnets whose MTU is below the WAN's (e.g. a 1280 bridge behind a 1500
+	// uplink). New forwarded TCP connections through them are capped to what fits, so servers that ignore path-MTU
+	// messages still reach the containers behind them (bug 29).
+	Narrow []IfaceMTU
+}
+
+// IfaceMTU is one interface and its MTU.
+type IfaceMTU struct {
+	Name string
+	MTU  int
 }
 
 // planSets are the sets whose elements a plan replaces; dyn, staging and meter sets are never flushed (05 §3.3).
@@ -456,6 +466,22 @@ func chains(s Spec) []chainOut {
 		syn := match("in", payload("tcp", "flags"), "syn")
 		mangle.rules = append(mangle.rules, []any{iif(s.NetBird.Iface), syn, clamp},
 			[]any{match("==", meta("oifname"), s.NetBird.Iface), syn, clamp})
+	}
+	if !s.NoMSSClamp {
+		mss := obj{"tcp option": obj{"name": "maxseg", "field": "size"}}
+		syn := match("in", payload("tcp", "flags"), "syn")
+		for _, n := range s.Narrow {
+			for _, fam := range []struct {
+				proto    string
+				overhead int
+			}{{"ipv4", 40}, {"ipv6", 60}} {
+				size := n.MTU - fam.overhead
+				for _, side := range []string{"iifname", "oifname"} {
+					mangle.rules = append(mangle.rules, []any{match("==", meta(side), n.Name), match("==", meta("nfproto"), fam.proto),
+						syn, match(">", mss, size), obj{"mangle": obj{"key": mss, "value": size}}})
+				}
+			}
+		}
 	}
 	return []chainOut{guard, meter, nat, natOut, input, fwd, post, mangle}
 }

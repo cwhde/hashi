@@ -4717,7 +4717,7 @@ export interface components {
              * @enum {string}
              */
             netbird_mode: "disabled" | "peer" | "routing";
-            /** @description Clamp TCP MSS on NetBird-routed traffic (routing peers) */
+            /** @description Clamp TCP MSS on NetBird-routed traffic and on bridges narrower than the WAN */
             mss_clamp: boolean;
         };
         AllSettings: {

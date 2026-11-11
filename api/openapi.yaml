@@ -4646,7 +4646,7 @@ components:
       required: [netbird_mode, mss_clamp]
       properties:
         netbird_mode: { type: string, enum: [disabled, peer, routing], description: "NetBird mode a new firewall host starts with" }
-        mss_clamp: { type: boolean, description: "Clamp TCP MSS on NetBird-routed traffic (routing peers)" }
+        mss_clamp: { type: boolean, description: "Clamp TCP MSS on NetBird-routed traffic and on bridges narrower than the WAN" }
     AllSettings:
       type: object
       required: [general, security, appearance]

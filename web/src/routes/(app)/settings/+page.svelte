@@ -583,11 +583,10 @@
 					</p>
 				</div>
 			</Panel>
-			<Panel title="Routing peers">
+			<Panel title="Packet size">
 				<label class="flex items-center justify-between gap-3 text-[13px]"
 					><span
-						>Clamp TCP packet size on NetBird-routed traffic<span
-							class="block text-[12px] text-muted-foreground"
+						>Fit TCP packets to narrow networks<span class="block text-[12px] text-muted-foreground"
 							>Avoids stalled connections through the tunnel. Leave on unless you know your path
 							MTU.</span
 						></span

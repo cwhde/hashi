@@ -3202,7 +3202,7 @@ type FirewallBindings struct {
 
 // FirewallDefaultsSettings defines model for FirewallDefaultsSettings.
 type FirewallDefaultsSettings struct {
-	// MssClamp Clamp TCP MSS on NetBird-routed traffic (routing peers)
+	// MssClamp Clamp TCP MSS on NetBird-routed traffic and on bridges narrower than the WAN
 	MssClamp bool `json:"mss_clamp"`
 
 	// NetbirdMode NetBird mode a new firewall host starts with
