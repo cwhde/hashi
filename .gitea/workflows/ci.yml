@@ -108,6 +108,9 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml') }}
+          # A lockfile change without a new Playwright still finds its browser in the last cache, instead of a 150 MB
+          # download from the CI network (which timed out repeatedly, docs/bugs.md).
+          restore-keys: playwright-${{ runner.os }}-
 
       - name: Install Chromium for Playwright
         if: steps.paths.outputs.run == 'true'
