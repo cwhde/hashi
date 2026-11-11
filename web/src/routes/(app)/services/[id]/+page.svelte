@@ -258,7 +258,7 @@
 			</div>
 			<div>
 				<dt class="text-[12px] text-muted-foreground">Upstream</dt>
-				<dd><Mono>{svc.kind}://{targetText(svc.target)}</Mono></dd>
+				<dd class="min-w-0 break-all"><Mono>{svc.kind}://{targetText(svc.target)}</Mono></dd>
 			</div>
 			<div>
 				<dt class="text-[12px] text-muted-foreground">Routes</dt>
