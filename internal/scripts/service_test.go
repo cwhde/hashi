@@ -11,10 +11,11 @@ import (
 	"time"
 
 	"git.juzo.io/juzo/hashi/internal/audit"
-	. "git.juzo.io/juzo/hashi/internal/scripts"
 	"git.juzo.io/juzo/hashi/internal/firewall/firewalltest"
+	. "git.juzo.io/juzo/hashi/internal/scripts"
 	"git.juzo.io/juzo/hashi/internal/secrets"
 	"git.juzo.io/juzo/hashi/internal/sshx"
+	"git.juzo.io/juzo/hashi/internal/store"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 	"git.juzo.io/juzo/hashi/internal/store/storetest"
 	hsync "git.juzo.io/juzo/hashi/internal/sync"
@@ -29,6 +30,7 @@ type itemState struct {
 }
 
 type fixture struct {
+	st   *store.Store
 	s    *Service
 	host *firewalltest.Host
 	sub  hsync.Subsystem
@@ -65,7 +67,7 @@ func newFixture(t *testing.T) fixture {
 		c, err := h.Connect(ctx, sshx.Config{Pinned: h.Key()})
 		return c, err
 	})
-	return fixture{s: s, host: h, sub: s.Subsystems()[0]}
+	return fixture{st: st, s: s, host: h, sub: s.Subsystems()[0]}
 }
 
 func (f fixture) plan(t *testing.T) hsync.Draft {
@@ -168,8 +170,11 @@ func TestScriptLifecycle(t *testing.T) {
 		t.Fatalf("collect %q %v", sum, err)
 	}
 	runs, _ := f.s.Runs(ctx, sc.ID)
-	if len(runs) != 2 || runs[0].Trigger != TriggerScheduled || runs[0].Status != RunTimedOut || runs[0].Output != "token is [secret]\n" {
+	if len(runs) != 2 || runs[0].Trigger != TriggerScheduled || runs[0].Status != RunTimedOut {
 		t.Fatalf("runs %+v", runs)
+	}
+	if r, _ := f.s.GetRun(ctx, runs[0].ID); r.Output != "token is [secret]\n" {
+		t.Fatalf("scheduled output %q", r.Output)
 	}
 	if _, ok := f.host.File(name + ".done"); ok {
 		t.Fatal("the spool entry stayed")
@@ -254,5 +259,41 @@ func TestSaveRefuses(t *testing.T) {
 	}
 	if _, err := f.s.Create(ctx, "admin", "", ok); !errors.Is(err, ErrInvalid) {
 		t.Fatalf("same name twice: %v", err)
+	}
+}
+
+// The sync engine stores and applies a scripts plan: the plans table accepts the subsystem and a saved script waits as a
+// high-risk plan until approved.
+func TestEngineRunsScriptsPlans(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t)
+	al := audit.New([]byte("k"))
+	eng := hsync.New(f.st, al, f.sub)
+	if err := eng.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	f.s.OnSave(func(ctx context.Context, ids []string, actor string) {
+		for _, h := range ids {
+			if _, err := eng.Propose(ctx, Subsystem, h, hsync.TriggerSave, actor); err != nil {
+				t.Errorf("propose: %v", err)
+			}
+		}
+	})
+	if _, err := f.s.Create(ctx, "admin", "", Input{Name: "x", Body: "#!/bin/sh\n", Enabled: true, TimeoutSeconds: 5, AllHosts: true}); err != nil {
+		t.Fatal(err)
+	}
+	open, err := eng.Open(ctx)
+	if err != nil || len(open) != 1 || open[0].Status != hsync.StatusPending || open[0].Risk != hsync.High {
+		t.Fatalf("open %+v %v", open, err)
+	}
+	if err := eng.Approve(ctx, open[0].ID, "admin", ""); err != nil {
+		t.Fatal(err)
+	}
+	p, err := eng.Apply(ctx, open[0].ID, "admin", "")
+	if err != nil || p.Status != hsync.StatusApplied {
+		t.Fatalf("apply %+v %v", p, err)
+	}
+	if _, ok := f.host.File(Dir + "/x.sh"); !ok {
+		t.Fatal("not on the host")
 	}
 }

@@ -669,6 +669,34 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByRole('button', { name: 'Actions for 198.51.100.78' }).click();
 	await page.getByRole('menuitem', { name: 'End challenge' }).click();
 	await expect(page.getByText('Nobody is challenged right now.')).toBeVisible();
+	// S11 scripts (09 §1): save asks for the passkey, the change waits with its diff, apply puts it on the host, a run
+	// by hand shows its output in the history.
+	await page.goto(`${state.baseURL}/scripts`);
+	await expect(page.getByText('No scripts yet.')).toBeVisible();
+	await page.getByRole('button', { name: 'New script' }).click();
+	await page.getByLabel('Name', { exact: true }).fill('Disk report');
+	await page.getByLabel('Schedule (cron, host time)').fill('30 3 * * 0');
+	await expect(page.getByText(/^Next: Sun/)).toBeVisible();
+	await page.getByRole('button', { name: 'Add variable' }).click();
+	await page.getByLabel('Variable name').fill('KEEP');
+	await page.getByLabel('Value of KEEP').fill('14');
+	await page.getByRole('button', { name: 'Save' }).click();
+	await expect(page.getByRole('status')).toContainText('waits for you below');
+	await expect(page.getByLabel('Changes to the file').last()).toContainText('set -eu');
+	await page.setViewportSize({ width: 390, height: 844 });
+	expect(
+		await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+		'the scripts page is wider than a phone'
+	).toBe(true);
+	await page.screenshot({ path: 'test-results/s11-scripts-plan-phone.png', fullPage: true });
+	await page.setViewportSize({ width: 1280, height: 800 });
+	await page.getByRole('button', { name: 'Approve and apply' }).first().click();
+	await expect(page.getByRole('status')).toContainText('Applied');
+	await page.getByRole('button', { name: 'Run now' }).click();
+	await expect(page.getByLabel('Output')).toContainText('fake run of disk-report');
+	await expect(page.getByRole('button', { name: /succeeded/ })).toBeVisible();
+	await expect(page.getByText(/^Next: Sun/)).toBeVisible();
+	await page.screenshot({ path: 'test-results/s11-scripts.png', fullPage: true });
 	await page.goto(`${state.baseURL}/security`);
 	await page.getByRole('tab', { name: 'Challenge', exact: true }).click();
 	await expect(page.getByText('Cap challenge')).toBeVisible();

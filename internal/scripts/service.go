@@ -60,7 +60,9 @@ func New(st *store.Store, v *vault.Vault, a *audit.Log, log *slog.Logger, dial D
 }
 
 // OnSave sets what runs after a save changes what hosts should hold.
-func (s *Service) OnSave(fn func(ctx context.Context, hostIDs []string, actor string)) { s.planHosts = fn }
+func (s *Service) OnSave(fn func(ctx context.Context, hostIDs []string, actor string)) {
+	s.planHosts = fn
+}
 
 // EnvVar is one variable as the admin enters it. A secret with an empty Value keeps the stored one.
 type EnvVar struct {
@@ -111,7 +113,7 @@ func (s *Service) validate(in Input) error {
 	}
 	if in.Schedule != "" {
 		if _, err := ParseCron(in.Schedule); err != nil {
-			return fmt.Errorf("%w: %v", ErrInvalid, err)
+			return fmt.Errorf("%w: %w", ErrInvalid, err)
 		}
 	}
 	seen := map[string]bool{}

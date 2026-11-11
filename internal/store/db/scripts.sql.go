@@ -307,6 +307,33 @@ func (q *Queries) ListScriptEnv(ctx context.Context, scriptID string) ([]ScriptE
 	return items, nil
 }
 
+const listScriptRunStatuses = `-- name: ListScriptRunStatuses :many
+SELECT status FROM script_runs WHERE script_id = ? ORDER BY started_at DESC, id DESC LIMIT 10
+`
+
+func (q *Queries) ListScriptRunStatuses(ctx context.Context, scriptID string) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listScriptRunStatuses, scriptID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var status string
+		if err := rows.Scan(&status); err != nil {
+			return nil, err
+		}
+		items = append(items, status)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listScriptRuns = `-- name: ListScriptRuns :many
 SELECT id, script_id, host_id, "trigger", status, exit_code, started_at, finished_at, output, truncated, error, actor, spool_name FROM script_runs WHERE script_id = ? ORDER BY started_at DESC, id DESC LIMIT 100
 `
@@ -334,6 +361,60 @@ func (q *Queries) ListScriptRuns(ctx context.Context, scriptID string) ([]Script
 			&i.Error,
 			&i.Actor,
 			&i.SpoolName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listScriptRunsBrief = `-- name: ListScriptRunsBrief :many
+SELECT id, script_id, host_id, trigger, status, exit_code, started_at, finished_at, truncated, error, actor
+FROM script_runs WHERE script_id = ? ORDER BY started_at DESC, id DESC LIMIT 100
+`
+
+type ListScriptRunsBriefRow struct {
+	ID         string
+	ScriptID   string
+	HostID     string
+	Trigger    string
+	Status     string
+	ExitCode   sql.NullInt64
+	StartedAt  int64
+	FinishedAt sql.NullInt64
+	Truncated  int64
+	Error      string
+	Actor      string
+}
+
+func (q *Queries) ListScriptRunsBrief(ctx context.Context, scriptID string) ([]ListScriptRunsBriefRow, error) {
+	rows, err := q.db.QueryContext(ctx, listScriptRunsBrief, scriptID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListScriptRunsBriefRow{}
+	for rows.Next() {
+		var i ListScriptRunsBriefRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ScriptID,
+			&i.HostID,
+			&i.Trigger,
+			&i.Status,
+			&i.ExitCode,
+			&i.StartedAt,
+			&i.FinishedAt,
+			&i.Truncated,
+			&i.Error,
+			&i.Actor,
 		); err != nil {
 			return nil, err
 		}

@@ -33,6 +33,12 @@ const (
 	TriggerScheduled = "scheduled"
 )
 
+// The job that moves scheduled runs from the hosts' spools into the history.
+const (
+	CollectJobKind  = "scripts.collect"
+	CollectInterval = 5 * time.Minute
+)
+
 // grace is how long Hashi waits past a script's timeout before it gives up on the SSH session: the wrapper's
 // timeout(1) stops the script first, and -k 10 kills it 10 s later.
 const grace = 30 * time.Second
@@ -178,12 +184,17 @@ func (s *Service) finish(ctx context.Context, runID string, o outcome, secretVal
 	}
 }
 
-// Runs lists a script's newest runs.
-func (s *Service) Runs(ctx context.Context, id string) ([]db.ScriptRun, error) {
+// Runs lists a script's newest runs, without their output.
+func (s *Service) Runs(ctx context.Context, id string) ([]db.ListScriptRunsBriefRow, error) {
 	if _, err := s.Get(ctx, id); err != nil {
 		return nil, err
 	}
-	return s.st.R.ListScriptRuns(ctx, id)
+	return s.st.R.ListScriptRunsBrief(ctx, id)
+}
+
+// LastStatuses are the newest 10 run statuses of a script, newest first.
+func (s *Service) LastStatuses(ctx context.Context, id string) ([]string, error) {
+	return s.st.R.ListScriptRunStatuses(ctx, id)
 }
 
 // GetRun loads one run.
@@ -197,7 +208,9 @@ func (s *Service) GetRun(ctx context.Context, runID string) (db.ScriptRun, error
 
 // Interrupted marks runs that were running when Hashi stopped (at start, invariant 15).
 func (s *Service) Interrupted(ctx context.Context) error {
-	return s.st.Tx(ctx, func(q *db.Queries) error { return q.InterruptScriptRuns(ctx, sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true}) })
+	return s.st.Tx(ctx, func(q *db.Queries) error {
+		return q.InterruptScriptRuns(ctx, sql.NullInt64{Int64: s.now().UnixMilli(), Valid: true})
+	})
 }
 
 // spoolEntry is one finished scheduled run in a host's spool: <slug>.<start>.<pid>.{out,done}.

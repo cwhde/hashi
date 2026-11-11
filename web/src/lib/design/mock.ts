@@ -489,11 +489,13 @@ export const rrsets: Rrset[] = [
 
 export type PlanItem = {
 	action: 'create' | 'update' | 'delete' | 'label' | 'conflict' | 'write file' | 'restart';
-	subsystem: 'DNS' | 'Traefik' | 'Certificates' | 'Firewall' | 'AdGuard';
+	subsystem: 'DNS' | 'Traefik' | 'Certificates' | 'Firewall' | 'AdGuard' | 'Scripts';
 	target: string;
 	object: string;
 	before?: string;
 	after?: string;
+	/** A file's full text before and after, shown as a line diff (scripts). */
+	content?: { before: string; after: string };
 	risk: Risk;
 	note?: string;
 };

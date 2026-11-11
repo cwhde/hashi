@@ -51,7 +51,120 @@ CREATE TABLE script_runs (
 CREATE INDEX script_runs_script ON script_runs (script_id, started_at DESC);
 CREATE UNIQUE INDEX script_runs_spool ON script_runs (host_id, spool_name) WHERE spool_name != '';
 
+-- sync_plans.subsystem gains scripts (rebuild as in 00014).
+CREATE TABLE sync_plans_v24 (
+    id          TEXT PRIMARY KEY,
+    subsystem   TEXT NOT NULL CHECK (subsystem IN ('dns-records', 'dns-record-deletes', 'dns-prune', 'dns-probe',
+                                                   'traefik', 'certificates', 'firewall', 'adguard', 'scripts')),
+    target      TEXT NOT NULL,
+    title       TEXT NOT NULL,
+    trigger     TEXT NOT NULL CHECK (trigger IN ('save', 'reconcile', 'manual', 'probe', 'prune')),
+    risk        TEXT NOT NULL CHECK (risk IN ('low', 'high')),
+    status      TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'applying', 'applied', 'failed', 'discarded', 'superseded')),
+    plan_hash   TEXT NOT NULL,
+    created_by  TEXT NOT NULL,
+    created_at  INTEGER NOT NULL,
+    approved_by TEXT NOT NULL DEFAULT '',
+    approved_at INTEGER,
+    finished_at INTEGER,
+    result      TEXT NOT NULL DEFAULT '',
+    error       TEXT NOT NULL DEFAULT ''
+) STRICT;
+INSERT INTO sync_plans_v24 SELECT * FROM sync_plans;
+
+CREATE TABLE sync_plan_items_v24 (
+    plan_id     TEXT NOT NULL REFERENCES sync_plans_v24 (id) ON DELETE CASCADE,
+    seq         INTEGER NOT NULL,
+    action      TEXT NOT NULL CHECK (action IN ('create', 'update', 'delete', 'label', 'conflict')),
+    object      TEXT NOT NULL,
+    before_json TEXT NOT NULL DEFAULT '',
+    after_json  TEXT NOT NULL DEFAULT '',
+    risk        TEXT NOT NULL CHECK (risk IN ('low', 'high')),
+    note        TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (plan_id, seq)
+) STRICT;
+INSERT INTO sync_plan_items_v24 SELECT * FROM sync_plan_items;
+
+CREATE TABLE sync_runs_v24 (
+    id          TEXT PRIMARY KEY,
+    plan_id     TEXT NOT NULL REFERENCES sync_plans_v24 (id) ON DELETE CASCADE,
+    started_at  INTEGER NOT NULL,
+    finished_at INTEGER,
+    outcome     TEXT NOT NULL DEFAULT 'running'
+                CHECK (outcome IN ('running', 'applied', 'failed', 'replanned', 'no_changes')),
+    summary     TEXT NOT NULL DEFAULT '',
+    error       TEXT NOT NULL DEFAULT ''
+) STRICT;
+INSERT INTO sync_runs_v24 SELECT * FROM sync_runs;
+
+DROP TABLE sync_plan_items;
+DROP TABLE sync_runs;
+DROP TABLE sync_plans;
+-- Renaming the parent rewrites the children's REFERENCES to the new name.
+ALTER TABLE sync_plans_v24 RENAME TO sync_plans;
+ALTER TABLE sync_plan_items_v24 RENAME TO sync_plan_items;
+ALTER TABLE sync_runs_v24 RENAME TO sync_runs;
+CREATE UNIQUE INDEX sync_plans_open ON sync_plans (subsystem, target) WHERE status IN ('pending', 'approved', 'applying');
+CREATE INDEX sync_plans_created ON sync_plans (created_at);
+CREATE INDEX sync_runs_started ON sync_runs (started_at);
+
 -- +goose Down
+DELETE FROM sync_plans WHERE subsystem = 'scripts';
+CREATE TABLE sync_plans_v24d (
+    id          TEXT PRIMARY KEY,
+    subsystem   TEXT NOT NULL CHECK (subsystem IN ('dns-records', 'dns-record-deletes', 'dns-prune', 'dns-probe',
+                                                   'traefik', 'certificates', 'firewall', 'adguard')),
+    target      TEXT NOT NULL,
+    title       TEXT NOT NULL,
+    trigger     TEXT NOT NULL CHECK (trigger IN ('save', 'reconcile', 'manual', 'probe', 'prune')),
+    risk        TEXT NOT NULL CHECK (risk IN ('low', 'high')),
+    status      TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'applying', 'applied', 'failed', 'discarded', 'superseded')),
+    plan_hash   TEXT NOT NULL,
+    created_by  TEXT NOT NULL,
+    created_at  INTEGER NOT NULL,
+    approved_by TEXT NOT NULL DEFAULT '',
+    approved_at INTEGER,
+    finished_at INTEGER,
+    result      TEXT NOT NULL DEFAULT '',
+    error       TEXT NOT NULL DEFAULT ''
+) STRICT;
+INSERT INTO sync_plans_v24d SELECT * FROM sync_plans;
+
+CREATE TABLE sync_plan_items_v24d (
+    plan_id     TEXT NOT NULL REFERENCES sync_plans_v24d (id) ON DELETE CASCADE,
+    seq         INTEGER NOT NULL,
+    action      TEXT NOT NULL CHECK (action IN ('create', 'update', 'delete', 'label', 'conflict')),
+    object      TEXT NOT NULL,
+    before_json TEXT NOT NULL DEFAULT '',
+    after_json  TEXT NOT NULL DEFAULT '',
+    risk        TEXT NOT NULL CHECK (risk IN ('low', 'high')),
+    note        TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (plan_id, seq)
+) STRICT;
+INSERT INTO sync_plan_items_v24d SELECT * FROM sync_plan_items;
+
+CREATE TABLE sync_runs_v24d (
+    id          TEXT PRIMARY KEY,
+    plan_id     TEXT NOT NULL REFERENCES sync_plans_v24d (id) ON DELETE CASCADE,
+    started_at  INTEGER NOT NULL,
+    finished_at INTEGER,
+    outcome     TEXT NOT NULL DEFAULT 'running'
+                CHECK (outcome IN ('running', 'applied', 'failed', 'replanned', 'no_changes')),
+    summary     TEXT NOT NULL DEFAULT '',
+    error       TEXT NOT NULL DEFAULT ''
+) STRICT;
+INSERT INTO sync_runs_v24d SELECT * FROM sync_runs;
+
+DROP TABLE sync_plan_items;
+DROP TABLE sync_runs;
+DROP TABLE sync_plans;
+-- Renaming the parent rewrites the children's REFERENCES to the new name.
+ALTER TABLE sync_plans_v24d RENAME TO sync_plans;
+ALTER TABLE sync_plan_items_v24d RENAME TO sync_plan_items;
+ALTER TABLE sync_runs_v24d RENAME TO sync_runs;
+CREATE UNIQUE INDEX sync_plans_open ON sync_plans (subsystem, target) WHERE status IN ('pending', 'approved', 'applying');
+CREATE INDEX sync_plans_created ON sync_plans (created_at);
+CREATE INDEX sync_runs_started ON sync_runs (started_at);
 DROP TABLE script_runs;
 DROP TABLE script_env;
 DROP TABLE script_targets;

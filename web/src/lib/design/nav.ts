@@ -75,6 +75,7 @@ const built = new Set([
 	'/activity',
 	'/connections',
 	'/pulse',
+	'/scripts',
 	'/settings'
 ]);
 export const liveNav = nav

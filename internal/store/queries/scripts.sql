@@ -58,3 +58,10 @@ DELETE FROM script_runs WHERE script_runs.script_id = sqlc.arg(script_id) AND sc
 
 -- name: InterruptScriptRuns :exec
 UPDATE script_runs SET status = 'error', error = 'Hashi restarted during the run', finished_at = ? WHERE status = 'running';
+
+-- name: ListScriptRunStatuses :many
+SELECT status FROM script_runs WHERE script_id = ? ORDER BY started_at DESC, id DESC LIMIT 10;
+
+-- name: ListScriptRunsBrief :many
+SELECT id, script_id, host_id, trigger, status, exit_code, started_at, finished_at, truncated, error, actor
+FROM script_runs WHERE script_id = ? ORDER BY started_at DESC, id DESC LIMIT 100;

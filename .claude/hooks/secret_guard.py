@@ -31,8 +31,10 @@ def run(cmd, cwd):
     return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=60)
 
 
-# Lockfiles and checksum files are full of hashes that look like tokens.
-EXCLUDES = ["--", ".", ":!**/go.sum", ":!**/pnpm-lock.yaml", ":!**/package-lock.json", ":!**/*.sha256"]
+# Lockfiles and checksum files are full of hashes that look like tokens. Generated code (*.gen.go, *.gen.ts, sqlc's
+# output) only repeats api/openapi.yaml and the .sql files, which are scanned; its long type names read as tokens.
+EXCLUDES = ["--", ".", ":!**/go.sum", ":!**/pnpm-lock.yaml", ":!**/package-lock.json", ":!**/*.sha256",
+            ":!**/*.gen.go", ":!**/*.gen.ts", ":!internal/store/db/*.go"]
 
 
 def pending(project):
@@ -40,7 +42,7 @@ def pending(project):
     out = run(["git", "diff", "HEAD", "--no-color"] + EXCLUDES, project).stdout
     new = run(["git", "ls-files", "--others", "--exclude-standard", "-z"], project).stdout.split("\0")
     for f in new:
-        if not f or f.endswith((".sum", ".sha256", "pnpm-lock.yaml")):
+        if not f or f.endswith((".sum", ".sha256", "pnpm-lock.yaml", ".gen.go", ".gen.ts")) or f.startswith("internal/store/db/"):
             continue
         try:
             with open(os.path.join(project, f), errors="replace") as fh:
