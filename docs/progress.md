@@ -7,7 +7,7 @@ Rules: docs/spec/11-delivery.md §2.
 
 **S11 — Scripts, custom themes, settings completeness** · status: **planning** (started 2026-11-10). Gate: 11-delivery.md §3
 row S11: scheduled script runs on real hosts with history; custom theme editor works; visual tests pass in all four
-themes; every setting has a consumer test. Spec: 09, 10-ui §2. After S11: the bug hunt round, then S12.
+themes; every setting has a consumer test. Spec: 09, 10-ui §2. After S11: S12, then the bug hunt round.
 
 Exists already: built-in themes (switch, `data-theme` palette), settings categories General, Security, Appearance
 (theme, public pages), Agent DNS, Pulse, Edge SSO, GeoIP, Engine, CAPTCHA. Mocks: `design/(app)/scripts`, `design/(app)/settings`.
@@ -43,7 +43,7 @@ PR B, themes and settings (10-ui §2, 09 §2):
 ## Previous slice
 
 **S10 — Abuse engine, WAF, CAPTCHA, feeds** · status: **done** (gate passed 2026-11-03 on `v0.10.0-beta.8`; review fixes in `v0.10.0-beta.9`). Gate: 11-delivery.md §3 row S10. Next: S11.
-Order after S11 (the owner, 2026-11-10): a large bug hunt and fix round over `docs/bugs.md` and the whole product, then S12 and `v1.0.0`.
+Order (the owner, 2026-11-11): S11, then S12, then a large bug hunt and fix round over `docs/bugs.md` and the whole product.
 Scope: 06 §3, §5–6, §8–11, §13 (Security dashboard, Engine), dynamic sets, host link, kernel meters on.
 
 Contracts: Traefik access log JSON exists (`testdata/contracts/traefik`), nft meter and set shapes exist
