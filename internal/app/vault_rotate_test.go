@@ -6,11 +6,14 @@ import (
 	"errors"
 	"net/netip"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"git.juzo.io/juzo/hashi/internal/audit"
 	"git.juzo.io/juzo/hashi/internal/pulse"
+	"git.juzo.io/juzo/hashi/internal/secrets"
 	"git.juzo.io/juzo/hashi/internal/store"
 	"git.juzo.io/juzo/hashi/internal/store/storetest"
 	"git.juzo.io/juzo/hashi/internal/vault"
@@ -83,4 +86,93 @@ func TestVaultRotateConsole(t *testing.T) {
 
 	cfg.MasterKeyFile += ".new"
 	start(t, cfg).stop()
+}
+
+// Disaster recovery (11-delivery.md §8): only a nightly copy and the recovery key survive. A fresh data folder with that
+// copy, `hashi vault recover` and a start bring Hashi back with every secret readable.
+func TestRestoreNightlyBackupOnFreshFolder(t *testing.T) {
+	ctx := context.Background()
+	cfg := newConfig(t)
+	in := start(t, cfg)
+	nightly := filepath.Join(cfg.DataDir, "backups", "hashi-"+time.Now().UTC().Format(time.DateOnly)+".db")
+	deadline := time.Now().Add(readyWait)
+	for {
+		if _, err := os.Stat(nightly); err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the nightly backup job did not run at the first start")
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	in.stop()
+	// Secrets and the recovery key go in after the copy, so the copy is written again below with them in it.
+	st := storetest.Open(t, cfg.DBPath())
+	key, err := vault.LoadMasterKey(cfg.MasterKeyFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v, err := vault.Load(ctx, st.Q, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recovery, display, _, err := vault.NewRecoveryKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	w, err := v.WrapMaster(recovery)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Q.UpsertRecoveryKey(ctx, w); err != nil {
+		t.Fatal(err)
+	}
+	p, err := v.Seal(vault.Service, "dns.token", secrets.New("hunter2"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Q.InsertSecret(ctx, p); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.NightlyBackup(ctx, time.Now(), 14); err != nil {
+		t.Fatal(err)
+	}
+	_ = st.Close()
+
+	// The new host: an empty folder, the copy as its database, no master key.
+	fresh := t.TempDir()
+	data, err := os.ReadFile(nightly) //nolint:gosec // test temp path
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(fresh, "hashi.db"), data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	restored := Config{DataDir: fresh}
+	var out bytes.Buffer
+	if err := VaultRecover(ctx, restored, strings.NewReader(display.Reveal()+"\n"), &out); err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
+	restored.MasterKeyFile = filepath.Join(fresh, "master.key")
+	if err := os.WriteFile(restored.MasterKeyFile, []byte(lines[len(lines)-1]), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	start(t, restored).stop()
+	st = storetest.Open(t, restored.DBPath())
+	got, err := vault.LoadMasterKey(restored.MasterKeyFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rv, err := vault.Load(ctx, st.Q, got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := st.Q.GetSecret(ctx, p.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s, err := rv.Open(r); err != nil || s.Reveal() != "hunter2" {
+		t.Fatalf("secret after restore: %v", err)
+	}
 }
