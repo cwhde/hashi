@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 	"testing/fstest"
+	"time"
 )
 
 func open(t *testing.T) *Store {
@@ -108,5 +109,57 @@ func TestFailedMigrationRestoresBackup(t *testing.T) {
 	backups, _ := filepath.Glob(filepath.Join(filepath.Dir(s.path), "backups", "pre-migrate-v1-*.db"))
 	if len(backups) != 1 {
 		t.Fatalf("want one pre-migration backup, got %v", backups)
+	}
+}
+
+func TestNightlyBackupKeepsFourteen(t *testing.T) {
+	ctx := context.Background()
+	s := open(t)
+	if err := s.Migrate(ctx, quiet()); err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(filepath.Dir(s.path), "backups")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	// A pre-migration copy and an unrelated file are never pruned.
+	for _, n := range []string{"pre-migrate-v3-20261001T000000Z.db", "notes.txt"} {
+		if err := os.WriteFile(filepath.Join(dir, n), []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	day := time.Date(2026, 11, 1, 3, 0, 0, 0, time.UTC)
+	for i := range 16 {
+		if _, err := s.NightlyBackup(ctx, day.AddDate(0, 0, i), 14); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// The same day again replaces that day's copy instead of failing (VACUUM INTO refuses an existing file).
+	path, err := s.NightlyBackup(ctx, day.AddDate(0, 0, 15).Add(time.Hour), 14)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filepath.Base(path) != "hashi-2026-11-16.db" {
+		t.Fatalf("path %s", path)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+	want := []string{"hashi-2026-11-03.db", "hashi-2026-11-16.db", "notes.txt", "pre-migrate-v3-20261001T000000Z.db"}
+	if len(names) != 16 || names[0] != want[0] || names[13] != want[1] || names[14] != want[2] || names[15] != want[3] {
+		t.Fatalf("backups dir: %v", names)
+	}
+	c, err := Open(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = c.Close() }()
+	if err := c.Ready(ctx); err != nil {
+		t.Fatalf("nightly copy is not a migrated database: %v", err)
 	}
 }

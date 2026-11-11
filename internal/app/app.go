@@ -159,6 +159,20 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	if err := runner.Register(ctx, jobs.Job{Kind: "session_cleanup", Interval: time.Hour, Run: sessions.Cleanup}); err != nil {
 		return err
 	}
+	// Nightly copy of the database, 14 kept (11-delivery.md §8); the host's own backup takes /data off-host.
+	if err := runner.Register(ctx, jobs.Job{Kind: "backup.nightly", Interval: 24 * time.Hour, Run: func(ctx context.Context) (string, error) {
+		path, err := st.NightlyBackup(ctx, time.Now(), 14)
+		if err != nil {
+			return "", err
+		}
+		fi, err := os.Stat(path)
+		if err != nil {
+			return "", err
+		}
+		return fmt.Sprintf("wrote %s (%.1f MB), newest 14 kept", filepath.Base(path), float64(fi.Size())/1e6), nil
+	}}); err != nil {
+		return err
+	}
 	// The observed snapshot follows the sync interval from the base settings (read at start; a change applies after a restart).
 	general, err := settings.Get[settings.General](ctx, st.R)
 	if err != nil {
