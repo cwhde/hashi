@@ -5,7 +5,7 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
-**S11 — Scripts, custom themes, settings completeness** · status: **in progress**, PR A (scripts) ready (started 2026-11-10). Gate: 11-delivery.md §3
+**S11 — Scripts, custom themes, settings completeness** · status: **in progress**, PR A (#63) and PR B ready, then deploy and gate (started 2026-11-10). Gate: 11-delivery.md §3
 row S11: scheduled script runs on real hosts with history; custom theme editor works; visual tests pass in all four
 themes; every setting has a consumer test. Spec: 09, 10-ui §2. After S11: S12, then the bug hunt round.
 
@@ -40,13 +40,17 @@ PR A, scripts (09 §1):
   check needed `scripts` (only the engine test caught it, the fake-host tests did not).
 
 PR B, themes and settings (10-ui §2, 09 §2):
-- [ ] Custom theme: editor (canvas, surface, text, muted text, border, accent, optional chart colours, roundness,
-  transparency), live preview without saving, reset to a built-in, import/export JSON, contrast check refuses unreadable
-  themes (server and UI), invalid stored data falls back to Graphite
-- [ ] Missing settings categories with a consumer each (Monitoring defaults, Dashboard, DNS, Traefik, Firewall,
-  Notifications, Appearance extras); a test per setting that it changes behaviour; settings UI never saves what it failed to load
-- [ ] Visual tests: Playwright screenshots of the main pages in all four themes, baselines in the repo
-- [ ] Spec fixes where a listed setting has no meaning any more (own `docs(spec):` commit, with the reason)
+- [x] Custom theme: six colours, chart colours, corners; live preview without saving; contrast check refuses unreadable
+  text (server and UI); import/export JSON; back to a built-in keeps the custom one; invalid stored data falls back to
+  Graphite. Applies in the admin UI (before first paint too), on the public pages and in alert mails
+- [x] Settings with a consumer each: time display (local/UTC), reduce transparency, Monitoring (interval, timeout, healthy
+  codes, slow threshold, raw sample retention), Dashboard (default order, new services visible), Firewall (NetBird mode
+  of a new host, MSS clamp on NetBird-routed traffic). `internal/settings/consumers_test.go` names the proving test of
+  all 77 settings and fails for a setting without one; it found four settings whose test proved only the code downstream
+- [x] Visual tests: the main pages in all four themes pass axe colour contrast and fit a phone; 48 screenshots per run.
+  They found unreadable inactive tabs, shell keywords, Warm Linen muted text and light status shades (fixed, spec updated)
+- [x] Spec: settings with no meaning dropped or moved (DNS row, most Traefik and Firewall items); logo, icon, assets and
+  widgets wait for bugs 30 and 31
 
 ## Previous slice
 

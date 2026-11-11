@@ -19,15 +19,19 @@ func (c *capture) RoundTrip(r *http.Request) (*http.Response, error) {
 func TestGeoIPAccountSetting(t *testing.T) {
 	c := &capture{}
 	s := New(t.TempDir(), &http.Client{Transport: c}, time.Now)
-	_, _ = s.request(context.Background(), Source{AccountID: "123456", LicenseKey: "key"}, maxmindURL, Country)
+	if resp, err := s.request(context.Background(), Source{AccountID: "123456", LicenseKey: "key"}, maxmindURL, Country); err == nil {
+		_ = resp.Body.Close()
+	}
 	if u, _, ok := c.req.BasicAuth(); !ok || u != "123456" || c.req.URL.Host != "download.maxmind.com" {
 		t.Fatalf("maxmind request %v %v", c.req.URL, ok)
 	}
 	if (Source{AccountID: "123456"}).Configured() {
 		t.Fatal("an account without its key counts as configured")
 	}
-	_, _ = s.request(context.Background(), Source{AccountID: "123456", LicenseKey: "key", URL: "https://mirror.example.com/{edition}"},
-		"https://mirror.example.com/{edition}", Country)
+	if resp, err := s.request(context.Background(), Source{AccountID: "123456", LicenseKey: "key", URL: "https://mirror.example.com/{edition}"},
+		"https://mirror.example.com/{edition}", Country); err == nil {
+		_ = resp.Body.Close()
+	}
 	if _, _, ok := c.req.BasicAuth(); ok {
 		t.Fatal("the account was sent to a mirror")
 	}
