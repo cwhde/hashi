@@ -1017,6 +1017,22 @@ func (m *Manager) auth(ctx context.Context, row db.FirewallHost) (sshx.Auth, err
 	return a, nil
 }
 
+// Dial opens SSH to a firewall host with its stored credential and pinned host key, for other subsystems that work on
+// the same host (scripts, 09 §1). A host without SSH yet is ErrNotReady.
+func (m *Manager) Dial(ctx context.Context, id string) (Conn, error) {
+	row, err := m.st.R.GetFirewallHost(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	if row.SshHost == "" || len(row.HostKey) == 0 {
+		return nil, ErrNotReady
+	}
+	return m.dial(ctx, row)
+}
+
 func (m *Manager) dial(ctx context.Context, row db.FirewallHost) (Conn, error) {
 	a, err := m.auth(ctx, row)
 	if err != nil {

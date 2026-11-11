@@ -10,6 +10,7 @@ import (
 	"errors"
 	"io"
 	"io/fs"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"git.juzo.io/juzo/hashi/internal/firewall"
+	"git.juzo.io/juzo/hashi/internal/scripts"
 	"git.juzo.io/juzo/hashi/internal/sshx"
 )
 
@@ -113,8 +115,47 @@ func (c conn) Run(_ context.Context, cmd string, _ io.Reader) (sshx.Result, erro
 	case strings.HasSuffix(cmd, " -j -f "+firewall.TableFile):
 		h.loaded = h.files[firewall.TableFile]
 		return ok("")
+	case strings.HasPrefix(cmd, "systemctl is-enabled "+scripts.UnitPrefix):
+		return ok("enabled\n")
+	case strings.HasPrefix(cmd, "systemctl is-active "+scripts.UnitPrefix):
+		return ok("active\n")
+	case strings.HasPrefix(cmd, "rm -f '"):
+		for _, f := range strings.Split(strings.TrimPrefix(cmd, "rm -f "), " ") {
+			delete(h.files, strings.Trim(strings.ReplaceAll(f, `'\''`, "'"), "'"))
+		}
+		return ok("")
+	case strings.HasPrefix(cmd, "find "+scripts.Spool+" "):
+		var out []string
+		for p := range h.files {
+			if strings.HasPrefix(p, scripts.Spool+"/") && strings.HasSuffix(p, ".done") {
+				out = append(out, p)
+			}
+		}
+		slices.Sort(out)
+		return ok(strings.Join(out, "\n"))
+	case strings.HasPrefix(cmd, scripts.Wrapper+" "):
+		f := strings.Fields(cmd)
+		if _, installed := h.files[scripts.Dir+"/"+f[1]+".sh"]; !installed {
+			return sshx.Result{Stdout: []byte("run.sh: " + f[1] + " is not installed\n"), ExitCode: 2}, nil
+		}
+		return ok("fake run of " + f[1] + "\n")
 	}
 	return ok("") // sysctl, systemctl, systemd-run: succeed
+}
+
+// Put writes a file on the host as if something there had (a scheduled run's spool, a foreign file).
+func (h *Host) Put(p string, data []byte) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.files[p] = append([]byte(nil), data...)
+}
+
+// File reads a file on the host; ok is false when it is missing.
+func (h *Host) File(p string) ([]byte, bool) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	b, ok := h.files[p]
+	return b, ok
 }
 
 func (c conn) ReadFile(p string) ([]byte, error) {
