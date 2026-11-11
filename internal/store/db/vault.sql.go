@@ -177,6 +177,87 @@ func (q *Queries) ListSecretMeta(ctx context.Context) ([]ListSecretMetaRow, erro
 	return items, nil
 }
 
+const listSecrets = `-- name: ListSecrets :many
+SELECT id, class, purpose, key_version, nonce, ciphertext, dek_nonce, wrapped_dek, created_at, updated_at FROM secret_records ORDER BY id
+`
+
+func (q *Queries) ListSecrets(ctx context.Context) ([]SecretRecord, error) {
+	rows, err := q.db.QueryContext(ctx, listSecrets)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SecretRecord{}
+	for rows.Next() {
+		var i SecretRecord
+		if err := rows.Scan(
+			&i.ID,
+			&i.Class,
+			&i.Purpose,
+			&i.KeyVersion,
+			&i.Nonce,
+			&i.Ciphertext,
+			&i.DekNonce,
+			&i.WrappedDek,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const resealSecret = `-- name: ResealSecret :exec
+UPDATE secret_records SET key_version = ?, nonce = ?, ciphertext = ?, dek_nonce = ?, wrapped_dek = ?, updated_at = ?
+WHERE id = ?
+`
+
+type ResealSecretParams struct {
+	KeyVersion int64
+	Nonce      []byte
+	Ciphertext []byte
+	DekNonce   []byte
+	WrappedDek []byte
+	UpdatedAt  int64
+	ID         string
+}
+
+func (q *Queries) ResealSecret(ctx context.Context, arg ResealSecretParams) error {
+	_, err := q.db.ExecContext(ctx, resealSecret,
+		arg.KeyVersion,
+		arg.Nonce,
+		arg.Ciphertext,
+		arg.DekNonce,
+		arg.WrappedDek,
+		arg.UpdatedAt,
+		arg.ID,
+	)
+	return err
+}
+
+const rewrapRecoveryKey = `-- name: RewrapRecoveryKey :exec
+UPDATE recovery_key SET key_version = ?, nonce = ?, wrapped_master = ? WHERE id = 1
+`
+
+type RewrapRecoveryKeyParams struct {
+	KeyVersion    int64
+	Nonce         []byte
+	WrappedMaster []byte
+}
+
+func (q *Queries) RewrapRecoveryKey(ctx context.Context, arg RewrapRecoveryKeyParams) error {
+	_, err := q.db.ExecContext(ctx, rewrapRecoveryKey, arg.KeyVersion, arg.Nonce, arg.WrappedMaster)
+	return err
+}
+
 const upsertRecoveryKey = `-- name: UpsertRecoveryKey :exec
 INSERT INTO recovery_key (id, key_version, verifier, nonce, wrapped_master, created_at)
 VALUES (1, ?, ?, ?, ?, ?)

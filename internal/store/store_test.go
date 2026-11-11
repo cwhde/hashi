@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"os"
@@ -162,4 +163,21 @@ func TestNightlyBackupKeepsFourteen(t *testing.T) {
 	if err := c.Ready(ctx); err != nil {
 		t.Fatalf("nightly copy is not a migrated database: %v", err)
 	}
+}
+
+func TestLockRefusesSecondHolder(t *testing.T) {
+	dir := t.TempDir()
+	unlock, err := Lock(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Lock(dir); !errors.Is(err, ErrInUse) {
+		t.Fatalf("second lock: %v", err)
+	}
+	unlock()
+	again, err := Lock(dir)
+	if err != nil {
+		t.Fatalf("after unlock: %v", err)
+	}
+	again()
 }

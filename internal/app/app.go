@@ -87,6 +87,11 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 		cfg.Logs = logring.New(1)
 	}
 
+	unlock, err := store.Lock(cfg.DataDir)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	st, err := store.Open(ctx, cfg.DBPath())
 	if err != nil {
 		return err
@@ -101,11 +106,8 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	if err != nil {
 		return err
 	}
-	v, err := vault.New(master, 1)
+	v, err := vault.Load(ctx, st.Q, master)
 	if err != nil {
-		return err
-	}
-	if err := v.CheckKey(ctx, st.Q); err != nil {
 		return err
 	}
 

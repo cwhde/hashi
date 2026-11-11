@@ -28,3 +28,13 @@ DELETE FROM secret_records WHERE id = ?;
 
 -- name: DeleteSecretsByPurpose :exec
 DELETE FROM secret_records WHERE purpose = ?;
+
+-- name: ListSecrets :many
+SELECT * FROM secret_records ORDER BY id;
+
+-- name: ResealSecret :exec
+UPDATE secret_records SET key_version = ?, nonce = ?, ciphertext = ?, dek_nonce = ?, wrapped_dek = ?, updated_at = ?
+WHERE id = ?;
+
+-- name: RewrapRecoveryKey :exec
+UPDATE recovery_key SET key_version = ?, nonce = ?, wrapped_master = ? WHERE id = 1;

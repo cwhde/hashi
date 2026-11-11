@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -48,7 +49,15 @@ type Vault struct {
 	master  []byte
 	version int64
 	now     func() time.Time
+	ops     map[string][]byte // operational keys kept from an earlier master key (see Operational)
 }
+
+// OperationalNames lists every operational key. They are stable for the life of an installation: the first rotation
+// stores them sealed (purpose "vault.op.<name>"), so a new master key keeps Pulse tokens, CSRF tokens, CAPTCHA
+// clearances and audit correlation working.
+var OperationalNames = []string{"audit-correlation", "csrf", "pulse-token-pepper", "captcha-clearance"}
+
+const opPurpose = "vault.op."
 
 // New returns a vault for a 32-byte master key at the given key version (1 until `hashi vault rotate`).
 func New(master []byte, version int64) (*Vault, error) {
@@ -99,8 +108,17 @@ func (v *Vault) kek(c Class, version int64) []byte {
 	return v.derive("hashi/kek/" + string(c) + "/v" + strconv.FormatInt(version, 10))
 }
 
-// Operational returns an operational key (cookie/CSRF HMAC, audit salt, …) derived from the master key (02 §5.1).
-func (v *Vault) Operational(name string) []byte { return v.derive("hashi/op/" + name + "/v1") }
+// Operational returns an operational key (cookie/CSRF HMAC, audit salt, …) (02 §5.1): the stored one after a rotation,
+// otherwise derived from the master key. A name missing from OperationalNames is a programming error.
+func (v *Vault) Operational(name string) []byte {
+	if k, ok := v.ops[name]; ok {
+		return append([]byte(nil), k...)
+	}
+	if !slices.Contains(OperationalNames, name) {
+		panic("vault: operational key " + name + " is not in OperationalNames")
+	}
+	return v.derive("hashi/op/" + name + "/v1")
+}
 
 func aad(id string, c Class, version int64) []byte {
 	return []byte(id + "|" + string(c) + "|" + strconv.FormatInt(version, 10))
@@ -136,7 +154,10 @@ func open(key, nonce, ct, ad []byte) ([]byte, error) {
 
 // Seal encrypts value into a new record with the given purpose. The caller inserts it.
 func (v *Vault) Seal(c Class, purpose string, value secrets.Value) (db.InsertSecretParams, error) {
-	id := ulid.Make().String()
+	return v.sealID(ulid.Make().String(), c, purpose, value)
+}
+
+func (v *Vault) sealID(id string, c Class, purpose string, value secrets.Value) (db.InsertSecretParams, error) {
 	ad := aad(id, c, v.version)
 	dek := make([]byte, KeySize)
 	if _, err := rand.Read(dek); err != nil {
