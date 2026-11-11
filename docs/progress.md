@@ -14,12 +14,15 @@ gosec in the linter. Missing: the nightly backups 11 §8 calls mandatory (never 
 S1), strict mode, the locked state (02 §5.5), a threat model, vulnerability scans, operator docs.
 
 PR A, backups and keys (11 §8, 02 §5.2–5.3):
-- [ ] Nightly backup job: `VACUUM INTO /data/backups/hashi-<date>.db`, 14 kept, pre-migration copies untouched; last
-  backup shown on the Activity jobs list; a failed backup is a warning
-- [ ] `hashi vault rotate`: new master key version, every DEK re-wrapped in one transaction, the recovery copy re-wrapped
-  (asks for the recovery key), new key printed once; old key refused afterwards
-- [ ] Restore drill on a fresh local container: copy of a backup only, `hashi vault recover` with the recovery key,
-  start, reconcile shows no changes; written down as the operator's restore steps
+- [x] Nightly backup job `backup.nightly`: `VACUUM INTO /data/backups/hashi-<date>.db`, 14 kept, pre-migration copies
+  untouched; result and failures on the Activity jobs list
+- [x] `hashi vault rotate` (server stopped, lock on the data folder): asks for the recovery key, `pre-rotate` copy,
+  every secret re-sealed in one transaction, recovery copy re-wrapped, new key printed once; old key refused. Operational
+  keys kept (stored sealed on the first rotation): a Pulse token from before still works (owner: no automation may break).
+  Key version now read from the database instead of always 1
+- [x] Restore locally (test): nightly copy into an empty folder, `hashi vault recover`, start, secrets open
+- [ ] Restore drill for the gate: prod's nightly copy on a fresh test container, recovery key typed by the owner, start,
+  reconcile shows no changes; written down as the operator's restore steps
 
 PR B, strict mode (02 §5.4–5.5): design questions open with the owner (Agenda).
 - [ ] Vault with a lock state: secret users get "locked" instead of a value; jobs that need secrets pause; public pages,
@@ -828,11 +831,9 @@ Decisions made in S0:
 
 ## Agenda with the user
 
-- Open 2026-11-11 (S12 strict mode, before PR B): (1) while locked after a restart, should forward auth, edge sign-in,
-  CAPTCHA and Pulse keep working? They use keys derived from the master key; keeping them working means storing those
-  few keys on disk in strict mode (they open no stored secret). Otherwise every protected app answers 503 until unlock.
-  (2) Which passkey would unlock it, and does it support PRF? (3) Strict mode on prod after the gate, or only proven on a
-  test container?
+- Decided 2026-11-11 (owner, S12): no automation may break, so operational keys stay stable through rotation and strict
+  mode; strict mode unlocks with the owner's sign-in passkey (PRF support still to check) or the recovery key; strict
+  mode is proven on a test container only, prod stays in service mode; `hashi vault rotate` is built for 1.0.
 - Decided 2026-11-11 (owner): the script gate runs on dev target 108, then one harmless read-only scheduled script on
   the production firewall host. Traefik config paths and pinned version display are dropped from 09 §2 (Hashi installs
   Traefik itself). The user middleware editor stays (04 §3, bug 25); open: build it in S11 or in the bug round.
