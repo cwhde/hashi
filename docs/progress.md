@@ -781,11 +781,9 @@ Decisions made in S0:
 
 ## Agenda with the user
 
-- Open for S11 (2026-11-10): where the script gate runs. The only managed firewall hosts are the production Proxmox
-  host and dev target 108; a script there runs as root. Proposal: everything on 108, then one harmless read-only
-  scheduled script (e.g. disk usage) on the production host for the gate.
-- Open for S11: settings in 09 §2 that lost their meaning since Hashi installs Traefik itself (Traefik config paths,
-  pinned version display, middleware editor options). Proposal: drop them from the spec instead of building dummies.
+- Decided 2026-11-11 (owner): the script gate runs on dev target 108, then one harmless read-only scheduled script on
+  the production firewall host. Traefik config paths and pinned version display are dropped from 09 §2 (Hashi installs
+  Traefik itself). The user middleware editor stays (04 §3, bug 25); open: build it in S11 or in the bug round.
 
 - Later, not yet (user, 2026-11-02): design a workflow for changing Hashi's admin domain (another subdomain under the
   same root domain) and its internal address. Today a change re-runs setup steps 7 and 8, and Traefik is updated by its
