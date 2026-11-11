@@ -17,8 +17,9 @@
 | `requests.txt` | every request and what the upstream received, plus status lines |
 | `api_rawdata_unknown_field.json`, `log_unknown_field.jsonl` | the user file with an unknown middleware type |
 | `api_rawdata_duplicate_name.json`, `log_duplicate_name.jsonl` | the user file defining a name another file already defines |
+| `variant_*.yml`, `variants.txt` | three more user files, each loaded alone next to the services file: the old `ipWhiteList` type, a middleware with two types, `basicAuth` with an unknown key |
 
-Findings that shape the implementation (04 §1.6, §4):
+Findings that shape the implementation (04 §1.1a, §4):
 
 1. Host: by default the upstream receives the public name. `passHostHeader: false` sends the server URL's host as
    written, with the port (`127.0.0.1:9000`). A headers middleware with `customRequestHeaders: {Host: <name>}` sets
@@ -39,3 +40,8 @@ Findings that shape the implementation (04 §1.6, §4):
    configured, skipping"): the first definition wins, the API shows no error for it. Verify cannot see this, so user
    names must never collide with Hashi's own names.
 7. `ipAllowList` from another address answers 403; `buffering.maxRequestBodyBytes` answers 413 over the limit.
+8. `ipWhiteList` (renamed `ipAllowList` in v3) still loads in v3.7.16. A middleware with two types shows `enabled` and
+   no error, so the API does not say which type applies; Hashi refuses it.
+9. The pinned SchemaStore schema leaves some objects open (`basicAuthMiddleware` has no `additionalProperties: false`):
+   `basicAuth` with an unknown key passes the schema, and Traefik then loads **no** file (`field not found, node:
+   notAField`, zero routers). Hashi therefore treats every schema object that lists `properties` as closed.

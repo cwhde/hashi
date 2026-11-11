@@ -1,0 +1,5 @@
+http:
+  middlewares:
+    t-white:
+      ipWhiteList:
+        sourceRange: [192.0.2.0/24]

@@ -1,0 +1,6 @@
+http:
+  middlewares:
+    t-basic:
+      basicAuth:
+        users: ["u:x"]
+        notAField: true
