@@ -36,7 +36,7 @@ Every setting has a runtime consumer and a test proving it changes behaviour. Th
 | Monitoring | default interval, timeout, allowed HTTP codes, latency thresholds, retention, public status enabled |
 | Dashboard | public dashboard enabled, default sort, visibility defaults |
 | DNS | default TTL, prune policy, import behaviour |
-| Traefik | config paths, log paths, ACME defaults, pinned version display, middleware editor options |
+| Traefik | log paths, ACME defaults, middleware editor options |
 | Firewall | port confirmation behaviour, NetBird default mode, default interface, routed-network behaviour, MSS clamping (allow/block and host access are IP set bindings on the Firewall page, not settings) |
 | Notifications | default provider/route, cooldowns |
 | Pulse | heartbeat interval, stale threshold, update agents automatically (default on, ADR 0003) |
