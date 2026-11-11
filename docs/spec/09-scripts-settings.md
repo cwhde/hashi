@@ -37,7 +37,7 @@ Every setting has a runtime consumer and a test proving it changes behaviour; `i
 | Dashboard | public dashboard enabled, default sort, visibility defaults |
 | DNS | none: the default TTL is set per DNS connection (03), removing records is always its own high-risk plan, and an import always shows what it found |
 | Traefik | middleware editor options (04 §3). Log paths are fixed because Hashi installs Traefik; ACME defaults belong to the certificate provider on Connections |
-| Firewall | NetBird mode a new host starts with, MSS clamping on NetBird-routed traffic (allow/block and host access are IP set bindings on the Firewall page, not settings). Opening a port is always a high-risk plan, the interface is detected or entered and never assumed (05 §5), routed networks are per host |
+| Firewall | NetBird mode a new host starts with, MSS clamping on NetBird-routed traffic and narrow bridges (05 §3) (allow/block and host access are IP set bindings on the Firewall page, not settings). Opening a port is always a high-risk plan, the interface is detected or entered and never assumed (05 §5), routed networks are per host |
 | Notifications | default provider/route, cooldowns (the notification route, Settings → Notifications) |
 | Pulse | heartbeat interval, stale threshold, update agents automatically (default on, ADR 0003) |
 | Internal agent DNS | enabled, domain (reauth), IP mode, stale behaviour |

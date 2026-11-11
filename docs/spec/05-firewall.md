@@ -97,7 +97,9 @@ Chains (hook · priority):
 5. `forward` · filter forward · filter: accept DNATed flows (`ct status dnat`), managed-subnet egress, established/related.
 6. `nat_post` · nat postrouting · srcnat: masquerade managed subnets → WAN; hairpin NAT so internal clients reach public
    endpoints; NetBird routing-peer masquerade where Hashi owns it (§5).
-7. `mangle_fwd` · filter forward · mangle: TCP MSS clamp on NetBird-routed traffic.
+7. `mangle_fwd` · filter forward · mangle: TCP MSS clamp on NetBird-routed traffic, and on new forwarded TCP
+   connections through a managed bridge whose MTU is below the WAN's (capped to MTU − 40 for IPv4, − 60 for IPv6, both
+   directions): servers that ignore path-MTU messages otherwise stall behind a 1280 bridge (bug 29, found 2026-11-11).
 
 A drop in Hashi's table is final; an accept or return only ends Hashi's chain — other tables (NetBird, Proxmox, Docker)
 still see the packet. Hashi relies on that: it never needs to touch their rules.
