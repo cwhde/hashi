@@ -901,7 +901,7 @@ Decisions made in S0:
   dynamic file makes Traefik load no file at all, even keys the pinned schema allows (`basicAuth`), and a name defined
   twice is skipped silently; so the check closes every schema object, reserves Hashi's names, and a file Traefik still
   refuses is put back by Hashi. Golden render tests for every combination; real-Traefik integration test of every
-  option; e2e with phone screenshots. Migration `00024` (S11 starts at `00025`; whoever merges second renumbers).
+  option; e2e with phone screenshots. Migration `00025` (after the scripts migration `00024`).
 - 2026-11-11 · S11 merged (#63 scripts, #64 themes and settings) and released as `v0.11.0-beta.1` (`880c8f5`); not
   deployed. CI needed reruns for GitHub and Playwright download timeouts (bug 29); the Playwright cache now falls back to
   the last saved browser. One real CI catch: a test needed the built web UI, which the check job does not have.
