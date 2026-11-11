@@ -13,7 +13,7 @@ describe('contrast', () => {
 		// [text, muted, surface] from 10-ui.md §2
 		const themes = {
 			graphite: ['#F2F5F7', '#9DA6B2', '#13161A'],
-			linen: ['#2B251F', '#74695D', '#FAF7F1'],
+			linen: ['#2B251F', '#6B6156', '#FAF7F1'],
 			verdant: ['#EDF7F0', '#94AA9B', '#0A1A12'],
 			violet: ['#F4F0FA', '#AA9FBC', '#110C1D']
 		};

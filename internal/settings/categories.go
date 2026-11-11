@@ -15,6 +15,7 @@ type General struct {
 	RootDomain          string   `json:"root_domain"`
 	AdminDomain         string   `json:"admin_domain"`
 	InternalURL         string   `json:"internal_url"`
+	TimeDisplay         string   `json:"time_display"` // local or utc
 	SyncIntervalSeconds int      `json:"sync_interval_seconds"`
 	TrustedProxies      []string `json:"trusted_proxies"`
 }
@@ -25,11 +26,48 @@ type Security struct {
 	BootstrapAllowedCIDRs   []string `json:"bootstrap_allowed_cidrs"`
 }
 
-// Appearance: theme and public page toggles chosen at setup step 2.
+// Appearance: theme and public page toggles chosen at setup step 2, the custom theme and comfort options (10-ui §2).
 type Appearance struct {
-	Theme                  string `json:"theme"`
-	PublicDashboardEnabled bool   `json:"public_dashboard_enabled"`
-	PublicStatusEnabled    bool   `json:"public_status_enabled"`
+	Theme                  string       `json:"theme"`
+	CustomTheme            *CustomTheme `json:"custom_theme,omitempty"`
+	ReduceTransparency     bool         `json:"reduce_transparency"`
+	PublicDashboardEnabled bool         `json:"public_dashboard_enabled"`
+	PublicStatusEnabled    bool         `json:"public_status_enabled"`
+}
+
+// Time display preferences (09 §2 General).
+const (
+	TimeLocal = "local"
+	TimeUTC   = "utc"
+)
+
+// Monitoring: defaults for new endpoints and checks, and how long raw samples stay (07, 09 §2).
+type Monitoring struct {
+	IntervalSeconds int `json:"interval_seconds"`
+	TimeoutSeconds  int `json:"timeout_seconds"`
+	CodeMin         int `json:"code_min"`
+	CodeMax         int `json:"code_max"`
+	DegradedMs      int `json:"degraded_ms"` // 0: no latency threshold
+	RetentionDays   int `json:"retention_days"`
+}
+
+// Dashboard sort orders of the public app dashboard (07 §8).
+const (
+	SortName   = "name"
+	SortGroup  = "group"
+	SortStatus = "status"
+)
+
+// Dashboard: the public app dashboard's default order and whether new services show on it (07 §8, 09 §2).
+type Dashboard struct {
+	DefaultSort        string `json:"default_sort"`
+	NewServicesVisible bool   `json:"new_services_visible"`
+}
+
+// FirewallDefaults: what a new firewall host starts with, and MSS clamping on NetBird-routed traffic (05 §8, 09 §2).
+type FirewallDefaults struct {
+	NetBirdMode string `json:"netbird_mode"`
+	MSSClamp    bool   `json:"mss_clamp"`
 }
 
 // AgentDNS: stable internal names for Pulse agents (03 §9). DNS only, never reverse proxy.
@@ -145,7 +183,13 @@ var Themes = []string{"graphite", "linen", "verdant", "violet"}
 func defaults(c Category) Category {
 	switch c.(type) {
 	case General:
-		return General{SyncIntervalSeconds: 3600, TrustedProxies: []string{}}
+		return General{SyncIntervalSeconds: 3600, TrustedProxies: []string{}, TimeDisplay: TimeLocal}
+	case Monitoring:
+		return Monitoring{IntervalSeconds: 60, TimeoutSeconds: 10, CodeMin: 200, CodeMax: 399, RetentionDays: 30}
+	case Dashboard:
+		return Dashboard{DefaultSort: SortGroup, NewServicesVisible: true}
+	case FirewallDefaults:
+		return FirewallDefaults{NetBirdMode: "peer", MSSClamp: true}
 	case Security:
 		return Security{
 			AdminIdleTimeoutMinutes: int(MaxAdminIdle / time.Minute),
@@ -179,7 +223,11 @@ func defaults(c Category) Category {
 func (General) Key() string    { return "general" }
 func (Security) Key() string   { return "security" }
 func (Appearance) Key() string { return "appearance" }
-func (AgentDNS) Key() string   { return "internal_agent_dns" }
+func (Monitoring) Key() string { return "monitoring" }
+func (Dashboard) Key() string  { return "dashboard" }
+
+func (FirewallDefaults) Key() string { return "firewall_defaults" }
+func (AgentDNS) Key() string         { return "internal_agent_dns" }
 
 func (Pulse) Key() string { return "pulse" }
 
@@ -349,6 +397,9 @@ func (g General) validateCommon() error {
 	if _, err := clientip.ParsePrefixes(g.TrustedProxies); err != nil {
 		return invalid("trusted proxies: %v", err)
 	}
+	if g.TimeDisplay != "" && g.TimeDisplay != TimeLocal && g.TimeDisplay != TimeUTC { // "" is local
+		return invalid("times show in local time or UTC")
+	}
 	return nil
 }
 
@@ -371,10 +422,65 @@ func (s Security) AdminIdle() time.Duration {
 	return time.Duration(s.AdminIdleTimeoutMinutes) * time.Minute
 }
 
-// Validate checks Appearance.
+// Validate checks Appearance: a known theme, and a readable custom theme when it is chosen or stored.
 func (a Appearance) Validate() error {
-	if !slices.Contains(Themes, a.Theme) {
+	if a.CustomTheme != nil {
+		if err := a.CustomTheme.Validate(); err != nil {
+			return err
+		}
+	}
+	switch {
+	case a.Theme == ThemeCustom && a.CustomTheme == nil:
+		return invalid("choose or save a custom theme first")
+	case a.Theme != ThemeCustom && !slices.Contains(Themes, a.Theme):
 		return invalid("unknown theme %q", a.Theme)
+	}
+	return nil
+}
+
+// repair makes stored appearance data safe to load (10-ui.md §2: invalid stored theme data falls back): a custom theme
+// that no longer validates is dropped, and the theme falls back to Graphite.
+func (a Appearance) repair() Category {
+	if a.CustomTheme != nil && a.CustomTheme.Validate() != nil {
+		a.CustomTheme = nil
+	}
+	if a.Theme == ThemeCustom && a.CustomTheme == nil || a.Theme != ThemeCustom && !slices.Contains(Themes, a.Theme) {
+		a.Theme = "graphite"
+	}
+	return a
+}
+
+// Validate checks Monitoring.
+func (m Monitoring) Validate() error {
+	switch {
+	case m.IntervalSeconds < 10 || m.IntervalSeconds > 86400:
+		return invalid("check interval is 10 s to 1 day")
+	case m.TimeoutSeconds < 1 || m.TimeoutSeconds > 60:
+		return invalid("timeout is 1 to 60 s")
+	case m.TimeoutSeconds >= m.IntervalSeconds:
+		return invalid("the timeout must be shorter than the interval")
+	case m.CodeMin < 100 || m.CodeMax > 599 || m.CodeMin > m.CodeMax:
+		return invalid("healthy HTTP codes are a range within 100-599")
+	case m.DegradedMs < 0 || m.DegradedMs > 60000:
+		return invalid("the latency threshold is 0 (none) to 60000 ms")
+	case m.RetentionDays < 1 || m.RetentionDays > 400:
+		return invalid("raw samples are kept 1 to 400 days")
+	}
+	return nil
+}
+
+// Validate checks Dashboard.
+func (d Dashboard) Validate() error {
+	if d.DefaultSort != SortName && d.DefaultSort != SortGroup && d.DefaultSort != SortStatus {
+		return invalid("sort by name, group or status")
+	}
+	return nil
+}
+
+// Validate checks FirewallDefaults.
+func (f FirewallDefaults) Validate() error {
+	if f.NetBirdMode != "disabled" && f.NetBirdMode != "peer" && f.NetBirdMode != "routing" {
+		return invalid("NetBird mode is disabled, peer or routing")
 	}
 	return nil
 }

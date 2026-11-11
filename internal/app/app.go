@@ -246,7 +246,7 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 		return err
 	}
 	// Each run reads the zone fresh and reconciles Hashi's entries (01 §5.4 periodic reconcile).
-	if err := runner.Register(ctx, jobs.Job{Kind: "dns.refresh", Interval: time.Duration(general.SyncIntervalSeconds) * time.Second, Run: dnsSvc.Reconcile(syncEngine)}); err != nil {
+	if err := runner.Register(ctx, dnsRefreshJob(general, dnsSvc.Reconcile(syncEngine))); err != nil {
 		return err
 	}
 
@@ -260,6 +260,17 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	// Monitoring (07): checks, closed-bucket rollups, retention and notification delivery all run without a browser.
 	notifier := notify.New(st, v)
 	monitorSvc := monitor.New(st, st.Ready, ipSets.ResolveTarget, notifier)
+	// Monitoring settings (09 §2): defaults for new endpoints and checks, sample retention.
+	if m, err := settings.Get[settings.Monitoring](ctx, st.R); err == nil {
+		monitorSvc.UseDefaults(m)
+	} else {
+		return err
+	}
+	cfgSettings.Subscribe(func(c settings.Category) {
+		if m, ok := c.(settings.Monitoring); ok {
+			monitorSvc.UseDefaults(m)
+		}
+	})
 	for _, j := range []jobs.Job{
 		{Kind: monitor.JobChecks, Interval: monitor.CheckTick, Run: monitorSvc.RunChecks},
 		{Kind: monitor.JobRollup, Interval: monitor.RollupTick, Run: monitorSvc.Rollup},
@@ -380,7 +391,8 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 		go traefik.NewTailer(traefikMgr, log.With("component", "logtail"), accessSink(st, abuse, log.With("component", "logtail"))).Run(ctx)
 	}
 	cfgSettings.Subscribe(func(c settings.Category) {
-		if _, ok := c.(settings.Engine); ok { // meter thresholds re-render pre_meter through a plan (05 §3.3)
+		switch c.(type) { // meter thresholds and the MSS clamp re-render the tables through a plan (05 §3.3, 09 §2)
+		case settings.Engine, settings.FirewallDefaults:
 			if err := runner.Soon(ctx, "firewall.reconcile"); err != nil {
 				log.Warn("firewall plan after engine settings", "err", err)
 			}
@@ -394,8 +406,8 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	fetcher.AllowInternal = devBuild // the dev build's stand-in feeds run on loopback
 	feedSvc := feeds.NewService(st, al, ipSets, fetcher, log.With("component", "feeds"), time.Now)
 	if err := runner.Register(ctx, jobs.Job{Kind: feeds.JobKind, Interval: feeds.JobInterval, Run: func(ctx context.Context) (string, error) {
-		e := abuse.Settings()
-		return feedSvc.RunDue(ctx, time.Duration(e.FeedRefreshSeconds)*time.Second, time.Duration(e.FeedStaleSeconds)*time.Second)
+		refresh, stale := feedTimes(abuse.Settings())
+		return feedSvc.RunDue(ctx, refresh, stale)
 	}}); err != nil {
 		return err
 	}
@@ -682,4 +694,14 @@ func targetsUse(ctx context.Context, q *db.Queries, sets []string) (bool, error)
 		}
 	}
 	return false, nil
+}
+
+// dnsRefreshJob reconciles the DNS zones at the General settings' sync interval (01 §5.4), as read at start.
+func dnsRefreshJob(g settings.General, run jobs.Func) jobs.Job {
+	return jobs.Job{Kind: "dns.refresh", Interval: time.Duration(g.SyncIntervalSeconds) * time.Second, Run: run}
+}
+
+// feedTimes are the feed refresh interval and stale time from the engine settings (06 §8, §10).
+func feedTimes(e settings.Engine) (refresh, stale time.Duration) {
+	return time.Duration(e.FeedRefreshSeconds) * time.Second, time.Duration(e.FeedStaleSeconds) * time.Second
 }

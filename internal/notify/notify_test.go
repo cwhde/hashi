@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"git.juzo.io/juzo/hashi/internal/settings"
 	"io"
 	"mime"
 	"mime/multipart"
@@ -427,5 +428,20 @@ func TestUpdateKeepsSecretUnlessGiven(t *testing.T) {
 	}
 	if _, err := s.Update(ctx, "nope", "x", keep, secrets.Value{}); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("%v", err)
+	}
+}
+
+// A custom theme (10-ui §2) mails in its own colours, with readable text on its accent.
+func TestMailCustomTheme(t *testing.T) {
+	c := &settings.CustomTheme{Canvas: "#0b0d10", Surface: "#14171c", Text: "#eef1f4", Muted: "#8e98a6", Border: "#2a313b",
+		Accent: "#14b8a6", Roundness: settings.RoundDefault}
+	html, err := mailHTML(Message{Subject: "x", State: "down", Theme: settings.ThemeCustom, Custom: c, Link: "https://admin.example.com/status/e1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"#0b0d10", "#14b8a6", "color:#000000"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("mail lacks %s", want)
+		}
 	}
 }

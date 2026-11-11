@@ -1587,6 +1587,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings/monitoring": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getMonitoringSettings"];
+        put: operations["putMonitoringSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getDashboardSettings"];
+        put: operations["putDashboardSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/firewall-defaults": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getFirewallDefaultsSettings"];
+        put: operations["putFirewallDefaultsSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/settings/pulse": {
         parameters: {
             query?: never;
@@ -3889,6 +3937,7 @@ export interface components {
         PublicStatus: {
             title: string;
             theme: string;
+            custom_theme?: components["schemas"]["CustomTheme"];
             /** Format: date-time */
             updated_at?: string;
             endpoints: components["schemas"]["PublicEndpoint"][];
@@ -3902,6 +3951,12 @@ export interface components {
         PublicApps: {
             title: string;
             theme: string;
+            custom_theme?: components["schemas"]["CustomTheme"];
+            /**
+             * @description The order the page starts with (Dashboard settings)
+             * @enum {string}
+             */
+            default_sort: "name" | "group" | "status";
             /** Format: date-time */
             updated_at?: string;
             apps: components["schemas"]["PublicApp"][];
@@ -4602,15 +4657,68 @@ export interface components {
             internal_url: string;
             sync_interval_seconds: number;
             trusted_proxies: string[];
+            /**
+             * @description How the admin UI shows times; absent = local
+             * @enum {string}
+             */
+            time_display?: "local" | "utc";
         };
         SecuritySettings: {
             admin_idle_timeout_minutes: number;
             bootstrap_allowed_cidrs: string[];
         };
         AppearanceSettings: {
+            /** @description A built-in theme id, or custom */
             theme: string;
+            custom_theme?: components["schemas"]["CustomTheme"];
+            /** @description Solid backgrounds instead of translucent overlays */
+            reduce_transparency?: boolean;
             public_dashboard_enabled: boolean;
             public_status_enabled: boolean;
+        };
+        /** @description The admin's palette (10-ui §2); the other roles are derived. Refused when text is unreadable. */
+        CustomTheme: {
+            canvas: string;
+            surface: string;
+            text: string;
+            muted: string;
+            border: string;
+            accent: string;
+            charts?: string[];
+            /** @enum {string} */
+            roundness: "sharp" | "default" | "round";
+        };
+        MonitoringSettings: {
+            /** @description Check interval of new endpoints */
+            interval_seconds: number;
+            /** @description Check timeout of new endpoints */
+            timeout_seconds: number;
+            /** @description Healthy HTTP codes of new checks, from */
+            code_min: number;
+            /** @description to */
+            code_max: number;
+            /** @description Latency above which a new endpoint is degraded; 0 = none */
+            degraded_ms: number;
+            /** @description How long raw samples stay */
+            retention_days: number;
+        };
+        DashboardSettings: {
+            /**
+             * @description Order of the public app dashboard
+             * @enum {string}
+             */
+            default_sort: "name" | "group" | "status";
+            /** @description New services show on the public dashboard */
+            new_services_visible: boolean;
+        };
+        FirewallDefaultsSettings: {
+            /**
+             * @description NetBird mode a new firewall host starts with
+             * @enum {string}
+             */
+            netbird_mode: "disabled" | "peer" | "routing";
+            /** @description Clamp TCP MSS on NetBird-routed traffic (routing peers) */
+            mss_clamp: boolean;
         };
         AllSettings: {
             general: components["schemas"]["GeneralSettings"];
@@ -7812,6 +7920,144 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EdgeSSOSettings"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getMonitoringSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Monitoring defaults */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonitoringSettings"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putMonitoringSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MonitoringSettings"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonitoringSettings"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getDashboardSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Public dashboard defaults */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardSettings"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putDashboardSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DashboardSettings"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardSettings"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getFirewallDefaultsSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Defaults for new firewall hosts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirewallDefaultsSettings"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putFirewallDefaultsSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FirewallDefaultsSettings"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FirewallDefaultsSettings"];
                 };
             };
             default: components["responses"]["Problem"];

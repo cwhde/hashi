@@ -124,6 +124,27 @@ func TestBootstrapOnlyFromPrivateNetworks(t *testing.T) {
 	c.mustStatus(c.do(http.MethodPost, "/api/auth/bootstrap/login", map[string]string{"username": u, "password": p}), 403)
 }
 
+// The bootstrap networks setting (09 §2 Security) decides where the bootstrap login works: a public range added to it
+// lets that address in.
+func TestBootstrapNetworksSetting(t *testing.T) {
+	cfg := newConfig(t)
+	trustLoopbackProxy(t, cfg)
+	st := storetest.Open(t, cfg.DBPath())
+	sec := settings.DefaultOf[settings.Security]()
+	sec.BootstrapAllowedCIDRs = append(sec.BootstrapAllowedCIDRs, "203.0.113.0/24")
+	if err := settings.Put(context.Background(), st.Q, sec); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Close(); err != nil {
+		t.Fatal(err)
+	}
+	in := start(t, cfg)
+	c := in.client()
+	c.header.Set("X-Forwarded-For", "203.0.113.9")
+	u, p := in.bootstrapCredentials()
+	c.mustStatus(c.do(http.MethodPost, "/api/auth/bootstrap/login", map[string]string{"username": u, "password": p}), 200)
+}
+
 func TestCSRFRequiredOnUnsafeMethods(t *testing.T) {
 	in := start(t, newConfig(t))
 	c := in.client()

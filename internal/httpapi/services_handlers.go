@@ -8,6 +8,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
 	"git.juzo.io/juzo/hashi/internal/rules"
 	"git.juzo.io/juzo/hashi/internal/services"
+	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 	"git.juzo.io/juzo/hashi/internal/traefik"
 )
@@ -209,6 +210,13 @@ func (s *Server) checkStream(ctx context.Context, in services.Service) error {
 
 func (s *Server) CreateService(ctx context.Context, req gen.CreateServiceRequestObject) (gen.CreateServiceResponseObject, error) {
 	in := serviceFromInput(*req.Body)
+	if req.Body.DashboardVisible == nil { // a new service without a choice follows the Dashboard settings (09 §2)
+		d, err := settings.Get[settings.Dashboard](ctx, s.Store.R)
+		if err != nil {
+			return nil, err
+		}
+		in.DashboardVisible = d.NewServicesVisible
+	}
 	if err := s.checkStream(ctx, in); err != nil {
 		return nil, err
 	}

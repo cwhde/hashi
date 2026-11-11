@@ -284,10 +284,13 @@ func (s *Service) CreateUser(ctx context.Context, name, group string, c CheckSpe
 	id := ulid.Make().String()
 	now := s.now().UnixMilli()
 	err := s.st.Tx(ctx, func(q *db.Queries) error {
-		if err := q.InsertMonitorEndpoint(ctx, db.InsertMonitorEndpointParams{ID: id, SourceType: SourceUser, Name: name, GroupName: group, IntervalSeconds: 60, TimeoutSeconds: 10, StateSince: now, CreatedAt: now, UpdatedAt: now}); err != nil {
+		m := s.cfg()
+		if err := q.InsertMonitorEndpoint(ctx, db.InsertMonitorEndpointParams{ID: id, SourceType: SourceUser, Name: name, GroupName: group,
+			IntervalSeconds: int64(m.IntervalSeconds), TimeoutSeconds: int64(m.TimeoutSeconds), DegradedMs: int64(m.DegradedMs),
+			StateSince: now, CreatedAt: now, UpdatedAt: now}); err != nil {
 			return err
 		}
-		return insertChecks(ctx, q, id, []CheckSpec{c})
+		return insertChecks(ctx, q, id, []CheckSpec{c}, m)
 	})
 	return id, err
 }

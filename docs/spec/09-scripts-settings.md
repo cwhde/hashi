@@ -26,19 +26,19 @@ API: `/api/scripts` CRUD, `POST /api/scripts/{id}/plan|apply|run`, `GET /api/scr
 
 ## 2. Settings catalogue
 
-Every setting has a runtime consumer and a test proving it changes behaviour. The settings UI never saves values it failed to load.
+Every setting has a runtime consumer and a test proving it changes behaviour; `internal/settings/consumers_test.go` lists the test for each one and fails for a setting without. The settings UI never saves values it failed to load.
 
 | Category | Settings |
 | --- | --- |
 | General | root domain, admin domain, internal URL, default sync interval, timezone display preference, trusted proxies (reauth) |
 | Security | admin idle timeout (≤4 h), edge SSO session length/idle/remember-device, vault mode (reauth), and the engine settings of 06-edge-security.md §10: WAF default mode and violation threshold, L7 rate threshold, challenge expiry and max failures, CAPTCHA clearance lifetime, L4 meters, staging timeout, host-link poll interval, ban function and counter decay, feed refresh and stale TTL, GeoIP update |
-| Appearance | theme, custom theme, logo, icon, public page assets, overview widget order/visibility, reduced transparency |
+| Appearance | theme, custom theme, reduced transparency, public pages on/off. Logo, icon and public page assets wait for the asset system (07 §9), overview widgets for the overview page; neither exists yet (bugs 30, 31) |
 | Monitoring | default interval, timeout, allowed HTTP codes, latency thresholds, retention, public status enabled |
 | Dashboard | public dashboard enabled, default sort, visibility defaults |
-| DNS | default TTL, prune policy, import behaviour |
-| Traefik | log paths, ACME defaults, middleware editor options |
-| Firewall | port confirmation behaviour, NetBird default mode, default interface, routed-network behaviour, MSS clamping (allow/block and host access are IP set bindings on the Firewall page, not settings) |
-| Notifications | default provider/route, cooldowns |
+| DNS | none: the default TTL is set per DNS connection (03), removing records is always its own high-risk plan, and an import always shows what it found |
+| Traefik | middleware editor options (04 §3). Log paths are fixed because Hashi installs Traefik; ACME defaults belong to the certificate provider on Connections |
+| Firewall | NetBird mode a new host starts with, MSS clamping on NetBird-routed traffic (allow/block and host access are IP set bindings on the Firewall page, not settings). Opening a port is always a high-risk plan, the interface is detected or entered and never assumed (05 §5), routed networks are per host |
+| Notifications | default provider/route, cooldowns (the notification route, Settings → Notifications) |
 | Pulse | heartbeat interval, stale threshold, update agents automatically (default on, ADR 0003) |
 | Internal agent DNS | enabled, domain (reauth), IP mode, stale behaviour |
 | CAPTCHA | see 06-edge-security.md §11 |

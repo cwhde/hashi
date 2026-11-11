@@ -3,6 +3,7 @@ package notify
 import (
 	"bytes"
 	"fmt"
+	"git.juzo.io/juzo/hashi/internal/settings"
 	"html"
 	"html/template"
 	"strconv"
@@ -21,7 +22,7 @@ type palette struct{ Canvas, Surface, Border, Text, Muted, Accent, AccentText st
 
 var palettes = map[string]palette{
 	"graphite": {"#08090b", "#13161a", "#2b323b", "#f2f5f7", "#9da6b2", "#2563eb", "#ffffff"},
-	"linen":    {"#f3eee5", "#faf7f1", "#d4c7b6", "#2b251f", "#74695d", "#b6533a", "#ffffff"},
+	"linen":    {"#f3eee5", "#faf7f1", "#d4c7b6", "#2b251f", "#6b6156", "#b6533a", "#ffffff"},
 	"verdant":  {"#030a07", "#0a1a12", "#27513b", "#edf7f0", "#94aa9b", "#e8ce55", "#08110c"},
 	"violet":   {"#05030a", "#110c1d", "#382653", "#f4f0fa", "#aa9fbc", "#e6cf62", "#120c1e"},
 }
@@ -180,6 +181,9 @@ var mailTemplate = template.Must(template.New("mail").Funcs(template.FuncMap{"pe
 
 func mailHTML(m Message) (string, error) {
 	p, ok := palettes[m.Theme]
+	if c := m.Custom; m.Theme == settings.ThemeCustom && c != nil { // a custom theme mails in its own colours
+		p, ok = palette{c.Canvas, c.Surface, c.Border, c.Text, c.Muted, c.Accent, c.AccentText()}, true
+	}
 	if !ok {
 		p = palettes["graphite"]
 	}

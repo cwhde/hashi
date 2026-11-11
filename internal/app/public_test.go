@@ -11,6 +11,7 @@ import (
 
 	"git.juzo.io/juzo/hashi/internal/httpapi"
 	"git.juzo.io/juzo/hashi/internal/pulse"
+	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/store/storetest"
 )
 
@@ -86,5 +87,24 @@ func TestAdminMuxServesPulseInstall(t *testing.T) {
 	_ = res.Body.Close()
 	if res.StatusCode != http.StatusBadRequest {
 		t.Fatalf("oversized heartbeat: %d", res.StatusCode)
+	}
+}
+
+// The public page switches (Settings → Appearance) turn each page on and off on its own listener (07 §7, §8).
+func TestPublicPageSettings(t *testing.T) {
+	p := newPublicToggles()
+	p.update(settings.Appearance{Theme: "graphite", PublicDashboardEnabled: false, PublicStatusEnabled: true})
+	srv := &httpapi.Server{Store: storetest.New(t), Log: slog.New(slog.DiscardHandler)}
+	for page, off := range map[string]bool{"apps": true, "status": false} {
+		enabled := &p.apps
+		if page == "status" {
+			enabled = &p.status
+		}
+		rec := httptest.NewRecorder()
+		publicMux(srv, page, enabled).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+		// Off is 404; on serves the page (503 where the web UI is not built, as in CI's check job).
+		if got := rec.Code == http.StatusNotFound; got != off {
+			t.Errorf("%s: %d, switched off %v", page, rec.Code, off)
+		}
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/oklog/ulid/v2"
@@ -66,6 +67,19 @@ type Service struct {
 
 	statusCache cache[PublicStatus]
 	appsCache   cache[PublicApps]
+
+	// defaults are the Monitoring settings (09 §2): new endpoints and checks start with them; retention follows them.
+	defaults atomic.Pointer[settings.Monitoring]
+}
+
+// UseDefaults sets the monitoring settings; they apply to endpoints and checks created from now on.
+func (s *Service) UseDefaults(m settings.Monitoring) { s.defaults.Store(&m) }
+
+func (s *Service) cfg() settings.Monitoring {
+	if m := s.defaults.Load(); m != nil {
+		return *m
+	}
+	return settings.DefaultOf[settings.Monitoring]()
 }
 
 // New returns the service. self answers Hashi's own endpoint.
@@ -313,8 +327,10 @@ func (s *Service) Sync(ctx context.Context) error {
 			delete(have, key)
 			if !ok {
 				row = db.MonitorEndpoint{ID: ulid.Make().String()}
+				m := s.cfg()
 				if err := q.InsertMonitorEndpoint(ctx, db.InsertMonitorEndpointParams{ID: row.ID, SourceType: d.SourceType, SourceID: d.SourceID,
-					Name: d.Name, GroupName: d.Group, IntervalSeconds: 60, TimeoutSeconds: 10, StateSince: now, CreatedAt: now, UpdatedAt: now}); err != nil {
+					Name: d.Name, GroupName: d.Group, IntervalSeconds: int64(m.IntervalSeconds), TimeoutSeconds: int64(m.TimeoutSeconds),
+					DegradedMs: int64(m.DegradedMs), StateSince: now, CreatedAt: now, UpdatedAt: now}); err != nil {
 					return err
 				}
 			} else if row.Name != d.Name {
@@ -322,7 +338,7 @@ func (s *Service) Sync(ctx context.Context) error {
 					return err
 				}
 			}
-			if err := syncChecks(ctx, q, row.ID, d.Checks); err != nil {
+			if err := syncChecks(ctx, q, row.ID, d.Checks, s.cfg()); err != nil {
 				return err
 			}
 		}
@@ -336,7 +352,7 @@ func (s *Service) Sync(ctx context.Context) error {
 }
 
 // syncChecks replaces the checks only when they differ, so check IDs (and the samples under them) stay stable.
-func syncChecks(ctx context.Context, q *db.Queries, id string, want []CheckSpec) error {
+func syncChecks(ctx context.Context, q *db.Queries, id string, want []CheckSpec, m settings.Monitoring) error {
 	cur, err := q.ListMonitorChecks(ctx, id)
 	if err != nil {
 		return err
@@ -361,14 +377,14 @@ func syncChecks(ctx context.Context, q *db.Queries, id string, want []CheckSpec)
 	if err := q.DeleteMonitorChecks(ctx, id); err != nil {
 		return err
 	}
-	return insertChecks(ctx, q, id, want)
+	return insertChecks(ctx, q, id, want, m)
 }
 
-func insertChecks(ctx context.Context, q *db.Queries, id string, want []CheckSpec) error {
+func insertChecks(ctx context.Context, q *db.Queries, id string, want []CheckSpec, m settings.Monitoring) error {
 	for _, w := range want {
 		lo, hi := w.CodeMin, w.CodeMax
-		if lo == 0 && hi == 0 {
-			lo, hi = 200, 399
+		if lo == 0 && hi == 0 { // the healthy range from the settings (09 §2)
+			lo, hi = int64(m.CodeMin), int64(m.CodeMax)
 		}
 		if err := q.InsertMonitorCheck(ctx, db.InsertMonitorCheckParams{ID: ulid.Make().String(), EndpointID: id, Type: w.Type, Role: w.Role, Target: w.Target,
 			Required: flag(w.Required), CodeMin: lo, CodeMax: hi, SkipVerify: flag(w.SkipVerify), Probe: w.Probe, Expect: w.Expect}); err != nil {

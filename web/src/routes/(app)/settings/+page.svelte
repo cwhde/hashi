@@ -19,7 +19,10 @@
 	import { withReauth } from '$lib/auth/reauth';
 	import { createPasskey, ceremonyText } from '$lib/auth/webauthn';
 	import { dateTime, time } from '$lib/format';
-	import { theme, themes } from '$lib/theme.svelte';
+	import { theme, themes, customVars, type CustomTheme, type ThemeId } from '$lib/theme.svelte';
+	import { setTimeDisplay } from '$lib/format';
+	import CustomThemeEditor from '$lib/components/hashi/CustomThemeEditor.svelte';
+	import * as ToggleGroup from '$lib/components/ui/toggle-group';
 	import Notifications from '$lib/components/hashi/status/Notifications.svelte';
 	import AgentDns from '$lib/components/hashi/pulse/AgentDns.svelte';
 	import PulseSettings from '$lib/components/hashi/pulse/PulseSettings.svelte';
@@ -29,6 +32,9 @@
 		{ id: 'account', label: 'Account' },
 		{ id: 'appearance', label: 'Appearance' },
 		{ id: 'security', label: 'Security' },
+		{ id: 'monitoring', label: 'Monitoring' },
+		{ id: 'dashboard', label: 'Dashboard' },
+		{ id: 'firewall', label: 'Firewall' },
 		{ id: 'notifications', label: 'Notifications' },
 		{ id: 'pulse', label: 'Pulse' },
 		{ id: 'agent-dns', label: 'Internal agent DNS' }
@@ -59,7 +65,71 @@
 		security = { ...res.data.security };
 		cidrs = res.data.security.bootstrap_allowed_cidrs.join('\n');
 		appearance = { ...res.data.appearance };
+		const [m, d, f] = await Promise.all([
+			api.GET('/api/settings/monitoring'),
+			api.GET('/api/settings/dashboard'),
+			api.GET('/api/settings/firewall-defaults')
+		]);
+		// Each form renders only when its own load worked (09 §2).
+		monitoring = m.data ?? null;
+		dashboard = d.data ?? null;
+		fwDefaults = f.data ?? null;
 	}
+	let monitoring = $state<Schemas['MonitoringSettings'] | null>(null);
+	let dashboard = $state<Schemas['DashboardSettings'] | null>(null);
+	let fwDefaults = $state<Schemas['FirewallDefaultsSettings'] | null>(null);
+	const saveMonitoring = () =>
+		save(
+			'monitoring',
+			async () => {
+				const r = await api.PUT('/api/settings/monitoring', { body: monitoring! });
+				if (r.error) throw r.error;
+				monitoring = r.data;
+			},
+			'Saved. New monitors start with these; existing ones keep their own.'
+		);
+	const saveDashboard = () =>
+		save(
+			'dashboard',
+			async () => {
+				const r = await api.PUT('/api/settings/dashboard', { body: dashboard! });
+				if (r.error) throw r.error;
+				dashboard = r.data;
+			},
+			'Saved.'
+		);
+	const saveFirewall = () =>
+		save(
+			'firewall',
+			async () => {
+				const r = await api.PUT('/api/settings/firewall-defaults', { body: fwDefaults! });
+				if (r.error) throw r.error;
+				fwDefaults = r.data;
+			},
+			'Saved. A changed MSS setting reaches each host as a change on Pending changes.'
+		);
+	const saveCustom = (c: CustomTheme) =>
+		save(
+			'custom',
+			async () => {
+				appearance = await withReauth(() =>
+					api.PUT('/api/settings/appearance', {
+						body: { ...appearance!, theme: 'custom', custom_theme: c }
+					})
+				);
+				theme.apply(appearance);
+			},
+			'Saved. Your theme is in use here, on the public pages and in alert mails.'
+		);
+	const useBuiltIn = (id: ThemeId) =>
+		save(
+			'custom',
+			async () => {
+				await theme.save(id);
+				appearance = { ...appearance!, theme: id };
+			},
+			'Switched back. Your custom theme stays saved.'
+		);
 	const list = (s: string) =>
 		s
 			.split(/[\s,]+/)
@@ -87,6 +157,7 @@
 			async () => {
 				const body = { ...general!, trusted_proxies: list(proxies) };
 				general = await withReauth(() => api.PUT('/api/settings/general', { body }));
+				setTimeDisplay(general.time_display ?? 'local');
 			},
 			'Saved.'
 		);
@@ -106,6 +177,7 @@
 				appearance = await withReauth(() =>
 					api.PUT('/api/settings/appearance', { body: { ...appearance!, theme: theme.current } })
 				);
+				theme.setSolid(appearance.reduce_transparency ?? false);
 			},
 			'Saved.'
 		);
@@ -381,6 +453,154 @@
 			<PulseSettings />
 		{:else if cat === 'agent-dns'}
 			<AgentDns />
+		{:else if cat === 'monitoring' && monitoring}
+			<Panel
+				title="New monitors"
+				description="What a new monitor starts with. Monitors that exist keep their own values."
+			>
+				<div class="grid gap-4 md:grid-cols-2">
+					<div class="space-y-1.5">
+						<Label for="mi">Check every (seconds)</Label><Input
+							id="mi"
+							type="number"
+							min="10"
+							bind:value={monitoring.interval_seconds}
+						/>
+					</div>
+					<div class="space-y-1.5">
+						<Label for="mt">Give up after (seconds)</Label><Input
+							id="mt"
+							type="number"
+							min="1"
+							max="60"
+							bind:value={monitoring.timeout_seconds}
+						/>
+					</div>
+					<div class="space-y-1.5">
+						<Label for="mc">Healthy HTTP codes</Label>
+						<div class="flex items-center gap-2">
+							<Input
+								id="mc"
+								type="number"
+								min="100"
+								max="599"
+								bind:value={monitoring.code_min}
+								aria-label="Healthy HTTP codes from"
+							/><span class="text-muted-foreground">to</span><Input
+								type="number"
+								min="100"
+								max="599"
+								bind:value={monitoring.code_max}
+								aria-label="Healthy HTTP codes to"
+							/>
+						</div>
+					</div>
+					<div class="space-y-1.5">
+						<Label for="md">Slow above (ms)</Label><Input
+							id="md"
+							type="number"
+							min="0"
+							bind:value={monitoring.degraded_ms}
+						/>
+						<p class="text-[12px] text-muted-foreground">
+							0 means a slow answer still counts as up.
+						</p>
+					</div>
+				</div>
+			</Panel>
+			<Panel title="History">
+				<div class="max-w-xs space-y-1.5">
+					<Label for="mr">Keep every single check result for (days)</Label><Input
+						id="mr"
+						type="number"
+						min="1"
+						max="400"
+						bind:value={monitoring.retention_days}
+					/>
+					<p class="text-[12px] text-muted-foreground">
+						Hourly and daily summaries stay longer for the uptime charts.
+					</p>
+				</div>
+			</Panel>
+			<div class="flex items-center justify-end gap-3">
+				{@render note('monitoring')}<Button
+					size="sm"
+					onclick={saveMonitoring}
+					disabled={busy === 'monitoring'}>Save</Button
+				>
+			</div>
+		{:else if cat === 'dashboard' && dashboard}
+			<Panel title="Public app dashboard">
+				<div class="space-y-4">
+					<div class="space-y-1.5">
+						<span class="block text-[13px] font-medium">Visitors first see the apps sorted by</span>
+						<ToggleGroup.Root
+							type="single"
+							variant="outline"
+							value={dashboard.default_sort}
+							onValueChange={(v) =>
+								v && (dashboard!.default_sort = v as Schemas['DashboardSettings']['default_sort'])}
+							aria-label="Default order"
+						>
+							<ToggleGroup.Item value="group">Group</ToggleGroup.Item>
+							<ToggleGroup.Item value="name">Name</ToggleGroup.Item>
+							<ToggleGroup.Item value="status">Status</ToggleGroup.Item>
+						</ToggleGroup.Root>
+					</div>
+					<label class="flex items-center justify-between gap-3 text-[13px]"
+						>New services show on the dashboard<Switch
+							bind:checked={dashboard.new_services_visible}
+						/></label
+					>
+				</div>
+			</Panel>
+			<div class="flex items-center justify-end gap-3">
+				{@render note('dashboard')}<Button
+					size="sm"
+					onclick={saveDashboard}
+					disabled={busy === 'dashboard'}>Save</Button
+				>
+			</div>
+		{:else if cat === 'firewall' && fwDefaults}
+			<Panel title="New firewall hosts">
+				<div class="space-y-1.5">
+					<span class="block text-[13px] font-medium">NetBird mode a new host starts with</span>
+					<ToggleGroup.Root
+						type="single"
+						variant="outline"
+						value={fwDefaults.netbird_mode}
+						onValueChange={(v) =>
+							v &&
+							(fwDefaults!.netbird_mode = v as Schemas['FirewallDefaultsSettings']['netbird_mode'])}
+						aria-label="Default NetBird mode"
+					>
+						<ToggleGroup.Item value="peer">Peer only</ToggleGroup.Item>
+						<ToggleGroup.Item value="routing">Routing peer</ToggleGroup.Item>
+						<ToggleGroup.Item value="disabled">Leave NetBird alone</ToggleGroup.Item>
+					</ToggleGroup.Root>
+					<p class="text-[12px] text-muted-foreground">
+						The interface is always detected on the host or entered by you.
+					</p>
+				</div>
+			</Panel>
+			<Panel title="Routing peers">
+				<label class="flex items-center justify-between gap-3 text-[13px]"
+					><span
+						>Clamp TCP packet size on NetBird-routed traffic<span
+							class="block text-[12px] text-muted-foreground"
+							>Avoids stalled connections through the tunnel. Leave on unless you know your path
+							MTU.</span
+						></span
+					><Switch bind:checked={fwDefaults.mss_clamp} /></label
+				>
+			</Panel>
+			<div class="flex items-center justify-end gap-3">
+				{@render note('firewall')}<Button
+					size="sm"
+					onclick={saveFirewall}
+					disabled={busy === 'firewall'}>Save</Button
+				>
+			</div>
 		{:else if cat === 'general' && general}
 			<Panel title="Domains and addresses">
 				<div class="grid gap-4 md:grid-cols-2">
@@ -416,6 +636,21 @@
 						/>
 					</div>
 				</div>
+			</Panel>
+			<Panel
+				title="Times"
+				description="How Hashi shows times on these pages. Stored times are always UTC."
+			>
+				<ToggleGroup.Root
+					type="single"
+					variant="outline"
+					value={general.time_display ?? 'local'}
+					onValueChange={(v) => v && (general!.time_display = v as 'local' | 'utc')}
+					aria-label="Show times in"
+				>
+					<ToggleGroup.Item value="local">Local time</ToggleGroup.Item>
+					<ToggleGroup.Item value="utc">UTC</ToggleGroup.Item>
+				</ToggleGroup.Root>
 			</Panel>
 			<Panel
 				title="Trusted proxies"
@@ -499,7 +734,50 @@
 							<div class="px-1 pt-1.5 text-[13px] font-medium">{t.name}</div>
 						</button>
 					{/each}
+					{#if theme.custom}
+						<button
+							onclick={() => void theme.save('custom')}
+							aria-pressed={theme.current === 'custom'}
+							class={cn(
+								'rounded-xl border p-1.5 text-left',
+								theme.current === 'custom' && 'ring-2 ring-ring'
+							)}
+						>
+							<div
+								data-theme="custom"
+								style={Object.entries(customVars(theme.custom))
+									.map(([k, v]) => `${k}:${v}`)
+									.join(';')}
+								class="flex h-20 gap-1.5 rounded-lg border bg-background p-1.5"
+							>
+								<div class="w-5 rounded-md bg-sidebar"></div>
+								<div class="flex flex-1 flex-col justify-between rounded-md border bg-card p-1.5">
+									<div class="h-1.5 w-3/4 rounded-full bg-muted-foreground/40"></div>
+									<div class="h-2.5 w-8 self-end rounded bg-primary"></div>
+								</div>
+							</div>
+							<div class="px-1 pt-1.5 text-[13px] font-medium">Custom</div>
+						</button>
+					{/if}
 				</div>
+			</Panel>
+			<CustomThemeEditor
+				saved={appearance.custom_theme ?? null}
+				onsave={saveCustom}
+				onreset={useBuiltIn}
+				busy={busy === 'custom'}
+			/>
+			{@render note('custom')}
+			<Panel title="Comfort">
+				<label class="flex items-center justify-between gap-3 text-[13px]"
+					>Reduce transparency: solid backgrounds behind headers and dialogs<Switch
+						checked={appearance.reduce_transparency ?? false}
+						onCheckedChange={(v) => {
+							appearance!.reduce_transparency = v;
+							theme.setSolid(v);
+						}}
+					/></label
+				>
 			</Panel>
 			<Panel title="Public pages">
 				<div class="grid gap-3 md:grid-cols-2">

@@ -1,3 +1,4 @@
+import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -736,6 +737,127 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await expect(page.locator('html')).toHaveAttribute('data-theme', 'violet');
 	await page.goto(`${state.baseURL}/app-display`);
 	await expect(page.getByRole('switch', { name: 'Show E2E port publicly' })).toBeChecked();
+
+	// S11 settings (09 §2, 10-ui §2). A custom theme: unreadable text cannot be saved; a readable one applies here,
+	// survives a reload before first paint and reaches the public pages.
+	await page.goto(`${state.baseURL}/settings?category=appearance`);
+	await page.getByLabel('Muted text colour', { exact: true }).fill('#2a2f36');
+	await expect(page.getByRole('button', { name: 'Text too faint to save' })).toBeDisabled();
+	await expect(page.getByText(/Muted text on the surface is too faint/)).toBeVisible();
+	await page.getByLabel('Muted text colour', { exact: true }).fill('#9da6b2');
+	await page.getByLabel('Accent colour', { exact: true }).fill('#14b8a6');
+	await page.getByRole('radio', { name: 'Round' }).click();
+	await page.getByRole('button', { name: 'Save and use theme' }).click();
+	await expect(page.getByText('Your theme is in use here')).toBeVisible();
+	await expect(page.locator('html')).toHaveAttribute('data-theme', 'custom');
+	await page.reload();
+	await expect(page.locator('html')).toHaveAttribute('data-theme', 'custom');
+	expect(
+		await page.evaluate(() =>
+			getComputedStyle(document.documentElement).getPropertyValue('--h-accent')
+		)
+	).toBe('#14b8a6');
+	const pubLook = await (await page.request.get(`${state.appsURL}/api/public/apps`)).json();
+	expect(pubLook).toMatchObject({ theme: 'custom', custom_theme: { accent: '#14b8a6' } });
+	await page.setViewportSize({ width: 390, height: 844 });
+	expect(
+		await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+		'the appearance settings are wider than a phone'
+	).toBe(true);
+	await page.screenshot({ path: 'test-results/s11-custom-theme-phone.png', fullPage: true });
+	await page.setViewportSize({ width: 1280, height: 800 });
+	// Reduce transparency is applied at once and saved.
+	await page.getByRole('switch', { name: /Reduce transparency/ }).click();
+	await expect(page.locator('html')).toHaveAttribute('data-solid', '');
+	await page.getByRole('button', { name: 'Save', exact: true }).last().click();
+	await expect
+		.poll(async () => (await page.request.get(`${state.baseURL}/api/settings/appearance`)).json())
+		.toMatchObject({ reduce_transparency: true });
+	await page.getByRole('button', { name: 'Use Graphite again' }).click();
+	await expect(page.locator('html')).toHaveAttribute('data-theme', 'graphite');
+	// Times in UTC: Activity shows them with the zone.
+	await page.goto(`${state.baseURL}/settings?category=general`);
+	await page.getByRole('radio', { name: 'UTC' }).click();
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page.getByRole('status')).toContainText('Saved');
+	await page.goto(`${state.baseURL}/activity`);
+	await expect(page.getByRole('cell', { name: /UTC/ }).first()).toBeVisible();
+	await page.goto(`${state.baseURL}/settings?category=general`);
+	await page.getByRole('radio', { name: 'Local time' }).click();
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page.getByRole('status')).toContainText('Saved');
+	// Dashboard: the public page starts sorted by name; new services start hidden from it.
+	await page.goto(`${state.baseURL}/settings?category=dashboard`);
+	await page.getByRole('radio', { name: 'Name' }).click();
+	await page.getByRole('switch', { name: /New services show/ }).click();
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page.getByRole('status')).toContainText('Saved');
+	expect(await (await page.request.get(`${state.appsURL}/api/public/apps`)).json()).toMatchObject({
+		default_sort: 'name'
+	});
+	await page.goto(`${state.baseURL}/services`);
+	await page.getByRole('button', { name: 'Add service' }).click();
+	await expect(page.getByRole('switch', { name: 'Show on the app dashboard' })).not.toBeChecked();
+	await page.keyboard.press('Escape');
+	// Monitoring defaults and the firewall's MSS switch save (their effect is tested in Go).
+	await page.goto(`${state.baseURL}/settings?category=monitoring`);
+	await page.getByLabel('Check every (seconds)').fill('120');
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page.getByRole('status')).toContainText('New monitors start with these');
+	await page.goto(`${state.baseURL}/settings?category=firewall`);
+	await expect(page.getByRole('radio', { name: 'Peer only' })).toBeChecked();
+	await page.screenshot({ path: 'test-results/s11-settings-firewall.png', fullPage: true });
+
+	// S11 visual tests (10-ui §2): every main page in every built-in theme keeps readable contrast (axe), fits a phone
+	// without sideways scrolling, and leaves a screenshot to look at.
+	const pages = [
+		'/services',
+		'/security',
+		'/scripts',
+		'/firewall',
+		'/status',
+		'/settings?category=appearance'
+	];
+	for (const [id, name] of [
+		['graphite', 'Graphite'],
+		['linen', 'Warm Linen'],
+		['verdant', 'Verdant'],
+		['violet', 'Violet Night']
+	]) {
+		await page.goto(`${state.baseURL}/services`);
+		await page.getByRole('button', { name: 'Theme', exact: true }).click();
+		await page.getByRole('menuitemradio', { name }).click();
+		await expect(page.locator('html')).toHaveAttribute('data-theme', id!);
+		// The theme is saved in the background; every page load applies the saved one, so wait for it.
+		await expect
+			.poll(async () => (await page.request.get(`${state.baseURL}/api/settings/appearance`)).json())
+			.toMatchObject({ theme: id });
+		for (const path of pages) {
+			await page.goto(`${state.baseURL}${path}`);
+			await expect(page.locator('main')).toBeVisible();
+			await expect(page.locator('html')).toHaveAttribute('data-theme', id!);
+			await page.waitForLoadState('networkidle');
+			const axe = await new AxeBuilder({ page }).withRules(['color-contrast']).analyze();
+			expect(
+				axe.violations.flatMap((v) =>
+					v.nodes.map((n) => `${n.target.join(' ')}: ${n.failureSummary}`)
+				),
+				`contrast in ${id} on ${path}`
+			).toEqual([]);
+			await page.setViewportSize({ width: 390, height: 844 });
+			expect(
+				await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+				`${path} is wider than a phone in ${id}`
+			).toBe(true);
+			const slug = path.replace(/[^a-z]+/g, '-').replace(/^-|-$/g, '');
+			await page.screenshot({
+				path: `test-results/visual/${id}-${slug}-phone.png`,
+				fullPage: true
+			});
+			await page.setViewportSize({ width: 1280, height: 800 });
+			await page.screenshot({ path: `test-results/visual/${id}-${slug}.png`, fullPage: true });
+		}
+	}
 
 	// Deleting the passkey this session signed in with ends the session: the page goes to sign-in.
 	await page.goto(`${state.baseURL}/settings?category=account`);

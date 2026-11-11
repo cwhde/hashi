@@ -1513,6 +1513,72 @@ paths:
           description: Saved
           content: { application/json: { schema: { $ref: "#/components/schemas/EdgeSSOSettings" } } }
         default: { $ref: "#/components/responses/Problem" }
+  /api/settings/monitoring:
+    get:
+      operationId: getMonitoringSettings
+      tags: [settings]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Monitoring defaults
+          content: { application/json: { schema: { $ref: "#/components/schemas/MonitoringSettings" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      operationId: putMonitoringSettings
+      tags: [settings]
+      x-hashi-scopes: [settings.manage]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/MonitoringSettings" } } }
+      responses:
+        "200":
+          description: Saved
+          content: { application/json: { schema: { $ref: "#/components/schemas/MonitoringSettings" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/settings/dashboard:
+    get:
+      operationId: getDashboardSettings
+      tags: [settings]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Public dashboard defaults
+          content: { application/json: { schema: { $ref: "#/components/schemas/DashboardSettings" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      operationId: putDashboardSettings
+      tags: [settings]
+      x-hashi-scopes: [settings.manage]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/DashboardSettings" } } }
+      responses:
+        "200":
+          description: Saved
+          content: { application/json: { schema: { $ref: "#/components/schemas/DashboardSettings" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/settings/firewall-defaults:
+    get:
+      operationId: getFirewallDefaultsSettings
+      tags: [settings]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: Defaults for new firewall hosts
+          content: { application/json: { schema: { $ref: "#/components/schemas/FirewallDefaultsSettings" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      operationId: putFirewallDefaultsSettings
+      tags: [settings]
+      x-hashi-scopes: [settings.manage]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/FirewallDefaultsSettings" } } }
+      responses:
+        "200":
+          description: Saved
+          content: { application/json: { schema: { $ref: "#/components/schemas/FirewallDefaultsSettings" } } }
+        default: { $ref: "#/components/responses/Problem" }
   /api/settings/pulse:
     get:
       operationId: getPulseSettings
@@ -3829,6 +3895,7 @@ components:
       properties:
         title: { type: string }
         theme: { type: string }
+        custom_theme: { $ref: "#/components/schemas/CustomTheme" }
         updated_at: { type: string, format: date-time }
         endpoints: { type: array, items: { $ref: "#/components/schemas/PublicEndpoint" } }
     PublicApp:
@@ -3843,10 +3910,12 @@ components:
     PublicApps:
       type: object
       additionalProperties: false
-      required: [title, theme, apps, hosts_online, hosts_total, firewall_online, firewall_total]
+      required: [title, theme, default_sort, apps, hosts_online, hosts_total, firewall_online, firewall_total]
       properties:
         title: { type: string }
         theme: { type: string }
+        custom_theme: { $ref: "#/components/schemas/CustomTheme" }
+        default_sort: { type: string, enum: [name, group, status], description: "The order the page starts with (Dashboard settings)" }
         updated_at: { type: string, format: date-time }
         apps: { type: array, items: { $ref: "#/components/schemas/PublicApp" } }
         hosts_online: { type: integer }
@@ -4527,6 +4596,7 @@ components:
         internal_url: { type: string }
         sync_interval_seconds: { type: integer }
         trusted_proxies: { type: array, items: { type: string } }
+        time_display: { type: string, enum: [local, utc], description: "How the admin UI shows times; absent = local" }
     SecuritySettings:
       type: object
       required: [admin_idle_timeout_minutes, bootstrap_allowed_cidrs]
@@ -4537,9 +4607,46 @@ components:
       type: object
       required: [theme, public_dashboard_enabled, public_status_enabled]
       properties:
-        theme: { type: string }
+        theme: { type: string, description: "A built-in theme id, or custom" }
+        custom_theme: { $ref: "#/components/schemas/CustomTheme" }
+        reduce_transparency: { type: boolean, description: "Solid backgrounds instead of translucent overlays" }
         public_dashboard_enabled: { type: boolean }
         public_status_enabled: { type: boolean }
+    CustomTheme:
+      type: object
+      description: "The admin's palette (10-ui §2); the other roles are derived. Refused when text is unreadable."
+      required: [canvas, surface, text, muted, border, accent, roundness]
+      properties:
+        canvas: { type: string, pattern: "^#[0-9a-fA-F]{6}$" }
+        surface: { type: string, pattern: "^#[0-9a-fA-F]{6}$" }
+        text: { type: string, pattern: "^#[0-9a-fA-F]{6}$" }
+        muted: { type: string, pattern: "^#[0-9a-fA-F]{6}$" }
+        border: { type: string, pattern: "^#[0-9a-fA-F]{6}$" }
+        accent: { type: string, pattern: "^#[0-9a-fA-F]{6}$" }
+        charts: { type: array, maxItems: 5, items: { type: string, pattern: "^#[0-9a-fA-F]{6}$" } }
+        roundness: { type: string, enum: [sharp, default, round] }
+    MonitoringSettings:
+      type: object
+      required: [interval_seconds, timeout_seconds, code_min, code_max, degraded_ms, retention_days]
+      properties:
+        interval_seconds: { type: integer, description: "Check interval of new endpoints" }
+        timeout_seconds: { type: integer, description: "Check timeout of new endpoints" }
+        code_min: { type: integer, description: "Healthy HTTP codes of new checks, from" }
+        code_max: { type: integer, description: "to" }
+        degraded_ms: { type: integer, description: "Latency above which a new endpoint is degraded; 0 = none" }
+        retention_days: { type: integer, description: "How long raw samples stay" }
+    DashboardSettings:
+      type: object
+      required: [default_sort, new_services_visible]
+      properties:
+        default_sort: { type: string, enum: [name, group, status], description: "Order of the public app dashboard" }
+        new_services_visible: { type: boolean, description: "New services show on the public dashboard" }
+    FirewallDefaultsSettings:
+      type: object
+      required: [netbird_mode, mss_clamp]
+      properties:
+        netbird_mode: { type: string, enum: [disabled, peer, routing], description: "NetBird mode a new firewall host starts with" }
+        mss_clamp: { type: boolean, description: "Clamp TCP MSS on NetBird-routed traffic (routing peers)" }
     AllSettings:
       type: object
       required: [general, security, appearance]

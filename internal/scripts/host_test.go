@@ -126,3 +126,29 @@ func TestRenderUnitsAndManifest(t *testing.T) {
 		}
 	}
 }
+
+// Review of S11: a variable named like one of the runner's own (dir, limit, mode, spool, slug) must not change what the
+// runner runs, its timeout, or where scheduled output goes.
+func TestWrapperVariablesCannotOverrideTheRunner(t *testing.T) {
+	env := map[string]string{"dir": "/nonexistent", "limit": "30", "mode": "--direct", "spool": "/nonexistent", "slug": "other"}
+	dir, spool := install(t, []Desired{{Slug: "slow", Timeout: 1, Body: "#!/bin/sh\necho \"dir=$dir\"\nsleep 5\necho finished\n", Env: env}})
+	out, rc := wrap(t, dir, spool, "slow", "1")
+	if rc != TimedOut || strings.Contains(out, "finished") {
+		t.Fatalf("timeout not kept: rc %d out %q", rc, out)
+	}
+	done, _ := filepath.Glob(filepath.Join(spool, "slow.*.done"))
+	if len(done) != 1 {
+		t.Fatalf("scheduled output left the spool: %v", done)
+	}
+	b, _ := os.ReadFile(strings.TrimSuffix(done[0], ".done") + ".out")
+	if !strings.Contains(string(b), "dir=/nonexistent") { // the script itself still sees its variable
+		t.Fatalf("script output %q", b)
+	}
+}
+
+// Review of S11: no script may take the runner's file name.
+func TestRenderRefusesTheRunnerName(t *testing.T) {
+	if _, _, err := Render([]Desired{{Slug: "run", Body: "#!/bin/sh\n", Timeout: 5}}); err == nil {
+		t.Fatal("a script named run would replace run.sh")
+	}
+}

@@ -19,6 +19,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 
 	"git.juzo.io/juzo/hashi/internal/secrets"
+	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/store"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 	"git.juzo.io/juzo/hashi/internal/store/storetest"
@@ -196,5 +197,33 @@ func TestSSORefusals(t *testing.T) {
 				t.Fatal("accepted")
 			}
 		})
+	}
+}
+
+// The edge sign-in settings (06 §16, 09 §2): a session lasts MaxSessionHours and ends after IdleTimeoutHours without use.
+func TestSSOSessionSettings(t *testing.T) {
+	ctx := context.Background()
+	f := newIdP(t)
+	s, st := newSSO(t, f)
+	now := time.Date(2026, 11, 11, 12, 0, 0, 0, time.UTC)
+	s.now = func() time.Time { return now }
+	if err := settings.Put(ctx, st.Q, settings.EdgeSSO{MaxSessionHours: 3, IdleTimeoutHours: 1, RememberDevice: true}); err != nil {
+		t.Fatal(err)
+	}
+	used, expires, err := s.OpenSession(ctx, "p", Identity{Subject: "s", Username: "alice"}, "192.0.2.1", "ua")
+	if err != nil || !expires.Equal(now.Add(3*time.Hour)) {
+		t.Fatalf("expires %v %v", expires, err)
+	}
+	idle, _, err := s.OpenSession(ctx, "p", Identity{Subject: "s", Username: "alice"}, "192.0.2.1", "ua")
+	if err != nil {
+		t.Fatal(err)
+	}
+	now = now.Add(59 * time.Minute)
+	if _, err := s.Validate(ctx, used); err != nil {
+		t.Fatalf("within the idle time: %v", err)
+	}
+	now = now.Add(2 * time.Minute) // the other session: 61 min without use
+	if _, err := s.Validate(ctx, idle); err == nil {
+		t.Fatal("session outlived the 1 h idle timeout")
 	}
 }

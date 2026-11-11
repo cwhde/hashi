@@ -107,7 +107,7 @@ func (s *Server) edgeForward(w http.ResponseWriter, r *http.Request) {
 	// The WAF (06 §9) sees what forward auth sees: method, URI and headers, never the body. A refused request counts
 	// towards the address's WAF trigger; an allowed address is refused too but never challenged for it.
 	if s.WAF != nil && s.Security != nil {
-		eff := services.ResolveWAF(d.WAF, d.System, s.Security.Settings().WAFDefaultMode, edge.NormalizePath(uri))
+		eff := s.wafFor(d.WAF, d.System, uri)
 		if eff.Mode == settings.WAFHeadersOnly {
 			v, err := s.WAF.Check(waf.Config{Exclusions: eff.Exclusions}, wafRequest(r, ri.ip, host, uri))
 			switch {
@@ -300,11 +300,7 @@ func (s *Server) edgeCallback(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, r, err)
 		return
 	}
-	c := &http.Cookie{Name: edge.CookieSession, Value: cookie, Domain: g.RootDomain, Path: "/", Secure: true, HttpOnly: true, SameSite: http.SameSiteLaxMode}
-	if cfg.RememberDevice {
-		c.MaxAge = int(time.Until(expires).Seconds())
-	}
-	http.SetCookie(w, c)
+	http.SetCookie(w, edgeSessionCookie(g.RootDomain, cookie, expires, cfg.RememberDevice))
 	_ = s.Audit.Record(ctx, s.Store.Q, audit.Event{Actor: audit.System, Action: "edge.login", IP: ri.ipString(), Target: "edge", Outcome: audit.Success})
 	http.Redirect(w, r, rd, http.StatusFound) //nolint:gosec // checked by edgeRedirectAllowed and kept server-side since login
 }
@@ -334,4 +330,20 @@ func (s *Server) edgeLogout(w http.ResponseWriter, r *http.Request) {
 func pathOnly(uri string) string {
 	p, _, _ := strings.Cut(uri, "?")
 	return p
+}
+
+// edgeSessionCookie is the edge sign-in cookie on the root domain. With remember-device it outlives the browser session
+// until the sign-in expires; without, it ends when the browser closes (06 §16, 09 §2).
+func edgeSessionCookie(root, value string, expires time.Time, remember bool) *http.Cookie {
+	c := &http.Cookie{Name: edge.CookieSession, Value: value, Domain: root, Path: "/", Secure: true, HttpOnly: true, SameSite: http.SameSiteLaxMode}
+	if remember {
+		c.MaxAge = int(time.Until(expires).Seconds())
+	}
+	return c
+}
+
+// wafFor is the WAF that applies to a request: the service's paths and mode over the engine settings' default mode
+// (06 §9, §10).
+func (s *Server) wafFor(w services.WAF, system bool, uri string) services.EffectiveWAF {
+	return services.ResolveWAF(w, system, s.Security.Settings().WAFDefaultMode, edge.NormalizePath(uri))
 }

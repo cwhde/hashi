@@ -20,8 +20,6 @@ var resolutions = []struct {
 	{3600, 2 * 365 * 24 * time.Hour},
 }
 
-const sampleRetention = 30 * 24 * time.Hour
-
 // Rollups computes rollups from samples for the closed buckets in [from, closed): a bucket counts as closed only when
 // its whole span lies before closed, so its numbers never change afterwards (07 §4). Pure, for tests.
 func Rollups(samples []db.MonitorSample, resolution, closed int64) []db.UpsertMonitorRollupParams {
@@ -73,7 +71,7 @@ func (s *Service) rollup(ctx context.Context) (int, error) {
 		width := r.Seconds * 1000
 		from := last + width
 		if last == 0 {
-			from = now - int64(sampleRetention/time.Millisecond)
+			from = now - int64(s.retention()/time.Millisecond)
 		}
 		samples, err := s.st.R.ListMonitorSamplesBetween(ctx, db.ListMonitorSamplesBetweenParams{At: from, At_2: now - now%width})
 		if err != nil {
@@ -98,12 +96,17 @@ func (s *Service) rollup(ctx context.Context) (int, error) {
 	return total, nil
 }
 
+// retention is how long raw samples stay (Monitoring settings).
+func (s *Service) retention() time.Duration {
+	return time.Duration(s.cfg().RetentionDays) * 24 * time.Hour
+}
+
 // retain deletes what is past its retention (01 §4.3), an hour of samples per transaction.
 func (s *Service) retain(ctx context.Context) (int64, error) {
 	now := s.now()
 	var removed int64
 	// Every delete stops short of the batch's last row, so one transaction removes fewer than deleteBatch rows.
-	for cutoff := now.Add(-sampleRetention).UnixMilli(); ; {
+	for cutoff := now.Add(-s.retention()).UnixMilli(); ; {
 		end, err := s.st.R.SampleBatchEnd(ctx, cutoff)
 		if errors.Is(err, sql.ErrNoRows) {
 			end = cutoff

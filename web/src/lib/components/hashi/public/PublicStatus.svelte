@@ -5,7 +5,7 @@
 	import { api, type Schemas } from '$lib/api/client';
 	import { stripHealth, uptimeText } from '$lib/monitor';
 	import { dateTime, time } from '$lib/format';
-	import { theme, type ThemeId } from '$lib/theme.svelte';
+	import { theme } from '$lib/theme.svelte';
 
 	// Public port: names, groups, state, 60-minute strips, uptime; never hosts, IPs or errors (07 §7).
 	let data = $state<Schemas['PublicStatus'] | null>(null);
@@ -19,7 +19,7 @@
 			if (!r.data) throw new Error('no data');
 			data = r.data;
 			failedSince = null;
-			theme.set(r.data.theme as ThemeId);
+			theme.apply(r.data);
 		} catch {
 			failedSince ??= new Date();
 		}

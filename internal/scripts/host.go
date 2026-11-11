@@ -25,7 +25,9 @@ const (
 
 var (
 	slugRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,47}$`)
-	envRe  = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+	// reserved are names a script cannot have: "run" would be the runner (run.sh) itself.
+	reserved = map[string]bool{"run": true}
+	envRe    = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 )
 
 // wrapperBody runs one script with its environment and timeout. Scheduled runs (systemd) write their output to the
@@ -43,23 +45,32 @@ mode=${3:-}
 case $slug in '' | *[!a-z0-9-]*) echo "run.sh: bad script name" >&2; exit 2 ;; esac
 case $limit in '' | *[!0-9]*) echo "run.sh: bad timeout" >&2; exit 2 ;; esac
 [ -x "$dir/$slug.sh" ] || { echo "run.sh: $slug is not installed" >&2; exit 2; }
-if [ -f "$dir/$slug.env" ]; then
-	while IFS= read -r line; do
-		k=${line%%=*}
-		v=${line#*=}
-		case $k in '' | *[!A-Za-z0-9_]*) continue ;; esac
-		val=$(printf '%s' "$v" | base64 -d) || exit 2
-		export "$k=$val"
-	done <"$dir/$slug.env"
-fi
+env_file="$dir/$slug.env"
+# The command is fixed in the positional parameters before any variable is read, and the variables are read in the
+# subshell that starts it: a variable named like one of the runner's (dir, limit, …) cannot change what runs, its
+# timeout or where its output goes.
+set -- timeout -k 10 "$limit" "$dir/$slug.sh"
+start_script() {
+	if [ -f "$env_file" ]; then
+		while IFS= read -r __hashi_line; do
+			__hashi_k=${__hashi_line%%=*}
+			__hashi_v=${__hashi_line#*=}
+			case $__hashi_k in '' | *[!A-Za-z0-9_]*) continue ;; esac
+			__hashi_val=$(printf '%s' "$__hashi_v" | base64 -d) || exit 2
+			export "$__hashi_k=$__hashi_val"
+		done <"$env_file"
+	fi
+	exec "$@" </dev/null
+}
 if [ "$mode" = --direct ]; then
-	exec timeout -k 10 "$limit" "$dir/$slug.sh" </dev/null
+	(start_script "$@")
+	exit $?
 fi
 umask 077
 mkdir -p "$spool"
 start=$(date +%s)
 base="$spool/$slug.$start.$$"
-timeout -k 10 "$limit" "$dir/$slug.sh" >"$base.tmp" 2>&1 </dev/null
+(start_script "$@") >"$base.tmp" 2>&1
 rc=$?
 end=$(date +%s)
 size=$(wc -c <"$base.tmp")
@@ -104,7 +115,7 @@ func Render(ds []Desired) ([]File, ManifestDoc, error) {
 	files := []File{{Path: Wrapper, Mode: 0o750, Data: []byte(wrapperBody)}}
 	man := ManifestDoc{Version: 1, Files: map[string]string{}}
 	for _, d := range ds {
-		if !slugRe.MatchString(d.Slug) {
+		if !slugRe.MatchString(d.Slug) || reserved[d.Slug] {
 			return nil, man, fmt.Errorf("script name %q", d.Slug)
 		}
 		if d.Timeout < 1 {
@@ -154,7 +165,7 @@ func timerSections(d Desired) []section {
 func envFile(env map[string]string) ([]byte, error) {
 	names := make([]string, 0, len(env))
 	for k := range env {
-		if !envRe.MatchString(k) {
+		if !envRe.MatchString(k) || strings.HasPrefix(k, "__hashi_") {
 			return nil, fmt.Errorf("variable name %q", k)
 		}
 		names = append(names, k)

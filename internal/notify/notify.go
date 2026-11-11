@@ -38,9 +38,10 @@ var (
 // Nothing here may name an internal address: it leaves through someone else's mail or chat service.
 type Message struct {
 	Subject, Body string
-	State         string // up, degraded, down or test: picks the colour
-	Theme         string // the admin's theme, for mail
-	Link          string // this alert's page in the admin UI
+	State         string                // up, degraded, down or test: picks the colour
+	Theme         string                // the admin's theme, for mail
+	Custom        *settings.CustomTheme // its colours when Theme is custom
+	Link          string                // this alert's page in the admin UI
 	At            time.Time
 	Stats         []Stat
 }
@@ -338,7 +339,7 @@ func (s *Service) sendOne(ctx context.Context, d db.NotificationDelivery) error 
 func (s *Service) message(ctx context.Context, d db.NotificationDelivery) Message {
 	m := Message{Subject: d.Subject, Body: d.Body, At: time.UnixMilli(d.CreatedAt)}
 	if a, err := settings.Get[settings.Appearance](ctx, s.st.R); err == nil {
-		m.Theme = a.Theme
+		m.Theme, m.Custom = a.Theme, a.CustomTheme
 	}
 	path := "/status"
 	switch {
