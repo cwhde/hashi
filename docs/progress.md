@@ -5,6 +5,36 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
+**S12 — Hardening + 1.0** · status: **in progress** (started 2026-11-11). Gate: 11-delivery.md §3 row S12: restore from
+backup onto a fresh container works; strict mode unlock with a PRF passkey or the recovery key; security scans clean or
+accepted; tag `v1.0.0`. Spec: 02 §5, 11 §8. After S12: the bug hunt round.
+
+Exists already: pre-migration backup (`VACUUM INTO`), recovery key (setup step 9) and `hashi vault recover`, service mode,
+gosec in the linter. Missing: the nightly backups 11 §8 calls mandatory (never built), `hashi vault rotate` (deferred from
+S1), strict mode, the locked state (02 §5.5), a threat model, vulnerability scans, operator docs.
+
+PR A, backups and keys (11 §8, 02 §5.2–5.3):
+- [ ] Nightly backup job: `VACUUM INTO /data/backups/hashi-<date>.db`, 14 kept, pre-migration copies untouched; last
+  backup shown on the Activity jobs list; a failed backup is a warning
+- [ ] `hashi vault rotate`: new master key version, every DEK re-wrapped in one transaction, the recovery copy re-wrapped
+  (asks for the recovery key), new key printed once; old key refused afterwards
+- [ ] Restore drill on a fresh local container: copy of a backup only, `hashi vault recover` with the recovery key,
+  start, reconcile shows no changes; written down as the operator's restore steps
+
+PR B, strict mode (02 §5.4–5.5): design questions open with the owner (Agenda).
+- [ ] Vault with a lock state: secret users get "locked" instead of a value; jobs that need secrets pause; public pages,
+  forward auth and Pulse keep working
+- [ ] Unlock with the recovery key, and with a passkey that supports PRF (enrol a PRF passkey, master key wrapped by it)
+- [ ] Settings → Security: switch modes with the trade-off explained; lock state in every page header; critical health warning
+
+Then, straight to `main`:
+- [ ] Threat model (`docs/threat-model.md`): assets, attackers, trust boundaries, what each control stops, accepted risks
+- [ ] Scans: `govulncheck`, `pnpm audit`, image scan; in CI; each finding fixed or accepted in the threat model
+- [ ] Operator docs: install, backup and restore, upgrade, strict mode, recovery
+- [ ] Gate on prod, tag `v1.0.0`
+
+## Previous slice
+
 **S11 — Scripts, custom themes, settings completeness** · status: **done** (gate passed 2026-11-11 on `v0.11.0-beta.2`). Next: S12, then the bug hunt round. Gate: 11-delivery.md §3
 row S11: scheduled script runs on real hosts with history; custom theme editor works; visual tests pass in all four
 themes; every setting has a consumer test. Spec: 09, 10-ui §2. After S11: S12, then the bug hunt round.
@@ -58,8 +88,6 @@ the spool: the runner now fixes the command before reading variables and reads t
 script. A script named "Run" overwrote `run.sh`: the name is refused. Scheduled runs were not audited (invariant 17):
 each collected run is now a `script.run` entry. Also closed: a unit file Hashi did not write is a conflict, never taken
 over by its name; theme data that is not even valid JSON falls back to Graphite. Re-run on 108: passes.
-
-## Previous slice
 
 **S10 — Abuse engine, WAF, CAPTCHA, feeds** · status: **done** (gate passed 2026-11-03 on `v0.10.0-beta.8`; review fixes in `v0.10.0-beta.9`). Gate: 11-delivery.md §3 row S10. Next: S11.
 Order (the owner, 2026-11-11): S11, then S12, then a large bug hunt and fix round over `docs/bugs.md` and the whole product.
@@ -800,6 +828,11 @@ Decisions made in S0:
 
 ## Agenda with the user
 
+- Open 2026-11-11 (S12 strict mode, before PR B): (1) while locked after a restart, should forward auth, edge sign-in,
+  CAPTCHA and Pulse keep working? They use keys derived from the master key; keeping them working means storing those
+  few keys on disk in strict mode (they open no stored secret). Otherwise every protected app answers 503 until unlock.
+  (2) Which passkey would unlock it, and does it support PRF? (3) Strict mode on prod after the gate, or only proven on a
+  test container?
 - Decided 2026-11-11 (owner): the script gate runs on dev target 108, then one harmless read-only scheduled script on
   the production firewall host. Traefik config paths and pinned version display are dropped from 09 §2 (Hashi installs
   Traefik itself). The user middleware editor stays (04 §3, bug 25); open: build it in S11 or in the bug round.
