@@ -158,6 +158,11 @@ func VaultRotate(ctx context.Context, cfg Config, in io.Reader, out io.Writer) e
 		return err
 	}
 	defer func() { _ = st.Close() }()
+	if mode, err := vault.ReadMode(ctx, st.Q); err != nil {
+		return err
+	} else if mode == vault.ModeStrict {
+		return errors.New("strict mode: switch to service mode first (Settings → Security), then rotate")
+	}
 	master, err := vault.LoadMasterKey(cfg.MasterKeyFile)
 	if err != nil {
 		return err

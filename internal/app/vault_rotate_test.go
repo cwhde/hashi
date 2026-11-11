@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"net/http"
 	"net/netip"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -16,6 +18,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/secrets"
 	"git.juzo.io/juzo/hashi/internal/store"
 	"git.juzo.io/juzo/hashi/internal/store/storetest"
+	"git.juzo.io/juzo/hashi/internal/traefik"
 	"git.juzo.io/juzo/hashi/internal/vault"
 )
 
@@ -174,5 +177,40 @@ func TestRestoreNightlyBackupOnFreshFolder(t *testing.T) {
 	}
 	if s, err := rv.Open(r); err != nil || s.Reveal() != "hunter2" {
 		t.Fatalf("secret after restore: %v", err)
+	}
+}
+
+// Strict mode (02 §5.4): a restart starts locked and still serves; the master key file is ignored.
+func TestStrictModeStartsLocked(t *testing.T) {
+	ctx := context.Background()
+	cfg := newConfig(t)
+	start(t, cfg).stop() // first start creates the edge token and other start-up secrets
+	st := storetest.Open(t, cfg.DBPath())
+	key, err := vault.LoadMasterKey(cfg.MasterKeyFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v, err := vault.Load(ctx, st.Q, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := v.EnableStrict(ctx, st.Q); err != nil {
+		t.Fatal(err)
+	}
+	_ = st.Close()
+
+	in := start(t, cfg)
+	c := in.client()
+	if r := c.do(http.MethodGet, "/readyz", nil); r.status != 200 {
+		t.Fatalf("readyz while locked: %d %s", r.status, r.raw)
+	}
+	if !strings.Contains(in.logs.String(), "vault locked") {
+		t.Fatal("no locked warning in the log")
+	}
+}
+
+func TestKeptPurposesNameRealSecrets(t *testing.T) {
+	if !slices.Contains(vault.KeptPurposes, traefik.EdgeTokenPurpose) {
+		t.Fatal("the edge token must stay readable while locked")
 	}
 }

@@ -73,10 +73,12 @@ type Server struct {
 	CertsSoon func(ctx context.Context) error
 	Sync      *hsync.Engine
 	Vault     *vault.Vault
-	Audit     *audit.Log
-	IP        *clientip.Resolver
-	Logs      *logring.Ring
-	Log       *slog.Logger
+	// MasterKeyFile is HASHI_MASTER_KEY_FILE; switching back to service mode checks it holds the master key.
+	MasterKeyFile string
+	Audit         *audit.Log
+	IP            *clientip.Resolver
+	Logs          *logring.Ring
+	Log           *slog.Logger
 }
 
 var _ gen.StrictServerInterface = (*Server)(nil)
@@ -112,6 +114,10 @@ func (s *Server) writeError(w http.ResponseWriter, r *http.Request, err error) {
 	var p *Problem
 	if errors.As(err, &p) {
 		writeProblem(w, p)
+		return
+	}
+	if errors.Is(err, vault.ErrLocked) {
+		writeProblem(w, vaultLocked())
 		return
 	}
 	s.Log.Error("request failed", "method", r.Method, "path", r.URL.Path, "err", err)

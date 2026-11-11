@@ -101,12 +101,7 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 		return err
 	}
 
-	// Service mode: no master key, no start (02 §5.2).
-	master, err := vault.LoadMasterKey(cfg.MasterKeyFile)
-	if err != nil {
-		return err
-	}
-	v, err := vault.Load(ctx, st.Q, master)
+	v, err := openVault(ctx, st, cfg, log)
 	if err != nil {
 		return err
 	}
@@ -158,11 +153,12 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	dnsSvc := dns.NewService(st, v, al, openDNS)
 
 	runner := jobs.New(st.Q, log)
-	if err := runner.Register(ctx, jobs.Job{Kind: "session_cleanup", Interval: time.Hour, Run: sessions.Cleanup}); err != nil {
+	runner.PauseWhile(v.Locked) // strict mode: jobs that need secrets wait for the unlock (02 §5.5)
+	if err := runner.Register(ctx, jobs.Job{Kind: "session_cleanup", Interval: time.Hour, RunsLocked: true, Run: sessions.Cleanup}); err != nil {
 		return err
 	}
 	// Nightly copy of the database, 14 kept (11-delivery.md §8); the host's own backup takes /data off-host.
-	if err := runner.Register(ctx, jobs.Job{Kind: "backup.nightly", Interval: 24 * time.Hour, Run: func(ctx context.Context) (string, error) {
+	if err := runner.Register(ctx, jobs.Job{Kind: "backup.nightly", Interval: 24 * time.Hour, RunsLocked: true, Run: func(ctx context.Context) (string, error) {
 		path, err := st.NightlyBackup(ctx, time.Now(), 14)
 		if err != nil {
 			return "", err
@@ -288,9 +284,9 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 		}
 	})
 	for _, j := range []jobs.Job{
-		{Kind: monitor.JobChecks, Interval: monitor.CheckTick, Run: monitorSvc.RunChecks},
-		{Kind: monitor.JobRollup, Interval: monitor.RollupTick, Run: monitorSvc.Rollup},
-		{Kind: monitor.JobRetain, Interval: monitor.RetainTick, Run: monitorSvc.Retain},
+		{Kind: monitor.JobChecks, Interval: monitor.CheckTick, RunsLocked: true, Run: monitorSvc.RunChecks},
+		{Kind: monitor.JobRollup, Interval: monitor.RollupTick, RunsLocked: true, Run: monitorSvc.Rollup},
+		{Kind: monitor.JobRetain, Interval: monitor.RetainTick, RunsLocked: true, Run: monitorSvc.Retain},
 		{Kind: notify.JobKind, Interval: notify.JobInterval, Run: notifier.Deliver},
 	} {
 		if err := runner.Register(ctx, j); err != nil {
@@ -414,7 +410,7 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 			}
 		}
 	})
-	if err := runner.Register(ctx, jobs.Job{Kind: security.SweepJobKind, Interval: security.SweepJobInterval, Run: abuse.Sweep}); err != nil {
+	if err := runner.Register(ctx, jobs.Job{Kind: security.SweepJobKind, Interval: security.SweepJobInterval, RunsLocked: true, Run: abuse.Sweep}); err != nil {
 		return err
 	}
 	// Feeds (06 §8): each one refreshed on the engine's interval, emptied when stale.
@@ -434,7 +430,7 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	})
 	sso := edge.NewSSO(st, v, &http.Client{Timeout: 10 * time.Second}, time.Now)
 	for _, j := range []jobs.Job{
-		{Kind: edge.JobKind, Interval: edge.JobInterval, Run: func(ctx context.Context) (string, error) {
+		{Kind: edge.JobKind, Interval: edge.JobInterval, RunsLocked: true, Run: func(ctx context.Context) (string, error) {
 			if err := sso.Cleanup(ctx); err != nil {
 				log.Warn("edge sessions cleanup", "err", err)
 			}
@@ -476,7 +472,7 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	}
 	api := &httpapi.Server{WAF: wafs, Captcha: capCache, Feeds: feedSvc, CapEnvFile: cfg.CapEnvFile, CapPort: cfg.CapPort,
 		Health: health, Version: gen.Version{Version: Version, Commit: Commit}, Store: st, Sessions: sessions,
-		Passkeys: passkeys, Setup: setupSvc, Settings: cfgSettings, DNS: dnsSvc, Traefik: traefikMgr, Certs: certMgr, IPSets: ipSets, AdGuard: adguardSvc, Pulse: pulseSvc, Monitor: monitorSvc, Notify: notifier, Firewall: fwMgr, Scripts: scriptSvc, Edge: edgeEngine, SSO: sso, Security: abuse, GeoIP: geoSvc, Sync: syncEngine, Vault: v, Audit: al, IP: ip, Logs: cfg.Logs,
+		Passkeys: passkeys, Setup: setupSvc, Settings: cfgSettings, DNS: dnsSvc, Traefik: traefikMgr, Certs: certMgr, IPSets: ipSets, AdGuard: adguardSvc, Pulse: pulseSvc, Monitor: monitorSvc, Notify: notifier, Firewall: fwMgr, Scripts: scriptSvc, Edge: edgeEngine, SSO: sso, Security: abuse, GeoIP: geoSvc, Sync: syncEngine, Vault: v, MasterKeyFile: cfg.MasterKeyFile, Audit: al, IP: ip, Logs: cfg.Logs,
 		CertsSoon: func(ctx context.Context) error { return runner.Soon(ctx, certs.JobKind) },
 		Log:       log.With("component", "api"),
 	}
@@ -720,4 +716,30 @@ func dnsRefreshJob(g settings.General, run jobs.Func) jobs.Job {
 // feedTimes are the feed refresh interval and stale time from the engine settings (06 §8, §10).
 func feedTimes(e settings.Engine) (refresh, stale time.Duration) {
 	return time.Duration(e.FeedRefreshSeconds) * time.Second, time.Duration(e.FeedStaleSeconds) * time.Second
+}
+
+// openVault opens the vault in the stored mode (02 §5.4). Service mode needs the master key file; strict mode ignores
+// it and starts locked.
+func openVault(ctx context.Context, st *store.Store, cfg Config, log *slog.Logger) (*vault.Vault, error) {
+	mode, err := vault.ReadMode(ctx, st.Q)
+	if err != nil {
+		return nil, err
+	}
+	if mode == vault.ModeStrict {
+		if cfg.MasterKeyFile != "" {
+			log.Warn("strict mode ignores HASHI_MASTER_KEY_FILE; remove the master key from the deployment", "path", cfg.MasterKeyFile)
+		}
+		v, err := vault.LoadStrict(ctx, st.Q)
+		if err != nil {
+			return nil, err
+		}
+		log.Warn("vault locked (strict mode): unlock it with a passkey or the recovery key; jobs that need secrets wait")
+		return v, nil
+	}
+	// Service mode: no master key, no start (02 §5.2).
+	master, err := vault.LoadMasterKey(cfg.MasterKeyFile)
+	if err != nil {
+		return nil, err
+	}
+	return vault.Load(ctx, st.Q, master)
 }

@@ -17,24 +17,11 @@ import (
 const internalSecretPrefix = "vault."
 
 func (s *Server) GetVault(ctx context.Context, _ gen.GetVaultRequestObject) (gen.GetVaultResponseObject, error) {
-	metas, err := s.Store.R.ListSecretMeta(ctx)
+	st, err := s.vaultState(ctx)
 	if err != nil {
 		return nil, err
 	}
-	n := 0
-	for _, m := range metas {
-		if !strings.HasPrefix(m.Purpose, internalSecretPrefix) {
-			n++
-		}
-	}
-	rk, err := s.Store.R.GetRecoveryKey(ctx)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return nil, err
-	}
-	return gen.GetVault200JSONResponse{
-		Mode: gen.VaultStateModeService, Locked: false, KeyVersion: int(s.Vault.KeyVersion()), Secrets: n,
-		RecoveryKeyConfirmed: err == nil && rk.ConfirmedAt.Valid,
-	}, nil
+	return gen.GetVault200JSONResponse(st), nil
 }
 
 func (s *Server) ListSecrets(ctx context.Context, _ gen.ListSecretsRequestObject) (gen.ListSecretsResponseObject, error) {

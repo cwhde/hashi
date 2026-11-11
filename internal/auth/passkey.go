@@ -51,12 +51,16 @@ const (
 	kindRegister ceremonyKind = "register"
 	kindLogin    ceremonyKind = "login"
 	kindReauth   ceremonyKind = "reauth"
+	// PRFEnroll and PRFUnlock evaluate the passkey's PRF for the strict-mode vault (02 §5.4).
+	PRFEnroll ceremonyKind = "prf-enroll"
+	PRFUnlock ceremonyKind = "prf-unlock"
 )
 
 type ceremony struct {
 	kind    ceremonyKind
 	owner   string // session id hash (register/reauth); "" for login
 	data    webauthn.SessionData
+	salt    []byte // PRF enrolment: the salt the PRF was evaluated with
 	expires time.Time
 }
 
@@ -104,14 +108,19 @@ func (p *Passkeys) put(c ceremony) string {
 
 // take returns and removes a ceremony: each one can be completed once.
 func (p *Passkeys) take(id string, kind ceremonyKind, owner string) (webauthn.SessionData, error) {
+	c, err := p.takeCeremony(id, kind, owner)
+	return c.data, err
+}
+
+func (p *Passkeys) takeCeremony(id string, kind ceremonyKind, owner string) (ceremony, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	c, ok := p.ceremonies[id]
 	delete(p.ceremonies, id)
 	if !ok || c.kind != kind || c.owner != owner || p.now().After(c.expires) {
-		return webauthn.SessionData{}, ErrCeremony
+		return ceremony{}, ErrCeremony
 	}
-	return c.data, nil
+	return c, nil
 }
 
 func (p *Passkeys) webauthn(ctx context.Context) (*webauthn.WebAuthn, error) {
@@ -186,7 +195,10 @@ func (p *Passkeys) BeginRegistration(ctx context.Context, owner []byte) (string,
 	for i, c := range u.creds {
 		excl[i] = c.Descriptor()
 	}
-	opts, sd, err := wa.BeginRegistration(u, webauthn.WithExclusions(excl))
+	// The PRF probe makes security keys create the secret the PRF needs (CTAP hmac-secret is only made at creation),
+	// so the passkey can unlock a strict-mode vault later (02 §5.4).
+	opts, sd, err := wa.BeginRegistration(u, webauthn.WithExclusions(excl),
+		webauthn.WithExtensions(webauthn.WithExtensionPRFSupport()))
 	if err != nil {
 		return "", nil, fmt.Errorf("begin registration: %w", err)
 	}
@@ -278,7 +290,8 @@ func (p *Passkeys) FinishLogin(ctx context.Context, q *db.Queries, ceremonyID st
 	if err != nil {
 		return "", err
 	}
-	return p.finishAssertion(ctx, q, sd, response, true)
+	id, _, err := p.finishAssertion(ctx, q, sd, response, true)
+	return id, err
 }
 
 // BeginReauth starts a passkey assertion for an existing session.
@@ -307,21 +320,23 @@ func (p *Passkeys) FinishReauth(ctx context.Context, q *db.Queries, owner []byte
 	if err != nil {
 		return "", err
 	}
-	return p.finishAssertion(ctx, q, sd, response, false)
+	id, _, err := p.finishAssertion(ctx, q, sd, response, false)
+	return id, err
 }
 
-func (p *Passkeys) finishAssertion(ctx context.Context, q *db.Queries, sd webauthn.SessionData, response []byte, discoverable bool) (string, error) {
+// finishAssertion verifies an assertion and returns the stored passkey's id and the PRF output, if the browser sent one.
+func (p *Passkeys) finishAssertion(ctx context.Context, q *db.Queries, sd webauthn.SessionData, response []byte, discoverable bool) (string, []byte, error) {
 	wa, err := p.webauthn(ctx)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	u, err := p.loadUser(ctx, q)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	parsed, err := protocol.ParseCredentialRequestResponseBytes(response)
 	if err != nil {
-		return "", fmt.Errorf("%w: %v", ErrCeremony, err) //nolint:errorlint // library detail is context only
+		return "", nil, fmt.Errorf("%w: %v", ErrCeremony, err) //nolint:errorlint // library detail is context only
 	}
 	var cred *webauthn.Credential
 	if discoverable {
@@ -335,22 +350,79 @@ func (p *Passkeys) finishAssertion(ctx context.Context, q *db.Queries, sd webaut
 		cred, err = wa.ValidateLogin(u, sd, parsed)
 	}
 	if err != nil {
-		return "", fmt.Errorf("%w: %v", ErrCeremony, err) //nolint:errorlint // see above
+		return "", nil, fmt.Errorf("%w: %v", ErrCeremony, err) //nolint:errorlint // see above
 	}
 	row, err := q.GetPasskeyByCredentialID(ctx, cred.ID)
 	if err != nil {
-		return "", fmt.Errorf("%w: credential not registered", ErrCeremony)
+		return "", nil, fmt.Errorf("%w: credential not registered", ErrCeremony)
 	}
 	raw, err := json.Marshal(cred)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	if err := q.UpdatePasskeyUse(ctx, db.UpdatePasskeyUseParams{
 		CredentialJson: string(raw), LastUsedAt: sql.NullInt64{Int64: p.now().UnixMilli(), Valid: true}, ID: row.ID,
 	}); err != nil {
-		return "", err
+		return "", nil, err
 	}
-	return row.ID, nil
+	var prf []byte
+	if out := parsed.ClientExtensionResults.PRF; out != nil && out.Results != nil {
+		prf = out.Results.First
+	}
+	return row.ID, prf, nil
+}
+
+// BeginPRF starts an assertion for the session owner that evaluates the PRF extension: with salt on any passkey
+// (PRFEnroll), or on the passkeys in salts only, each with its own salt (PRFUnlock; keys are credential ids).
+func (p *Passkeys) BeginPRF(ctx context.Context, owner []byte, kind ceremonyKind, salt []byte, salts map[string][]byte) (string, *protocol.CredentialAssertion, error) {
+	wa, err := p.webauthn(ctx)
+	if err != nil {
+		return "", nil, err
+	}
+	u, err := p.loadUser(ctx, p.st.Q)
+	if err != nil {
+		return "", nil, err
+	}
+	if len(u.creds) == 0 {
+		return "", nil, ErrCeremony
+	}
+	opts := []webauthn.LoginOption{webauthn.WithUserVerification(protocol.VerificationRequired)}
+	switch kind {
+	case PRFEnroll:
+		opts = append(opts, webauthn.WithAssertionExtensions(webauthn.WithExtensionPRF(protocol.PRFValues{First: salt})))
+	case PRFUnlock:
+		var allow []protocol.CredentialDescriptor
+		by := map[string]protocol.PRFValues{}
+		for _, c := range u.creds {
+			if s, ok := salts[string(c.ID)]; ok {
+				allow = append(allow, c.Descriptor())
+				by[EncodeID(c.ID)] = protocol.PRFValues{First: s}
+			}
+		}
+		if len(allow) == 0 {
+			return "", nil, ErrCeremony
+		}
+		opts = append(opts, webauthn.WithAllowedCredentials(allow),
+			webauthn.WithAssertionExtensions(webauthn.WithExtensionPRFByCredential(by, nil)))
+	default:
+		return "", nil, fmt.Errorf("not a PRF ceremony: %s", kind)
+	}
+	o, sd, err := wa.BeginLogin(u, opts...)
+	if err != nil {
+		return "", nil, fmt.Errorf("begin PRF assertion: %w", err)
+	}
+	return p.put(ceremony{kind: kind, owner: string(owner), data: *sd, salt: salt}), o, nil
+}
+
+// FinishPRF verifies the owner's assertion and returns the passkey's id, its PRF output (nil if none came back) and,
+// for PRFEnroll, the salt it was evaluated with.
+func (p *Passkeys) FinishPRF(ctx context.Context, q *db.Queries, owner []byte, kind ceremonyKind, ceremonyID string, response []byte) (id string, prf, salt []byte, err error) {
+	c, err := p.takeCeremony(ceremonyID, kind, string(owner))
+	if err != nil {
+		return "", nil, nil, err
+	}
+	id, prf, err = p.finishAssertion(ctx, q, c.data, response, false)
+	return id, prf, c.salt, err
 }
 
 // List returns all passkeys.

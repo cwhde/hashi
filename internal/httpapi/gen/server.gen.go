@@ -2180,6 +2180,24 @@ func (e TraefikConnectionInputAuth) Valid() bool {
 	}
 }
 
+// Defines values for VaultModeChangeMode.
+const (
+	VaultModeChangeModeService VaultModeChangeMode = "service"
+	VaultModeChangeModeStrict  VaultModeChangeMode = "strict"
+)
+
+// Valid indicates whether the value is a known member of the VaultModeChangeMode enum.
+func (e VaultModeChangeMode) Valid() bool {
+	switch e {
+	case VaultModeChangeModeService:
+		return true
+	case VaultModeChangeModeStrict:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for VaultStateMode.
 const (
 	VaultStateModeService VaultStateMode = "service"
@@ -4239,6 +4257,11 @@ type RecoveryKeyConfirm struct {
 	Checksum string `json:"checksum"`
 }
 
+// RecoveryKeyUnlock defines model for RecoveryKeyUnlock.
+type RecoveryKeyUnlock struct {
+	RecoveryKey string `json:"recovery_key"`
+}
+
 // RevealedSecret defines model for RevealedSecret.
 type RevealedSecret struct {
 	Id    string `json:"id"`
@@ -5293,17 +5316,37 @@ type UserMiddlewaresSaveResult struct {
 	Plans              []SyncPlan      `json:"plans"`
 }
 
+// VaultModeChange defines model for VaultModeChange.
+type VaultModeChange struct {
+	Mode VaultModeChangeMode `json:"mode"`
+}
+
+// VaultModeChangeMode defines model for VaultModeChange.Mode.
+type VaultModeChangeMode string
+
 // VaultState defines model for VaultState.
 type VaultState struct {
-	KeyVersion           int            `json:"key_version"`
-	Locked               bool           `json:"locked"`
-	Mode                 VaultStateMode `json:"mode"`
-	RecoveryKeyConfirmed bool           `json:"recovery_key_confirmed"`
-	Secrets              int            `json:"secrets"`
+	KeyVersion int  `json:"key_version"`
+	Locked     bool `json:"locked"`
+
+	// MasterKeyFile HASHI_MASTER_KEY_FILE holds this vault's master key (needed to switch back to service mode); false while locked
+	MasterKeyFile        bool            `json:"master_key_file"`
+	Mode                 VaultStateMode  `json:"mode"`
+	RecoveryKeyConfirmed bool            `json:"recovery_key_confirmed"`
+	Secrets              int             `json:"secrets"`
+	Unlockers            []VaultUnlocker `json:"unlockers"`
 }
 
 // VaultStateMode defines model for VaultState.Mode.
 type VaultStateMode string
+
+// VaultUnlocker defines model for VaultUnlocker.
+type VaultUnlocker struct {
+	CreatedAt   time.Time `json:"created_at"`
+	Id          string    `json:"id"`
+	PasskeyId   string    `json:"passkey_id"`
+	PasskeyName string    `json:"passkey_name"`
+}
 
 // Version defines model for Version.
 type Version struct {
@@ -5686,6 +5729,18 @@ type PutUserMiddlewaresJSONRequestBody = UserMiddlewaresInput
 
 // CheckUserMiddlewaresJSONRequestBody defines body for CheckUserMiddlewares for application/json ContentType.
 type CheckUserMiddlewaresJSONRequestBody = UserMiddlewaresCheckInput
+
+// SetVaultModeJSONRequestBody defines body for SetVaultMode for application/json ContentType.
+type SetVaultModeJSONRequestBody = VaultModeChange
+
+// UnlockVaultWithPasskeyJSONRequestBody defines body for UnlockVaultWithPasskey for application/json ContentType.
+type UnlockVaultWithPasskeyJSONRequestBody = CeremonyResponse
+
+// UnlockVaultWithRecoveryKeyJSONRequestBody defines body for UnlockVaultWithRecoveryKey for application/json ContentType.
+type UnlockVaultWithRecoveryKeyJSONRequestBody = RecoveryKeyUnlock
+
+// AddVaultUnlockerJSONRequestBody defines body for AddVaultUnlocker for application/json ContentType.
+type AddVaultUnlockerJSONRequestBody = CeremonyResponse
 
 // AsIPItemIP returns the union data inside the IPItem as a IPItemIP
 func (t IPItem) AsIPItemIP() (IPItemIP, error) {
@@ -6645,12 +6700,33 @@ type ServerInterface interface {
 	// GetVault Vault mode and state
 	// (GET /api/vault)
 	GetVault(w http.ResponseWriter, r *http.Request)
+	// SetVaultMode Switch between service and strict mode (02 §5.4)
+	// (PUT /api/vault/mode)
+	SetVaultMode(w http.ResponseWriter, r *http.Request)
 	// ListSecrets Stored secrets (metadata only, never values)
 	// (GET /api/vault/secrets)
 	ListSecrets(w http.ResponseWriter, r *http.Request)
 	// RevealSecret Reveal one secret value (audited)
 	// (POST /api/vault/secrets/{id}/reveal)
 	RevealSecret(w http.ResponseWriter, r *http.Request, id string)
+	// UnlockVaultWithPasskey Finish unlocking with a passkey's PRF output
+	// (POST /api/vault/unlock/passkey)
+	UnlockVaultWithPasskey(w http.ResponseWriter, r *http.Request)
+	// VaultUnlockOptions Start unlocking with a passkey that has a PRF unlocker
+	// (POST /api/vault/unlock/passkey/options)
+	VaultUnlockOptions(w http.ResponseWriter, r *http.Request)
+	// UnlockVaultWithRecoveryKey Unlock a strict-mode vault with the recovery key (02 §5.4)
+	// (POST /api/vault/unlock/recovery)
+	UnlockVaultWithRecoveryKey(w http.ResponseWriter, r *http.Request)
+	// AddVaultUnlocker Finish adding a passkey unlocker; the vault must be unlocked
+	// (POST /api/vault/unlockers)
+	AddVaultUnlocker(w http.ResponseWriter, r *http.Request)
+	// VaultUnlockerOptions Start adding a passkey that can unlock the vault (evaluates its PRF)
+	// (POST /api/vault/unlockers/options)
+	VaultUnlockerOptions(w http.ResponseWriter, r *http.Request)
+	// DeleteVaultUnlocker Stop a passkey from unlocking the vault
+	// (DELETE /api/vault/unlockers/{id})
+	DeleteVaultUnlocker(w http.ResponseWriter, r *http.Request, id string)
 	// GetVersion Build version of the running binary
 	// (GET /api/version)
 	GetVersion(w http.ResponseWriter, r *http.Request)
@@ -11378,6 +11454,20 @@ func (siw *ServerInterfaceWrapper) GetVault(w http.ResponseWriter, r *http.Reque
 	handler.ServeHTTP(w, r)
 }
 
+// SetVaultMode operation middleware
+func (siw *ServerInterfaceWrapper) SetVaultMode(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetVaultMode(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListSecrets operation middleware
 func (siw *ServerInterfaceWrapper) ListSecrets(w http.ResponseWriter, r *http.Request) {
 
@@ -11409,6 +11499,102 @@ func (siw *ServerInterfaceWrapper) RevealSecret(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RevealSecret(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UnlockVaultWithPasskey operation middleware
+func (siw *ServerInterfaceWrapper) UnlockVaultWithPasskey(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UnlockVaultWithPasskey(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// VaultUnlockOptions operation middleware
+func (siw *ServerInterfaceWrapper) VaultUnlockOptions(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.VaultUnlockOptions(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UnlockVaultWithRecoveryKey operation middleware
+func (siw *ServerInterfaceWrapper) UnlockVaultWithRecoveryKey(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UnlockVaultWithRecoveryKey(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddVaultUnlocker operation middleware
+func (siw *ServerInterfaceWrapper) AddVaultUnlocker(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddVaultUnlocker(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// VaultUnlockerOptions operation middleware
+func (siw *ServerInterfaceWrapper) VaultUnlockerOptions(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.VaultUnlockerOptions(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteVaultUnlocker operation middleware
+func (siw *ServerInterfaceWrapper) DeleteVaultUnlocker(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteVaultUnlocker(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -11796,6 +11982,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/vault", wrapper.GetVault)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/vault/secrets", wrapper.ListSecrets)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/vault/secrets/{id}/reveal", wrapper.RevealSecret)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/vault/unlock/recovery", wrapper.UnlockVaultWithRecoveryKey)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/vault/unlock/passkey/options", wrapper.VaultUnlockOptions)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/vault/unlock/passkey", wrapper.UnlockVaultWithPasskey)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/vault/unlockers/options", wrapper.VaultUnlockerOptions)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/vault/unlockers", wrapper.AddVaultUnlocker)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/vault/unlockers/{id}", wrapper.DeleteVaultUnlocker)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/vault/mode", wrapper.SetVaultMode)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/activity/audit", wrapper.ListAuditEvents)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/activity/jobs", wrapper.ListJobs)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/activity/logs", wrapper.ListLogLines)
@@ -20488,6 +20681,45 @@ func (response GetVaultdefaultApplicationProblemPlusJSONResponse) VisitGetVaultR
 	return err
 }
 
+type SetVaultModeRequestObject struct {
+	Body *SetVaultModeJSONRequestBody
+}
+
+type SetVaultModeResponseObject interface {
+	VisitSetVaultModeResponse(w http.ResponseWriter) error
+}
+
+type SetVaultMode200JSONResponse VaultState
+
+func (response SetVaultMode200JSONResponse) VisitSetVaultModeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetVaultModedefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response SetVaultModedefaultApplicationProblemPlusJSONResponse) VisitSetVaultModeResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ListSecretsRequestObject struct {
 }
 
@@ -20554,6 +20786,238 @@ type RevealSecretdefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response RevealSecretdefaultApplicationProblemPlusJSONResponse) VisitRevealSecretResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UnlockVaultWithPasskeyRequestObject struct {
+	Body *UnlockVaultWithPasskeyJSONRequestBody
+}
+
+type UnlockVaultWithPasskeyResponseObject interface {
+	VisitUnlockVaultWithPasskeyResponse(w http.ResponseWriter) error
+}
+
+type UnlockVaultWithPasskey200JSONResponse VaultState
+
+func (response UnlockVaultWithPasskey200JSONResponse) VisitUnlockVaultWithPasskeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UnlockVaultWithPasskeydefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response UnlockVaultWithPasskeydefaultApplicationProblemPlusJSONResponse) VisitUnlockVaultWithPasskeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type VaultUnlockOptionsRequestObject struct {
+}
+
+type VaultUnlockOptionsResponseObject interface {
+	VisitVaultUnlockOptionsResponse(w http.ResponseWriter) error
+}
+
+type VaultUnlockOptions200JSONResponse CeremonyOptions
+
+func (response VaultUnlockOptions200JSONResponse) VisitVaultUnlockOptionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type VaultUnlockOptionsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response VaultUnlockOptionsdefaultApplicationProblemPlusJSONResponse) VisitVaultUnlockOptionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UnlockVaultWithRecoveryKeyRequestObject struct {
+	Body *UnlockVaultWithRecoveryKeyJSONRequestBody
+}
+
+type UnlockVaultWithRecoveryKeyResponseObject interface {
+	VisitUnlockVaultWithRecoveryKeyResponse(w http.ResponseWriter) error
+}
+
+type UnlockVaultWithRecoveryKey200JSONResponse VaultState
+
+func (response UnlockVaultWithRecoveryKey200JSONResponse) VisitUnlockVaultWithRecoveryKeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UnlockVaultWithRecoveryKeydefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response UnlockVaultWithRecoveryKeydefaultApplicationProblemPlusJSONResponse) VisitUnlockVaultWithRecoveryKeyResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddVaultUnlockerRequestObject struct {
+	Body *AddVaultUnlockerJSONRequestBody
+}
+
+type AddVaultUnlockerResponseObject interface {
+	VisitAddVaultUnlockerResponse(w http.ResponseWriter) error
+}
+
+type AddVaultUnlocker200JSONResponse VaultState
+
+func (response AddVaultUnlocker200JSONResponse) VisitAddVaultUnlockerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddVaultUnlockerdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response AddVaultUnlockerdefaultApplicationProblemPlusJSONResponse) VisitAddVaultUnlockerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type VaultUnlockerOptionsRequestObject struct {
+}
+
+type VaultUnlockerOptionsResponseObject interface {
+	VisitVaultUnlockerOptionsResponse(w http.ResponseWriter) error
+}
+
+type VaultUnlockerOptions200JSONResponse CeremonyOptions
+
+func (response VaultUnlockerOptions200JSONResponse) VisitVaultUnlockerOptionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type VaultUnlockerOptionsdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response VaultUnlockerOptionsdefaultApplicationProblemPlusJSONResponse) VisitVaultUnlockerOptionsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteVaultUnlockerRequestObject struct {
+	Id string `json:"id"`
+}
+
+type DeleteVaultUnlockerResponseObject interface {
+	VisitDeleteVaultUnlockerResponse(w http.ResponseWriter) error
+}
+
+type DeleteVaultUnlocker200JSONResponse VaultState
+
+func (response DeleteVaultUnlocker200JSONResponse) VisitDeleteVaultUnlockerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DeleteVaultUnlockerdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response DeleteVaultUnlockerdefaultApplicationProblemPlusJSONResponse) VisitDeleteVaultUnlockerResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -21319,12 +21783,33 @@ type StrictServerInterface interface {
 	// GetVault Vault mode and state
 	// (GET /api/vault)
 	GetVault(ctx context.Context, request GetVaultRequestObject) (GetVaultResponseObject, error)
+	// SetVaultMode Switch between service and strict mode (02 §5.4)
+	// (PUT /api/vault/mode)
+	SetVaultMode(ctx context.Context, request SetVaultModeRequestObject) (SetVaultModeResponseObject, error)
 	// ListSecrets Stored secrets (metadata only, never values)
 	// (GET /api/vault/secrets)
 	ListSecrets(ctx context.Context, request ListSecretsRequestObject) (ListSecretsResponseObject, error)
 	// RevealSecret Reveal one secret value (audited)
 	// (POST /api/vault/secrets/{id}/reveal)
 	RevealSecret(ctx context.Context, request RevealSecretRequestObject) (RevealSecretResponseObject, error)
+	// UnlockVaultWithPasskey Finish unlocking with a passkey's PRF output
+	// (POST /api/vault/unlock/passkey)
+	UnlockVaultWithPasskey(ctx context.Context, request UnlockVaultWithPasskeyRequestObject) (UnlockVaultWithPasskeyResponseObject, error)
+	// VaultUnlockOptions Start unlocking with a passkey that has a PRF unlocker
+	// (POST /api/vault/unlock/passkey/options)
+	VaultUnlockOptions(ctx context.Context, request VaultUnlockOptionsRequestObject) (VaultUnlockOptionsResponseObject, error)
+	// UnlockVaultWithRecoveryKey Unlock a strict-mode vault with the recovery key (02 §5.4)
+	// (POST /api/vault/unlock/recovery)
+	UnlockVaultWithRecoveryKey(ctx context.Context, request UnlockVaultWithRecoveryKeyRequestObject) (UnlockVaultWithRecoveryKeyResponseObject, error)
+	// AddVaultUnlocker Finish adding a passkey unlocker; the vault must be unlocked
+	// (POST /api/vault/unlockers)
+	AddVaultUnlocker(ctx context.Context, request AddVaultUnlockerRequestObject) (AddVaultUnlockerResponseObject, error)
+	// VaultUnlockerOptions Start adding a passkey that can unlock the vault (evaluates its PRF)
+	// (POST /api/vault/unlockers/options)
+	VaultUnlockerOptions(ctx context.Context, request VaultUnlockerOptionsRequestObject) (VaultUnlockerOptionsResponseObject, error)
+	// DeleteVaultUnlocker Stop a passkey from unlocking the vault
+	// (DELETE /api/vault/unlockers/{id})
+	DeleteVaultUnlocker(ctx context.Context, request DeleteVaultUnlockerRequestObject) (DeleteVaultUnlockerResponseObject, error)
 	// GetVersion Build version of the running binary
 	// (GET /api/version)
 	GetVersion(ctx context.Context, request GetVersionRequestObject) (GetVersionResponseObject, error)
@@ -27590,6 +28075,37 @@ func (sh *strictHandler) GetVault(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// SetVaultMode operation middleware
+func (sh *strictHandler) SetVaultMode(w http.ResponseWriter, r *http.Request) {
+	var request SetVaultModeRequestObject
+
+	var body SetVaultModeJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetVaultMode(ctx, request.(SetVaultModeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetVaultMode")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetVaultModeResponseObject); ok {
+		if err := validResponse.VisitSetVaultModeResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ListSecrets operation middleware
 func (sh *strictHandler) ListSecrets(w http.ResponseWriter, r *http.Request) {
 	var request ListSecretsRequestObject
@@ -27633,6 +28149,173 @@ func (sh *strictHandler) RevealSecret(w http.ResponseWriter, r *http.Request, id
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(RevealSecretResponseObject); ok {
 		if err := validResponse.VisitRevealSecretResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UnlockVaultWithPasskey operation middleware
+func (sh *strictHandler) UnlockVaultWithPasskey(w http.ResponseWriter, r *http.Request) {
+	var request UnlockVaultWithPasskeyRequestObject
+
+	var body UnlockVaultWithPasskeyJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UnlockVaultWithPasskey(ctx, request.(UnlockVaultWithPasskeyRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UnlockVaultWithPasskey")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UnlockVaultWithPasskeyResponseObject); ok {
+		if err := validResponse.VisitUnlockVaultWithPasskeyResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// VaultUnlockOptions operation middleware
+func (sh *strictHandler) VaultUnlockOptions(w http.ResponseWriter, r *http.Request) {
+	var request VaultUnlockOptionsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.VaultUnlockOptions(ctx, request.(VaultUnlockOptionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "VaultUnlockOptions")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(VaultUnlockOptionsResponseObject); ok {
+		if err := validResponse.VisitVaultUnlockOptionsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UnlockVaultWithRecoveryKey operation middleware
+func (sh *strictHandler) UnlockVaultWithRecoveryKey(w http.ResponseWriter, r *http.Request) {
+	var request UnlockVaultWithRecoveryKeyRequestObject
+
+	var body UnlockVaultWithRecoveryKeyJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UnlockVaultWithRecoveryKey(ctx, request.(UnlockVaultWithRecoveryKeyRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UnlockVaultWithRecoveryKey")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UnlockVaultWithRecoveryKeyResponseObject); ok {
+		if err := validResponse.VisitUnlockVaultWithRecoveryKeyResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AddVaultUnlocker operation middleware
+func (sh *strictHandler) AddVaultUnlocker(w http.ResponseWriter, r *http.Request) {
+	var request AddVaultUnlockerRequestObject
+
+	var body AddVaultUnlockerJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AddVaultUnlocker(ctx, request.(AddVaultUnlockerRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AddVaultUnlocker")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AddVaultUnlockerResponseObject); ok {
+		if err := validResponse.VisitAddVaultUnlockerResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// VaultUnlockerOptions operation middleware
+func (sh *strictHandler) VaultUnlockerOptions(w http.ResponseWriter, r *http.Request) {
+	var request VaultUnlockerOptionsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.VaultUnlockerOptions(ctx, request.(VaultUnlockerOptionsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "VaultUnlockerOptions")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(VaultUnlockerOptionsResponseObject); ok {
+		if err := validResponse.VisitVaultUnlockerOptionsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteVaultUnlocker operation middleware
+func (sh *strictHandler) DeleteVaultUnlocker(w http.ResponseWriter, r *http.Request, id string) {
+	var request DeleteVaultUnlockerRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteVaultUnlocker(ctx, request.(DeleteVaultUnlockerRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteVaultUnlocker")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteVaultUnlockerResponseObject); ok {
+		if err := validResponse.VisitDeleteVaultUnlockerResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

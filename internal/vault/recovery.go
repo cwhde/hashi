@@ -91,7 +91,11 @@ func recoveryAAD(version int64) []byte {
 
 // WrapMaster seals a copy of this vault's master key under the recovery key.
 func (v *Vault) WrapMaster(recovery []byte) (db.UpsertRecoveryKeyParams, error) {
-	nonce, wrapped, err := seal(recoveryDerive(recovery, "hashi/recovery/wrap/v1"), v.master, recoveryAAD(v.version))
+	m, err := v.masterKey()
+	if err != nil {
+		return db.UpsertRecoveryKeyParams{}, err
+	}
+	nonce, wrapped, err := seal(recoveryDerive(recovery, "hashi/recovery/wrap/v1"), m, recoveryAAD(v.version))
 	if err != nil {
 		return db.UpsertRecoveryKeyParams{}, fmt.Errorf("wrap master key: %w", err)
 	}
@@ -114,4 +118,7 @@ func RecoverMaster(r db.RecoveryKey, recovery []byte) ([]byte, error) {
 }
 
 // MatchesMaster reports whether m is this vault's master key (the setup step 9 test unlock).
-func (v *Vault) MatchesMaster(m []byte) bool { return subtle.ConstantTimeCompare(m, v.master) == 1 }
+func (v *Vault) MatchesMaster(m []byte) bool {
+	own, err := v.masterKey()
+	return err == nil && subtle.ConstantTimeCompare(m, own) == 1
+}
