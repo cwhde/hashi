@@ -11,6 +11,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 	"git.juzo.io/juzo/hashi/internal/traefik"
+	"git.juzo.io/juzo/hashi/internal/usermw"
 )
 
 func serviceError(err error) error {
@@ -42,7 +43,8 @@ func serviceBody(s services.Service) gen.Service {
 		}
 		routes = append(routes, gen.ServiceRoute{Id: ptr(r.ID), Enabled: r.Enabled, Targets: ts,
 			Kind: routeKindBody(r.Kind), PathMatch: gen.ServiceRoutePathMatch(r.PathMatch), PathValue: r.PathValue, Priority: r.Priority,
-			RewriteMode: gen.ServiceRouteRewriteMode(r.RewriteMode), RewritePattern: r.RewritePattern, RewriteValue: r.RewriteValue})
+			RewriteMode: gen.ServiceRouteRewriteMode(r.RewriteMode), RewritePattern: r.RewritePattern, RewriteValue: r.RewriteValue,
+			Middlewares: ptr(names(r.Middlewares))})
 	}
 	return gen.Service{Id: s.ID, Name: s.Name, Slug: s.Slug, Kind: gen.ServiceKind(s.Kind), DomainMode: gen.ServiceDomainMode(s.DomainMode),
 		HostName: s.HostName, Enabled: s.Enabled, Origin: gen.ServiceOrigin(s.Origin), OwnerFeature: s.OwnerFeature,
@@ -50,7 +52,59 @@ func serviceBody(s services.Service) gen.Service {
 		TlsMinVersion: gen.ServiceTlsMinVersion(s.TLSMinVersion), AdvancedRoutes: s.AdvancedRoutes, Routes: routes,
 		DashboardVisible: s.DashboardVisible, MonitoringVisible: s.MonitoringVisible, AdguardRewrite: s.AdGuardRewrite,
 		EntryHostId: strPtr(s.EntryHostID), PublicPort: intPtr(s.PublicPort), ProxyProtocol: boolPtr(s.ProxyProtocol),
-		InvalidReason: s.InvalidReason, CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt}
+		InvalidReason: s.InvalidReason, CreatedAt: s.CreatedAt, UpdatedAt: s.UpdatedAt,
+		Traffic: trafficBody(s.Traffic), Middlewares: names(s.Middlewares)}
+}
+
+func names(ns []string) []string {
+	if ns == nil {
+		return []string{}
+	}
+	return ns
+}
+
+func headersBody(hs []services.Header) *[]gen.ServiceHeader {
+	if len(hs) == 0 {
+		return nil
+	}
+	out := make([]gen.ServiceHeader, 0, len(hs))
+	for _, h := range hs {
+		out = append(out, gen.ServiceHeader{Name: h.Name, Value: h.Value})
+	}
+	return &out
+}
+
+func trafficBody(t services.Traffic) gen.ServiceTraffic {
+	host := gen.ServiceTrafficHost(t.Host)
+	return gen.ServiceTraffic{Host: &host, HostValue: strPtr(t.HostValue), DropForwardedFor: boolPtr(t.DropForwardedFor),
+		DropRealIp: boolPtr(t.DropRealIP), RequestHeaders: headersBody(t.RequestHeaders), ResponseHeaders: headersBody(t.ResponseHeaders),
+		DialTimeout: intPtr(t.DialTimeout), ResponseHeaderTimeout: intPtr(t.ResponseHeaderTimeout), IdleTimeout: intPtr(t.IdleTimeout)}
+}
+
+func trafficFromBody(b gen.ServiceTraffic) services.Traffic {
+	n := func(p *int) int {
+		if p == nil {
+			return 0
+		}
+		return *p
+	}
+	hs := func(p *[]gen.ServiceHeader) []services.Header {
+		if p == nil {
+			return nil
+		}
+		var out []services.Header
+		for _, h := range *p {
+			out = append(out, services.Header{Name: h.Name, Value: h.Value})
+		}
+		return out
+	}
+	t := services.Traffic{HostValue: str(b.HostValue), DropForwardedFor: b.DropForwardedFor != nil && *b.DropForwardedFor,
+		DropRealIP: b.DropRealIp != nil && *b.DropRealIp, RequestHeaders: hs(b.RequestHeaders), ResponseHeaders: hs(b.ResponseHeaders),
+		DialTimeout: n(b.DialTimeout), ResponseHeaderTimeout: n(b.ResponseHeaderTimeout), IdleTimeout: n(b.IdleTimeout)}
+	if b.Host != nil {
+		t.Host = string(*b.Host)
+	}
+	return t
 }
 
 func intPtr(n int) *int {
@@ -94,10 +148,19 @@ func serviceFromInput(in gen.ServiceInput) services.Service {
 	if in.TlsMinVersion != nil {
 		s.TLSMinVersion = string(*in.TlsMinVersion)
 	}
+	if in.Traffic != nil {
+		s.Traffic = trafficFromBody(*in.Traffic)
+	}
+	if in.Middlewares != nil {
+		s.Middlewares = *in.Middlewares
+	}
 	if in.Routes != nil {
 		for _, r := range *in.Routes {
 			rt := services.Route{ID: str(r.Id), Enabled: r.Enabled, Kind: routeKind(r.Kind), PathMatch: string(r.PathMatch), PathValue: r.PathValue,
 				Priority: r.Priority, RewriteMode: string(r.RewriteMode), RewritePattern: r.RewritePattern, RewriteValue: r.RewriteValue}
+			if r.Middlewares != nil {
+				rt.Middlewares = *r.Middlewares
+			}
 			for _, t := range r.Targets {
 				rt.Targets = append(rt.Targets, target(t))
 			}
@@ -243,6 +306,9 @@ func (s *Server) UpdateService(ctx context.Context, req gen.UpdateServiceRequest
 		return nil, err
 	}
 	sv, plans, pending, err := s.changeService(ctx, "service.updated", func(q *db.Queries) (services.Service, error) {
+		if err := keepAbsent(ctx, q, req.Body, &in); err != nil {
+			return services.Service{}, err
+		}
 		if _, err := services.Update(ctx, q, in, s.now()); err != nil {
 			return services.Service{}, err
 		}
@@ -315,7 +381,18 @@ func (s *Server) GetServiceEffective(ctx context.Context, req gen.GetServiceEffe
 	if err := traefik.MarkFailClosed(ctx, s.Store.R, one); err != nil {
 		return nil, err
 	}
-	b, err := traefik.EffectiveYAML(one[0])
+	every, err := settings.Get[settings.TraefikMiddlewares](ctx, s.Store.R)
+	if err != nil {
+		return nil, err
+	}
+	_, userFile, err := usermw.Load(ctx, s.Store.R)
+	if err != nil {
+		return nil, err
+	}
+	if services.CheckMiddlewares(one, userFile, every.EveryService); one[0].InvalidReason != "" {
+		return nil, conflict("This service is not rendered: " + one[0].InvalidReason)
+	}
+	b, err := traefik.EffectiveYAML(one[0], every.EveryService)
 	if err != nil {
 		return nil, err
 	}
@@ -338,6 +415,43 @@ func (s *Server) edgeChanged(ctx context.Context) {
 	if err := s.Edge.Rebuild(ctx); err != nil {
 		s.Log.Warn("forward auth after a service change", "err", err)
 	}
+}
+
+// keepAbsent keeps the traffic options and middleware lists a save leaves out (older clients, other forms), so a PUT
+// that does not know them never clears them.
+func keepAbsent(ctx context.Context, q *db.Queries, body *gen.ServiceInput, in *services.Service) error {
+	absent := body.Traffic == nil || body.Middlewares == nil
+	if body.Routes != nil {
+		for _, r := range *body.Routes {
+			absent = absent || r.Middlewares == nil
+		}
+	}
+	if !absent {
+		return nil
+	}
+	cur, err := services.Get(ctx, q, in.ID)
+	if err != nil {
+		return err
+	}
+	if body.Traffic == nil {
+		in.Traffic = cur.Traffic
+	}
+	if body.Middlewares == nil {
+		in.Middlewares = cur.Middlewares
+	}
+	if body.Routes != nil {
+		for i, r := range *body.Routes {
+			if r.Middlewares != nil || r.Id == nil {
+				continue
+			}
+			for _, c := range cur.Routes {
+				if c.ID == *r.Id {
+					in.Routes[i].Middlewares = c.Middlewares
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func routeKindBody(k string) *gen.ServiceRouteKind {

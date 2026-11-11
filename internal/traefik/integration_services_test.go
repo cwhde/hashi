@@ -39,12 +39,9 @@ func buildUpstream(t *testing.T) []byte {
 	return b
 }
 
-// TestIntegrationServices is 04 §9's service integration test: the pinned Traefik loads a rendered services file with
-// every HTTP kind and rewrite mode, its API reports every object enabled, and requests through it reach stub HTTP,
-// H2C and HTTPS upstreams with the rewritten path; TCP (with and without PROXY protocol) and UDP streams reach their
-// echo upstreams through their own entry points. Requests to Hashi and forward-auth calls carry the edge token
-// (a client cannot forge it); other upstreams never see it.
-func TestIntegrationServices(t *testing.T) {
+// edgeHost starts the pinned Traefik image with sshd, logs in and starts the stub upstream on it.
+func edgeHost(t *testing.T) *sshx.Client {
+	t.Helper()
 	traefik.VerifyWait = 20 * time.Second
 	bin := buildUpstream(t)
 	priv, line, err := sshx.GenerateKey("hashi@itest")
@@ -67,13 +64,25 @@ func TestIntegrationServices(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = h.Close() }()
+	t.Cleanup(func() { _ = h.Close() })
 	if _, err := h.WriteFileAtomic("/usr/local/bin/upstream", bin, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := h.Run(ctx, "setsid /usr/local/bin/upstream </dev/null >/var/log/upstream.out 2>&1 &", nil); err != nil {
 		t.Fatal(err)
 	}
+
+	return h
+}
+
+// TestIntegrationServices is 04 §9's service integration test: the pinned Traefik loads a rendered services file with
+// every HTTP kind and rewrite mode, its API reports every object enabled, and requests through it reach stub HTTP,
+// H2C and HTTPS upstreams with the rewritten path; TCP (with and without PROXY protocol) and UDP streams reach their
+// echo upstreams through their own entry points. Requests to Hashi and forward-auth calls carry the edge token
+// (a client cannot forge it); other upstreams never see it.
+func TestIntegrationServices(t *testing.T) {
+	h := edgeHost(t)
+	ctx := context.Background()
 
 	target := func(port int) services.Target { return services.Target{Address: "127.0.0.1", Port: port} }
 	route := func(id string, prio int, match, value, mode, pattern, repl string) services.Route {

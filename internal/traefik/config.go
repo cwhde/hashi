@@ -134,8 +134,16 @@ type httpConfig struct {
 
 // serversTransport is how Traefik talks TLS to an https upstream (04 §1 kind semantics).
 type serversTransport struct {
-	ServerName         string `yaml:"serverName,omitempty"`
-	InsecureSkipVerify bool   `yaml:"insecureSkipVerify,omitempty"`
+	ServerName         string              `yaml:"serverName,omitempty"`
+	InsecureSkipVerify bool                `yaml:"insecureSkipVerify,omitempty"`
+	ForwardingTimeouts *forwardingTimeouts `yaml:"forwardingTimeouts,omitempty"`
+}
+
+// forwardingTimeouts are Go durations (testdata/contracts/traefik/traffic/dynamic_capture.yml).
+type forwardingTimeouts struct {
+	DialTimeout           string `yaml:"dialTimeout,omitempty"`
+	ResponseHeaderTimeout string `yaml:"responseHeaderTimeout,omitempty"`
+	IdleConnTimeout       string `yaml:"idleConnTimeout,omitempty"`
 }
 
 type router struct {
@@ -175,11 +183,13 @@ type replacePathRegex struct {
 }
 
 type headers struct {
-	CustomRequestHeaders map[string]string `yaml:"customRequestHeaders,omitempty"`
-	STSSeconds           int               `yaml:"stsSeconds,omitempty"`
-	STSIncludeSubdomains bool              `yaml:"stsIncludeSubdomains,omitempty"`
-	ContentTypeNosniff   bool              `yaml:"contentTypeNosniff,omitempty"`
-	ReferrerPolicy       string            `yaml:"referrerPolicy,omitempty"`
+	// An empty value removes the header (testdata/contracts/traefik/traffic/ finding 3).
+	CustomRequestHeaders  map[string]string `yaml:"customRequestHeaders,omitempty"`
+	CustomResponseHeaders map[string]string `yaml:"customResponseHeaders,omitempty"`
+	STSSeconds            int               `yaml:"stsSeconds,omitempty"`
+	STSIncludeSubdomains  bool              `yaml:"stsIncludeSubdomains,omitempty"`
+	ContentTypeNosniff    bool              `yaml:"contentTypeNosniff,omitempty"`
+	ReferrerPolicy        string            `yaml:"referrerPolicy,omitempty"`
 }
 
 type forwardAuth struct {
@@ -194,6 +204,8 @@ type service struct {
 }
 
 type loadBalancer struct {
+	// PassHostHeader false sends the server URL's host instead of the public name (traffic/ finding 1).
+	PassHostHeader   *bool        `yaml:"passHostHeader,omitempty"`
 	Servers          []server     `yaml:"servers"`
 	HealthCheck      *healthCheck `yaml:"healthCheck,omitempty"`
 	ServersTransport string       `yaml:"serversTransport,omitempty"`
@@ -227,4 +239,11 @@ type tlsOption struct {
 type certFile struct {
 	CertFile string `yaml:"certFile"`
 	KeyFile  string `yaml:"keyFile"`
+}
+
+// userFile is 30-user-middlewares.yml: the user's middlewares as parsed by usermw, marshalled back (04 §4).
+type userFile struct {
+	HTTP struct {
+		Middlewares map[string]any `yaml:"middlewares"`
+	} `yaml:"http"`
 }

@@ -170,6 +170,7 @@ func TestRenderGolden(t *testing.T) {
 	want := []string{
 		"cert /etc/hashi/traefik/certs/example.com.crt", "cert /etc/hashi/traefik/certs/example.com.key",
 		"dynamic /etc/hashi/traefik/dynamic/hashi-certs.yaml", "dynamic /etc/hashi/traefik/dynamic/00-hashi-core.yml",
+		"dynamic /etc/hashi/traefik/dynamic/30-user-middlewares.yml",
 		"dynamic /etc/hashi/traefik/dynamic/10-hashi-http-services.yml", "dynamic /etc/hashi/traefik/dynamic/20-hashi-stream-services.yml",
 		"dynamic /etc/hashi/traefik/dynamic/40-hashi-security.yml", "dynamic /etc/hashi/traefik/dynamic/90-hashi-health.yml",
 		"system /etc/logrotate.d/hashi-traefik", "static /etc/hashi/traefik/traefik.yaml",
@@ -385,7 +386,7 @@ func TestRouteKindOverridesService(t *testing.T) {
 			{ID: "A", Enabled: true, Kind: services.KindH2C, PathMatch: services.MatchPrefix, PathValue: "/m", Priority: 1, Targets: []services.Target{{Address: "192.0.2.1", Port: 80}}},
 			{ID: "B", Enabled: true, PathMatch: services.MatchPrefix, PathValue: "/w", Priority: 2, Targets: []services.Target{{Address: "192.0.2.1", Port: 80}}},
 		}}
-	b, err := EffectiveYAML(s)
+	b, err := EffectiveYAML(s, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

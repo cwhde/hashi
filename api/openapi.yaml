@@ -2134,6 +2134,44 @@ paths:
           description: One plan per host that needed changes
           content: { application/json: { schema: { $ref: "#/components/schemas/ServicePlans" } } }
         default: { $ref: "#/components/responses/Problem" }
+  /api/traefik/user-middlewares:
+    get:
+      operationId: getUserMiddlewares
+      summary: The user middleware file 30-user-middlewares.yml, the middlewares it defines with where each is used, and the middlewares on every service (04 §4, 09 §2)
+      tags: [traefik]
+      x-hashi-scopes: [services.manage]
+      responses:
+        "200":
+          description: The file as typed and what it defines
+          content: { application/json: { schema: { $ref: "#/components/schemas/UserMiddlewares" } } }
+        default: { $ref: "#/components/responses/Problem" }
+    put:
+      operationId: putUserMiddlewares
+      summary: Check and save the file and the middlewares on every service, then plan every Traefik host. A file that does not pass the strict check is refused (422) and the stored one stays; when Traefik refuses it during apply, the previous file is put back and planned again (422)
+      tags: [traefik]
+      x-hashi-scopes: [admin.write]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/UserMiddlewaresInput" } } }
+      responses:
+        "200":
+          description: Saved, with the Traefik plans it caused
+          content: { application/json: { schema: { $ref: "#/components/schemas/UserMiddlewaresSaveResult" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/traefik/user-middlewares/check:
+    post:
+      operationId: checkUserMiddlewares
+      summary: Check a file without saving it (the editor's live check)
+      tags: [traefik]
+      x-hashi-scopes: [services.manage]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/UserMiddlewaresCheckInput" } } }
+      responses:
+        "200":
+          description: The middlewares it defines, or the first problem with its line
+          content: { application/json: { schema: { $ref: "#/components/schemas/UserMiddlewaresCheck" } } }
+        default: { $ref: "#/components/responses/Problem" }
   /api/firewall/hosts:
     get:
       operationId: listFirewallHosts
@@ -4437,6 +4475,7 @@ components:
         rewrite_mode: { type: string, enum: [none, replace_prefix, exact, regex, strip_prefix] }
         rewrite_pattern: { type: string, description: "regex rewrite: the pattern matched against the path" }
         rewrite_value: { type: string, description: "replace_prefix: new prefix; exact: new path; regex: replacement ($1…)" }
+        middlewares: { type: array, items: { type: string }, maxItems: 20, description: "Names from the user middleware file, after the service's (04 §1.1a). On a save, absent keeps the route's current list" }
     ServiceInput:
       type: object
       required: [name, slug, kind, domain_mode, host_name, target]
@@ -4459,11 +4498,13 @@ components:
         dashboard_visible: { type: boolean }
         monitoring_visible: { type: boolean }
         adguard_rewrite: { type: boolean }
+        traffic: { $ref: "#/components/schemas/ServiceTraffic", description: "What the upstream receives (04 §1.1a); absent keeps the current options" }
+        middlewares: { type: array, items: { type: string }, maxItems: 20, description: "Names from the user middleware file; absent keeps the current list" }
     Service:
       type: object
       required: [id, name, slug, kind, domain_mode, host_name, enabled, origin, owner_feature, target, tls_skip_verify,
         tls_server_name, tls_min_version, advanced_routes, routes, dashboard_visible, monitoring_visible, adguard_rewrite,
-        invalid_reason, created_at, updated_at]
+        invalid_reason, created_at, updated_at, traffic, middlewares]
       properties:
         id: { type: string }
         name: { type: string }
@@ -4489,6 +4530,8 @@ components:
         invalid_reason: { type: string, description: "Why the service is left out of the rendered files; empty when valid" }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
+        traffic: { $ref: "#/components/schemas/ServiceTraffic" }
+        middlewares: { type: array, items: { type: string } }
     ServiceList:
       type: object
       required: [services]
@@ -4546,6 +4589,76 @@ components:
       required: [yaml]
       properties:
         yaml: { type: string }
+    ServiceHeader:
+      type: object
+      required: [name, value]
+      properties:
+        name: { type: string, description: "Header name (letters, digits, -); not Host, X-Forwarded-For, X-Real-IP or X-Hashi-* on requests" }
+        value: { type: string, description: "Empty removes the header" }
+    ServiceTraffic:
+      type: object
+      description: What an HTTP service's upstream receives (04 §1.1a). Absent or zero fields keep Traefik's behaviour.
+      properties:
+        host: { type: string, enum: ["", upstream, custom], description: "Host header: empty = the public name, upstream = the target address as written with its port, custom = host_value" }
+        host_value: { type: string }
+        drop_forwarded_for: { type: boolean, description: "Remove X-Forwarded-For" }
+        drop_real_ip: { type: boolean, description: "Remove X-Real-IP" }
+        request_headers: { type: array, maxItems: 20, items: { $ref: "#/components/schemas/ServiceHeader" } }
+        response_headers: { type: array, maxItems: 20, items: { $ref: "#/components/schemas/ServiceHeader" } }
+        dial_timeout: { type: integer, minimum: 0, maximum: 300, description: "Seconds to connect; 0 = Traefik's default" }
+        response_header_timeout: { type: integer, minimum: 0, maximum: 3600, description: "Seconds to wait for the answer's headers (then 504); 0 = no limit" }
+        idle_timeout: { type: integer, minimum: 0, maximum: 3600, description: "Seconds an idle upstream connection is kept; 0 = Traefik's default" }
+    UserMiddlewareUse:
+      type: object
+      required: [service_id, service_name]
+      properties:
+        service_id: { type: string }
+        service_name: { type: string }
+        route_id: { type: string, description: "Set when a route names it" }
+        route_path: { type: string }
+    UserMiddleware:
+      type: object
+      required: [name, type, line, used_by, every_service]
+      properties:
+        name: { type: string }
+        type: { type: string, description: "Traefik middleware type, e.g. headers" }
+        line: { type: integer, description: "Line of its name in the file" }
+        used_by: { type: array, items: { $ref: "#/components/schemas/UserMiddlewareUse" } }
+        every_service: { type: boolean, description: "On every user HTTP service (Traefik settings)" }
+    UserMiddlewares:
+      type: object
+      required: [yaml, middlewares, every_service]
+      properties:
+        yaml: { type: string, description: "The file as typed, comments included" }
+        middlewares: { type: array, items: { $ref: "#/components/schemas/UserMiddleware" } }
+        every_service: { type: array, items: { type: string }, description: "Names added to every user HTTP service after Hashi's defaults" }
+        updated_at: { type: string, format: date-time }
+    UserMiddlewaresInput:
+      type: object
+      required: [yaml, every_service]
+      properties:
+        yaml: { type: string, maxLength: 65536 }
+        every_service: { type: array, maxItems: 20, items: { type: string } }
+    UserMiddlewaresSaveResult:
+      type: object
+      required: [file, plans, certificate_pending]
+      properties:
+        file: { $ref: "#/components/schemas/UserMiddlewares" }
+        plans: { type: array, items: { $ref: "#/components/schemas/SyncPlan" } }
+        certificate_pending: { type: boolean }
+    UserMiddlewaresCheckInput:
+      type: object
+      required: [yaml]
+      properties:
+        yaml: { type: string, maxLength: 65536 }
+    UserMiddlewaresCheck:
+      type: object
+      required: [ok, middlewares]
+      properties:
+        ok: { type: boolean }
+        error: { type: string, description: "The first problem; absent when ok" }
+        line: { type: integer, description: "1-based line of the problem; absent or 0 when it has no single place" }
+        middlewares: { type: array, items: { $ref: "#/components/schemas/UserMiddleware" }, description: "What the file defines, with where each is used now" }
     SetupSystemService:
       type: object
       required: [service, state]

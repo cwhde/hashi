@@ -2,7 +2,9 @@ package traefik
 
 import (
 	"regexp"
+	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"git.juzo.io/juzo/hashi/internal/services"
@@ -26,8 +28,9 @@ const (
 )
 
 // httpServices renders the routers, middlewares, services and transports of every renderable service (04 §4,
-// 10-hashi-http-services.yml). Disabled and invalid services are absent (04 §7).
-func httpServices(svcs []services.Service, edge bool) dynamicConfig {
+// 10-hashi-http-services.yml). Disabled and invalid services are absent (04 §7). every are the middlewares on every
+// user service (Traefik settings); the caller has checked that the user file defines every name (CheckMiddlewares).
+func httpServices(svcs []services.Service, edge bool, every []string) dynamicConfig {
 	h := &httpConfig{Routers: map[string]router{}, Middlewares: map[string]middleware{}, Services: map[string]service{},
 		ServersTransports: map[string]serversTransport{}}
 	tlsOpts := map[string]tlsOption{}
@@ -46,19 +49,30 @@ func httpServices(svcs []services.Service, edge bool) dynamicConfig {
 			rt.Options, tlsOpts[tlsOptions13] = tlsOptions13, tlsOption{MinVersion: services.TLS13}
 		}
 		transport := ""
-		if s.Kind == services.KindHTTPS && (s.TLSSkipVerify || s.TLSServerName != "") {
+		if st, ok := transportFor(s); ok {
 			transport = base
-			h.ServersTransports[transport] = serversTransport{ServerName: s.TLSServerName, InsecureSkipVerify: s.TLSSkipVerify}
+			h.ServersTransports[transport] = st
 		}
+		// Hashi's defaults, the traffic headers, then the user's middlewares (04 §1.1a): every user middleware runs
+		// after forward auth.
+		svcChain := chain(s, edge)
+		if mw, ok := trafficHeaders(s.Traffic); ok {
+			h.Middlewares[base+"-traffic"] = mw
+			svcChain = append(svcChain, base+"-traffic")
+		}
+		if !s.System() {
+			svcChain = appendNew(appendNew(svcChain, every...), s.Middlewares...)
+		}
+		pass := passHost(s.Traffic)
 		host := "Host(`" + s.HostName + "`)"
 		add := func(name string, r router) { h.Routers[name] = r }
-		add(base, router{Rule: host, EntryPoints: []string{"websecure"}, Middlewares: chain(s, edge), Service: base,
+		add(base, router{Rule: host, EntryPoints: []string{"websecure"}, Middlewares: svcChain, Service: base,
 			Priority: mainPriority, TLS: rt})
 		targets := s.Targets
 		if targets == nil {
 			targets = []services.Target{s.Target}
 		}
-		h.Services[base] = service{LoadBalancer: balancer(s.Kind, targets, transport)}
+		h.Services[base] = service{LoadBalancer: balancer(s.Kind, targets, transport, pass)}
 		if !s.AdvancedRoutes {
 			continue
 		}
@@ -67,7 +81,7 @@ func httpServices(svcs []services.Service, edge bool) dynamicConfig {
 				continue
 			}
 			name := base + "-r-" + strings.ToLower(r.ID)
-			mws := chain(s, edge)
+			mws := appendNew(slices.Clone(svcChain), r.Middlewares...)
 			if edge && s.IsChallenge() && r.PathValue == services.ChallengePath+"/" {
 				// Hashi's half of the challenge service needs the client address, so it gets the edge token; Cap's half
 				// (the main router) never sees the token.
@@ -83,7 +97,7 @@ func httpServices(svcs []services.Service, edge bool) dynamicConfig {
 			if r.Kind != "" {
 				kind = r.Kind // one name can mix them: gRPC needs h2c next to plain HTTP (04 §1.1)
 			}
-			h.Services[name] = service{LoadBalancer: balancer(kind, r.Targets, transport)}
+			h.Services[name] = service{LoadBalancer: balancer(kind, r.Targets, transport, pass)}
 		}
 	}
 	c := dynamicConfig{HTTP: h}
@@ -107,13 +121,85 @@ func chain(s services.Service, edge bool) []string {
 	return append(out, MiddlewareHeaders, MiddlewareCompress, auth)
 }
 
-func balancer(kind string, targets []services.Target, transport string) *loadBalancer {
+// appendNew appends the names not listed yet: a middleware named on every service and on the service runs once.
+func appendNew(list []string, names ...string) []string {
+	for _, n := range names {
+		if !slices.Contains(list, n) {
+			list = append(list, n)
+		}
+	}
+	return list
+}
+
+// transportFor is a service's serversTransport: upstream TLS options (https only) and forwarding timeouts.
+func transportFor(s services.Service) (serversTransport, bool) {
+	var st serversTransport
+	if s.Kind == services.KindHTTPS {
+		st.ServerName, st.InsecureSkipVerify = s.TLSServerName, s.TLSSkipVerify
+	}
+	if t := s.Traffic; t.Timeouts() {
+		sec := func(n int) string {
+			if n == 0 {
+				return ""
+			}
+			return strconv.Itoa(n) + "s"
+		}
+		st.ForwardingTimeouts = &forwardingTimeouts{DialTimeout: sec(t.DialTimeout),
+			ResponseHeaderTimeout: sec(t.ResponseHeaderTimeout), IdleConnTimeout: sec(t.IdleTimeout)}
+	}
+	return st, st != (serversTransport{})
+}
+
+// trafficHeaders is the service's headers middleware: Host, the client address headers removed, extra headers.
+// Traefik's own canonical names are used for the address headers (traffic/requests.txt).
+func trafficHeaders(t services.Traffic) (middleware, bool) {
+	if !t.Headers() {
+		return middleware{}, false
+	}
+	hd := &headers{}
+	req := func(k, v string) {
+		if hd.CustomRequestHeaders == nil {
+			hd.CustomRequestHeaders = map[string]string{}
+		}
+		hd.CustomRequestHeaders[k] = v
+	}
+	if t.Host == services.HostCustom {
+		req("Host", t.HostValue)
+	}
+	if t.DropForwardedFor {
+		req("X-Forwarded-For", "")
+	}
+	if t.DropRealIP {
+		req("X-Real-Ip", "")
+	}
+	for _, x := range t.RequestHeaders {
+		req(x.Name, x.Value)
+	}
+	for _, x := range t.ResponseHeaders {
+		if hd.CustomResponseHeaders == nil {
+			hd.CustomResponseHeaders = map[string]string{}
+		}
+		hd.CustomResponseHeaders[x.Name] = x.Value
+	}
+	return middleware{Headers: hd}, true
+}
+
+// passHost is nil (Traefik's default: the public name) unless the upstream address is sent as Host.
+func passHost(t services.Traffic) *bool {
+	if t.Host != services.HostUpstream {
+		return nil
+	}
+	f := false
+	return &f
+}
+
+func balancer(kind string, targets []services.Target, transport string, pass *bool) *loadBalancer {
 	scheme := map[string]string{services.KindHTTP: "http", services.KindHTTPS: "https", services.KindH2C: "h2c"}[kind]
 	weighted := false
 	for _, t := range targets {
 		weighted = weighted || t.Weight > 0
 	}
-	lb := &loadBalancer{ServersTransport: transport}
+	lb := &loadBalancer{ServersTransport: transport, PassHostHeader: pass}
 	for _, t := range targets {
 		srv := server{URL: scheme + "://" + t.HostPort()}
 		if weighted {
@@ -159,11 +245,12 @@ func edgeMiddleware(token string) middleware {
 }
 
 // EffectiveYAML is the part of 10-hashi-http-services.yml (20-hashi-stream-services.yml for a stream) one service produces (rendered config preview, 04 §8), as
-// it would render while enabled. The edge token itself lives in the security file and never appears here.
-func EffectiveYAML(s services.Service) ([]byte, error) {
+// it would render while enabled, with every the middlewares on every service. The edge token itself lives in the
+// security file and never appears here.
+func EffectiveYAML(s services.Service, every []string) ([]byte, error) {
 	s.Enabled, s.InvalidReason = true, ""
 	if s.Stream() {
 		return marshal(streamServices([]services.Service{s}))
 	}
-	return marshal(httpServices([]services.Service{s}, true))
+	return marshal(httpServices([]services.Service{s}, true, every))
 }

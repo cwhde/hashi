@@ -53,7 +53,7 @@ func TestInvariant_21_UpstreamKeepsLastGood(t *testing.T) {
 		if got[0].InvalidReason != "" {
 			return got[0], ""
 		}
-		y, err := traefik.EffectiveYAML(got[0])
+		y, err := traefik.EffectiveYAML(got[0], nil)
 		if err != nil {
 			t.Fatal(err)
 		}

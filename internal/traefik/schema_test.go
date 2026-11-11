@@ -50,6 +50,9 @@ func TestDynamicFilesMatchTraefikSchema(t *testing.T) {
 		if err := yaml.Unmarshal(file.Data, &v); err != nil {
 			t.Fatalf("%s: %v", file.Path, err)
 		}
+		if v == nil {
+			continue // comments only: Traefik loads it as empty (contracts README finding 7)
+		}
 		// YAML maps decode as map[string]any; a JSON round trip gives the validator plain JSON values.
 		b, err := json.Marshal(v)
 		if err != nil {
