@@ -95,15 +95,16 @@ func TestPublicPageSettings(t *testing.T) {
 	p := newPublicToggles()
 	p.update(settings.Appearance{Theme: "graphite", PublicDashboardEnabled: false, PublicStatusEnabled: true})
 	srv := &httpapi.Server{Store: storetest.New(t), Log: slog.New(slog.DiscardHandler)}
-	for page, want := range map[string]int{"apps": 404, "status": 200} {
+	for page, off := range map[string]bool{"apps": true, "status": false} {
 		enabled := &p.apps
 		if page == "status" {
 			enabled = &p.status
 		}
 		rec := httptest.NewRecorder()
 		publicMux(srv, page, enabled).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
-		if rec.Code != want {
-			t.Errorf("%s: %d, want %d", page, rec.Code, want)
+		// Off is 404; on serves the page (503 where the web UI is not built, as in CI's check job).
+		if got := rec.Code == http.StatusNotFound; got != off {
+			t.Errorf("%s: %d, switched off %v", page, rec.Code, off)
 		}
 	}
 }
