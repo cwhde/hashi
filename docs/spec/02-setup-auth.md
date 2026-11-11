@@ -220,6 +220,26 @@ writes the recovered master key to the configured secret path (or prints it for 
 
 Setup explains the trade-off: strict mode protects secrets against a stolen disk/DB/backup but cannot reconcile unattended after a restart.
 
+How strict mode works (S12; the owner, 2026-11-11: no automation may break that doesn't need a secret):
+
+- **Switching** (Settings → Account → Vault, fresh passkey, `secrets.manage` + `settings.manage`): to strict needs an
+  unlocked vault and a confirmed recovery key; from the next start `HASHI_MASTER_KEY_FILE` is ignored (a warning says to
+  remove it). Back to service mode needs the file to hold this vault's key; the passkey unlockers and kept keys are
+  removed. `hashi vault rotate` works in service mode only.
+- **Kept while locked** (`vault_kept`, in the clear): the operational keys, the edge session cookie key and the edge
+  token. So Pulse heartbeats, admin sign-in and CSRF, CAPTCHA clearances, signed-in visitors of protected apps and
+  trusted forwarded addresses keep working. None of them opens a stored secret; a stolen disk could forge an edge
+  session or a CAPTCHA clearance, which is the accepted cost.
+- **Unlock** (signed-in admin, `secrets.manage`): with the recovery key typed into the UI, or with a passkey that has an
+  unlocker. An unlocker is made while unlocked: an assertion evaluates the passkey's PRF with a random salt; the master
+  key is wrapped with `HKDF-SHA256(PRF output, "hashi/strict/prf/v1")` (AES-256-GCM); the PRF output is never stored.
+  Passkey registration asks for PRF support, so security keys create the secret it needs. Unlock attempts are audited.
+- **Jobs while locked:** session cleanup, the nightly backup, monitoring checks, rollups and retention, the edge refresh
+  and the abuse sweep keep running; every other job stays due and runs right after the unlock (queued notifications
+  are sent then). Bans are not pushed to firewall hosts and Traefik access logs are not read while locked (both need
+  the SSH key); both resume after the unlock.
+- An API call that needs a secret while locked answers 423 `/problems/vault-locked`.
+
 **Changed from V2:** V2 wrapped an "admin vault" with PRF output for every install while simultaneously requiring
 unattended decryption via a Docker secret — so PRF protected nothing the service key couldn't already decrypt, and the
 PRF path never worked. Now: one master key, one clear default, and the PRF/passkey-only
@@ -228,7 +248,8 @@ protection survives as the explicit opt-in strict mode (delivered in slice S12).
 ### 5.5 Locked behaviour
 
 While secrets are unavailable: public pages render last known state; monitors needing no secrets continue; provider
-syncs pause; the last applied firewall state stays active on hosts; the UI shows the lock state on every page header.
+syncs pause; the last applied firewall state stays active on hosts; the UI shows the lock state in every page header
+and a banner with an Unlock button on every page.
 
 ## 6. Session tests and acceptance (verbatim from the V2 session addendum)
 
