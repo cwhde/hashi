@@ -5,6 +5,43 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
+**S11 — Scripts, custom themes, settings completeness** · status: **planning** (started 2026-11-10). Gate: 11-delivery.md §3
+row S11: scheduled script runs on real hosts with history; custom theme editor works; visual tests pass in all four
+themes; every setting has a consumer test. Spec: 09, 10-ui §2. After S11: the bug hunt round, then S12.
+
+Exists already: built-in themes (switch, `data-theme` palette), settings categories General, Security, Appearance
+(theme, public pages), Agent DNS, Pulse, Edge SSO, GeoIP, Engine, CAPTCHA. Mocks: `design/(app)/scripts`, `design/(app)/settings`.
+Missing: everything for scripts, custom themes, categories Monitoring, Dashboard, DNS, Traefik, Firewall, Notifications,
+and the visual tests.
+
+Contracts needed (dev target 108 only, writes allowed there): `systemd-analyze calendar` output, a timer + service unit
+written by hand, `systemctl list-timers --output=json`, `timeout` and exit codes, file modes under `/opt/hashi/scripts/`.
+Owner's questions open (see Agenda).
+
+PR A, scripts (09 §1):
+- [ ] Contracts on 108 (above); cron → `OnCalendar` conversion with a round-trip test against the captured
+  `systemd-analyze calendar` answers
+- [ ] Tables: scripts, script targets, script env (secret values in the vault), runs with capped, redacted output
+- [ ] API `/api/scripts` CRUD, `plan|apply|run`, runs list and one run; save, apply and run need a fresh passkey and `scripts.manage`
+- [ ] Host sync over SSH: scripts at `/opt/hashi/scripts/<slug>.sh` (root, 0750), `manifest.json` with SHA-256, env file
+  0600, wrapper `run.sh <slug>` (env, timeout, spool), systemd timer per scheduled script; plan shows the diff per host
+- [ ] Manual run over SSH (timeout end to end, 1 MB cap, secret values replaced); a job collects the spool of scheduled
+  runs into the same history; locked vault → no run
+- [ ] UI from the mock: list with last runs, editor (CodeMirror shell), schedule with plain-language text, targets,
+  environment, run history; phone width; e2e
+- Local proof: integration test against a real sshd + systemd container or 108; then the gate run on 108
+
+PR B, themes and settings (10-ui §2, 09 §2):
+- [ ] Custom theme: editor (canvas, surface, text, muted text, border, accent, optional chart colours, roundness,
+  transparency), live preview without saving, reset to a built-in, import/export JSON, contrast check refuses unreadable
+  themes (server and UI), invalid stored data falls back to Graphite
+- [ ] Missing settings categories with a consumer each (Monitoring defaults, Dashboard, DNS, Traefik, Firewall,
+  Notifications, Appearance extras); a test per setting that it changes behaviour; settings UI never saves what it failed to load
+- [ ] Visual tests: Playwright screenshots of the main pages in all four themes, baselines in the repo
+- [ ] Spec fixes where a listed setting has no meaning any more (own `docs(spec):` commit, with the reason)
+
+## Previous slice
+
 **S10 — Abuse engine, WAF, CAPTCHA, feeds** · status: **done** (gate passed 2026-11-03 on `v0.10.0-beta.8`; review fixes in `v0.10.0-beta.9`). Gate: 11-delivery.md §3 row S10. Next: S11.
 Order after S11 (the owner, 2026-11-10): a large bug hunt and fix round over `docs/bugs.md` and the whole product, then S12 and `v1.0.0`.
 Scope: 06 §3, §5–6, §8–11, §13 (Security dashboard, Engine), dynamic sets, host link, kernel meters on.
@@ -319,8 +356,6 @@ Decisions made in PR B:
   same allow set lost to a /24 block); a carved /16 block counted as low risk; the last host was deletable after setup
   (invariant 11); bindings, host access and edits of firewall-bound sets lacked the passkey confirmation (02 §2).
   Added: hourly `firewall.reconcile`, service changes re-plan firewall hosts.
-
-## Previous slice
 
 **S5 — HTTP services** · status: **done** 2026-10-29, deployed `3c4504e` (#34, #35 + gate fixes), prod-proof passed. Next: S6.
 
@@ -745,6 +780,12 @@ Decisions made in S0:
 - `make dev`, `make image`, `make deploy` exist now; `make test-integration`, `make test-e2e`, `make contract-capture` arrive with the slices that need them.
 
 ## Agenda with the user
+
+- Open for S11 (2026-11-10): where the script gate runs. The only managed firewall hosts are the production Proxmox
+  host and dev target 108; a script there runs as root. Proposal: everything on 108, then one harmless read-only
+  scheduled script (e.g. disk usage) on the production host for the gate.
+- Open for S11: settings in 09 §2 that lost their meaning since Hashi installs Traefik itself (Traefik config paths,
+  pinned version display, middleware editor options). Proposal: drop them from the spec instead of building dummies.
 
 - Later, not yet (user, 2026-11-02): design a workflow for changing Hashi's admin domain (another subdomain under the
   same root domain) and its internal address. Today a change re-runs setup steps 7 and 8, and Traefik is updated by its
