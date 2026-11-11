@@ -297,3 +297,59 @@ func TestEngineRunsScriptsPlans(t *testing.T) {
 		t.Fatal("not on the host")
 	}
 }
+
+// Review of S11: every run is audited (09 §1, invariant 17), scheduled ones too; and the runner's name is refused.
+func TestScheduledRunsAreAuditedAndRunIsReserved(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t)
+	if _, err := f.s.Create(ctx, "admin", "", Input{Name: "Run", Body: "#!/bin/sh\n", Enabled: true, TimeoutSeconds: 5, AllHosts: true}); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("a script named Run: %v", err)
+	}
+	sc, err := f.s.Create(ctx, "admin", "", Input{Name: "tick", Body: "#!/bin/sh\n", Enabled: true, Schedule: "* * * * *", TimeoutSeconds: 5, AllHosts: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.apply(t)
+	name := Spool + "/tick.1794454200.7"
+	f.host.Put(name+".out", []byte("x\n"))
+	f.host.Put(name+".done", []byte("exit=1\nstart=1794454200\nend=1794454201\nsize=2\n"))
+	if _, err := f.s.Collect(ctx); err != nil {
+		t.Fatal(err)
+	}
+	evs, err := f.st.R.ListAuditEvents(ctx, db.ListAuditEventsParams{Target: "script:" + sc.ID, Lim: 20})
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, e := range evs {
+		found = found || (e.Action == "script.run" && strings.Contains(e.DetailJson, `"trigger":"scheduled"`))
+	}
+	if !found {
+		t.Fatalf("no audit entry for the scheduled run: %+v", evs)
+	}
+}
+
+// Review of S11, invariant 1: a unit file Hashi did not write is never taken over because of its name.
+func TestForeignUnitIsAConflict(t *testing.T) {
+	ctx := context.Background()
+	f := newFixture(t)
+	f.host.Put(UnitDir+"/hashi-script-backup.timer", []byte("[Timer]\nOnCalendar=daily\n"))
+	if _, err := f.s.Create(ctx, "admin", "", Input{Name: "backup", Body: "#!/bin/sh\n", Enabled: true, Schedule: "0 3 * * *",
+		TimeoutSeconds: 5, AllHosts: true}); err != nil {
+		t.Fatal(err)
+	}
+	d := f.plan(t)
+	var conflict bool
+	for _, it := range d.Items {
+		conflict = conflict || (it.Object == "script backup" && it.Action == hsync.ActionConflict)
+	}
+	if !conflict {
+		t.Fatalf("plan %+v", d.Items)
+	}
+	if _, err := f.sub.Apply(ctx, "h1", d.Items); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := f.host.File(UnitDir + "/hashi-script-backup.timer"); string(b) != "[Timer]\nOnCalendar=daily\n" {
+		t.Fatalf("foreign timer overwritten: %q", b)
+	}
+}

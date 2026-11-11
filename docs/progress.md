@@ -52,6 +52,13 @@ PR B, themes and settings (10-ui §2, 09 §2):
 - [x] Spec: settings with no meaning dropped or moved (DNS row, most Traefik and Firewall items); logo, icon, assets and
   widgets wait for bugs 30 and 31
 
+Review (2026-11-11, fresh reviewer on the S11 diff): three findings, all reproduced first and fixed with a test each.
+A variable named like one of the runner's own (`dir`, `limit`, `mode`) changed what ran, dropped the timeout or skipped
+the spool: the runner now fixes the command before reading variables and reads them in the subshell that starts the
+script. A script named "Run" overwrote `run.sh`: the name is refused. Scheduled runs were not audited (invariant 17):
+each collected run is now a `script.run` entry. Also closed: a unit file Hashi did not write is a conflict, never taken
+over by its name; theme data that is not even valid JSON falls back to Graphite. Re-run on 108: passes.
+
 ## Previous slice
 
 **S10 — Abuse engine, WAF, CAPTCHA, feeds** · status: **done** (gate passed 2026-11-03 on `v0.10.0-beta.8`; review fixes in `v0.10.0-beta.9`). Gate: 11-delivery.md §3 row S10. Next: S11.
@@ -829,6 +836,8 @@ Decisions made in S0:
 
 ## Unverified
 
+- S11 review: a scheduled run is redacted with the secret values current when it is collected (up to 5 min later); a
+  secret changed in between could appear in that run's stored output.
 
 - S7 review: required display name on monitored DNS entries isn't enforced (falls back to the host name); Telegram channels aren't discovered (no channel captured); monitored A and AAAA of one name could repeat a list key; the test button's delivery can overlap the job's and send twice; no test asserts the 15 s public cache.
 

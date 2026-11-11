@@ -104,6 +104,8 @@ func (s *Service) validate(in Input) error {
 	switch {
 	case strings.TrimSpace(in.Name) == "" || slugOf(in.Name) == "":
 		return fmt.Errorf("%w: a name with at least one letter or digit", ErrInvalid)
+	case reserved[slugOf(in.Name)]:
+		return fmt.Errorf("%w: the name %q is taken by Hashi's runner; choose another", ErrInvalid, in.Name)
 	case strings.TrimSpace(in.Body) == "":
 		return fmt.Errorf("%w: the script is empty", ErrInvalid)
 	case !strings.HasPrefix(in.Body, "#!"):
@@ -118,8 +120,8 @@ func (s *Service) validate(in Input) error {
 	}
 	seen := map[string]bool{}
 	for _, e := range in.Env {
-		if !envRe.MatchString(e.Name) {
-			return fmt.Errorf("%w: variable name %q (letters, digits, _; not starting with a digit)", ErrInvalid, e.Name)
+		if !envRe.MatchString(e.Name) || strings.HasPrefix(e.Name, "__hashi_") {
+			return fmt.Errorf("%w: variable name %q (letters, digits, _; not starting with a digit or __hashi_)", ErrInvalid, e.Name)
 		}
 		if seen[e.Name] {
 			return fmt.Errorf("%w: variable %s twice", ErrInvalid, e.Name)

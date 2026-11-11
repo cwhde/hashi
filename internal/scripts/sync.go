@@ -174,6 +174,17 @@ func planItems(ds []Desired, files []File, o observed) hsync.Draft {
 		}
 	})
 	for _, slug := range slugs {
+		// A file at one of the script's paths that the manifest does not list is not Hashi's (invariant 1, owned
+		// objects only): never overwritten, shown as a conflict.
+		if foreign := slices.IndexFunc(want[slug], func(f File) bool {
+			_, there := o.files[f.Path]
+			_, ours := o.man.Files[f.Path]
+			return there && !ours
+		}); foreign >= 0 {
+			items = append(items, hsync.Item{Action: hsync.ActionConflict, Object: "script " + slug, Risk: hsync.High,
+				Note: want[slug][foreign].Path + " exists on the host and was not written by Hashi; rename the script or remove that file"})
+			continue
+		}
 		if !differs(slug) {
 			continue
 		}
@@ -245,6 +256,9 @@ func (x sub) Apply(ctx context.Context, hostID string, items []hsync.Item) (stri
 		return "", err
 	}
 	for _, it := range items {
+		if it.Action == hsync.ActionConflict { // shown, never applied (03 §3)
+			continue
+		}
 		slug, ok := itemSlug(it.Object)
 		if !ok {
 			return "", fmt.Errorf("unknown item %q", it.Object)

@@ -117,6 +117,7 @@ func TestStoredThemeFallsBack(t *testing.T) {
 	ctx := context.Background()
 	for _, stored := range []string{
 		`{"theme":"neon"}`,
+		`{"theme":"custom","custom_theme":{"canvas":`,
 		`{"theme":"custom"}`,
 		`{"theme":"custom","custom_theme":{"canvas":"#000000","surface":"#111111","text":"#222222","muted":"#333333","border":"#444444","accent":"#555555","roundness":"default"}}`,
 	} {

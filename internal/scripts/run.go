@@ -95,7 +95,7 @@ func (s *Service) Start(ctx context.Context, actor, ip, id, hostID string) (stri
 			return err
 		}
 		return s.audit.Record(ctx, q, audit.Event{Actor: actor, Action: "script.run", Target: "script:" + id, IP: ip,
-			Outcome: audit.Success, Detail: map[string]any{"host": hostID, "run": runID}})
+			Outcome: audit.Success, Detail: map[string]any{"host": hostID, "run": runID, "trigger": TriggerManual}})
 	})
 	if err != nil {
 		return "", err
@@ -333,10 +333,21 @@ func (s *Service) storeScheduled(ctx context.Context, hostID string, sc Script, 
 		if err != nil || n > 0 {
 			return err
 		}
-		if err := q.InsertScriptRun(ctx, db.InsertScriptRunParams{ID: ulid.Make().String(), ScriptID: sc.ID, HostID: hostID,
+		runID := ulid.Make().String()
+		if err := q.InsertScriptRun(ctx, db.InsertScriptRunParams{ID: runID, ScriptID: sc.ID, HostID: hostID,
 			Trigger: TriggerScheduled, Status: statusOf(e.code), ExitCode: sql.NullInt64{Int64: int64(e.code), Valid: true},
 			StartedAt: e.start.UnixMilli(), FinishedAt: sql.NullInt64{Int64: e.end.UnixMilli(), Valid: true},
 			Output: redact(text, secretVals), Truncated: b2i(e.size > len(out)), SpoolName: e.name}); err != nil {
+			return err
+		}
+		// Every run is audited (09 §1, invariant 17): a scheduled one when Hashi learns of it.
+		outcome := audit.Success
+		if e.code != 0 {
+			outcome = audit.Failure
+		}
+		if err := s.audit.Record(ctx, q, audit.Event{Actor: audit.System, Action: "script.run", Target: "script:" + sc.ID,
+			Outcome: outcome, Detail: map[string]any{"host": hostID, "run": runID, "trigger": TriggerScheduled, "exit_code": e.code,
+				"started_at": e.start.UTC().Format(time.RFC3339)}}); err != nil {
 			return err
 		}
 		return q.PruneScriptRuns(ctx, sc.ID)

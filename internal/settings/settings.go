@@ -57,8 +57,12 @@ func Get[T Category](ctx context.Context, q *db.Queries) (T, error) {
 	if err != nil {
 		return v, fmt.Errorf("read %s settings: %w", v.Key(), err)
 	}
+	_, repairs := any(v).(interface{ repair() Category })
 	if err := json.Unmarshal([]byte(row.ValueJson), &v); err != nil {
-		return v, fmt.Errorf("decode %s settings: %w", v.Key(), err)
+		if !repairs { // a category that repairs itself (theme data, 10-ui §2) starts over from its defaults instead
+			return v, fmt.Errorf("decode %s settings: %w", v.Key(), err)
+		}
+		v = defaults(v).(T)
 	}
 	if r, ok := any(v).(interface{ repair() Category }); ok {
 		v = r.repair().(T)
