@@ -133,6 +133,10 @@
 		};
 		formError = '';
 		addOpen = true;
+		// New services follow the Dashboard settings unless the admin changes the switch (09 §2).
+		void api.GET('/api/settings/dashboard').then((r) => {
+			if (r.data) form.dashboard = r.data.new_services_visible;
+		});
 	}
 
 	async function add() {

@@ -138,7 +138,9 @@ func TestChallengeFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 	sec := security.NewEngine(st, slog.Default(), time.Now)
-	sec.UseSettings(settings.DefaultOf[settings.Engine]())
+	engineCfg := settings.DefaultOf[settings.Engine]()
+	engineCfg.ClearanceHours = 3 // the clearance cookie follows the CAPTCHA clearance setting (09 §2)
+	sec.UseSettings(engineCfg)
 	sec.UseAllowed(eng.Allowed)
 	sec.OnChange(func() {})
 	cache := &CaptchaCache{}
@@ -286,6 +288,9 @@ func TestChallengeFlow(t *testing.T) {
 	if r.StatusCode != 200 || out["redirect"] != "https://aaa.example.com/x" || clear == nil || clear.Domain != "example.com" ||
 		!clear.Secure || !clear.HttpOnly {
 		t.Fatalf("service solve: %d %v %+v", r.StatusCode, out, clear)
+	}
+	if left := time.Until(clear.Expires); left < 179*time.Minute || left > 181*time.Minute {
+		t.Errorf("clearance lasts %v, want the configured 3 h", left)
 	}
 	if got := forward("aaa.example.com", "/x", true, &http.Cookie{Name: clear.Name, Value: clear.Value}).StatusCode; got != 204 {
 		t.Errorf("with clearance: %d", got)

@@ -4,11 +4,18 @@ import (
 	"bytes"
 	"encoding/json"
 	"flag"
+	"git.juzo.io/juzo/hashi/internal/security"
+	"git.juzo.io/juzo/hashi/internal/settings"
+	"git.juzo.io/juzo/hashi/internal/store/storetest"
+	"io"
+	"log/slog"
 	"net/netip"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
+	"time"
 )
 
 var update = flag.Bool("update", false, "rewrite golden files")
@@ -200,5 +207,39 @@ func TestRenderMSSClampSetting(t *testing.T) {
 	}
 	if !bytes.Contains(on, []byte(`"maxseg"`)) || bytes.Contains(off, []byte(`"maxseg"`)) {
 		t.Fatalf("clamp on %v, off %v", bytes.Contains(on, []byte(`"maxseg"`)), bytes.Contains(off, []byte(`"maxseg"`)))
+	}
+}
+
+// The L4 meter and staging settings (06 §10-11) reach the rendered table through MetersFrom; off renders no meter rule.
+func TestRenderMeterSettings(t *testing.T) {
+	e := settings.DefaultOf[settings.Engine]()
+	e.MetersEnabled, e.TCPNewPerMinute, e.TCPBurst, e.TCPMaxConcurrent = true, 777, 77, 333
+	e.UDPNewPerMinute, e.UDPBurst, e.UDPPerSecond, e.UDPPPSBurst, e.StagingSeconds = 222, 22, 4444, 444, 123
+	s := shapes()["netbird_routing.json"]
+	s.Meters = MetersFrom(e)
+	out, err := Render(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, n := range []string{"777", "77", "333", "222", "22", "4444", "444", "123"} {
+		if !regexp.MustCompile(`[:\s\[]` + n + `[,}\]\s]`).Match(out) {
+			t.Errorf("%s from the settings is not in the table", n)
+		}
+	}
+	e.MetersEnabled = false
+	s.Meters = MetersFrom(e)
+	if out, _ := Render(s); regexp.MustCompile(`[:\s\[]4444[,}\]\s]`).Match(out) { // the sets stay declared, the rules go
+		t.Error("meters off still render meter rules")
+	}
+}
+
+// The host link polls at the engine's poll interval (06 §10).
+func TestHostLinkPollSetting(t *testing.T) {
+	eng := security.NewEngine(storetest.New(t), slog.New(slog.NewTextHandler(io.Discard, nil)), time.Now)
+	cfg := eng.Settings()
+	cfg.PollIntervalSecs = 7
+	eng.UseSettings(cfg)
+	if got := NewLink(nil, eng, nil).poll(); got != 7*time.Second {
+		t.Fatalf("poll %v", got)
 	}
 }

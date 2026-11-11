@@ -11,6 +11,7 @@ import (
 
 	"git.juzo.io/juzo/hashi/internal/httpapi"
 	"git.juzo.io/juzo/hashi/internal/pulse"
+	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/store/storetest"
 )
 
@@ -86,5 +87,23 @@ func TestAdminMuxServesPulseInstall(t *testing.T) {
 	_ = res.Body.Close()
 	if res.StatusCode != http.StatusBadRequest {
 		t.Fatalf("oversized heartbeat: %d", res.StatusCode)
+	}
+}
+
+// The public page switches (Settings → Appearance) turn each page on and off on its own listener (07 §7, §8).
+func TestPublicPageSettings(t *testing.T) {
+	p := newPublicToggles()
+	p.update(settings.Appearance{Theme: "graphite", PublicDashboardEnabled: false, PublicStatusEnabled: true})
+	srv := &httpapi.Server{Store: storetest.New(t), Log: slog.New(slog.DiscardHandler)}
+	for page, want := range map[string]int{"apps": 404, "status": 200} {
+		enabled := &p.apps
+		if page == "status" {
+			enabled = &p.status
+		}
+		rec := httptest.NewRecorder()
+		publicMux(srv, page, enabled).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+		if rec.Code != want {
+			t.Errorf("%s: %d, want %d", page, rec.Code, want)
+		}
 	}
 }

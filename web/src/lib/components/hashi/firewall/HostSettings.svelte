@@ -1,7 +1,8 @@
 <script lang="ts">
 	// What validation found, and the settings that depend on it: networks, NetBird, and the choice to drop all other
 	// inbound connections (05 §2, §5). Nothing here reaches the host until a plan is approved.
-	import { untrack } from 'svelte';
+	import { onMount, untrack } from 'svelte';
+	import { api } from '$lib/api/client';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
@@ -19,6 +20,13 @@
 	let drop = $state(untrack(() => host.drop_other_inbound));
 
 	const nb = $derived(f?.netbird);
+
+	// A host never applied, where NetBird was found, starts in the mode the Firewall settings name (09 §2).
+	onMount(async () => {
+		if (host.last_applied_at || host.netbird_mode !== 'disabled') return;
+		const r = await api.GET('/api/settings/firewall-defaults');
+		if (r.data && untrack(() => nb) && mode === 'disabled') mode = r.data.netbird_mode;
+	});
 	function submit(e: Event) {
 		e.preventDefault();
 		const b = firewallInput(host);
