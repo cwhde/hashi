@@ -635,6 +635,14 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByRole('button', { name: 'Save and plan' }).click();
 	await expect(page.getByRole('status').first()).toContainText('Saved');
 	await expect(page.getByText('Valid and saved.')).toBeVisible();
+	// Break the file, then take the break back: the old problem goes away and the switch stays on.
+	await editor.click();
+	await page.keyboard.press('ControlOrMeta+End');
+	await page.keyboard.insertText('bad');
+	await expect(page.getByText(/^Line \d+:/)).toBeVisible();
+	for (let i = 0; i < 3; i++) await page.keyboard.press('Backspace');
+	await expect(page.getByText('Valid and saved.')).toBeVisible();
+	await expect(page.getByRole('switch', { name: 'Use no-frames on every service' })).toBeChecked();
 	await page.setViewportSize({ width: 390, height: 844 });
 	await page.screenshot({ path: 'test-results/bug25-middlewares-phone.png', fullPage: true });
 	await page.setViewportSize({ width: 1280, height: 800 });

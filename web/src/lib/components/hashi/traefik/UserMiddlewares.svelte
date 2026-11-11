@@ -19,6 +19,7 @@
 	let text = $state('');
 	let saved = $state('');
 	let found = $state<Mw[]>([]);
+	let savedFound = $state<Mw[]>([]);
 	let every = $state<string[]>([]);
 	let savedEvery = $state<string[]>([]);
 	let problem = $state<{ line: number; message: string } | null>(null);
@@ -29,13 +30,16 @@
 	let busy = $state(false);
 	let outcome = $state<{ text: string; review: boolean; bad: boolean } | null>(null);
 
-	const dirty = $derived(text !== saved || every.join() !== savedEvery.join());
+	// Names on every service that the file in the editor still defines: a check never forgets a switch, so undoing an
+	// edit that dropped a name brings its switch back.
+	const everyLive = $derived(every.filter((n) => found.some((m) => m.name === n)));
+	const dirty = $derived(text !== saved || everyLive.join() !== savedEvery.join());
 
 	async function load() {
 		const r = await api.GET('/api/traefik/user-middlewares');
 		if (r.error || !r.data) throw r.error;
 		text = saved = r.data.yaml;
-		found = r.data.middlewares;
+		found = savedFound = r.data.middlewares;
 		every = [...r.data.every_service];
 		savedEvery = [...r.data.every_service];
 		problem = null;
@@ -58,21 +62,26 @@
 			return;
 		}
 		problem = r.data.ok ? null : { line: r.data.line ?? 0, message: r.data.error ?? '' };
-		if (r.data.ok) {
-			found = r.data.middlewares;
-			every = every.filter((n) => found.some((m) => m.name === n));
-		}
+		if (r.data.ok) found = r.data.middlewares;
 	}
 	$effect(() => {
 		const yaml = text;
-		if (!loaded || yaml === saved) return;
+		if (!loaded) return;
+		if (yaml === saved) {
+			// Back to the saved file: drop any problem or list from an edit in between, and any check still on its way.
+			seq++;
+			checking = false;
+			problem = null;
+			found = savedFound;
+			return;
+		}
 		clearTimeout(timer);
 		timer = setTimeout(() => check(yaml), 350);
 		return () => clearTimeout(timer);
 	});
 
 	function toggleEvery(name: string, on: boolean) {
-		every = on ? [...every, name] : every.filter((n) => n !== name);
+		every = on ? [...every.filter((n) => n !== name), name] : every.filter((n) => n !== name);
 	}
 
 	async function save() {
@@ -81,12 +90,12 @@
 		outcome = null;
 		try {
 			const r = await api.PUT('/api/traefik/user-middlewares', {
-				body: { yaml: text, every_service: every }
+				body: { yaml: text, every_service: everyLive }
 			});
 			if (r.error || !r.data) throw r.error;
 			outcome = saveText(r.data);
 			text = saved = r.data.file.yaml;
-			found = r.data.file.middlewares;
+			found = savedFound = r.data.file.middlewares;
 			every = [...r.data.file.every_service];
 			savedEvery = [...every];
 			await pendingPlans.refresh();
@@ -97,6 +106,7 @@
 			const r = await api.GET('/api/traefik/user-middlewares');
 			if (r.data) {
 				saved = r.data.yaml;
+				savedFound = r.data.middlewares;
 				savedEvery = [...r.data.every_service];
 			}
 		} finally {
@@ -104,7 +114,7 @@
 		}
 	}
 
-	const usedText = (m: Mw) => (every.includes(m.name) ? 'on every service' : 'unused');
+	const usedText = (m: Mw) => (everyLive.includes(m.name) ? 'on every service' : 'unused');
 </script>
 
 {#if loadError}
@@ -196,7 +206,7 @@
 									<Tag>{m.type}</Tag>
 								</div>
 								<div class="text-[12.5px] text-muted-foreground">
-									{#if m.used_by.length && !every.includes(m.name)}
+									{#if m.used_by.length && !everyLive.includes(m.name)}
 										used by
 										{#each [...new Map(m.used_by.map( (u) => [u.service_id, u] )).values()] as u, i (u.service_id)}{i
 												? ', '
@@ -208,7 +218,7 @@
 								<label class="flex items-center justify-between gap-3 text-[12.5px]">
 									<span>On every service</span>
 									<Switch
-										checked={every.includes(m.name)}
+										checked={everyLive.includes(m.name)}
 										onCheckedChange={(on) => toggleEvery(m.name, on)}
 										aria-label="Use {m.name} on every service"
 									/>
