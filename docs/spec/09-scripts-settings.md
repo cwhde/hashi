@@ -22,7 +22,7 @@ Sync:
 Safety: saving or running requires reauth + `scripts.manage`; UI shows target hosts and diff before applying; scripts
 cannot run when needed credentials are locked; every run is audited.
 
-API: `/api/scripts` CRUD, `POST /api/scripts/{id}/plan|apply|run`, `GET /api/scripts/{id}/runs`, `GET /api/scripts/runs/{runId}`.
+API: `/api/scripts` CRUD, `POST /api/scripts/{id}/plan|apply|run`, `GET /api/scripts/{id}/runs`, `GET /api/script-runs/{runId}`.
 
 ## 2. Settings catalogue
 
