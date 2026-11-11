@@ -763,22 +763,25 @@ type Service struct {
 	PublicPort        sql.NullInt64
 	ProxyProtocol     int64
 	WafJson           string
+	TrafficJson       string
+	MiddlewaresJson   string
 }
 
 type ServiceRoute struct {
-	ID             string
-	ServiceID      string
-	Enabled        int64
-	TargetsJson    string
-	PathMatch      string
-	PathValue      string
-	Priority       int64
-	RewriteMode    string
-	RewritePattern string
-	RewriteValue   string
-	CreatedAt      int64
-	UpdatedAt      int64
-	Kind           string
+	ID              string
+	ServiceID       string
+	Enabled         int64
+	TargetsJson     string
+	PathMatch       string
+	PathValue       string
+	Priority        int64
+	RewriteMode     string
+	RewritePattern  string
+	RewriteValue    string
+	CreatedAt       int64
+	UpdatedAt       int64
+	Kind            string
+	MiddlewaresJson string
 }
 
 type SetupState struct {
@@ -870,4 +873,10 @@ type TraefikFile struct {
 	Path            string
 	LastAppliedHash string
 	AppliedAt       int64
+}
+
+type TraefikUserMiddleware struct {
+	ID        int64
+	Yaml      string
+	UpdatedAt int64
 }

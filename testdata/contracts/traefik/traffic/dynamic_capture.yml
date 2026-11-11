@@ -1,0 +1,83 @@
+http:
+  routers:
+    keep:
+      rule: Host(`keep.example.test`)
+      entryPoints: [web, trusted]
+      service: echo
+    target:
+      rule: Host(`target.example.test`)
+      entryPoints: [web, trusted]
+      service: echo-nopass
+    custom:
+      rule: Host(`custom.example.test`)
+      entryPoints: [web, trusted]
+      middlewares: [host-custom]
+      service: echo
+    noxff:
+      rule: Host(`noxff.example.test`)
+      entryPoints: [web, trusted]
+      middlewares: [drop-xff]
+      service: echo
+    noreal:
+      rule: Host(`noreal.example.test`)
+      entryPoints: [web, trusted]
+      middlewares: [drop-real]
+      service: echo
+    hdrs:
+      rule: Host(`hdrs.example.test`)
+      entryPoints: [web]
+      middlewares: [extra]
+      service: echo
+    slow:
+      rule: Host(`slow.example.test`)
+      entryPoints: [web]
+      service: echo-timeouts
+    allow:
+      rule: Host(`allow.example.test`)
+      entryPoints: [web]
+      middlewares: [office-only]
+      service: echo
+    buf:
+      rule: Host(`buf.example.test`)
+      entryPoints: [web]
+      middlewares: [small-body]
+      service: echo
+  middlewares:
+    host-custom:
+      headers:
+        customRequestHeaders:
+          Host: internal.example.test
+    drop-xff:
+      headers:
+        customRequestHeaders:
+          X-Forwarded-For: ""
+    drop-real:
+      headers:
+        customRequestHeaders:
+          X-Real-Ip: ""
+    extra:
+      headers:
+        customRequestHeaders:
+          X-Extra: one
+          X-Remove-Me: ""
+        customResponseHeaders:
+          X-Resp: two
+          X-Gone: ""
+  services:
+    echo:
+      loadBalancer:
+        servers: [{url: "http://127.0.0.1:9000"}]
+    echo-nopass:
+      loadBalancer:
+        passHostHeader: false
+        servers: [{url: "http://127.0.0.1:9000"}]
+    echo-timeouts:
+      loadBalancer:
+        serversTransport: short
+        servers: [{url: "http://127.0.0.1:9000"}]
+  serversTransports:
+    short:
+      forwardingTimeouts:
+        dialTimeout: 2s
+        responseHeaderTimeout: 1s
+        idleConnTimeout: 30s

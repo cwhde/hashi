@@ -1,0 +1,7 @@
+http:
+  middlewares:
+    t-two:
+      ipAllowList:
+        sourceRange: [192.0.2.0/24]
+      buffering:
+        maxRequestBodyBytes: 10

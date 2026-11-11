@@ -1,0 +1,174 @@
+== wget -qO- --header 'Host: keep.example.test' --header 'X-Forwarded-For: 198.51.100.7' --header 'X-Real-Ip: 198.51.100.8' http://127.0.0.1:8080/p
+host=keep.example.test path=/p
+Accept: ["*/*"]
+Accept-Encoding: ["gzip"]
+User-Agent: ["Wget"]
+X-Forwarded-For: ["127.0.0.1"]
+X-Forwarded-Host: ["keep.example.test"]
+X-Forwarded-Port: ["80"]
+X-Forwarded-Proto: ["http"]
+X-Forwarded-Server: ["edge-host"]
+X-Real-Ip: ["127.0.0.1"]
+== wget -qO- --header 'Host: keep.example.test' --header 'X-Forwarded-For: 198.51.100.7' --header 'X-Real-Ip: 198.51.100.8' http://127.0.0.1:8082/p
+host=keep.example.test path=/p
+Accept: ["*/*"]
+Accept-Encoding: ["gzip"]
+User-Agent: ["Wget"]
+X-Forwarded-For: ["198.51.100.7, 127.0.0.1"]
+X-Forwarded-Host: ["keep.example.test"]
+X-Forwarded-Port: ["80"]
+X-Forwarded-Proto: ["http"]
+X-Forwarded-Server: ["edge-host"]
+X-Real-Ip: ["198.51.100.8"]
+== wget -qO- --header 'Host: target.example.test' --header 'X-Forwarded-For: 198.51.100.7' --header 'X-Real-Ip: 198.51.100.8' http://127.0.0.1:8080/p
+host=127.0.0.1:9000 path=/p
+Accept: ["*/*"]
+Accept-Encoding: ["gzip"]
+User-Agent: ["Wget"]
+X-Forwarded-For: ["127.0.0.1"]
+X-Forwarded-Host: ["target.example.test"]
+X-Forwarded-Port: ["80"]
+X-Forwarded-Proto: ["http"]
+X-Forwarded-Server: ["edge-host"]
+X-Real-Ip: ["127.0.0.1"]
+== wget -qO- --header 'Host: target.example.test' --header 'X-Forwarded-For: 198.51.100.7' --header 'X-Real-Ip: 198.51.100.8' http://127.0.0.1:8082/p
+host=127.0.0.1:9000 path=/p
+Accept: ["*/*"]
+Accept-Encoding: ["gzip"]
+User-Agent: ["Wget"]
+X-Forwarded-For: ["198.51.100.7, 127.0.0.1"]
+X-Forwarded-Host: ["target.example.test"]
+X-Forwarded-Port: ["80"]
+X-Forwarded-Proto: ["http"]
+X-Forwarded-Server: ["edge-host"]
+X-Real-Ip: ["198.51.100.8"]
+== wget -qO- --header 'Host: custom.example.test' --header 'X-Forwarded-For: 198.51.100.7' --header 'X-Real-Ip: 198.51.100.8' http://127.0.0.1:8080/p
+host=internal.example.test path=/p
+Accept: ["*/*"]
+Accept-Encoding: ["gzip"]
+User-Agent: ["Wget"]
+X-Forwarded-For: ["127.0.0.1"]
+X-Forwarded-Host: ["custom.example.test"]
+X-Forwarded-Port: ["80"]
+X-Forwarded-Proto: ["http"]
+X-Forwarded-Server: ["edge-host"]
+X-Real-Ip: ["127.0.0.1"]
+== wget -qO- --header 'Host: custom.example.test' --header 'X-Forwarded-For: 198.51.100.7' --header 'X-Real-Ip: 198.51.100.8' http://127.0.0.1:8082/p
+host=internal.example.test path=/p
+Accept: ["*/*"]
+Accept-Encoding: ["gzip"]
+User-Agent: ["Wget"]
+X-Forwarded-For: ["198.51.100.7, 127.0.0.1"]
+X-Forwarded-Host: ["custom.example.test"]
+X-Forwarded-Port: ["80"]
+X-Forwarded-Proto: ["http"]
+X-Forwarded-Server: ["edge-host"]
+X-Real-Ip: ["198.51.100.8"]
+== wget -qO- --header 'Host: noxff.example.test' --header 'X-Forwarded-For: 198.51.100.7' --header 'X-Real-Ip: 198.51.100.8' http://127.0.0.1:8080/p
+host=noxff.example.test path=/p
+Accept: ["*/*"]
+Accept-Encoding: ["gzip"]
+User-Agent: ["Wget"]
+X-Forwarded-Host: ["noxff.example.test"]
+X-Forwarded-Port: ["80"]
+X-Forwarded-Proto: ["http"]
+X-Forwarded-Server: ["edge-host"]
+X-Real-Ip: ["127.0.0.1"]
+== wget -qO- --header 'Host: noxff.example.test' --header 'X-Forwarded-For: 198.51.100.7' --header 'X-Real-Ip: 198.51.100.8' http://127.0.0.1:8082/p
+host=noxff.example.test path=/p
+Accept: ["*/*"]
+Accept-Encoding: ["gzip"]
+User-Agent: ["Wget"]
+X-Forwarded-Host: ["noxff.example.test"]
+X-Forwarded-Port: ["80"]
+X-Forwarded-Proto: ["http"]
+X-Forwarded-Server: ["edge-host"]
+X-Real-Ip: ["198.51.100.8"]
+== wget -qO- --header 'Host: noreal.example.test' --header 'X-Forwarded-For: 198.51.100.7' --header 'X-Real-Ip: 198.51.100.8' http://127.0.0.1:8080/p
+host=noreal.example.test path=/p
+Accept: ["*/*"]
+Accept-Encoding: ["gzip"]
+User-Agent: ["Wget"]
+X-Forwarded-For: ["127.0.0.1"]
+X-Forwarded-Host: ["noreal.example.test"]
+X-Forwarded-Port: ["80"]
+X-Forwarded-Proto: ["http"]
+X-Forwarded-Server: ["edge-host"]
+== wget -qO- --header 'Host: noreal.example.test' --header 'X-Forwarded-For: 198.51.100.7' --header 'X-Real-Ip: 198.51.100.8' http://127.0.0.1:8082/p
+host=noreal.example.test path=/p
+Accept: ["*/*"]
+Accept-Encoding: ["gzip"]
+User-Agent: ["Wget"]
+X-Forwarded-For: ["198.51.100.7, 127.0.0.1"]
+X-Forwarded-Host: ["noreal.example.test"]
+X-Forwarded-Port: ["80"]
+X-Forwarded-Proto: ["http"]
+X-Forwarded-Server: ["edge-host"]
+== wget -S -qO- --header 'Host: hdrs.example.test' --header 'X-Remove-Me: client' http://127.0.0.1:8080/p
+  HTTP/1.1 200 OK
+  Content-Length: 297
+  Content-Type: text/plain; charset=utf-8
+  Date: Wed, 11 Nov 2026 06:40:59 GMT
+  X-Resp: two
+  Connection: close
+  
+host=hdrs.example.test path=/p
+Accept: ["*/*"]
+Accept-Encoding: ["gzip"]
+User-Agent: ["Wget"]
+X-Extra: ["one"]
+X-Forwarded-For: ["127.0.0.1"]
+X-Forwarded-Host: ["hdrs.example.test"]
+X-Forwarded-Port: ["80"]
+X-Forwarded-Proto: ["http"]
+X-Forwarded-Server: ["edge-host"]
+X-Real-Ip: ["127.0.0.1"]
+== time wget -S -qO- --header 'Host: slow.example.test' http://127.0.0.1:8080/slow
+  HTTP/1.1 504 Gateway Timeout
+wget: server returned error: HTTP/1.1 504 Gateway Timeout
+Command exited with non-zero status 1
+real	0m 1.00s
+user	0m 0.00s
+sys	0m 0.00s
+== wget -S -qO- --header 'Host: slow.example.test' http://127.0.0.1:8080/fast
+  HTTP/1.1 200 OK
+  Content-Length: 283
+  Content-Type: text/plain; charset=utf-8
+  Date: Wed, 11 Nov 2026 06:41:00 GMT
+  Connection: close
+  
+host=slow.example.test path=/fast
+Accept: ["*/*"]
+Accept-Encoding: ["gzip"]
+User-Agent: ["Wget"]
+X-Forwarded-For: ["127.0.0.1"]
+X-Forwarded-Host: ["slow.example.test"]
+X-Forwarded-Port: ["80"]
+X-Forwarded-Proto: ["http"]
+X-Forwarded-Server: ["edge-host"]
+X-Real-Ip: ["127.0.0.1"]
+== wget -S -qO- --header 'Host: allow.example.test' http://127.0.0.1:8080/p
+  HTTP/1.1 403 Forbidden
+wget: server returned error: HTTP/1.1 403 Forbidden
+== wget -S -qO- --header 'Host: buf.example.test' --post-data 0123456789abcdef http://127.0.0.1:8080/p
+  HTTP/1.1 413 Request Entity Too Large
+wget: server returned error: HTTP/1.1 413 Request Entity Too Large
+== wget -S -qO- --header 'Host: buf.example.test' --post-data 0123 http://127.0.0.1:8080/p
+host=buf.example.test path=/p
+Accept: ["*/*"]
+Accept-Encoding: ["gzip"]
+Content-Length: ["4"]
+Content-Type: ["application/x-www-form-urlencoded"]
+User-Agent: ["Wget"]
+X-Forwarded-For: ["127.0.0.1"]
+X-Forwarded-Host: ["buf.example.test"]
+X-Forwarded-Port: ["80"]
+X-Forwarded-Proto: ["http"]
+X-Forwarded-Server: ["edge-host"]
+X-Real-Ip: ["127.0.0.1"]
+  HTTP/1.1 200 OK
+  Content-Length: 352
+  Content-Type: text/plain; charset=utf-8
+  Date: Wed, 11 Nov 2026 06:41:00 GMT
+  Connection: close
+  

@@ -1889,6 +1889,27 @@ func (e ServiceRouteRewriteMode) Valid() bool {
 	}
 }
 
+// Defines values for ServiceTrafficHost.
+const (
+	ServiceTrafficHostCustom   ServiceTrafficHost = "custom"
+	ServiceTrafficHostEmpty    ServiceTrafficHost = ""
+	ServiceTrafficHostUpstream ServiceTrafficHost = "upstream"
+)
+
+// Valid indicates whether the value is a known member of the ServiceTrafficHost enum.
+func (e ServiceTrafficHost) Valid() bool {
+	switch e {
+	case ServiceTrafficHostCustom:
+		return true
+	case ServiceTrafficHostEmpty:
+		return true
+	case ServiceTrafficHostUpstream:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ServiceWAFPathMatch.
 const (
 	ServiceWAFPathMatchExact  ServiceWAFPathMatch = "exact"
@@ -4660,6 +4681,7 @@ type Service struct {
 	// InvalidReason Why the service is left out of the rendered files; empty when valid
 	InvalidReason     string        `json:"invalid_reason"`
 	Kind              ServiceKind   `json:"kind"`
+	Middlewares       []string      `json:"middlewares"`
 	MonitoringVisible bool          `json:"monitoring_visible"`
 	Name              string        `json:"name"`
 	Origin            ServiceOrigin `json:"origin"`
@@ -4678,7 +4700,10 @@ type Service struct {
 	TlsMinVersion ServiceTlsMinVersion `json:"tls_min_version"`
 	TlsServerName string               `json:"tls_server_name"`
 	TlsSkipVerify bool                 `json:"tls_skip_verify"`
-	UpdatedAt     time.Time            `json:"updated_at"`
+
+	// Traffic What an HTTP service's upstream receives (04 §1.1a). Absent or zero fields keep Traefik's behaviour.
+	Traffic   ServiceTraffic `json:"traffic"`
+	UpdatedAt time.Time      `json:"updated_at"`
 }
 
 // ServiceDomainMode none: a tcp/udp service without a public name
@@ -4718,6 +4743,15 @@ type ServiceEffective struct {
 	Yaml string `json:"yaml"`
 }
 
+// ServiceHeader defines model for ServiceHeader.
+type ServiceHeader struct {
+	// Name Header name (letters, digits, -); not Host, X-Forwarded-For, X-Real-IP or X-Hashi-* on requests
+	Name string `json:"name"`
+
+	// Value Empty removes the header
+	Value string `json:"value"`
+}
+
 // ServiceInput defines model for ServiceInput.
 type ServiceInput struct {
 	AdguardRewrite   *bool `json:"adguard_rewrite,omitempty"`
@@ -4731,11 +4765,14 @@ type ServiceInput struct {
 	Enabled *bool `json:"enabled,omitempty"`
 
 	// EntryHostId Service routing override: the firewall host public traffic enters through (03 §5.1)
-	EntryHostId       *string          `json:"entry_host_id,omitempty"`
-	HostName          string           `json:"host_name"`
-	Kind              ServiceInputKind `json:"kind"`
-	MonitoringVisible *bool            `json:"monitoring_visible,omitempty"`
-	Name              string           `json:"name"`
+	EntryHostId *string          `json:"entry_host_id,omitempty"`
+	HostName    string           `json:"host_name"`
+	Kind        ServiceInputKind `json:"kind"`
+
+	// Middlewares Names from the user middleware file; absent keeps the current list
+	Middlewares       *[]string `json:"middlewares,omitempty"`
+	MonitoringVisible *bool     `json:"monitoring_visible,omitempty"`
+	Name              string    `json:"name"`
 
 	// ProxyProtocol tcp only: send PROXY protocol v2 to the upstream
 	ProxyProtocol *bool `json:"proxy_protocol,omitempty"`
@@ -4748,6 +4785,9 @@ type ServiceInput struct {
 	TlsMinVersion *ServiceInputTlsMinVersion `json:"tls_min_version,omitempty"`
 	TlsServerName *string                    `json:"tls_server_name,omitempty"`
 	TlsSkipVerify *bool                      `json:"tls_skip_verify,omitempty"`
+
+	// Traffic What the upstream receives (04 §1.1a); absent keeps the current options
+	Traffic *ServiceTraffic `json:"traffic,omitempty"`
 }
 
 // ServiceInputDomainMode none: a tcp/udp service without a public name
@@ -4781,7 +4821,10 @@ type ServiceRoute struct {
 	Id *string `json:"id,omitempty"`
 
 	// Kind The route's own upstream protocol; empty uses the service's
-	Kind        *ServiceRouteKind       `json:"kind,omitempty"`
+	Kind *ServiceRouteKind `json:"kind,omitempty"`
+
+	// Middlewares Names from the user middleware file, after the service's (04 §1.1a). On a save, absent keeps the route's current list
+	Middlewares *[]string               `json:"middlewares,omitempty"`
 	PathMatch   ServiceRoutePathMatch   `json:"path_match"`
 	PathValue   string                  `json:"path_value"`
 	Priority    int                     `json:"priority"`
@@ -4823,6 +4866,33 @@ type ServiceTarget struct {
 	// Weight Load-balancing weight; 0 or absent = 1
 	Weight *int `json:"weight,omitempty"`
 }
+
+// ServiceTraffic What an HTTP service's upstream receives (04 §1.1a). Absent or zero fields keep Traefik's behaviour.
+type ServiceTraffic struct {
+	// DialTimeout Seconds to connect; 0 = Traefik's default
+	DialTimeout *int `json:"dial_timeout,omitempty"`
+
+	// DropForwardedFor Remove X-Forwarded-For
+	DropForwardedFor *bool `json:"drop_forwarded_for,omitempty"`
+
+	// DropRealIp Remove X-Real-IP
+	DropRealIp *bool `json:"drop_real_ip,omitempty"`
+
+	// Host Host header: empty = the public name, upstream = the target address as written with its port, custom = host_value
+	Host      *ServiceTrafficHost `json:"host,omitempty"`
+	HostValue *string             `json:"host_value,omitempty"`
+
+	// IdleTimeout Seconds an idle upstream connection is kept; 0 = Traefik's default
+	IdleTimeout    *int             `json:"idle_timeout,omitempty"`
+	RequestHeaders *[]ServiceHeader `json:"request_headers,omitempty"`
+
+	// ResponseHeaderTimeout Seconds to wait for the answer's headers (then 504); 0 = no limit
+	ResponseHeaderTimeout *int             `json:"response_header_timeout,omitempty"`
+	ResponseHeaders       *[]ServiceHeader `json:"response_headers,omitempty"`
+}
+
+// ServiceTrafficHost Host header: empty = the public name, upstream = the target address as written with its port, custom = host_value
+type ServiceTrafficHost string
 
 // ServiceWAF defines model for ServiceWAF.
 type ServiceWAF struct {
@@ -5156,6 +5226,71 @@ type TraefikFile struct {
 type TraefikIdentity struct {
 	// PublicKey authorized_keys line
 	PublicKey string `json:"public_key"`
+}
+
+// UserMiddleware defines model for UserMiddleware.
+type UserMiddleware struct {
+	// EveryService On every user HTTP service (Traefik settings)
+	EveryService bool `json:"every_service"`
+
+	// Line Line of its name in the file
+	Line int    `json:"line"`
+	Name string `json:"name"`
+
+	// Type Traefik middleware type, e.g. headers
+	Type   string              `json:"type"`
+	UsedBy []UserMiddlewareUse `json:"used_by"`
+}
+
+// UserMiddlewareUse defines model for UserMiddlewareUse.
+type UserMiddlewareUse struct {
+	// RouteId Set when a route names it
+	RouteId     *string `json:"route_id,omitempty"`
+	RoutePath   *string `json:"route_path,omitempty"`
+	ServiceId   string  `json:"service_id"`
+	ServiceName string  `json:"service_name"`
+}
+
+// UserMiddlewares defines model for UserMiddlewares.
+type UserMiddlewares struct {
+	// EveryService Names added to every user HTTP service after Hashi's defaults
+	EveryService []string         `json:"every_service"`
+	Middlewares  []UserMiddleware `json:"middlewares"`
+	UpdatedAt    *time.Time       `json:"updated_at,omitempty"`
+
+	// Yaml The file as typed, comments included
+	Yaml string `json:"yaml"`
+}
+
+// UserMiddlewaresCheck defines model for UserMiddlewaresCheck.
+type UserMiddlewaresCheck struct {
+	// Error The first problem; absent when ok
+	Error *string `json:"error,omitempty"`
+
+	// Line 1-based line of the problem; absent or 0 when it has no single place
+	Line *int `json:"line,omitempty"`
+
+	// Middlewares What the file defines, with where each is used now
+	Middlewares []UserMiddleware `json:"middlewares"`
+	Ok          bool             `json:"ok"`
+}
+
+// UserMiddlewaresCheckInput defines model for UserMiddlewaresCheckInput.
+type UserMiddlewaresCheckInput struct {
+	Yaml string `json:"yaml"`
+}
+
+// UserMiddlewaresInput defines model for UserMiddlewaresInput.
+type UserMiddlewaresInput struct {
+	EveryService []string `json:"every_service"`
+	Yaml         string   `json:"yaml"`
+}
+
+// UserMiddlewaresSaveResult defines model for UserMiddlewaresSaveResult.
+type UserMiddlewaresSaveResult struct {
+	CertificatePending bool            `json:"certificate_pending"`
+	File               UserMiddlewares `json:"file"`
+	Plans              []SyncPlan      `json:"plans"`
 }
 
 // VaultState defines model for VaultState.
@@ -5545,6 +5680,12 @@ type AddTraefikHostJSONRequestBody = TraefikConnectionInput
 
 // ScanTraefikHostJSONRequestBody defines body for ScanTraefikHost for application/json ContentType.
 type ScanTraefikHostJSONRequestBody = HostKeyScanInput
+
+// PutUserMiddlewaresJSONRequestBody defines body for PutUserMiddlewares for application/json ContentType.
+type PutUserMiddlewaresJSONRequestBody = UserMiddlewaresInput
+
+// CheckUserMiddlewaresJSONRequestBody defines body for CheckUserMiddlewares for application/json ContentType.
+type CheckUserMiddlewaresJSONRequestBody = UserMiddlewaresCheckInput
 
 // AsIPItemIP returns the union data inside the IPItem as a IPItemIP
 func (t IPItem) AsIPItemIP() (IPItemIP, error) {
@@ -6492,6 +6633,15 @@ type ServerInterface interface {
 	// ScanTraefikHost Read a new host's SSH key for the admin to compare (nothing is stored)
 	// (POST /api/traefik/scan)
 	ScanTraefikHost(w http.ResponseWriter, r *http.Request)
+	// GetUserMiddlewares The user middleware file 30-user-middlewares.yml, the middlewares it defines with where each is used, and the middlewares on every service (04 §4, 09 §2)
+	// (GET /api/traefik/user-middlewares)
+	GetUserMiddlewares(w http.ResponseWriter, r *http.Request)
+	// PutUserMiddlewares Check and save the file and the middlewares on every service, then plan every Traefik host. A file that does not pass the strict check is refused (422) and the stored one stays; when Traefik refuses it during apply, the previous file is put back and planned again (422)
+	// (PUT /api/traefik/user-middlewares)
+	PutUserMiddlewares(w http.ResponseWriter, r *http.Request)
+	// CheckUserMiddlewares Check a file without saving it (the editor's live check)
+	// (POST /api/traefik/user-middlewares/check)
+	CheckUserMiddlewares(w http.ResponseWriter, r *http.Request)
 	// GetVault Vault mode and state
 	// (GET /api/vault)
 	GetVault(w http.ResponseWriter, r *http.Request)
@@ -11172,6 +11322,48 @@ func (siw *ServerInterfaceWrapper) ScanTraefikHost(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// GetUserMiddlewares operation middleware
+func (siw *ServerInterfaceWrapper) GetUserMiddlewares(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetUserMiddlewares(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PutUserMiddlewares operation middleware
+func (siw *ServerInterfaceWrapper) PutUserMiddlewares(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutUserMiddlewares(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CheckUserMiddlewares operation middleware
+func (siw *ServerInterfaceWrapper) CheckUserMiddlewares(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CheckUserMiddlewares(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetVault operation middleware
 func (siw *ServerInterfaceWrapper) GetVault(w http.ResponseWriter, r *http.Request) {
 
@@ -11551,6 +11743,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/services/{id}/waf", wrapper.GetServiceWAF)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/services/{id}/waf", wrapper.SetServiceWAF)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/traefik/plan", wrapper.PlanTraefik)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/traefik/user-middlewares", wrapper.GetUserMiddlewares)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/traefik/user-middlewares", wrapper.PutUserMiddlewares)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/traefik/user-middlewares/check", wrapper.CheckUserMiddlewares)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/firewall/hosts", wrapper.ListFirewallHosts)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/firewall/hosts", wrapper.CreateFirewallHost)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/firewall/install-key", wrapper.InstallKeyFirewall)
@@ -20139,6 +20334,122 @@ func (response ScanTraefikHostdefaultApplicationProblemPlusJSONResponse) VisitSc
 	return err
 }
 
+type GetUserMiddlewaresRequestObject struct {
+}
+
+type GetUserMiddlewaresResponseObject interface {
+	VisitGetUserMiddlewaresResponse(w http.ResponseWriter) error
+}
+
+type GetUserMiddlewares200JSONResponse UserMiddlewares
+
+func (response GetUserMiddlewares200JSONResponse) VisitGetUserMiddlewaresResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetUserMiddlewaresdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetUserMiddlewaresdefaultApplicationProblemPlusJSONResponse) VisitGetUserMiddlewaresResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutUserMiddlewaresRequestObject struct {
+	Body *PutUserMiddlewaresJSONRequestBody
+}
+
+type PutUserMiddlewaresResponseObject interface {
+	VisitPutUserMiddlewaresResponse(w http.ResponseWriter) error
+}
+
+type PutUserMiddlewares200JSONResponse UserMiddlewaresSaveResult
+
+func (response PutUserMiddlewares200JSONResponse) VisitPutUserMiddlewaresResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type PutUserMiddlewaresdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response PutUserMiddlewaresdefaultApplicationProblemPlusJSONResponse) VisitPutUserMiddlewaresResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CheckUserMiddlewaresRequestObject struct {
+	Body *CheckUserMiddlewaresJSONRequestBody
+}
+
+type CheckUserMiddlewaresResponseObject interface {
+	VisitCheckUserMiddlewaresResponse(w http.ResponseWriter) error
+}
+
+type CheckUserMiddlewares200JSONResponse UserMiddlewaresCheck
+
+func (response CheckUserMiddlewares200JSONResponse) VisitCheckUserMiddlewaresResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type CheckUserMiddlewaresdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response CheckUserMiddlewaresdefaultApplicationProblemPlusJSONResponse) VisitCheckUserMiddlewaresResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetVaultRequestObject struct {
 }
 
@@ -20996,6 +21307,15 @@ type StrictServerInterface interface {
 	// ScanTraefikHost Read a new host's SSH key for the admin to compare (nothing is stored)
 	// (POST /api/traefik/scan)
 	ScanTraefikHost(ctx context.Context, request ScanTraefikHostRequestObject) (ScanTraefikHostResponseObject, error)
+	// GetUserMiddlewares The user middleware file 30-user-middlewares.yml, the middlewares it defines with where each is used, and the middlewares on every service (04 §4, 09 §2)
+	// (GET /api/traefik/user-middlewares)
+	GetUserMiddlewares(ctx context.Context, request GetUserMiddlewaresRequestObject) (GetUserMiddlewaresResponseObject, error)
+	// PutUserMiddlewares Check and save the file and the middlewares on every service, then plan every Traefik host. A file that does not pass the strict check is refused (422) and the stored one stays; when Traefik refuses it during apply, the previous file is put back and planned again (422)
+	// (PUT /api/traefik/user-middlewares)
+	PutUserMiddlewares(ctx context.Context, request PutUserMiddlewaresRequestObject) (PutUserMiddlewaresResponseObject, error)
+	// CheckUserMiddlewares Check a file without saving it (the editor's live check)
+	// (POST /api/traefik/user-middlewares/check)
+	CheckUserMiddlewares(ctx context.Context, request CheckUserMiddlewaresRequestObject) (CheckUserMiddlewaresResponseObject, error)
 	// GetVault Vault mode and state
 	// (GET /api/vault)
 	GetVault(ctx context.Context, request GetVaultRequestObject) (GetVaultResponseObject, error)
@@ -27153,6 +27473,92 @@ func (sh *strictHandler) ScanTraefikHost(w http.ResponseWriter, r *http.Request)
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ScanTraefikHostResponseObject); ok {
 		if err := validResponse.VisitScanTraefikHostResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetUserMiddlewares operation middleware
+func (sh *strictHandler) GetUserMiddlewares(w http.ResponseWriter, r *http.Request) {
+	var request GetUserMiddlewaresRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetUserMiddlewares(ctx, request.(GetUserMiddlewaresRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetUserMiddlewares")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetUserMiddlewaresResponseObject); ok {
+		if err := validResponse.VisitGetUserMiddlewaresResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PutUserMiddlewares operation middleware
+func (sh *strictHandler) PutUserMiddlewares(w http.ResponseWriter, r *http.Request) {
+	var request PutUserMiddlewaresRequestObject
+
+	var body PutUserMiddlewaresJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.PutUserMiddlewares(ctx, request.(PutUserMiddlewaresRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PutUserMiddlewares")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(PutUserMiddlewaresResponseObject); ok {
+		if err := validResponse.VisitPutUserMiddlewaresResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CheckUserMiddlewares operation middleware
+func (sh *strictHandler) CheckUserMiddlewares(w http.ResponseWriter, r *http.Request) {
+	var request CheckUserMiddlewaresRequestObject
+
+	var body CheckUserMiddlewaresJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CheckUserMiddlewares(ctx, request.(CheckUserMiddlewaresRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CheckUserMiddlewares")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CheckUserMiddlewaresResponseObject); ok {
+		if err := validResponse.VisitCheckUserMiddlewaresResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

@@ -15,6 +15,7 @@ import (
 
 	"git.juzo.io/juzo/hashi/internal/secrets"
 	"git.juzo.io/juzo/hashi/internal/services"
+	"git.juzo.io/juzo/hashi/internal/usermw"
 )
 
 // Fixed host paths (04 §2 step 3, 04 §3). Only the binary and the config directory are overridable per connection.
@@ -106,6 +107,11 @@ type Options struct {
 	Services []services.Service
 	// EdgeToken is set on requests the edge sends to Hashi (01 §8); empty renders no edge middleware.
 	EdgeToken secrets.Value
+	// UserMiddlewares is the parsed user middleware file (04 §4); EveryService are its names added to every user
+	// HTTP service (Traefik settings). Services naming a middleware the file lacks must already be marked invalid
+	// (services.CheckMiddlewares).
+	UserMiddlewares usermw.File
+	EveryService    []string
 }
 
 // Router, middleware and service names other code (Verify, S5 services) refers to.
@@ -222,8 +228,20 @@ func Render(o Options) ([]File, error) {
 	}}}, ""); err != nil {
 		return nil, err
 	}
+	// The user's middlewares, as parsed (04 §4), before the services file: a service never names a middleware Traefik
+	// has not loaded yet. A file of comments only loads as empty (README finding 7).
+	if o.UserMiddlewares.Content != nil {
+		var u userFile
+		u.HTTP.Middlewares = o.UserMiddlewares.Content
+		if err := dyn(usermw.FileName, u, ""); err != nil {
+			return nil, err
+		}
+	} else {
+		files = append(files, File{Path: o.Paths.Dynamic() + "/" + usermw.FileName, Kind: KindDynamic, Mode: 0o644,
+			Data: []byte(generated + "# No user middlewares. Write them on the Traefik page in Hashi.\n")})
+	}
 	edge := !o.EdgeToken.IsZero()
-	if svc := httpServices(o.Services, edge); len(svc.HTTP.Routers) > 0 {
+	if svc := httpServices(o.Services, edge, o.EveryService); len(svc.HTTP.Routers) > 0 {
 		if err := dyn("10-hashi-http-services.yml", svc, ""); err != nil {
 			return nil, err
 		}

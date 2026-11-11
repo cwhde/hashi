@@ -63,6 +63,9 @@ func Validate(s Service, n Names) error {
 	if err := validateTarget("target", s.Target); err != nil {
 		return err
 	}
+	if err := validateTraffic(s); err != nil {
+		return err
+	}
 	if s.Kind != KindHTTPS && (s.TLSSkipVerify || s.TLSServerName != "") {
 		return invalid("tls_server_name", "upstream TLS options apply to https services only")
 	}

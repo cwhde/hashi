@@ -892,6 +892,16 @@ Decisions made in S0:
   collected into the history with its output, and the audit shows `script.saved` and `script.run`. Scheduled scripts
   on 108 were proven by `TestRealScriptsOnDevTarget`; custom theme and visual tests by e2e; every setting by
   `consumers_test.go`. Seen on the way: the firewall host's root file system is 78 % full (3.3 GB free).
+- 2026-11-11 · bug 25 built in the background next to S11, PR from branch `claude/user-middlewares-84c424` (not merged,
+  not deployed) · user middleware editor (Traefik → Your middlewares, CodeMirror YAML with a live strict check), traffic
+  options per service (Traefik → service Traffic tab: Host header public name / upstream address / own name, remove
+  `X-Forwarded-For` or `X-Real-IP`, extra request and response headers, connect / answer / idle timeouts), extra
+  middlewares per service and per route, and the Traefik setting "middlewares on every service" (09 §2 redefined).
+  Captured first from a throwaway local Traefik v3.7.16 (`testdata/contracts/traefik/traffic/`): one unknown key in any
+  dynamic file makes Traefik load no file at all, even keys the pinned schema allows (`basicAuth`), and a name defined
+  twice is skipped silently; so the check closes every schema object, reserves Hashi's names, and a file Traefik still
+  refuses is put back by Hashi. Golden render tests for every combination; real-Traefik integration test of every
+  option; e2e with phone screenshots. Migration `00025` (after the scripts migration `00024`).
 - 2026-11-11 · S11 merged (#63 scripts, #64 themes and settings) and released as `v0.11.0-beta.1` (`880c8f5`); not
   deployed. CI needed reruns for GitHub and Playwright download timeouts (bug 29); the Playwright cache now falls back to
   the last saved browser. One real CI catch: a test needed the built web UI, which the check job does not have.

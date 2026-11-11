@@ -1,0 +1,9 @@
+# 30-user-middlewares.yml as loaded in the capture (first run): both middlewares enabled and working.
+http:
+  middlewares:
+    office-only:
+      ipAllowList:
+        sourceRange: [192.0.2.0/24]
+    small-body:
+      buffering:
+        maxRequestBodyBytes: 10

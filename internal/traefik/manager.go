@@ -22,6 +22,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/store"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 	hsync "git.juzo.io/juzo/hashi/internal/sync"
+	"git.juzo.io/juzo/hashi/internal/usermw"
 	"git.juzo.io/juzo/hashi/internal/vault"
 )
 
@@ -407,13 +408,22 @@ func (m *Manager) desired(ctx context.Context, connID string) (db.TraefikConnect
 	if err := MarkFailClosed(ctx, m.st.R, svcs); err != nil {
 		return row, Desired{}, err
 	}
+	_, userFile, err := usermw.Load(ctx, m.st.R)
+	if err != nil {
+		return row, Desired{}, err
+	}
+	every, err := settings.Get[settings.TraefikMiddlewares](ctx, m.st.R)
+	if err != nil {
+		return row, Desired{}, err
+	}
+	services.CheckMiddlewares(svcs, userFile, every.EveryService)
 	edge, err := EnsureEdgeToken(ctx, m.st, m.vault)
 	if err != nil {
 		return row, Desired{}, fmt.Errorf("edge token: %w", err)
 	}
 	paths := Paths{Binary: row.TraefikBinary, ConfigDir: row.ConfigDir}
 	opts := Options{Paths: paths, APIPort: int(row.ApiPort), ForwardAuthPort: int(row.ApiPort) + 1, HashiURL: hashiURL, Certs: certs,
-		Services: svcs, EdgeToken: edge}
+		Services: svcs, EdgeToken: edge, UserMiddlewares: userFile, EveryService: every.EveryService}
 	files, err := Render(opts)
 	if err != nil {
 		return row, Desired{}, err

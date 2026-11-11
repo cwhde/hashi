@@ -1,0 +1,62 @@
+{
+  "middlewares": {
+    "drop-real@file": {
+      "status": "enabled"
+    },
+    "drop-xff@file": {
+      "status": "enabled"
+    },
+    "extra@file": {
+      "status": "enabled"
+    },
+    "host-custom@file": {
+      "status": "enabled"
+    },
+    "office-only@file": {
+      "status": "enabled"
+    }
+  },
+  "routers": {
+    "allow@file": {
+      "status": "enabled"
+    },
+    "buf@file": {
+      "error": [
+        "middleware \"small-body@file\" does not exist"
+      ],
+      "status": "disabled"
+    },
+    "custom@file": {
+      "status": "enabled"
+    },
+    "hdrs@file": {
+      "status": "enabled"
+    },
+    "keep@file": {
+      "status": "enabled"
+    },
+    "noreal@file": {
+      "status": "enabled"
+    },
+    "noxff@file": {
+      "status": "enabled"
+    },
+    "slow@file": {
+      "status": "enabled"
+    },
+    "target@file": {
+      "status": "enabled"
+    }
+  },
+  "services": {
+    "echo-nopass@file": {
+      "status": "enabled"
+    },
+    "echo-timeouts@file": {
+      "status": "enabled"
+    },
+    "echo@file": {
+      "status": "enabled"
+    }
+  }
+}

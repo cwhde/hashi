@@ -20,6 +20,7 @@ import (
 	"git.juzo.io/juzo/hashi/internal/ipsets"
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/store/db"
+	"git.juzo.io/juzo/hashi/internal/usermw"
 )
 
 // Kinds: the HTTP family (served on websecure) and the L4 streams (one entry point per public port, 04 §1.2).
@@ -97,6 +98,8 @@ type Route struct {
 	RewriteMode    string
 	RewritePattern string
 	RewriteValue   string
+	// Middlewares are names from the user middleware file, after the service's own (04 §1.1a).
+	Middlewares []string
 }
 
 // Service is one HTTP-family service with its routes.
@@ -127,6 +130,9 @@ type Service struct {
 	Routes        []Route
 	// WAF is the service's WAF configuration (06 §9), changed only through SetWAF.
 	WAF WAF
+	// Traffic is what the upstream receives (04 §1.1a); Middlewares are extra names from the user middleware file.
+	Traffic     Traffic
+	Middlewares []string
 	// FailClosed: its rules can deny or ask for sign-in, so forward auth has no local fallback (06 §2.1). Set for rendering.
 	FailClosed bool
 	// Targets is the simple target with its address set resolved (set by Resolve for rendering; nil otherwise).
@@ -235,7 +241,8 @@ func insert(ctx context.Context, q *db.Queries, s Service, now time.Time) error 
 		TlsServerName: s.TLSServerName, TlsMinVersion: s.TLSMinVersion, AdvancedRoutes: b2i(s.AdvancedRoutes),
 		DashboardVisible: b2i(s.DashboardVisible), MonitoringVisible: b2i(s.MonitoringVisible),
 		AdguardRewrite: b2i(s.AdGuardRewrite), TargetSetID: nullStr(s.Target.SetID), EntryHostID: nullStr(s.EntryHostID),
-		PublicPort: nullPort(s.PublicPort), ProxyProtocol: b2i(s.ProxyProtocol), CreatedAt: ms, UpdatedAt: ms}); err != nil {
+		PublicPort: nullPort(s.PublicPort), ProxyProtocol: b2i(s.ProxyProtocol), TrafficJson: trafficJSON(s.Traffic),
+		MiddlewaresJson: namesJSON(s.Middlewares), CreatedAt: ms, UpdatedAt: ms}); err != nil {
 		return fmt.Errorf("store service: %w", err)
 	}
 	return putRoutes(ctx, q, s, ms)
@@ -276,7 +283,8 @@ func update(ctx context.Context, q *db.Queries, s Service, now time.Time) error 
 		AdvancedRoutes: b2i(s.AdvancedRoutes), DashboardVisible: b2i(s.DashboardVisible),
 		MonitoringVisible: b2i(s.MonitoringVisible), AdguardRewrite: b2i(s.AdGuardRewrite),
 		TargetSetID: nullStr(s.Target.SetID), EntryHostID: nullStr(s.EntryHostID), PublicPort: nullPort(s.PublicPort),
-		ProxyProtocol: b2i(s.ProxyProtocol), UpdatedAt: ms, ID: s.ID}); err != nil {
+		ProxyProtocol: b2i(s.ProxyProtocol), TrafficJson: trafficJSON(s.Traffic), MiddlewaresJson: namesJSON(s.Middlewares),
+		UpdatedAt: ms, ID: s.ID}); err != nil {
 		return fmt.Errorf("update service: %w", err)
 	}
 	if err := q.DeleteServiceRoutes(ctx, s.ID); err != nil {
@@ -418,7 +426,7 @@ func putRoutes(ctx context.Context, q *db.Queries, s Service, ms int64) error {
 		if err := q.InsertServiceRoute(ctx, db.InsertServiceRouteParams{ID: r.ID, ServiceID: s.ID, Enabled: b2i(r.Enabled),
 			TargetsJson: string(targets), Kind: r.Kind, PathMatch: r.PathMatch, PathValue: r.PathValue, Priority: int64(r.Priority),
 			RewriteMode: r.RewriteMode, RewritePattern: r.RewritePattern, RewriteValue: r.RewriteValue,
-			CreatedAt: ms, UpdatedAt: ms}); err != nil {
+			MiddlewaresJson: namesJSON(r.Middlewares), CreatedAt: ms, UpdatedAt: ms}); err != nil {
 			return fmt.Errorf("store route: %w", err)
 		}
 	}
@@ -437,14 +445,30 @@ func fromRow(r db.Service, routes []db.ServiceRoute) (Service, error) {
 	if err := json.Unmarshal([]byte(r.WafJson), &s.WAF); err != nil {
 		return s, fmt.Errorf("service %s WAF: %w", r.ID, err)
 	}
+	if err := json.Unmarshal([]byte(r.TrafficJson), &s.Traffic); err != nil {
+		return s, fmt.Errorf("service %s traffic: %w", r.ID, err)
+	}
+	if err := json.Unmarshal([]byte(r.MiddlewaresJson), &s.Middlewares); err != nil {
+		return s, fmt.Errorf("service %s middlewares: %w", r.ID, err)
+	}
+	if len(s.Middlewares) == 0 {
+		s.Middlewares = nil // stored "[]" reads like a service that never had any
+	}
 	for _, rr := range routes {
 		var t []Target
 		if err := json.Unmarshal([]byte(rr.TargetsJson), &t); err != nil {
 			return s, fmt.Errorf("route %s targets: %w", rr.ID, err)
 		}
+		var mws []string
+		if err := json.Unmarshal([]byte(rr.MiddlewaresJson), &mws); err != nil {
+			return s, fmt.Errorf("route %s middlewares: %w", rr.ID, err)
+		}
+		if len(mws) == 0 {
+			mws = nil
+		}
 		s.Routes = append(s.Routes, Route{ID: rr.ID, Enabled: rr.Enabled == 1, Targets: t, Kind: rr.Kind, PathMatch: rr.PathMatch,
 			PathValue: rr.PathValue, Priority: int(rr.Priority), RewriteMode: rr.RewriteMode,
-			RewritePattern: rr.RewritePattern, RewriteValue: rr.RewriteValue})
+			RewritePattern: rr.RewritePattern, RewriteValue: rr.RewriteValue, Middlewares: mws})
 	}
 	return s, nil
 }
@@ -491,7 +515,52 @@ func references(ctx context.Context, q *db.Queries, s Service) error {
 			return invalid("entry_host_id", "no firewall host %s", s.EntryHostID)
 		}
 	}
+	return knownMiddlewares(ctx, q, s)
+}
+
+// knownMiddlewares checks that every extra middleware is defined in the stored user middleware file (04 §1.1a).
+func knownMiddlewares(ctx context.Context, q *db.Queries, s Service) error {
+	named := len(s.Middlewares) > 0
+	for _, r := range s.Routes {
+		named = named || len(r.Middlewares) > 0
+	}
+	if !named {
+		return nil
+	}
+	_, f, err := usermw.Load(ctx, q)
+	if err != nil {
+		return err
+	}
+	check := func(field string, ns []string) error {
+		for i, n := range ns {
+			if !f.Has(n) {
+				return invalid(fmt.Sprintf("%s[%d]", field, i), "%s is not defined in %s (Traefik → Your middlewares)", n, usermw.FileName)
+			}
+		}
+		return nil
+	}
+	if err := check("middlewares", s.Middlewares); err != nil {
+		return err
+	}
+	for i, r := range s.Routes {
+		if err := check(fmt.Sprintf("routes[%d].middlewares", i), r.Middlewares); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+func trafficJSON(t Traffic) string {
+	b, _ := json.Marshal(t) // plain struct
+	return string(b)
+}
+
+func namesJSON(ns []string) string {
+	if ns == nil {
+		ns = []string{}
+	}
+	b, _ := json.Marshal(ns)
+	return string(b)
 }
 
 // Uses lists the services whose targets reference set id (05a §5.2 consumers).

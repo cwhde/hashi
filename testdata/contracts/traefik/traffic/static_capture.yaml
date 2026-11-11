@@ -1,0 +1,20 @@
+entryPoints:
+  web:
+    address: ":8080"
+  trusted:
+    address: ":8082"
+    forwardedHeaders:
+      trustedIPs: ["0.0.0.0/0"]
+  traefik:
+    address: ":8081"
+api:
+  insecure: true
+ping:
+  entryPoint: traefik
+providers:
+  file:
+    directory: /dyn
+    watch: true
+log:
+  level: INFO
+  format: json

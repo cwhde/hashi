@@ -615,6 +615,76 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.screenshot({ path: 'test-results/s10-waf-phone.png', fullPage: true });
 	await page.setViewportSize({ width: 1280, height: 800 });
 
+	// Bug 25: the user middleware file (04 §4). A file that fails the strict check shows its line and cannot be saved;
+	// a valid one lists what it defines, one goes on every service, and saving applies it on the edge.
+	const guardedURL = page.url();
+	await page.goto(`${state.baseURL}/traefik?tab=middlewares`);
+	const editor = page.getByRole('textbox', { name: 'User middleware file' });
+	await editor.click();
+	await page.keyboard.insertText('http:\n  routers: {}\n');
+	await expect(page.getByText(/Line 2: under http: only middlewares/)).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Save and plan' })).toBeDisabled();
+	await page.keyboard.press('ControlOrMeta+a');
+	await page.keyboard.insertText(
+		'# office and frames\nhttp:\n  middlewares:\n    office-only:\n      ipAllowList:\n        sourceRange: [192.0.2.0/24]\n' +
+			'    no-frames:\n      headers:\n        customResponseHeaders:\n          X-Frame-Options: DENY\n'
+	);
+	await expect(page.getByText('Found 2 middlewares')).toBeVisible();
+	await expect(page.getByText('Valid. Not saved yet.')).toBeVisible();
+	await page.getByRole('switch', { name: 'Use no-frames on every service' }).click();
+	await page.getByRole('button', { name: 'Save and plan' }).click();
+	await expect(page.getByRole('status').first()).toContainText('Saved');
+	await expect(page.getByText('Valid and saved.')).toBeVisible();
+	// Break the file, then take the break back: the old problem goes away and the switch stays on.
+	await editor.click();
+	await page.keyboard.press('ControlOrMeta+End');
+	await page.keyboard.insertText('bad');
+	await expect(page.getByText(/^Line \d+:/)).toBeVisible();
+	for (let i = 0; i < 3; i++) await page.keyboard.press('Backspace');
+	await expect(page.getByText('Valid and saved.')).toBeVisible();
+	await expect(page.getByRole('switch', { name: 'Use no-frames on every service' })).toBeChecked();
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.screenshot({ path: 'test-results/bug25-middlewares-phone.png', fullPage: true });
+	await page.setViewportSize({ width: 1280, height: 800 });
+
+	// Traffic options (04 §1.1a) on the service: a Host name of its own, no X-Real-IP, an extra header, a timeout and
+	// one middleware; the rendered config shows them.
+	await page.goto(guardedURL);
+	await page.getByRole('tab', { name: 'Traffic' }).click();
+	await page.getByRole('radio', { name: /A name you choose/ }).click();
+	await page.getByLabel('Name sent to the app').fill('guarded.internal.example');
+	await page.getByRole('switch', { name: /X-Real-IP/ }).click();
+	await page.getByRole('button', { name: 'Add header' }).first().click();
+	await page.getByLabel('Header name').first().fill('X-Extra');
+	await page.getByLabel('Header value').first().fill('one');
+	await page.getByLabel('Wait for an answer').fill('120');
+	await page
+		.getByRole('list', { name: 'Extra middlewares' })
+		.getByRole('button', { name: 'office-only' })
+		.click();
+	await page.getByRole('button', { name: 'Save and publish' }).click();
+	await expect(page.getByRole('status').first()).toContainText('Saved');
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.screenshot({ path: 'test-results/bug25-traffic-phone.png', fullPage: true });
+	// The six tabs scroll in their own row; the page itself never scrolls sideways.
+	expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+	await page.setViewportSize({ width: 1280, height: 800 });
+	await page.getByRole('tab', { name: 'Rendered config' }).click();
+	for (const want of [
+		'Host: guarded.internal.example',
+		'X-Real-Ip: ""',
+		'X-Extra: one',
+		'responseHeaderTimeout: 120s',
+		'- office-only',
+		'- no-frames'
+	]) {
+		await expect(page.locator('pre')).toContainText(want);
+	}
+	await page.goto(`${state.baseURL}/traefik?tab=middlewares`);
+	await expect(page.getByRole('list', { name: 'Middlewares in the file' })).toContainText(
+		'used by Guarded'
+	);
+
 	await page.goto(`${state.baseURL}/security`);
 	// Dashboard first: live tiles and the period switch.
 	await expect(page.getByText('Most refused addresses')).toBeVisible();

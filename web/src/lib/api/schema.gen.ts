@@ -2204,6 +2204,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/traefik/user-middlewares": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The user middleware file 30-user-middlewares.yml, the middlewares it defines with where each is used, and the middlewares on every service (04 §4, 09 §2) */
+        get: operations["getUserMiddlewares"];
+        /** Check and save the file and the middlewares on every service, then plan every Traefik host. A file that does not pass the strict check is refused (422) and the stored one stays; when Traefik refuses it during apply, the previous file is put back and planned again (422) */
+        put: operations["putUserMiddlewares"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/traefik/user-middlewares/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Check a file without saving it (the editor's live check) */
+        post: operations["checkUserMiddlewares"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/firewall/hosts": {
         parameters: {
             query?: never;
@@ -4498,6 +4533,8 @@ export interface components {
             rewrite_pattern: string;
             /** @description replace_prefix: new prefix; exact: new path; regex: replacement ($1…) */
             rewrite_value: string;
+            /** @description Names from the user middleware file, after the service's (04 §1.1a). On a save, absent keeps the route's current list */
+            middlewares?: string[];
         };
         ServiceInput: {
             name: string;
@@ -4528,6 +4565,10 @@ export interface components {
             dashboard_visible?: boolean;
             monitoring_visible?: boolean;
             adguard_rewrite?: boolean;
+            /** @description What the upstream receives (04 §1.1a); absent keeps the current options */
+            traffic?: components["schemas"]["ServiceTraffic"];
+            /** @description Names from the user middleware file; absent keeps the current list */
+            middlewares?: string[];
         };
         Service: {
             id: string;
@@ -4568,6 +4609,8 @@ export interface components {
             created_at: string;
             /** Format: date-time */
             updated_at: string;
+            traffic: components["schemas"]["ServiceTraffic"];
+            middlewares: string[];
         };
         ServiceList: {
             services: components["schemas"]["Service"][];
@@ -4618,6 +4661,80 @@ export interface components {
         };
         ServiceEffective: {
             yaml: string;
+        };
+        ServiceHeader: {
+            /** @description Header name (letters, digits, -); not Host, X-Forwarded-For, X-Real-IP or X-Hashi-* on requests */
+            name: string;
+            /** @description Empty removes the header */
+            value: string;
+        };
+        /** @description What an HTTP service's upstream receives (04 §1.1a). Absent or zero fields keep Traefik's behaviour. */
+        ServiceTraffic: {
+            /**
+             * @description Host header: empty = the public name, upstream = the target address as written with its port, custom = host_value
+             * @enum {string}
+             */
+            host?: "" | "upstream" | "custom";
+            host_value?: string;
+            /** @description Remove X-Forwarded-For */
+            drop_forwarded_for?: boolean;
+            /** @description Remove X-Real-IP */
+            drop_real_ip?: boolean;
+            request_headers?: components["schemas"]["ServiceHeader"][];
+            response_headers?: components["schemas"]["ServiceHeader"][];
+            /** @description Seconds to connect; 0 = Traefik's default */
+            dial_timeout?: number;
+            /** @description Seconds to wait for the answer's headers (then 504); 0 = no limit */
+            response_header_timeout?: number;
+            /** @description Seconds an idle upstream connection is kept; 0 = Traefik's default */
+            idle_timeout?: number;
+        };
+        UserMiddlewareUse: {
+            service_id: string;
+            service_name: string;
+            /** @description Set when a route names it */
+            route_id?: string;
+            route_path?: string;
+        };
+        UserMiddleware: {
+            name: string;
+            /** @description Traefik middleware type, e.g. headers */
+            type: string;
+            /** @description Line of its name in the file */
+            line: number;
+            used_by: components["schemas"]["UserMiddlewareUse"][];
+            /** @description On every user HTTP service (Traefik settings) */
+            every_service: boolean;
+        };
+        UserMiddlewares: {
+            /** @description The file as typed, comments included */
+            yaml: string;
+            middlewares: components["schemas"]["UserMiddleware"][];
+            /** @description Names added to every user HTTP service after Hashi's defaults */
+            every_service: string[];
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        UserMiddlewaresInput: {
+            yaml: string;
+            every_service: string[];
+        };
+        UserMiddlewaresSaveResult: {
+            file: components["schemas"]["UserMiddlewares"];
+            plans: components["schemas"]["SyncPlan"][];
+            certificate_pending: boolean;
+        };
+        UserMiddlewaresCheckInput: {
+            yaml: string;
+        };
+        UserMiddlewaresCheck: {
+            ok: boolean;
+            /** @description The first problem; absent when ok */
+            error?: string;
+            /** @description 1-based line of the problem; absent or 0 when it has no single place */
+            line?: number;
+            /** @description What the file defines, with where each is used now */
+            middlewares: components["schemas"]["UserMiddleware"][];
         };
         SetupSystemService: {
             service: components["schemas"]["Service"];
@@ -9043,6 +9160,77 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ServicePlans"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getUserMiddlewares: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The file as typed and what it defines */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserMiddlewares"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    putUserMiddlewares: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserMiddlewaresInput"];
+            };
+        };
+        responses: {
+            /** @description Saved, with the Traefik plans it caused */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserMiddlewaresSaveResult"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    checkUserMiddlewares: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserMiddlewaresCheckInput"];
+            };
+        };
+        responses: {
+            /** @description The middlewares it defines, or the first problem with its line */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserMiddlewaresCheck"];
                 };
             };
             default: components["responses"]["Problem"];

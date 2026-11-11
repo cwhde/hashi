@@ -1,0 +1,11 @@
+== v1
+routers: 9 {'t-white@file': ('enabled', None)}
+{"level":"error","entryPointName":"web","routerName":"buf@file","error":"middleware \"small-body@file\" does not exist","time":"2026-11-11T06:46:18Z"}
+{"level":"error","entryPointName":"web","routerName":"allow@file","error":"middleware \"office-only@file\" does not exist","time":"2026-11-11T06:46:18Z"}
+== v2
+routers: 9 {'t-two@file': ('enabled', None)}
+{"level":"error","entryPointName":"web","routerName":"allow@file","error":"middleware \"office-only@file\" does not exist","time":"2026-11-11T06:46:22Z"}
+{"level":"error","entryPointName":"web","routerName":"buf@file","error":"middleware \"small-body@file\" does not exist","time":"2026-11-11T06:46:22Z"}
+== v3
+routers: 0 {}
+{"level":"error","providerName":"file","error":"collecting file configs: /dyn/30-user-middlewares.yml: field not found, node: notAField","time":"2026-11-11T06:46:26Z","message":"Error while building configuration (for the first time)"}

@@ -2,6 +2,8 @@
 	import ServiceExtras from '$lib/components/hashi/services/ServiceExtras.svelte';
 	import ServiceAccess from '$lib/components/hashi/rules/ServiceAccess.svelte';
 	import ServiceWaf from '$lib/components/hashi/services/ServiceWaf.svelte';
+	import ServiceTraffic from '$lib/components/hashi/services/ServiceTraffic.svelte';
+	import MiddlewarePicker from '$lib/components/hashi/services/MiddlewarePicker.svelte';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
@@ -46,6 +48,9 @@
 	let extra = $state({ setId: '', publicPort: '', proxy: false, entryHost: '' });
 	let root = $state('');
 	let yaml = $state('');
+	// Names from the user middleware file and the ones on every service (04 §4, 09 §2).
+	let mwNames = $state<string[]>([]);
+	let mwEvery = $state<string[]>([]);
 	let loadError = $state('');
 	let saveError = $state('');
 	let outcome = $state<{ text: string; review: boolean; bad: boolean } | null>(null);
@@ -74,6 +79,11 @@
 				.join(', ')
 				.replace(/ ×(\d+)/g, '*$1')
 		);
+		const mw = await api.GET('/api/traefik/user-middlewares');
+		if (mw.data) {
+			mwNames = mw.data.middlewares.map((m) => m.name);
+			mwEvery = mw.data.every_service;
+		}
 		yaml = '';
 		if (!s.data.invalid_reason) {
 			const e = await api.GET('/api/services/{id}/effective', { params: { path: { id } } });
@@ -106,6 +116,20 @@
 				if (p.bad) throw new Error(`Route ${r.path_value}: "${p.bad}" is not address:port.`);
 				routes.push({ ...r, targets: p.targets });
 			}
+			// Header rows left completely empty are dropped; a name without a value removes that header.
+			const rows = (hs?: { name: string; value: string }[]) =>
+				(hs ?? [])
+					.map((h) => ({ name: h.name.trim(), value: h.value }))
+					.filter((h) => h.name || h.value);
+			const traffic = isStream(edit.kind)
+				? {}
+				: {
+						...edit.traffic,
+						host_value:
+							edit.traffic?.host === 'custom' ? edit.traffic.host_value?.trim() : undefined,
+						request_headers: rows(edit.traffic?.request_headers),
+						response_headers: rows(edit.traffic?.response_headers)
+					};
 			const body: ServiceInput = {
 				...edit,
 				host_name: edit.host_name.trim().toLowerCase(),
@@ -114,6 +138,8 @@
 					? { address: '', set_id: extra.setId, port: Number(edit.target.port) }
 					: { address: edit.target.address.trim(), port: Number(edit.target.port) },
 				routes: isStream(edit.kind) ? [] : routes,
+				traffic,
+				middlewares: isStream(edit.kind) ? [] : (edit.middlewares ?? []),
 				public_port: isStream(edit.kind) ? Number(extra.publicPort) : undefined,
 				proxy_protocol: edit.kind === 'tcp' ? extra.proxy : undefined,
 				entry_host_id: extra.entryHost || undefined
@@ -232,7 +258,7 @@
 			</div>
 			<div>
 				<dt class="text-[12px] text-muted-foreground">Upstream</dt>
-				<dd><Mono>{svc.kind}://{targetText(svc.target)}</Mono></dd>
+				<dd class="min-w-0 break-all"><Mono>{svc.kind}://{targetText(svc.target)}</Mono></dd>
 			</div>
 			<div>
 				<dt class="text-[12px] text-muted-foreground">Routes</dt>
@@ -273,8 +299,10 @@
 	{/if}
 
 	<Tabs.Root value="routing">
-		<Tabs.List class="mb-4">
+		<!-- Six tabs are wider than a phone: the row scrolls on its own instead of the page. -->
+		<Tabs.List class="mb-4 max-w-full justify-start overflow-x-auto">
 			<Tabs.Trigger value="routing">Routing</Tabs.Trigger>
+			{#if !isStream(svc.kind) && !system}<Tabs.Trigger value="traffic">Traffic</Tabs.Trigger>{/if}
 			<Tabs.Trigger value="access">Access</Tabs.Trigger>
 			<Tabs.Trigger value="waf">WAF</Tabs.Trigger>
 			<Tabs.Trigger value="monitoring">Monitoring</Tabs.Trigger>
@@ -443,6 +471,16 @@
 										aria-label="Route targets"
 										placeholder="192.0.2.21:9000, 192.0.2.22:9000*2"
 									/>
+									{#if mwNames.length || r.middlewares?.length}
+										<div class="flex flex-wrap items-center gap-2">
+											<span class="text-[12.5px] text-muted-foreground">Extra middlewares</span>
+											<MiddlewarePicker
+												names={mwNames}
+												bind:selected={r.middlewares}
+												label="Route middlewares"
+											/>
+										</div>
+									{/if}
 									<div class="flex flex-wrap items-center gap-2">
 										<Select.Root type="single" bind:value={r.rewrite_mode}>
 											<Select.Trigger class="w-40" aria-label="Rewrite"
@@ -479,6 +517,19 @@
 				</fieldset>
 			</Panel>
 		</Tabs.Content>
+
+		{#if !isStream(svc.kind) && !system && edit.traffic}
+			<Tabs.Content value="traffic">
+				<ServiceTraffic
+					bind:traffic={edit.traffic}
+					bind:middlewares={edit.middlewares}
+					names={mwNames}
+					every={mwEvery}
+					publicName={edit.host_name}
+					upstream={extra.setId ? 'the addresses of the chosen set' : targetText(edit.target)}
+				/>
+			</Tabs.Content>
+		{/if}
 
 		<Tabs.Content value="access">
 			{#if svc && !isStream(svc.kind)}<ServiceAccess serviceId={id} />{:else}<Panel title="Access">

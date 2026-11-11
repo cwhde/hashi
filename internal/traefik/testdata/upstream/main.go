@@ -21,6 +21,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -55,6 +56,21 @@ func main() {
 				mu.Lock()
 				defer mu.Unlock()
 				_, _ = fmt.Fprintf(w, "fa-edge=%s\n", lastFA)
+				return
+			case "/headers", "/slow": // what the upstream received (traffic options, 04 §1.1a); /slow answers after 3 s
+				if r.URL.Path == "/slow" {
+					time.Sleep(3 * time.Second)
+				}
+				w.Header().Set("X-Upstream-Secret", "leaks")
+				_, _ = fmt.Fprintf(w, "port=%s host=%s\n", port, r.Host)
+				names := make([]string, 0, len(r.Header))
+				for k := range r.Header {
+					names = append(names, k)
+				}
+				sort.Strings(names)
+				for _, k := range names {
+					_, _ = fmt.Fprintf(w, "req %s=%s\n", k, strings.Join(r.Header[k], ","))
+				}
 				return
 			}
 			_, _ = fmt.Fprintf(w, "port=%s proto=%s path=%s edge=%s\n", port, r.Proto, r.URL.Path, r.Header.Get("X-Hashi-Edge"))
@@ -115,6 +131,16 @@ func get(host, path string, headers []string) {
 	defer func() { _ = resp.Body.Close() }()
 	b, _ := io.ReadAll(resp.Body)
 	fmt.Printf("status=%d %s", resp.StatusCode, b)
+	if strings.HasPrefix(path, "/headers") {
+		names := make([]string, 0, len(resp.Header))
+		for k := range resp.Header {
+			names = append(names, k)
+		}
+		sort.Strings(names)
+		for _, k := range names {
+			fmt.Printf("resp %s=%s\n", k, strings.Join(resp.Header[k], ","))
+		}
+	}
 }
 
 // proxyV2 is the PROXY protocol v2 signature.

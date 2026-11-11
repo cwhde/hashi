@@ -1,15 +1,16 @@
 -- name: InsertService :exec
 INSERT INTO services (id, name, slug, kind, domain_mode, host_name, enabled, origin, owner_feature, target_address,
     target_port, tls_skip_verify, tls_server_name, tls_min_version, advanced_routes, dashboard_visible,
-    monitoring_visible, adguard_rewrite, target_set_id, entry_host_id, public_port, proxy_protocol, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    monitoring_visible, adguard_rewrite, target_set_id, entry_host_id, public_port, proxy_protocol, traffic_json,
+    middlewares_json, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: UpdateService :exec
 UPDATE services
 SET name = ?, slug = ?, kind = ?, domain_mode = ?, host_name = ?, target_address = ?, target_port = ?,
     tls_skip_verify = ?, tls_server_name = ?, tls_min_version = ?, advanced_routes = ?, dashboard_visible = ?,
     monitoring_visible = ?, adguard_rewrite = ?, target_set_id = ?, entry_host_id = ?, public_port = ?, proxy_protocol = ?,
-    updated_at = ?
+    traffic_json = ?, middlewares_json = ?, updated_at = ?
 WHERE id = ?;
 
 -- name: SetServiceEnabled :exec
@@ -29,8 +30,8 @@ DELETE FROM services WHERE id = ?;
 
 -- name: InsertServiceRoute :exec
 INSERT INTO service_routes (id, service_id, enabled, targets_json, kind, path_match, path_value, priority, rewrite_mode,
-    rewrite_pattern, rewrite_value, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    rewrite_pattern, rewrite_value, middlewares_json, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: DeleteServiceRoutes :exec
 DELETE FROM service_routes WHERE service_id = ?;
@@ -46,3 +47,10 @@ SELECT id, name FROM services WHERE entry_host_id = ? ORDER BY name;
 
 -- name: SetServiceWAF :exec
 UPDATE services SET waf_json = ?, updated_at = ? WHERE id = ?;
+
+-- name: GetUserMiddlewares :one
+SELECT * FROM traefik_user_middlewares WHERE id = 1;
+
+-- name: PutUserMiddlewares :exec
+INSERT INTO traefik_user_middlewares (id, yaml, updated_at) VALUES (1, ?, ?)
+ON CONFLICT (id) DO UPDATE SET yaml = excluded.yaml, updated_at = excluded.updated_at;
