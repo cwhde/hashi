@@ -144,6 +144,10 @@ the pinned Traefik file-provider schema; a name is not lowercase letters, digits
 `hashi` or `svc-` (Hashi's names); a headers middleware sets an `X-Hashi-*` request header; or a name still used by a
 service, a route or the Traefik settings would disappear (the error names the users). Hashi writes the parsed content
 marshalled back (anchors resolved, comments dropped) under its generated header; an empty file is comments only.
+The pinned schema leaves a few objects open (e.g. `basicAuth`), which Traefik still refuses (finding 9), so Hashi treats
+every schema object as closed. When Traefik refuses a saved file anyway (Verify fails), the previous file is stored and
+planned again, and the save answers with Traefik's error. The file is written before the services file, so a router
+never names a middleware Traefik has not loaded.
 
 ### 4.1 Default middlewares (per service chain)
 
@@ -187,7 +191,7 @@ Per Traefik host:
 
 `/api/services` CRUD + `POST /api/services/{id}/enable|disable`, `GET /api/services/{id}/effective`; access and WAF:
 06 §14; (rendered config
-preview), `/api/traefik/connections/*` (CRUD, validate, install, discover, adopt), `GET|PUT /api/traefik/user-middlewares`,
+preview), `/api/traefik/connections/*` (CRUD, validate, install, discover, adopt), `GET|PUT /api/traefik/user-middlewares` (+ `POST …/check`, the editor's live check without saving),
 `POST /api/traefik/plan`.
 
 ## 9. Tests that must exist
