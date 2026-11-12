@@ -12,11 +12,11 @@ import (
 	"net/netip"
 	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	"go4.org/netipx"
-	"golang.org/x/sync/singleflight"
 
 	"git.juzo.io/juzo/hashi/internal/ipsets"
 	"git.juzo.io/juzo/hashi/internal/rules"
@@ -71,7 +71,12 @@ type Engine struct {
 	geo  atomic.Pointer[GeoLookup]
 	part atomic.Pointer[Partition]
 	cur  atomic.Pointer[snapshot]
-	once singleflight.Group
+	// Rebuilds run one at a time. Each call takes a ticket; a build covers every ticket taken before it started
+	// reading, so a caller returns only after a build that began after its call (bug 32), and callers that queue
+	// behind a running build share the next one.
+	buildMu sync.Mutex
+	tickets atomic.Uint64
+	built   uint64 // highest ticket a finished build covers; guarded by buildMu
 }
 
 // NewEngine returns an engine without a snapshot; call Rebuild before serving.
@@ -109,85 +114,98 @@ func isHTTP(kind string) bool { return kind == "http" || kind == "https" || kind
 
 // Rebuild replaces the snapshot. On an error the previous one stays in force.
 func (e *Engine) Rebuild(ctx context.Context) error {
-	_, err, _ := e.once.Do("rebuild", func() (any, error) {
-		g, err := rules.Load(ctx, e.st.R)
+	ticket := e.tickets.Add(1)
+	e.buildMu.Lock()
+	defer e.buildMu.Unlock()
+	if e.built >= ticket {
+		return nil // a build that started after this call has finished
+	}
+	covers := e.tickets.Load()
+	if err := e.build(ctx); err != nil {
+		return err
+	}
+	e.built = covers
+	return nil
+}
+
+// build reads rules, services, sets and settings and installs the new snapshot.
+func (e *Engine) build(ctx context.Context) error {
+	g, err := rules.Load(ctx, e.st.R)
+	if err != nil {
+		return err
+	}
+	svcs, err := e.st.R.ListServices(ctx)
+	if err != nil {
+		return fmt.Errorf("list services: %w", err)
+	}
+	next := &snapshot{byHost: map[string]serviceView{}, byID: map[string]serviceView{}, sets: map[string]Compiled{}}
+	all, err := e.st.R.GetIPSetBySystemKey(ctx, sql.NullString{String: ipsets.SystemAll, Valid: true})
+	if err != nil {
+		return fmt.Errorf("the all set: %w", err)
+	}
+	next.allID = all.ID
+	if p := e.part.Load(); p != nil {
+		allow, block, err := (*p)(ctx)
 		if err != nil {
-			return nil, err
+			return fmt.Errorf("folded allow and block: %w", err)
 		}
-		svcs, err := e.st.R.ListServices(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("list services: %w", err)
+		if next.allow, err = ipSet(allow); err != nil {
+			return err
 		}
-		next := &snapshot{byHost: map[string]serviceView{}, byID: map[string]serviceView{}, sets: map[string]Compiled{}}
-		all, err := e.st.R.GetIPSetBySystemKey(ctx, sql.NullString{String: ipsets.SystemAll, Valid: true})
-		if err != nil {
-			return nil, fmt.Errorf("the all set: %w", err)
+		if next.block, err = ipSet(block); err != nil {
+			return err
 		}
-		next.allID = all.ID
-		if p := e.part.Load(); p != nil {
-			allow, block, err := (*p)(ctx)
+	}
+	capCfg, err := settings.Get[settings.Captcha](ctx, e.st.R)
+	if err != nil {
+		return err
+	}
+	roots := map[string]string{}
+	for _, s := range g {
+		if s.Kind == rules.KindServiceRoot {
+			roots[s.ServiceID] = s.ID
+		}
+	}
+	for _, row := range svcs {
+		if !isHTTP(row.Kind) {
+			continue
+		}
+		root, ok := roots[row.ID]
+		if !ok {
+			// Between a system service's creation and the job that gives it a root (seconds): the admin page has its
+			// own login and must stay reachable. Any other service gets its root in the transaction that creates it.
+			if row.Origin == "system" && row.HostName != "" {
+				next.byHost[strings.ToLower(row.HostName)] = serviceView{ID: row.ID, Name: row.Name, List: []rules.Flat{{Entry: rules.Entry{AppliesTo: next.allID, Action: rules.ActionNone, Fallback: true}}}}
+				next.sets[next.allID] = Compiled{}
+			}
+			continue
+		}
+		v := serviceView{ID: row.ID, Name: row.Name, List: g.Flatten(root, row.Origin == "system"),
+			Challenge: row.Origin == "system" && row.OwnerFeature == "captcha", System: row.Origin == "system"}
+		if err := json.Unmarshal([]byte(row.WafJson), &v.WAF); err != nil {
+			return fmt.Errorf("service %s WAF: %w", row.ID, err)
+		}
+		if v.Challenge || row.ID == capCfg.AdminServiceID {
+			// No CAPTCHA in front of CAPTCHA (06 §11): pass_captcha items, also from the global set, are left out.
+			v.List = slices.DeleteFunc(slices.Clone(v.List), func(f rules.Flat) bool { return f.Entry.Action == rules.ActionCaptcha })
+		}
+		next.byID[row.ID] = v
+		if row.HostName != "" {
+			next.byHost[strings.ToLower(row.HostName)] = v
+		}
+		for _, f := range v.List {
+			if _, ok := next.sets[f.Entry.AppliesTo]; ok {
+				continue
+			}
+			c, err := e.compile(ctx, e.st.R, f.Entry.AppliesTo)
 			if err != nil {
-				return nil, fmt.Errorf("folded allow and block: %w", err)
+				return err
 			}
-			if next.allow, err = ipSet(allow); err != nil {
-				return nil, err
-			}
-			if next.block, err = ipSet(block); err != nil {
-				return nil, err
-			}
+			next.sets[f.Entry.AppliesTo] = c
 		}
-		capCfg, err := settings.Get[settings.Captcha](ctx, e.st.R)
-		if err != nil {
-			return nil, err
-		}
-		roots := map[string]string{}
-		for _, s := range g {
-			if s.Kind == rules.KindServiceRoot {
-				roots[s.ServiceID] = s.ID
-			}
-		}
-		for _, row := range svcs {
-			if !isHTTP(row.Kind) {
-				continue
-			}
-			root, ok := roots[row.ID]
-			if !ok {
-				// Between a system service's creation and the job that gives it a root (seconds): the admin page has its
-				// own login and must stay reachable. Any other service gets its root in the transaction that creates it.
-				if row.Origin == "system" && row.HostName != "" {
-					next.byHost[strings.ToLower(row.HostName)] = serviceView{ID: row.ID, Name: row.Name, List: []rules.Flat{{Entry: rules.Entry{AppliesTo: next.allID, Action: rules.ActionNone, Fallback: true}}}}
-					next.sets[next.allID] = Compiled{}
-				}
-				continue
-			}
-			v := serviceView{ID: row.ID, Name: row.Name, List: g.Flatten(root, row.Origin == "system"),
-				Challenge: row.Origin == "system" && row.OwnerFeature == "captcha", System: row.Origin == "system"}
-			if err := json.Unmarshal([]byte(row.WafJson), &v.WAF); err != nil {
-				return nil, fmt.Errorf("service %s WAF: %w", row.ID, err)
-			}
-			if v.Challenge || row.ID == capCfg.AdminServiceID {
-				// No CAPTCHA in front of CAPTCHA (06 §11): pass_captcha items, also from the global set, are left out.
-				v.List = slices.DeleteFunc(slices.Clone(v.List), func(f rules.Flat) bool { return f.Entry.Action == rules.ActionCaptcha })
-			}
-			next.byID[row.ID] = v
-			if row.HostName != "" {
-				next.byHost[strings.ToLower(row.HostName)] = v
-			}
-			for _, f := range v.List {
-				if _, ok := next.sets[f.Entry.AppliesTo]; ok {
-					continue
-				}
-				c, err := e.compile(ctx, e.st.R, f.Entry.AppliesTo)
-				if err != nil {
-					return nil, err
-				}
-				next.sets[f.Entry.AppliesTo] = c
-			}
-		}
-		e.cur.Store(next)
-		return nil, nil
-	})
-	return err
+	}
+	e.cur.Store(next)
+	return nil
 }
 
 func (e *Engine) compile(ctx context.Context, q *db.Queries, id string) (Compiled, error) {
