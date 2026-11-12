@@ -221,6 +221,23 @@ func (s *Store) restore(ctx context.Context, backup string) error {
 }
 
 // Ready reports nil when the database answers and the schema is at head.
+// SchemaAtLeast reports an error unless the schema has reached version min. Console recovery uses it, so a copy made
+// by an older Hashi can still be read before the server (which needs the key it recovers) has migrated it.
+func (s *Store) SchemaAtLeast(ctx context.Context, min int64) error {
+	p, err := s.provider()
+	if err != nil {
+		return err
+	}
+	current, _, err := p.GetVersions(ctx)
+	if err != nil {
+		return fmt.Errorf("database: %w", err)
+	}
+	if current < min {
+		return fmt.Errorf("schema at version %d, need at least %d", current, min)
+	}
+	return nil
+}
+
 func (s *Store) Ready(ctx context.Context) error {
 	p, err := s.provider()
 	if err != nil {

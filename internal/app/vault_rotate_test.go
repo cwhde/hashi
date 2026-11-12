@@ -151,11 +151,29 @@ func TestRestoreNightlyBackupOnFreshFolder(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(fresh, "hashi.db"), data, 0o600); err != nil {
 		t.Fatal(err)
 	}
+	// The copy comes from an older Hashi: its schema is behind this binary's, which must not stop the recovery.
+	old, err := store.Open(ctx, filepath.Join(fresh, "hashi.db")) // no migration: the copy as it was
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := old.Writer.ExecContext(ctx, `CREATE TABLE later_versions AS SELECT * FROM goose_db_version WHERE version_id > 20;
+		DELETE FROM goose_db_version WHERE version_id > 20`); err != nil {
+		t.Fatal(err)
+	}
+	_ = old.Close()
 	restored := Config{DataDir: fresh}
 	var out bytes.Buffer
 	if err := VaultRecover(ctx, restored, strings.NewReader(display.Reveal()+"\n"), &out); err != nil {
 		t.Fatal(err)
 	}
+	// Only the version rows were faked; the tables are current, so put the rows back before the server starts.
+	if old, err = store.Open(ctx, filepath.Join(fresh, "hashi.db")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := old.Writer.ExecContext(ctx, `INSERT INTO goose_db_version SELECT * FROM later_versions; DROP TABLE later_versions`); err != nil {
+		t.Fatal(err)
+	}
+	_ = old.Close()
 	lines := strings.Split(strings.TrimSpace(out.String()), "\n")
 	restored.MasterKeyFile = filepath.Join(fresh, "master.key")
 	if err := os.WriteFile(restored.MasterKeyFile, []byte(lines[len(lines)-1]), 0o600); err != nil {

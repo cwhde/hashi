@@ -108,9 +108,15 @@ func AdminRecover(ctx context.Context, cfg Config, out io.Writer) error {
 // VaultRecover reads a recovery key from in and prints the master key it unwraps (02 §5.3). Use it after restoring a
 // backup on a host without the original master key; install the printed key as the hashi_master_key secret.
 func VaultRecover(ctx context.Context, cfg Config, in io.Reader, out io.Writer) error {
-	st, err := openForConsole(ctx, cfg)
+	// Any copy with the vault tables (migration 2) will do: a restored copy from an older version is migrated by the
+	// server only once it has the key this command recovers.
+	st, err := store.Open(ctx, cfg.DBPath())
 	if err != nil {
 		return err
+	}
+	if err := st.SchemaAtLeast(ctx, 2); err != nil {
+		_ = st.Close()
+		return fmt.Errorf("not a Hashi database with a vault: %w", err)
 	}
 	defer func() { _ = st.Close() }()
 	rec, err := st.Q.GetRecoveryKey(ctx)

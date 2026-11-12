@@ -726,8 +726,9 @@ func openVault(ctx context.Context, st *store.Store, cfg Config, log *slog.Logge
 		return nil, err
 	}
 	if mode == vault.ModeStrict {
-		if cfg.MasterKeyFile != "" {
-			log.Warn("strict mode ignores HASHI_MASTER_KEY_FILE; remove the master key from the deployment", "path", cfg.MasterKeyFile)
+		// An empty file is how a compose deployment leaves the key out; one with content is a key left on disk.
+		if fi, err := os.Stat(cfg.MasterKeyFile); cfg.MasterKeyFile != "" && err == nil && fi.Size() > 0 {
+			log.Warn("strict mode ignores HASHI_MASTER_KEY_FILE; empty that file so the master key is not on disk", "path", cfg.MasterKeyFile)
 		}
 		v, err := vault.LoadStrict(ctx, st.Q)
 		if err != nil {

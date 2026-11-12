@@ -41,8 +41,13 @@ up() { # write compose + .env, pull, start
     ssh -o BatchMode=yes "$DEPLOY_SSH" "cat > '$DEPLOY_DIR/compose.yaml.new'" < "$here/compose/compose.yaml"
   fi
   # The master key is created once on the host by the operator (never by this script, never in the repo).
-  on_host "test -s '$DEPLOY_DIR/master.key'" || { echo "missing $DEPLOY_DIR/master.key on the host:" \
-    "create it once with \`docker run --rm git.juzo.io/juzo/hashi:$t keygen\`, owner 65532, mode 0400"; exit 1; }
+  # Strict vault mode (02 §5.4) keeps the key off the host: the file stays, empty, so compose can still start.
+  if [[ ${DEPLOY_VAULT_MODE:-service} == strict ]]; then
+    on_host "test -e '$DEPLOY_DIR/master.key'" || { echo "strict mode: create an empty $DEPLOY_DIR/master.key on the host"; exit 1; }
+  else
+    on_host "test -s '$DEPLOY_DIR/master.key'" || { echo "missing $DEPLOY_DIR/master.key on the host:" \
+      "create it once with \`docker run --rm git.juzo.io/juzo/hashi:$t keygen\`, owner 65532, mode 0400"; exit 1; }
+  fi
   # Cap (06 §11) is optional: with DEPLOY_CAP_PORT set, its dashboard password is created once on the host (random, never
   # printed) and the `cap` profile is switched on. Without it, cap.env stays an empty file so compose can parse the project.
   local cap=""
