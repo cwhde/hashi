@@ -82,6 +82,14 @@ jobs:
           build-args: |
             VERSION=${{ github.ref_type == 'tag' && github.ref_name || steps.sha.outputs.short }}
 
+      # Threat model §7: both pushed images are scanned; a fixable HIGH or CRITICAL finding fails the job.
+      - name: Scan the images
+        run: |
+          for img in hashi hashi-pulse; do
+            docker run --rm aquasec/trivy:0.76.1 image --quiet --scanners vuln --severity HIGH,CRITICAL \
+              --ignore-unfixed --exit-code 1 "$REGISTRY/${{ github.repository_owner }}/$img:${GITHUB_SHA::7}"
+          done
+
   # On a tag: Pulse binaries with checksums on a Gitea release (08 §6). 
   pulse-release:
     if: startsWith(github.ref, 'refs/tags/v')

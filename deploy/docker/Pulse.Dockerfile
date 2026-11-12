@@ -1,5 +1,5 @@
 # Hashi Pulse agent (08 §1): one static binary, nothing else.
-FROM --platform=$BUILDPLATFORM golang:1.27.3-alpine AS go
+FROM --platform=$BUILDPLATFORM golang:1.27.4-alpine AS go
 WORKDIR /src
 COPY go.mod go.sum ./
 COPY agents/ agents/

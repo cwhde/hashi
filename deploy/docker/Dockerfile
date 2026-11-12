@@ -10,7 +10,7 @@ COPY api/openapi.yaml /src/api/openapi.yaml
 COPY web/ ./
 RUN mkdir -p /src/internal/web/dist && pnpm run build
 
-FROM --platform=$BUILDPLATFORM golang:1.27.3-alpine AS go
+FROM --platform=$BUILDPLATFORM golang:1.27.4-alpine AS go
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download

@@ -49,6 +49,10 @@ jobs:
       - name: make check
         run: make check
 
+      # Threat model §7: known vulnerabilities in Go modules (reachable code) and shipped web packages.
+      - name: make scan
+        run: make scan
+
   # 11-delivery.md §4: real binaries (sshd, Traefik, Pebble) in containers on the runner's Docker.
   integration:
     runs-on: ubuntu-latest

@@ -164,11 +164,25 @@ Each one is a decision, not an oversight. Reopen one when its reason no longer h
 
 ## 7. Scans
 
-Run in CI on every push and before a release; a finding is fixed or added here with its reason.
+A finding is fixed or added here with its reason.
 
-| Scan | What it covers | Result |
+`make scan` runs the first two; CI runs it on every push, the release job scans both pushed images.
+
+| Scan | What it covers | Result (2026-11-12) |
 | --- | --- | --- |
 | `golangci-lint` with `gosec` | Go code patterns (injection, weak crypto, file modes) | clean (`make check`) |
+| `govulncheck` (pinned in `tools/go.mod`) | Go modules and the standard library, reachable code first | clean after Go 1.27.4 (net/http server crash, GO-2026-6859, reachable), `golang.org/x/net` 0.62.0, `golang.org/x/crypto` update |
+| `pnpm audit --prod` | Web packages that end up in the shipped SPA | clean |
+| Trivy 0.76.1, image | Debian base packages and the Go binary in the image | base clean; binary: go-jose 4.1.4 (DoS through crafted JWKs, from the IdP) and x/net, both updated |
+
+Accepted (build tools only, never shipped; `pnpm audit` without `--prod`):
+
+| Package | Finding | Why accepted |
+| --- | --- | --- |
+| `@sveltejs/kit` < 3 | Redirect via enhanced forms; XSS via cache-control in prerendered pages | The SPA is static (adapter-static): no form actions, no server, no prerender headers. Kit 3 was deferred in S0 |
+| `cookie` < 0.7 | Out-of-range characters in cookie names | Kit's server side only; nothing runs it |
+| `minimatch` < 11.0.1 | DoS through glob patterns | Build-time globs written by us |
+| `deepmerge` ≤ 4.3.1 | Prototype poisoning | Build-time config merge in the Svelte plugin; no fix exists |
 
 ## 8. Deployment advice that follows from this
 
