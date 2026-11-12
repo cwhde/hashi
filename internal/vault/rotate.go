@@ -119,6 +119,11 @@ func (v *Vault) Rotate(ctx context.Context, q *db.Queries, recovery []byte) (*Va
 			return nil, nil, fmt.Errorf("re-seal secret %s: %w", r.ID, err)
 		}
 	}
+	// Passkey unlockers wrap the old key and can only be re-made with the passkey itself: they go, and the admin adds
+	// them again (rotation runs in service mode, where they are not used).
+	if err := q.DeleteVaultUnlockers(ctx); err != nil {
+		return nil, nil, err
+	}
 	w, err := nv.WrapMaster(recovery)
 	if err != nil {
 		return nil, nil, err

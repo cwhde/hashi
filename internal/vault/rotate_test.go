@@ -43,6 +43,18 @@ func TestRotateKeepsSecretsOperationalKeysAndRecovery(t *testing.T) {
 	if err := st.Q.ConfirmRecoveryKey(ctx, sql.NullInt64{Int64: 1, Valid: true}); err != nil {
 		t.Fatal(err)
 	}
+	// A passkey unlocker made before the rotation would hold the old key: the rotation removes it.
+	if _, err := st.Writer.ExecContext(ctx, `INSERT INTO passkey_credentials (id, credential_id, credential_json, name, rp_id, created_at)
+		VALUES ('pk1', x'01', '{}', 'Laptop', 'example.com', 1)`); err != nil {
+		t.Fatal(err)
+	}
+	u, err := v.NewUnlocker("pk1", []byte("salt"), bytes.Repeat([]byte{5}, 32))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Q.InsertVaultUnlocker(ctx, u); err != nil {
+		t.Fatal(err)
+	}
 	ops := map[string][]byte{}
 	for _, n := range OperationalNames {
 		ops[n] = v.Operational(n)
@@ -94,6 +106,9 @@ func TestRotateKeepsSecretsOperationalKeysAndRecovery(t *testing.T) {
 		}
 		if !rec.ConfirmedAt.Valid {
 			t.Fatalf("round %d: rotation dropped the recovery key's confirmation", round)
+		}
+		if us, _ := st.Q.ListVaultUnlockers(ctx); len(us) != 0 {
+			t.Fatalf("round %d: %d passkey unlockers with the old key survived", round, len(us))
 		}
 		old = fresh
 	}

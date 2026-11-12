@@ -200,7 +200,8 @@ endpoints are excluded and use their own protections.
 - Key rotation: `hashi vault rotate` (console, server stopped: Hashi holds a lock on the data folder while it runs)
   asks for the recovery key, writes a `pre-rotate-v<n>` copy of the database, re-seals every secret under a fresh master
   key at the next version in one transaction, re-wraps the recovery key's copy (the same recovery key keeps working) and
-  prints the new key once. The key version in use is read from the database. Operational keys never change: the first
+  prints the new key once. Passkey unlockers (strict mode) wrap the old key, so they are removed; add them again. The key
+  version in use is read from the database. Operational keys never change: the first
   rotation stores them sealed (`vault.op.<name>`), so Pulse tokens, CSRF tokens, CAPTCHA clearances and audit
   correlation keep working and no automation breaks.
 

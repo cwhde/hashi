@@ -107,7 +107,8 @@ docker compose run --rm --no-deps hashi vault rotate   # asks for the recovery k
 ```
 
 Write the new key into `master.key` and the password manager, then `docker compose up -d`. The old key no longer opens
-the database; the `pre-rotate` copy it wrote still opens with the old one. Not available in strict mode: switch to
+the database; the `pre-rotate` copy it wrote still opens with the old one. Passkeys you added as vault unlockers are
+removed (they hold the old key); add them again before you switch to strict mode. Not available in strict mode: switch to
 service mode first.
 
 ## 8. Strict mode
