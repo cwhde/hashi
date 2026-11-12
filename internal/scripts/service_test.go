@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"strings"
@@ -163,9 +164,11 @@ func TestScriptLifecycle(t *testing.T) {
 	}
 
 	// A scheduled run in the spool is collected once, redacted, and removed from the host.
-	name := Spool + "/prune-snapshots.1794454200.42"
+	// It started after the manual run (the list is newest first), so its time follows the clock, not a fixed date.
+	at := time.Now().Add(time.Hour).Unix()
+	name := fmt.Sprintf("%s/prune-snapshots.%d.42", Spool, at)
 	f.host.Put(name+".out", []byte("token is s3cret-value\n"))
-	f.host.Put(name+".done", []byte("exit=124\nstart=1794454200\nend=1794454260\nsize=22\n"))
+	f.host.Put(name+".done", []byte(fmt.Sprintf("exit=124\nstart=%d\nend=%d\nsize=22\n", at, at+60)))
 	if sum, err := f.s.Collect(ctx); err != nil || sum != "1 scheduled run(s) collected" {
 		t.Fatalf("collect %q %v", sum, err)
 	}
