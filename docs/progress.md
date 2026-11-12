@@ -39,9 +39,18 @@ PR B, strict mode (02 §5.4–5.5):
   secret for it; a locked start failed at the edge token (now kept, `TestStrictModeStartsLocked`)
 
 Then, straight to `main`:
-- [ ] Threat model (`docs/threat-model.md`): assets, attackers, trust boundaries, what each control stops, accepted risks
-- [ ] Scans: `govulncheck`, `pnpm audit`, image scan; in CI; each finding fixed or accepted in the threat model
-- [ ] Operator docs: install, backup and restore, upgrade, strict mode, recovery
+- [x] Threat model (`docs/threat-model.md`): assets, attackers, eight trust boundaries with their controls, nine
+  accepted risks, deployment advice
+- [x] Scans: `make scan` (govulncheck pinned in tools, `pnpm audit --prod`) in CI after `make check`; the release job
+  scans both pushed images with Trivy 0.76.1. Found and fixed (2026-11-12): Go 1.27.3 net/http server crash (reachable,
+  GO-2026-6859) → Go 1.27.4; x/net 0.61 → 0.62; go-jose 4.1.4 → 4.1.6 (DoS through crafted JWKs); x/crypto updated.
+  Accepted: four build-tool findings in dev dependencies (listed in the threat model §7)
+- [x] Operator docs (`docs/operations.md`): keys to keep, install, backups, restore onto a new host, upgrade and going
+  back, recovering access, changing the master key, strict mode, where to look. `hashi vault recover` now reads a copy
+  from an older version (it used to refuse it, while the server can only migrate it once it has the key); deploy
+  targets can set `DEPLOY_VAULT_MODE=strict` to keep an empty key file
+- Found on the way: `TestScriptLifecycle` used a fixed run time that passed on 2026-11-12, so the order check broke by
+  itself; the time now follows the clock
 - [ ] Gate on prod, tag `v1.0.0`
 
 ## Previous slice

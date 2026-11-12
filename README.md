@@ -4,8 +4,9 @@ A single-user control plane for a distributed homelab edge: public DNS, Traefik 
 forwarding with NetBird, internal DNS rewrites, monitoring with public status and app pages, edge SSO, abuse response,
 host scripts and dynamic endpoint discovery — one interface instead of hand-editing zones, proxy files and firewall scripts.
 
-**Status:** walking skeleton deployed next to V1 and the UI designed for every feature; setup and auth (S1) is next. See [docs/progress.md](docs/progress.md) and the specification in
-[docs/spec/](docs/spec/README.md).
+**Status:** in production on its author's homelab; the last slice before 1.0 (S12, hardening) is in progress. See
+[docs/progress.md](docs/progress.md), the specification in [docs/spec/](docs/spec/README.md), how to run it in
+[docs/operations.md](docs/operations.md) and the [threat model](docs/threat-model.md).
 
 ## Progress
 
