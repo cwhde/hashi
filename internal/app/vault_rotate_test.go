@@ -180,6 +180,21 @@ func TestRestoreNightlyBackupOnFreshFolder(t *testing.T) {
 		t.Fatal(err)
 	}
 	start(t, restored).stop()
+	var check bytes.Buffer
+	if err := VaultCheck(ctx, restored, &check); err != nil || !strings.Contains(check.String(), "secrets open") {
+		t.Fatalf("vault check: %v %q", err, check.String())
+	}
+	if strings.Contains(check.String(), "hunter2") {
+		t.Fatal("vault check printed a secret")
+	}
+	wrong := restored
+	wrong.MasterKeyFile = cfg.MasterKeyFile + ".other"
+	if err := os.WriteFile(wrong.MasterKeyFile, []byte(vault.EncodeMasterKey(bytes.Repeat([]byte{1}, vault.KeySize))), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := VaultCheck(ctx, wrong, &bytes.Buffer{}); !errors.Is(err, vault.ErrWrongMasterKey) {
+		t.Fatalf("vault check with another key: %v", err)
+	}
 	st = storetest.Open(t, restored.DBPath())
 	got, err := vault.LoadMasterKey(restored.MasterKeyFile)
 	if err != nil {

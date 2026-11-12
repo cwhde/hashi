@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"git.juzo.io/juzo/hashi/internal/audit"
@@ -206,5 +207,38 @@ func VaultRotate(ctx context.Context, cfg Config, in io.Reader, out io.Writer) e
 	_, _ = fmt.Fprintf(out, "\nMaster key version %d. Install it as the HASHI_MASTER_KEY_FILE content, then start Hashi;\n"+
 		"the old key no longer opens this database (the copy %s still opens with it):\n%s\n",
 		nv.KeyVersion(), filepath.Base(backup), vault.EncodeMasterKey(fresh))
+	return nil
+}
+
+// VaultCheck opens every stored secret with the configured master key and reports how many opened (02 §5, 11 §8): the
+// last step of a restore. It prints counts and the purposes of secrets that failed, never a value.
+func VaultCheck(ctx context.Context, cfg Config, out io.Writer) error {
+	st, err := openForConsole(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = st.Close() }()
+	master, err := vault.LoadMasterKey(cfg.MasterKeyFile)
+	if err != nil {
+		return fmt.Errorf("%w (strict mode: put the master key in the file for this check, then empty it again)", err)
+	}
+	v, err := vault.Load(ctx, st.Q, master)
+	if err != nil {
+		return err
+	}
+	all, err := st.Q.ListSecrets(ctx)
+	if err != nil {
+		return err
+	}
+	var failed []string
+	for _, r := range all {
+		if _, err := v.Open(r); err != nil {
+			failed = append(failed, r.Purpose)
+		}
+	}
+	_, _ = fmt.Fprintf(out, "%d of %d secrets open with this master key (key version %d)\n", len(all)-len(failed), len(all), v.KeyVersion())
+	if len(failed) > 0 {
+		return fmt.Errorf("%d secret(s) don't open: %s", len(failed), strings.Join(failed, ", "))
+	}
 	return nil
 }

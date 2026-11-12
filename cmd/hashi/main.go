@@ -60,7 +60,7 @@ func main() {
 	}
 }
 
-// console runs `hashi bootstrap reset`, `hashi admin recover`, `hashi vault recover` and `hashi vault rotate` with the server's environment config.
+// console runs `hashi bootstrap reset`, `hashi admin recover`, `hashi vault recover`, `hashi vault rotate` and `hashi vault check` with the server's environment config.
 func console(args []string) int {
 	cfg, err := app.LoadConfig(nil, nil)
 	if err != nil {
@@ -77,8 +77,10 @@ func console(args []string) int {
 		err = app.VaultRecover(ctx, cfg, os.Stdin, os.Stdout)
 	case "vault rotate":
 		err = app.VaultRotate(ctx, cfg, os.Stdin, os.Stdout)
+	case "vault check":
+		err = app.VaultCheck(ctx, cfg, os.Stdout)
 	default:
-		fmt.Fprintln(os.Stderr, "usage: hashi bootstrap reset | hashi admin recover | hashi vault recover | hashi vault rotate")
+		fmt.Fprintln(os.Stderr, "usage: hashi bootstrap reset | hashi admin recover | hashi vault recover | hashi vault rotate | hashi vault check")
 		return 2
 	}
 	if err != nil {

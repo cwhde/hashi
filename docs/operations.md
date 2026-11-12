@@ -67,7 +67,8 @@ You need: one copy from `data/backups/`, and either the master key or the recove
    - **You have it:** write it into `master.key`.
    - **You only have the recovery key:** `docker compose run --rm --no-deps hashi vault recover`, type the recovery key;
      it prints the master key. Write that into `master.key` (and the password manager).
-3. `docker compose up -d`, then `docker logs hashi`: no error about the master key means it matches.
+3. `docker compose up -d`, then `docker logs hashi`: no error about the master key means it matches. Then
+   `docker exec hashi hashi vault check` opens every stored secret and prints how many opened (never a value).
 4. Sign in with your passkey. Passkeys belong to the root domain, so they keep working on a new host; if the admin
    name now points somewhere else, update its DNS record first.
 5. Open Changes. Hashi compares every system with what the copy says; review each plan, high-risk ones above all,
