@@ -1,6 +1,8 @@
 package edge
 
 import (
+	"slices"
+
 	"bytes"
 	"context"
 	"crypto/rand"
@@ -225,5 +227,11 @@ func TestSSOSessionSettings(t *testing.T) {
 	now = now.Add(2 * time.Minute) // the other session: 61 min without use
 	if _, err := s.Validate(ctx, idle); err == nil {
 		t.Fatal("session outlived the 1 h idle timeout")
+	}
+}
+
+func TestSessionKeyStaysReadableWhileLocked(t *testing.T) {
+	if !slices.Contains(vault.KeptPurposes, keyPurpose) {
+		t.Fatal("strict mode must keep the edge session key readable while locked")
 	}
 }

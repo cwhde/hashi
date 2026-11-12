@@ -37,6 +37,36 @@ func (q *Queries) DeleteSecretsByPurpose(ctx context.Context, purpose string) er
 	return err
 }
 
+const deleteVaultKept = `-- name: DeleteVaultKept :exec
+DELETE FROM vault_kept
+`
+
+func (q *Queries) DeleteVaultKept(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, deleteVaultKept)
+	return err
+}
+
+const deleteVaultUnlocker = `-- name: DeleteVaultUnlocker :execrows
+DELETE FROM vault_unlockers WHERE id = ?
+`
+
+func (q *Queries) DeleteVaultUnlocker(ctx context.Context, id string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteVaultUnlocker, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const deleteVaultUnlockers = `-- name: DeleteVaultUnlockers :exec
+DELETE FROM vault_unlockers
+`
+
+func (q *Queries) DeleteVaultUnlockers(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, deleteVaultUnlockers)
+	return err
+}
+
 const getRecoveryKey = `-- name: GetRecoveryKey :one
 SELECT id, key_version, verifier, nonce, wrapped_master, created_at, confirmed_at FROM recovery_key WHERE id = 1
 `
@@ -100,6 +130,17 @@ func (q *Queries) GetSecretByPurpose(ctx context.Context, purpose string) (Secre
 	return i, err
 }
 
+const getVaultMode = `-- name: GetVaultMode :one
+SELECT mode FROM vault_state WHERE id = 1
+`
+
+func (q *Queries) GetVaultMode(ctx context.Context) (string, error) {
+	row := q.db.QueryRowContext(ctx, getVaultMode)
+	var mode string
+	err := row.Scan(&mode)
+	return mode, err
+}
+
 const insertSecret = `-- name: InsertSecret :exec
 INSERT INTO secret_records (id, class, purpose, key_version, nonce, ciphertext, dek_nonce, wrapped_dek, created_at, updated_at)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -130,6 +171,36 @@ func (q *Queries) InsertSecret(ctx context.Context, arg InsertSecretParams) erro
 		arg.WrappedDek,
 		arg.CreatedAt,
 		arg.UpdatedAt,
+	)
+	return err
+}
+
+const insertVaultUnlocker = `-- name: InsertVaultUnlocker :exec
+INSERT INTO vault_unlockers (id, passkey_id, salt, key_version, nonce, wrapped_master, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT (passkey_id) DO UPDATE SET id = excluded.id, salt = excluded.salt, key_version = excluded.key_version,
+    nonce = excluded.nonce, wrapped_master = excluded.wrapped_master, created_at = excluded.created_at
+`
+
+type InsertVaultUnlockerParams struct {
+	ID            string
+	PasskeyID     string
+	Salt          []byte
+	KeyVersion    int64
+	Nonce         []byte
+	WrappedMaster []byte
+	CreatedAt     int64
+}
+
+func (q *Queries) InsertVaultUnlocker(ctx context.Context, arg InsertVaultUnlockerParams) error {
+	_, err := q.db.ExecContext(ctx, insertVaultUnlocker,
+		arg.ID,
+		arg.PasskeyID,
+		arg.Salt,
+		arg.KeyVersion,
+		arg.Nonce,
+		arg.WrappedMaster,
+		arg.CreatedAt,
 	)
 	return err
 }
@@ -175,6 +246,193 @@ func (q *Queries) ListSecretMeta(ctx context.Context) ([]ListSecretMetaRow, erro
 		return nil, err
 	}
 	return items, nil
+}
+
+const listSecrets = `-- name: ListSecrets :many
+SELECT id, class, purpose, key_version, nonce, ciphertext, dek_nonce, wrapped_dek, created_at, updated_at FROM secret_records ORDER BY id
+`
+
+func (q *Queries) ListSecrets(ctx context.Context) ([]SecretRecord, error) {
+	rows, err := q.db.QueryContext(ctx, listSecrets)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SecretRecord{}
+	for rows.Next() {
+		var i SecretRecord
+		if err := rows.Scan(
+			&i.ID,
+			&i.Class,
+			&i.Purpose,
+			&i.KeyVersion,
+			&i.Nonce,
+			&i.Ciphertext,
+			&i.DekNonce,
+			&i.WrappedDek,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVaultKept = `-- name: ListVaultKept :many
+SELECT name, value FROM vault_kept ORDER BY name
+`
+
+func (q *Queries) ListVaultKept(ctx context.Context) ([]VaultKept, error) {
+	rows, err := q.db.QueryContext(ctx, listVaultKept)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []VaultKept{}
+	for rows.Next() {
+		var i VaultKept
+		if err := rows.Scan(&i.Name, &i.Value); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVaultUnlockers = `-- name: ListVaultUnlockers :many
+SELECT u.id, u.passkey_id, u.salt, u.key_version, u.nonce, u.wrapped_master, u.created_at, p.name AS passkey_name, p.credential_id
+FROM vault_unlockers u JOIN passkey_credentials p ON p.id = u.passkey_id ORDER BY u.created_at
+`
+
+type ListVaultUnlockersRow struct {
+	ID            string
+	PasskeyID     string
+	Salt          []byte
+	KeyVersion    int64
+	Nonce         []byte
+	WrappedMaster []byte
+	CreatedAt     int64
+	PasskeyName   string
+	CredentialID  []byte
+}
+
+func (q *Queries) ListVaultUnlockers(ctx context.Context) ([]ListVaultUnlockersRow, error) {
+	rows, err := q.db.QueryContext(ctx, listVaultUnlockers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListVaultUnlockersRow{}
+	for rows.Next() {
+		var i ListVaultUnlockersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.PasskeyID,
+			&i.Salt,
+			&i.KeyVersion,
+			&i.Nonce,
+			&i.WrappedMaster,
+			&i.CreatedAt,
+			&i.PasskeyName,
+			&i.CredentialID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const putVaultKept = `-- name: PutVaultKept :exec
+INSERT INTO vault_kept (name, value) VALUES (?, ?) ON CONFLICT (name) DO UPDATE SET value = excluded.value
+`
+
+type PutVaultKeptParams struct {
+	Name  string
+	Value []byte
+}
+
+func (q *Queries) PutVaultKept(ctx context.Context, arg PutVaultKeptParams) error {
+	_, err := q.db.ExecContext(ctx, putVaultKept, arg.Name, arg.Value)
+	return err
+}
+
+const resealSecret = `-- name: ResealSecret :exec
+UPDATE secret_records SET key_version = ?, nonce = ?, ciphertext = ?, dek_nonce = ?, wrapped_dek = ?, updated_at = ?
+WHERE id = ?
+`
+
+type ResealSecretParams struct {
+	KeyVersion int64
+	Nonce      []byte
+	Ciphertext []byte
+	DekNonce   []byte
+	WrappedDek []byte
+	UpdatedAt  int64
+	ID         string
+}
+
+func (q *Queries) ResealSecret(ctx context.Context, arg ResealSecretParams) error {
+	_, err := q.db.ExecContext(ctx, resealSecret,
+		arg.KeyVersion,
+		arg.Nonce,
+		arg.Ciphertext,
+		arg.DekNonce,
+		arg.WrappedDek,
+		arg.UpdatedAt,
+		arg.ID,
+	)
+	return err
+}
+
+const rewrapRecoveryKey = `-- name: RewrapRecoveryKey :exec
+UPDATE recovery_key SET key_version = ?, nonce = ?, wrapped_master = ? WHERE id = 1
+`
+
+type RewrapRecoveryKeyParams struct {
+	KeyVersion    int64
+	Nonce         []byte
+	WrappedMaster []byte
+}
+
+func (q *Queries) RewrapRecoveryKey(ctx context.Context, arg RewrapRecoveryKeyParams) error {
+	_, err := q.db.ExecContext(ctx, rewrapRecoveryKey, arg.KeyVersion, arg.Nonce, arg.WrappedMaster)
+	return err
+}
+
+const setVaultMode = `-- name: SetVaultMode :exec
+INSERT INTO vault_state (id, mode, changed_at) VALUES (1, ?, ?)
+ON CONFLICT (id) DO UPDATE SET mode = excluded.mode, changed_at = excluded.changed_at
+`
+
+type SetVaultModeParams struct {
+	Mode      string
+	ChangedAt int64
+}
+
+func (q *Queries) SetVaultMode(ctx context.Context, arg SetVaultModeParams) error {
+	_, err := q.db.ExecContext(ctx, setVaultMode, arg.Mode, arg.ChangedAt)
+	return err
 }
 
 const upsertRecoveryKey = `-- name: UpsertRecoveryKey :exec

@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { readFileSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { execFileSync, spawn } from 'node:child_process';
 import { statePath } from './global-setup';
 
 // S1 gate (11-delivery.md §3): passkey registration and login pass with a virtual authenticator, end to end through
@@ -25,6 +25,36 @@ test.afterEach(async ({ page }, info) => {
 	console.log(`failed at ${page.url()}\n${text.slice(0, 2000)}`);
 });
 
+// Stops the Hashi process and starts it again with the same flags and data (strict mode starts locked).
+async function restartHashi() {
+	const s = JSON.parse(readFileSync(statePath, 'utf8')) as {
+		bin: string;
+		args: string[];
+		env: Record<string, string>;
+		pid: number;
+		baseURL: string;
+	};
+	process.kill(s.pid, 'SIGTERM');
+	for (let i = 0; i < 100; i++) {
+		try {
+			process.kill(s.pid, 0);
+		} catch {
+			break; // exited
+		}
+		await new Promise((r) => setTimeout(r, 100));
+	}
+	const proc = spawn(s.bin, s.args, { env: { ...process.env, ...s.env }, stdio: 'ignore' });
+	writeFileSync(
+		statePath,
+		JSON.stringify({ ...JSON.parse(readFileSync(statePath, 'utf8')), pid: proc.pid })
+	);
+	for (let i = 0; i < 100; i++) {
+		if ((await fetch(`${s.baseURL}/readyz`).catch(() => null))?.ok) return;
+		await new Promise((r) => setTimeout(r, 100));
+	}
+	throw new Error('Hashi did not come back after the restart');
+}
+
 async function virtualAuthenticator(page: Page, transport: 'internal' | 'usb' = 'internal') {
 	const cdp = await page.context().newCDPSession(page);
 	await cdp.send('WebAuthn.enable');
@@ -35,7 +65,8 @@ async function virtualAuthenticator(page: Page, transport: 'internal' | 'usb' = 
 			hasResidentKey: true,
 			hasUserVerification: true,
 			isUserVerified: true,
-			automaticPresenceSimulation: true
+			automaticPresenceSimulation: true,
+			hasPrf: true // strict vault mode unlocks with the PRF extension (02 §5.4)
 		}
 	});
 	// Detaches this authenticator (and its passkeys) from the browser.
@@ -928,6 +959,31 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 			await page.screenshot({ path: `test-results/visual/${id}-${slug}.png`, fullPage: true });
 		}
 	}
+
+	// S12: strict vault mode (02 §5.4). A PRF passkey becomes an unlocker, strict mode is switched on, and after each
+	// restart Hashi is locked until the recovery key or the passkey unlocks it; the session survives the restarts.
+	await page.goto(`${state.baseURL}/settings?category=account`);
+	await page.getByRole('button', { name: 'Add a passkey' }).click();
+	await expect(page.getByText('This passkey can unlock the vault now.')).toBeVisible();
+	await page.getByRole('button', { name: 'Switch to strict mode…' }).click();
+	await page.getByRole('button', { name: 'Switch to strict mode', exact: true }).click();
+	await expect(page.getByText(/Strict mode is on/)).toBeVisible();
+	await restartHashi();
+	await page.reload();
+	await expect(page.getByText('Vault locked.')).toBeVisible();
+	await page.getByRole('main').getByRole('button', { name: 'Unlock', exact: true }).click();
+	await page.getByLabel('Or the recovery key').fill(key);
+	await page.getByRole('button', { name: 'Unlock with the recovery key' }).click();
+	await expect(page.getByText('Vault locked.')).toHaveCount(0);
+	await restartHashi();
+	await page.reload();
+	await expect(page.getByText('Vault locked.')).toBeVisible();
+	await page.getByRole('main').getByRole('button', { name: 'Unlock', exact: true }).click();
+	await page.getByRole('button', { name: 'Unlock with a passkey' }).click();
+	await expect(page.getByText('Vault locked.')).toHaveCount(0);
+	await page.getByRole('button', { name: 'Switch to service mode…' }).click();
+	await page.getByRole('button', { name: 'Switch to service mode', exact: true }).click();
+	await expect(page.getByText(/Service mode is on/)).toBeVisible();
 
 	// Deleting the passkey this session signed in with ends the session: the page goes to sign-in.
 	await page.goto(`${state.baseURL}/settings?category=account`);

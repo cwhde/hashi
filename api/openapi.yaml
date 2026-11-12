@@ -2840,6 +2840,100 @@ paths:
           content: { application/json: { schema: { $ref: "#/components/schemas/RevealedSecret" } } }
         default: { $ref: "#/components/responses/Problem" }
 
+  /api/vault/unlock/recovery:
+    post:
+      operationId: unlockVaultWithRecoveryKey
+      summary: Unlock a strict-mode vault with the recovery key (02 §5.4)
+      tags: [vault]
+      x-hashi-scopes: [secrets.manage]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/RecoveryKeyUnlock" } } }
+      responses:
+        "200":
+          description: Unlocked
+          content: { application/json: { schema: { $ref: "#/components/schemas/VaultState" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/vault/unlock/passkey/options:
+    post:
+      operationId: vaultUnlockOptions
+      summary: Start unlocking with a passkey that has a PRF unlocker
+      tags: [vault]
+      x-hashi-scopes: [secrets.manage]
+      responses:
+        "200":
+          description: WebAuthn request options with PRF inputs
+          content: { application/json: { schema: { $ref: "#/components/schemas/CeremonyOptions" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/vault/unlock/passkey:
+    post:
+      operationId: unlockVaultWithPasskey
+      summary: Finish unlocking with a passkey's PRF output
+      tags: [vault]
+      x-hashi-scopes: [secrets.manage]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CeremonyResponse" } } }
+      responses:
+        "200":
+          description: Unlocked
+          content: { application/json: { schema: { $ref: "#/components/schemas/VaultState" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/vault/unlockers/options:
+    post:
+      operationId: vaultUnlockerOptions
+      summary: Start adding a passkey that can unlock the vault (evaluates its PRF)
+      tags: [vault]
+      x-hashi-scopes: [secrets.manage]
+      responses:
+        "200":
+          description: WebAuthn request options with a PRF input
+          content: { application/json: { schema: { $ref: "#/components/schemas/CeremonyOptions" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/vault/unlockers:
+    post:
+      operationId: addVaultUnlocker
+      summary: Finish adding a passkey unlocker; the vault must be unlocked
+      tags: [vault]
+      x-hashi-scopes: [secrets.manage]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/CeremonyResponse" } } }
+      responses:
+        "200":
+          description: Added
+          content: { application/json: { schema: { $ref: "#/components/schemas/VaultState" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/vault/unlockers/{id}:
+    delete:
+      operationId: deleteVaultUnlocker
+      summary: Stop a passkey from unlocking the vault
+      tags: [vault]
+      x-hashi-scopes: [secrets.manage]
+      x-hashi-reauth: true
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Removed
+          content: { application/json: { schema: { $ref: "#/components/schemas/VaultState" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/vault/mode:
+    put:
+      operationId: setVaultMode
+      summary: Switch between service and strict mode (02 §5.4)
+      tags: [vault]
+      x-hashi-scopes: [secrets.manage, settings.manage]
+      x-hashi-reauth: true
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/VaultModeChange" } } }
+      responses:
+        "200":
+          description: Mode changed
+          content: { application/json: { schema: { $ref: "#/components/schemas/VaultState" } } }
+        default: { $ref: "#/components/responses/Problem" }
+
   # ---- activity (10b §3) ----
   /api/activity/audit:
     get:
@@ -4769,13 +4863,35 @@ components:
         appearance: { $ref: "#/components/schemas/AppearanceSettings" }
     VaultState:
       type: object
-      required: [mode, locked, key_version, recovery_key_confirmed, secrets]
+      required: [mode, locked, key_version, recovery_key_confirmed, secrets, unlockers, master_key_file]
       properties:
         mode: { type: string, enum: [service, strict] }
         locked: { type: boolean }
         key_version: { type: integer }
         recovery_key_confirmed: { type: boolean }
         secrets: { type: integer }
+        unlockers: { type: array, items: { $ref: "#/components/schemas/VaultUnlocker" } }
+        master_key_file:
+          type: boolean
+          description: "HASHI_MASTER_KEY_FILE holds this vault's master key (needed to switch back to service mode); false while locked"
+    VaultUnlocker:
+      type: object
+      required: [id, passkey_id, passkey_name, created_at]
+      properties:
+        id: { type: string }
+        passkey_id: { type: string }
+        passkey_name: { type: string }
+        created_at: { type: string, format: date-time }
+    VaultModeChange:
+      type: object
+      required: [mode]
+      properties:
+        mode: { type: string, enum: [service, strict] }
+    RecoveryKeyUnlock:
+      type: object
+      required: [recovery_key]
+      properties:
+        recovery_key: { type: string, maxLength: 200 }
     SecretMeta:
       type: object
       required: [id, class, purpose, created_at, updated_at]

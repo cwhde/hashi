@@ -16,8 +16,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/oklog/ulid/v2"
@@ -45,10 +47,21 @@ var ErrWrongMasterKey = errors.New("the master key does not match this database 
 
 // Vault seals and opens secret records. It never logs or returns key material.
 type Vault struct {
-	master  []byte
+	mu      sync.RWMutex
+	master  []byte // nil while locked (strict mode, 02 §5.4)
 	version int64
 	now     func() time.Time
+	ops     map[string][]byte           // operational keys kept from an earlier master key or for strict mode
+	kept    map[string]secrets.Value    // strict mode: stored secrets readable while locked (KeptPurposes)
+	unlock  []func(ctx context.Context) // run after Unlock
 }
+
+// OperationalNames lists every operational key. They are stable for the life of an installation: the first rotation
+// stores them sealed (purpose "vault.op.<name>"), so a new master key keeps Pulse tokens, CSRF tokens, CAPTCHA
+// clearances and audit correlation working.
+var OperationalNames = []string{"audit-correlation", "csrf", "pulse-token-pepper", "captcha-clearance"}
+
+const opPurpose = "vault.op."
 
 // New returns a vault for a 32-byte master key at the given key version (1 until `hashi vault rotate`).
 func New(master []byte, version int64) (*Vault, error) {
@@ -86,21 +99,52 @@ func LoadMasterKey(path string) ([]byte, error) {
 	return k, nil
 }
 
+// masterKey returns the master key, or ErrLocked.
+func (v *Vault) masterKey() ([]byte, error) {
+	v.mu.RLock()
+	defer v.mu.RUnlock()
+	if v.master == nil {
+		return nil, ErrLocked
+	}
+	return v.master, nil
+}
+
 // derive returns HKDF-SHA256(master, info) — the only way keys are derived from the master key.
-func (v *Vault) derive(info string) []byte {
-	k, err := hkdf.Key(sha256.New, v.master, nil, info, KeySize)
+func (v *Vault) derive(info string) ([]byte, error) {
+	m, err := v.masterKey()
+	if err != nil {
+		return nil, err
+	}
+	k, err := hkdf.Key(sha256.New, m, nil, info, KeySize)
 	if err != nil {
 		panic(err) // only fails for lengths > 255*32
 	}
-	return k
+	return k, nil
 }
 
-func (v *Vault) kek(c Class, version int64) []byte {
+func (v *Vault) kek(c Class, version int64) ([]byte, error) {
 	return v.derive("hashi/kek/" + string(c) + "/v" + strconv.FormatInt(version, 10))
 }
 
-// Operational returns an operational key (cookie/CSRF HMAC, audit salt, …) derived from the master key (02 §5.1).
-func (v *Vault) Operational(name string) []byte { return v.derive("hashi/op/" + name + "/v1") }
+// Operational returns an operational key (cookie/CSRF HMAC, audit salt, …) (02 §5.1): the stored one after a rotation,
+// otherwise derived from the master key. A name missing from OperationalNames is a programming error.
+func (v *Vault) Operational(name string) []byte {
+	if !slices.Contains(OperationalNames, name) {
+		panic("vault: operational key " + name + " is not in OperationalNames")
+	}
+	v.mu.RLock()
+	k, ok := v.ops[name]
+	v.mu.RUnlock()
+	if ok {
+		return append([]byte(nil), k...)
+	}
+	k, err := v.derive("hashi/op/" + name + "/v1")
+	if err != nil {
+		// A locked vault always carries every operational key (LoadStrict refuses to start otherwise).
+		panic("vault: operational key " + name + " missing while locked")
+	}
+	return k
+}
 
 func aad(id string, c Class, version int64) []byte {
 	return []byte(id + "|" + string(c) + "|" + strconv.FormatInt(version, 10))
@@ -136,7 +180,10 @@ func open(key, nonce, ct, ad []byte) ([]byte, error) {
 
 // Seal encrypts value into a new record with the given purpose. The caller inserts it.
 func (v *Vault) Seal(c Class, purpose string, value secrets.Value) (db.InsertSecretParams, error) {
-	id := ulid.Make().String()
+	return v.sealID(ulid.Make().String(), c, purpose, value)
+}
+
+func (v *Vault) sealID(id string, c Class, purpose string, value secrets.Value) (db.InsertSecretParams, error) {
 	ad := aad(id, c, v.version)
 	dek := make([]byte, KeySize)
 	if _, err := rand.Read(dek); err != nil {
@@ -146,7 +193,11 @@ func (v *Vault) Seal(c Class, purpose string, value secrets.Value) (db.InsertSec
 	if err != nil {
 		return db.InsertSecretParams{}, fmt.Errorf("seal secret: %w", err)
 	}
-	dekNonce, wrapped, err := seal(v.kek(c, v.version), dek, ad)
+	kek, err := v.kek(c, v.version)
+	if err != nil {
+		return db.InsertSecretParams{}, err
+	}
+	dekNonce, wrapped, err := seal(kek, dek, ad)
 	if err != nil {
 		return db.InsertSecretParams{}, fmt.Errorf("wrap key: %w", err)
 	}
@@ -161,7 +212,19 @@ func (v *Vault) Seal(c Class, purpose string, value secrets.Value) (db.InsertSec
 func (v *Vault) Open(r db.SecretRecord) (secrets.Value, error) {
 	c := Class(r.Class)
 	ad := aad(r.ID, c, r.KeyVersion)
-	dek, err := open(v.kek(c, r.KeyVersion), r.DekNonce, r.WrappedDek, ad)
+	kek, err := v.kek(c, r.KeyVersion)
+	if errors.Is(err, ErrLocked) {
+		v.mu.RLock()
+		val, ok := v.kept[r.Purpose]
+		v.mu.RUnlock()
+		if ok {
+			return val, nil
+		}
+	}
+	if err != nil {
+		return secrets.Value{}, err
+	}
+	dek, err := open(kek, r.DekNonce, r.WrappedDek, ad)
 	if err != nil {
 		return secrets.Value{}, fmt.Errorf("unwrap key for secret %s: %w", r.ID, err)
 	}

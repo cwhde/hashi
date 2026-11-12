@@ -3,6 +3,8 @@
 	import { page } from '$app/state';
 	import { afterNavigate, goto } from '$app/navigation';
 	import { pendingPlans } from '$lib/sync-pending.svelte';
+	import { vaultState } from '$lib/vault.svelte';
+	import VaultUnlockDialog from '$lib/components/hashi/VaultUnlockDialog.svelte';
 	import { nav as designNav, liveNav, setupNav } from '$lib/design/nav';
 	import { session, setupServices } from '$lib/auth/session.svelte';
 	import { time } from '$lib/format';
@@ -18,6 +20,8 @@
 		Search,
 		GitPullRequestArrow,
 		LockOpen,
+		Lock,
+		Fingerprint,
 		Menu,
 		Palette,
 		LogOut,
@@ -30,8 +34,13 @@
 	// The pending-changes count in the live app: on load (the shell mounts after the first navigation has finished), on
 	// every navigation, and every 30 s, because plans also appear from background sync while a page stays open.
 	const refreshPending = () => {
-		if (live) pendingPlans.refresh().catch(() => {});
+		if (live) {
+			pendingPlans.refresh().catch(() => {});
+			vaultState.refresh().catch(() => {});
+		}
 	};
+	const vault = $derived(vaultState.current);
+	let unlockOpen = $state(false);
 	afterNavigate(refreshPending);
 	onMount(() => {
 		void theme.sync();
@@ -243,12 +252,23 @@
 					<span class="tnum">2</span><span class="hidden sm:inline">pending changes</span>
 				</a>{/if}
 
-			<span
-				class="hidden h-8 items-center gap-1.5 rounded-[10px] px-2 text-[12.5px] text-muted-foreground xl:flex"
-				title="Vault unlocked · service mode"
-			>
-				<LockOpen class="size-4 text-ok-text" />Vault unlocked
-			</span>
+			{#if !live || vault?.locked === false}
+				<span
+					class="hidden h-8 items-center gap-1.5 rounded-[10px] px-2 text-[12.5px] text-muted-foreground xl:flex"
+					title="Vault unlocked · {vault?.mode ?? 'service'} mode"
+				>
+					<LockOpen class="size-4 text-ok-text" />Vault unlocked
+				</span>
+			{:else if vault?.locked}
+				<button
+					type="button"
+					class="flex h-8 items-center gap-1.5 rounded-[10px] px-2 text-[12.5px] font-medium text-warn-text hover:bg-surface-2"
+					title="Vault locked · strict mode"
+					onclick={() => (unlockOpen = true)}
+				>
+					<Lock class="size-4" /><span class="hidden sm:inline">Vault locked</span>
+				</button>
+			{/if}
 
 			<DropdownMenu.Root>
 				<DropdownMenu.Trigger>
@@ -319,10 +339,25 @@
 		</header>
 
 		<main class="mx-auto w-full max-w-[1480px] flex-1 px-4 py-6 md:px-8">
+			{#if live && vault?.locked}
+				<div
+					role="status"
+					class="mb-5 flex flex-wrap items-center gap-3 rounded-2xl border border-warn/30 bg-warn/10 px-4 py-3 text-[13px]"
+				>
+					<Lock class="size-4 text-warn-text" />
+					<span class="min-w-0 flex-1"
+						><span class="font-medium">Vault locked.</span> Syncs, scripts and notifications are paused;
+						monitoring and public pages keep running.</span
+					>
+					<Button size="sm" onclick={() => (unlockOpen = true)}><Fingerprint />Unlock</Button>
+				</div>
+			{/if}
 			{@render children()}
 		</main>
 	</div>
 </div>
+
+{#if live}<VaultUnlockDialog bind:open={unlockOpen} />{/if}
 
 <Command.Dialog bind:open={searchOpen}>
 	<Command.Input placeholder="IP, CIDR, ASN, domain or page…" />

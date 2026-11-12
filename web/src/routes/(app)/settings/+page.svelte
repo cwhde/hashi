@@ -14,7 +14,7 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { cn } from '$lib/utils';
-	import { Fingerprint, KeyRound, Trash2, Lock, Pencil } from '@lucide/svelte';
+	import { Fingerprint, KeyRound, Trash2, Pencil } from '@lucide/svelte';
 	import { api, problemText, type Schemas } from '$lib/api/client';
 	import { withReauth } from '$lib/auth/reauth';
 	import { createPasskey, ceremonyText } from '$lib/auth/webauthn';
@@ -26,6 +26,8 @@
 	import Notifications from '$lib/components/hashi/status/Notifications.svelte';
 	import AgentDns from '$lib/components/hashi/pulse/AgentDns.svelte';
 	import PulseSettings from '$lib/components/hashi/pulse/PulseSettings.svelte';
+	import VaultPanel from '$lib/components/hashi/VaultPanel.svelte';
+	import { vaultState } from '$lib/vault.svelte';
 
 	const cats = [
 		{ id: 'general', label: 'General' },
@@ -200,6 +202,7 @@
 		passkeys = p.data!.passkeys;
 		sessions = s.data!.sessions;
 		vault = v.data!;
+		vaultState.set(v.data!);
 	}
 	let newName = $state('');
 	const addPasskey = () =>
@@ -414,29 +417,7 @@
 					<div class="px-4 pb-3">{@render note('sessions')}</div>
 				</Panel>
 
-				<Panel title="Vault">
-					<div class="flex items-start gap-3 text-[13px]">
-						<Lock class="mt-0.5 size-4 text-muted-foreground" />
-						<div class="flex-1 space-y-1">
-							<p>
-								Service mode: secrets unlock automatically with the deployment's master key, so
-								syncs keep running after a restart. Strict mode keeps them locked until you unlock
-								with a passkey or the recovery key.
-							</p>
-							<p class="text-muted-foreground">
-								{vault.secrets} stored secret{vault.secrets === 1 ? '' : 's'} · master key version {vault.key_version}
-								· recovery key
-								{vault.recovery_key_confirmed ? 'confirmed' : 'not confirmed'}
-							</p>
-						</div>
-						<Button
-							size="sm"
-							variant="outline"
-							disabled
-							title="Strict mode arrives in a later slice">Change mode…</Button
-						>
-					</div>
-				</Panel>
+				<VaultPanel vault={vaultState.current ?? vault} />
 			{/if}
 		{:else if loadError}
 			<p

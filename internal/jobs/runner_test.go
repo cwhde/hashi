@@ -141,3 +141,24 @@ func TestSoonRunsBeforeTheInterval(t *testing.T) {
 		t.Error("unknown kind accepted")
 	}
 }
+
+// While the vault is locked only jobs marked RunsLocked start; the others stay due and run after the unlock.
+func TestLockedVaultPausesJobsThatNeedSecrets(t *testing.T) {
+	r, _ := newRunner(t)
+	ctx := context.Background()
+	var locked atomic.Bool
+	locked.Store(true)
+	r.PauseWhile(locked.Load)
+	var needs, free atomic.Int32
+	must(t, r.Register(ctx, Job{Kind: "needs", Interval: time.Hour, Run: func(context.Context) (string, error) { needs.Add(1); return "", nil }}))
+	must(t, r.Register(ctx, Job{Kind: "free", Interval: time.Hour, RunsLocked: true, Run: func(context.Context) (string, error) { free.Add(1); return "", nil }}))
+	runFor(t, r, 200*time.Millisecond)
+	if needs.Load() != 0 || free.Load() != 1 {
+		t.Fatalf("locked: needs=%d free=%d", needs.Load(), free.Load())
+	}
+	locked.Store(false)
+	runFor(t, r, 200*time.Millisecond)
+	if needs.Load() != 1 || free.Load() != 1 {
+		t.Fatalf("after unlock: needs=%d free=%d", needs.Load(), free.Load())
+	}
+}

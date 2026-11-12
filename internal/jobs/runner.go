@@ -23,6 +23,9 @@ type Job struct {
 	Kind     string
 	Interval time.Duration
 	Run      Func
+	// RunsLocked: the job needs no secret, so it keeps running while the vault is locked (02 §5.5). Every other job
+	// waits, still due, and runs once the vault is unlocked.
+	RunsLocked bool
 }
 
 // Runner polls the jobs table and starts due kinds. A kind never overlaps itself.
@@ -35,7 +38,12 @@ type Runner struct {
 	mu   sync.Mutex
 	busy map[string]bool
 	wg   sync.WaitGroup
+	// locked reports whether the vault is locked; nil means never.
+	locked func() bool
 }
+
+// PauseWhile makes jobs without RunsLocked wait while locked() is true.
+func (r *Runner) PauseWhile(locked func() bool) { r.locked = locked }
 
 // New returns a runner using q for persistence.
 func New(q *db.Queries, log *slog.Logger) *Runner {
@@ -102,6 +110,9 @@ func (r *Runner) dispatch(ctx context.Context) {
 	}
 	for _, row := range due {
 		j, ok := r.jobs[row.Kind]
+		if ok && !j.RunsLocked && r.locked != nil && r.locked() {
+			continue // needs secrets: stays due until the vault is unlocked
+		}
 		if !ok || !r.claim(row.Kind) {
 			continue // unknown kind (removed in this version) or still running
 		}

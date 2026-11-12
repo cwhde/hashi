@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path/filepath"
 	"time"
 
 	"git.juzo.io/juzo/hashi/internal/audit"
@@ -44,11 +45,8 @@ func BootstrapReset(ctx context.Context, cfg Config, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	v, err := vault.New(master, 1)
+	v, err := vault.Load(ctx, st.Q, master)
 	if err != nil {
-		return err
-	}
-	if err := v.CheckKey(ctx, st.Q); err != nil {
 		return err
 	}
 	al := audit.New(v.Operational("audit-correlation"))
@@ -143,5 +141,64 @@ func VaultRecover(ctx context.Context, cfg Config, in io.Reader, out io.Writer) 
 		return fmt.Errorf("recovered key does not open this database: %w", err)
 	}
 	_, _ = fmt.Fprintf(out, "\nMaster key (install as HASHI_MASTER_KEY_FILE content):\n%s\n", vault.EncodeMasterKey(master))
+	return nil
+}
+
+// VaultRotate replaces the master key (02 §5.2) with the server stopped: it reads the recovery key from in, re-seals
+// every secret under a new master key and prints that key once. Pulse agents, sign-ins and CAPTCHA clearances keep
+// working (operational keys are kept); the old master key no longer opens this database.
+func VaultRotate(ctx context.Context, cfg Config, in io.Reader, out io.Writer) error {
+	unlock, err := store.Lock(cfg.DataDir)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	st, err := openForConsole(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = st.Close() }()
+	if mode, err := vault.ReadMode(ctx, st.Q); err != nil {
+		return err
+	} else if mode == vault.ModeStrict {
+		return errors.New("strict mode: switch to service mode first (Settings → Security), then rotate")
+	}
+	master, err := vault.LoadMasterKey(cfg.MasterKeyFile)
+	if err != nil {
+		return err
+	}
+	v, err := vault.Load(ctx, st.Q, master)
+	if err != nil {
+		return err
+	}
+	_, _ = fmt.Fprint(out, "Recovery key: ")
+	line, err := bufio.NewReader(in).ReadString('\n')
+	if err != nil && !errors.Is(err, io.EOF) {
+		return err
+	}
+	key, err := vault.ParseRecoveryKey(line)
+	if err != nil {
+		return err
+	}
+	// A copy first: if the new key is lost before it is installed, this file and the old key still open everything.
+	backup := filepath.Join(cfg.DataDir, "backups", fmt.Sprintf("pre-rotate-v%d-%s.db", v.KeyVersion(), time.Now().UTC().Format("20060102T150405Z")))
+	if err := st.BackupTo(ctx, backup); err != nil {
+		return fmt.Errorf("backup before rotation: %w", err)
+	}
+	var fresh []byte
+	var nv *vault.Vault
+	err = st.Tx(ctx, func(q *db.Queries) error {
+		if nv, fresh, err = v.Rotate(ctx, q, key); err != nil {
+			return err
+		}
+		return audit.New(nv.Operational("audit-correlation")).Record(ctx, q, audit.Event{
+			Actor: audit.Console, Action: "vault.rotated", Detail: map[string]any{"key_version": nv.KeyVersion()}})
+	})
+	if err != nil {
+		return err
+	}
+	_, _ = fmt.Fprintf(out, "\nMaster key version %d. Install it as the HASHI_MASTER_KEY_FILE content, then start Hashi;\n"+
+		"the old key no longer opens this database (the copy %s still opens with it):\n%s\n",
+		nv.KeyVersion(), filepath.Base(backup), vault.EncodeMasterKey(fresh))
 	return nil
 }

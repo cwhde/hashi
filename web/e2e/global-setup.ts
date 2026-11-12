@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -26,28 +26,23 @@ export default async function globalSetup() {
 	const baseURL = `http://localhost:${port}`;
 	const appsURL = `http://localhost:${await freePort()}`;
 	const statusURL = `http://localhost:${await freePort()}`;
-	const proc = spawn(
-		bin,
-		[
-			'-data-dir',
-			dir,
-			'-admin-addr',
-			`127.0.0.1:${port}`,
-			'-public-apps-addr',
-			appsURL.replace('http://localhost', '127.0.0.1'),
-			'-public-status-addr',
-			statusURL.replace('http://localhost', '127.0.0.1')
-		],
-		{
-			env: {
-				...process.env,
-				HASHI_MASTER_KEY_FILE: keyFile,
-				HASHI_DEV_WEBAUTHN_ORIGIN: baseURL,
-				// The Hetzner adapter talks to the recorded fixtures (token "replay-token", zone example.com).
-				HASHI_DEV_DNS_FIXTURES: resolve(import.meta.dirname, '../../testdata/contracts/hetzner')
-			}
-		}
-	);
+	const args = [
+		'-data-dir',
+		dir,
+		'-admin-addr',
+		`127.0.0.1:${port}`,
+		'-public-apps-addr',
+		appsURL.replace('http://localhost', '127.0.0.1'),
+		'-public-status-addr',
+		statusURL.replace('http://localhost', '127.0.0.1')
+	];
+	const env = {
+		HASHI_MASTER_KEY_FILE: keyFile,
+		HASHI_DEV_WEBAUTHN_ORIGIN: baseURL,
+		// The Hetzner adapter talks to the recorded fixtures (token "replay-token", zone example.com).
+		HASHI_DEV_DNS_FIXTURES: resolve(import.meta.dirname, '../../testdata/contracts/hetzner')
+	};
+	const proc = spawn(bin, args, { env: { ...process.env, ...env } });
 	let out = '';
 	const creds = await new Promise<{ username: string; password: string }>((ok, fail) => {
 		const timer = setTimeout(
@@ -71,9 +66,28 @@ export default async function globalSetup() {
 	}
 	writeFileSync(
 		statePath,
-		JSON.stringify({ baseURL, appsURL, statusURL, bin, dir, keyFile, ...creds })
+		JSON.stringify({
+			baseURL,
+			appsURL,
+			statusURL,
+			bin,
+			dir,
+			keyFile,
+			args,
+			env,
+			pid: proc.pid,
+			...creds
+		})
 	);
 	return async () => {
-		proc.kill('SIGTERM');
+		// A test may have restarted Hashi (restartHashi in the spec): stop whichever process the state names now.
+		const { pid } = JSON.parse(readFileSync(statePath, 'utf8')) as { pid: number };
+		for (const p of new Set([proc.pid, pid])) {
+			try {
+				if (p) process.kill(p, 'SIGTERM');
+			} catch {
+				// already gone
+			}
+		}
 	};
 }

@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/pressly/goose/v3"
@@ -149,6 +150,44 @@ func (s *Store) BackupTo(ctx context.Context, dst string) error {
 	}
 	_, err := s.Writer.ExecContext(ctx, "VACUUM INTO ?", dst)
 	return err
+}
+
+// nightlyPrefix names the daily copies; only files with it are pruned (pre-migration copies stay).
+const nightlyPrefix = "hashi-"
+
+// NightlyBackup writes today's copy to <data>/backups/hashi-<YYYY-MM-DD>.db (11-delivery.md §8) and keeps the newest
+// keep of them. A second run on the same day replaces that day's copy. It returns the copy's path.
+func (s *Store) NightlyBackup(ctx context.Context, now time.Time, keep int) (string, error) {
+	dir := filepath.Join(filepath.Dir(s.path), "backups")
+	dst := filepath.Join(dir, nightlyPrefix+now.UTC().Format(time.DateOnly)+".db")
+	// VACUUM INTO refuses an existing file: write beside it, then move it into place.
+	tmp := dst + ".tmp"
+	if err := os.Remove(tmp); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return "", err
+	}
+	if err := s.BackupTo(ctx, tmp); err != nil {
+		return "", fmt.Errorf("nightly backup: %w", err)
+	}
+	if err := os.Rename(tmp, dst); err != nil {
+		return "", fmt.Errorf("nightly backup: %w", err)
+	}
+	entries, err := os.ReadDir(dir) // sorted by name, so by date
+	if err != nil {
+		return "", err
+	}
+	var copies []string
+	for _, e := range entries {
+		if n := e.Name(); e.Type().IsRegular() && strings.HasPrefix(n, nightlyPrefix) && strings.HasSuffix(n, ".db") {
+			copies = append(copies, n)
+		}
+	}
+	for len(copies) > keep {
+		if err := os.Remove(filepath.Join(dir, copies[0])); err != nil {
+			return "", fmt.Errorf("prune backups: %w", err)
+		}
+		copies = copies[1:]
+	}
+	return dst, nil
 }
 
 // restore replaces the live database with backup. Pools are reopened afterwards.

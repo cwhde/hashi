@@ -51,3 +51,8 @@ func conflict(detail string) *Problem {
 func notFound(detail string) *Problem {
 	return &Problem{Type: "/problems/not-found", Title: "Not found", Status: http.StatusNotFound, Detail: detail}
 }
+
+func vaultLocked() *Problem {
+	return &Problem{Type: "/problems/vault-locked", Title: "Vault locked", Status: http.StatusLocked,
+		Detail: "Secrets are locked until you unlock the vault with a passkey or the recovery key."}
+}

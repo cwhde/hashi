@@ -2913,6 +2913,125 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/vault/unlock/recovery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Unlock a strict-mode vault with the recovery key (02 §5.4) */
+        post: operations["unlockVaultWithRecoveryKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/vault/unlock/passkey/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start unlocking with a passkey that has a PRF unlocker */
+        post: operations["vaultUnlockOptions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/vault/unlock/passkey": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Finish unlocking with a passkey's PRF output */
+        post: operations["unlockVaultWithPasskey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/vault/unlockers/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start adding a passkey that can unlock the vault (evaluates its PRF) */
+        post: operations["vaultUnlockerOptions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/vault/unlockers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Finish adding a passkey unlocker; the vault must be unlocked */
+        post: operations["addVaultUnlocker"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/vault/unlockers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Stop a passkey from unlocking the vault */
+        delete: operations["deleteVaultUnlocker"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/vault/mode": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Switch between service and strict mode (02 §5.4) */
+        put: operations["setVaultMode"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/activity/audit": {
         parameters: {
             query?: never;
@@ -4849,6 +4968,23 @@ export interface components {
             key_version: number;
             recovery_key_confirmed: boolean;
             secrets: number;
+            unlockers: components["schemas"]["VaultUnlocker"][];
+            /** @description HASHI_MASTER_KEY_FILE holds this vault's master key (needed to switch back to service mode); false while locked */
+            master_key_file: boolean;
+        };
+        VaultUnlocker: {
+            id: string;
+            passkey_id: string;
+            passkey_name: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        VaultModeChange: {
+            /** @enum {string} */
+            mode: "service" | "strict";
+        };
+        RecoveryKeyUnlock: {
+            recovery_key: string;
         };
         SecretMeta: {
             id: string;
@@ -10415,6 +10551,171 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RevealedSecret"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    unlockVaultWithRecoveryKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecoveryKeyUnlock"];
+            };
+        };
+        responses: {
+            /** @description Unlocked */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VaultState"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    vaultUnlockOptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description WebAuthn request options with PRF inputs */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CeremonyOptions"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    unlockVaultWithPasskey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CeremonyResponse"];
+            };
+        };
+        responses: {
+            /** @description Unlocked */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VaultState"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    vaultUnlockerOptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description WebAuthn request options with a PRF input */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CeremonyOptions"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    addVaultUnlocker: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CeremonyResponse"];
+            };
+        };
+        responses: {
+            /** @description Added */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VaultState"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    deleteVaultUnlocker: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VaultState"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    setVaultMode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VaultModeChange"];
+            };
+        };
+        responses: {
+            /** @description Mode changed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VaultState"];
                 };
             };
             default: components["responses"]["Problem"];

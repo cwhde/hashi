@@ -7,3 +7,5 @@ func asRecord(p db.InsertSecretParams) db.SecretRecord { return db.SecretRecord(
 func recoveryRecord(p db.UpsertRecoveryKeyParams) db.RecoveryKey {
 	return db.RecoveryKey{ID: 1, KeyVersion: p.KeyVersion, Verifier: p.Verifier, Nonce: p.Nonce, WrappedMaster: p.WrappedMaster, CreatedAt: p.CreatedAt}
 }
+
+func asUnlocker(p db.InsertVaultUnlockerParams) db.VaultUnlocker { return db.VaultUnlocker(p) }

@@ -5,6 +5,47 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
+**S12 — Hardening + 1.0** · status: **in progress** (started 2026-11-11). Gate: 11-delivery.md §3 row S12: restore from
+backup onto a fresh container works; strict mode unlock with a PRF passkey or the recovery key; security scans clean or
+accepted; tag `v1.0.0`. Spec: 02 §5, 11 §8. After S12: the bug hunt round.
+
+Exists already: pre-migration backup (`VACUUM INTO`), recovery key (setup step 9) and `hashi vault recover`, service mode,
+gosec in the linter. Missing: the nightly backups 11 §8 calls mandatory (never built), `hashi vault rotate` (deferred from
+S1), strict mode, the locked state (02 §5.5), a threat model, vulnerability scans, operator docs.
+
+PR A, backups and keys (11 §8, 02 §5.2–5.3):
+- [x] Nightly backup job `backup.nightly`: `VACUUM INTO /data/backups/hashi-<date>.db`, 14 kept, pre-migration copies
+  untouched; result and failures on the Activity jobs list
+- [x] `hashi vault rotate` (server stopped, lock on the data folder): asks for the recovery key, `pre-rotate` copy,
+  every secret re-sealed in one transaction, recovery copy re-wrapped, new key printed once; old key refused. Operational
+  keys kept (stored sealed on the first rotation): a Pulse token from before still works (owner: no automation may break).
+  Key version now read from the database instead of always 1
+- [x] Restore locally (test): nightly copy into an empty folder, `hashi vault recover`, start, secrets open
+- [ ] Restore drill for the gate: prod's nightly copy on a fresh test container, recovery key typed by the owner, start,
+  reconcile shows no changes; written down as the operator's restore steps
+
+PR B, strict mode (02 §5.4–5.5):
+- [x] Vault with a lock state: open and seal answer `ErrLocked` (API 423); kept in `vault_kept` while locked: the
+  operational keys, the edge session key and the edge token, so Pulse, sign-ins, CAPTCHA clearances, edge sessions and
+  forwarded addresses keep working. Jobs without `RunsLocked` wait, still due, and run after the unlock
+- [x] Unlock with the recovery key (UI), and with a PRF passkey: an unlocker wraps the master key under a key derived
+  from the passkey's PRF output; registration now asks for PRF so security keys can do it
+- [x] Settings → Account → Vault: mode with the trade-off, passkeys that unlock it, switch both ways (back only with the
+  key file in place); header pill and banner with Unlock on every page while locked
+- Local proof (2026-11-11): `make check`, `make test-e2e` green. The e2e adds a PRF passkey (Chrome virtual
+  authenticator with `hasPrf`), switches to strict mode, restarts Hashi: locked banner, unlock with the recovery key;
+  restarts again: unlock with the passkey; back to service mode. The session survives both restarts.
+- Found on the way: the first e2e run got no PRF output, because a credential made without the PRF request has no
+  secret for it; a locked start failed at the edge token (now kept, `TestStrictModeStartsLocked`)
+
+Then, straight to `main`:
+- [ ] Threat model (`docs/threat-model.md`): assets, attackers, trust boundaries, what each control stops, accepted risks
+- [ ] Scans: `govulncheck`, `pnpm audit`, image scan; in CI; each finding fixed or accepted in the threat model
+- [ ] Operator docs: install, backup and restore, upgrade, strict mode, recovery
+- [ ] Gate on prod, tag `v1.0.0`
+
+## Previous slice
+
 **S11 — Scripts, custom themes, settings completeness** · status: **done** (gate passed 2026-11-11 on `v0.11.0-beta.2`). Next: S12, then the bug hunt round. Gate: 11-delivery.md §3
 row S11: scheduled script runs on real hosts with history; custom theme editor works; visual tests pass in all four
 themes; every setting has a consumer test. Spec: 09, 10-ui §2. After S11: S12, then the bug hunt round.
@@ -58,8 +99,6 @@ the spool: the runner now fixes the command before reading variables and reads t
 script. A script named "Run" overwrote `run.sh`: the name is refused. Scheduled runs were not audited (invariant 17):
 each collected run is now a `script.run` entry. Also closed: a unit file Hashi did not write is a conflict, never taken
 over by its name; theme data that is not even valid JSON falls back to Graphite. Re-run on 108: passes.
-
-## Previous slice
 
 **S10 — Abuse engine, WAF, CAPTCHA, feeds** · status: **done** (gate passed 2026-11-03 on `v0.10.0-beta.8`; review fixes in `v0.10.0-beta.9`). Gate: 11-delivery.md §3 row S10. Next: S11.
 Order (the owner, 2026-11-11): S11, then S12, then a large bug hunt and fix round over `docs/bugs.md` and the whole product.
@@ -800,6 +839,9 @@ Decisions made in S0:
 
 ## Agenda with the user
 
+- Decided 2026-11-11 (owner, S12): no automation may break, so operational keys stay stable through rotation and strict
+  mode; strict mode unlocks with the owner's sign-in passkey (PRF support still to check) or the recovery key; strict
+  mode is proven on a test container only, prod stays in service mode; `hashi vault rotate` is built for 1.0.
 - Decided 2026-11-11 (owner): the script gate runs on dev target 108, then one harmless read-only scheduled script on
   the production firewall host. Traefik config paths and pinned version display are dropped from 09 §2 (Hashi installs
   Traefik itself). The user middleware editor stays (04 §3, bug 25); open: build it in S11 or in the bug round.
@@ -835,6 +877,9 @@ Decisions made in S0:
 (Problems that survived two fix attempts: hypothesis, evidence, question for the human.)
 
 ## Unverified
+
+- S12 strict mode: an edge session key created after strict mode was switched on is kept only from the next unlock;
+  a restart before that signs out visitors of protected apps until the unlock.
 
 - S11 review: a scheduled run is redacted with the secret values current when it is collected (up to 5 min later); a
   secret changed in between could appear in that run's stored output.

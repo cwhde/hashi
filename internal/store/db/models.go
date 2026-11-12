@@ -880,3 +880,24 @@ type TraefikUserMiddleware struct {
 	Yaml      string
 	UpdatedAt int64
 }
+
+type VaultKept struct {
+	Name  string
+	Value []byte
+}
+
+type VaultState struct {
+	ID        int64
+	Mode      string
+	ChangedAt int64
+}
+
+type VaultUnlocker struct {
+	ID            string
+	PasskeyID     string
+	Salt          []byte
+	KeyVersion    int64
+	Nonce         []byte
+	WrappedMaster []byte
+	CreatedAt     int64
+}
