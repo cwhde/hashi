@@ -66,7 +66,7 @@ happen at the end of every slice.
 | — | **V1 cutover** | §7 | Every service moved to Hashi's edge; each app Pangolin protected with SSO asks for a login from a signed-out browser on its public name before and after the move; V1, Gatus and Pangolin stopped; Hashi owns DNS/monitoring for everything V1 handled |
 | S10 | Abuse engine, WAF, CAPTCHA, feeds | 06 §3, §5–6, §8–11, §13 (Security dashboard, Engine), dynamic sets, host link, kernel meters on | Access log tailed live from real Traefik; synthetic L7 load → challenge → Cap solve → clear; ignored challenge → ban in `dyn` on every managed host within one poll interval; a test source tripping an L4 meter is staged, drained and banned with `T_ban(c)`; an allowed address tripping both is never banned; a feed fetched and enforced via the firewall block binding; WAF match counted; `headers_only` path accepts a large upload |
 | S11 | Scripts, custom themes, settings completeness | 09-scripts-settings.md, 10-ui.md §2 | Scheduled script runs on real hosts with history; custom theme editor works; visual tests pass in all four themes; every setting has a consumer test |
-| S12 | Hardening + 1.0 | strict vault mode (02 §5.4), backup/restore drill, threat model, docs | Restore from backup onto a fresh container works; strict mode unlock with PRF passkey or recovery key; security scans clean or accepted; tag `v1.0.0` |
+| S12 | Hardening + 1.0 | strict vault mode (02 §5.4), backup/restore drill, threat model, docs | Restore from backup onto a fresh container works; strict mode unlock with PRF passkey or recovery key; security scans clean or accepted. `v1.0.0` follows the bug round |
 
 A slice may span several PRs (rule 7); the gate stays at the slice level.
 
@@ -108,11 +108,13 @@ Tokens, IDs that embed account data, IPs and domains are replaced deterministica
 ### 6.1 Workflows
 
 - `ci.yml` — on PR and push: path-filtered jobs; `make check`; integration tests (Docker); E2E only when `web/` or API changed; Pulse vet/test/build.
-- `security.yml` — on PR, push to main, weekly schedule, manual: gitleaks, govulncheck, osv-scanner (Go + pnpm lockfiles), Semgrep, Trivy filesystem; Trivy image scan of the **pushed digest** for main/tags (local single-platform build only for PRs). Docs-only changes skip heavy scans unless scheduled/dispatched.
+- Scans (threat model §7): `make scan` (govulncheck, `pnpm audit --prod`) runs in `ci.yml` after `make check`; the
+  release job scans both pushed images with Trivy and fails on a fixable HIGH or CRITICAL finding. Secrets are kept out
+  by the local secret guard (pre-commit and pre-push). The separate `security.yml` planned here was never needed.
 - `release.yml` — on main and `v*` tags: multi-arch images `git.juzo.io/juzo/hashi` and `git.juzo.io/juzo/hashi-pulse` (linux/amd64 + linux/arm64), tags `latest` (main), short SHA, semver; Pulse binaries + SHA-256 checksums attached to tag releases.
 
 Versions: `v0.<slice>.<patch>`: the middle number is the slice that passed its gate, so `v0.8.0` when S8 passes, up to
-`v0.11.x`; S12 is `v1.0.0`. The last number counts fixes after it. While a slice's gate is open, `v0.8.0-beta.1`, `-beta.2`, …
+`v0.11.x`; S12 is `v0.12.x`, and `v1.0.0` comes after the bug round that follows S12 (the owner, 2026-11-12). The last number counts fixes after it. While a slice's gate is open, `v0.8.0-beta.1`, `-beta.2`, …
 are pre-releases. The V1 cutover releases as a patch of S9. Both images carry the same tag without the `v`
 (`0.8.0-beta.2`); every other image stays tagged by its short commit.
 

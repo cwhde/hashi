@@ -7,7 +7,7 @@ Rules: docs/spec/11-delivery.md §2.
 
 **S12 — Hardening + 1.0** · status: **in progress** (started 2026-11-11). Gate: 11-delivery.md §3 row S12: restore from
 backup onto a fresh container works; strict mode unlock with a PRF passkey or the recovery key; security scans clean or
-accepted; tag `v1.0.0`. Spec: 02 §5, 11 §8. After S12: the bug hunt round.
+accepted. Spec: 02 §5, 11 §8. After S12: the bug hunt round, then `v1.0.0` (the owner, 2026-11-12).
 
 Exists already: pre-migration backup (`VACUUM INTO`), recovery key (setup step 9) and `hashi vault recover`, service mode,
 gosec in the linter. Missing: the nightly backups 11 §8 calls mandatory (never built), `hashi vault rotate` (deferred from
@@ -51,7 +51,7 @@ Then, straight to `main`:
   targets can set `DEPLOY_VAULT_MODE=strict` to keep an empty key file
 - Found on the way: `TestScriptLifecycle` used a fixed run time that passed on 2026-11-12, so the order check broke by
   itself; the time now follows the clock
-- [ ] Gate on prod, tag `v1.0.0`
+- [ ] Gate on prod (`v0.12.0-beta.1`)
 
 ## Previous slice
 
