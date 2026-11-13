@@ -22,7 +22,18 @@ PR A, backups and keys (11 §8, 02 §5.2–5.3):
   Key version now read from the database instead of always 1
 - [x] Restore locally (test): nightly copy into an empty folder, `hashi vault recover`, start, secrets open
 - [ ] Restore drill for the gate: prod's nightly copy on a fresh test container, recovery key typed by the owner, start,
-  reconcile shows no changes; written down as the operator's restore steps
+  reconcile shows no changes; written down as the operator's restore steps (`docs/operations.md`)
+  - 2026-11-13, `0.12.0-beta.3`, laptop, container without network: prod's nightly copy (1.26 GB) into an empty
+    folder with an empty `master.key`; owner typed the recovery key into `hashi vault recover`; `hashi vault check`:
+    "15 of 15 secrets open with this master key (key version 1)"; started, all three listeners up, `hashi healthcheck`
+    OK after about 4 s; the only 3 errors were jobs that could not reach the network. Drill folder deleted.
+  - 2026-11-13, on the prod Docker host with network: prod's nightly copy in a separate folder, owner typed the recovery key
+    (15 of 15 secrets open), prod stopped and the copy started on the same ports at 07:27 UTC (about 5 s gap). DNS
+    "in sync", AdGuard "2 active, 0 failed", certificates current. Firewall: the copy planned the same high-risk change
+    prod already had waiting (`block4` + 129.73.0.0/16 from a feed, bug 34); it was approved by mistake, applied, failed
+    its check, and the VPS's rescue timer restored the previous table at 07:31:20. Prod started again at 07:31:41, smoke
+    OK; restore folder and key deleted. Result: restore works; "no changes" holds for DNS, AdGuard and certificates,
+    and the only firewall difference is the one prod shows too.
 
 PR B, strict mode (02 §5.4–5.5):
 - [x] Vault with a lock state: open and seal answer `ErrLocked` (API 423); kept in `vault_kept` while locked: the
