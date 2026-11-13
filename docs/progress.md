@@ -5,7 +5,7 @@ Rules: docs/spec/11-delivery.md §2.
 
 ## Current slice
 
-**S12 — Hardening + 1.0** · status: **in progress** (started 2026-11-11). Gate: 11-delivery.md §3 row S12: restore from
+**S12 — Hardening + 1.0** · status: **done** (gate passed 2026-11-13 on `0.12.0-beta.3`; started 2026-11-11). Gate: 11-delivery.md §3 row S12: restore from
 backup onto a fresh container works; strict mode unlock with a PRF passkey or the recovery key; security scans clean or
 accepted. Spec: 02 §5, 11 §8. After S12: the bug hunt round, then `v1.0.0` (the owner, 2026-11-12).
 
@@ -21,7 +21,7 @@ PR A, backups and keys (11 §8, 02 §5.2–5.3):
   keys kept (stored sealed on the first rotation): a Pulse token from before still works (owner: no automation may break).
   Key version now read from the database instead of always 1
 - [x] Restore locally (test): nightly copy into an empty folder, `hashi vault recover`, start, secrets open
-- [ ] Restore drill for the gate: prod's nightly copy on a fresh test container, recovery key typed by the owner, start,
+- [x] Restore drill for the gate: prod's nightly copy on a fresh test container, recovery key typed by the owner, start,
   reconcile shows no changes; written down as the operator's restore steps (`docs/operations.md`)
   - 2026-11-13, `0.12.0-beta.3`, laptop, container without network: prod's nightly copy (1.26 GB) into an empty
     folder with an empty `master.key`; owner typed the recovery key into `hashi vault recover`; `hashi vault check`:
@@ -34,6 +34,12 @@ PR A, backups and keys (11 §8, 02 §5.2–5.3):
     its check, and the VPS's rescue timer restored the previous table at 07:31:20. Prod started again at 07:31:41, smoke
     OK; restore folder and key deleted. Result: restore works; "no changes" holds for DNS, AdGuard and certificates,
     and the only firewall difference is the one prod shows too.
+- [x] Gate, PRF passkey on prod (2026-11-13): the owner's USB security key was added as a sign-in passkey and then as a
+  vault unlocker on prod (service mode), so the real authenticator returned PRF output and Hashi wrapped the master key
+  with it. A password-manager passkey returned none (now explained in the UI). The locked start and the unlock with a
+  PRF passkey and with the recovery key are proven by the e2e journey; the owner decided the USB link on prod is enough
+  and no strict-mode round on prod is needed. Adding a passkey was unclear (two look-alike prompts): rebuilt as a guided
+  dialog on `bug-round` (bug 37), ships with the bug round.
 
 PR B, strict mode (02 §5.4–5.5):
 - [x] Vault with a lock state: open and seal answer `ErrLocked` (API 423); kept in `vault_kept` while locked: the
@@ -890,7 +896,7 @@ Decisions made in S0:
 | V1 cutover | **done** | 2026-11-01 · `0.9.1-beta.2` · Both Traefik LXCs replaced by fresh Alpine ones with the same ID, address and MAC; Hashi installed Traefik through approved plans. About 6 minutes public downtime. 47 of 48 names identical before and after, valid certificates; the admin name moved to its final address. NetBird, Gitea and laptop SSH unaffected. 14 protected names redirect signed-out browsers; a real browser completed sign-in through Pocket ID on the new edge (`edge.login` in the audit log). 5 Pulse agents report at the final address. Old data removal follows after a week. |
 | S10 Security engine, WAF, CAPTCHA, blocklists | — | |
 | S11 Scripts, themes, settings | 2026-11-11, `v0.11.0-beta.2` | scheduled script on the production firewall host ran and was collected; 77 settings proven; four themes pass contrast |
-| S12 Hardening + 1.0 | — | |
+| S12 Hardening + 1.0 | 2026-11-13, `0.12.0-beta.3` | Restore from prod's nightly copy offline and on the prod host (15 of 15 secrets, DNS/AdGuard/certificates in sync); USB key PRF unlocker on prod; scans in CI and release, accepted findings in the threat model |
 
 ## Blocked
 
