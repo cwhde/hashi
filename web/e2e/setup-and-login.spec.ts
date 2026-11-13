@@ -446,15 +446,28 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 		page.getByRole('button', { name: 'Delete passkey E2E authenticator' })
 	).toBeDisabled();
 
-	// Reauth-protected action: adding a passkey first confirms with the existing one. The same authenticator then
-	// refuses a second credential (Hashi sends existing ones as exclusions), so a second authenticator is attached.
-	await page.getByLabel('New passkey name').fill('Second key');
+	// Adding a passkey is a sequence of steps, each naming the device it wants (bug 37): confirm with the existing
+	// passkey, create on the new device, then link it to the vault. The same authenticator refuses a second
+	// credential (Hashi sends existing ones as exclusions), so a second, USB one is attached.
 	await page.getByRole('button', { name: 'Add passkey' }).click();
-	await expect(page.getByRole('alert')).toContainText('already holds a passkey');
+	const add = page.getByRole('dialog', { name: 'Add a passkey' });
+	await expect(add.getByText('Confirm it’s you')).toBeVisible();
+	await add.getByLabel('Name').fill('Second key');
+	const confirmStep = add.getByRole('button', { name: 'Confirm with a known passkey' });
+	if (await confirmStep.isVisible()) await confirmStep.click();
+	await add.getByRole('button', { name: 'Create passkey' }).click();
+	await expect(add.getByRole('alert')).toContainText('already holds a passkey');
 	const removeUsb = await virtualAuthenticator(page, 'usb');
-	await page.getByRole('button', { name: 'Add passkey' }).click();
-	await expect(page.getByText('Passkey added.')).toBeVisible();
-	await expect(page.getByText('Second key')).toBeVisible();
+	await add.getByRole('button', { name: 'Create passkey' }).click();
+	await expect(add.getByText('“Second key” created')).toBeVisible();
+	await page.screenshot({ path: 'test-results/visual/passkey-add-steps.png' });
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.screenshot({ path: 'test-results/visual/passkey-add-steps-phone.png' });
+	await page.setViewportSize({ width: 1280, height: 800 });
+	await add.getByRole('button', { name: 'Link Second key' }).click();
+	await expect(add.getByRole('status')).toHaveText('Second key can unlock the vault now.');
+	await add.getByRole('button', { name: 'Done' }).click();
+	await expect(page.getByText('Second key').first()).toBeVisible();
 
 	// Firewall pages (05): the host from step 6 with its rendered table; no old script, no mention;
 	// a UDP service opens its port, which waits for approval.
@@ -963,8 +976,17 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	// S12: strict vault mode (02 §5.4). A PRF passkey becomes an unlocker, strict mode is switched on, and after each
 	// restart Hashi is locked until the recovery key or the passkey unlocks it; the session survives the restarts.
 	await page.goto(`${state.baseURL}/settings?category=account`);
+	// The vault's own button links a passkey that already signs in (one prompt, that passkey only).
 	await page.getByRole('button', { name: 'Add a passkey' }).click();
-	await expect(page.getByText('This passkey can unlock the vault now.')).toBeVisible();
+	const vaultAdd = page.getByRole('dialog', { name: 'Add a passkey that unlocks the vault' });
+	await vaultAdd.getByLabel(/E2E authenticator/).check();
+	await page.screenshot({ path: 'test-results/visual/passkey-vault-choose.png' });
+	await vaultAdd.getByRole('button', { name: 'Continue' }).click();
+	await vaultAdd.getByRole('button', { name: 'Link E2E authenticator' }).click();
+	await expect(vaultAdd.getByRole('status')).toHaveText(
+		'E2E authenticator can unlock the vault now.'
+	);
+	await vaultAdd.getByRole('button', { name: 'Done' }).click();
 	await page.getByRole('button', { name: 'Switch to strict mode…' }).click();
 	await page.getByRole('button', { name: 'Switch to strict mode', exact: true }).click();
 	await expect(page.getByText(/Strict mode is on/)).toBeVisible();

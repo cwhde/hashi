@@ -2883,8 +2883,12 @@ paths:
     post:
       operationId: vaultUnlockerOptions
       summary: Start adding a passkey that can unlock the vault (evaluates its PRF)
+      description: With passkey_id the browser is asked for that passkey only (for example one created a moment ago).
       tags: [vault]
       x-hashi-scopes: [secrets.manage]
+      requestBody:
+        required: false
+        content: { application/json: { schema: { $ref: "#/components/schemas/VaultUnlockerStart" } } }
       responses:
         "200":
           description: WebAuthn request options with a PRF input
@@ -4109,6 +4113,10 @@ components:
       required: [revoked]
       properties:
         revoked: { type: integer }
+    VaultUnlockerStart:
+      type: object
+      properties:
+        passkey_id: { type: string, description: Ask for this passkey only }
     CeremonyOptions:
       type: object
       required: [ceremony_id, options]

@@ -17,7 +17,7 @@
 	import { Fingerprint, KeyRound, Trash2, Pencil } from '@lucide/svelte';
 	import { api, problemText, type Schemas } from '$lib/api/client';
 	import { withReauth } from '$lib/auth/reauth';
-	import { createPasskey, ceremonyText } from '$lib/auth/webauthn';
+	import { ceremonyText } from '$lib/auth/webauthn';
 	import { dateTime, time } from '$lib/format';
 	import { theme, themes, customVars, type CustomTheme, type ThemeId } from '$lib/theme.svelte';
 	import { setTimeDisplay } from '$lib/format';
@@ -27,6 +27,7 @@
 	import AgentDns from '$lib/components/hashi/pulse/AgentDns.svelte';
 	import PulseSettings from '$lib/components/hashi/pulse/PulseSettings.svelte';
 	import VaultPanel from '$lib/components/hashi/VaultPanel.svelte';
+	import AddPasskeyDialog from '$lib/components/hashi/AddPasskeyDialog.svelte';
 	import { vaultState } from '$lib/vault.svelte';
 
 	const cats = [
@@ -204,23 +205,7 @@
 		vault = v.data!;
 		vaultState.set(v.data!);
 	}
-	let newName = $state('');
-	const addPasskey = () =>
-		save(
-			'passkey',
-			async () => {
-				const opts = await withReauth(() => api.POST('/api/auth/passkeys/register/options'));
-				const credential = await createPasskey(opts.options);
-				await withReauth(() =>
-					api.POST('/api/auth/passkeys/register/verify', {
-						body: { ceremony_id: opts.ceremony_id, name: newName.trim() || 'Passkey', credential }
-					})
-				);
-				newName = '';
-				await loadAccount();
-			},
-			'Passkey added.'
-		);
+	let adding = $state(false);
 	let renaming = $state<string | null>(null);
 	let renameTo = $state('');
 	const rename = (id: string) =>
@@ -324,14 +309,7 @@
 			{:else}
 				<Panel title="Passkeys" description="Sign-in and confirmation of risky changes" flush>
 					{#snippet actions()}
-						<Input
-							bind:value={newName}
-							placeholder="Name"
-							aria-label="New passkey name"
-							maxlength={64}
-							class="h-8 w-36"
-						/>
-						<Button size="sm" variant="outline" onclick={addPasskey} disabled={busy === 'passkey'}
+						<Button size="sm" variant="outline" onclick={() => (adding = true)}
 							><Fingerprint />Add passkey</Button
 						>
 					{/snippet}
@@ -417,7 +395,7 @@
 					<div class="px-4 pb-3">{@render note('sessions')}</div>
 				</Panel>
 
-				<VaultPanel vault={vaultState.current ?? vault} />
+				<VaultPanel vault={vaultState.current ?? vault} {passkeys} onchanged={loadAccount} />
 			{/if}
 		{:else if loadError}
 			<p
@@ -783,6 +761,10 @@
 		{/if}
 	</div>
 </div>
+
+{#if passkeys}
+	<AddPasskeyDialog bind:open={adding} for="signin" {passkeys} onchanged={loadAccount} />
+{/if}
 
 <AlertDialog.Root open={!!deleting} onOpenChange={(o) => !o && (deleting = null)}>
 	<AlertDialog.Content>

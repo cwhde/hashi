@@ -389,6 +389,20 @@ func (p *Passkeys) BeginPRF(ctx context.Context, owner []byte, kind ceremonyKind
 	opts := []webauthn.LoginOption{webauthn.WithUserVerification(protocol.VerificationRequired)}
 	switch kind {
 	case PRFEnroll:
+		// salts, when given, names the only passkeys the browser may offer (a key created a moment ago, so a password
+		// manager holding another passkey for this site doesn't answer instead).
+		if salts != nil {
+			var allow []protocol.CredentialDescriptor
+			for _, c := range u.creds {
+				if _, ok := salts[string(c.ID)]; ok {
+					allow = append(allow, c.Descriptor())
+				}
+			}
+			if len(allow) == 0 {
+				return "", nil, ErrCeremony
+			}
+			opts = append(opts, webauthn.WithAllowedCredentials(allow))
+		}
 		opts = append(opts, webauthn.WithAssertionExtensions(webauthn.WithExtensionPRF(protocol.PRFValues{First: salt})))
 	case PRFUnlock:
 		var allow []protocol.CredentialDescriptor

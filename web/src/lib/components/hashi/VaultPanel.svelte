@@ -3,17 +3,27 @@
 	import Tag from '$lib/components/hashi/Tag.svelte';
 	import Mono from '$lib/components/hashi/Mono.svelte';
 	import VaultUnlockDialog from '$lib/components/hashi/VaultUnlockDialog.svelte';
+	import AddPasskeyDialog from '$lib/components/hashi/AddPasskeyDialog.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { Fingerprint, Lock, LockOpen, Trash2 } from '@lucide/svelte';
 	import { api, problemText, type Schemas } from '$lib/api/client';
 	import { withReauth } from '$lib/auth/reauth';
-	import { usePasskey, ceremonyText } from '$lib/auth/webauthn';
+	import { ceremonyText } from '$lib/auth/webauthn';
 	import { dateTime } from '$lib/format';
 	import { vaultState } from '$lib/vault.svelte';
 
 	// Settings → Account → Vault (02 §5.4): mode, passkeys that unlock it, switching modes.
-	let { vault }: { vault: Schemas['VaultState'] } = $props();
+	let {
+		vault,
+		passkeys,
+		onchanged
+	}: {
+		vault: Schemas['VaultState'];
+		passkeys: Schemas['Passkey'][];
+		onchanged: () => Promise<void>;
+	} = $props();
+	let adding = $state(false);
 	let busy = $state('');
 	let error = $state('');
 	let notice = $state('');
@@ -40,21 +50,6 @@
 		}
 	}
 
-	const addUnlocker = () =>
-		run(
-			'add',
-			async () => {
-				const opts = await api.POST('/api/vault/unlockers/options');
-				if (opts.error || !opts.data) throw opts.error;
-				const credential = await usePasskey(opts.data.options);
-				const res = await api.POST('/api/vault/unlockers', {
-					body: { ceremony_id: opts.data.ceremony_id, credential }
-				});
-				if (res.error || !res.data) throw res.error;
-				return res.data;
-			},
-			'This passkey can unlock the vault now.'
-		);
 	const removeUnlocker = (id: string) =>
 		run(
 			'remove',
@@ -119,14 +114,17 @@
 		<div class="rounded-xl border">
 			<div class="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
 				<span class="text-[12.5px] font-medium">Passkeys that unlock the vault</span>
-				<Button size="xs" variant="ghost" disabled={!!busy || vault.locked} onclick={addUnlocker}
-					><Fingerprint />{busy === 'add' ? 'Waiting for the passkey…' : 'Add a passkey'}</Button
+				<Button
+					size="xs"
+					variant="ghost"
+					disabled={!!busy || vault.locked}
+					onclick={() => (adding = true)}><Fingerprint />Add a passkey</Button
 				>
 			</div>
 			{#if vault.unlockers.length === 0}
 				<p class="px-3 py-3 text-muted-foreground">
-					None yet. Only a passkey that supports PRF can unlock; your browser tells you if this one
-					can't. {strict
+					None yet. Pick a passkey you sign in with, or create one on a USB security key. Passkeys
+					kept in a password manager often can’t unlock. {strict
 						? 'Until then, unlock with the recovery key.'
 						: 'Used in strict mode only.'}
 				</p>
@@ -154,6 +152,7 @@
 </Panel>
 
 <VaultUnlockDialog bind:open={unlockOpen} />
+<AddPasskeyDialog bind:open={adding} for="vault" {passkeys} {onchanged} />
 
 <AlertDialog.Root bind:open={confirmStrict}>
 	<AlertDialog.Content>

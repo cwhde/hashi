@@ -125,3 +125,38 @@ func TestLastPasskeyCannotBeDeleted(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// The vault's "link this passkey" step asks the browser for the chosen passkey only, so a password manager holding
+// another passkey for the site can't answer in its place (bug 37).
+func TestPRFEnrollCanAskForOnePasskey(t *testing.T) {
+	ctx := context.Background()
+	p, st := newPasskeys(t)
+	owner := []byte("session-1")
+	if _, _, err := registerSoft(t, p, st, owner, testRP.Origin); err != nil {
+		t.Fatal(err)
+	}
+	_, second, err := registerSoft(t, p, st, owner, testRP.Origin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	row, err := st.Q.GetPasskey(ctx, second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	salt := []byte("0123456789abcdef0123456789abcdef")
+
+	_, all, err := p.BeginPRF(ctx, owner, PRFEnroll, salt, nil)
+	if err != nil || len(all.Response.AllowedCredentials) != 2 {
+		t.Fatalf("without a choice: %d allowed, %v", len(all.Response.AllowedCredentials), err)
+	}
+	_, one, err := p.BeginPRF(ctx, owner, PRFEnroll, salt, map[string][]byte{string(row.CredentialID): salt})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := one.Response.AllowedCredentials; len(got) != 1 || string(got[0].CredentialID) != string(row.CredentialID) {
+		t.Fatalf("with a choice: %+v", got)
+	}
+	if _, _, err := p.BeginPRF(ctx, owner, PRFEnroll, salt, map[string][]byte{"unknown": salt}); !errors.Is(err, ErrCeremony) {
+		t.Fatalf("unknown passkey: %v", err)
+	}
+}
