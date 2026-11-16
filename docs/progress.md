@@ -953,6 +953,9 @@ Decisions made in S0:
 
 ## Log
 
+- 2026-11-16 · deploy `v0.12.0-beta.4` (`4e46628`, the owner's OK) · smoke ok (readyz, version, SPA, both public pages).
+  Ships #66: bug 37 (adding a passkey is a guided two-step sequence that names each device) and bug 74 (AdGuard plans
+  are sent as text, so Pending changes no longer goes blank). Live check of Pending changes waits for the owner's sign-in.
 - 2026-11-11 · deploy `v0.11.0-beta.1`, then `v0.11.0-beta.2` (`bc69f83`, the owner's OK each time) · smoke ok both times.
   Bug 29 fixed and proven live: CI containers (Docker network MTU 1500 behind the firewall host's 1280 bridge) failed 10/10 to
   reach GitHub's Azure address and the Playwright CDN; at container MTU 1280 they worked, so it was path MTU. The fix
