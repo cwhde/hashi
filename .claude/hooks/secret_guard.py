@@ -63,10 +63,14 @@ def diff_for(command, project):
     return pending(project)
 
 
+# A workflow step pinned to a public action's commit (`uses: owner/repo@<40 hex>`) is a commit id, not a token.
+ACTION_PIN = re.compile(r"(uses:\s*[\w.-]+/[\w./-]+@)[0-9a-f]{40}\b")
+
+
 def added_lines(diff):
     for line in diff.splitlines():
         if line.startswith("+") and not line.startswith("+++") and ALLOW_MARK not in line:
-            yield line[1:]
+            yield ACTION_PIN.sub(r"\1<commit>", line[1:])
 
 
 def module_path(project):

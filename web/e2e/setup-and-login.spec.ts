@@ -44,7 +44,10 @@ async function restartHashi() {
 		await new Promise((r) => setTimeout(r, 100));
 	}
 	const log = openSync(logPath, 'a');
-	const proc = spawn(s.bin, s.args, { env: { ...process.env, ...s.env }, stdio: ['ignore', log, log] });
+	const proc = spawn(s.bin, s.args, {
+		env: { ...process.env, ...s.env },
+		stdio: ['ignore', log, log]
+	});
 	writeFileSync(
 		statePath,
 		JSON.stringify({ ...JSON.parse(readFileSync(statePath, 'utf8')), pid: proc.pid })
