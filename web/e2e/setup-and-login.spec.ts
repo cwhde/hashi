@@ -930,12 +930,23 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 
 	// S11 visual tests (10-ui §2): every main page in every built-in theme keeps readable contrast (axe), fits a phone
 	// without sideways scrolling, and leaves a screenshot to look at.
+	// Every top-level page (13.2 gate).
 	const pages = [
+		'/changes',
 		'/services',
-		'/security',
-		'/scripts',
+		'/dns',
+		'/traefik',
 		'/firewall',
+		'/pulse',
+		'/security',
+		'/ip-sets',
+		'/ip-sets/address',
+		'/rule-sets',
 		'/status',
+		'/app-display',
+		'/scripts',
+		'/activity',
+		'/connections',
 		'/settings?category=appearance'
 	];
 	for (const [id, name] of [

@@ -22,7 +22,7 @@
 	{#snippet actions()}<Button><Plus />New script</Button>{/snippet}
 </PageHeader>
 
-<div class="grid gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
+<div class="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
 	<nav class="h-fit rounded-2xl border bg-card p-1.5" aria-label="Scripts">
 		{#each scripts as x (x.id)}
 			<button

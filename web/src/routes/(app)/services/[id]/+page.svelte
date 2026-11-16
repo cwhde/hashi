@@ -212,7 +212,8 @@
 	<Skeleton class="h-28 rounded-2xl" /><Skeleton class="mt-4 h-72 rounded-2xl" />
 {:else}
 	<div class="mb-5 rounded-2xl border bg-card p-4">
-		<div class="flex flex-wrap items-start gap-x-6 gap-y-3">
+		<!-- On a phone the buttons go under the title instead of squeezing it (bug 15). -->
+		<div class="flex flex-col gap-x-6 gap-y-3 sm:flex-row sm:items-start">
 			<div class="min-w-0 flex-1">
 				<h1 class="flex flex-wrap items-center gap-2 text-title leading-tight font-semibold">
 					{svc.name}
@@ -255,9 +256,11 @@
 						>{:else if svc.enabled}Published on every Traefik host{:else}Off{/if}
 				</dd>
 			</div>
-			<div>
+			<div class="col-span-2 min-w-0 sm:col-span-1">
 				<dt class="text-xs text-muted-foreground">Upstream</dt>
-				<dd class="min-w-0 break-all"><Mono>{svc.kind}://{targetText(svc.target)}</Mono></dd>
+				<dd class="overflow-x-auto whitespace-nowrap">
+					<Mono>{svc.kind}://{targetText(svc.target)}</Mono>
+				</dd>
 			</div>
 			<div>
 				<dt class="text-xs text-muted-foreground">Routes</dt>

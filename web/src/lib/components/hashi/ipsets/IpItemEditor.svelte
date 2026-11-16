@@ -63,7 +63,8 @@
 			bind:value={() => form.type, (v: string) => v && (form.type = v as ItemType)}
 			variant="outline"
 			size="sm"
-			class="flex-wrap"
+			spacing={1}
+			class="grid w-full grid-cols-4"
 		>
 			{#each types as t (t.v)}
 				<ToggleGroup.Item

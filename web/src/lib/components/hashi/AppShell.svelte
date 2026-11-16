@@ -102,10 +102,12 @@
 		{#each nav as section, si (si)}
 			<div class="flex flex-col gap-0.5">
 				{#if section.group}
-					<div
-						class={cn('h-6 px-2.5 text-2xs font-medium text-muted-foreground', !full && 'sr-only')}
-					>
-						{section.group}
+					<!-- Same height open and closed, so the items never move when the bar expands (bug 1). -->
+					<div class="flex h-6 items-center px-2.5 text-2xs font-medium text-muted-foreground">
+						{#if full}{section.group}{:else}<span class="sr-only">{section.group}</span><span
+								aria-hidden="true"
+								class="h-px w-full bg-border"
+							></span>{/if}
 					</div>
 				{/if}
 				{#each section.items as item (item.href)}
@@ -238,7 +240,7 @@
 					)}
 				>
 					<GitPullRequestArrow class="size-4" />
-					<span class="tnum">{pendingPlans.count}</span><span class="hidden sm:inline"
+					<span class="tnum">{pendingPlans.count}</span><span class="sr-only sm:not-sr-only"
 						>{pendingPlans.count === 1 ? 'pending change' : 'pending changes'}</span
 					>
 				</a>{:else if !live}<a
@@ -246,7 +248,7 @@
 					class="flex h-8 items-center gap-1.5 rounded-[10px] border border-warn/30 bg-warn/10 px-2.5 text-md font-medium text-warn-text hover:bg-warn/15"
 				>
 					<GitPullRequestArrow class="size-4" />
-					<span class="tnum">2</span><span class="hidden sm:inline">pending changes</span>
+					<span class="tnum">2</span><span class="sr-only sm:not-sr-only">pending changes</span>
 				</a>{/if}
 
 			{#if !live || vault?.locked === false}
@@ -263,7 +265,7 @@
 					title="Vault locked · strict mode"
 					onclick={() => (unlockOpen = true)}
 				>
-					<Lock class="size-4" /><span class="hidden sm:inline">Vault locked</span>
+					<Lock class="size-4" /><span class="sr-only sm:not-sr-only">Vault locked</span>
 				</button>
 			{/if}
 

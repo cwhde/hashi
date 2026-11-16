@@ -34,7 +34,14 @@
 <div class="space-y-4">
 	<div class="space-y-1.5">
 		<Label>Type</Label>
-		<ToggleGroup.Root type="single" bind:value={type} variant="outline" size="sm" class="flex-wrap">
+		<ToggleGroup.Root
+			type="single"
+			bind:value={type}
+			variant="outline"
+			size="sm"
+			spacing={1}
+			class="grid w-full grid-cols-4"
+		>
 			{#each types as t (t.v)}
 				<ToggleGroup.Item value={t.v} disabled={usedAsTarget && !t.target}>{t.l}</ToggleGroup.Item>
 			{/each}

@@ -71,6 +71,8 @@
 	><ChevronLeft class="size-4" />IP sets</a
 >
 
+{#if !address}<h1 class="mb-4 text-title leading-tight font-semibold">Address lookup</h1>{/if}
+
 <form
 	class="relative mb-5 max-w-80"
 	onsubmit={(e) => {
