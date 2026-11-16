@@ -30,7 +30,7 @@ Next: 13.1. After 13.9: a last bug sweep, then `v1.0.0`.
 - [x] 14 Pulse: `--version`/`-v`/`version` print and exit; any other argument is refused with a usage line
 - [x] 52 Scripts: a timed-out run keeps what it printed and says "stopped after N s"
 - [x] 53 not a bug: TCP checks only connect (07 §1); the one read is UDP's, where one datagram is the whole answer
-- [ ] 9 Traefik: the release download retries before failing the plan
+- [x] 9 Traefik: the release download retries before failing the plan
 - [ ] 50 `BeginPRF`: separate parameters for unlock salts and the allow-list
 - [ ] 47 Firewall renderer: typed structs for the nft JSON statements
 - [ ] 46 Split `internal/firewall/manager.go` and the Settings page along their seams
