@@ -1,6 +1,6 @@
 name: CI
 
-# Skips docs-only and V1-only changes; those cannot affect `make check`.
+# Docs-only changes never run. Every other run first decides in `scope` which jobs the change can affect.
 on:
   pull_request:
     paths-ignore:
@@ -18,7 +18,76 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check:
+  # A pull request runs the jobs whose files it touches. A push to main runs everything, except a merge whose files are
+  # exactly those of a pull request commit that already passed CI: that would only repeat the same run.
+  scope:
+    runs-on: ubuntu-latest
+    outputs:
+      go: ${{ steps.s.outputs.go }}
+      web: ${{ steps.s.outputs.web }}
+      integration: ${{ steps.s.outputs.integration }}
+      e2e: ${{ steps.s.outputs.e2e }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+
+      - id: s
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.base_ref }}
+          API: ${{ github.server_url }}/api/v1/repos/${{ github.repository }}
+        run: |
+          set_all() { for k in go web integration e2e; do echo "$k=$1" >> "$GITHUB_OUTPUT"; done; }
+          if [ "$EVENT" = push ]; then
+            if pr=$(git rev-parse -q --verify 'HEAD^2') && [ "$(git rev-parse 'HEAD^{tree}')" = "$(git rev-parse "$pr^{tree}")" ] &&
+              [ "$(curl -fsS "$API/commits/$pr/status" | jq -r .state)" = success ]; then
+              echo "merge of $pr, which passed CI with exactly these files: nothing to run"; set_all false; exit 0
+            fi
+            set_all true; exit 0
+          fi
+          if [ "$EVENT" != pull_request ]; then set_all true; exit 0; fi
+          changed=$(git diff --name-only "origin/$BASE...HEAD")
+          flag() { if grep -qE "$2" <<<"$changed"; then echo "$1=true"; else echo "$1=false"; fi >> "$GITHUB_OUTPUT"; }
+          always='|^Makefile$|^\.gitea/workflows/ci\.yml$'
+          flag go "^(cmd|internal|agents|api|tools|testdata|deploy)/|^go\.(mod|sum)\$|^sqlc\.yaml\$|^\.golangci\.yml\$$always"
+          flag web "^(web|api|tools|internal/store|internal/httpapi)/|^sqlc\.yaml\$$always"
+          flag integration "^(cmd|internal|agents|tools|testdata|deploy/docker)/|^go\.(mod|sum)\$$always"
+          flag e2e "^(web|api|internal|cmd)/|^go\.mod\$$always"
+          cat "$GITHUB_OUTPUT"
+
+  # Go: format, vet, lint, unit and contract tests with -race, deploy bookkeeping, agent size, govulncheck.
+  go:
+    needs: scope
+    if: needs.scope.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            tools/go.sum
+
+      - name: Cache golangci-lint analysis
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/golangci-lint
+          key: golangci-${{ runner.os }}-${{ hashFiles('tools/go.sum', '.golangci.yml') }}
+
+      - name: make check-go
+        run: make check-go
+
+      # Threat model §7: known vulnerabilities in Go modules (reachable code).
+      - name: make scan-go
+        run: make scan-go
+
+  # Web: generated code current, prettier, eslint, svelte-check, vitest, audit of shipped web packages.
+  web:
+    needs: scope
+    if: needs.scope.outputs.web == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -40,21 +109,16 @@ jobs:
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
 
-      - name: Cache golangci-lint analysis
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: ~/.cache/golangci-lint
-          key: golangci-${{ runner.os }}-${{ hashFiles('tools/go.sum', '.golangci.yml') }}
+      - name: make check-web
+        run: make check-web
 
-      - name: make check
-        run: make check
-
-      # Threat model §7: known vulnerabilities in Go modules (reachable code) and shipped web packages.
-      - name: make scan
-        run: make scan
+      - name: make scan-web
+        run: make scan-web
 
   # 11-delivery.md §4: real binaries (sshd, Traefik, Pebble) in containers on the runner's Docker.
   integration:
+    needs: scope
+    if: needs.scope.outputs.integration == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -69,45 +133,30 @@ jobs:
       - name: Agent image size
         run: make pulse-image-size
 
-  # 11-delivery.md §4: E2E only when the UI or the API behind it changed (always on main).
+  # 11-delivery.md §4: E2E when the UI or the API behind it changed.
   e2e:
+    needs: scope
+    if: needs.scope.outputs.e2e == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          fetch-depth: 0
-
-      - name: Changed paths
-        id: paths
-        run: |
-          if [ "${{ github.event_name }}" != "pull_request" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
-          changed=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")
-          if grep -qE '^(web/|api/|internal/|cmd/|go\.mod|Makefile|\.gitea/workflows/ci\.yml)' <<<"$changed"; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=false" >> "$GITHUB_OUTPUT"; echo "no UI/API change: E2E skipped"
-          fi
 
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
-        if: steps.paths.outputs.run == 'true'
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
 
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
-        if: steps.paths.outputs.run == 'true'
         with:
           package_json_file: web/package.json
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        if: steps.paths.outputs.run == 'true'
         with:
           node-version: 24
           cache: pnpm
           cache-dependency-path: web/pnpm-lock.yaml
 
       - name: Cache Playwright browsers
-        if: steps.paths.outputs.run == 'true'
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.cache/ms-playwright
@@ -117,13 +166,11 @@ jobs:
           restore-keys: playwright-${{ runner.os }}-
 
       - name: Install Chromium for Playwright
-        if: steps.paths.outputs.run == 'true'
         run: cd web && pnpm install --frozen-lockfile --silent && pnpm exec playwright install --with-deps chromium
 
       - name: make test-e2e
-        if: steps.paths.outputs.run == 'true'
         run: make test-e2e
 
       - name: Hashi's log from the e2e run
-        if: failure() && steps.paths.outputs.run == 'true'
+        if: failure()
         run: tail -n 400 web/e2e/.hashi.log || echo "no log written"
