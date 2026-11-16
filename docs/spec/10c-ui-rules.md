@@ -18,6 +18,11 @@ There are exactly three places for anything you can change.
 | How Hashi reaches an outside system (address, credentials, certificate, read-only or not) | **Connections** | DNS provider token, AdGuard login, Traefik and firewall host SSH, Pulse agent tokens |
 | A default or behaviour for a whole subsystem | **Settings**, one category per subsystem | Monitor defaults, ban function, CAPTCHA, session lengths |
 
+An object is anything with its own identity, also when it's only a row in a list: an address with its counters, a DNS
+record, an AdGuard rewrite, a dynamic entry. Its per-item settings belong where the object is shown, never in Settings.
+A feature page that lists such objects (Security → Counters, DNS → Records) edits them in place: an expandable row or
+the object's page. Settings holds only what applies to many objects at once.
+
 Rules that follow from it:
 
 1. **Feature pages show and operate; they don't hold global settings.** The Security page shows what happened and lets
