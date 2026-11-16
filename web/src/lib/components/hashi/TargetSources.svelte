@@ -20,10 +20,7 @@
 </script>
 
 {#if sources.length}
-	<ul
-		class="space-y-1 text-[12px] text-muted-foreground"
-		aria-label="Where the addresses come from"
-	>
+	<ul class="space-y-1 text-xs text-muted-foreground" aria-label="Where the addresses come from">
 		{#each sources as s, i (i)}
 			<li class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
 				<span>{s.source}:</span>

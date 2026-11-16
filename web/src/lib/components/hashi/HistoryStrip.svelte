@@ -27,7 +27,7 @@
 		{/each}
 	</div>
 	{#if labels}
-		<div class="mt-1 flex justify-between text-[11px] text-muted-foreground">
+		<div class="mt-1 flex justify-between text-2xs text-muted-foreground">
 			<span>{from}</span><span>{to}</span>
 		</div>
 	{/if}

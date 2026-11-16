@@ -39,14 +39,14 @@
 				<div class="grid gap-5 lg:grid-cols-[18rem_minmax(0,1fr)]">
 					<div class="space-y-3">
 						<div>
-							<div class="flex items-center gap-2 text-[15px] font-semibold">
+							<div class="flex items-center gap-2 text-lg font-semibold">
 								{t.name}<StatusBadge state={t.health} />
 							</div>
-							<div class="text-[12.5px] text-muted-foreground">
+							<div class="text-sm text-muted-foreground">
 								SSH <Mono>{t.host}</Mono> · {t.os}
 							</div>
 						</div>
-						<dl class="grid grid-cols-2 gap-y-2 text-[13px]">
+						<dl class="grid grid-cols-2 gap-y-2 text-md">
 							<dt class="text-muted-foreground">Version</dt>
 							<dd>{t.version}</dd>
 							<dt class="text-muted-foreground">Routers</dt>
@@ -56,7 +56,7 @@
 							<dt class="text-muted-foreground">Certificates</dt>
 							<dd>{t.certs}</dd>
 						</dl>
-						<div class="rounded-xl border border-info/25 bg-info/8 p-3 text-[12.5px]">
+						<div class="rounded-xl border border-info/25 bg-info/8 p-3 text-sm">
 							<div class="flex items-center gap-1.5 font-medium text-info-text">
 								<ArrowUpCircle class="size-4" />Traefik {t.update} is available
 							</div>
@@ -68,15 +68,15 @@
 						</div>
 					</div>
 					<div class="min-w-0">
-						<div class="mb-1.5 text-[12px] font-medium text-muted-foreground">
+						<div class="mb-1.5 text-xs font-medium text-muted-foreground">
 							Files Hashi writes to <Mono>/etc/hashi/traefik/dynamic</Mono>
 						</div>
 						<ul class="divide-y rounded-xl border">
 							{#each files as f (f.f)}
-								<li class="flex items-center gap-3 px-3 py-2 text-[13px]">
+								<li class="flex items-center gap-3 px-3 py-2 text-md">
 									<FileCode2 class="size-4 shrink-0 text-muted-foreground" />
 									<Mono class="min-w-0 flex-1 truncate">{f.f}</Mono>
-									<span class="hidden text-[12.5px] text-muted-foreground sm:inline">{f.what}</span>
+									<span class="hidden text-sm text-muted-foreground sm:inline">{f.what}</span>
 									{#if f.state === 'differs' && t.changed}<Tag tone="warn">change planned</Tag
 										>{:else}<Tag>unchanged</Tag>{/if}
 								</li>
@@ -98,7 +98,7 @@
 			<div class="grid lg:grid-cols-[minmax(0,1fr)_16rem]">
 				<!-- CodeMirror 6 in the real page (10-ui.md §4); static here. -->
 				<pre
-					class="overflow-x-auto bg-surface-2/40 p-4 font-mono text-[12.5px] leading-relaxed lg:rounded-bl-2xl"><code
+					class="overflow-x-auto bg-surface-2/40 p-4 font-mono text-sm leading-relaxed lg:rounded-bl-2xl"><code
 						><span class="text-muted-foreground">1</span>  http:
 <span class="text-muted-foreground">2</span>    middlewares:
 <span class="text-muted-foreground">3</span>      big-uploads:
@@ -109,8 +109,8 @@
 <span class="text-muted-foreground">8</span>          sourceRange: [192.0.2.0/24]</code
 					></pre>
 				<div class="border-t p-4 lg:border-t-0 lg:border-l">
-					<div class="text-[12px] font-medium">Found 2 middlewares</div>
-					<ul class="mt-2 space-y-1.5 text-[13px]">
+					<div class="text-xs font-medium">Found 2 middlewares</div>
+					<ul class="mt-2 space-y-1.5 text-md">
 						<li>
 							<Mono>big-uploads</Mono> <span class="text-muted-foreground">· used by Photos</span>
 						</li>
@@ -127,7 +127,7 @@
 			description="Issued by Google Trust Services through DNS-01 answered by Hashi; Traefik hosts never hold the DNS token"
 			flush
 		>
-			<ul class="divide-y text-[13px]">
+			<ul class="divide-y text-md">
 				{#each [['media.example.com', '18 days', 'warn'], ['grafana.example.com', '41 days', 'neutral'], ['git.example.com', '63 days', 'neutral'], ['hashi.example.com', '77 days', 'neutral']] as [d, e, tone] (d)}
 					<li class="flex items-center gap-3 px-4 py-2.5">
 						<span class="flex-1">{d}</span><span class="hidden text-muted-foreground sm:inline"

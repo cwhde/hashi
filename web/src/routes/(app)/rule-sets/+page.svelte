@@ -46,7 +46,7 @@
 </PageHeader>
 
 {#if error}
-	<p class="flex items-center gap-2 text-[13px] text-bad-text">
+	<p class="flex items-center gap-2 text-md text-bad-text">
 		<CircleAlert class="size-3.5" />{error}
 	</p>
 {:else if !sets}
@@ -72,23 +72,21 @@
 											><Lock class="size-3" aria-label="Cannot be deleted" />global</Tag
 										>{/if}</span
 								>
-								<span class="block truncate text-[12.5px] text-muted-foreground"
-									>{r.description}</span
-								>
+								<span class="block truncate text-sm text-muted-foreground">{r.description}</span>
 							</a>
 						</Table.Cell>
 						<Table.Cell class="tnum hidden text-right sm:table-cell">{r.entries.length}</Table.Cell>
 						<Table.Cell class="hidden md:table-cell">
-							<span class="block truncate text-[13px]"
+							<span class="block truncate text-md"
 								>{r.kind === 'global' ? 'Every service' : (r.used_by[0]?.label ?? 'Not used')}</span
 							>
-							{#if r.used_by.length > 1}<span class="text-[12px] text-muted-foreground"
+							{#if r.used_by.length > 1}<span class="text-xs text-muted-foreground"
 									>and {r.used_by.length - 1} more</span
 								>{/if}
 						</Table.Cell>
 						<Table.Cell>
 							{#if r.warnings.length}<span
-									class="inline-flex items-center gap-1.5 text-[12.5px] text-warn-text"
+									class="inline-flex items-center gap-1.5 text-sm text-warn-text"
 									><TriangleAlert class="size-3.5" />{r.warnings.length}</span
 								>{:else}<span class="text-muted-foreground">—</span>{/if}
 						</Table.Cell>
@@ -97,7 +95,7 @@
 			</Table.Body>
 		</Table.Root>
 	</div>
-	<p class="mt-3 text-[12.5px] text-muted-foreground">
+	<p class="mt-3 text-sm text-muted-foreground">
 		Every HTTP service also has its own rule set with a fallback; you edit it on the service's
 		Access tab.
 	</p>
@@ -121,7 +119,7 @@
 			<div class="space-y-1.5">
 				<Label for="ds">Description</Label><Input id="ds" bind:value={form.description} />
 			</div>
-			{#if addError}<p class="text-[13px] text-bad-text">{addError}</p>{/if}
+			{#if addError}<p class="text-md text-bad-text">{addError}</p>{/if}
 		</div>
 		<Sheet.Footer class="flex-row justify-end gap-2 border-t">
 			<Button variant="ghost" onclick={() => (adding = false)}>Cancel</Button>

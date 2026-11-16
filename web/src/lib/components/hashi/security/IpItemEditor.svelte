@@ -39,7 +39,7 @@
 				<ToggleGroup.Item value={t.v} disabled={usedAsTarget && !t.target}>{t.l}</ToggleGroup.Item>
 			{/each}
 		</ToggleGroup.Root>
-		{#if usedAsTarget}<p class="text-[12.5px] text-muted-foreground">
+		{#if usedAsTarget}<p class="text-sm text-muted-foreground">
 				This set is a DNS value or upstream, so it can only hold single addresses.
 			</p>{/if}
 	</div>
@@ -52,7 +52,7 @@
 				class="font-mono"
 				placeholder={type === 'ip' ? '198.51.100.7' : '192.0.2.0/24'}
 			/>
-			{#if type === 'cidr'}<p class="text-[12.5px] text-muted-foreground">
+			{#if type === 'cidr'}<p class="text-sm text-muted-foreground">
 					Host bits are cleared on save; a /32 or /128 is saved as an IP.
 				</p>{/if}
 		</div>
@@ -88,14 +88,14 @@
 				/>
 			</div>
 		{/if}
-		<p class="text-[12.5px] text-muted-foreground">
+		<p class="text-sm text-muted-foreground">
 			Follows the {type === 'pulse' ? 'agent' : 'host'}: when its address changes, every place using
 			this set updates.
 		</p>
 	{:else if type === 'dns'}
 		<div class="space-y-1.5">
 			<Label for="fq">Name</Label><Input id="fq" class="font-mono" placeholder="vpn.example.org" />
-			<p class="text-[12.5px] text-muted-foreground">
+			<p class="text-sm text-muted-foreground">
 				Resolved by Hashi and refreshed at the record TTL (1 min to 1 h).
 			</p>
 		</div>
@@ -127,7 +127,7 @@
 				/>
 			</div>
 		</div>
-		<p class="text-[12.5px] text-muted-foreground">
+		<p class="text-sm text-muted-foreground">
 			Uses the GeoIP database (updated 6 days ago). On a firewall it becomes that country’s
 			prefixes.
 		</p>
@@ -138,7 +138,7 @@
 				bind:value={ref}
 				addressOnly={usedAsTarget}
 			/>
-			<p class="text-[12.5px] text-muted-foreground">
+			<p class="text-sm text-muted-foreground">
 				Everything in that set counts as part of this one. Loops are refused when you save.
 			</p>
 		</div>
@@ -152,7 +152,7 @@
 			<Label for="ex">Expires</Label><Input id="ex" type="date" aria-describedby="exh" />
 		</div>
 	</div>
-	<p id="exh" class="-mt-2 text-[12.5px] text-muted-foreground">
+	<p id="exh" class="-mt-2 text-sm text-muted-foreground">
 		An expired item drops out at the next update and is recorded in Activity.
 	</p>
 </div>

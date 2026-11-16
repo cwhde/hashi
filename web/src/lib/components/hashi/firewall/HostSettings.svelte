@@ -39,7 +39,7 @@
 	}
 </script>
 
-<ul class="space-y-1.5 text-[13px]" aria-label="Checks">
+<ul class="space-y-1.5 text-md" aria-label="Checks">
 	{#if host.health === 'failed'}
 		<li class="flex items-start gap-2 text-bad-text">
 			<CircleAlert class="mt-0.5 size-4 shrink-0" />{host.last_error}
@@ -76,7 +76,7 @@
 		<Label for="fs-sub">Networks behind this host</Label>
 		<Input id="fs-sub" bind:value={subnets} class="h-10" />
 		{#if f?.candidates.length}
-			<p class="text-[12px] text-muted-foreground">
+			<p class="text-xs text-muted-foreground">
 				Found on the host: <Mono>{f.candidates.join(', ')}</Mono>
 			</p>
 		{/if}
@@ -86,7 +86,7 @@
 		<select
 			id="fs-nb"
 			bind:value={mode}
-			class="h-10 w-full rounded-[10px] border bg-transparent px-3 text-[13px]"
+			class="h-10 w-full rounded-[10px] border bg-transparent px-3 text-md"
 		>
 			<option value="disabled">Not used on this host</option>
 			<option value="peer" disabled={!nb}>This host is a NetBird peer</option>
@@ -94,11 +94,11 @@
 				>This host also routes NetBird traffic to its networks</option
 			>
 		</select>
-		<p class="text-[12px] text-muted-foreground">
+		<p class="text-xs text-muted-foreground">
 			Hashi never changes NetBird's rules. Its interface and port stay open.
 		</p>
 	</div>
-	<label class="flex items-start gap-2.5 text-[13px]">
+	<label class="flex items-start gap-2.5 text-md">
 		<input type="checkbox" bind:checked={drop} class="mt-0.5 accent-primary" />
 		<span
 			>Block all other inbound connections. Without this, anything listening on the host, such as

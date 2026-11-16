@@ -67,7 +67,7 @@
 </script>
 
 <Panel title="Vault">
-	<div class="space-y-4 text-[13px]">
+	<div class="space-y-4 text-md">
 		<div class="flex flex-wrap items-start gap-3">
 			{#if vault.locked}<Lock class="mt-0.5 size-4 text-warn-text" />{:else}<LockOpen
 					class="mt-0.5 size-4 text-ok-text"
@@ -113,7 +113,7 @@
 
 		<div class="rounded-xl border">
 			<div class="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
-				<span class="text-[12.5px] font-medium">Passkeys that unlock the vault</span>
+				<span class="text-sm font-medium">Passkeys that unlock the vault</span>
 				<Button
 					size="xs"
 					variant="ghost"
@@ -133,7 +133,7 @@
 					{#each vault.unlockers as u (u.id)}
 						<li class="flex flex-wrap items-center gap-2 px-3 py-2">
 							<span class="flex-1">{u.passkey_name}</span>
-							<span class="text-[12px] text-muted-foreground">added {dateTime(u.created_at)}</span>
+							<span class="text-xs text-muted-foreground">added {dateTime(u.created_at)}</span>
 							<Button
 								size="xs"
 								variant="ghost"

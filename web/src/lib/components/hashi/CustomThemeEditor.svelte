@@ -129,7 +129,7 @@
 			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
 				{#each fields as [k, label, hint] (k)}
 					<label class="space-y-1.5">
-						<span class="block text-[13px] font-medium">{label}</span>
+						<span class="block text-md font-medium">{label}</span>
 						<span class="flex items-center gap-2"
 							><input
 								type="color"
@@ -139,12 +139,12 @@
 								aria-label="{label} colour picker"
 							/><Input bind:value={draft[k]} class="font-mono" aria-label="{label} colour" /></span
 						>
-						{#if hint}<span class="block text-[12px] text-muted-foreground">{hint}</span>{/if}
+						{#if hint}<span class="block text-xs text-muted-foreground">{hint}</span>{/if}
 					</label>
 				{/each}
 			</div>
 			<div class="space-y-1.5">
-				<span class="block text-[13px] font-medium">Corners</span>
+				<span class="block text-md font-medium">Corners</span>
 				<ToggleGroup.Root
 					type="single"
 					variant="outline"
@@ -158,7 +158,7 @@
 				</ToggleGroup.Root>
 			</div>
 			<div class="space-y-1.5">
-				<span class="block text-[13px] font-medium">Chart colours</span>
+				<span class="block text-md font-medium">Chart colours</span>
 				<div class="flex flex-wrap items-center gap-2">
 					{#each draft.charts ?? [] as c, i (i)}
 						<span class="flex items-center gap-1"
@@ -183,7 +183,7 @@
 							><Plus />Add</Button
 						>{/if}
 				</div>
-				{#if !draft.charts?.length}<p class="text-[12px] text-muted-foreground">
+				{#if !draft.charts?.length}<p class="text-xs text-muted-foreground">
 						None: charts use the accent and the status colours.
 					</p>{/if}
 			</div>
@@ -201,26 +201,24 @@
 				<div class="rounded-lg border bg-card p-3">
 					<div class="flex items-center justify-between gap-2">
 						<div class="min-w-0">
-							<div class="text-[14px] font-semibold">Grafana</div>
-							<div class="truncate text-[12.5px] text-muted-foreground">
-								grafana.example.com · 48 ms
-							</div>
+							<div class="text-base font-semibold">Grafana</div>
+							<div class="truncate text-sm text-muted-foreground">grafana.example.com · 48 ms</div>
 						</div>
-						<span class="rounded-md bg-ok/15 px-1.5 py-0.5 text-[12px] text-ok-text">up</span>
+						<span class="rounded-md bg-ok/15 px-1.5 py-0.5 text-xs text-ok-text">up</span>
 					</div>
 					<div class="mt-3 h-1.5 rounded-full bg-secondary">
 						<div class="h-full w-2/3 rounded-full bg-primary"></div>
 					</div>
 					<div class="mt-3 flex justify-end gap-2">
-						<span class="rounded-md border px-2.5 py-1 text-[12.5px]">Cancel</span>
+						<span class="rounded-md border px-2.5 py-1 text-sm">Cancel</span>
 						<span
-							class="rounded-md bg-primary px-2.5 py-1 text-[12.5px] font-medium text-primary-foreground"
+							class="rounded-md bg-primary px-2.5 py-1 text-sm font-medium text-primary-foreground"
 							>Save changes</span
 						>
 					</div>
 				</div>
 			</div>
-			<dl class="mt-3 grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 text-[13px]">
+			<dl class="mt-3 grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 text-md">
 				{#if ratios}
 					<dt>Text on surface</dt>
 					<dd class={ratios.text >= minContrast ? 'text-ok-text' : 'text-bad-text'}>
@@ -232,10 +230,10 @@
 					</dd>
 				{/if}
 			</dl>
-			{#each problems as p (p)}<p role="alert" class="mt-1 text-[12.5px] text-bad-text">
+			{#each problems as p (p)}<p role="alert" class="mt-1 text-sm text-bad-text">
 					{p}
 				</p>{/each}
-			{#if importError}<p role="alert" class="mt-1 text-[12.5px] text-bad-text">
+			{#if importError}<p role="alert" class="mt-1 text-sm text-bad-text">
 					{importError}
 				</p>{/if}
 			<div class="mt-3 flex flex-wrap justify-end gap-2">

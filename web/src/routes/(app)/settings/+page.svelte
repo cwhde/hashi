@@ -269,7 +269,7 @@
 	{#if status[key]?.msg}
 		<p
 			role={status[key].ok ? 'status' : 'alert'}
-			class={cn('text-[13px]', status[key].ok ? 'text-ok-text' : 'text-bad-text')}
+			class={cn('text-md', status[key].ok ? 'text-ok-text' : 'text-bad-text')}
 		>
 			{status[key].msg}
 		</p>
@@ -290,12 +290,12 @@
 				onclick={() => show(c.id)}
 				aria-current={cat === c.id ? 'page' : undefined}
 				class={cn(
-					'h-9 shrink-0 rounded-[10px] px-3 text-left text-[13.5px]',
+					'h-9 shrink-0 rounded-[10px] px-3 text-left text-md',
 					cat === c.id ? 'bg-surface-2 font-medium' : 'text-muted-foreground hover:text-foreground'
 				)}>{c.label}</button
 			>
 		{/each}
-		<p class="hidden px-3 pt-3 text-[12px] text-muted-foreground lg:block">
+		<p class="hidden px-3 pt-3 text-xs text-muted-foreground lg:block">
 			More categories arrive with the features they configure.
 		</p>
 	</nav>
@@ -303,7 +303,7 @@
 	<div class="min-w-0 space-y-4">
 		{#if cat === 'account'}
 			{#if accountError}
-				<p role="alert" class="text-[13px] text-bad-text">{accountError}</p>
+				<p role="alert" class="text-md text-bad-text">{accountError}</p>
 			{:else if !passkeys || !sessions || !vault}
 				{@render loading()}{@render loading()}
 			{:else}
@@ -313,7 +313,7 @@
 							><Fingerprint />Add passkey</Button
 						>
 					{/snippet}
-					<ul class="divide-y text-[13px]">
+					<ul class="divide-y text-md">
 						{#each passkeys as pk (pk.id)}
 							<li class="flex items-center gap-3 px-4 py-3">
 								<KeyRound class="size-4 text-muted-foreground" />
@@ -376,7 +376,7 @@
 							disabled={busy === 'sessions' || (sessions?.length ?? 0) < 2}
 							>Sign out other sessions</Button
 						>{/snippet}
-					<ul class="divide-y text-[13px]">
+					<ul class="divide-y text-md">
 						{#each sessions as s (s.id)}
 							<li class="flex items-center gap-3 px-4 py-3">
 								<span class="flex-1"
@@ -398,10 +398,7 @@
 				<VaultPanel vault={vaultState.current ?? vault} {passkeys} onchanged={loadAccount} />
 			{/if}
 		{:else if loadError}
-			<p
-				role="alert"
-				class="rounded-xl border border-bad/30 bg-bad/10 p-3 text-[13px] text-bad-text"
-			>
+			<p role="alert" class="rounded-xl border border-bad/30 bg-bad/10 p-3 text-md text-bad-text">
 				{loadError} The form stays hidden so nothing is saved from an incomplete load.
 			</p>
 		{:else if !all}
@@ -461,9 +458,7 @@
 							min="0"
 							bind:value={monitoring.degraded_ms}
 						/>
-						<p class="text-[12px] text-muted-foreground">
-							0 means a slow answer still counts as up.
-						</p>
+						<p class="text-xs text-muted-foreground">0 means a slow answer still counts as up.</p>
 					</div>
 				</div>
 			</Panel>
@@ -476,7 +471,7 @@
 						max="400"
 						bind:value={monitoring.retention_days}
 					/>
-					<p class="text-[12px] text-muted-foreground">
+					<p class="text-xs text-muted-foreground">
 						Hourly and daily summaries stay longer for the uptime charts.
 					</p>
 				</div>
@@ -492,7 +487,7 @@
 			<Panel title="Public app dashboard">
 				<div class="space-y-4">
 					<div class="space-y-1.5">
-						<span class="block text-[13px] font-medium">Visitors first see the apps sorted by</span>
+						<span class="block text-md font-medium">Visitors first see the apps sorted by</span>
 						<ToggleGroup.Root
 							type="single"
 							variant="outline"
@@ -506,7 +501,7 @@
 							<ToggleGroup.Item value="status">Status</ToggleGroup.Item>
 						</ToggleGroup.Root>
 					</div>
-					<label class="flex items-center justify-between gap-3 text-[13px]"
+					<label class="flex items-center justify-between gap-3 text-md"
 						>New services show on the dashboard<Switch
 							bind:checked={dashboard.new_services_visible}
 						/></label
@@ -523,7 +518,7 @@
 		{:else if cat === 'firewall' && fwDefaults}
 			<Panel title="New firewall hosts">
 				<div class="space-y-1.5">
-					<span class="block text-[13px] font-medium">NetBird mode a new host starts with</span>
+					<span class="block text-md font-medium">NetBird mode a new host starts with</span>
 					<ToggleGroup.Root
 						type="single"
 						variant="outline"
@@ -537,15 +532,15 @@
 						<ToggleGroup.Item value="routing">Routing peer</ToggleGroup.Item>
 						<ToggleGroup.Item value="disabled">Leave NetBird alone</ToggleGroup.Item>
 					</ToggleGroup.Root>
-					<p class="text-[12px] text-muted-foreground">
+					<p class="text-xs text-muted-foreground">
 						The interface is always detected on the host or entered by you.
 					</p>
 				</div>
 			</Panel>
 			<Panel title="Packet size">
-				<label class="flex items-center justify-between gap-3 text-[13px]"
+				<label class="flex items-center justify-between gap-3 text-md"
 					><span
-						>Fit TCP packets to narrow networks<span class="block text-[12px] text-muted-foreground"
+						>Fit TCP packets to narrow networks<span class="block text-xs text-muted-foreground"
 							>Avoids stalled connections through the tunnel. Leave on unless you know your path
 							MTU.</span
 						></span
@@ -568,7 +563,7 @@
 							value={general.root_domain}
 							disabled
 						/>
-						<p class="text-[12px] text-muted-foreground">
+						<p class="text-xs text-muted-foreground">
 							Fixed after setup: your passkeys are bound to it.
 						</p>
 					</div>
@@ -647,7 +642,7 @@
 							max="240"
 							bind:value={security.admin_idle_timeout_minutes}
 						/>
-						<p class="text-[12px] text-muted-foreground">
+						<p class="text-xs text-muted-foreground">
 							5 to 240. Sessions always end 8 hours after sign-in.
 						</p>
 					</div>
@@ -689,7 +684,7 @@
 									<div class="h-2.5 w-8 self-end rounded bg-primary"></div>
 								</div>
 							</div>
-							<div class="px-1 pt-1.5 text-[13px] font-medium">{t.name}</div>
+							<div class="px-1 pt-1.5 text-md font-medium">{t.name}</div>
 						</button>
 					{/each}
 					{#if theme.custom}
@@ -714,7 +709,7 @@
 									<div class="h-2.5 w-8 self-end rounded bg-primary"></div>
 								</div>
 							</div>
-							<div class="px-1 pt-1.5 text-[13px] font-medium">Custom</div>
+							<div class="px-1 pt-1.5 text-md font-medium">Custom</div>
 						</button>
 					{/if}
 				</div>
@@ -727,7 +722,7 @@
 			/>
 			{@render note('custom')}
 			<Panel title="Comfort">
-				<label class="flex items-center justify-between gap-3 text-[13px]"
+				<label class="flex items-center justify-between gap-3 text-md"
 					>Reduce transparency: solid backgrounds behind headers and dialogs<Switch
 						checked={appearance.reduce_transparency ?? false}
 						onCheckedChange={(v) => {
@@ -740,13 +735,13 @@
 			<Panel title="Public pages">
 				<div class="grid gap-3 md:grid-cols-2">
 					<label
-						class="flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-[13px]"
+						class="flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-md"
 						>Public app dashboard<Switch
 							bind:checked={appearance.public_dashboard_enabled}
 						/></label
 					>
 					<label
-						class="flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-[13px]"
+						class="flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-md"
 						>Public status page<Switch bind:checked={appearance.public_status_enabled} /></label
 					>
 				</div>

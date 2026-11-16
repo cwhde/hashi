@@ -97,14 +97,14 @@
 
 <a
 	href="/design/ip-sets"
-	class="mb-3 inline-flex items-center gap-1 text-[13px] text-muted-foreground hover:text-foreground"
+	class="mb-3 inline-flex items-center gap-1 text-md text-muted-foreground hover:text-foreground"
 	><ChevronLeft class="size-4" />IP sets</a
 >
 
 <div class="mb-5 flex flex-wrap items-end gap-x-6 gap-y-3">
 	<div class="min-w-64 flex-1">
-		<h1 class="font-mono text-[24px] leading-tight font-medium tracking-[-0.02em]">{address}</h1>
-		<p class="mt-1 flex flex-wrap items-center gap-2 text-[13.5px] text-muted-foreground">
+		<h1 class="font-mono text-title leading-tight font-medium tracking-[-0.02em]">{address}</h1>
+		<p class="mt-1 flex flex-wrap items-center gap-2 text-md text-muted-foreground">
 			<span>{c.country} · {c.asn}</span>
 			{#if c.state === 'banned'}<Tag tone="bad">banned {c.stateDetail}</Tag
 				>{:else if c.state === 'challenged'}<Tag tone="warn">challenged · {c.stateDetail}</Tag
@@ -124,16 +124,16 @@
 <div class="mb-4 grid gap-4 lg:grid-cols-3">
 	<Panel title="Member of" description="Sets that contain this address, and through what">
 		{#if memberOf.length}
-			<ul class="space-y-2.5 text-[13px]">
+			<ul class="space-y-2.5 text-md">
 				{#each memberOf as s (s.id)}
 					<li>
 						<SetBadge slug={s.slug} />
-						<span class="block truncate text-[12.5px] text-muted-foreground">{pathTo(s.slug)}</span>
+						<span class="block truncate text-sm text-muted-foreground">{pathTo(s.slug)}</span>
 					</li>
 				{/each}
 			</ul>
 		{:else}
-			<p class="text-[13px] text-muted-foreground">
+			<p class="text-md text-muted-foreground">
 				Only in <span class="font-medium text-foreground">all</span>. No set of yours or feed
 				contains it.
 			</p>
@@ -141,7 +141,7 @@
 	</Panel>
 
 	<Panel title="Firewall" description="Allow and block folded together, per host">
-		<ul class="space-y-3 text-[13px]">
+		<ul class="space-y-3 text-md">
 			{#each ['edge-fra', 'edge-home'] as h (h)}
 				<li class="flex items-start gap-2.5">
 					{#if h === 'edge-home'}<Minus class="mt-0.5 size-4 text-muted-foreground" />
@@ -152,7 +152,7 @@
 					{:else}<Minus class="mt-0.5 size-4 text-muted-foreground" />{/if}
 					<span class="min-w-0">
 						<span class="font-medium">{h}</span>
-						<span class="block text-[12.5px] text-muted-foreground">
+						<span class="block text-sm text-muted-foreground">
 							{#if h === 'edge-home'}External NAT: Hashi does not filter here
 							{:else if allowed}Allowed by <Mono>{prefixIn(allowedBy!.slug)}</Mono> ({allowedBy!
 									.slug}). Never banned.
@@ -187,7 +187,7 @@
 				/>
 			</div>
 		</div>
-		<p class="mt-2 text-[12.5px] text-muted-foreground">
+		<p class="mt-2 text-sm text-muted-foreground">
 			The next ban would last {[
 				'15 min',
 				'30 min',
@@ -232,7 +232,7 @@
 </Panel>
 
 <Panel flush title="Timeline" description="Events for this address, newest first">
-	<ul class="divide-y text-[13px]">
+	<ul class="divide-y text-md">
 		{#each securityEvents.filter((e) => e.subject === address) as e (e.t)}
 			<li class="grid grid-cols-[6rem_minmax(0,1fr)] gap-3 px-4 py-2.5">
 				<span class="tnum text-muted-foreground">{e.t}</span><span

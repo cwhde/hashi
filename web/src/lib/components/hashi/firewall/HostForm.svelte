@@ -103,14 +103,14 @@
 	<div class="space-y-1.5">
 		<Label for="fw-name">Name</Label>
 		<Input id="fw-name" bind:value={form.name} placeholder="edge-a" class="h-10" required />
-		<p class="text-[12px] text-muted-foreground">Becomes the host's DNS name.</p>
+		<p class="text-xs text-muted-foreground">Becomes the host's DNS name.</p>
 	</div>
 	<div class="space-y-1.5">
 		<Label for="fw-mode">How it is reached</Label>
 		<select
 			id="fw-mode"
 			bind:value={form.mode}
-			class="h-10 w-full rounded-[10px] border bg-transparent px-3 text-[13px]"
+			class="h-10 w-full rounded-[10px] border bg-transparent px-3 text-md"
 		>
 			<option value="managed">Hashi manages its firewall over SSH</option>
 			<option value="external_nat">Behind a router I configure myself</option>
@@ -136,7 +136,7 @@
 			<select
 				id="fw-auth"
 				bind:value={form.auth}
-				class="h-10 w-full rounded-[10px] border bg-transparent px-3 text-[13px]"
+				class="h-10 w-full rounded-[10px] border bg-transparent px-3 text-md"
 			>
 				<option value="hashi_key">Hashi's SSH key</option>
 				<option value="private_key">A private key</option>
@@ -156,7 +156,7 @@
 					class="h-10"
 					required
 				/>
-				<p class="text-[12px] text-muted-foreground">Stored encrypted, never shown again.</p>
+				<p class="text-xs text-muted-foreground">Stored encrypted, never shown again.</p>
 			</div>
 		{:else if form.auth === 'private_key'}
 			<div class="space-y-1.5 md:col-span-2">
@@ -167,9 +167,9 @@
 					rows="4"
 					autocomplete="off"
 					required
-					class="w-full rounded-[10px] border bg-transparent px-3 py-2 font-mono text-[12.5px]"
+					class="w-full rounded-[10px] border bg-transparent px-3 py-2 font-mono text-sm"
 				></textarea>
-				<p class="text-[12px] text-muted-foreground">Stored encrypted, never shown again.</p>
+				<p class="text-xs text-muted-foreground">Stored encrypted, never shown again.</p>
 			</div>
 			<div class="space-y-1.5">
 				<Label for="fw-pass">Passphrase (if any)</Label>
@@ -193,7 +193,7 @@
 				<select
 					id="fw-entry"
 					bind:value={form.entry}
-					class="h-10 w-full rounded-[10px] border bg-transparent px-3 text-[13px]"
+					class="h-10 w-full rounded-[10px] border bg-transparent px-3 text-md"
 				>
 					<option value="">This host (ports forwarded on its router)</option>
 					{#each hosts as h (h.id)}<option value={h.id}>{h.name}</option>{/each}
@@ -208,7 +208,7 @@
 				id="fw-traefik"
 				bind:value={form.traefikId}
 				onchange={pickTraefik}
-				class="h-10 w-full rounded-[10px] border bg-transparent px-3 text-[13px]"
+				class="h-10 w-full rounded-[10px] border bg-transparent px-3 text-md"
 			>
 				{#each conns as c (c.id)}<option value={c.id}>{c.name}</option>{/each}
 			</select>
@@ -217,12 +217,12 @@
 	<div class="space-y-1.5">
 		<Label for="fw-tip">Traefik's address on this network</Label>
 		<Input id="fw-tip" bind:value={form.traefikIp} class="h-10" required />
-		<p class="text-[12px] text-muted-foreground">Public traffic is forwarded here.</p>
+		<p class="text-xs text-muted-foreground">Public traffic is forwarded here.</p>
 	</div>
 	<div class="space-y-1.5">
 		<Label for="fw-sub">Networks behind this host</Label>
 		<Input id="fw-sub" bind:value={form.subnets} placeholder="10.40.4.0/24" class="h-10" required />
-		<p class="text-[12px] text-muted-foreground">
+		<p class="text-xs text-muted-foreground">
 			Services with a target in one of these run on this host.
 		</p>
 	</div>
@@ -235,10 +235,10 @@
 
 {#if scanned}
 	<div class="mt-5 max-w-[62ch] rounded-2xl border border-primary/40 bg-primary/[0.06] p-4">
-		<div class="flex items-center gap-2 text-[13.5px] font-medium">
+		<div class="flex items-center gap-2 text-md font-medium">
 			<ShieldCheck class="size-4" />Confirm this host key
 		</div>
-		<p class="mt-1 text-[13px] text-muted-foreground">
+		<p class="mt-1 text-md text-muted-foreground">
 			First contact with {form.host}. Compare it with what the host shows.
 		</p>
 		<Mono class="mt-3 block rounded-lg bg-surface-2 px-3 py-2"
@@ -256,7 +256,7 @@
 {:else if rejected}
 	<p
 		role="alert"
-		class="mt-5 max-w-[62ch] rounded-2xl border border-bad/30 bg-bad/10 p-4 text-[13px] text-bad-text"
+		class="mt-5 max-w-[62ch] rounded-2xl border border-bad/30 bg-bad/10 p-4 text-md text-bad-text"
 	>
 		Connection stopped. A different key can mean the wrong machine or an interception. Check the
 		address and try again.

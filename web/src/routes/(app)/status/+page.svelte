@@ -86,7 +86,7 @@
 	{#snippet actions()}<Button onclick={() => (addOpen = true)}><Plus />Add check</Button>{/snippet}
 </PageHeader>
 
-{#if error}<p role="alert" class="mb-3 text-[13px] text-bad-text">{error}</p>{/if}
+{#if error}<p role="alert" class="mb-3 text-md text-bad-text">{error}</p>{/if}
 
 <Tabs.Root value="endpoints">
 	<Tabs.List class="mb-4">
@@ -125,7 +125,7 @@
 			</div>
 		{/if}
 		{#if loaded && groups.length === 0}
-			<p class="text-[13.5px] text-muted-foreground">
+			<p class="text-md text-muted-foreground">
 				{query ? 'No endpoint matches your search.' : 'Checks start within a few seconds.'}
 			</p>
 		{/if}
@@ -135,7 +135,7 @@
 					(m) => m.state === 'down' || m.state === 'degraded'
 				).length}
 				<section>
-					<h2 class="mb-2 flex items-center gap-2 text-[14px] font-semibold capitalize">
+					<h2 class="mb-2 flex items-center gap-2 text-base font-semibold capitalize">
 						{name}{#if failing}<Tag tone="bad">{failing} failing</Tag>{/if}
 					</h2>
 					<div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -146,13 +146,13 @@
 							>
 								<div class="mb-2.5 flex items-start gap-3">
 									<div class="min-w-0 flex-1">
-										<div class="truncate text-[13.5px] font-medium">{m.name}</div>
-										<div class="truncate text-[12px] text-muted-foreground">{checkSummary(m)}</div>
+										<div class="truncate text-md font-medium">{m.name}</div>
+										<div class="truncate text-xs text-muted-foreground">{checkSummary(m)}</div>
 									</div>
 									{#if m.pending_dns}<Tag>DNS updating</Tag>{/if}<StatusBadge state={m.state} />
 								</div>
 								<HistoryStrip samples={stripHealth(m.strip)} />
-								<div class="mt-1.5 flex justify-between text-[12px] text-muted-foreground">
+								<div class="mt-1.5 flex justify-between text-xs text-muted-foreground">
 									<span>{sourceText[m.source_type]}</span><span class="tnum"
 										>{m.last_latency_ms !== undefined
 											? m.last_latency_ms + ' ms · '

@@ -68,14 +68,14 @@
 />
 {#if error}<p
 		role="alert"
-		class="mb-4 rounded-2xl border border-bad/30 bg-bad/10 p-3 text-[13px] text-bad-text"
+		class="mb-4 rounded-2xl border border-bad/30 bg-bad/10 p-3 text-md text-bad-text"
 	>
 		{error}
 	</p>{/if}
 {#if conns.length}
 	<HostForm {conns} {hosts} {busy} {scan} {save} {publicKey} {install} />
 {:else}
-	<p class="text-[13px] text-muted-foreground">
+	<p class="text-md text-muted-foreground">
 		Connect a Traefik host first: public traffic is forwarded to it.
 	</p>
 {/if}

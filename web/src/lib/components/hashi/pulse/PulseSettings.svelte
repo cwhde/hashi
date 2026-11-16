@@ -31,7 +31,7 @@
 
 {#if v}
 	<Panel title="Pulse" description="Agents with their own interval in their config keep it.">
-		<div class="space-y-3 text-[13px]">
+		<div class="space-y-3 text-md">
 			<div class="grid gap-3 sm:grid-cols-2">
 				<div class="space-y-1.5">
 					<Label for="ps-int">Heartbeat every (seconds)</Label><Input
@@ -67,4 +67,4 @@
 		</div>
 	</Panel>
 {/if}
-{#if error}<p role="alert" class="mt-3 text-[13px] text-bad-text">{error}</p>{/if}
+{#if error}<p role="alert" class="mt-3 text-md text-bad-text">{error}</p>{/if}

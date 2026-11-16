@@ -197,14 +197,14 @@
 
 <a
 	href="/services"
-	class="mb-3 inline-flex items-center gap-1 text-[13px] text-muted-foreground hover:text-foreground"
+	class="mb-3 inline-flex items-center gap-1 text-md text-muted-foreground hover:text-foreground"
 	><ChevronLeft class="size-4" />Services</a
 >
 
 {#if loadError}
 	<p
 		role="alert"
-		class="flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-[13px] text-bad-text"
+		class="flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-md text-bad-text"
 	>
 		<CircleAlert class="mt-0.5 size-4 shrink-0" />{loadError}
 	</p>
@@ -214,19 +214,18 @@
 	<div class="mb-5 rounded-2xl border bg-card p-4">
 		<div class="flex flex-wrap items-start gap-x-6 gap-y-3">
 			<div class="min-w-0 flex-1">
-				<h1 class="flex flex-wrap items-center gap-2 text-[22px] leading-tight font-semibold">
+				<h1 class="flex flex-wrap items-center gap-2 text-title leading-tight font-semibold">
 					{svc.name}
 					{#if system}<Tag><Lock class="size-3" />system · change it in Settings → General</Tag
 						>{/if}
 				</h1>
 				{#if isStream(svc.kind)}
-					<p class="text-[13.5px] text-muted-foreground">
+					<p class="text-md text-muted-foreground">
 						Port {svc.public_port}/{svc.kind}{svc.host_name ? ` · ${svc.host_name}` : ''}
 					</p>
 				{:else}
-					<a
-						class="text-[13.5px] text-muted-foreground hover:underline"
-						href="https://{svc.host_name}">https://{svc.host_name}</a
+					<a class="text-md text-muted-foreground hover:underline" href="https://{svc.host_name}"
+						>https://{svc.host_name}</a
 					>
 				{/if}
 			</div>
@@ -248,29 +247,29 @@
 				</div>
 			{/if}
 		</div>
-		<dl class="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-[13px] sm:grid-cols-4">
+		<dl class="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-md sm:grid-cols-4">
 			<div>
-				<dt class="text-[12px] text-muted-foreground">State</dt>
+				<dt class="text-xs text-muted-foreground">State</dt>
 				<dd>
 					{#if svc.invalid_reason}<span class="text-bad-text">Not published</span
 						>{:else if svc.enabled}Published on every Traefik host{:else}Off{/if}
 				</dd>
 			</div>
 			<div>
-				<dt class="text-[12px] text-muted-foreground">Upstream</dt>
+				<dt class="text-xs text-muted-foreground">Upstream</dt>
 				<dd class="min-w-0 break-all"><Mono>{svc.kind}://{targetText(svc.target)}</Mono></dd>
 			</div>
 			<div>
-				<dt class="text-[12px] text-muted-foreground">Routes</dt>
+				<dt class="text-xs text-muted-foreground">Routes</dt>
 				<dd>{svc.advanced_routes ? svc.routes.length : 'whole service to one upstream'}</dd>
 			</div>
 			<div>
-				<dt class="text-[12px] text-muted-foreground">Origin</dt>
+				<dt class="text-xs text-muted-foreground">Origin</dt>
 				<dd>{svc.origin}</dd>
 			</div>
 		</dl>
 		{#if svc.invalid_reason}
-			<p class="mt-3 rounded-xl border border-bad/25 bg-bad/10 p-3 text-[12.5px] text-bad-text">
+			<p class="mt-3 rounded-xl border border-bad/25 bg-bad/10 p-3 text-sm text-bad-text">
 				Left out of the Traefik files: {svc.invalid_reason}
 			</p>
 		{/if}
@@ -279,7 +278,7 @@
 	{#if outcome}
 		<p
 			role={outcome.bad ? 'alert' : 'status'}
-			class="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border p-3 text-[13px] {outcome.bad
+			class="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border p-3 text-md {outcome.bad
 				? 'border-bad/30 bg-bad/10 text-bad-text'
 				: 'bg-card'}"
 		>
@@ -292,7 +291,7 @@
 	{#if saveError}
 		<p
 			role="alert"
-			class="mb-4 flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-3 text-[13px] text-bad-text"
+			class="mb-4 flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-3 text-md text-bad-text"
 		>
 			<CircleAlert class="mt-0.5 size-4 shrink-0" />{saveError}
 		</p>
@@ -326,7 +325,7 @@
 					</div>
 					<div class="space-y-1.5">
 						<Label for="h">Domain</Label><Input id="h" bind:value={edit.host_name} />
-						<p class="text-[12.5px] text-muted-foreground">
+						<p class="text-sm text-muted-foreground">
 							Inside the managed zone. DNS records for services arrive with firewall hosts; until
 							then the name points where you set it on the DNS page.
 						</p>
@@ -372,7 +371,7 @@
 			</Panel>
 
 			<Panel title="Upstream">
-				{#snippet actions()}{#if !system}<div class="flex items-center gap-2 text-[13px]">
+				{#snippet actions()}{#if !system}<div class="flex items-center gap-2 text-md">
 							<Label for="adv">Advanced routes</Label><Switch
 								id="adv"
 								bind:checked={edit!.advanced_routes}
@@ -411,7 +410,7 @@
 						</div>
 					{/if}
 					{#if edit.advanced_routes && !isStream(edit.kind)}
-						<p class="text-[12.5px] text-muted-foreground">
+						<p class="text-sm text-muted-foreground">
 							Requests matching a route go to its targets; everything else goes to the upstream
 							above. Higher priority is checked first.
 						</p>
@@ -473,7 +472,7 @@
 									/>
 									{#if mwNames.length || r.middlewares?.length}
 										<div class="flex flex-wrap items-center gap-2">
-											<span class="text-[12.5px] text-muted-foreground">Extra middlewares</span>
+											<span class="text-sm text-muted-foreground">Extra middlewares</span>
 											<MiddlewarePicker
 												names={mwNames}
 												bind:selected={r.middlewares}
@@ -533,7 +532,7 @@
 
 		<Tabs.Content value="access">
 			{#if svc && !isStream(svc.kind)}<ServiceAccess serviceId={id} />{:else}<Panel title="Access">
-					<p class="text-[13px] text-muted-foreground">
+					<p class="text-md text-muted-foreground">
 						TCP and UDP services are protected at the firewall.
 					</p>
 				</Panel>{/if}
@@ -543,7 +542,7 @@
 
 		<Tabs.Content value="monitoring">
 			<Panel title="Monitoring">
-				<p class="text-[13px] text-muted-foreground">
+				<p class="text-md text-muted-foreground">
 					Checks of the public address and the upstream arrive with monitoring (S7). "Monitor" above
 					already decides whether this service gets them.
 				</p>
@@ -558,11 +557,11 @@
 			>
 				{#if yaml}
 					<pre
-						class="overflow-x-auto rounded-b-2xl bg-surface-2/40 p-4 font-mono text-[12.5px] leading-relaxed"><code
+						class="overflow-x-auto rounded-b-2xl bg-surface-2/40 p-4 font-mono text-sm leading-relaxed"><code
 							>{yaml}</code
 						></pre>
 				{:else}
-					<p class="px-4 py-3 text-[13px] text-muted-foreground">
+					<p class="px-4 py-3 text-md text-muted-foreground">
 						Nothing is rendered while the service is invalid.
 					</p>
 				{/if}

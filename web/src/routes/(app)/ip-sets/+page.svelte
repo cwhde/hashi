@@ -131,7 +131,7 @@
 {#if loadError}
 	<p
 		role="alert"
-		class="flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-[13px] text-bad-text"
+		class="flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-md text-bad-text"
 	>
 		<CircleAlert class="mt-0.5 size-4 shrink-0" />{loadError}
 	</p>
@@ -156,13 +156,10 @@
 				<ToggleGroup.Item value="feed">{kindLabel.feed}</ToggleGroup.Item>
 				<ToggleGroup.Item value="dynamic">{kindLabel.dynamic}</ToggleGroup.Item>
 			</ToggleGroup.Root>
-			<span class="ml-auto text-[12.5px] text-muted-foreground">{rows.length} of {sets.length}</span
-			>
+			<span class="ml-auto text-sm text-muted-foreground">{rows.length} of {sets.length}</span>
 		</div>
 		{#if isAddress}
-			<div
-				class="flex flex-wrap items-center gap-2 border-b bg-surface-2/40 px-4 py-2.5 text-[13px]"
-			>
+			<div class="flex flex-wrap items-center gap-2 border-b bg-surface-2/40 px-4 py-2.5 text-md">
 				<span>Sets that contain <span class="font-mono">{q.trim()}</span> are listed below.</span>
 				<a class="font-medium underline" href={addressHref(q.trim())}>Open the address page</a>
 			</div>
@@ -189,9 +186,7 @@
 											aria-label="Not editable"
 										/>{/if}</span
 								>
-								<span class="block truncate text-[12.5px] text-muted-foreground"
-									>{s.description}</span
-								>
+								<span class="block truncate text-sm text-muted-foreground">{s.description}</span>
 							</a>
 						</Table.Cell>
 						<Table.Cell class="hidden md:table-cell">
@@ -200,14 +195,14 @@
 						</Table.Cell>
 						<Table.Cell class="tnum hidden text-right sm:table-cell">
 							{count(s.element_count, 'item')}
-							<span class="block text-[12px] text-muted-foreground"
+							<span class="block text-xs text-muted-foreground"
 								>{s.v4_count.toLocaleString()} v4 · {s.v6_count.toLocaleString()} v6</span
 							>
 						</Table.Cell>
 						<Table.Cell class="hidden max-w-[22rem] lg:table-cell">
 							{#if used.length}
-								<span class="block truncate text-[13px]">{used[0]?.name}</span>
-								{#if used.length > 1}<span class="text-[12px] text-muted-foreground"
+								<span class="block truncate text-md">{used[0]?.name}</span>
+								{#if used.length > 1}<span class="text-xs text-muted-foreground"
 										>and {used.length - 1} more</span
 									>{/if}
 							{:else}<span class="text-muted-foreground">Not used</span>{/if}
@@ -217,12 +212,12 @@
 								>{:else if s.resolution_status === 'empty'}<Tag tone="bad">empty</Tag>{:else}<Tag
 									tone="ok">ok</Tag
 								>{/if}
-							<span class="block text-[12px] text-muted-foreground">{dateTime(s.updated_at)}</span>
+							<span class="block text-xs text-muted-foreground">{dateTime(s.updated_at)}</span>
 						</Table.Cell>
 					</Table.Row>
 				{:else}
 					<Table.Row>
-						<Table.Cell colspan={5} class="py-10 text-center text-[13px] text-muted-foreground">
+						<Table.Cell colspan={5} class="py-10 text-center text-md text-muted-foreground">
 							{#if isAddress}No set contains {q.trim()}.{:else}No set matches “{q}”.{/if}
 						</Table.Cell>
 					</Table.Row>
@@ -248,7 +243,7 @@
 					bind:value={form.slug}
 					placeholder="family-devices"
 				/>
-				<p class="text-[12.5px] text-muted-foreground">Lowercase letters, digits and dashes.</p>
+				<p class="text-sm text-muted-foreground">Lowercase letters, digits and dashes.</p>
 			</div>
 			<div class="space-y-1.5">
 				<Label for="sd">Description</Label><Textarea
@@ -259,12 +254,12 @@
 			</div>
 			<div class="rounded-xl border p-3">
 				<div class="mb-3 flex items-center justify-between gap-2">
-					<Label for="fi" class="text-[13px] font-medium">First item</Label>
+					<Label for="fi" class="text-md font-medium">First item</Label>
 					<Switch id="fi" bind:checked={form.withItem} />
 				</div>
 				{#if form.withItem}<IpItemEditor bind:form={item} {sets} self="" />{/if}
 			</div>
-			{#if formError}<p role="alert" class="text-[13px] text-bad-text">{formError}</p>{/if}
+			{#if formError}<p role="alert" class="text-md text-bad-text">{formError}</p>{/if}
 		</div>
 		<Sheet.Footer class="flex-row justify-end gap-2 border-t">
 			<Button variant="ghost" onclick={() => (addOpen = false)}>Cancel</Button>

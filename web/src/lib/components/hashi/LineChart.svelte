@@ -21,8 +21,8 @@
 
 <figure class="min-w-0 rounded-2xl border bg-card p-4">
 	<figcaption class="mb-2 flex items-baseline justify-between gap-3">
-		<span class="text-[13px] font-medium">{title}</span>
-		<span class="tnum text-[15px] font-semibold">{current ?? values.at(-1) + unit}</span>
+		<span class="text-md font-medium">{title}</span>
+		<span class="tnum text-lg font-semibold">{current ?? values.at(-1) + unit}</span>
 	</figcaption>
 	<svg
 		viewBox="0 0 {w} {h}"

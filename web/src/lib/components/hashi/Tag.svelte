@@ -25,7 +25,7 @@
 
 <span
 	class={cn(
-		'inline-flex h-5 items-center gap-1 rounded-md border px-1.5 text-[11.5px] font-medium whitespace-nowrap',
+		'inline-flex h-5 items-center gap-1 rounded-md border px-1.5 text-2xs font-medium whitespace-nowrap',
 		tones[tone],
 		className
 	)}>{@render children()}</span

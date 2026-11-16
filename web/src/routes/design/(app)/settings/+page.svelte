@@ -76,7 +76,7 @@
 				onclick={() => (cat = c)}
 				aria-current={cat === c ? 'page' : undefined}
 				class={cn(
-					'h-9 shrink-0 rounded-[10px] px-3 text-left text-[13.5px]',
+					'h-9 shrink-0 rounded-[10px] px-3 text-left text-md',
 					cat === c ? 'bg-surface-2 font-medium' : 'text-muted-foreground hover:text-foreground'
 				)}>{c}</button
 			>
@@ -107,7 +107,7 @@
 									<div class="h-2.5 w-8 self-end rounded bg-primary"></div>
 								</div>
 							</div>
-							<div class="px-1 pt-1.5 text-[13px] font-medium">{t.name}</div>
+							<div class="px-1 pt-1.5 text-md font-medium">{t.name}</div>
 						</button>
 					{/each}
 				</div>
@@ -125,7 +125,7 @@
 					<div class="grid grid-cols-2 gap-3">
 						{#each Object.keys(draft) as k (k)}
 							<label class="space-y-1.5"
-								><span class="text-[13px] font-medium capitalize">{k}</span>
+								><span class="text-md font-medium capitalize">{k}</span>
 								<span class="flex items-center gap-2"
 									><input
 										type="color"
@@ -147,13 +147,11 @@
 								class="rounded-lg border p-3"
 								style="background:{draft.surface};border-color:{draft.border};color:{draft.text}"
 							>
-								<div class="text-[14px] font-semibold">Grafana</div>
-								<div class="text-[12.5px]" style="color:{draft.muted}">
-									grafana.example.com · 48 ms
-								</div>
+								<div class="text-base font-semibold">Grafana</div>
+								<div class="text-sm" style="color:{draft.muted}">grafana.example.com · 48 ms</div>
 								<div class="mt-3 flex justify-end">
 									<span
-										class="rounded-md px-2.5 py-1 text-[12.5px] font-medium"
+										class="rounded-md px-2.5 py-1 text-sm font-medium"
 										style="background:{draft.accent};color:{contrast(draft.accent, '#000000') > 7
 											? '#000'
 											: '#fff'}">Save changes</span
@@ -161,7 +159,7 @@
 								</div>
 							</div>
 						</div>
-						<dl class="mt-3 grid grid-cols-2 gap-2 text-[13px]">
+						<dl class="mt-3 grid grid-cols-2 gap-2 text-md">
 							<dt>Text on surface</dt>
 							<dd class={ratios.text >= 4.5 ? 'text-ok-text' : 'text-bad-text'}>
 								{ratios.text.toFixed(1)} : 1
@@ -187,14 +185,14 @@
 				flush
 			>
 				<ul class="divide-y">
-					{#each widgets as w, i (w)}<li class="flex items-center gap-3 px-4 py-2 text-[13px]">
+					{#each widgets as w, i (w)}<li class="flex items-center gap-3 px-4 py-2 text-md">
 							<GripVertical class="size-4 text-muted-foreground" /><span class="flex-1">{w}</span
 							><Switch checked={i < 8} aria-label="Show {w}" />
 						</li>{/each}
 				</ul>
 			</Panel>
 			<Panel title="Comfort">
-				<label class="flex items-center justify-between gap-3 text-[13px]"
+				<label class="flex items-center justify-between gap-3 text-md"
 					>Reduce transparency<Switch /></label
 				>
 			</Panel>
@@ -202,7 +200,7 @@
 			<Panel title="Passkeys" description="Sign-in and confirmation of risky changes" flush>
 				{#snippet actions()}<Button size="sm" variant="outline"><Fingerprint />Add passkey</Button
 					>{/snippet}
-				<ul class="divide-y text-[13px]">
+				<ul class="divide-y text-md">
 					<li class="flex items-center gap-3 px-4 py-3">
 						<KeyRound class="size-4 text-muted-foreground" /><span class="flex-1"
 							><span class="font-medium">MacBook</span>
@@ -229,7 +227,7 @@
 			>
 				{#snippet actions()}<Button size="sm" variant="outline">Sign out other sessions</Button
 					>{/snippet}
-				<ul class="divide-y text-[13px]">
+				<ul class="divide-y text-md">
 					<li class="flex items-center gap-3 px-4 py-3">
 						<span class="flex-1"><Mono>192.0.2.10</Mono> · started 12:10 · ends 19:10</span><Tag
 							tone="accent">this session</Tag
@@ -242,7 +240,7 @@
 				</ul>
 			</Panel>
 			<Panel title="Vault">
-				<div class="flex items-start gap-3 text-[13px]">
+				<div class="flex items-start gap-3 text-md">
 					<Lock class="mt-0.5 size-4 text-muted-foreground" />
 					<p class="flex-1">
 						Service mode: secrets unlock automatically with the deployment's master key, so syncs
@@ -281,7 +279,7 @@
 					{#each settingsCatalogue[cat] ?? [] as f (f.label)}
 						{#if f.kind === 'switch'}
 							<label
-								class="flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-[13px]"
+								class="flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-md"
 								>{f.label}<Switch checked={f.value as boolean} /></label
 							>
 						{:else}
@@ -293,7 +291,7 @@
 										/>{/if}</Label
 								>
 								<Input value={String(f.value)} class={f.kind === 'mono' ? 'font-mono' : ''} />
-								{#if f.hint}<p class="text-[12px] text-muted-foreground">{f.hint}</p>{/if}
+								{#if f.hint}<p class="text-xs text-muted-foreground">{f.hint}</p>{/if}
 							</div>
 						{/if}
 					{/each}

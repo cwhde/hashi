@@ -48,15 +48,15 @@
 
 <a
 	href="/design/firewall"
-	class="mb-3 inline-flex items-center gap-1 text-[13px] text-muted-foreground hover:text-foreground"
+	class="mb-3 inline-flex items-center gap-1 text-md text-muted-foreground hover:text-foreground"
 	><ChevronLeft class="size-4" />Firewall hosts</a
 >
 <div class="mb-5 flex flex-wrap items-end gap-4">
 	<div class="flex-1">
-		<h1 class="flex items-center gap-2 text-[22px] font-semibold">
+		<h1 class="flex items-center gap-2 text-title font-semibold">
 			{h.name}<StatusBadge state={h.health} />
 		</h1>
-		<p class="text-[13.5px] text-muted-foreground">
+		<p class="text-md text-muted-foreground">
 			{h.os} · nft 1.1.3 · <Mono>{h.publicIp}</Mono>{#if h.publicIp6}
 				· <Mono>{h.publicIp6}</Mono>{/if}
 		</p>
@@ -67,7 +67,7 @@
 
 <div class="mb-4 grid gap-4 lg:grid-cols-3">
 	<Panel title="Rescue path">
-		<div class="flex items-start gap-3 text-[13px]">
+		<div class="flex items-start gap-3 text-md">
 			<LifeBuoy class="mt-0.5 size-5 shrink-0 text-ok-text" />
 			<p>
 				Every high-risk apply arms a 180 s timer that restores Hashi’s table unless a <em>new</em>
@@ -76,7 +76,7 @@
 		</div>
 	</Panel>
 	<Panel title="NetBird">
-		<dl class="grid grid-cols-[6rem_1fr] gap-y-1.5 text-[13px]">
+		<dl class="grid grid-cols-[6rem_1fr] gap-y-1.5 text-md">
 			<dt class="text-muted-foreground">Mode</dt>
 			<dd>{h.netbird.mode}</dd>
 			<dt class="text-muted-foreground">Interface</dt>
@@ -88,7 +88,7 @@
 		</dl>
 	</Panel>
 	<Panel title="Host link" description="One SSH connection Hashi keeps open">
-		{#if h.mode === 'managed'}<div class="flex items-start gap-3 text-[13px]">
+		{#if h.mode === 'managed'}<div class="flex items-start gap-3 text-md">
 				<Cable class="mt-0.5 size-5 shrink-0 text-ok-text" />
 				<dl class="grid flex-1 grid-cols-[7rem_1fr] gap-y-1.5">
 					<dt class="text-muted-foreground">State</dt>
@@ -101,7 +101,7 @@
 					<dd>4 min ago · no difference</dd>
 				</dl>
 			</div>
-		{:else}<p class="text-[13px] text-muted-foreground">
+		{:else}<p class="text-md text-muted-foreground">
 				Not used: Hashi does not manage this host’s firewall (external NAT).
 			</p>{/if}
 	</Panel>
@@ -121,7 +121,7 @@
 			title="Managed subnets"
 			description="A service whose target is in one of these runs on {h.name}"
 		>
-			<ul class="space-y-1.5 text-[13px]">
+			<ul class="space-y-1.5 text-md">
 				{#each h.subnets as n (n)}
 					<li class="flex items-center gap-2">
 						<Mono class="flex-1">{n}</Mono><Button
@@ -138,7 +138,7 @@
 					size="sm">Add</Button
 				>
 			</div>
-			<p class="mt-2 text-[12.5px] text-muted-foreground">
+			<p class="mt-2 text-sm text-muted-foreground">
 				NetBird-routed ranges and Pulse agents whose addresses fall inside count too.
 			</p>
 		</Panel>
@@ -156,14 +156,14 @@
 						>{/each}
 				</Select.Content>
 			</Select.Root>
-			<div class="mt-3 space-y-1 text-[12.5px]">
+			<div class="mt-3 space-y-1 text-sm">
 				<div><Mono>on.{h.name}.example.com</Mono> → <Mono>via.{entryName}.example.com</Mono></div>
 				<div><Mono>via.{h.name}.example.com</Mono> → <Mono>{h.name}.example.com</Mono></div>
 				<div><Mono>{h.name}.example.com</Mono> A <Mono>{h.publicIp}</Mono></div>
 			</div>
 			{#if ovr.length}
-				<div class="mt-4 mb-1.5 text-[12.5px] font-medium">Services entering elsewhere</div>
-				<ul class="space-y-1.5 text-[12.5px]">
+				<div class="mt-4 mb-1.5 text-sm font-medium">Services entering elsewhere</div>
+				<ul class="space-y-1.5 text-sm">
 					{#each ovr as o (o.entry)}
 						<li>
 							<Mono>{o.entry}.ovr.on.{h.name}.example.com</Mono> → <Mono
@@ -184,7 +184,7 @@
 			title="Public ports"
 			description="From services. Opening or closing one is a high-risk change."
 		>
-			<ul class="divide-y text-[13px]">
+			<ul class="divide-y text-md">
 				{#each h.ports as p (p)}
 					<li class="flex flex-wrap items-center gap-3 px-4 py-2.5">
 						<Mono class="w-24">{p}</Mono><span class="min-w-0 flex-1"
@@ -193,8 +193,8 @@
 								: p.startsWith('443')
 									? 'websecure'
 									: p.replace('/', '-').replace(/(\d+)-(\w+)/, '$2-$1')}</span
-						>{#if p === '19132/udp' || p === '222/tcp'}<span
-								class="text-[12.5px] text-muted-foreground">kernel meters on</span
+						>{#if p === '19132/udp' || p === '222/tcp'}<span class="text-sm text-muted-foreground"
+								>kernel meters on</span
 							>{/if}<Tag tone="ok">open</Tag>
 					</li>
 				{/each}
@@ -212,11 +212,11 @@
 			description="SSH and the Proxmox UI on the host. Loopback, its own subnets and NetBird always can."
 		>
 			{#snippet actions()}<Button size="sm" variant="outline"><Plus />Add set</Button>{/snippet}
-			<ul class="space-y-2 text-[13px]">
+			<ul class="space-y-2 text-md">
 				<li><SetBadge slug="hashi-hosts" /></li>
 				<li><SetBadge slug="home-wan" /></li>
 			</ul>
-			<p class="mt-3 text-[12.5px] text-muted-foreground">
+			<p class="mt-3 text-sm text-muted-foreground">
 				Removing a set that contains your current address (<Mono>203.0.113.88</Mono>) needs a
 				passkey and arms the rescue timer.
 			</p>
@@ -224,28 +224,28 @@
 	</Tabs.Content>
 	<Tabs.Content value="sets" class="grid gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
 		<Panel flush title="Sets in table inet hashi" description="Read from the host 4 min ago">
-			<ul class="divide-y text-[13px]">
+			<ul class="divide-y text-md">
 				{#each kernelSets as k (k.name)}
 					<li class="grid grid-cols-[10rem_minmax(0,1fr)_6rem_6rem] items-center gap-3 px-4 py-2.5">
 						<Mono>{k.name}</Mono><span class="truncate text-muted-foreground">{k.what}</span><span
 							class="tnum text-right">{k.size}</span
-						><span class="text-right text-[12.5px] text-muted-foreground">{k.owner}</span>
+						><span class="text-right text-sm text-muted-foreground">{k.owner}</span>
 					</li>
 				{/each}
 			</ul>
 		</Panel>
 		<div class="space-y-4">
 			<Panel title="Kernel meters" description="Over the limit → staging, then a ban from Hashi">
-				<dl class="grid grid-cols-[minmax(0,1fr)_auto] gap-y-2 text-[13px]">
+				<dl class="grid grid-cols-[minmax(0,1fr)_auto] gap-y-2 text-md">
 					{#each meters as [k, v] (k)}<dt class="text-muted-foreground">{k}</dt>
 						<dd class="text-right">{v}</dd>{/each}
 				</dl>
-				<p class="mt-2 text-[12.5px] text-muted-foreground">
+				<p class="mt-2 text-sm text-muted-foreground">
 					Only on the WAN interface and published ports. Allowed addresses are never metered.
 				</p>
 			</Panel>
 			<Panel title="Caught in the last hour">
-				<ul class="space-y-1.5 text-[13px]">
+				<ul class="space-y-1.5 text-md">
 					<li class="flex justify-between">
 						<AddressLink address="198.51.100.77" /><span class="text-muted-foreground"
 							>open TCP connections · 13:02</span
@@ -261,7 +261,7 @@
 			title="Observed ruleset"
 			description="Every table on the host, read just now. Hashi’s table is highlighted; the rest is left alone."
 		>
-			<pre class="overflow-x-auto p-4 font-mono text-[12.5px] leading-relaxed"><code
+			<pre class="overflow-x-auto p-4 font-mono text-sm leading-relaxed"><code
 					><span class="text-primary">table inet hashi &#123;</span>
 <span
 						class="text-primary">  chain pre_guard &#123; type filter hook prerouting priority raw; …</span
@@ -285,8 +285,7 @@
 			title="hashi.nft.json"
 			description="What the next apply loads with nft -j -f, as one transaction. Read-only."
 		>
-			<pre
-				class="overflow-x-auto p-4 font-mono text-[12.5px] leading-relaxed text-muted-foreground"><code
+			<pre class="overflow-x-auto p-4 font-mono text-sm leading-relaxed text-muted-foreground"><code
 					>{`{ "nftables": [
   { "add": { "table": { "family": "inet", "name": "hashi" } } },
   { "add": { "set": { "family": "inet", "table": "hashi", "name": "allow4",

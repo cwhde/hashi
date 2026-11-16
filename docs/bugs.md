@@ -22,7 +22,6 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 | 4 | function | reproduced | Top bar search | Search only finds page names. The owner wants one global search for everything, since the box is on every page: every object (services, DNS records, AdGuard rewrites, IP sets and their items, addresses and CIDRs, rule sets, firewall and Traefik hosts, agents, connections, scripts, checks), every setting (by its label, opening Settings at that field), every tab of every page, and plans and audit entries. Results grouped by kind, keyboard first, each opening the exact place. Needs a search endpoint; today the address and service results exist only in the design mock (see Details). | 2026-10-31 |
 | 7 | visual | reported | Delete confirmation dialog | The dialog has no border, unlike other UI items in every theme. | 2026-10-31 |
 | 6 | visual | reproduced | IP sets → add an item | The options of the first field (type) wrap onto two rows, which breaks the layout. | 2026-10-31 |
-| 8 | visual | reproduced | All on/off switches | In the on position the switch doesn't fully slide to the right and looks broken. | 2026-10-31 |
 | 12 | function | reported | Alerts | Group alerts: when almost all services go down at once (one host or the edge is down), send one grouped alert instead of one per service, and plan how to avoid the flood. Proposal: when 3 or more checks behind the same Traefik or firewall host go down within 2 minutes, send one alert naming the host and the count, hold the single alerts for those checks, and send one recovery alert. A host check that is down itself is the cause line. | 2026-11-02 |
 | 15 | visual | reproduced | Service page header on a phone | At about 390 px wide the service name runs under the "Turn off" button in the header card (seen in a browser-test screenshot, 2026-11-02). |
 | 17 | function | reported | Services → target | Giving a service a Pulse agent as its target takes a detour: first an IP set for the agent, then that set in the service, so every agent needs its own one-item set. Pick the agent directly in the service instead: address, agent or IP set, as AdGuard connections already allow (`target_agent_id`). Raised again by the owner 2026-11-16, no longer "later". | 2026-11-03 |
@@ -45,7 +44,6 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 | 42 | visual | reproduced | Phone width | Tabs are 21 px tall on DNS, Traefik, Security, Status and Activity; the firewall page's "Remove" icons are 21 × 21 next to 19 px links. Below the 24 px minimum target, far below a comfortable 44 px. The address page has no heading when opened empty. (impeccable audit) | 2026-11-14 |
 | 43 | later | reported | Forms | 20 of 186 inputs say what they hold (`autocomplete`), 1 turns spell-check off: IP, CIDR, domain and name fields get red squiggles and password-manager fill offers. (web-design-guidelines) | 2026-11-14 |
 | 44 | later | reported | Numbers, browser chrome | No tabular figures anywhere, so counts in tables and tiles change width as they tick; no `theme-color`, so the phone browser bar ignores the theme. (web-design-guidelines) | 2026-11-14 |
-| 45 | later | reported | Type sizes | About 1,000 hand-set pixel font sizes in 14 different values instead of a few named steps; 15 px and 24 px aren't in the spec's scale. Same root as bug 8: px and rem mixed on a 14 px base. (impeccable audit) Fix with bug 8: root font size 16 px so rem sizes in shadcn parts mean what they say, body text stays 14 px, and a named type scale as tokens (12, 13, 14, 16, 22 px) replaces the hand-set sizes. | 2026-11-14 |
 | 46 | later | reported | Code size | The Settings page renders its categories inline (785 lines). Split it into one component per category when 13.4 regroups the categories, keeping drafts per bug 91. (The firewall manager half was split in 13.1.) (code quality review) | 2026-11-14 |
 | 48 | function | reproduced | Settings → General → Trusted proxies | Accepts `0.0.0.0/0`, `::/0` or any public range without a word. With that, every visitor counts as a proxy and the leftmost forwarded address wins (`clientip.Resolve`), so anyone can claim any IP: session IP binding, Hashi's rate limits and the recovery-link network check all go by it. Not an attack path on its own (only the admin can set it, with a passkey), but one wrong line removes every IP-based check. Refuse whole-internet and public ranges, or warn hard. (sharp-edges, fp-check: real hazard, not exploitable without the admin) | 2026-11-14 |
 | 49 | later | reported | Settings → Security → Bootstrap networks | Accepts any range, including `0.0.0.0/0`, without a passkey, while the recovery link refuses with "works only from a private network". After setup the bootstrap login is off and a recovery link still needs a one-time console token (15 min), so this is only an extra layer; still, the setting should take private ranges only, and its text should say it now only governs recovery links. (sharp-edges, fp-check: defence in depth, not a vulnerability) | 2026-11-14 |
@@ -132,14 +130,6 @@ are at the app's 14 px base font.
 - **Cause (code, not measured):** every overlay (dialog, alert dialog, popover, select, dropdown) draws its edge as
   `ring-1 ring-foreground/10`, a faint halo, while Hashi's cards use `border` with the theme's border colour. In themes
   with a strong border colour the overlays look like they have none. Fix in the shared `ui/*-content.svelte` files.
-
-### 8 · Switch knob doesn't reach the right
-
-- **Measured:** every switch in Settings (Dashboard, Firewall, Notifications, Pulse): track 32 × 18.4 px, knob 14 px; on,
-  the knob stops 5.4 px from the right edge, while off it sits 1 px from the left.
-- **Cause:** `ui/switch/switch.svelte` sets the track in pixels (32 px) but the knob in rem (`size-4` = 1 rem). The app's
-  base font is 14 px (`routes/layout.css`), so the knob is 14 px instead of 16 px and its slide (`100% - 2px`) falls short
-  by 4 px. Other vendored shadcn parts that mix px and rem may have the same offset.
 
 ### 15 · Service header on a phone
 

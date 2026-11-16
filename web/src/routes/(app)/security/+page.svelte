@@ -131,7 +131,7 @@
 />
 
 {#if error}
-	<p class="flex items-center gap-2 text-[13px] text-bad-text">
+	<p class="flex items-center gap-2 text-md text-bad-text">
 		<CircleAlert class="size-3.5" />{error}
 	</p>
 {/if}
@@ -171,7 +171,7 @@
 					onclick={() => (editing = { id: '', form: blank(!data?.providers.length) })}
 					><Plus />Add provider</Button
 				>{/snippet}
-			<ul class="divide-y text-[13px]">
+			<ul class="divide-y text-md">
 				{#each data?.providers ?? [] as p (p.id)}
 					<li class="flex items-center gap-3 px-4 py-3">
 						<button
@@ -181,7 +181,7 @@
 							<span class="font-medium hover:underline">{p.name}</span>
 							{#if p.is_default}<Tag>default</Tag>{/if}
 							<span class="block text-muted-foreground">{p.issuer}</span>
-							{#if p.discovery_error}<span class="block text-[12.5px] text-bad-text"
+							{#if p.discovery_error}<span class="block text-sm text-bad-text"
 									>{p.discovery_error}</span
 								>{/if}
 						</button>
@@ -196,7 +196,7 @@
 				{/each}
 			</ul>
 		</Panel>
-		{#if data}<p class="text-[12.5px] text-muted-foreground">
+		{#if data}<p class="text-sm text-muted-foreground">
 				Register this address at the provider: <Mono>{data.callback_url}</Mono>
 			</p>{/if}
 	</Tabs.Content>
@@ -214,12 +214,12 @@
 						<Input id="li" type="number" bind:value={limits.idle_timeout_hours} />
 					</div>
 				</div>
-				<label class="mt-3 flex items-center gap-2 text-[13px]"
+				<label class="mt-3 flex items-center gap-2 text-md"
 					><Switch bind:checked={limits.remember_device} />Stay signed in after closing the browser</label
 				>
 				<div class="mt-3 flex items-center gap-3">
 					<Button size="sm" onclick={saveLimits}>Save sessions</Button>
-					<span class="text-[13px] text-muted-foreground">{limitsNote}</span>
+					<span class="text-md text-muted-foreground">{limitsNote}</span>
 				</div>
 			</Panel>
 		{/if}
@@ -230,12 +230,12 @@
 			title="Databases"
 			description="Used by rules and firewall sets that name a country or network."
 		>
-			<ul class="space-y-2 text-[13px]">
+			<ul class="space-y-2 text-md">
 				{#each geo?.databases ?? [] as d (d.edition)}
 					<li class="flex items-center gap-2">
 						<span class="flex-1"
 							><span class="font-medium">{d.edition}</span><span
-								class="block text-[12.5px] text-muted-foreground"
+								class="block text-sm text-muted-foreground"
 								>built {dateTime(d.built_at)}, fetched {dateTime(d.fetched_at)}</span
 							></span
 						>
@@ -277,7 +277,7 @@
 						placeholder="https://mirror.example.com/{'{edition}'}.tar.gz"
 					/>
 				</div>
-				{#if geoError}<p class="text-[13px] text-bad-text">{geoError}</p>{/if}
+				{#if geoError}<p class="text-md text-bad-text">{geoError}</p>{/if}
 				<Button size="sm" disabled={busy} onclick={saveGeo}>Save and download</Button>
 			</div>
 		</Panel>
@@ -352,10 +352,10 @@
 						/>
 					</div>
 				</div>
-				<label class="flex items-center gap-2 text-[13px]"
+				<label class="flex items-center gap-2 text-md"
 					><Switch bind:checked={editing.form.is_default} />Default provider</label
 				>
-				{#if formError}<p class="text-[13px] text-bad-text">{formError}</p>{/if}
+				{#if formError}<p class="text-md text-bad-text">{formError}</p>{/if}
 			</div>
 		{/if}
 		<Sheet.Footer class="flex-row justify-end gap-2 border-t">

@@ -66,20 +66,20 @@
 
 <a
 	href="/design/services"
-	class="mb-3 inline-flex items-center gap-1 text-[13px] text-muted-foreground hover:text-foreground"
+	class="mb-3 inline-flex items-center gap-1 text-md text-muted-foreground hover:text-foreground"
 	><ChevronLeft class="size-4" />Services</a
 >
 
 <div class="mb-5 rounded-2xl border bg-card p-4">
 	<div class="flex flex-wrap items-start gap-x-6 gap-y-3">
 		<div class="min-w-0 flex-1">
-			<h1 class="flex items-center gap-2 text-[22px] leading-tight font-semibold">
+			<h1 class="flex items-center gap-2 text-title leading-tight font-semibold">
 				{r.name}
 				{#if r.origin === 'system'}<Tag
 						><Lock class="size-3" />system · edit in Settings → General</Tag
 					>{/if}
 			</h1>
-			<a class="text-[13.5px] text-muted-foreground hover:underline" href="https://{r.domain}"
+			<a class="text-md text-muted-foreground hover:underline" href="https://{r.domain}"
 				>{stream ? r.domain + ':' + r.port : 'https://' + r.domain}</a
 			>
 		</div>
@@ -88,29 +88,29 @@
 			<Button size="sm">Save changes</Button>
 		</div>
 	</div>
-	<dl class="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-[13px] sm:grid-cols-3 lg:grid-cols-6">
+	<dl class="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-md sm:grid-cols-3 lg:grid-cols-6">
 		<div>
-			<dt class="text-[12px] text-muted-foreground">Status</dt>
+			<dt class="text-xs text-muted-foreground">Status</dt>
 			<dd><StatusBadge state={r.health} /></dd>
 		</div>
 		<div>
-			<dt class="text-[12px] text-muted-foreground">Uptime 24 h</dt>
+			<dt class="text-xs text-muted-foreground">Uptime 24 h</dt>
 			<dd class="tnum">{r.uptime}</dd>
 		</div>
 		<div>
-			<dt class="text-[12px] text-muted-foreground">Runs on · enters via</dt>
+			<dt class="text-xs text-muted-foreground">Runs on · enters via</dt>
 			<dd>{r.host} · {entry}</dd>
 		</div>
 		<div class="col-span-2 sm:col-span-1">
-			<dt class="text-[12px] text-muted-foreground">Access</dt>
+			<dt class="text-xs text-muted-foreground">Access</dt>
 			<dd class="truncate">{r.access}</dd>
 		</div>
 		<div>
-			<dt class="text-[12px] text-muted-foreground">WAF</dt>
+			<dt class="text-xs text-muted-foreground">WAF</dt>
 			<dd>{stream ? '—' : r.waf.replace('_', ' ')}</dd>
 		</div>
 		<div>
-			<dt class="text-[12px] text-muted-foreground">Sync</dt>
+			<dt class="text-xs text-muted-foreground">Sync</dt>
 			<dd>{r.sync === 'in sync' ? 'In sync on 2 hosts' : r.sync}</dd>
 		</div>
 	</dl>
@@ -145,13 +145,13 @@
 								>{/each}
 						</Select.Content>
 					</Select.Root>
-					<p class="text-[12.5px] text-muted-foreground">
+					<p class="text-sm text-muted-foreground">
 						Runs on {r.host}: its target is in {r.host}’s subnets. Choosing another host overrides
 						the host’s public entry for this service only.
 					</p>
 				</div>
-				<div class="text-[13px]">
-					<div class="mb-1 text-[12px] text-muted-foreground">DNS chain Hashi will keep</div>
+				<div class="text-md">
+					<div class="mb-1 text-xs text-muted-foreground">DNS chain Hashi will keep</div>
 					<ol class="space-y-0.5">
 						<li><Mono>{r.domain}</Mono></li>
 						{#each chain as c, i (c)}<li class="text-muted-foreground">
@@ -160,18 +160,18 @@
 									>{/if}
 							</li>{/each}
 					</ol>
-					{#if entry !== r.host}<p class="mt-1.5 text-[12.5px] text-muted-foreground">
+					{#if entry !== r.host}<p class="mt-1.5 text-sm text-muted-foreground">
 							Shared with other {r.host} services entering through {entry}; removed when none does.
 						</p>{/if}
 				</div>
-				{#if stream}<p class="text-[12.5px] text-muted-foreground">
+				{#if stream}<p class="text-sm text-muted-foreground">
 						TCP and UDP services cannot use forward auth. They are protected by the firewall’s allow
 						and block sets and the kernel meters for new connections and packet rates.
 					</p>{/if}
 			</div>
 		</Panel>
 		<Panel title="Upstream">
-			{#snippet actions()}{#if !stream}<div class="flex items-center gap-2 text-[13px]">
+			{#snippet actions()}{#if !stream}<div class="flex items-center gap-2 text-md">
 						<Label for="adv">Advanced routes</Label><Switch id="adv" bind:checked={advanced} />
 					</div>{/if}{/snippet}
 			{#if !advanced}
@@ -183,7 +183,7 @@
 						/>{/if}
 					<Input value={r.target.split(':').at(-1)} aria-label="Port" />
 				</div>
-				<p class="mt-2 text-[12.5px] text-muted-foreground">
+				<p class="mt-2 text-sm text-muted-foreground">
 					{#if r.upstreamSet}Now <Mono>10.20.1.102</Mono> (home-docker, internal). If the set ever resolves
 						to nothing, Traefik keeps the last working address.{:else}A typed address becomes a
 						one-item IP set. Pick a set instead to follow a Pulse agent, host or DNS name.{/if}
@@ -229,7 +229,7 @@
 				<Button size="sm" onclick={() => (ruleOpen = true)}><Plus />Add rule</Button>
 			{/snippet}
 			{#if root.entries.length === 0}
-				<p class="border-b px-4 py-3 text-[13px] text-muted-foreground">
+				<p class="border-b px-4 py-3 text-md text-muted-foreground">
 					No rules of its own. Everyone not stopped by the abuse engine or the global rules gets the
 					fallback.
 				</p>
@@ -249,7 +249,7 @@
 			<FlattenedRuleList {rows} {decides} />
 		</Panel>
 
-		<p class="flex items-start gap-2 text-[12.5px] text-muted-foreground">
+		<p class="flex items-start gap-2 text-sm text-muted-foreground">
 			<Unplug class="mt-0.5 size-3.5 shrink-0" />
 			{#if failClosed}If Hashi is unreachable this service refuses requests, because its rules can
 				deny or ask for sign-in.{:else}If Hashi is unreachable this service stays open: CAPTCHA and
@@ -264,7 +264,7 @@
 			description="The most specific path wins. Saving creates a plan for every Traefik host."
 		>
 			{#snippet actions()}<Button size="sm" variant="outline"><Plus />Add path</Button>{/snippet}
-			<ul class="divide-y text-[13px]">
+			<ul class="divide-y text-md">
 				{#each wafPaths as w (w.path)}
 					<li class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5">
 						<span
@@ -286,14 +286,14 @@
 					</li>
 				{/each}
 			</ul>
-			<p class="border-t px-4 py-3 text-[12.5px] text-muted-foreground">
+			<p class="border-t px-4 py-3 text-sm text-muted-foreground">
 				Headers only skips request bodies: use it for uploads, git pushes, WebDAV and large JSON
 				APIs.
 			</p>
 		</Panel>
 		<Panel flush title="Exclusions" description="Rules switched off where they misfire">
 			{#snippet actions()}<Button size="sm" variant="ghost"><Plus />Add</Button>{/snippet}
-			<ul class="divide-y text-[13px]">
+			<ul class="divide-y text-md">
 				<li class="flex items-center gap-3 px-4 py-2.5">
 					<Mono>920350</Mono><span class="flex-1 text-muted-foreground"
 						>on <Mono>/api/upload</Mono></span
@@ -305,7 +305,7 @@
 					>
 				</li>
 			</ul>
-			<p class="border-t px-4 py-3 text-[12.5px] text-muted-foreground">
+			<p class="border-t px-4 py-3 text-sm text-muted-foreground">
 				Matches count towards a challenge (5 in 60 s). Security → Counters resets an address that
 				was caught by a false positive.
 			</p>
@@ -314,21 +314,21 @@
 
 	<Tabs.Content value="monitoring">
 		<Panel title="Checks" description="Public URL and internal upstream are checked separately">
-			<dl class="grid gap-3 text-[13px] sm:grid-cols-3">
+			<dl class="grid gap-3 text-md sm:grid-cols-3">
 				<div>
-					<dt class="text-[12px] text-muted-foreground">Public</dt>
+					<dt class="text-xs text-muted-foreground">Public</dt>
 					<dd>HTTPS {r.domain} · 200 · {r.latency} ms</dd>
 				</div>
 				<div>
-					<dt class="text-[12px] text-muted-foreground">Internal</dt>
+					<dt class="text-xs text-muted-foreground">Internal</dt>
 					<dd>HTTP <Mono>{r.target}</Mono> · 200</dd>
 				</div>
 				<div>
-					<dt class="text-[12px] text-muted-foreground">Certificate</dt>
+					<dt class="text-xs text-muted-foreground">Certificate</dt>
 					<dd>expires in 41 days</dd>
 				</div>
 			</dl>
-			<p class="mt-3 text-[12.5px] text-muted-foreground">
+			<p class="mt-3 text-sm text-muted-foreground">
 				Full history and latency charts are on the <a
 					class="underline"
 					href="/design/status/m-{r.id}">status page for {r.name}</a
@@ -344,7 +344,7 @@
 			flush
 		>
 			<pre
-				class="overflow-x-auto rounded-b-2xl bg-surface-2/40 p-4 font-mono text-[12.5px] leading-relaxed"><code
+				class="overflow-x-auto rounded-b-2xl bg-surface-2/40 p-4 font-mono text-sm leading-relaxed"><code
 					>http:
   routers:
     {r.id}-{r.name.toLowerCase().replace(/\W+/g, '-')}:

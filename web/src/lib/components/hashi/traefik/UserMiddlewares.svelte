@@ -120,7 +120,7 @@
 {#if loadError}
 	<p
 		role="alert"
-		class="flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-[13px] text-bad-text"
+		class="flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-md text-bad-text"
 	>
 		<CircleAlert class="mt-0.5 size-4 shrink-0" />{loadError}
 	</p>
@@ -130,7 +130,7 @@
 	{#if outcome}
 		<p
 			role={outcome.bad ? 'alert' : 'status'}
-			class="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border p-3 text-[13px] {outcome.bad
+			class="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border p-3 text-md {outcome.bad
 				? 'border-bad/30 bg-bad/10 text-bad-text'
 				: 'bg-card'}"
 		>
@@ -143,7 +143,7 @@
 	{#if saveError}
 		<p
 			role="alert"
-			class="mb-4 flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-3 text-[13px] text-bad-text"
+			class="mb-4 flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-3 text-md text-bad-text"
 		>
 			<CircleAlert class="mt-0.5 size-4 shrink-0" />{saveError}
 		</p>
@@ -168,7 +168,7 @@
 					class="max-h-[32rem] overflow-auto"
 				/>
 				<div
-					class="flex min-h-10 items-start gap-2 border-t px-4 py-2.5 text-[12.5px]"
+					class="flex min-h-10 items-start gap-2 border-t px-4 py-2.5 text-sm"
 					aria-live="polite"
 				>
 					{#if problem}
@@ -187,25 +187,25 @@
 				</div>
 			</div>
 			<div class="border-t p-4 lg:border-t-0 lg:border-l">
-				<div class="text-[12px] font-medium">
+				<div class="text-xs font-medium">
 					{found.length === 0
 						? 'No middlewares yet'
 						: `Found ${found.length} middleware${found.length === 1 ? '' : 's'}`}
 				</div>
 				{#if found.length === 0}
-					<p class="mt-2 text-[12.5px] text-muted-foreground">
+					<p class="mt-2 text-sm text-muted-foreground">
 						Start with <Mono>http:</Mono>, then <Mono>middlewares:</Mono>, then a name and one
 						Traefik middleware type, for example <Mono>ipAllowList</Mono> or <Mono>buffering</Mono>.
 					</p>
 				{:else}
-					<ul class="mt-2 space-y-3 text-[13px]" aria-label="Middlewares in the file">
+					<ul class="mt-2 space-y-3 text-md" aria-label="Middlewares in the file">
 						{#each found as m (m.name)}
 							<li class="space-y-1.5">
 								<div class="flex flex-wrap items-center gap-x-2 gap-y-1">
 									<Mono>{m.name}</Mono>
 									<Tag>{m.type}</Tag>
 								</div>
-								<div class="text-[12.5px] text-muted-foreground">
+								<div class="text-sm text-muted-foreground">
 									{#if m.used_by.length && !everyLive.includes(m.name)}
 										used by
 										{#each [...new Map(m.used_by.map( (u) => [u.service_id, u] )).values()] as u, i (u.service_id)}{i
@@ -215,7 +215,7 @@
 											>{/each}
 									{:else}{usedText(m)}{/if}
 								</div>
-								<label class="flex items-center justify-between gap-3 text-[12.5px]">
+								<label class="flex items-center justify-between gap-3 text-sm">
 									<span>On every service</span>
 									<Switch
 										checked={everyLive.includes(m.name)}
@@ -226,7 +226,7 @@
 							</li>
 						{/each}
 					</ul>
-					<p class="mt-4 text-[12px] text-muted-foreground">
+					<p class="mt-4 text-xs text-muted-foreground">
 						A file that fails the check is never saved; the hosts keep the last applied one. Your
 						middlewares run after Hashi's sign-in and access checks, never before. The Hashi admin
 						service never gets them.

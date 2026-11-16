@@ -37,7 +37,7 @@
 				<Table.Row>
 					<Table.Cell class="pl-4"
 						><div class="font-medium">{a.name}</div>
-						<div class="text-[12px] text-muted-foreground">
+						<div class="text-xs text-muted-foreground">
 							v{a.version} · {a.install}
 						</div></Table.Cell
 					>
@@ -52,7 +52,7 @@
 					>
 					<Table.Cell
 						>{#if a.status === 'stale'}<Tag tone="warn">stale · {a.lastSeen}</Tag>{:else}<span
-								class="text-[13px]">{a.lastSeen}</span
+								class="text-md">{a.lastSeen}</span
 							>{/if}</Table.Cell
 					>
 				</Table.Row>
@@ -89,12 +89,12 @@
 							aria-label="Copy command"><Copy /></Button
 						>
 					</div>
-					<p class="mt-2 text-[12.5px] text-muted-foreground">
+					<p class="mt-2 text-sm text-muted-foreground">
 						Downloads the binary, checks its SHA-256, installs a systemd service.
 					</p>
 				</Tabs.Content>
 				<Tabs.Content value="docker"
-					><pre class="mt-2 rounded-xl border bg-surface-2/60 p-3 font-mono text-[12.5px]">services:
+					><pre class="mt-2 rounded-xl border bg-surface-2/60 p-3 font-mono text-sm">services:
   pulse:
     image: git.example.com/hashi-pulse:latest
     network_mode: host

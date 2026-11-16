@@ -249,7 +249,7 @@
 {#snippet failure(msg: string)}
 	<p
 		role="alert"
-		class="mb-4 flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-[13px] text-bad-text"
+		class="mb-4 flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-md text-bad-text"
 	>
 		<CircleAlert class="mt-0.5 size-4 shrink-0" />{msg}
 	</p>
@@ -263,7 +263,7 @@
 >
 	{#snippet actions()}
 		{#if zone}
-			<span class="text-[12.5px] text-muted-foreground"
+			<span class="text-sm text-muted-foreground"
 				><Mono>{zone.name}</Mono> · Hetzner · read {fmtTime(zone.last_refreshed_at)}</span
 			>
 			<Button variant="outline" size="sm" onclick={probe} disabled={!!busy}
@@ -284,7 +284,7 @@
 	<Skeleton class="mb-4 h-9 w-56" /><Skeleton class="h-96 rounded-2xl" />
 {:else if !zone}
 	<Panel title="No zone yet">
-		<p class="text-[13px] text-muted-foreground">
+		<p class="text-md text-muted-foreground">
 			The DNS provider is connected in setup step 3. Until then Hashi has no zone to show.
 		</p>
 	</Panel>
@@ -298,7 +298,7 @@
 	{#if outcome}
 		<p
 			role="status"
-			class="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border bg-card p-4 text-[13px]"
+			class="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border bg-card p-4 text-md"
 		>
 			<span class="flex-1">{outcome.text}</span>
 			{#if outcome.review}<Button size="sm" variant="outline" href="/changes">Review changes</Button
@@ -330,10 +330,10 @@
 							aria-label="Filter records"
 						/>
 					</div>
-					<label class="flex items-center gap-2 text-[13px]"
+					<label class="flex items-center gap-2 text-md"
 						><Switch bind:checked={showGenerated} />Show generated</label
 					>
-					<span class="tnum ml-auto text-[12.5px] text-muted-foreground"
+					<span class="tnum ml-auto text-sm text-muted-foreground"
 						>{rows.length} of {rrsets.length}</span
 					>
 					<Button size="sm" onclick={() => (editing = 'new')} disabled={editing === 'new'}
@@ -348,10 +348,10 @@
 						onCancel={() => (editing = null)}
 					/>
 				{/if}
-				<div role="table" aria-label="DNS records" class="text-[13px]">
+				<div role="table" aria-label="DNS records" class="text-md">
 					<div
 						role="row"
-						class="hidden grid-cols-[minmax(8rem,1fr)_4.5rem_6rem_minmax(10rem,2fr)_7rem_2.5rem] gap-3 border-b px-4 py-2 text-[12px] font-medium text-muted-foreground md:grid"
+						class="hidden grid-cols-[minmax(8rem,1fr)_4.5rem_6rem_minmax(10rem,2fr)_7rem_2.5rem] gap-3 border-b px-4 py-2 text-xs font-medium text-muted-foreground md:grid"
 					>
 						<span role="columnheader">Name</span><span role="columnheader">Type</span><span
 							role="columnheader">TTL</span
@@ -418,7 +418,7 @@
 					{/each}
 				</div>
 			</div>
-			<p class="mt-2 text-[12.5px] text-muted-foreground">
+			<p class="mt-2 text-sm text-muted-foreground">
 				NS and SOA are never changed by Hashi. Records Hashi does not own are shown as the provider
 				holds them; import one on the Import tab to edit it here.
 			</p>
@@ -429,19 +429,18 @@
 
 		<Tabs.Content value="import">
 			<div class="mb-3 flex flex-wrap items-center gap-3">
-				<p class="flex-1 text-[13px] text-muted-foreground">
+				<p class="flex-1 text-md text-muted-foreground">
 					Leave records alone (default), take them over as managed entries, or mark them for
 					removal.
 				</p>
-				{#if saved && !dirty}<span class="text-[12.5px] text-ok-text" aria-live="polite"
-						>{saved}</span
+				{#if saved && !dirty}<span class="text-sm text-ok-text" aria-live="polite">{saved}</span
 					>{/if}
 				<Button size="sm" onclick={save} disabled={!!busy || !dirty}
 					>{busy === 'save' ? 'Saving…' : 'Save decisions'}</Button
 				>
 			</div>
 			<ImportTable rows={importRows} bind:decisions />
-			<p class="mt-2 text-[12.5px] text-muted-foreground">
+			<p class="mt-2 text-sm text-muted-foreground">
 				Removals become a separate high-risk plan that lists every record and asks for your passkey.
 			</p>
 		</Tabs.Content>

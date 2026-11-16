@@ -60,7 +60,7 @@
 	title="App display"
 	description="What visitors see on the public app dashboard and status page. Both run on their own ports with no admin access."
 />
-{#if error}<p role="alert" class="mb-3 text-[13px] text-bad-text">{error}</p>{/if}
+{#if error}<p role="alert" class="mb-3 text-md text-bad-text">{error}</p>{/if}
 <div class="grid gap-4 lg:grid-cols-2">
 	<Panel
 		title="App dashboard"
@@ -73,14 +73,14 @@
 					onCheckedChange={(v) => setPage('public_dashboard_enabled', v)}
 					aria-label="Public dashboard enabled"
 				/>{/if}{/snippet}
-		{#if services.length === 0}<p class="px-4 py-3 text-[13px] text-muted-foreground">
+		{#if services.length === 0}<p class="px-4 py-3 text-md text-muted-foreground">
 				Services with a public name appear here.
 			</p>{/if}
 		<ul class="divide-y">
 			{#each services as r (r.id)}
-				<li class="flex items-center gap-3 px-4 py-2 text-[13px]">
+				<li class="flex items-center gap-3 px-4 py-2 text-md">
 					<span
-						class="grid size-7 place-items-center rounded-lg border bg-surface-2 text-[12px] font-semibold"
+						class="grid size-7 place-items-center rounded-lg border bg-surface-2 text-xs font-semibold"
 						>{r.name[0]}</span
 					>
 					<span class="min-w-0 flex-1 truncate font-medium">{r.name}</span>
@@ -105,7 +105,7 @@
 				/>{/if}{/snippet}
 		<ul class="divide-y">
 			{#each endpoints as m (m.id)}
-				<li class="flex items-center gap-3 px-4 py-2 text-[13px]">
+				<li class="flex items-center gap-3 px-4 py-2 text-md">
 					<span class="min-w-0 flex-1 truncate"
 						>{m.name} <span class="text-muted-foreground">· {m.group}</span></span
 					>

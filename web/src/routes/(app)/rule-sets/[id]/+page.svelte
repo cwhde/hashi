@@ -93,11 +93,11 @@
 
 <a
 	href="/rule-sets"
-	class="mb-3 inline-flex items-center gap-1 text-[13px] text-muted-foreground hover:text-foreground"
+	class="mb-3 inline-flex items-center gap-1 text-md text-muted-foreground hover:text-foreground"
 	><ChevronLeft class="size-4" />Rule sets</a
 >
 {#if error}
-	<p class="mb-3 flex items-start gap-2 text-[13px] text-bad-text">
+	<p class="mb-3 flex items-start gap-2 text-md text-bad-text">
 		<CircleAlert class="mt-0.5 size-3.5 shrink-0" />{error}
 	</p>
 {/if}
@@ -106,11 +106,11 @@
 {:else}
 	<div class="mb-5 flex flex-wrap items-end gap-x-6 gap-y-3">
 		<div class="min-w-64 flex-1">
-			<h1 class="flex items-center gap-2 text-[22px] leading-tight font-semibold">
+			<h1 class="flex items-center gap-2 text-title leading-tight font-semibold">
 				<span class="font-mono tracking-[-0.02em]">{rs.slug}</span>
 				{#if rs.kind === 'global'}<Tag><Lock class="size-3" />global, cannot be deleted</Tag>{/if}
 			</h1>
-			<p class="mt-1 text-[13.5px] text-muted-foreground">{rs.description}</p>
+			<p class="mt-1 text-md text-muted-foreground">{rs.description}</p>
 		</div>
 		<div class="flex gap-2">
 			<Button variant="outline" size="sm" onclick={() => (attach = true)}
@@ -124,7 +124,7 @@
 
 	{#each rs.warnings as w (w)}
 		<p
-			class="mb-4 flex items-start gap-2 rounded-xl border border-warn/30 bg-warn/10 px-3 py-2 text-[12.5px] text-warn-text"
+			class="mb-4 flex items-start gap-2 rounded-xl border border-warn/30 bg-warn/10 px-3 py-2 text-sm text-warn-text"
 		>
 			<TriangleAlert class="mt-0.5 size-3.5 shrink-0" />{w}
 		</p>
@@ -136,7 +136,7 @@
 			title="Rules"
 			description="Checked top to bottom. An attached rule set is checked completely at its position."
 		>
-			{#if entries.length === 0}<p class="px-4 py-3 text-[13px] text-muted-foreground">
+			{#if entries.length === 0}<p class="px-4 py-3 text-md text-muted-foreground">
 					No rules yet.
 				</p>{/if}
 			<RuleEntryList
@@ -148,15 +148,13 @@
 		</Panel>
 		<Panel title="Used by">
 			{#if rs.used_by.length}
-				<ul class="space-y-2 text-[13px]">
+				<ul class="space-y-2 text-md">
 					{#each rs.used_by as u (u.href)}<li>
 							<a href={u.href} class="font-medium hover:underline">{u.label}</a>
 						</li>{/each}
 				</ul>
-			{:else if rs.kind !== 'global'}<p class="text-[13px] text-muted-foreground">
-					Not used yet.
-				</p>{/if}
-			<p class="mt-3 text-[12.5px] text-muted-foreground">
+			{:else if rs.kind !== 'global'}<p class="text-md text-muted-foreground">Not used yet.</p>{/if}
+			<p class="mt-3 text-sm text-muted-foreground">
 				{rs.kind === 'global'
 					? "Runs after each service's own rules and before its fallback."
 					: 'A rule set that is attached somewhere cannot be deleted.'}

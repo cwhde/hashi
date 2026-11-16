@@ -78,14 +78,14 @@
 		});
 </script>
 
-<h1 class="mt-1 text-[24px] font-semibold">Publish Hashi</h1>
-<p class="mt-1 max-w-[62ch] text-[13.5px] text-muted-foreground">
+<h1 class="mt-1 text-title font-semibold">Publish Hashi</h1>
+<p class="mt-1 max-w-[62ch] text-md text-muted-foreground">
 	Hashi adds itself as the first service: <Mono>{admin}</Mono> on every Traefik host, forwarded to its
 	internal address, with a certificate that covers the name.
 </p>
 
 <section class="mt-6 rounded-3xl border bg-card p-6">
-	<ul class="space-y-2 text-[13.5px]">
+	<ul class="space-y-2 text-md">
 		<li class="flex items-center gap-2">
 			{#if svc}<Check class="size-4 text-ok-text" />{:else}<span class="size-4 rounded-full border"
 				></span>{/if}
@@ -107,7 +107,7 @@
 		{/if}
 	</ul>
 	{#if !plan && !fwPlan && step?.status !== 'done'}
-		<p class="mt-4 max-w-[62ch] text-[12.5px] text-muted-foreground">
+		<p class="mt-4 max-w-[62ch] text-sm text-muted-foreground">
 			A name a level deeper than the root (like <Mono>dev.hashi.example.com</Mono>) needs a new
 			wildcard certificate first; that takes about a minute.
 		</p>
@@ -120,7 +120,7 @@
 	{#if error}
 		<p
 			role="alert"
-			class="mt-5 flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-[13px] text-bad-text"
+			class="mt-5 flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-md text-bad-text"
 		>
 			<CircleAlert class="mt-0.5 size-4 shrink-0" />{error}
 		</p>
@@ -141,7 +141,7 @@
 			{/snippet}
 			{#snippet footer()}
 				{#if plan?.status === 'pending' || plan?.status === 'approved'}
-					<p class="mr-auto text-[12.5px] text-muted-foreground">
+					<p class="mr-auto text-sm text-muted-foreground">
 						Approving writes these files to the Traefik host. Traefik picks them up without a
 						restart.
 					</p>
@@ -149,7 +149,7 @@
 						>{busy === 'run' ? 'Publishing…' : 'Approve and run'}</Button
 					>
 				{:else if plan}
-					<p class="mr-auto text-[12.5px] text-muted-foreground">{outcomeText(plan)}</p>
+					<p class="mr-auto text-sm text-muted-foreground">{outcomeText(plan)}</p>
 					{#if plan.status === 'failed'}<Button size="sm" variant="outline" onclick={publish}
 							>Plan again</Button
 						>{/if}
@@ -169,7 +169,7 @@
 		>
 			{#snippet footer()}
 				{#if fwPlan?.status === 'pending' || fwPlan?.status === 'approved'}
-					<p class="mr-auto text-[12.5px] text-muted-foreground">
+					<p class="mr-auto text-sm text-muted-foreground">
 						Opens the public ports. If Hashi cannot log in again within 3 minutes, the host goes
 						back to how it was.
 					</p>
@@ -177,7 +177,7 @@
 						>{busy === 'firewall' ? 'Applying…' : 'Approve and run'}</Button
 					>
 				{:else if fwPlan}
-					<p class="mr-auto text-[12.5px] text-muted-foreground">{outcomeText(fwPlan)}</p>
+					<p class="mr-auto text-sm text-muted-foreground">{outcomeText(fwPlan)}</p>
 					<Button size="sm" variant="outline" onclick={publish} disabled={!!busy}>Plan again</Button
 					>
 				{/if}

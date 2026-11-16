@@ -188,7 +188,7 @@
 		</Dialog.Header>
 
 		{#if step === 'choose'}
-			<fieldset class="space-y-1.5 text-[13px]">
+			<fieldset class="space-y-1.5 text-md">
 				<legend class="sr-only">Passkey</legend>
 				{#each linkable as p (p.id)}
 					<label
@@ -200,7 +200,7 @@
 						<input type="radio" bind:group={choice} value={p.id} class="accent-primary" />
 						<KeyRound class="size-4 text-muted-foreground" />
 						<span class="flex-1">{p.name}</span>
-						<span class="text-[12px] text-muted-foreground">already signs you in</span>
+						<span class="text-xs text-muted-foreground">already signs you in</span>
 					</label>
 				{/each}
 				<label
@@ -212,10 +212,10 @@
 					<input type="radio" bind:group={choice} value="new" class="accent-primary" />
 					<Usb class="size-4 text-muted-foreground" />
 					<span class="flex-1">A new passkey</span>
-					<span class="text-[12px] text-muted-foreground">e.g. a USB security key</span>
+					<span class="text-xs text-muted-foreground">e.g. a USB security key</span>
 				</label>
 			</fieldset>
-			<p class="text-[12px] text-muted-foreground">
+			<p class="text-xs text-muted-foreground">
 				Not every passkey can unlock. Ones kept in a password manager often can’t; a USB security
 				key or your device’s own passkeys usually can. Hashi tells you at the end.
 			</p>
@@ -237,7 +237,7 @@
 						/>
 					</div>
 					{#if purpose === 'signin' && vault && !vault.locked}
-						<label class="flex h-9 items-center gap-2 text-[13px]">
+						<label class="flex h-9 items-center gap-2 text-md">
 							<Checkbox bind:checked={alsoVault} disabled={busy || step === 'link'} />
 							Also unlock the vault with it
 						</label>
@@ -245,7 +245,7 @@
 				</div>
 			{/if}
 
-			<ol class="relative space-y-0 text-[13px]">
+			<ol class="relative space-y-0 text-md">
 				{#each steps as s, i (s)}
 					{@const st = phase(s)}
 					<li class="relative flex gap-3 pb-5 last:pb-0">
@@ -261,7 +261,7 @@
 						<span
 							aria-hidden="true"
 							class={cn(
-								'relative z-10 flex size-[27px] shrink-0 items-center justify-center rounded-full border text-[12px] font-medium tabular-nums',
+								'relative z-10 flex size-[27px] shrink-0 items-center justify-center rounded-full border text-xs font-medium tabular-nums',
 								st === 'done' && 'border-ok bg-ok text-primary-foreground',
 								st === 'current' && 'border-primary bg-primary text-primary-foreground',
 								st === 'next' && 'bg-surface text-muted-foreground'
@@ -306,7 +306,7 @@
 			</ol>
 
 			{#if step === 'done'}
-				<p role="status" class="rounded-[10px] bg-surface-2 px-3 py-2.5 text-[13px] text-ok-text">
+				<p role="status" class="rounded-[10px] bg-surface-2 px-3 py-2.5 text-md text-ok-text">
 					{#if linked}{linked} can unlock the vault now.{:else}Passkey added. You can sign in with “{created?.name}”.{/if}
 				</p>
 			{/if}

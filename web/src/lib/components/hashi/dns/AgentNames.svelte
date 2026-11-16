@@ -21,7 +21,7 @@
 	});
 </script>
 
-{#if error}<p role="alert" class="mb-3 text-[13px] text-bad-text">{error}</p>{/if}
+{#if error}<p role="alert" class="mb-3 text-md text-bad-text">{error}</p>{/if}
 <Panel
 	title={settings?.domain ?? 'Internal agent names'}
 	description="DNS only, not reverse proxy: stable internal names for Pulse agents"
@@ -30,12 +30,10 @@
 			>Settings</Button
 		>{/snippet}
 	{#if settings && !settings.enabled}
-		<p class="mb-2 text-[13px] text-muted-foreground">
-			Turned off in settings; nothing is written.
-		</p>
+		<p class="mb-2 text-md text-muted-foreground">Turned off in settings; nothing is written.</p>
 	{/if}
-	{#if names.length === 0}<p class="text-[13px] text-muted-foreground">No agents yet.</p>{/if}
-	<ul class="divide-y text-[13px]">
+	{#if names.length === 0}<p class="text-md text-muted-foreground">No agents yet.</p>{/if}
+	<ul class="divide-y text-md">
 		{#each names as a (a.agent_id)}
 			<li class="flex flex-wrap items-center gap-3 py-2">
 				<Mono class="min-w-0 flex-1 truncate">{a.domain || a.agent}</Mono>
@@ -44,8 +42,7 @@
 				{:else if a.status === 'stale'}<Tag tone="warn">stale · kept</Tag>
 				{:else if a.status === 'fresh'}<Tag tone="ok">fresh</Tag>
 				{:else}<Tag>{a.status}</Tag>{/if}
-				{#if a.problem}<span class="w-full text-[12px] text-muted-foreground">{a.problem}</span
-					>{/if}
+				{#if a.problem}<span class="w-full text-xs text-muted-foreground">{a.problem}</span>{/if}
 			</li>
 		{/each}
 	</ul>

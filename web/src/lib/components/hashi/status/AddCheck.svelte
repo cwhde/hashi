@@ -102,7 +102,7 @@
 							>{/each}
 					</Select.Content>
 				</Select.Root>
-				<p class="text-[12px] text-muted-foreground">{types[type]!.hint}</p>
+				<p class="text-xs text-muted-foreground">{types[type]!.hint}</p>
 			</div>
 			<div class="space-y-1.5">
 				<Label for="ck-target">Target</Label>
@@ -117,7 +117,7 @@
 					<Label for="ck-expect">Expected answer</Label><Input id="ck-expect" bind:value={expect} />
 				</div>
 			{/if}
-			{#if error}<p role="alert" class="text-[13px] text-bad-text">{error}</p>{/if}
+			{#if error}<p role="alert" class="text-md text-bad-text">{error}</p>{/if}
 		</div>
 		<Sheet.Footer class="flex-row justify-end gap-2 border-t">
 			<Button variant="outline" onclick={() => (open = false)}>Cancel</Button>

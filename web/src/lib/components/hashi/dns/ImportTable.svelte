@@ -53,11 +53,11 @@
 			<Search class="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
 			<Input bind:value={q} placeholder="Filter records" class="pl-8" aria-label="Filter records" />
 		</div>
-		<label class="flex items-center gap-2 text-[13px]"
+		<label class="flex items-center gap-2 text-md"
 			><Switch bind:checked={newOnly} disabled={newCount === 0} />New only
 			<span class="tnum text-muted-foreground">({newCount})</span></label
 		>
-		<p class="tnum ml-auto text-[12.5px] text-muted-foreground" aria-live="polite">
+		<p class="tnum ml-auto text-sm text-muted-foreground" aria-live="polite">
 			{rows.length} records · {counts.import ?? 0} to import · {counts.prune ?? 0} to remove
 		</p>
 	</div>
@@ -68,13 +68,13 @@
 			{@const offered = offeredDecisions(row)}
 			{@const many = r.values.length > 1}
 			<li
-				class="grid items-center gap-x-4 gap-y-2 px-4 py-2.5 text-[13px] md:grid-cols-[minmax(0,1fr)_auto]"
+				class="grid items-center gap-x-4 gap-y-2 px-4 py-2.5 text-md md:grid-cols-[minmax(0,1fr)_auto]"
 			>
 				<div class="min-w-0">
 					<div class="flex flex-wrap items-center gap-2">
 						<Mono class="font-medium">{r.name}</Mono>
 						<span class="font-medium">{r.type}</span>
-						<span class="tnum text-[12px] text-muted-foreground">TTL {ttlText(r)}</span>
+						<span class="tnum text-xs text-muted-foreground">TTL {ttlText(r)}</span>
 						{#if !row.decision}<Tag tone="info">new</Tag>{/if}
 						{#if r.origin !== 'unmanaged'}<Tag tone="accent">{r.origin}</Tag>{/if}
 					</div>
@@ -88,7 +88,7 @@
 					{#if many || r.values.join(', ').length > 80}
 						<button
 							type="button"
-							class="mt-0.5 text-[12px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+							class="mt-0.5 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
 							aria-expanded={!!expanded[k]}
 							onclick={() => (expanded[k] = !expanded[k])}
 							>{expanded[k]
@@ -98,7 +98,7 @@
 					{/if}
 				</div>
 				{#if offered.length <= 1}
-					<span class="text-[12.5px] text-muted-foreground md:max-w-72 md:text-right"
+					<span class="text-sm text-muted-foreground md:max-w-72 md:text-right"
 						>{leaveOnlyReason(r)}</span
 					>
 				{:else}
@@ -114,7 +114,7 @@
 								role="radio"
 								aria-checked={on}
 								onclick={() => (decisions[k] = d)}
-								class="h-7 rounded-lg px-2.5 text-[12.5px] {on
+								class="h-7 rounded-lg px-2.5 text-sm {on
 									? d === 'prune'
 										? 'bg-bad/15 text-bad-text'
 										: 'bg-card text-foreground shadow-sm'
@@ -125,7 +125,7 @@
 				{/if}
 			</li>
 		{:else}
-			<li class="px-4 py-6 text-center text-[13px] text-muted-foreground">
+			<li class="px-4 py-6 text-center text-md text-muted-foreground">
 				{rows.length === 0 ? 'The zone has no records yet.' : 'No record matches the filter.'}
 			</li>
 		{/each}

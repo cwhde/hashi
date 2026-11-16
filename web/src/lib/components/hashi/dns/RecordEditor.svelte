@@ -105,7 +105,7 @@
 <form class="border-b bg-surface-2/40 px-4 pt-3 pb-4" onsubmit={submit}>
 	<div class="grid gap-3 sm:grid-cols-[minmax(8rem,1fr)_7rem_7rem]">
 		<div class="space-y-1">
-			<Label for="rec-name" class="text-[12px]">Name</Label>
+			<Label for="rec-name" class="text-xs">Name</Label>
 			<div class="flex items-center gap-1.5">
 				<Input
 					id="rec-name"
@@ -114,11 +114,11 @@
 					placeholder="@ for {zone}"
 					class="font-mono"
 				/>
-				<span class="hidden text-[12.5px] text-muted-foreground sm:inline">.{zone}</span>
+				<span class="hidden text-sm text-muted-foreground sm:inline">.{zone}</span>
 			</div>
 		</div>
 		<div class="space-y-1">
-			<Label class="text-[12px]">Type</Label>
+			<Label class="text-xs">Type</Label>
 			<Select.Root type="single" bind:value={f.type} disabled={!!entry}>
 				<Select.Trigger class="w-full" aria-label="Type">{f.type}</Select.Trigger>
 				<Select.Content>
@@ -127,7 +127,7 @@
 			</Select.Root>
 		</div>
 		<div class="space-y-1">
-			<Label for="rec-ttl" class="text-[12px]">TTL (seconds)</Label>
+			<Label for="rec-ttl" class="text-xs">TTL (seconds)</Label>
 			<Input
 				id="rec-ttl"
 				bind:value={f.ttl}
@@ -139,13 +139,13 @@
 			/>
 		</div>
 		{#if ttlError}
-			<p id="rec-ttl-error" role="alert" class="text-[12px] text-bad-text sm:col-span-3">
+			<p id="rec-ttl-error" role="alert" class="text-xs text-bad-text sm:col-span-3">
 				{ttlError}
 			</p>
 		{/if}
 	</div>
 	<div class="mt-3 space-y-1">
-		<Label for="rec-values" class="text-[12px]">Values</Label>
+		<Label for="rec-values" class="text-xs">Values</Label>
 		<Textarea
 			id="rec-values"
 			bind:value={f.values}
@@ -154,11 +154,11 @@
 			required={!followsSet}
 			disabled={followsSet}
 		/>
-		<p class="text-[12px] text-muted-foreground">{hints[f.type]}</p>
+		<p class="text-xs text-muted-foreground">{hints[f.type]}</p>
 	</div>
 	{#if f.type === 'A' || f.type === 'AAAA'}
 		<div class="mt-3 max-w-sm space-y-1">
-			<Label for="rec-set" class="text-[12px]">Or follow an IP set</Label>
+			<Label for="rec-set" class="text-xs">Or follow an IP set</Label>
 			<div class="flex gap-2">
 				<div class="min-w-0 flex-1">
 					<IpSetPicker bind:value={f.set} {sets} addressOnly id="rec-set" />
@@ -167,25 +167,25 @@
 						>Clear</Button
 					>{/if}
 			</div>
-			<p class="text-[12px] text-muted-foreground">
+			<p class="text-xs text-muted-foreground">
 				The record follows the set's addresses. If the set is ever empty, the last values stay.
 			</p>
 		</div>
 	{/if}
 	<Collapsible.Root class="mt-3">
 		<Collapsible.Trigger
-			class="flex items-center gap-1 text-[12.5px] text-muted-foreground hover:text-foreground"
+			class="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
 			><ChevronDown class="size-3.5" />Display, monitoring and dashboard</Collapsible.Trigger
 		>
 		<Collapsible.Content class="mt-2 grid gap-3 sm:grid-cols-3">
 			<div class="space-y-1">
-				<Label for="rec-display" class="text-[12px]">Display name</Label>
+				<Label for="rec-display" class="text-xs">Display name</Label>
 				<Input id="rec-display" bind:value={f.display} />
 			</div>
-			<label class="flex items-center gap-2 pt-5 text-[13px]"
+			<label class="flex items-center gap-2 pt-5 text-md"
 				><Switch bind:checked={f.monitoring} />Monitor</label
 			>
-			<label class="flex items-center gap-2 pt-5 text-[13px]"
+			<label class="flex items-center gap-2 pt-5 text-md"
 				><Switch bind:checked={f.dashboard} />Show on app dashboard</label
 			>
 		</Collapsible.Content>

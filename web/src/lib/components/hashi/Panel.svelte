@@ -24,8 +24,8 @@
 	{#if title || actions}
 		<header class="flex min-h-12 items-center gap-3 px-4 py-2.5 {flush ? 'border-b' : ''}">
 			<div class="min-w-0 flex-1">
-				{#if title}<h2 class="truncate text-[14px] font-semibold">{title}</h2>{/if}
-				{#if description}<p class="truncate text-[12.5px] text-muted-foreground">
+				{#if title}<h2 class="truncate text-base font-semibold">{title}</h2>{/if}
+				{#if description}<p class="truncate text-sm text-muted-foreground">
 						{description}
 					</p>{/if}
 			</div>

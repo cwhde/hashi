@@ -134,7 +134,7 @@
 	description="Who changed what, what ran in the background, and the live log. Secrets never appear here."
 />
 {#snippet error(msg: string)}
-	<p role="alert" class="p-4 text-[13px] text-bad-text">{msg}</p>
+	<p role="alert" class="p-4 text-md text-bad-text">{msg}</p>
 {/snippet}
 {#snippet loading()}
 	<div class="space-y-2 p-4">
@@ -165,7 +165,7 @@
 			{#if auditError}{@render error(auditError)}
 			{:else if !events}{@render loading()}
 			{:else if events.length === 0}
-				<p class="p-4 text-[13px] text-muted-foreground">
+				<p class="p-4 text-md text-muted-foreground">
 					Nothing recorded yet. Sign-ins, setup steps and every change appear here.
 				</p>
 			{:else}
@@ -258,9 +258,9 @@
 				>{/snippet}
 			{#if logError}{@render error(logError)}{/if}
 			{#if lines.length === 0 && !logError}
-				<p class="p-4 text-[13px] text-muted-foreground">No log lines since Hashi started.</p>
+				<p class="p-4 text-md text-muted-foreground">No log lines since Hashi started.</p>
 			{:else}
-				<ol class="max-h-[60vh] overflow-auto p-3 font-mono text-[12.5px] leading-6">
+				<ol class="max-h-[60vh] overflow-auto p-3 font-mono text-sm leading-6">
 					{#each lines as l (l.seq)}<li class="whitespace-nowrap">
 							<span class="text-muted-foreground">{l.time}</span>
 							<span class={lvl[l.level] ?? ''}>{l.level.padEnd(5)}</span>

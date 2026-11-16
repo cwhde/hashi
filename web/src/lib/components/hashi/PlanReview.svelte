@@ -45,8 +45,8 @@
 <article class="overflow-hidden rounded-2xl border bg-card">
 	<header class="flex flex-wrap items-center gap-x-4 gap-y-2 border-b px-4 py-3">
 		<div class="min-w-0 flex-1">
-			<h3 class="text-[14.5px] font-semibold">{title}</h3>
-			<p class="text-[12.5px] text-muted-foreground">
+			<h3 class="text-base font-semibold">{title}</h3>
+			<p class="text-sm text-muted-foreground">
 				{trigger} · {items.length}
 				{items.length === 1 ? 'change' : 'changes'}
 			</p>
@@ -71,7 +71,7 @@
 				<div class="flex items-center gap-2">
 					<span
 						class={cn(
-							'text-[13px] font-medium',
+							'text-md font-medium',
 							item.action === 'delete' && 'text-bad-text',
 							item.action === 'create' && 'text-ok-text',
 							item.action === 'conflict' && 'text-warn-text'
@@ -82,14 +82,14 @@
 							aria-label="High risk"
 						/>{/if}
 				</div>
-				<div class="min-w-0 text-[12.5px] text-muted-foreground">
+				<div class="min-w-0 text-sm text-muted-foreground">
 					<span class="sm:block">{item.subsystem}</span><span class="sm:hidden">&nbsp;·&nbsp;</span>
 					<span class="truncate sm:block">{item.target}</span>
 				</div>
 				<div class="min-w-0 space-y-0.5">
-					<div class="text-[13px] font-medium">{item.object}</div>
+					<div class="text-md font-medium">{item.object}</div>
 					{#if item.before && !compact}
-						<div class="flex gap-2 text-[12.5px]">
+						<div class="flex gap-2 text-sm">
 							<span class="w-10 shrink-0 text-muted-foreground">before</span>
 							<Mono class="break-all text-muted-foreground line-through decoration-1"
 								>{item.before}</Mono
@@ -97,14 +97,14 @@
 						</div>
 					{/if}
 					{#if item.after && !compact}
-						<div class="flex gap-2 text-[12.5px]">
+						<div class="flex gap-2 text-sm">
 							<span class="w-10 shrink-0 text-muted-foreground">after</span>
 							<Mono class="break-all">{item.after}</Mono>
 						</div>
 					{/if}
 					{#if item.content && !compact}
 						<pre
-							class="mt-1.5 max-h-80 overflow-auto rounded-lg border bg-surface-2/40 py-1.5 font-mono text-[12px] leading-relaxed"
+							class="mt-1.5 max-h-80 overflow-auto rounded-lg border bg-surface-2/40 py-1.5 font-mono text-xs leading-relaxed"
 							aria-label="Changes to the file">{#each lineDiff(item.content.before, item.content.after) as l, n (n)}<span
 									class={cn(
 										'block px-2.5 whitespace-pre',
@@ -118,7 +118,7 @@
 									>{l.text}</span
 								>{/each}</pre>
 					{/if}
-					{#if item.note}<p class="text-[12.5px] text-muted-foreground">{item.note}</p>{/if}
+					{#if item.note}<p class="text-sm text-muted-foreground">{item.note}</p>{/if}
 				</div>
 			</li>
 		{/each}
@@ -138,7 +138,7 @@
 		<footer
 			class="flex flex-wrap items-center justify-end gap-2 border-t bg-surface-2/50 px-4 py-3"
 		>
-			<p class="mr-auto text-[12.5px] text-muted-foreground">
+			<p class="mr-auto text-sm text-muted-foreground">
 				{#if risk === 'high'}Approving asks for your passkey. Nothing changes until you approve.{:else}Will
 					apply on the next sync.{/if}
 			</p>

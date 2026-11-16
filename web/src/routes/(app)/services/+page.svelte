@@ -186,7 +186,7 @@
 {#if outcome}
 	<p
 		role={outcome.bad ? 'alert' : 'status'}
-		class="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border p-3 text-[13px] {outcome.bad
+		class="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border p-3 text-md {outcome.bad
 			? 'border-bad/30 bg-bad/10 text-bad-text'
 			: 'bg-card'}"
 	>
@@ -200,7 +200,7 @@
 {#if loadError}
 	<p
 		role="alert"
-		class="flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-[13px] text-bad-text"
+		class="flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-md text-bad-text"
 	>
 		<CircleAlert class="mt-0.5 size-4 shrink-0" />{loadError}
 	</p>
@@ -223,11 +223,10 @@
 				<ToggleGroup.Item value="on">Published</ToggleGroup.Item>
 				<ToggleGroup.Item value="off">Off or invalid</ToggleGroup.Item>
 			</ToggleGroup.Root>
-			<span class="ml-auto text-[12.5px] text-muted-foreground">{rows.length} of {list.length}</span
-			>
+			<span class="ml-auto text-sm text-muted-foreground">{rows.length} of {list.length}</span>
 		</div>
 		{#if list.length === 0}
-			<p class="px-4 py-10 text-center text-[13.5px] text-muted-foreground">
+			<p class="px-4 py-10 text-center text-md text-muted-foreground">
 				No services yet. Add the first one; Hashi publishes it on every Traefik host.
 			</p>
 		{:else}
@@ -249,7 +248,7 @@
 										{s.name}
 										{#if s.origin === 'system'}<Tag><Lock class="size-3" />system</Tag>{/if}
 									</span>
-									<span class="text-[12.5px] text-muted-foreground"
+									<span class="text-sm text-muted-foreground"
 										>{s.host_name || `port ${s.public_port}/${s.kind}`}</span
 									>
 								</a>
@@ -261,12 +260,12 @@
 									>
 								</div>
 								{#if s.advanced_routes && s.routes.length}<div
-										class="mt-0.5 text-[12px] text-muted-foreground"
+										class="mt-0.5 text-xs text-muted-foreground"
 									>
 										+ {s.routes.length} route{s.routes.length === 1 ? '' : 's'}
 									</div>{/if}
 							</Table.Cell>
-							<Table.Cell class="text-[13px]">
+							<Table.Cell class="text-md">
 								{#if s.invalid_reason}<span class="text-bad-text" title={s.invalid_reason}
 										>Not published: invalid</span
 									>{:else if s.enabled}Published{:else}<span class="text-muted-foreground">Off</span
@@ -343,7 +342,7 @@
 					<Label for={form.custom ? 'sf' : 'sd'}
 						>Public domain{isStream(form.kind) ? ' (optional)' : ''}</Label
 					>
-					<label class="flex items-center gap-2 text-[12.5px] text-muted-foreground"
+					<label class="flex items-center gap-2 text-sm text-muted-foreground"
 						>Another name in the zone <Switch bind:checked={form.custom} /></label
 					>
 				</div>
@@ -362,16 +361,16 @@
 							class="max-w-56"
 							placeholder="app"
 							required={!isStream(form.kind)}
-						/><span class="text-[13px] text-muted-foreground">.{root}</span>
+						/><span class="text-md text-muted-foreground">.{root}</span>
 					</div>
 				{/if}
-				<p class="text-[12.5px] text-muted-foreground">
+				<p class="text-sm text-muted-foreground">
 					Names a level deeper (like <Mono>dev.hashi.{root}</Mono>) get their own wildcard
 					certificate automatically.
 				</p>
 			</div>
 			<fieldset class="space-y-2">
-				<legend class="mb-1.5 text-[13px] font-medium">Upstream</legend>
+				<legend class="mb-1.5 text-md font-medium">Upstream</legend>
 				<div class="grid grid-cols-[minmax(0,10rem)_1fr_6rem] gap-2">
 					<Select.Root type="single" bind:value={form.kind}>
 						<Select.Trigger aria-label="Protocol">{form.kind.toUpperCase()}</Select.Trigger>
@@ -394,7 +393,7 @@
 						required
 					/>
 				</div>
-				<p class="text-[12.5px] text-muted-foreground">
+				<p class="text-sm text-muted-foreground">
 					An IP address or host name the Traefik hosts can reach.
 				</p>
 			</fieldset>
@@ -421,12 +420,12 @@
 						bind:checked={form.adguard}
 					/>
 				</div>
-				<p class="text-[12.5px] text-muted-foreground">
+				<p class="text-sm text-muted-foreground">
 					Access rules arrive later; until then Hashi's forward auth runs in front of every service
 					and lets requests through.
 				</p>
 			</div>
-			{#if formError}<p role="alert" class="text-[13px] text-bad-text">{formError}</p>{/if}
+			{#if formError}<p role="alert" class="text-md text-bad-text">{formError}</p>{/if}
 		</form>
 		<Sheet.Footer class="flex-row justify-end gap-2 border-t">
 			<Button variant="ghost" onclick={() => (addOpen = false)}>Cancel</Button>

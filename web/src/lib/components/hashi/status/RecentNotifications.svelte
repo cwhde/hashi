@@ -34,7 +34,7 @@
 					: 'waiting';
 </script>
 
-{#if error}<p role="alert" class="mb-3 text-[13px] text-bad-text">{error}</p>{/if}
+{#if error}<p role="alert" class="mb-3 text-md text-bad-text">{error}</p>{/if}
 <Panel
 	title="Recent notifications"
 	description={target
@@ -45,9 +45,9 @@
 			><Settings />Notification settings</Button
 		>{/snippet}
 	{#if deliveries.length === 0}
-		<p class="text-[13px] text-muted-foreground">Nothing sent yet.</p>
+		<p class="text-md text-muted-foreground">Nothing sent yet.</p>
 	{/if}
-	<ul class="space-y-2.5 text-[13px]">
+	<ul class="space-y-2.5 text-md">
 		{#each deliveries as d (d.id)}
 			<li class="flex flex-wrap items-center gap-x-3 gap-y-0.5">
 				<Send class="size-4 text-muted-foreground" />

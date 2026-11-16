@@ -6,5 +6,4 @@
 	let { children, class: className = '' }: { children: Snippet; class?: string } = $props();
 </script>
 
-<span class={cn('font-mono text-[12.5px] tracking-[-0.01em]', className)}>{@render children()}</span
->
+<span class={cn('font-mono text-sm tracking-[-0.01em]', className)}>{@render children()}</span>

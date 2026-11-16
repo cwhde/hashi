@@ -41,7 +41,7 @@
 	description="Hashi manages one zone. Records it does not own are shown but never changed outside the import and prune flow."
 >
 	{#snippet actions()}
-		<span class="text-[12.5px] text-muted-foreground"
+		<span class="text-sm text-muted-foreground"
 			>{zone.name} · {zone.provider} · synced {zone.lastSync}</span
 		>
 		<Button variant="outline" size="sm"><RefreshCw />Refresh</Button>
@@ -68,15 +68,15 @@
 						aria-label="Filter records"
 					/>
 				</div>
-				<label class="flex items-center gap-2 text-[13px]"
+				<label class="flex items-center gap-2 text-md"
 					><Switch bind:checked={showGenerated} />Show generated</label
 				>
 				<Button size="sm" class="ml-auto"><Plus />Add record</Button>
 			</div>
-			<div role="table" aria-label="DNS records" class="text-[13px]">
+			<div role="table" aria-label="DNS records" class="text-md">
 				<div
 					role="row"
-					class="grid grid-cols-[minmax(8rem,1fr)_4.5rem_4.5rem_minmax(10rem,2fr)_7rem_2.5rem] gap-3 border-b px-4 py-2 text-[12px] font-medium text-muted-foreground"
+					class="grid grid-cols-[minmax(8rem,1fr)_4.5rem_4.5rem_minmax(10rem,2fr)_7rem_2.5rem] gap-3 border-b px-4 py-2 text-xs font-medium text-muted-foreground"
 				>
 					<span role="columnheader">Name</span><span role="columnheader">Type</span><span
 						role="columnheader">TTL</span
@@ -117,10 +117,10 @@
 						<div class="border-b bg-surface-2/40 px-4 pt-1 pb-4">
 							<div class="grid gap-3 sm:grid-cols-[minmax(8rem,1fr)_6rem_6rem_minmax(10rem,2fr)]">
 								<div class="space-y-1">
-									<Label class="text-[12px]">Name</Label><Input value={r.name} />
+									<Label class="text-xs">Name</Label><Input value={r.name} />
 								</div>
 								<div class="space-y-1">
-									<Label class="text-[12px]">Type</Label>
+									<Label class="text-xs">Type</Label>
 									<Select.Root type="single" value={r.type}
 										><Select.Trigger class="w-full">{r.type}</Select.Trigger><Select.Content
 											>{#each ['A', 'AAAA', 'CNAME', 'MX', 'TXT'] as t (t)}<Select.Item value={t}
@@ -130,10 +130,10 @@
 									>
 								</div>
 								<div class="space-y-1">
-									<Label class="text-[12px]">TTL</Label><Input value={String(r.ttl)} />
+									<Label class="text-xs">TTL</Label><Input value={String(r.ttl)} />
 								</div>
 								<div class="space-y-1">
-									<Label class="text-[12px]">Value</Label><Input
+									<Label class="text-xs">Value</Label><Input
 										value={r.values[0]}
 										class="font-mono"
 									/>
@@ -141,17 +141,17 @@
 							</div>
 							<Collapsible.Root class="mt-3">
 								<Collapsible.Trigger
-									class="flex items-center gap-1 text-[12.5px] text-muted-foreground hover:text-foreground"
+									class="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
 									><ChevronDown class="size-3.5" />Display, monitoring and dashboard</Collapsible.Trigger
 								>
 								<Collapsible.Content class="mt-2 grid gap-3 sm:grid-cols-3">
 									<div class="space-y-1">
-										<Label class="text-[12px]">Display name</Label><Input value="NAS" />
+										<Label class="text-xs">Display name</Label><Input value="NAS" />
 									</div>
-									<label class="flex items-center gap-2 pt-5 text-[13px]"
+									<label class="flex items-center gap-2 pt-5 text-md"
 										><Switch checked />Monitor</label
 									>
-									<label class="flex items-center gap-2 pt-5 text-[13px]"
+									<label class="flex items-center gap-2 pt-5 text-md"
 										><Switch />Show on app dashboard</label
 									>
 								</Collapsible.Content>
@@ -167,7 +167,7 @@
 				{/each}
 			</div>
 		</div>
-		<p class="mt-2 text-[12.5px] text-muted-foreground">
+		<p class="mt-2 text-sm text-muted-foreground">
 			NS and SOA are never changed by Hashi. Generated records (hosts, services, ACME) are edited
 			through the service or host that owns them.
 		</p>
@@ -182,9 +182,7 @@
 			{#snippet actions()}<Button size="sm">Save decisions</Button>{/snippet}
 			<ul class="divide-y">
 				{#each rrsets.filter((r) => r.origin === 'imported' || r.origin === 'unmanaged') as r (r.id)}
-					<li
-						class="grid items-center gap-3 px-4 py-2.5 text-[13px] md:grid-cols-[minmax(0,1fr)_auto]"
-					>
+					<li class="grid items-center gap-3 px-4 py-2.5 text-md md:grid-cols-[minmax(0,1fr)_auto]">
 						<div class="min-w-0">
 							<span class="font-medium"><Mono>{r.name}</Mono> {r.type}</span>
 							<span class="block truncate text-muted-foreground"
@@ -192,7 +190,7 @@
 							>
 						</div>
 						{#if r.protected}
-							<span class="text-[12.5px] text-muted-foreground"
+							<span class="text-sm text-muted-foreground"
 								>NS and SOA cannot be imported or removed</span
 							>
 						{:else}
@@ -206,7 +204,7 @@
 										role="radio"
 										aria-checked={(decisions[r.id] ?? 'leave') === v}
 										onclick={() => (decisions[r.id] = v ?? 'leave')}
-										class="h-7 rounded-lg px-2.5 text-[12.5px] {(decisions[r.id] ?? 'leave') === v
+										class="h-7 rounded-lg px-2.5 text-sm {(decisions[r.id] ?? 'leave') === v
 											? v === 'prune'
 												? 'bg-bad/15 text-bad-text'
 												: 'bg-card text-foreground shadow-sm'
@@ -219,7 +217,7 @@
 				{/each}
 			</ul>
 		</Panel>
-		<p class="mt-2 text-[12.5px] text-muted-foreground">
+		<p class="mt-2 text-sm text-muted-foreground">
 			Removals become a separate high-risk plan that lists every record and asks for your passkey.
 		</p>
 	</Tabs.Content>
@@ -236,7 +234,7 @@
 						state={i === 0 ? 'up' : 'degraded'}
 						label={i === 0 ? 'In sync' : '1 change'}
 					/>{/snippet}
-				<ul class="space-y-1.5 text-[13px]">
+				<ul class="space-y-1.5 text-md">
 					<li class="flex justify-between gap-3">
 						<Mono>grafana.example.com</Mono><Mono class="text-muted-foreground">10.20.1.11</Mono>
 					</li>
@@ -257,7 +255,7 @@
 			description="DNS only, not reverse proxy: stable internal names for Pulse agents"
 		>
 			{#snippet actions()}<Button size="sm" variant="outline">Settings</Button>{/snippet}
-			<ul class="divide-y text-[13px]">
+			<ul class="divide-y text-md">
 				{#each agents as a (a.id)}
 					<li class="flex items-center gap-3 py-2">
 						<Mono class="flex-1">{a.dns}</Mono><Mono class="text-muted-foreground"

@@ -48,7 +48,7 @@
 	}
 </script>
 
-<div class="space-y-1.5 text-[13px]">
+<div class="space-y-1.5 text-md">
 	<Label for="ssh-target-{id}">Reach over SSH through an IP set (optional)</Label>
 	<IpSetPicker id="ssh-target-{id}" bind:value={chosen} {sets} addressOnly />
 	<TargetSources setId={chosen} />

@@ -41,7 +41,7 @@
 
 <div class="flex min-w-0 items-start gap-2.5">
 	<Icon class="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-label={typeLabel[item.type]} />
-	<div class="flex min-w-0 flex-wrap items-center gap-1.5 text-[13px]">
+	<div class="flex min-w-0 flex-wrap items-center gap-1.5 text-md">
 		{#if item.type === 'host'}
 			<span class="font-medium">{hostName?.(item.host_id) ?? item.host_id}</span><Tag
 				>{item.scope}</Tag

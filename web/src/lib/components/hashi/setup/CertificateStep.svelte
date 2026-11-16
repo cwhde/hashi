@@ -113,14 +113,14 @@
 {#snippet failure(msg: string)}
 	<p
 		role="alert"
-		class="mt-5 flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-[13px] text-bad-text"
+		class="mt-5 flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-md text-bad-text"
 	>
 		<CircleAlert class="mt-0.5 size-4 shrink-0" />{msg}
 	</p>
 {/snippet}
 
-<h1 class="mt-1 text-[24px] font-semibold">Certificates</h1>
-<p class="mt-1 max-w-[62ch] text-[13.5px] text-muted-foreground">
+<h1 class="mt-1 text-title font-semibold">Certificates</h1>
+<p class="mt-1 max-w-[62ch] text-md text-muted-foreground">
 	Hashi requests one certificate for <Mono>{root}</Mono> and <Mono>*.{root}</Mono> and proves it owns
 	the domain with a temporary DNS record in your zone. Your Traefik hosts get the files from Hashi; they
 	never talk to the certificate authority.
@@ -128,7 +128,7 @@
 
 <section class="mt-6 rounded-3xl border bg-card p-6">
 	{#if provider?.account_registered && !editing}
-		<div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-[13.5px]">
+		<div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-md">
 			<span class="flex items-center gap-2"
 				><Check class="size-4 text-ok-text" />Account registered with {cas.find(
 					(c) => c.id === provider.directory
@@ -142,12 +142,12 @@
 	{:else}
 		<form class="grid gap-4 md:grid-cols-2" onsubmit={(e) => (e.preventDefault(), register())}>
 			<fieldset class="md:col-span-2">
-				<legend class="text-[13px] font-medium">Certificate authority</legend>
+				<legend class="text-md font-medium">Certificate authority</legend>
 				<div class="mt-2 grid gap-1.5 sm:grid-cols-3">
 					{#each cas as c (c.id)}
 						<label
 							class={cn(
-								'flex cursor-pointer flex-col gap-0.5 rounded-[10px] border px-3 py-2.5 text-[13px]',
+								'flex cursor-pointer flex-col gap-0.5 rounded-[10px] border px-3 py-2.5 text-md',
 								form.directory === c.id && 'border-primary bg-primary/[0.06]'
 							)}
 						>
@@ -160,7 +160,7 @@
 									class="accent-primary"
 								/>{c.name}</span
 							>
-							<span class="text-[12px] text-muted-foreground">{c.hint}</span>
+							<span class="text-xs text-muted-foreground">{c.hint}</span>
 						</label>
 					{/each}
 				</div>
@@ -183,9 +183,7 @@
 					placeholder="you@example.com"
 					class="h-10"
 				/>
-				<p class="text-[12px] text-muted-foreground">
-					The CA writes here about expiring certificates.
-				</p>
+				<p class="text-xs text-muted-foreground">The CA writes here about expiring certificates.</p>
 			</div>
 			<div></div>
 			{#if form.directory !== 'letsencrypt'}
@@ -209,13 +207,13 @@
 						class="h-10 font-mono"
 					/>
 				</div>
-				<p class="text-[12.5px] text-muted-foreground md:col-span-2">
+				<p class="text-sm text-muted-foreground md:col-span-2">
 					The key pair links Hashi's account to yours at the CA. It is stored encrypted and never
 					shown again.
 				</p>
 			{/if}
 			<details class="md:col-span-2">
-				<summary class="cursor-pointer text-[13px] font-medium">DNS check</summary>
+				<summary class="cursor-pointer text-md font-medium">DNS check</summary>
 				<div class="mt-3 grid gap-4 md:grid-cols-2">
 					<div class="space-y-1.5">
 						<Label for="cres">DNS servers to check</Label><Input
@@ -224,7 +222,7 @@
 							placeholder="Your zone's own name servers"
 							class="h-10 font-mono"
 						/>
-						<p class="text-[12px] text-muted-foreground">
+						<p class="text-xs text-muted-foreground">
 							Hashi waits until the temporary record shows up here before asking the CA.
 						</p>
 					</div>
@@ -258,8 +256,8 @@
 
 {#if provider?.account_registered}
 	<section class="mt-8">
-		<h2 class="text-[15px] font-semibold">First certificate</h2>
-		<p class="mt-1 mb-3 max-w-[70ch] text-[13px] text-muted-foreground">
+		<h2 class="text-lg font-semibold">First certificate</h2>
+		<p class="mt-1 mb-3 max-w-[70ch] text-md text-muted-foreground">
 			Issuing now takes about a minute. Otherwise Hashi issues it within the hour on its own. It
 			goes to your Traefik host once that host is connected.
 		</p>
@@ -275,7 +273,7 @@
 						>{:else if plan?.status === 'failed'}<Tag tone="bad">Failed</Tag>{/if}
 				{/snippet}
 				{#snippet footer()}
-					<p class="mr-auto text-[12.5px] text-muted-foreground">{plan && outcomeText(plan)}</p>
+					<p class="mr-auto text-sm text-muted-foreground">{plan && outcomeText(plan)}</p>
 					{#if plan?.status === 'failed'}<Button
 							size="sm"
 							variant="outline"
@@ -285,7 +283,7 @@
 				{/snippet}
 			</PlanReview>
 		{:else if nothingNeeded}
-			<p class="flex items-center gap-2 text-[13.5px]">
+			<p class="flex items-center gap-2 text-md">
 				<Check class="size-4 text-ok-text" />The certificate is already issued and valid.
 			</p>
 		{:else}

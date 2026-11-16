@@ -60,11 +60,11 @@
 
 {#if error}<p
 		role="alert"
-		class="mb-4 rounded-2xl border border-bad/30 bg-bad/10 p-3 text-[13px] text-bad-text"
+		class="mb-4 rounded-2xl border border-bad/30 bg-bad/10 p-3 text-md text-bad-text"
 	>
 		{error}
 	</p>{/if}
-{#if note}<p role="status" class="mb-4 rounded-2xl border bg-card p-3 text-[13px]">
+{#if note}<p role="status" class="mb-4 rounded-2xl border bg-card p-3 text-md">
 		{note} <a class="underline" href="/changes">Open changes</a>
 	</p>{/if}
 
@@ -77,8 +77,8 @@
 		{#each [{ key: 'allow', label: 'Always allow', help: 'Never dropped and never banned by the abuse engine.' }, { key: 'block', label: 'Block', help: 'Dropped before anything else.' }] as side (side.key)}
 			{@const k = side.key as 'allow' | 'block'}
 			<div>
-				<div class="mb-2 text-[13px] font-medium">{side.label}</div>
-				<ul class="space-y-1.5 text-[13px]" aria-label={side.label}>
+				<div class="mb-2 text-md font-medium">{side.label}</div>
+				<ul class="space-y-1.5 text-md" aria-label={side.label}>
 					{#each bind[k] as id (id)}
 						<li class="flex items-center gap-2">
 							{#if setOf(id)}<SetBadge set={setOf(id)!} />{:else}<Mono>{id}</Mono>{/if}
@@ -106,7 +106,7 @@
 						}}>Add</Button
 					>
 				</div>
-				<p class="mt-2 text-[12.5px] text-muted-foreground">{side.help}</p>
+				<p class="mt-2 text-sm text-muted-foreground">{side.help}</p>
 			</div>
 		{/each}
 	</div>
@@ -117,18 +117,18 @@
 		<Panel>
 			<div class="flex items-start gap-3">
 				<div class="min-w-0 flex-1">
-					<div class="flex flex-wrap items-center gap-2 text-[15px] font-semibold">
+					<div class="flex flex-wrap items-center gap-2 text-lg font-semibold">
 						{h.name}<StatusBadge state={healthState(h)} /><Tag
 							>{h.edge_mode === 'managed' ? 'managed' : 'external NAT'}</Tag
 						>
 					</div>
-					<div class="text-[12.5px] text-muted-foreground"><Mono>{h.public_ip}</Mono></div>
+					<div class="text-sm text-muted-foreground"><Mono>{h.public_ip}</Mono></div>
 				</div>
 				<Button variant="ghost" size="icon-sm" href="/firewall/{h.id}" aria-label="Open {h.name}"
 					><ArrowUpRight /></Button
 				>
 			</div>
-			<dl class="mt-4 grid grid-cols-[8rem_1fr] gap-y-2 text-[13px]">
+			<dl class="mt-4 grid grid-cols-[8rem_1fr] gap-y-2 text-md">
 				<dt class="text-muted-foreground">Subnets</dt>
 				<dd><Mono>{h.subnets.join(', ')}</Mono></dd>
 				<dt class="text-muted-foreground">Forwards to</dt>
@@ -140,7 +140,7 @@
 			</dl>
 		</Panel>
 	{:else}
-		<p class="text-[13px] text-muted-foreground">
+		<p class="text-md text-muted-foreground">
 			No firewall hosts yet. Add the machine that receives your public traffic.
 		</p>
 	{/each}

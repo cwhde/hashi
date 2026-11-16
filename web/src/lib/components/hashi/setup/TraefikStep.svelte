@@ -160,21 +160,21 @@
 {#snippet failure(msg: string)}
 	<p
 		role="alert"
-		class="mt-5 flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-[13px] text-bad-text"
+		class="mt-5 flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-md text-bad-text"
 	>
 		<CircleAlert class="mt-0.5 size-4 shrink-0" />{msg}
 	</p>
 {/snippet}
 
-<h1 class="mt-1 text-[24px] font-semibold">Connect a Traefik host</h1>
-<p class="mt-1 max-w-[62ch] text-[13.5px] text-muted-foreground">
+<h1 class="mt-1 text-title font-semibold">Connect a Traefik host</h1>
+<p class="mt-1 max-w-[62ch] text-md text-muted-foreground">
 	Hashi installs and runs its own Traefik on this machine over SSH. Existing Traefik config is
 	backed up and only replaced after you confirm.
 </p>
 
 <section class="mt-6 rounded-3xl border bg-card p-6">
 	{#if conn && !editing}
-		<div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-[13.5px]">
+		<div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-md">
 			<span class="flex items-center gap-2"
 				><Check class="size-4 text-ok-text" />{conn.name} · <Mono
 					>{conn.user}@{conn.host}:{conn.port}</Mono
@@ -207,7 +207,7 @@
 			</div>
 			<div class="space-y-1.5">
 				<Label for="tu">User</Label><Input id="tu" bind:value={form.user} class="h-10" />
-				<p class="text-[12px] text-muted-foreground">
+				<p class="text-xs text-muted-foreground">
 					Hashi installs a service, so it logs in as root.
 				</p>
 			</div>
@@ -215,12 +215,12 @@
 				<Label for="tn">Name in Hashi</Label><Input id="tn" bind:value={form.name} class="h-10" />
 			</div>
 			<fieldset class="md:col-span-2">
-				<legend class="text-[13px] font-medium">How Hashi logs in</legend>
+				<legend class="text-md font-medium">How Hashi logs in</legend>
 				<div class="mt-2 grid gap-1.5 sm:grid-cols-3">
 					{#each [['hashi_key', "Hashi's own key"], ['private_key', 'Your private key'], ['password', 'Password']] as [id, label] (id)}
 						<label
 							class={cn(
-								'flex h-10 cursor-pointer items-center gap-2.5 rounded-[10px] border px-3 text-[13px]',
+								'flex h-10 cursor-pointer items-center gap-2.5 rounded-[10px] border px-3 text-md',
 								form.auth === id && 'border-primary bg-primary/[0.06]'
 							)}
 							><input
@@ -246,7 +246,7 @@
 							rows="4"
 							autocomplete="off"
 							placeholder={conn?.auth === 'private_key' ? 'Leave empty to keep the stored key' : ''}
-							class="w-full rounded-[10px] border bg-transparent px-3 py-2 font-mono text-[12.5px]"
+							class="w-full rounded-[10px] border bg-transparent px-3 py-2 font-mono text-sm"
 						></textarea>
 					{:else}
 						<Input
@@ -260,7 +260,7 @@
 							class="h-10"
 						/>
 					{/if}
-					<p class="text-[12px] text-muted-foreground">Stored encrypted, never shown again.</p>
+					<p class="text-xs text-muted-foreground">Stored encrypted, never shown again.</p>
 				</div>
 				{#if form.auth === 'private_key'}
 					<div class="space-y-1.5">
@@ -286,10 +286,10 @@
 
 		{#if scanned}
 			<div class="mt-5 rounded-2xl border border-primary/40 bg-primary/[0.06] p-4">
-				<div class="flex items-center gap-2 text-[13.5px] font-medium">
+				<div class="flex items-center gap-2 text-md font-medium">
 					<ShieldCheck class="size-4" />Confirm this host key
 				</div>
-				<p class="mt-1 text-[13px] text-muted-foreground">
+				<p class="mt-1 text-md text-muted-foreground">
 					First contact with {form.host}. Compare it with <Mono
 						>ssh-keygen -lf /etc/ssh/ssh_host_{keyFile(scanned.type)}_key.pub</Mono
 					> on the host.
@@ -313,7 +313,7 @@
 	{/if}
 
 	{#if conn}
-		<ul class="mt-5 space-y-1.5 text-[13px]" aria-label="Checks">
+		<ul class="mt-5 space-y-1.5 text-md" aria-label="Checks">
 			{#if conn.health === 'failed'}
 				<li class="flex items-start gap-2 text-bad-text">
 					<CircleAlert class="mt-0.5 size-4 shrink-0" />{conn.last_error}
@@ -346,13 +346,13 @@
 
 {#if conn && validated && !editing}
 	<section class="mt-8">
-		<h2 class="text-[15px] font-semibold">Take over the host</h2>
+		<h2 class="text-lg font-semibold">Take over the host</h2>
 		{#if conn.ownership_confirmed}
-			<p class="mt-2 flex items-center gap-2 text-[13.5px]">
+			<p class="mt-2 flex items-center gap-2 text-md">
 				<Check class="size-4 text-ok-text" />Confirmed. Hashi manages Traefik on {conn.name}.
 			</p>
 		{:else}
-			<label class="mt-2 flex max-w-[70ch] items-start gap-2.5 text-[13px]">
+			<label class="mt-2 flex max-w-[70ch] items-start gap-2.5 text-md">
 				<input type="checkbox" bind:checked={takeover} class="mt-0.5 accent-primary" />
 				<span>
 					Hashi may run its own Traefik service on {conn.name}.
@@ -368,8 +368,8 @@
 
 	{#if conn.ownership_confirmed}
 		<section class="mt-8">
-			<h2 class="text-[15px] font-semibold">Install</h2>
-			<p class="mt-1 mb-3 max-w-[70ch] text-[13px] text-muted-foreground">
+			<h2 class="text-lg font-semibold">Install</h2>
+			<p class="mt-1 mb-3 max-w-[70ch] text-md text-muted-foreground">
 				Traefik {installed
 					? conn.installed_version + ' runs on the host.'
 					: 'is downloaded, checked against its published checksum and installed with Hashi’s files.'}
@@ -388,7 +388,7 @@
 					{/snippet}
 					{#snippet footer()}
 						{#if plan?.status === 'pending' || plan?.status === 'approved'}
-							<p class="mr-auto text-[12.5px] text-muted-foreground">
+							<p class="mr-auto text-sm text-muted-foreground">
 								Approving writes these changes to {conn?.name} and restarts Traefik there.
 							</p>
 							<Button variant="ghost" size="sm" onclick={() => (plan = null)}>Not now</Button>
@@ -396,7 +396,7 @@
 								>{busy === 'run' ? 'Installing…' : 'Approve and run'}</Button
 							>
 						{:else if plan}
-							<p class="mr-auto text-[12.5px] text-muted-foreground">{outcomeText(plan)}</p>
+							<p class="mr-auto text-sm text-muted-foreground">{outcomeText(plan)}</p>
 							{#if plan.status === 'failed'}<Button
 									size="sm"
 									variant="outline"
@@ -406,7 +406,7 @@
 					{/snippet}
 				</PlanReview>
 			{:else if installed}
-				<p class="flex items-center gap-2 text-[13.5px]">
+				<p class="flex items-center gap-2 text-md">
 					<Check class="size-4 text-ok-text" />Hashi's Traefik runs on {conn.name} and loaded every file.
 				</p>
 				<Button class="mt-3" variant="outline" onclick={planInstall} disabled={!!busy}

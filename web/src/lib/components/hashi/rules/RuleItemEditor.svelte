@@ -49,7 +49,7 @@
 		</div>
 	</div>
 	<fieldset class="space-y-2">
-		<legend class="mb-1.5 text-[13px] font-medium">Action</legend>
+		<legend class="mb-1.5 text-md font-medium">Action</legend>
 		<RadioGroup.Root bind:value={rule.action} class="gap-2">
 			{#each actions as a (a)}
 				<label
@@ -60,8 +60,8 @@
 				>
 					<RadioGroup.Item value={a} class="mt-0.5" />
 					<span
-						><span class="block text-[13.5px] font-medium">{actionMeta[a].label}</span><span
-							class="block text-[12.5px] text-muted-foreground">{actionMeta[a].help}</span
+						><span class="block text-md font-medium">{actionMeta[a].label}</span><span
+							class="block text-sm text-muted-foreground">{actionMeta[a].help}</span
 						></span
 					>
 				</label>
@@ -105,7 +105,7 @@
 		<div class="space-y-1.5">
 			<Label for="rn">Note</Label><Input id="rn" placeholder="Optional" bind:value={rule.note} />
 		</div>
-		<label class="flex h-8 items-center gap-2 text-[13px]"
+		<label class="flex h-8 items-center gap-2 text-md"
 			><Switch bind:checked={rule.enabled} />Enabled</label
 		>
 	</div>

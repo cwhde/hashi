@@ -18,14 +18,14 @@
 <div class="divide-y rounded-2xl border bg-card">
 	{#each groups as [type, list] (type)}
 		<section class="px-4 py-3">
-			<h2 class="mb-1 text-[12.5px] font-medium text-muted-foreground">{type}</h2>
+			<h2 class="mb-1 text-sm font-medium text-muted-foreground">{type}</h2>
 			<ul>
 				{#each list ?? [] as c (c.name)}
-					<li class="flex flex-wrap items-center gap-3 py-2 text-[13px]">
+					<li class="flex flex-wrap items-center gap-3 py-2 text-md">
 						<span class="min-w-40 font-medium">{c.name}</span>
 						<span class="min-w-0 flex-1 truncate text-muted-foreground">{c.detail}</span>
 						{#if c.required}<Tag>required</Tag>{/if}
-						<span class="hidden w-36 text-right text-[12.5px] text-muted-foreground md:inline"
+						<span class="hidden w-36 text-right text-sm text-muted-foreground md:inline"
 							>checked {c.validated}</span
 						>
 						<span class="w-24"><StatusBadge state={c.health} /></span>
@@ -38,7 +38,7 @@
 		</section>
 	{/each}
 </div>
-<p class="mt-2 text-[12.5px] text-muted-foreground">
+<p class="mt-2 text-sm text-muted-foreground">
 	Hashi needs at least one DNS provider, one Traefik host and one firewall host; those cannot be
 	removed while they are the last of their kind.
 </p>

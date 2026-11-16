@@ -169,25 +169,25 @@
 
 <a
 	href="/firewall"
-	class="mb-3 inline-flex items-center gap-1 text-[13px] text-muted-foreground hover:text-foreground"
+	class="mb-3 inline-flex items-center gap-1 text-md text-muted-foreground hover:text-foreground"
 	><ChevronLeft class="size-4" />Firewall hosts</a
 >
 {#if error}<p
 		role="alert"
-		class="mb-4 rounded-2xl border border-bad/30 bg-bad/10 p-3 text-[13px] text-bad-text"
+		class="mb-4 rounded-2xl border border-bad/30 bg-bad/10 p-3 text-md text-bad-text"
 	>
 		{error}
 	</p>{/if}
-{#if note}<p role="status" class="mb-4 rounded-2xl border bg-card p-3 text-[13px]">
+{#if note}<p role="status" class="mb-4 rounded-2xl border bg-card p-3 text-md">
 		{note} <a class="underline" href="/changes">Open changes</a>
 	</p>{/if}
 {#if host}
 	<div class="mb-5 flex flex-wrap items-end gap-4">
 		<div class="flex-1">
-			<h1 class="flex items-center gap-2 text-[22px] font-semibold">
+			<h1 class="flex items-center gap-2 text-title font-semibold">
 				{host.name}<StatusBadge state={healthState(host)} />
 			</h1>
-			<p class="text-[13.5px] text-muted-foreground">
+			<p class="text-md text-muted-foreground">
 				{host.facts?.os ?? 'Not read yet'}{#if host.facts}
 					· nft {host.facts.nft_version}{/if} · <Mono>{host.public_ip}</Mono>
 			</p>
@@ -205,7 +205,7 @@
 	</div>
 	{#if host.edge_mode === 'managed'}
 		<Panel title="Rescue path" class="mb-4">
-			<div class="flex items-start gap-3 text-[13px]">
+			<div class="flex items-start gap-3 text-md">
 				<LifeBuoy class="mt-0.5 size-5 shrink-0 text-ok-text" />
 				<p>
 					Every high-risk apply arms a 180 s timer that restores Hashi’s table unless a <em>new</em> SSH
@@ -230,7 +230,7 @@
 		<Tabs.Content value="routing" class="grid gap-4 lg:grid-cols-2">
 			<Panel title="Settings">
 				{#if host.edge_mode === 'managed'}{#key host.id}<HostSettings {host} {busy} {save} />{/key}
-				{:else}<p class="text-[13px]">
+				{:else}<p class="text-md">
 						Hashi does not touch this host's firewall. Forward the public ports on your router to <Mono
 							>{host.internal_traefik_ip}</Mono
 						>.
@@ -244,7 +244,7 @@
 				<select
 					id="entry"
 					bind:value={entry}
-					class="mt-1.5 h-10 w-full rounded-[10px] border bg-transparent px-3 text-[13px]"
+					class="mt-1.5 h-10 w-full rounded-[10px] border bg-transparent px-3 text-md"
 				>
 					<option value="">{name} itself</option>
 					{#each others as o (o.id)}<option value={o.id}>{o.name}</option>{/each}
@@ -256,7 +256,7 @@
 					onclick={saveEntry}
 					disabled={busy || entry === host.route_via_host_id}>Save</Button
 				>
-				<div class="mt-3 space-y-1 text-[12.5px]">
+				<div class="mt-3 space-y-1 text-sm">
 					<div><Mono>on.{name}</Mono> → <Mono>via.{entryName}</Mono></div>
 					<div><Mono>via.{name}</Mono> → <Mono>{name}</Mono></div>
 					<div><Mono>{name}</Mono> A <Mono>{host.public_ip}</Mono></div>
@@ -269,7 +269,7 @@
 				title="Public ports"
 				description="From services. Opening or closing one is a high-risk change."
 			>
-				<ul class="divide-y text-[13px]">
+				<ul class="divide-y text-md">
 					{#each rendered?.ports ?? [] as p (p)}
 						<li class="flex items-center gap-3 px-4 py-2.5">
 							<Mono class="flex-1">{p}</Mono><Tag tone="ok"
@@ -289,7 +289,7 @@
 				title="Who may reach this host itself"
 				description="SSH and the Proxmox UI on the host. Loopback, its own subnets and NetBird always can."
 			>
-				<ul class="space-y-2 text-[13px]" aria-label="Host access">
+				<ul class="space-y-2 text-md" aria-label="Host access">
 					{#each access as s (s)}
 						<li class="flex items-center gap-2">
 							{#if setOf(s)}<SetBadge set={setOf(s)!} />{:else}<Mono>{s}</Mono>{/if}
@@ -331,7 +331,7 @@
 						disabled={busy}>Read again</Button
 					>{/snippet}
 				<pre
-					class="max-h-[70vh] overflow-auto p-4 font-mono text-[12.5px] leading-relaxed">{ruleset?.now ??
+					class="max-h-[70vh] overflow-auto p-4 font-mono text-sm leading-relaxed">{ruleset?.now ??
 						'Reading…'}</pre>
 			</Panel>
 		</Tabs.Content>
@@ -342,7 +342,7 @@
 				description="What the next apply loads, as one transaction. Read-only."
 			>
 				<pre
-					class="max-h-[70vh] overflow-auto p-4 font-mono text-[12.5px] leading-relaxed text-muted-foreground">{rendered?.table ??
+					class="max-h-[70vh] overflow-auto p-4 font-mono text-sm leading-relaxed text-muted-foreground">{rendered?.table ??
 						'Validate the host first.'}</pre>
 			</Panel>
 		</Tabs.Content>
@@ -360,7 +360,7 @@
 								id="tk-{f.k}"
 								bind:value={tk[key]}
 								rows="4"
-								class="w-full rounded-[10px] border bg-transparent px-3 py-2 font-mono text-[12.5px]"
+								class="w-full rounded-[10px] border bg-transparent px-3 py-2 font-mono text-sm"
 							></textarea>
 						</div>
 					{/each}

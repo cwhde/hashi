@@ -48,7 +48,7 @@
 									<span class="flex items-center gap-1.5"
 										>{s.slug}{#if s.locked}<Lock class="size-3 text-muted-foreground" />{/if}</span
 									>
-									<span class="block text-[12px] text-muted-foreground"
+									<span class="block text-xs text-muted-foreground"
 										>{blocked
 											? 'Not an address set: has ranges or countries'
 											: size(s.v4, s.v6)}</span

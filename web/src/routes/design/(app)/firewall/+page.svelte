@@ -27,28 +27,28 @@
 	{#snippet actions()}<Button size="sm" variant="outline"><Pencil />Edit sets</Button>{/snippet}
 	<div class="grid gap-4 md:grid-cols-2">
 		<div>
-			<div class="mb-2 flex items-baseline justify-between text-[13px]">
+			<div class="mb-2 flex items-baseline justify-between text-md">
 				<span class="font-medium">Always allow</span><span class="tnum text-muted-foreground"
 					>{fp.folded.allow.v4} v4 · {fp.folded.allow.v6} v6 ranges</span
 				>
 			</div>
-			<ul class="space-y-1.5 text-[13px]">
+			<ul class="space-y-1.5 text-md">
 				{#each fp.allow as s (s)}<li><SetBadge slug={s} /></li>{/each}
 			</ul>
-			<p class="mt-2 text-[12.5px] text-muted-foreground">
+			<p class="mt-2 text-sm text-muted-foreground">
 				Never dropped and never banned by the abuse engine. Also skips the kernel meters.
 			</p>
 		</div>
 		<div>
-			<div class="mb-2 flex items-baseline justify-between text-[13px]">
+			<div class="mb-2 flex items-baseline justify-between text-md">
 				<span class="font-medium">Block</span><span class="tnum text-muted-foreground"
 					>{fp.folded.block.v4.toLocaleString()} v4 · {fp.folded.block.v6} v6 ranges</span
 				>
 			</div>
-			<ul class="space-y-1.5 text-[13px]">
+			<ul class="space-y-1.5 text-md">
 				{#each fp.block as s (s)}<li><SetBadge slug={s} /></li>{/each}
 			</ul>
-			<p class="mt-2 text-[12.5px] text-muted-foreground">
+			<p class="mt-2 text-sm text-muted-foreground">
 				Dropped before anything else. Bans from the abuse engine are added separately, within
 				seconds.
 			</p>
@@ -56,7 +56,7 @@
 	</div>
 	{#each fp.warnings as w (w)}
 		<p
-			class="mt-4 flex items-start gap-2 rounded-xl border border-warn/30 bg-warn/10 px-3 py-2 text-[12.5px] text-warn-text"
+			class="mt-4 flex items-start gap-2 rounded-xl border border-warn/30 bg-warn/10 px-3 py-2 text-sm text-warn-text"
 		>
 			<TriangleAlert class="mt-0.5 size-3.5 shrink-0" />{w}
 		</p>
@@ -68,12 +68,12 @@
 		<Panel>
 			<div class="flex items-start gap-3">
 				<div class="min-w-0 flex-1">
-					<div class="flex flex-wrap items-center gap-2 text-[15px] font-semibold">
+					<div class="flex flex-wrap items-center gap-2 text-lg font-semibold">
 						{h.name}<StatusBadge state={h.health} /><Tag
 							>{h.mode === 'managed' ? 'managed' : 'external NAT'}</Tag
 						>
 					</div>
-					<div class="text-[12.5px] text-muted-foreground">
+					<div class="text-sm text-muted-foreground">
 						<Mono>{h.fqdn}</Mono> · <Mono>{h.publicIp}</Mono>
 					</div>
 				</div>
@@ -84,7 +84,7 @@
 					aria-label="Open {h.name}"><ArrowUpRight /></Button
 				>
 			</div>
-			<dl class="mt-4 grid grid-cols-[8rem_1fr] gap-y-2 text-[13px]">
+			<dl class="mt-4 grid grid-cols-[8rem_1fr] gap-y-2 text-md">
 				<dt class="text-muted-foreground">Subnets</dt>
 				<dd><Mono>{h.subnets.join(', ')}</Mono></dd>
 				<dt class="text-muted-foreground">Forwards to</dt>
@@ -105,7 +105,7 @@
 				<dd>{h.lastApply}</dd>
 			</dl>
 			{#if h.mode === 'external_nat'}
-				<p class="mt-3 rounded-xl bg-surface-2/60 p-3 text-[12.5px]">
+				<p class="mt-3 rounded-xl bg-surface-2/60 p-3 text-sm">
 					Hashi does not touch this host's firewall. Forward these ports on your router to <Mono
 						>{h.traefikIp}</Mono
 					>: 80/tcp, 443/tcp.

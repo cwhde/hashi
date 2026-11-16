@@ -59,14 +59,14 @@
 <div class="mx-auto max-w-5xl px-4 py-10 md:py-14">
 	<div class="flex items-center gap-3">
 		<span
-			class="grid size-9 place-items-center rounded-xl bg-primary text-[18px] font-semibold text-primary-foreground"
+			class="grid size-9 place-items-center rounded-xl bg-primary text-lg font-semibold text-primary-foreground"
 			>橋</span
 		>
-		<h1 class="text-[24px] font-semibold">Hashi UI design</h1>
+		<h1 class="text-title font-semibold">Hashi UI design</h1>
 	</div>
-	<p class="mt-2 max-w-[68ch] text-[14px] text-muted-foreground">
+	<p class="mt-2 max-w-[68ch] text-base text-muted-foreground">
 		Every page of the finished product as a clickable mock with sample data. Feature slices fill
-		these pages with real data; the rules behind them are in <span class="font-mono text-[13px]"
+		these pages with real data; the rules behind them are in <span class="font-mono text-md"
 			>docs/spec/10b-ui-system.md</span
 		>.
 	</p>
@@ -78,7 +78,7 @@
 				aria-checked={theme.current === t.id}
 				onclick={() => theme.set(t.id)}
 				class={cn(
-					'flex h-9 items-center gap-2 rounded-[10px] border px-3 text-[13px]',
+					'flex h-9 items-center gap-2 rounded-[10px] border px-3 text-md',
 					theme.current === t.id
 						? 'bg-surface-2 font-medium'
 						: 'text-muted-foreground hover:text-foreground'
@@ -96,7 +96,7 @@
 	<div class="mt-8 grid gap-6 md:grid-cols-2">
 		{#each nav as section, i (i)}
 			<section>
-				<h2 class="mb-2 text-[13px] font-medium text-muted-foreground">
+				<h2 class="mb-2 text-md font-medium text-muted-foreground">
 					{section.group ?? 'Start'}
 				</h2>
 				<ul class="divide-y rounded-2xl border bg-card">
@@ -111,8 +111,8 @@
 									strokeWidth={1.75}
 								/>
 								<span
-									><span class="block text-[14px] font-medium">{item.label}</span><span
-										class="block text-[12.5px] text-muted-foreground">{notes[item.href]}</span
+									><span class="block text-base font-medium">{item.label}</span><span
+										class="block text-sm text-muted-foreground">{notes[item.href]}</span
 									></span
 								>
 							</a>
@@ -122,15 +122,15 @@
 			</section>
 		{/each}
 		<section>
-			<h2 class="mb-2 text-[13px] font-medium text-muted-foreground">Flows and other surfaces</h2>
+			<h2 class="mb-2 text-md font-medium text-muted-foreground">Flows and other surfaces</h2>
 			<ul class="divide-y rounded-2xl border bg-card">
 				{#each extra as e (e.href)}
 					<li>
 						<a
 							href={e.href}
 							class="block px-4 py-3 first:rounded-t-2xl last:rounded-b-2xl hover:bg-surface-2/50"
-							><span class="block text-[14px] font-medium">{e.label}</span><span
-								class="block text-[12.5px] text-muted-foreground">{e.note}</span
+							><span class="block text-base font-medium">{e.label}</span><span
+								class="block text-sm text-muted-foreground">{e.note}</span
 							></a
 						>
 					</li>

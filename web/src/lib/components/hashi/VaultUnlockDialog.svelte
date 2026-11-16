@@ -71,7 +71,7 @@
 			<Button onclick={withPasskey} disabled={!!busy} class="w-full">
 				<Fingerprint />{busy === 'passkey' ? 'Waiting for the passkey…' : 'Unlock with a passkey'}
 			</Button>
-			<p class="text-center text-[12px] text-muted-foreground">
+			<p class="text-center text-xs text-muted-foreground">
 				{unlockers.map((u) => u.passkey_name).join(', ')}
 			</p>
 		{/if}
@@ -96,6 +96,6 @@
 				<KeyRound />{busy === 'key' ? 'Unlocking…' : 'Unlock with the recovery key'}
 			</Button>
 		</form>
-		{#if error}<p role="alert" class="text-[13px] text-bad-text">{error}</p>{/if}
+		{#if error}<p role="alert" class="text-md text-bad-text">{error}</p>{/if}
 	</Dialog.Content>
 </Dialog.Root>

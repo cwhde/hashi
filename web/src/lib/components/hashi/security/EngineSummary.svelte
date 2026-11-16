@@ -92,7 +92,7 @@
 			{#snippet actions()}<Button size="sm" variant="outline" onclick={() => (form = { ...e! })}
 					><Pencil />Edit</Button
 				>{/snippet}
-			<dl class="grid grid-cols-[1fr_auto] gap-y-2.5 text-[13px]">
+			<dl class="grid grid-cols-[1fr_auto] gap-y-2.5 text-md">
 				<dt>Challenge after WAF matches</dt>
 				<dd class="tnum">{e.waf_violations} in {span(e.waf_window_seconds)}</dd>
 				<dt>Challenge after requests</dt>
@@ -118,7 +118,7 @@
 				<dt>Blocklists refresh every</dt>
 				<dd class="tnum">{span(e.feed_refresh_seconds)}</dd>
 			</dl>
-			<p class="mt-3 text-[12.5px] text-muted-foreground">
+			<p class="mt-3 text-sm text-muted-foreground">
 				Addresses in the firewall allow and signed-in users never trigger the request limit.
 			</p>
 		</Panel>
@@ -128,7 +128,7 @@
 				e.ban_max_seconds
 			)}"
 		>
-			<ol class="grid grid-cols-[3rem_1fr_4.5rem] items-center gap-x-2 gap-y-1.5 text-[13px]">
+			<ol class="grid grid-cols-[3rem_1fr_4.5rem] items-center gap-x-2 gap-y-1.5 text-md">
 				{#each bans as t, i (i)}
 					<li class="contents">
 						<span class="tnum text-muted-foreground">{i + 1}.</span><span
@@ -144,7 +144,7 @@
 		</Panel>
 	</div>
 {:else if error}
-	<p role="alert" class="text-[13px] text-bad-text">{error}</p>
+	<p role="alert" class="text-md text-bad-text">{error}</p>
 {/if}
 
 <Sheet.Root open={!!form} onOpenChange={(o) => !o && (form = null)}>
@@ -169,7 +169,7 @@
 						</Select.Content>
 					</Select.Root>
 				</div>
-				<label class="flex items-center gap-2 text-[13px]"
+				<label class="flex items-center gap-2 text-md"
 					><Switch bind:checked={form.meters_enabled} />Connection limits in the firewall</label
 				>
 				<div class="grid gap-3 sm:grid-cols-2">
@@ -196,7 +196,7 @@
 						</Select.Content>
 					</Select.Root>
 				</div>
-				{#if formError}<p role="alert" class="text-[13px] text-bad-text">{formError}</p>{/if}
+				{#if formError}<p role="alert" class="text-md text-bad-text">{formError}</p>{/if}
 			</div>
 			<Sheet.Footer class="flex-row justify-end gap-2 border-t">
 				<Button variant="ghost" onclick={() => (form = null)}>Cancel</Button>

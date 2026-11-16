@@ -138,7 +138,7 @@
 
 {#if error}<p
 		role="alert"
-		class="mb-3 rounded-2xl border border-bad/30 bg-bad/10 p-3 text-[13px] text-bad-text"
+		class="mb-3 rounded-2xl border border-bad/30 bg-bad/10 p-3 text-md text-bad-text"
 	>
 		{error}
 	</p>{/if}
@@ -176,7 +176,7 @@
 				{#each sources as s (s)}<Select.Item value={s}>{sourceLabel(s)}</Select.Item>{/each}
 			</Select.Content>
 		</Select.Root>
-		<label class="flex items-center gap-1.5 text-[12.5px] text-muted-foreground"
+		<label class="flex items-center gap-1.5 text-sm text-muted-foreground"
 			>Bans ≥<Input
 				type="number"
 				min="0"
@@ -185,7 +185,7 @@
 				class="tnum h-7 w-14"
 			/></label
 		>
-		<label class="flex items-center gap-1.5 text-[12.5px] text-muted-foreground"
+		<label class="flex items-center gap-1.5 text-sm text-muted-foreground"
 			>Challenges ≥<Input
 				type="number"
 				min="0"
@@ -194,12 +194,12 @@
 				class="tnum h-7 w-14"
 			/></label
 		>
-		<span class="ml-auto text-[12.5px] text-muted-foreground"
+		<span class="ml-auto text-sm text-muted-foreground"
 			>{total} {total === 1 ? 'address' : 'addresses'}</span
 		>
 	</div>
 	{#if selected.length || (view !== 'all' && total)}
-		<div class="flex flex-wrap items-center gap-2 border-b bg-surface-2/40 px-4 py-2 text-[13px]">
+		<div class="flex flex-wrap items-center gap-2 border-b bg-surface-2/40 px-4 py-2 text-md">
 			{#if selected.length}<span>{selected.length} selected</span>{:else}<span
 					>{total} addresses match the filter</span
 				>{/if}
@@ -244,12 +244,12 @@
 					<Table.Cell>
 						<AddressLink address={c.address} />
 						{#if c.country || c.asn}<span
-								class="block max-w-48 truncate text-[12px] text-muted-foreground"
+								class="block max-w-48 truncate text-xs text-muted-foreground"
 								>{[c.country, c.asn ? `AS${c.asn}` : ''].filter(Boolean).join(', ')}</span
 							>{/if}
 					</Table.Cell>
-					<Table.Cell class="tnum text-right text-[14px] font-semibold">{c.ban_count}</Table.Cell>
-					<Table.Cell class="tnum hidden text-right text-[14px] font-semibold sm:table-cell"
+					<Table.Cell class="tnum text-right text-base font-semibold">{c.ban_count}</Table.Cell>
+					<Table.Cell class="tnum hidden text-right text-base font-semibold sm:table-cell"
 						>{c.challenge_count}</Table.Cell
 					>
 					<Table.Cell>
@@ -257,14 +257,14 @@
 							>{:else if c.state === 'challenged'}<Tag tone="warn">challenged</Tag>{:else}<span
 								class="text-muted-foreground">—</span
 							>{/if}
-						{#if c.state !== 'none'}<span class="block text-[12px] text-muted-foreground"
+						{#if c.state !== 'none'}<span class="block text-xs text-muted-foreground"
 								>{stateDetail(c)}</span
 							>{/if}
 					</Table.Cell>
-					<Table.Cell class="hidden text-[12.5px] text-muted-foreground lg:table-cell"
+					<Table.Cell class="hidden text-sm text-muted-foreground lg:table-cell"
 						>{when(c.last_ban)} · {when(c.last_challenge)}</Table.Cell
 					>
-					<Table.Cell class="hidden text-[12.5px] text-muted-foreground xl:table-cell"
+					<Table.Cell class="hidden text-sm text-muted-foreground xl:table-cell"
 						>{when(c.next_ban_decrement ?? c.next_challenge_decrement)}</Table.Cell
 					>
 					<Table.Cell class="hidden md:table-cell">{sourceLabel(c.last_source)}</Table.Cell>
@@ -314,7 +314,7 @@
 		</div>
 	{/if}
 </div>
-<p class="mt-2 text-[12.5px] text-muted-foreground">
+<p class="mt-2 text-sm text-muted-foreground">
 	The ban counter sets the length of the next ban; the challenge counter is for information. Each
 	drops by one per quiet period without a new ban or challenge. Solving a CAPTCHA resets neither.
 </p>

@@ -57,12 +57,12 @@
 	<Panel title="Recent runs" description="Applied, failed and no-op plans">
 		<ul class="space-y-3">
 			{#each history as h, i (i)}
-				<li class="text-[13px]">
+				<li class="text-md">
 					<div class="flex items-center justify-between gap-2">
 						<span class="font-medium">{h.title}</span>
 						<Tag tone={h.tone}>{h.items} items</Tag>
 					</div>
-					<div class="text-[12.5px] text-muted-foreground">{h.t} · {h.result}</div>
+					<div class="text-sm text-muted-foreground">{h.t} · {h.result}</div>
 				</li>
 			{/each}
 		</ul>

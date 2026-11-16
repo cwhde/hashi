@@ -87,7 +87,7 @@
 
 {#if view && !view.editable}
 	<Panel title="WAF">
-		<p class="text-[13px] text-muted-foreground">
+		<p class="text-md text-muted-foreground">
 			Hashi’s own services use the default mode. TCP and UDP services are protected at the firewall.
 		</p>
 	</Panel>
@@ -105,7 +105,7 @@
 						(paths = [...paths, { match: 'prefix', path: '/', mode: '', exclusions: [] }])}
 					><Plus />Add path</Button
 				>{/snippet}
-			<ul class="divide-y text-[13px]">
+			<ul class="divide-y text-md">
 				<li class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5">
 					<span><Mono>/</Mono> <span class="text-muted-foreground">whole service</span></span>
 					<Select.Root type="single" bind:value={mode}>
@@ -153,7 +153,7 @@
 					</li>
 				{/each}
 			</ul>
-			<p class="border-t px-4 py-3 text-[12.5px] text-muted-foreground">
+			<p class="border-t px-4 py-3 text-sm text-muted-foreground">
 				The WAF checks addresses, headers, cookies and query strings for attacks; uploads, WebDAV
 				and git work everywhere. Request bodies are not checked.
 			</p>
@@ -166,15 +166,15 @@
 					class="font-mono"
 					aria-label="Rule IDs"
 				/>
-				<p class="text-[12.5px] text-muted-foreground">
+				<p class="text-sm text-muted-foreground">
 					Rule IDs for the whole service. Matches count towards a challenge.
 				</p>
 			</div>
-			{#if error}<p role="alert" class="mt-3 text-[13px] text-bad-text">{error}</p>{/if}
-			{#if note}<p role="status" class="mt-3 text-[13px]">{note}</p>{/if}
+			{#if error}<p role="alert" class="mt-3 text-md text-bad-text">{error}</p>{/if}
+			{#if note}<p role="status" class="mt-3 text-md">{note}</p>{/if}
 			<Button class="mt-4" size="sm" disabled={busy} onclick={save}>Save WAF</Button>
 		</Panel>
 	</div>
 {:else if error}
-	<p role="alert" class="text-[13px] text-bad-text">{error}</p>
+	<p role="alert" class="text-md text-bad-text">{error}</p>
 {/if}

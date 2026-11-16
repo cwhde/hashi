@@ -6,7 +6,7 @@
 	let { state, label }: { state: Health; label?: string } = $props();
 </script>
 
-<span class="inline-flex items-center gap-1.5 text-[13px] font-medium {health[state].text}">
+<span class="inline-flex items-center gap-1.5 text-md font-medium {health[state].text}">
 	<StatusDot {state} />
 	<span>{label ?? health[state].label}</span>
 </span>

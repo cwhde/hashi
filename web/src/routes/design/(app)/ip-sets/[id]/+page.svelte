@@ -66,18 +66,18 @@
 
 <a
 	href="/design/ip-sets"
-	class="mb-3 inline-flex items-center gap-1 text-[13px] text-muted-foreground hover:text-foreground"
+	class="mb-3 inline-flex items-center gap-1 text-md text-muted-foreground hover:text-foreground"
 	><ChevronLeft class="size-4" />IP sets</a
 >
 
 <div class="mb-5 rounded-2xl border bg-card p-4">
 	<div class="flex flex-wrap items-start gap-x-6 gap-y-3">
 		<div class="min-w-0 flex-1">
-			<h1 class="flex flex-wrap items-center gap-2 text-[22px] leading-tight font-semibold">
+			<h1 class="flex flex-wrap items-center gap-2 text-title leading-tight font-semibold">
 				<span class="font-mono tracking-[-0.02em]">{s.slug}</span>
 				{#if s.locked}<Tag><Lock class="size-3" />{kindLabel[s.kind].toLowerCase()}</Tag>{/if}
 			</h1>
-			<p class="text-[13.5px] text-muted-foreground">{s.description}</p>
+			<p class="text-md text-muted-foreground">{s.description}</p>
 		</div>
 		<div class="flex gap-2">
 			{#if s.kind === 'user'}
@@ -92,10 +92,10 @@
 			{/if}
 		</div>
 	</div>
-	{#if s.locked}<p class="mt-2 text-[12.5px] text-muted-foreground">{lockReason[s.kind]}</p>{/if}
-	<dl class="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-[13px] sm:grid-cols-4">
+	{#if s.locked}<p class="mt-2 text-sm text-muted-foreground">{lockReason[s.kind]}</p>{/if}
+	<dl class="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-md sm:grid-cols-4">
 		<div>
-			<dt class="text-[12px] text-muted-foreground">Kind</dt>
+			<dt class="text-xs text-muted-foreground">Kind</dt>
 			<dd>
 				{kindLabel[s.kind]}{#if s.addressSet}<span class="text-muted-foreground">
 						· addresses only</span
@@ -103,15 +103,15 @@
 			</dd>
 		</div>
 		<div>
-			<dt class="text-[12px] text-muted-foreground">Resolves to</dt>
+			<dt class="text-xs text-muted-foreground">Resolves to</dt>
 			<dd class="tnum">{s.v4.toLocaleString()} IPv4 · {s.v6.toLocaleString()} IPv6 ranges</dd>
 		</div>
 		<div>
-			<dt class="text-[12px] text-muted-foreground">Used by</dt>
+			<dt class="text-xs text-muted-foreground">Used by</dt>
 			<dd>{s.usedBy.length ? s.usedBy.length + ' places' : 'Not used'}</dd>
 		</div>
 		<div>
-			<dt class="text-[12px] text-muted-foreground">Status</dt>
+			<dt class="text-xs text-muted-foreground">Status</dt>
 			<dd>
 				{#if s.status === 'partial'}<Tag tone="warn">partial</Tag>{:else}<Tag tone="ok">ok</Tag
 					>{/if}
@@ -120,7 +120,7 @@
 	</dl>
 	{#each s.problems ?? [] as p (p)}
 		<p
-			class="mt-3 flex items-start gap-2 rounded-xl border border-warn/30 bg-warn/10 px-3 py-2 text-[12.5px] text-warn-text"
+			class="mt-3 flex items-start gap-2 rounded-xl border border-warn/30 bg-warn/10 px-3 py-2 text-sm text-warn-text"
 		>
 			<TriangleAlert class="mt-0.5 size-3.5 shrink-0" />{p}
 		</p>
@@ -145,7 +145,7 @@
 					? 'Each has to solve a CAPTCHA. Requests without solving count as failures; at 15 the address is banned.'
 					: 'Dropped in the kernel on every firewall host and refused by forward auth.'}
 			>
-				<ul class="divide-y text-[13px]">
+				<ul class="divide-y text-md">
 					{#each s.entries ?? [] as e (e.address)}
 						{@const c = counterOf(e.address)}
 						<li
@@ -154,15 +154,14 @@
 							<AddressLink address={e.address} />
 							<span class="min-w-0 md:order-none"
 								><span class="block truncate">{e.reason}</span><span
-									class="text-[12px] text-muted-foreground">{e.source} · since {e.created}</span
+									class="text-xs text-muted-foreground">{e.source} · since {e.created}</span
 								></span
 							>
 							<span class="hidden md:block"
 								>{#if isChallenge}<span class="tnum">{e.failures} of 15</span><span
-										class="block text-[12px] text-muted-foreground">failures</span
+										class="block text-xs text-muted-foreground">failures</span
 									>{:else}<span class="tnum">ban {c?.ban ?? 1}</span><span
-										class="block text-[12px] text-muted-foreground"
-										>challenges {c?.challenge ?? 0}</span
+										class="block text-xs text-muted-foreground">challenges {c?.challenge ?? 0}</span
 									>{/if}</span
 							>
 							<span class="hidden text-muted-foreground md:block">{e.expires}</span>
@@ -205,7 +204,7 @@
 							aria-label="Search items"
 						/>
 					</div>
-					<span class="ml-auto text-[12.5px] text-muted-foreground"
+					<span class="ml-auto text-sm text-muted-foreground"
 						>{#if s.kind === 'feed'}Showing 3 of {s.v4.toLocaleString()} · line numbers from the last
 							fetch{:else}{items.length} items{/if}</span
 					>
@@ -217,10 +216,10 @@
 								class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-4 py-2.5 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_8rem_auto]"
 							>
 								<IpItemView item={i} />
-								<span class="hidden truncate text-[12.5px] text-muted-foreground md:block"
+								<span class="hidden truncate text-sm text-muted-foreground md:block"
 									>{i.note ?? ''}{#if i.problem}<Tag tone="warn">{i.problem}</Tag>{/if}</span
 								>
-								<span class="hidden text-[12.5px] text-muted-foreground md:block"
+								<span class="hidden text-sm text-muted-foreground md:block"
 									>{i.expires
 										? 'expires ' + i.expires
 										: i.added === 'system' || i.added === 'feed'
@@ -249,7 +248,7 @@
 						{/each}
 					</ul>
 				{:else}
-					<div class="px-4 py-10 text-center text-[13px] text-muted-foreground">
+					<div class="px-4 py-10 text-center text-md text-muted-foreground">
 						{#if q}Nothing in this set matches “{q}”.{:else}This set is empty, so it matches nobody.
 							<Button size="sm" variant="outline" class="ml-2" onclick={() => (addOpen = true)}
 								>Add item</Button
@@ -257,7 +256,7 @@
 					</div>
 				{/if}
 			</div>
-			{#if usedAsTarget}<p class="mt-2 text-[12.5px] text-muted-foreground">
+			{#if usedAsTarget}<p class="mt-2 text-sm text-muted-foreground">
 					Used as a DNS value, upstream or SSH target, so only addresses can be added. If it ever
 					resolves to nothing, those places keep their last working address.
 				</p>{/if}
@@ -270,7 +269,7 @@
 			title="What this set means right now"
 			description="Merged ranges after resolving Pulse agents, hosts, DNS names and nested sets"
 		>
-			<ul class="divide-y text-[13px]">
+			<ul class="divide-y text-md">
 				{#each resolved as [prefix, from] (prefix)}
 					<li class="grid grid-cols-[13rem_minmax(0,1fr)] items-center gap-3 px-4 py-2">
 						<Mono>{prefix}</Mono><span class="truncate text-muted-foreground">{from}</span>
@@ -283,7 +282,7 @@
 	<Tabs.Content value="used">
 		<Panel flush title="Used by" description="A set cannot be deleted while anything uses it">
 			{#if s.usedBy.length}
-				<ul class="divide-y text-[13px]">
+				<ul class="divide-y text-md">
 					{#each s.usedBy as u (u.label)}
 						<li class="grid grid-cols-[10rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5">
 							<span class="text-muted-foreground">{u.position}</span>
@@ -295,7 +294,7 @@
 					{/each}
 				</ul>
 			{:else}
-				<p class="px-4 py-6 text-[13px] text-muted-foreground">
+				<p class="px-4 py-6 text-md text-muted-foreground">
 					Nothing uses this set yet. Pick it in a rule, the firewall policy, a DNS record or a
 					service.
 				</p>
@@ -313,7 +312,7 @@
 	{#if s.feed}
 		<Tabs.Content value="feed" class="grid gap-4 lg:grid-cols-2">
 			<Panel title="Source">
-				<dl class="grid grid-cols-[8rem_minmax(0,1fr)] gap-y-2 text-[13px]">
+				<dl class="grid grid-cols-[8rem_minmax(0,1fr)] gap-y-2 text-md">
 					<dt class="text-muted-foreground">URL</dt>
 					<dd class="truncate"><Mono>{s.feed.url}</Mono></dd>
 					<dt class="text-muted-foreground">Format</dt>
@@ -325,13 +324,13 @@
 					<dt class="text-muted-foreground">False positives</dt>
 					<dd>{s.feed.fp}</dd>
 				</dl>
-				<p class="mt-3 text-[12.5px] text-muted-foreground">
+				<p class="mt-3 text-sm text-muted-foreground">
 					A failed fetch keeps the last good copy. After 72 h without success the set matches nobody
 					and Overview says so.
 				</p>
 			</Panel>
 			<Panel title="Recent fetches" flush>
-				<ul class="divide-y text-[13px]">
+				<ul class="divide-y text-md">
 					{#each s.feed.runs as r (r.at)}
 						<li class="grid grid-cols-[8rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5">
 							<span class="text-muted-foreground">{r.at}</span>
@@ -352,7 +351,7 @@
 
 	<Tabs.Content value="history">
 		<Panel flush title="History" description="From the audit log">
-			<ul class="divide-y text-[13px]">
+			<ul class="divide-y text-md">
 				<li class="grid grid-cols-[8rem_minmax(0,1fr)] gap-3 px-4 py-2.5">
 					<span class="text-muted-foreground">3 d ago</span><span
 						>Added <Mono>vpn.example.org</Mono> (DNS) · by you</span
@@ -404,7 +403,7 @@
 		<div class="space-y-4 px-4 pb-4">
 			<div class="space-y-1.5">
 				<Label for="ea">Address</Label><Input id="ea" class="font-mono" placeholder="203.0.113.9" />
-				<p class="text-[12.5px] text-muted-foreground">IPv6 addresses are handled per /64.</p>
+				<p class="text-sm text-muted-foreground">IPv6 addresses are handled per /64.</p>
 			</div>
 			<div class="space-y-1.5">
 				<Label>Duration</Label>

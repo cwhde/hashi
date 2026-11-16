@@ -35,15 +35,15 @@
 </script>
 
 <fieldset class="space-y-3 rounded-xl border p-3 md:col-span-2">
-	<legend class="px-1 text-[13px] font-medium">Hashi's key on this host</legend>
-	<label class="flex items-start gap-2.5 text-[13px]">
+	<legend class="px-1 text-md font-medium">Hashi's key on this host</legend>
+	<label class="flex items-start gap-2.5 text-md">
 		<input type="radio" bind:group={access.mode} value="install" class="mt-0.5 accent-primary" />
 		<span
 			>Let Hashi install its key. Hashi logs in once as {user || 'this user'} with what you enter here,
 			adds one line to <Mono>authorized_keys</Mono>, and forgets what you entered.</span
 		>
 	</label>
-	<label class="flex items-start gap-2.5 text-[13px]">
+	<label class="flex items-start gap-2.5 text-md">
 		<input type="radio" bind:group={access.mode} value="manual" class="mt-0.5 accent-primary" />
 		<span>I'll do it myself</span>
 	</label>
@@ -54,7 +54,7 @@
 				<select
 					id="ka-kind"
 					bind:value={access.kind}
-					class="h-10 w-full rounded-[10px] border bg-transparent px-3 text-[13px]"
+					class="h-10 w-full rounded-[10px] border bg-transparent px-3 text-md"
 				>
 					<option value="password">A password</option>
 					<option value="private_key">A private key</option>
@@ -89,14 +89,14 @@
 						bind:value={access.credential}
 						rows="4"
 						autocomplete="off"
-						class="w-full rounded-[10px] border bg-transparent px-3 py-2 font-mono text-[12.5px]"
+						class="w-full rounded-[10px] border bg-transparent px-3 py-2 font-mono text-sm"
 					></textarea>
 				</div>
 			{/if}
 		</div>
 	{:else}
 		<div>
-			<p class="text-[12.5px] text-muted-foreground">
+			<p class="text-sm text-muted-foreground">
 				Add this line to <Mono>~/.ssh/authorized_keys</Mono> of {user || 'this user'} on the host, then
 				continue.
 			</p>

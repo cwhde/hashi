@@ -15,7 +15,7 @@
 	const slug = (id: string) => sets.find((s) => s.id === id)?.slug ?? id;
 </script>
 
-<ol class="divide-y text-[13px]">
+<ol class="divide-y text-md">
 	{#each rows as r, i (i)}
 		<li
 			class="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 px-4 py-2.5 md:grid-cols-[2rem_minmax(0,1fr)_minmax(0,0.8fr)_13rem_minmax(0,1fr)]
@@ -40,7 +40,7 @@
 			<span class="flex items-center gap-1.5"
 				><ActionTag action={r.entry.action} groups={r.entry.groups} /></span
 			>
-			<span class="col-span-2 truncate text-[12.5px] text-muted-foreground md:col-span-1"
+			<span class="col-span-2 truncate text-sm text-muted-foreground md:col-span-1"
 				>{r.path.join(' → ')}</span
 			>
 		</li>

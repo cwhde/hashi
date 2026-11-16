@@ -14,17 +14,17 @@
 
 <a
 	href="/design/rule-sets"
-	class="mb-3 inline-flex items-center gap-1 text-[13px] text-muted-foreground hover:text-foreground"
+	class="mb-3 inline-flex items-center gap-1 text-md text-muted-foreground hover:text-foreground"
 	><ChevronLeft class="size-4" />Rule sets</a
 >
 
 <div class="mb-5 flex flex-wrap items-end gap-x-6 gap-y-3">
 	<div class="min-w-64 flex-1">
-		<h1 class="flex items-center gap-2 text-[22px] leading-tight font-semibold">
+		<h1 class="flex items-center gap-2 text-title leading-tight font-semibold">
 			<span class="font-mono tracking-[-0.02em]">{rs.slug}</span>
 			{#if rs.kind === 'global'}<Tag><Lock class="size-3" />global · cannot be deleted</Tag>{/if}
 		</h1>
-		<p class="mt-1 text-[13.5px] text-muted-foreground">{rs.description}</p>
+		<p class="mt-1 text-md text-muted-foreground">{rs.description}</p>
 	</div>
 	<div class="flex gap-2">
 		<Button variant="outline" size="sm"><Layers />Attach rule set</Button>
@@ -34,7 +34,7 @@
 
 {#each rs.warnings as w (w)}
 	<p
-		class="mb-4 flex items-start gap-2 rounded-xl border border-warn/30 bg-warn/10 px-3 py-2 text-[12.5px] text-warn-text"
+		class="mb-4 flex items-start gap-2 rounded-xl border border-warn/30 bg-warn/10 px-3 py-2 text-sm text-warn-text"
 	>
 		<TriangleAlert class="mt-0.5 size-3.5 shrink-0" />{w}
 	</p>
@@ -49,12 +49,12 @@
 		<RuleEntryList entries={rs.entries} onedit={() => (editOpen = true)} />
 	</Panel>
 	<Panel title="Used by">
-		<ul class="space-y-2 text-[13px]">
+		<ul class="space-y-2 text-md">
 			{#each rs.usedBy as u (u.label)}<li>
 					<a href={u.href} class="font-medium hover:underline">{u.label}</a>
 				</li>{/each}
 		</ul>
-		<p class="mt-3 text-[12.5px] text-muted-foreground">
+		<p class="mt-3 text-sm text-muted-foreground">
 			{rs.kind === 'global'
 				? 'Runs after each service’s own rules and before its fallback.'
 				: 'A rule set that is attached somewhere cannot be deleted.'}

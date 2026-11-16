@@ -169,14 +169,14 @@
 		p.type === 'telegram' ? `Telegram · chat ${p.chat_id}` : `Email · ${p.host} to ${p.to}`;
 </script>
 
-{#if error}<p role="alert" class="mb-3 text-[13px] text-bad-text">{error}</p>{/if}
-{#if notice}<p role="status" class="mb-3 text-[13px] text-ok-text">{notice}</p>{/if}
+{#if error}<p role="alert" class="mb-3 text-md text-bad-text">{error}</p>{/if}
+{#if notice}<p role="status" class="mb-3 text-md text-ok-text">{notice}</p>{/if}
 <div class="grid gap-4 lg:grid-cols-2">
 	<Panel
 		title="Where alerts go"
 		description="The default route. An endpoint's settings can send it elsewhere."
 	>
-		<div class="space-y-3 text-[13px]">
+		<div class="space-y-3 text-md">
 			<div class="space-y-1.5">
 				<Label for="route-provider">Send to</Label>
 				<Select.Root
@@ -228,16 +228,16 @@
 	<Panel title="Providers" flush>
 		{#snippet actions()}<Button size="sm" onclick={openAdd}><Plus />Add provider</Button>{/snippet}
 		{#if providers.length === 0}
-			<p class="px-4 py-3 text-[13px] text-muted-foreground">
+			<p class="px-4 py-3 text-md text-muted-foreground">
 				Add Telegram or email to receive alerts.
 			</p>
 		{/if}
 		<ul class="divide-y">
 			{#each providers as p (p.id)}
-				<li class="flex items-center gap-2 px-4 py-2.5 text-[13px]">
+				<li class="flex items-center gap-2 px-4 py-2.5 text-md">
 					<span class="min-w-0 flex-1"
 						><span class="block truncate font-medium">{p.name}</span><span
-							class="block truncate text-[12px] text-muted-foreground">{providerText(p)}</span
+							class="block truncate text-xs text-muted-foreground">{providerText(p)}</span
 						></span
 					>
 					<Button variant="outline" size="sm" onclick={() => test(p.id)} disabled={busy}
@@ -306,7 +306,7 @@
 							>Find chat</Button
 						>
 					</div>
-					<p class="text-[12px] text-muted-foreground">
+					<p class="text-xs text-muted-foreground">
 						{#if chats.length}Found: {chats.map((c) => c.title).join(', ')}.{:else}Send the bot a
 							message in Telegram, then find it here.{/if}
 					</p>
@@ -358,7 +358,7 @@
 					<Label for="np-to">To</Label><Input id="np-to" bind:value={f.to} />
 				</div>
 			{/if}
-			{#if addError}<p role="alert" class="text-[13px] text-bad-text">{addError}</p>{/if}
+			{#if addError}<p role="alert" class="text-md text-bad-text">{addError}</p>{/if}
 		</div>
 		<Sheet.Footer class="flex-row justify-end gap-2 border-t">
 			<Button variant="outline" onclick={() => (addOpen = false)}>Cancel</Button>

@@ -45,7 +45,7 @@
 	<AppShell live={{ onSignOut: signOut }}>{@render children()}</AppShell>
 {:else if failed}
 	<main class="grid min-h-dvh place-items-center px-4">
-		<p class="max-w-sm rounded-xl border border-bad/30 bg-bad/10 p-3 text-[13px] text-bad-text">
+		<p class="max-w-sm rounded-xl border border-bad/30 bg-bad/10 p-3 text-md text-bad-text">
 			{failed}
 		</p>
 	</main>
