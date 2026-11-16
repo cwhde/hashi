@@ -111,7 +111,7 @@ Tokens, IDs that embed account data, IPs and domains are replaced deterministica
 - Scans (threat model §7): `make scan` (govulncheck, `pnpm audit --prod`) runs in `ci.yml` after `make check`; the
   release job scans both pushed images with Trivy and fails on a fixable HIGH or CRITICAL finding. Secrets are kept out
   by the local secret guard (pre-commit and pre-push). The separate `security.yml` planned here was never needed.
-- `release.yml` — on main and `v*` tags: multi-arch images `git.juzo.io/juzo/hashi` and `git.juzo.io/juzo/hashi-pulse` (linux/amd64 + linux/arm64), tags `latest` (main), short SHA, semver; Pulse binaries + SHA-256 checksums attached to tag releases.
+- `release.yml` — on `v*` tags (and by hand for any commit): multi-arch images `git.juzo.io/juzo/hashi` and `git.juzo.io/juzo/hashi-pulse` (linux/amd64 + linux/arm64), tags `latest` (newest version tag), short SHA, semver; Pulse binaries + SHA-256 checksums attached to tag releases.
 
 Versions: `v0.<slice>.<patch>`: the middle number is the slice that passed its gate, so `v0.8.0` when S8 passes, up to
 `v0.11.x`; S12 is `v0.12.x`, and `v1.0.0` comes after the bug round that follows S12 (the owner, 2026-11-12). The last number counts fixes after it. While a slice's gate is open, `v0.8.0-beta.1`, `-beta.2`, …
