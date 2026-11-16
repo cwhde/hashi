@@ -996,7 +996,26 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 	await page.getByRole('tab', { name: 'Counters' }).click();
 	await expect(page).toHaveURL(/[?&]tab=counters/);
 	await page.reload();
-	await expect(page.getByRole('tab', { name: 'Counters' })).toHaveAttribute('aria-selected', 'true');
+	await expect(page.getByRole('tab', { name: 'Counters' })).toHaveAttribute(
+		'aria-selected',
+		'true'
+	);
+
+	// Bug 91: an unsaved change in a Settings category survives switching to another category and back.
+	await page.goto(`${state.baseURL}/settings?category=pulse`);
+	const heartbeat = page.getByLabel('Heartbeat every (seconds)');
+	const before = await heartbeat.inputValue();
+	await heartbeat.fill(String(Number(before) + 7));
+	const cats = page.getByRole('navigation', { name: 'Settings categories' });
+	await cats.getByRole('button', { name: 'General' }).click();
+	await cats.getByRole('button', { name: 'Pulse' }).click();
+	await expect(heartbeat).toHaveValue(String(Number(before) + 7));
+	// Bug 40: leaving with an unsaved change asks first; dismissing keeps the page and the draft.
+	page.once('dialog', (d) => void d.dismiss());
+	await page.getByRole('link', { name: 'Services' }).first().click();
+	await expect(page).toHaveURL(/\/settings/);
+	await expect(heartbeat).toHaveValue(String(Number(before) + 7));
+	await heartbeat.fill(before);
 
 	// S12: strict vault mode (02 §5.4). A PRF passkey becomes an unlocker, strict mode is switched on, and after each
 	// restart Hashi is locked until the recovery key or the passkey unlocks it; the session survives the restarts.

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { hrefWithTab, tabFrom } from '#lib/url-tab.ts';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import Panel from '#lib/components/hashi/Panel.svelte';
@@ -109,6 +109,11 @@
 	let item = $state(emptyItemForm());
 	let itemError = $state('');
 	let busy = $state(false);
+	// An error belongs to the input that caused it: any change to the form clears it (bug 67).
+	$effect(() => {
+		JSON.stringify(item);
+		untrack(() => (itemError = ''));
+	});
 
 	function openItem(e: IPSetElement | null) {
 		editing = e;

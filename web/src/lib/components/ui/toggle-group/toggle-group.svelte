@@ -58,8 +58,15 @@
 Discriminated Unions + Destructing (required for bindable) do not
 get along, so we shut typescript up by casting `value` to `never`.
 -->
+<!-- A single-choice group always keeps one choice: pressing the selected one again changes nothing (bug 83). -->
 <ToggleGroupPrimitive.Root
-	bind:value={value as never}
+	bind:value={
+		() => value as never,
+		(v: never) => {
+			if (restProps.type === 'single' && !v) return;
+			value = v;
+		}
+	}
 	bind:ref
 	{orientation}
 	data-slot="toggle-group"

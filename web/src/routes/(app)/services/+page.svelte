@@ -231,6 +231,8 @@
 			<p class="px-4 py-10 text-center text-md text-muted-foreground">
 				No services yet. Add the first one; Hashi publishes it on every Traefik host.
 			</p>
+		{:else if rows.length === 0}
+			<p class="p-4 text-md text-muted-foreground">No service matches the filter.</p>
 		{:else}
 			<Table.Root>
 				<Table.Header>

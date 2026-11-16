@@ -240,10 +240,16 @@
 }
 
 /* Reduce transparency (Settings → Appearance → Comfort): solid surfaces, no blur behind headers and dialogs. */
+/* Two rules with different selectors: in one rule the minifier folds the pair into the -webkit- property alone,
+   which Chrome ignores (bug 92). */
 :root[data-solid] *,
 :root[data-solid] *::before,
 :root[data-solid] *::after {
 	backdrop-filter: none !important;
+}
+:root[data-solid] :where(*),
+:root[data-solid] :where(*)::before,
+:root[data-solid] :where(*)::after {
 	-webkit-backdrop-filter: none !important;
 }
 :root[data-solid] .bg-background\/90 {

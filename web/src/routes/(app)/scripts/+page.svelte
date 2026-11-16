@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Draft, guardUnsaved } from '#lib/unsaved.svelte.ts';
 	import { onMount } from 'svelte';
 	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
@@ -101,13 +102,22 @@
 		};
 	}
 
-	async function pick(id: string | null) {
+	// Unsaved edits: picking another script or leaving the page asks first (bug 40).
+	const draft = new Draft(() => form);
+	guardUnsaved(() => draft.dirty);
+	const discard = () =>
+		!draft.dirty ||
+		confirm('This script has changes that are not saved. Leave without saving them?');
+
+	async function pick(id: string | null, force = false) {
+		if (!force && !discard()) return;
 		selected = id;
 		message = formError = '';
 		openRun = null;
 		plans = [];
 		const s = scripts?.find((x) => x.id === id);
 		form = s ? formOf(s) : blank();
+		draft.mark();
 		runs = [];
 		if (s) await loadRuns(s.id);
 	}
@@ -176,7 +186,7 @@
 							api.PUT('/api/scripts/{id}', { params: { path: { id: current.id } }, body: body() })
 						);
 			await load();
-			await pick(saved.id);
+			await pick(saved.id, true);
 			message = saved.targets.some((t) => t.pending)
 				? 'Saved. The change waits for you below before it reaches the hosts.'
 				: 'Saved.';

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Draft, guardUnsaved } from '#lib/unsaved.svelte.ts';
 	import { onMount } from 'svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
@@ -22,6 +23,8 @@
 	let error = $state('');
 	let notice = $state('');
 	let busy = $state(false);
+	const draft = new Draft(() => route);
+	guardUnsaved(() => draft.dirty); // bug 40
 
 	async function load() {
 		const [p, r] = await Promise.all([
@@ -31,6 +34,7 @@
 		if (!p.data || !r.data) throw p.error ?? r.error;
 		providers = p.data.providers;
 		route = r.data;
+		draft.mark();
 	}
 	onMount(() => {
 		load().catch((e) => (error = problemText(e)));

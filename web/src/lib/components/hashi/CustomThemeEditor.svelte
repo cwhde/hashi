@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { guardUnsaved } from '#lib/unsaved.svelte.ts';
 	import { untrack } from 'svelte';
 	import Panel from './Panel.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
@@ -68,6 +69,7 @@
 					.join(';')
 	);
 	const dirty = $derived(JSON.stringify(draft) !== JSON.stringify(saved));
+	guardUnsaved(() => dirty); // bug 40
 
 	function exportTheme() {
 		const blob = new Blob([JSON.stringify($state.snapshot(draft), null, 2) + '\n'], {

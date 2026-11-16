@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
 	import Tag from '#lib/components/hashi/Tag.svelte';
@@ -82,6 +82,11 @@
 	let item = $state(emptyItemForm());
 	let formError = $state('');
 	let busy = $state(false);
+	// An error belongs to the input that caused it: any change to the form clears it (bug 67).
+	$effect(() => {
+		JSON.stringify([form, item]);
+		untrack(() => (formError = ''));
+	});
 
 	function openAdd() {
 		form = { slug: '', description: '', withItem: true };

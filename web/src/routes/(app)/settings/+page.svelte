@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Draft, guardUnsaved } from '#lib/unsaved.svelte.ts';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
@@ -77,6 +78,7 @@
 		monitoring = m.data ?? null;
 		dashboard = d.data ?? null;
 		fwDefaults = f.data ?? null;
+		for (const dr of Object.values(drafts)) dr.mark();
 	}
 	let monitoring = $state<Schemas['MonitoringSettings'] | null>(null);
 	let dashboard = $state<Schemas['DashboardSettings'] | null>(null);
@@ -139,6 +141,17 @@
 			.map((x) => x.trim())
 			.filter(Boolean);
 
+	// Unsaved edits per category: switching categories keeps them, leaving the page asks first (bugs 40, 91).
+	const drafts: Record<string, Draft> = {
+		general: new Draft(() => [general, proxies]),
+		security: new Draft(() => [security, cidrs]),
+		appearance: new Draft(() => appearance),
+		monitoring: new Draft(() => monitoring),
+		dashboard: new Draft(() => dashboard),
+		firewall: new Draft(() => fwDefaults)
+	};
+	guardUnsaved(() => Object.values(drafts).some((d) => d.dirty));
+
 	// One status line per form: what happened, or why nothing changed.
 	let status = $state<Record<string, { ok: boolean; msg: string }>>({});
 	let busy = $state('');
@@ -147,6 +160,7 @@
 		status[key] = { ok: true, msg: '' };
 		try {
 			await fn();
+			drafts[key]?.mark();
 			status[key] = { ok: true, msg: done };
 		} catch (e) {
 			status[key] = { ok: false, msg: e instanceof Error ? ceremonyText(e) : problemText(e) };
@@ -403,12 +417,6 @@
 			</p>
 		{:else if !all}
 			{@render loading()}
-		{:else if cat === 'notifications'}
-			<Notifications />
-		{:else if cat === 'pulse'}
-			<PulseSettings />
-		{:else if cat === 'agent-dns'}
-			<AgentDns />
 		{:else if cat === 'monitoring' && monitoring}
 			<Panel
 				title="New monitors"
@@ -661,98 +669,106 @@
 					disabled={busy === 'security'}>Save</Button
 				>
 			</div>
-		{:else if cat === 'appearance' && appearance}
-			<Panel title="Theme">
-				<div class="grid grid-cols-2 gap-3 md:grid-cols-4">
-					{#each themes as t (t.id)}
-						<button
-							onclick={() => void theme.save(t.id)}
-							aria-pressed={theme.current === t.id}
-							class={cn(
-								'rounded-xl border p-1.5 text-left',
-								theme.current === t.id && 'ring-2 ring-ring'
-							)}
-						>
-							<div
-								data-theme={t.id}
-								data-mode={t.mode}
-								class="flex h-20 gap-1.5 rounded-lg border bg-background p-1.5"
+		{/if}
+		<!-- Categories with editors of their own stay mounted while another category is open, so their drafts survive
+		     the switch like every other category's (bug 91). -->
+		{#if all && appearance}<div class="space-y-4" hidden={cat !== 'appearance'}>
+				<Panel title="Theme">
+					<div class="grid grid-cols-2 gap-3 md:grid-cols-4">
+						{#each themes as t (t.id)}
+							<button
+								onclick={() => void theme.save(t.id)}
+								aria-pressed={theme.current === t.id}
+								class={cn(
+									'rounded-xl border p-1.5 text-left',
+									theme.current === t.id && 'ring-2 ring-ring'
+								)}
 							>
-								<div class="w-5 rounded-md bg-sidebar"></div>
-								<div class="flex flex-1 flex-col justify-between rounded-md border bg-card p-1.5">
-									<div class="h-1.5 w-3/4 rounded-full bg-muted-foreground/40"></div>
-									<div class="h-2.5 w-8 self-end rounded bg-primary"></div>
+								<div
+									data-theme={t.id}
+									data-mode={t.mode}
+									class="flex h-20 gap-1.5 rounded-lg border bg-background p-1.5"
+								>
+									<div class="w-5 rounded-md bg-sidebar"></div>
+									<div class="flex flex-1 flex-col justify-between rounded-md border bg-card p-1.5">
+										<div class="h-1.5 w-3/4 rounded-full bg-muted-foreground/40"></div>
+										<div class="h-2.5 w-8 self-end rounded bg-primary"></div>
+									</div>
 								</div>
-							</div>
-							<div class="px-1 pt-1.5 text-md font-medium">{t.name}</div>
-						</button>
-					{/each}
-					{#if theme.custom}
-						<button
-							onclick={() => void theme.save('custom')}
-							aria-pressed={theme.current === 'custom'}
-							class={cn(
-								'rounded-xl border p-1.5 text-left',
-								theme.current === 'custom' && 'ring-2 ring-ring'
-							)}
-						>
-							<div
-								data-theme="custom"
-								style={Object.entries(customVars(theme.custom))
-									.map(([k, v]) => `${k}:${v}`)
-									.join(';')}
-								class="flex h-20 gap-1.5 rounded-lg border bg-background p-1.5"
+								<div class="px-1 pt-1.5 text-md font-medium">{t.name}</div>
+							</button>
+						{/each}
+						{#if theme.custom}
+							<button
+								onclick={() => void theme.save('custom')}
+								aria-pressed={theme.current === 'custom'}
+								class={cn(
+									'rounded-xl border p-1.5 text-left',
+									theme.current === 'custom' && 'ring-2 ring-ring'
+								)}
 							>
-								<div class="w-5 rounded-md bg-sidebar"></div>
-								<div class="flex flex-1 flex-col justify-between rounded-md border bg-card p-1.5">
-									<div class="h-1.5 w-3/4 rounded-full bg-muted-foreground/40"></div>
-									<div class="h-2.5 w-8 self-end rounded bg-primary"></div>
+								<div
+									data-theme="custom"
+									style={Object.entries(customVars(theme.custom))
+										.map(([k, v]) => `${k}:${v}`)
+										.join(';')}
+									class="flex h-20 gap-1.5 rounded-lg border bg-background p-1.5"
+								>
+									<div class="w-5 rounded-md bg-sidebar"></div>
+									<div class="flex flex-1 flex-col justify-between rounded-md border bg-card p-1.5">
+										<div class="h-1.5 w-3/4 rounded-full bg-muted-foreground/40"></div>
+										<div class="h-2.5 w-8 self-end rounded bg-primary"></div>
+									</div>
 								</div>
-							</div>
-							<div class="px-1 pt-1.5 text-md font-medium">Custom</div>
-						</button>
-					{/if}
-				</div>
-			</Panel>
-			<CustomThemeEditor
-				saved={appearance.custom_theme ?? null}
-				onsave={saveCustom}
-				onreset={useBuiltIn}
-				busy={busy === 'custom'}
-			/>
-			{@render note('custom')}
-			<Panel title="Comfort">
-				<label class="flex items-center justify-between gap-3 text-md"
-					>Reduce transparency: solid backgrounds behind headers and dialogs<Switch
-						checked={appearance.reduce_transparency ?? false}
-						onCheckedChange={(v) => {
-							appearance!.reduce_transparency = v;
-							theme.setSolid(v);
-						}}
-					/></label
-				>
-			</Panel>
-			<Panel title="Public pages">
-				<div class="grid gap-3 md:grid-cols-2">
-					<label
-						class="flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-md"
-						>Public app dashboard<Switch
-							bind:checked={appearance.public_dashboard_enabled}
+								<div class="px-1 pt-1.5 text-md font-medium">Custom</div>
+							</button>
+						{/if}
+					</div>
+				</Panel>
+				<CustomThemeEditor
+					saved={appearance.custom_theme ?? null}
+					onsave={saveCustom}
+					onreset={useBuiltIn}
+					busy={busy === 'custom'}
+				/>
+				{@render note('custom')}
+				<Panel title="Comfort">
+					<label class="flex items-center justify-between gap-3 text-md"
+						>Reduce transparency: solid backgrounds behind headers and dialogs<Switch
+							checked={appearance.reduce_transparency ?? false}
+							onCheckedChange={(v) => {
+								appearance!.reduce_transparency = v;
+								theme.setSolid(v);
+							}}
 						/></label
 					>
-					<label
-						class="flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-md"
-						>Public status page<Switch bind:checked={appearance.public_status_enabled} /></label
+				</Panel>
+				<Panel title="Public pages">
+					<div class="grid gap-3 md:grid-cols-2">
+						<label
+							class="flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-md"
+							>Public app dashboard<Switch
+								bind:checked={appearance.public_dashboard_enabled}
+							/></label
+						>
+						<label
+							class="flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-md"
+							>Public status page<Switch bind:checked={appearance.public_status_enabled} /></label
+						>
+					</div>
+				</Panel>
+				<div class="flex items-center justify-end gap-3">
+					{@render note('appearance')}<Button
+						size="sm"
+						onclick={saveAppearance}
+						disabled={busy === 'appearance'}>Save</Button
 					>
 				</div>
-			</Panel>
-			<div class="flex items-center justify-end gap-3">
-				{@render note('appearance')}<Button
-					size="sm"
-					onclick={saveAppearance}
-					disabled={busy === 'appearance'}>Save</Button
-				>
-			</div>
+			</div>{/if}
+		{#if all}
+			<div class="space-y-4" hidden={cat !== 'notifications'}><Notifications /></div>
+			<div class="space-y-4" hidden={cat !== 'pulse'}><PulseSettings /></div>
+			<div class="space-y-4" hidden={cat !== 'agent-dns'}><AgentDns /></div>
 		{/if}
 	</div>
 </div>

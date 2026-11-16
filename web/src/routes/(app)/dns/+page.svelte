@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { guardUnsaved } from '#lib/unsaved.svelte.ts';
 	import { hrefWithTab, tabFrom } from '#lib/url-tab.ts';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
@@ -56,6 +57,7 @@
 	const setTab = (t: string) =>
 		goto(hrefWithTab(page.url, tabs, t), { replace: true, reset: false });
 
+	guardUnsaved(() => dirty); // bug 40
 	const newCount = $derived(importRows.filter((r) => !r.decision).length);
 	const dirty = $derived(
 		importRows.some((r) => (r.decision ?? 'leave') !== decisions[rrsetKey(r.rrset)] || !r.decision)

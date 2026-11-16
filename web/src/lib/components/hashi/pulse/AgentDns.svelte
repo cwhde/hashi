@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Draft, guardUnsaved } from '#lib/unsaved.svelte.ts';
 	import { onMount } from 'svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
@@ -14,16 +15,21 @@
 	let error = $state('');
 	let notice = $state('');
 	let busy = $state(false);
+	const draft = new Draft(() => v);
+	guardUnsaved(() => draft.dirty); // bug 40
 	onMount(async () => {
 		const r = await api.GET('/api/settings/internal-agent-dns');
-		if (r.data) v = r.data;
-		else error = problemText(r.error);
+		if (r.data) {
+			v = r.data;
+			draft.mark();
+		} else error = problemText(r.error);
 	});
 	async function save() {
 		error = notice = '';
 		busy = true;
 		try {
 			v = await withReauth(() => api.PUT('/api/settings/internal-agent-dns', { body: v! }));
+			draft.mark();
 			notice = 'Saved.';
 		} catch (e) {
 			error = problemText(e);

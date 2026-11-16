@@ -3,6 +3,7 @@
 	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
 	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 	import type { Endpoint } from '#lib/monitor.ts';
 
@@ -11,6 +12,8 @@
 	let endpoints = $state<Endpoint[]>([]);
 	let look = $state<Schemas['AppearanceSettings'] | null>(null);
 	let error = $state('');
+	// Until the lists arrive, counts and empty texts would claim "0 apps" (bug 71).
+	let loaded = $state(false);
 
 	async function load() {
 		const [s, e, a] = await Promise.all([
@@ -22,6 +25,7 @@
 		services = s.data.services.filter((x) => x.origin !== 'system' && x.host_name);
 		endpoints = e.data.endpoints;
 		look = a.data;
+		loaded = true;
 	}
 	onMount(() => {
 		load().catch((e) => (error = problemText(e)));
@@ -64,8 +68,9 @@
 <div class="grid gap-4 lg:grid-cols-2">
 	<Panel
 		title="App dashboard"
-		description="{services.filter((r) => r.dashboard_visible)
-			.length} apps · cards link to the public address"
+		description={loaded
+			? `${services.filter((r) => r.dashboard_visible).length} apps · cards link to the public address`
+			: 'Loading…'}
 		flush
 	>
 		{#snippet actions()}{#if look}<Switch
@@ -73,7 +78,8 @@
 					onCheckedChange={(v) => setPage('public_dashboard_enabled', v)}
 					aria-label="Public dashboard enabled"
 				/>{/if}{/snippet}
-		{#if services.length === 0}<p class="px-4 py-3 text-md text-muted-foreground">
+		{#if !loaded}<div class="space-y-2 p-4"><Skeleton class="h-6" /><Skeleton class="h-6" /></div>
+		{:else if services.length === 0}<p class="px-4 py-3 text-md text-muted-foreground">
 				Services with a public name appear here.
 			</p>{/if}
 		<ul class="divide-y">
@@ -103,6 +109,9 @@
 					onCheckedChange={(v) => setPage('public_status_enabled', v)}
 					aria-label="Public status enabled"
 				/>{/if}{/snippet}
+		{#if !loaded}<div class="space-y-2 p-4">
+				<Skeleton class="h-6" /><Skeleton class="h-6" />
+			</div>{/if}
 		<ul class="divide-y">
 			{#each endpoints as m (m.id)}
 				<li class="flex items-center gap-3 px-4 py-2 text-md">

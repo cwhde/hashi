@@ -175,6 +175,11 @@
 				<p class="p-4 text-md text-muted-foreground">
 					Nothing recorded yet. Sign-ins, setup steps and every change appear here.
 				</p>
+			{:else if shown.length === 0}
+				<p class="p-4 text-md text-muted-foreground">
+					No loaded entry matches the filter.{#if cursor}
+						Older entries are searched once you load them.{/if}
+				</p>
 			{:else}
 				<Table.Root
 					><Table.Header
@@ -204,13 +209,13 @@
 							>{/each}</Table.Body
 					>
 				</Table.Root>
-				{#if cursor}
-					<div class="border-t p-3 text-center">
-						<Button variant="ghost" size="sm" onclick={() => loadAudit(true)}
-							>Load older entries</Button
-						>
-					</div>
-				{/if}
+			{/if}
+			{#if events?.length && cursor}
+				<div class="border-t p-3 text-center">
+					<Button variant="ghost" size="sm" onclick={() => loadAudit(true)}
+						>Load older entries</Button
+					>
+				</div>
 			{/if}
 		</div>
 	</Tabs.Content>

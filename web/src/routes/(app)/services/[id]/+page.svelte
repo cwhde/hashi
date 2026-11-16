@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Draft, guardUnsaved } from '#lib/unsaved.svelte.ts';
 	import { hrefWithTab, tabFrom } from '#lib/url-tab.ts';
 	import ServiceExtras from '#lib/components/hashi/services/ServiceExtras.svelte';
 	import ServiceAccess from '#lib/components/hashi/rules/ServiceAccess.svelte';
@@ -58,6 +59,9 @@
 	let busy = $state('');
 	let delOpen = $state(false);
 	const system = $derived(svc?.origin === 'system');
+	// Unsaved edits: leaving the page asks first (bug 40). A save reloads, which marks the new state saved.
+	const draft = new Draft(() => [edit, extra, targetsText]);
+	guardUnsaved(() => draft.dirty);
 
 	async function load() {
 		const [s, r] = await Promise.all([
@@ -90,6 +94,7 @@
 			const e = await api.GET('/api/services/{id}/effective', { params: { path: { id } } });
 			if (e.data) yaml = e.data.yaml;
 		}
+		draft.mark();
 	}
 	onMount(() => load().catch((e) => (loadError = problemText(e))));
 

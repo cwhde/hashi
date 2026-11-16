@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { guardUnsaved } from '#lib/unsaved.svelte.ts';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
@@ -35,6 +36,8 @@
 	let editing = $state<{ rule: RuleEntry; index: number } | null>(null);
 	let attach = $state(false);
 	let attachId = $state('');
+	// Every change saves at once; only an open rule editor holds unsaved input (bug 40).
+	guardUnsaved(() => editing !== null);
 
 	function adopt(r: RuleSet) {
 		rs = r;

@@ -79,7 +79,8 @@
 	class="relative mb-5 max-w-80"
 	onsubmit={(e) => {
 		e.preventDefault();
-		if (jump.trim()) goto(addressHref(jump.trim()));
+		// An empty search goes back to the empty page, which also clears an old error (bug 67).
+		goto(jump.trim() ? addressHref(jump.trim()) : '/ip-sets/address');
 	}}
 >
 	<Search class="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />

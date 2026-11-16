@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Draft, guardUnsaved } from '#lib/unsaved.svelte.ts';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
@@ -44,8 +45,12 @@
 				degraded_ms: e.degraded_ms,
 				route_provider_id: e.route_provider_id
 			};
+			draft.mark();
 		}
 	}
+	// Unsaved edits: leaving the page asks first (bug 40).
+	const draft = new Draft(() => s);
+	guardUnsaved(() => draft.dirty);
 	$effect(() => {
 		void range;
 		void id;

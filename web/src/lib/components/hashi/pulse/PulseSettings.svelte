@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Draft, guardUnsaved } from '#lib/unsaved.svelte.ts';
 	import { onMount } from 'svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
@@ -12,10 +13,14 @@
 	let error = $state('');
 	let notice = $state('');
 	let busy = $state(false);
+	const draft = new Draft(() => v);
+	guardUnsaved(() => draft.dirty); // bug 40
 	onMount(async () => {
 		const r = await api.GET('/api/settings/pulse');
-		if (r.data) v = r.data;
-		else error = problemText(r.error);
+		if (r.data) {
+			v = r.data;
+			draft.mark();
+		} else error = problemText(r.error);
 	});
 	async function save() {
 		error = notice = '';
@@ -24,6 +29,7 @@
 		busy = false;
 		if (r.data) {
 			v = r.data;
+			draft.mark();
 			notice = 'Saved.';
 		} else error = problemText(r.error);
 	}

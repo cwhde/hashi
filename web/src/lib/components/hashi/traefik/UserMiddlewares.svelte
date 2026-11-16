@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { guardUnsaved } from '#lib/unsaved.svelte.ts';
 	import { onMount } from 'svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
 	import Mono from '#lib/components/hashi/Mono.svelte';
@@ -34,6 +35,7 @@
 	// edit that dropped a name brings its switch back.
 	const everyLive = $derived(every.filter((n) => found.some((m) => m.name === n)));
 	const dirty = $derived(text !== saved || everyLive.join() !== savedEvery.join());
+	guardUnsaved(() => dirty); // bug 40
 
 	async function load() {
 		const r = await api.GET('/api/traefik/user-middlewares');
