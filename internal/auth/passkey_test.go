@@ -145,18 +145,18 @@ func TestPRFEnrollCanAskForOnePasskey(t *testing.T) {
 	}
 	salt := []byte("0123456789abcdef0123456789abcdef")
 
-	_, all, err := p.BeginPRF(ctx, owner, PRFEnroll, salt, nil)
+	_, all, err := p.BeginPRFEnroll(ctx, owner, salt, nil)
 	if err != nil || len(all.Response.AllowedCredentials) != 2 {
 		t.Fatalf("without a choice: %d allowed, %v", len(all.Response.AllowedCredentials), err)
 	}
-	_, one, err := p.BeginPRF(ctx, owner, PRFEnroll, salt, map[string][]byte{string(row.CredentialID): salt})
+	_, one, err := p.BeginPRFEnroll(ctx, owner, salt, [][]byte{row.CredentialID})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got := one.Response.AllowedCredentials; len(got) != 1 || string(got[0].CredentialID) != string(row.CredentialID) {
 		t.Fatalf("with a choice: %+v", got)
 	}
-	if _, _, err := p.BeginPRF(ctx, owner, PRFEnroll, salt, map[string][]byte{"unknown": salt}); !errors.Is(err, ErrCeremony) {
+	if _, _, err := p.BeginPRFEnroll(ctx, owner, salt, [][]byte{[]byte("unknown")}); !errors.Is(err, ErrCeremony) {
 		t.Fatalf("unknown passkey: %v", err)
 	}
 }

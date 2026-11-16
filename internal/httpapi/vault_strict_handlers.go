@@ -123,7 +123,7 @@ func (s *Server) VaultUnlockOptions(ctx context.Context, _ gen.VaultUnlockOption
 	for _, u := range rows {
 		salts[string(u.CredentialID)] = u.Salt
 	}
-	id, opts, err := s.Passkeys.BeginPRF(ctx, info(ctx).session.IDHash, auth.PRFUnlock, nil, salts)
+	id, opts, err := s.Passkeys.BeginPRFUnlock(ctx, info(ctx).session.IDHash, salts)
 	if err != nil {
 		return nil, ceremonyError(err)
 	}
@@ -183,7 +183,7 @@ func (s *Server) VaultUnlockerOptions(ctx context.Context, req gen.VaultUnlocker
 	if _, err := rand.Read(salt); err != nil {
 		return nil, err
 	}
-	var only map[string][]byte
+	var only [][]byte
 	if req.Body != nil && req.Body.PasskeyId != nil && *req.Body.PasskeyId != "" {
 		pk, err := s.Store.Q.GetPasskey(ctx, *req.Body.PasskeyId)
 		if errors.Is(err, sql.ErrNoRows) {
@@ -191,9 +191,9 @@ func (s *Server) VaultUnlockerOptions(ctx context.Context, req gen.VaultUnlocker
 		} else if err != nil {
 			return nil, fmt.Errorf("vault unlocker: passkey: %w", err)
 		}
-		only = map[string][]byte{string(pk.CredentialID): salt}
+		only = [][]byte{pk.CredentialID}
 	}
-	id, opts, err := s.Passkeys.BeginPRF(ctx, info(ctx).session.IDHash, auth.PRFEnroll, salt, only)
+	id, opts, err := s.Passkeys.BeginPRFEnroll(ctx, info(ctx).session.IDHash, salt, only)
 	if err != nil {
 		return nil, ceremonyError(err)
 	}
