@@ -21,6 +21,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/pkg/sftp"
@@ -216,12 +217,23 @@ type Result struct {
 // OK reports exit code 0.
 func (r Result) OK() bool { return r.ExitCode == 0 }
 
+// capped keeps at most MaxOutput bytes. It is locked because Run may read it while a session that outlived its
+// context is still being torn down.
 type capped struct {
+	mu        sync.Mutex
 	buf       bytes.Buffer
 	truncated bool
 }
 
+func (w *capped) snapshot() ([]byte, bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return bytes.Clone(w.buf.Bytes()), w.truncated
+}
+
 func (w *capped) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	if room := MaxOutput - w.buf.Len(); room < len(p) {
 		w.truncated = true
 		if room > 0 {
@@ -247,10 +259,11 @@ func (c *Client) Run(ctx context.Context, cmd string, stdin io.Reader) (Result, 
 	case <-ctx.Done():
 		_ = s.Signal(ssh.SIGKILL)
 		_ = s.Close()
-		return Result{}, ctx.Err()
+		// What was printed until now is still the caller's best evidence (bug 52).
+		return result(&out, &errOut), ctx.Err()
 	case err = <-done:
 	}
-	r := Result{Stdout: out.buf.Bytes(), Stderr: errOut.buf.Bytes(), Truncated: out.truncated || errOut.truncated}
+	r := result(&out, &errOut)
 	var exit *ssh.ExitError
 	switch {
 	case err == nil:
@@ -260,6 +273,12 @@ func (c *Client) Run(ctx context.Context, cmd string, stdin io.Reader) (Result, 
 		return r, fmt.Errorf("run remote command: %w", err)
 	}
 	return r, nil
+}
+
+func result(out, errOut *capped) Result {
+	o, ot := out.snapshot()
+	e, et := errOut.snapshot()
+	return Result{Stdout: o, Stderr: e, Truncated: ot || et}
 }
 
 // Quote makes s one POSIX shell word.

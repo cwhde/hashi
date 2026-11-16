@@ -176,7 +176,7 @@ func TestScriptLifecycle(t *testing.T) {
 	if len(runs) != 2 || runs[0].Trigger != TriggerScheduled || runs[0].Status != RunTimedOut {
 		t.Fatalf("runs %+v", runs)
 	}
-	if r, _ := f.s.GetRun(ctx, runs[0].ID); r.Output != "token is [secret]\n" {
+	if r, _ := f.s.GetRun(ctx, runs[0].ID); r.Output != "token is [secret]\nStopped after 60 s (time limit)." {
 		t.Fatalf("scheduled output %q", r.Output)
 	}
 	if _, ok := f.host.File(name + ".done"); ok {

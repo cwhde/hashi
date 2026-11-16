@@ -28,7 +28,7 @@ Next: 13.1. After 13.9: a last bug sweep, then `v1.0.0`.
 ### 13.1 checklist (one PR)
 
 - [x] 14 Pulse: `--version`/`-v`/`version` print and exit; any other argument is refused with a usage line
-- [ ] 52 Scripts: a timed-out run keeps what it printed and says "stopped after N s"
+- [x] 52 Scripts: a timed-out run keeps what it printed and says "stopped after N s"
 - [ ] 53 Monitoring: a TCP check reads until the expected text, the size limit or the timeout
 - [ ] 9 Traefik: the release download retries before failing the plan
 - [ ] 50 `BeginPRF`: separate parameters for unlock salts and the allow-list

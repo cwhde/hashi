@@ -151,11 +151,11 @@ func (s *Service) runOn(ctx context.Context, hostID string, sc Script, want stri
 	r, err := h.Run(ctx, cmd, nil)
 	if err != nil {
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			return outcome{code: TimedOut, output: string(r.Stdout), truncated: r.Truncated}
+			return outcome{code: TimedOut, output: stopped(string(r.Stdout), TimedOut, sc.TimeoutSeconds), truncated: r.Truncated}
 		}
 		return outcome{err: err}
 	}
-	return outcome{code: r.ExitCode, output: string(r.Stdout), truncated: r.Truncated}
+	return outcome{code: r.ExitCode, output: stopped(string(r.Stdout), r.ExitCode, sc.TimeoutSeconds), truncated: r.Truncated}
 }
 
 func (s *Service) finish(ctx context.Context, runID string, o outcome, secretVals []string) {
@@ -323,11 +323,23 @@ func (s *Service) collectHost(ctx context.Context, hostID string, bySlug map[str
 	return n, nil
 }
 
+// stopped ends the output of a run that hit its time limit with a line saying so, after whatever it printed (bug 52).
+func stopped(out string, code int, timeoutSeconds int64) string {
+	if code != TimedOut {
+		return out
+	}
+	if out != "" && !strings.HasSuffix(out, "\n") {
+		out += "\n"
+	}
+	return out + "Stopped after " + strconv.FormatInt(timeoutSeconds, 10) + " s (time limit)."
+}
+
 func (s *Service) storeScheduled(ctx context.Context, hostID string, sc Script, e spoolEntry, out []byte, secretVals []string) error {
 	text := string(out)
 	if !utf8.ValidString(text) {
 		text = strings.ToValidUTF8(text, "�")
 	}
+	text = stopped(text, e.code, sc.TimeoutSeconds)
 	return s.st.Tx(ctx, func(q *db.Queries) error {
 		n, err := q.CountScriptSpool(ctx, db.CountScriptSpoolParams{HostID: hostID, SpoolName: e.name})
 		if err != nil || n > 0 {
