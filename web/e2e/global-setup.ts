@@ -1,11 +1,13 @@
 import { spawn } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { createWriteStream, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 export const statePath = resolve(import.meta.dirname, '.state.json');
+// Everything Hashi prints during the run, restarts included; CI prints it when the job fails (bug 33).
+export const logPath = resolve(import.meta.dirname, '.hashi.log');
 
 function freePort(): Promise<number> {
 	return new Promise((ok, fail) => {
@@ -43,6 +45,9 @@ export default async function globalSetup() {
 		HASHI_DEV_DNS_FIXTURES: resolve(import.meta.dirname, '../../testdata/contracts/hetzner')
 	};
 	const proc = spawn(bin, args, { env: { ...process.env, ...env } });
+	const log = createWriteStream(logPath, { flags: 'w' });
+	proc.stdout.pipe(log);
+	proc.stderr.pipe(log);
 	let out = '';
 	const creds = await new Promise<{ username: string; password: string }>((ok, fail) => {
 		const timer = setTimeout(

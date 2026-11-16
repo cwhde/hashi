@@ -34,7 +34,7 @@ Next: 13.1. After 13.9: a last bug sweep, then `v1.0.0`.
 - [x] 50 `BeginPRF`: separate parameters for unlock salts and the allow-list
 - [x] 47 Firewall renderer: typed structs for the nft JSON statements
 - [x] 46 Split `internal/firewall/manager.go` along its sections (hosts, policy, validate, connect, plan); the Settings page half moves to 13.4, which rewrites that page
-- [ ] 11, 16, 33 Flaky tests: rescue exec hang, Pocket ID start, e2e keeps Hashi's log
+- [x] 11, 16, 33 Flaky tests: none reproduced (rescue 3/3, Pocket ID 5/5 locally); each now leaves evidence, moved to Unverified
 - [ ] 54 CI actions pinned to commit SHAs; 55 SvelteKit and adapter-static bumped
 
 ## Previous: S12
@@ -937,6 +937,12 @@ Decisions made in S0:
 (Problems that survived two fix attempts: hypothesis, evidence, question for the human.)
 
 ## Unverified
+
+- 13.1, flaky CI tests (old bugs 11, 16, 33), not reproduced locally. Each now leaves evidence for the next time:
+  `TestIntegrationRescueRollback` hang in `docker exec` (a test `Shell` call now stops after 2 min and names the
+  command; suspect: the systemd shim's background timer); `TestIntegrationPocketID` client without `createdSecret`
+  (the test now fails with Pocket ID's answer); setup e2e stuck at "Opening…" (Hashi's log is now kept in
+  `web/e2e/.hashi.log` and printed by CI on failure). Promote to a bug with that evidence.
 
 - S12 strict mode: an edge session key created after strict mode was switched on is kept only from the next unlock;
   a restart before that signs out visitors of protected apps until the unlock.

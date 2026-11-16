@@ -123,3 +123,7 @@ jobs:
       - name: make test-e2e
         if: steps.paths.outputs.run == 'true'
         run: make test-e2e
+
+      - name: Hashi's log from the e2e run
+        if: failure() && steps.paths.outputs.run == 'true'
+        run: tail -n 400 web/e2e/.hashi.log || echo "no log written"
