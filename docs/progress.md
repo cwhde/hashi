@@ -16,7 +16,7 @@ first, structure before text, search after the settings regroup.
 | 13.1 | CI, code and runtime groundwork | 9, 11, 14, 16, 33, 46, 47, 50, 52, 53, 54, 55 | Three CI runs in a row green without a rerun; every action pinned to a SHA; deps bumped; `hashi-pulse --version` prints on a real agent; a timed-out script shows its output; a TCP check with a split greeting is up; a Traefik install survives one failed download on the dev target |
 | 13.2 | UI foundation: shared parts, browser chrome, drafts | 1, 3, 6, 7, 8, 15, 40, 41, 42, 43, 44, 45, 60, 67, 69, 70, 71, 72, 73, 83, 91, 92 | Visual tests in all four themes at 390 and 1440 px; no page wider than the screen; every page has its title, the 橋 favicon, its tab in the address; leaving with unsaved edits asks; drafts survive category and tab switches |
 | 13.3 | Connections and targets | 17, 20, 22, 23, 24, 56, 57, 58, 63, 64, 66, 68, 90 | A firewall host, a Traefik host and an agent added from Connections; a service targets an agent directly and follows its main address change; Used by lists rules; every reference is a named link |
-| 13.4 | Settings regroup, text and disclosure on every page | 36, 38, 39, 48, 49, 51, 61, 62, 65, 78, 84, 93, 94 | Settings grouped as 10c §1; every page passes the 10c checklist; help sentences below 40 app-wide; owner walks every page and accepts it |
+| 13.4 | Settings regroup, text and disclosure on every page | 36, 38, 46 (Settings page split), 39, 48, 49, 51, 61, 62, 65, 78, 84, 93, 94 | Settings grouped as 10c §1; every page passes the 10c checklist; help sentences below 40 app-wide; owner walks every page and accepts it |
 | 13.5 | Plans, status and alerts tell the truth | 12, 34, 35, 59, 76, 77, 79, 80, 82, 85, 86, 87, 88 | Cause of the NetBird check failure known and the waiting firewall plan resolved with the owner; the approval screen says what is at stake; a real host outage sends one grouped alert |
 | 13.6 | Security and IP sets | 18, 26, 75, 81, 89 | Measured thresholds with 3× headroom; WAF exclusions by name; Counters and address links correct |
 | 13.7 | Global search | 4 | Search finds every kind of object, every setting and every tab from any page, keyboard only |
@@ -33,7 +33,7 @@ Next: 13.1. After 13.9: a last bug sweep, then `v1.0.0`.
 - [x] 9 Traefik: the release download retries before failing the plan
 - [x] 50 `BeginPRF`: separate parameters for unlock salts and the allow-list
 - [x] 47 Firewall renderer: typed structs for the nft JSON statements
-- [ ] 46 Split `internal/firewall/manager.go` and the Settings page along their seams
+- [x] 46 Split `internal/firewall/manager.go` along its sections (hosts, policy, validate, connect, plan); the Settings page half moves to 13.4, which rewrites that page
 - [ ] 11, 16, 33 Flaky tests: rescue exec hang, Pocket ID start, e2e keeps Hashi's log
 - [ ] 54 CI actions pinned to commit SHAs; 55 SvelteKit and adapter-static bumped
 
