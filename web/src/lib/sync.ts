@@ -6,10 +6,11 @@ import { timeZone } from '$lib/format';
 export type Plan = Schemas['SyncPlan'];
 type Value = Schemas['SyncPlanItemValue'];
 
-/** One RRSet as the plan shows it: every value, then the TTL ("zone" = the zone default). */
-export function valueText(v?: Value): string | undefined {
+/** One RRSet as the plan shows it: every value, then the TTL ("zone" = the zone default). A malformed item must not
+ * stop the page from rendering every other plan (bug 74), so missing values show as none. */
+export function valueText(v?: Value | null): string | undefined {
 	if (!v) return undefined;
-	return `${v.values.join(', ')}  TTL ${v.ttl ?? 'zone'}`;
+	return `${(v.values ?? []).join(', ')}  TTL ${v.ttl ?? 'zone'}`;
 }
 
 /** The plan's items in PlanReview's shape. */
@@ -21,7 +22,8 @@ const subsystems: Record<Plan['subsystem'], PlanItem['subsystem']> = {
 	traefik: 'Traefik',
 	certificates: 'Certificates',
 	firewall: 'Firewall',
-	scripts: 'Scripts'
+	scripts: 'Scripts',
+	adguard: 'AdGuard'
 };
 
 export function reviewItems(p: Plan): PlanItem[] {
