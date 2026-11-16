@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import * as Select from '$lib/components/ui/select';
-	import * as Sheet from '$lib/components/ui/sheet';
-	import { api, problemText } from '$lib/api/client';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
+	import * as Sheet from '#lib/components/ui/sheet/index.ts';
+	import { api, problemText } from '#lib/api/client.ts';
 
 	let { open = $bindable(false), onadded }: { open?: boolean; onadded: () => void } = $props();
 

@@ -1,18 +1,18 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import StatusBadge from '$lib/components/hashi/StatusBadge.svelte';
-	import HistoryStrip from '$lib/components/hashi/HistoryStrip.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import AddCheck from '$lib/components/hashi/status/AddCheck.svelte';
-	import RecentNotifications from '$lib/components/hashi/status/RecentNotifications.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import * as Tabs from '$lib/components/ui/tabs';
-	import * as Select from '$lib/components/ui/select';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
+	import HistoryStrip from '#lib/components/hashi/HistoryStrip.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import AddCheck from '#lib/components/hashi/status/AddCheck.svelte';
+	import RecentNotifications from '#lib/components/hashi/status/RecentNotifications.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
 	import { Plus, Search } from '@lucide/svelte';
-	import { api, problemText } from '$lib/api/client';
+	import { api, problemText } from '#lib/api/client.ts';
 	import {
 		checkSummary,
 		sourceText,
@@ -20,7 +20,7 @@
 		stripHealth,
 		uptimeText,
 		type Endpoint
-	} from '$lib/monitor';
+	} from '#lib/monitor.ts';
 
 	// 07 §5, 10b §3: endpoint cards grouped, with history strips; Notifications tab.
 	let endpoints = $state<Endpoint[]>([]);

@@ -1,9 +1,9 @@
 <script lang="ts">
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Table from '$lib/components/ui/table';
-	import { ruleSets } from '$lib/design/security';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import * as Table from '#lib/components/ui/table/index.ts';
+	import { ruleSets } from '#lib/design/security.ts';
 	import { Plus, Lock, TriangleAlert } from '@lucide/svelte';
 </script>
 

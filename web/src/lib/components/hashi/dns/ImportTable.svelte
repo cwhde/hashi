@@ -1,8 +1,8 @@
 <script lang="ts">
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import { Input } from '$lib/components/ui/input';
-	import { Switch } from '$lib/components/ui/switch';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
 	import { Search } from '@lucide/svelte';
 	import {
 		leaveOnlyReason,
@@ -11,7 +11,7 @@
 		ttlText,
 		type Decision,
 		type ImportRow
-	} from '$lib/dns';
+	} from '#lib/dns.ts';
 
 	// 03-dns.md §4: one row per RRSet; leave (default) / import / remove. Rows without a stored decision are new since
 	// the last import. `decisions` holds the choice per rrsetKey and is what the page saves.

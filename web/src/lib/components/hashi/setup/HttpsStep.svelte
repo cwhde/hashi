@@ -2,10 +2,10 @@
 	// Setup step 8 (02 §1 step 8): the browser opens setup on https://<admin domain> with a one-time link. The setup
 	// page there sends the link's nonce back; Hashi accepts it only through its own Traefik and signs this browser in on
 	// the HTTPS address, where passkeys (step 9) work.
-	import { Button } from '$lib/components/ui/button';
-	import Mono from '$lib/components/hashi/Mono.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import Mono from '#lib/components/hashi/Mono.svelte';
 	import { Check, CircleAlert, ExternalLink } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 
 	type Props = {
 		setup: Schemas['SetupState'];

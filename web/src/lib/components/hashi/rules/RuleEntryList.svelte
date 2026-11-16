@@ -1,12 +1,12 @@
 <script lang="ts">
 	import Mono from '../Mono.svelte';
 	import ActionTag from './ActionTag.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Switch } from '$lib/components/ui/switch';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
 	import { ArrowDown, ArrowUp, Layers, Lock, MoreHorizontal } from '@lucide/svelte';
-	import type { IPSet } from '$lib/ipsets';
-	import type { RuleEntry } from '$lib/rules';
+	import type { IPSet } from '#lib/ipsets.ts';
+	import type { RuleEntry } from '#lib/rules.ts';
 
 	// The editable entries of one rule set in order: rule items and attached rule sets (06 §4.2). A service root also
 	// shows its locked fallback last, where only the action can change. Saving is the page's job.

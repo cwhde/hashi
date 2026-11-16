@@ -1,18 +1,18 @@
 <script lang="ts">
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import IpItemView from '$lib/components/hashi/security/IpItemView.svelte';
-	import IpItemEditor from '$lib/components/hashi/security/IpItemEditor.svelte';
-	import AddressLink from '$lib/components/hashi/security/AddressLink.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import * as Tabs from '$lib/components/ui/tabs';
-	import * as Sheet from '$lib/components/ui/sheet';
-	import * as Select from '$lib/components/ui/select';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import { counters, ipSets } from '$lib/design/security';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import IpItemView from '#lib/components/hashi/security/IpItemView.svelte';
+	import IpItemEditor from '#lib/components/hashi/security/IpItemEditor.svelte';
+	import AddressLink from '#lib/components/hashi/security/AddressLink.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import * as Sheet from '#lib/components/ui/sheet/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
+	import { counters, ipSets } from '#lib/design/security.ts';
 	import { ChevronLeft, Lock, Plus, Search, MoreHorizontal, TriangleAlert } from '@lucide/svelte';
 
 	let { data } = $props();

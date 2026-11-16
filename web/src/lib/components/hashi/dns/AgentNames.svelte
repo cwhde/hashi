@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { api, problemText, type Schemas } from '$lib/api/client';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 
 	// 03 §9, 10b §3: agents' internal names. DNS only: no service exists at these names.
 	let names = $state<Schemas['AgentDNSPreview']['rewrites']>([]);

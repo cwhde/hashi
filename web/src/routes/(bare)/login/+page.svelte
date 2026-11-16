@@ -2,11 +2,11 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import { Button } from '$lib/components/ui/button';
+	import { Button } from '#lib/components/ui/button/index.ts';
 	import { Fingerprint } from '@lucide/svelte';
-	import { api, problemText } from '$lib/api/client';
-	import { session } from '$lib/auth/session.svelte';
-	import { ceremonyText, passkeysSupported, usePasskey } from '$lib/auth/webauthn';
+	import { api, problemText } from '#lib/api/client.ts';
+	import { session } from '#lib/auth/session.svelte.ts';
+	import { ceremonyText, passkeysSupported, usePasskey } from '#lib/auth/webauthn.ts';
 
 	let failed = $state('');
 	let busy = $state(false);
@@ -16,8 +16,8 @@
 		supported = passkeysSupported();
 		try {
 			const s = await session.refresh();
-			if (!s.setup_completed) goto('/setup', { replaceState: true });
-			else if (s.authenticated && s.method === 'passkey') goto(next(), { replaceState: true });
+			if (!s.setup_completed) goto('/setup', { replace: true });
+			else if (s.authenticated && s.method === 'passkey') goto(next(), { replace: true });
 		} catch (e) {
 			failed = problemText(e);
 		}
@@ -47,7 +47,7 @@
 			});
 			if (res.error || !res.data) throw res.error;
 			session.set(res.data);
-			goto(next(), { replaceState: true });
+			goto(next(), { replace: true });
 		} catch (e) {
 			failed = problemText(e);
 		} finally {

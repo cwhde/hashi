@@ -20,10 +20,10 @@
 
 <script lang="ts">
 	// How Hashi's key gets onto a host: installed by Hashi with the admin's permission, or pasted by hand.
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import Mono from '$lib/components/hashi/Mono.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import Mono from '#lib/components/hashi/Mono.svelte';
 	import { Check, Copy } from '@lucide/svelte';
 
 	let {

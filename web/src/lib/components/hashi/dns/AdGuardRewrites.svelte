@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import StatusBadge from '$lib/components/hashi/StatusBadge.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { api, problemText, type Schemas } from '$lib/api/client';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 
 	// 10b §3: each AdGuard instance's rewrites and what Hashi would change there. Reading changes nothing.
 	type One = {

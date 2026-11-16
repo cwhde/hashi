@@ -1,8 +1,8 @@
 <script lang="ts">
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import { api, type Schemas } from '$lib/api/client';
-	import { dateTime } from '$lib/format';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import { api, type Schemas } from '#lib/api/client.ts';
+	import { dateTime } from '#lib/format.ts';
 
 	// 08 §5: where each address of a connection's target comes from.
 	let { setId }: { setId: string } = $props();

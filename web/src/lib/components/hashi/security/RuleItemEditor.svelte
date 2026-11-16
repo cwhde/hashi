@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
-	import * as Select from '$lib/components/ui/select';
-	import * as RadioGroup from '$lib/components/ui/radio-group';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
+	import * as RadioGroup from '#lib/components/ui/radio-group/index.ts';
 	import IpSetPicker from './IpSetPicker.svelte';
-	import { actionMeta, type Action } from '$lib/design/security';
+	import { actionMeta, type Action } from '#lib/design/security.ts';
 
 	// One rule item: who (an IP set), which paths, what happens (06 §4.1).
 	let {

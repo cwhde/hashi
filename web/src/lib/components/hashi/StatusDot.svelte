@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { Health } from '$lib/design/mock';
-	import { cn } from '$lib/utils';
+	import type { Health } from '#lib/design/mock.ts';
+	import { cn } from '#lib/utils.ts';
 	import { health } from './status';
 
 	let { state, class: className = '' }: { state: Health; class?: string } = $props();

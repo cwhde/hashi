@@ -1,5 +1,5 @@
 <script lang="ts">
-	import AppShell from '$lib/components/hashi/AppShell.svelte';
+	import AppShell from '#lib/components/hashi/AppShell.svelte';
 	let { children } = $props();
 </script>
 

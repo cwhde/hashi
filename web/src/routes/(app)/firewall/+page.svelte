@@ -1,19 +1,19 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import StatusBadge from '$lib/components/hashi/StatusBadge.svelte';
-	import SetBadge from '$lib/components/hashi/ipsets/SetBadge.svelte';
-	import IpSetPicker from '$lib/components/hashi/ipsets/IpSetPicker.svelte';
-	import { Button } from '$lib/components/ui/button';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
+	import SetBadge from '#lib/components/hashi/ipsets/SetBadge.svelte';
+	import IpSetPicker from '#lib/components/hashi/ipsets/IpSetPicker.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
 	import { Plus, ArrowUpRight, X } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { withReauth } from '$lib/auth/reauth';
-	import { listSets, type IPSet } from '$lib/ipsets';
-	import { healthState, type FirewallHost } from '$lib/firewall';
-	import { saveText } from '$lib/services';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { withReauth } from '#lib/auth/reauth.ts';
+	import { listSets, type IPSet } from '#lib/ipsets.ts';
+	import { healthState, type FirewallHost } from '#lib/firewall.ts';
+	import { saveText } from '#lib/services.ts';
 
 	let hosts = $state<FirewallHost[]>([]);
 	let sets = $state<IPSet[]>([]);

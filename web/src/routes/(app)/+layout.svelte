@@ -2,12 +2,12 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import AppShell from '$lib/components/hashi/AppShell.svelte';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { api, problemText } from '$lib/api/client';
-	import { session, routeFor } from '$lib/auth/session.svelte';
-	import { theme } from '$lib/theme.svelte';
-	import { setTimeDisplay } from '$lib/format';
+	import AppShell from '#lib/components/hashi/AppShell.svelte';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import { api, problemText } from '#lib/api/client.ts';
+	import { session, routeFor } from '#lib/auth/session.svelte.ts';
+	import { theme } from '#lib/theme.svelte.ts';
+	import { setTimeDisplay } from '#lib/format.ts';
 
 	let { children } = $props();
 	let ready = $state(false);
@@ -19,7 +19,7 @@
 			const away = routeFor(s, page.url.pathname);
 			if (away) {
 				const next = away === '/login' ? `?next=${encodeURIComponent(page.url.pathname)}` : '';
-				goto(away + next, { replaceState: true });
+				goto(away + next, { replace: true });
 				return;
 			}
 			ready = true;
@@ -37,7 +37,7 @@
 
 	async function signOut() {
 		await api.POST('/api/auth/logout');
-		goto('/login', { replaceState: true });
+		goto('/login', { replace: true });
 	}
 </script>
 

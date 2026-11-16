@@ -1,11 +1,11 @@
 <script lang="ts">
-	import StatusBadge from '$lib/components/hashi/StatusBadge.svelte';
-	import HistoryStrip from '$lib/components/hashi/HistoryStrip.svelte';
-	import LineChart from '$lib/components/hashi/LineChart.svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as ToggleGroup from '$lib/components/ui/toggle-group';
-	import { spark } from '$lib/design/mock';
+	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
+	import HistoryStrip from '#lib/components/hashi/HistoryStrip.svelte';
+	import LineChart from '#lib/components/hashi/LineChart.svelte';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.ts';
+	import { spark } from '#lib/design/mock.ts';
 	import { ChevronLeft } from '@lucide/svelte';
 
 	let { data } = $props();

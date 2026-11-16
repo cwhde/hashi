@@ -1,15 +1,15 @@
 <script lang="ts">
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import StatusBadge from '$lib/components/hashi/StatusBadge.svelte';
-	import SetBadge from '$lib/components/hashi/security/SetBadge.svelte';
-	import AddressLink from '$lib/components/hashi/security/AddressLink.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Tabs from '$lib/components/ui/tabs';
-	import * as Select from '$lib/components/ui/select';
-	import { Input } from '$lib/components/ui/input';
-	import { firewallHosts } from '$lib/design/mock';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
+	import SetBadge from '#lib/components/hashi/security/SetBadge.svelte';
+	import AddressLink from '#lib/components/hashi/security/AddressLink.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { firewallHosts } from '#lib/design/mock.ts';
 	import { ChevronLeft, LifeBuoy, Cable, Plus, X } from '@lucide/svelte';
 
 	let { data } = $props();

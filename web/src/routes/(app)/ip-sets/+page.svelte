@@ -1,22 +1,22 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import IpItemEditor from '$lib/components/hashi/ipsets/IpItemEditor.svelte';
-	import AddFeedSheet from '$lib/components/hashi/ipsets/AddFeedSheet.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import { Switch } from '$lib/components/ui/switch';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import * as Table from '$lib/components/ui/table';
-	import * as Sheet from '$lib/components/ui/sheet';
-	import * as ToggleGroup from '$lib/components/ui/toggle-group';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import IpItemEditor from '#lib/components/hashi/ipsets/IpItemEditor.svelte';
+	import AddFeedSheet from '#lib/components/hashi/ipsets/AddFeedSheet.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Textarea } from '#lib/components/ui/textarea/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import * as Table from '#lib/components/ui/table/index.ts';
+	import * as Sheet from '#lib/components/ui/sheet/index.ts';
+	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.ts';
 	import { CircleAlert, Lock, Plus, Rss, Search } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { dateTime } from '$lib/format';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { dateTime } from '#lib/format.ts';
 	import {
 		addressHref,
 		count,
@@ -26,7 +26,7 @@
 		listSets,
 		looksLikeAddress,
 		type IPSet
-	} from '$lib/ipsets';
+	} from '#lib/ipsets.ts';
 
 	// 05a: every place that needs an address points at a set; blocklists (06 §8) are sets of kind feed.
 	let feedOpen = $state(false);

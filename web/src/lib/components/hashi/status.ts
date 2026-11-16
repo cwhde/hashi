@@ -1,4 +1,4 @@
-import type { Health } from '$lib/design/mock';
+import type { Health } from '#lib/design/mock.ts';
 
 // One mapping from state to colour + words. Colour is never the only signal (10-ui.md §2): every use shows the label
 // or carries it for screen readers.

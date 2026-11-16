@@ -1,17 +1,17 @@
 <script lang="ts">
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import StatusBadge from '$lib/components/hashi/StatusBadge.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
-	import * as Tabs from '$lib/components/ui/tabs';
-	import * as Select from '$lib/components/ui/select';
-	import * as Collapsible from '$lib/components/ui/collapsible';
-	import { rrsets, zone, agents, type Rrset } from '$lib/design/mock';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
+	import * as Collapsible from '#lib/components/ui/collapsible/index.ts';
+	import { rrsets, zone, agents, type Rrset } from '#lib/design/mock.ts';
 	import { Plus, Search, Pencil, Lock, RefreshCw, ChevronDown } from '@lucide/svelte';
 
 	let showGenerated = $state(false);

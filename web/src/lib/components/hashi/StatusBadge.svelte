@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Health } from '$lib/design/mock';
+	import type { Health } from '#lib/design/mock.ts';
 	import StatusDot from './StatusDot.svelte';
 	import { health } from './status';
 

@@ -1,17 +1,17 @@
 <script lang="ts">
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import Sparkline from '$lib/components/hashi/Sparkline.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
-	import * as Tabs from '$lib/components/ui/tabs';
-	import * as ToggleGroup from '$lib/components/ui/toggle-group';
-	import AddressLink from '$lib/components/hashi/security/AddressLink.svelte';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import Sparkline from '#lib/components/hashi/Sparkline.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.ts';
+	import AddressLink from '#lib/components/hashi/security/AddressLink.svelte';
 	import Counters from './Counters.svelte';
-	import { securityTop, securityEvents, spark } from '$lib/design/mock';
+	import { securityTop, securityEvents, spark } from '#lib/design/mock.ts';
 	import { Search, Plus, TriangleAlert } from '@lucide/svelte';
 
 	let range = $state('24h');

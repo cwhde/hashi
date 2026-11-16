@@ -2,16 +2,16 @@
 	// The entries of dynamic-challenge or dynamic-blocked (05a §8): filled by the abuse engine; an entry can be added
 	// by hand with an optional duration, ended, or (challenged) banned now or given its failures back.
 	import { onMount } from 'svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import AddressLink from '$lib/components/hashi/security/AddressLink.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import AddressLink from '#lib/components/hashi/security/AddressLink.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
 	import { MoreHorizontal } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { withReauth } from '$lib/auth/reauth';
-	import { dateTime } from '$lib/format';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { withReauth } from '#lib/auth/reauth.ts';
+	import { dateTime } from '#lib/format.ts';
 	import { sourceLabel } from './labels';
 
 	type SetID = 'sys-dynamic-challenge' | 'sys-dynamic-blocked';

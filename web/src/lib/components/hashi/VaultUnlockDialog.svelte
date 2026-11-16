@@ -1,13 +1,13 @@
 <script lang="ts">
-	import * as Dialog from '$lib/components/ui/dialog';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
+	import * as Dialog from '#lib/components/ui/dialog/index.ts';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
 	import { Fingerprint, KeyRound } from '@lucide/svelte';
-	import { api, problemText } from '$lib/api/client';
-	import { usePasskey, ceremonyText } from '$lib/auth/webauthn';
-	import { vaultState } from '$lib/vault.svelte';
-	import { pendingPlans } from '$lib/sync-pending.svelte';
+	import { api, problemText } from '#lib/api/client.ts';
+	import { usePasskey, ceremonyText } from '#lib/auth/webauthn.ts';
+	import { vaultState } from '#lib/vault.svelte.ts';
+	import { pendingPlans } from '#lib/sync-pending.svelte.ts';
 
 	// Unlock a strict-mode vault (02 §5.4): with a passkey that has an unlocker, or with the recovery key.
 	let { open = $bindable(false) }: { open?: boolean } = $props();

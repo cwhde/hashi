@@ -2,8 +2,8 @@
 	import Mono from '../Mono.svelte';
 	import ActionTag from './ActionTag.svelte';
 	import { ArrowRight, Lock } from '@lucide/svelte';
-	import type { IPSet } from '$lib/ipsets';
-	import type { FlatRule } from '$lib/rules';
+	import type { IPSet } from '#lib/ipsets.ts';
+	import type { FlatRule } from '#lib/rules.ts';
 
 	// All rules a request goes through, as one list; first match wins (06 §4.3). `decides` marks the row that decided a
 	// traced request; rows after it are dimmed.

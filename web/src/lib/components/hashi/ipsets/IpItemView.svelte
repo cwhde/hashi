@@ -4,8 +4,8 @@
 	import SetBadge from './SetBadge.svelte';
 	import { Activity, Server, Globe, Hash, Layers, MapPin } from '@lucide/svelte';
 	import { onMount } from 'svelte';
-	import { pulseAgents } from '$lib/pulseAgents.svelte';
-	import { itemValue, type IPSet, type IPItem } from '$lib/ipsets';
+	import { pulseAgents } from '#lib/pulseAgents.svelte.ts';
+	import { itemValue, type IPSet, type IPItem } from '#lib/ipsets.ts';
 
 	// One IP item in a list: type icon and the value in its natural form (05a §2). A set reference shows the set's
 	// badge; a host shows its name when known.

@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import HostForm from '$lib/components/hashi/firewall/HostForm.svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { withReauth } from '$lib/auth/reauth';
-	import type { FirewallInput } from '$lib/firewall';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import HostForm from '#lib/components/hashi/firewall/HostForm.svelte';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { withReauth } from '#lib/auth/reauth.ts';
+	import type { FirewallInput } from '#lib/firewall.ts';
 
 	let conns = $state<Schemas['TraefikConnection'][]>([]);
 	let hosts = $state<Schemas['FirewallHost'][]>([]);

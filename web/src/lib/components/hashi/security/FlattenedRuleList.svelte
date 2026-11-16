@@ -2,7 +2,7 @@
 	import Mono from '../Mono.svelte';
 	import SetBadge from './SetBadge.svelte';
 	import ActionTag from './ActionTag.svelte';
-	import type { FlatRow } from '$lib/design/security';
+	import type { FlatRow } from '#lib/design/security.ts';
 	import { Lock, ArrowRight } from '@lucide/svelte';
 
 	// The whole path of a request as one list: Stage A (locked engine steps) then the flattened Stage B items, first

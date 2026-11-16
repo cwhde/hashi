@@ -1,28 +1,28 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import { cn } from '$lib/utils';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import { cn } from '#lib/utils.ts';
 	import { Check, CircleAlert, Copy, Fingerprint, Clock } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { session } from '$lib/auth/session.svelte';
-	import { ceremonyText, createPasskey, passkeysSupported } from '$lib/auth/webauthn';
-	import { theme, themes, type ThemeId } from '$lib/theme.svelte';
-	import ImportTable from '$lib/components/hashi/dns/ImportTable.svelte';
-	import CertificateStep from '$lib/components/hashi/setup/CertificateStep.svelte';
-	import TraefikStep from '$lib/components/hashi/setup/TraefikStep.svelte';
-	import FirewallStep from '$lib/components/hashi/setup/FirewallStep.svelte';
-	import SystemServiceStep from '$lib/components/hashi/setup/SystemServiceStep.svelte';
-	import HttpsStep from '$lib/components/hashi/setup/HttpsStep.svelte';
-	import PlanReview from '$lib/components/hashi/PlanReview.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import { outcomeText, reviewItems, triggerText, type Plan } from '$lib/sync';
-	import { decisionBody, initialDecisions, type Decision, type ImportRow } from '$lib/dns';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { session } from '#lib/auth/session.svelte.ts';
+	import { ceremonyText, createPasskey, passkeysSupported } from '#lib/auth/webauthn.ts';
+	import { theme, themes, type ThemeId } from '#lib/theme.svelte.ts';
+	import ImportTable from '#lib/components/hashi/dns/ImportTable.svelte';
+	import CertificateStep from '#lib/components/hashi/setup/CertificateStep.svelte';
+	import TraefikStep from '#lib/components/hashi/setup/TraefikStep.svelte';
+	import FirewallStep from '#lib/components/hashi/setup/FirewallStep.svelte';
+	import SystemServiceStep from '#lib/components/hashi/setup/SystemServiceStep.svelte';
+	import HttpsStep from '#lib/components/hashi/setup/HttpsStep.svelte';
+	import PlanReview from '#lib/components/hashi/PlanReview.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import { outcomeText, reviewItems, triggerText, type Plan } from '#lib/sync.ts';
+	import { decisionBody, initialDecisions, type Decision, type ImportRow } from '#lib/dns.ts';
 
 	// 02-setup-auth.md §1: a resumable, persisted sequence; a step completes only after its validation succeeded.
 	type SetupState = Schemas['SetupState'];
@@ -56,7 +56,7 @@
 		if (res.error || !res.data) throw res.error;
 		setup = res.data;
 		if (setup.completed) {
-			goto('/login', { replaceState: true });
+			goto('/login', { replace: true });
 			return;
 		}
 		selected = session.has('setup.manage') ? firstOpen(setup) : 1;
@@ -248,7 +248,7 @@
 		run(async () => {
 			const res = await api.POST('/api/setup/complete');
 			if (res.error) throw res.error;
-			goto('/login', { replaceState: true });
+			goto('/login', { replace: true });
 		});
 
 	$effect(() => {

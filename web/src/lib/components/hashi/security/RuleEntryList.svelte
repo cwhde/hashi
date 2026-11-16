@@ -3,10 +3,10 @@
 	import Tag from '../Tag.svelte';
 	import SetBadge from './SetBadge.svelte';
 	import ActionTag from './ActionTag.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Switch } from '$lib/components/ui/switch';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import { ruleSetById, type RuleEntry } from '$lib/design/security';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
+	import { ruleSetById, type RuleEntry } from '#lib/design/security.ts';
 	import { GripVertical, Layers, Lock, MoreHorizontal } from '@lucide/svelte';
 
 	// The editable entries of one rule set, in priority order: rule items and attached rule sets (06 §4.2). A

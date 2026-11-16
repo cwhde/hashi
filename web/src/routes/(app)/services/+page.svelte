@@ -1,23 +1,23 @@
 <script lang="ts">
-	import ServiceExtras from '$lib/components/hashi/services/ServiceExtras.svelte';
+	import ServiceExtras from '#lib/components/hashi/services/ServiceExtras.svelte';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import * as Table from '$lib/components/ui/table';
-	import * as Sheet from '$lib/components/ui/sheet';
-	import * as Select from '$lib/components/ui/select';
-	import * as ToggleGroup from '$lib/components/ui/toggle-group';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import * as Table from '#lib/components/ui/table/index.ts';
+	import * as Sheet from '#lib/components/ui/sheet/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
+	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.ts';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
 	import { CircleAlert, Lock, MoreHorizontal, Plus, Search } from '@lucide/svelte';
-	import { api, problemText } from '$lib/api/client';
-	import { pendingPlans } from '$lib/sync-pending.svelte';
+	import { api, problemText } from '#lib/api/client.ts';
+	import { pendingPlans } from '#lib/sync-pending.svelte.ts';
 	import {
 		domainMode,
 		isStream,
@@ -28,7 +28,7 @@
 		slugify,
 		targetText,
 		type Service
-	} from '$lib/services';
+	} from '#lib/services.ts';
 
 	// 04-traefik-services.md §1: what Hashi publishes. Every enabled service goes to every Traefik host. Access rules,
 	// WAF, DNS records and monitoring join the same record in later slices.

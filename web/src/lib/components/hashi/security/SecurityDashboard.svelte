@@ -1,13 +1,13 @@
 <script lang="ts">
 	// Security → Dashboard (06 §13): what was let through, challenged and banned in a period, and why.
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import Sparkline from '$lib/components/hashi/Sparkline.svelte';
-	import * as ToggleGroup from '$lib/components/ui/toggle-group';
-	import AddressLink from '$lib/components/hashi/security/AddressLink.svelte';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import Sparkline from '#lib/components/hashi/Sparkline.svelte';
+	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.ts';
+	import AddressLink from '#lib/components/hashi/security/AddressLink.svelte';
 	import { TriangleAlert } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { dateTime, time } from '$lib/format';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { dateTime, time } from '#lib/format.ts';
 	import { eventLabel, sourceLabel } from './labels';
 
 	type Range = '1h' | '24h' | '7d' | '30d';

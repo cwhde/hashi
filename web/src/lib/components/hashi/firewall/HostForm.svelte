@@ -2,14 +2,14 @@
 	// A new firewall host (02 §1 step 6, 05 §2): the host key is shown and pinned only after the admin compares it;
 	// saving validates over SSH read-only. An external NAT host has nothing to log in to.
 	import { untrack } from 'svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import Mono from '$lib/components/hashi/Mono.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import Mono from '#lib/components/hashi/Mono.svelte';
 	import { ShieldCheck } from '@lucide/svelte';
 	import KeyAccess, { accessBody, newAccess } from './KeyAccess.svelte';
-	import type { Schemas } from '$lib/api/client';
-	import { lines, subnetOf, type FirewallInput } from '$lib/firewall';
+	import type { Schemas } from '#lib/api/client.ts';
+	import { lines, subnetOf, type FirewallInput } from '#lib/firewall.ts';
 
 	type Props = {
 		/** The Traefik hosts to pick from; the first is the default. */

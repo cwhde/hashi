@@ -1,16 +1,16 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import PlanReview from '$lib/components/hashi/PlanReview.svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Skeleton } from '$lib/components/ui/skeleton';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import PlanReview from '#lib/components/hashi/PlanReview.svelte';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	import { CircleAlert, Fingerprint, LoaderCircle, Play } from '@lucide/svelte';
-	import { api, problemText } from '$lib/api/client';
-	import { withReauth } from '$lib/auth/reauth';
-	import { pendingPlans } from '$lib/sync-pending.svelte';
-	import { fmtTime, outcomeText, reviewItems, triggerText, type Plan } from '$lib/sync';
+	import { api, problemText } from '#lib/api/client.ts';
+	import { withReauth } from '#lib/auth/reauth.ts';
+	import { pendingPlans } from '#lib/sync-pending.svelte.ts';
+	import { fmtTime, outcomeText, reviewItems, triggerText, type Plan } from '#lib/sync.ts';
 
 	// 01-platform.md §5, 10b §3: every waiting plan with exact before/after; high risk needs the passkey.
 	let open = $state<Plan[]>([]);

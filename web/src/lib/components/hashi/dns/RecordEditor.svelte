@@ -1,16 +1,16 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import IpSetPicker from '$lib/components/hashi/ipsets/IpSetPicker.svelte';
-	import { listSets, type IPSet } from '$lib/ipsets';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import * as Select from '$lib/components/ui/select';
-	import * as Collapsible from '$lib/components/ui/collapsible';
+	import IpSetPicker from '#lib/components/hashi/ipsets/IpSetPicker.svelte';
+	import { listSets, type IPSet } from '#lib/ipsets.ts';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import { Textarea } from '#lib/components/ui/textarea/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
+	import * as Collapsible from '#lib/components/ui/collapsible/index.ts';
 	import { ChevronDown } from '@lucide/svelte';
-	import type { Schemas } from '$lib/api/client';
+	import type { Schemas } from '#lib/api/client.ts';
 
 	// Inline editor for a manual or imported entry (03 §7, mock: /design/dns). New entries pick name and type; existing
 	// ones keep both (the RRSet's identity) and change TTL, values and display fields.

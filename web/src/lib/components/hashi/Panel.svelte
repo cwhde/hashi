@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { cn } from '$lib/utils';
+	import { cn } from '#lib/utils.ts';
 
 	// The one container: rounded, 1px border, surface fill, no shadow. Optional header row with title + actions.
 	let {

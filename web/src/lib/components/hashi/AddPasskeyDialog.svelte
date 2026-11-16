@@ -1,16 +1,16 @@
 <script lang="ts">
-	import * as Dialog from '$lib/components/ui/dialog';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Checkbox } from '$lib/components/ui/checkbox';
+	import * as Dialog from '#lib/components/ui/dialog/index.ts';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Checkbox } from '#lib/components/ui/checkbox/index.ts';
 	import { Check, Fingerprint, KeyRound, Usb } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { reauthenticate, withReauth } from '$lib/auth/reauth';
-	import { session } from '$lib/auth/session.svelte';
-	import { createPasskey, usePasskey } from '$lib/auth/webauthn';
-	import { vaultState } from '$lib/vault.svelte';
-	import { cn } from '$lib/utils';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { reauthenticate, withReauth } from '#lib/auth/reauth.ts';
+	import { session } from '#lib/auth/session.svelte.ts';
+	import { createPasskey, usePasskey } from '#lib/auth/webauthn.ts';
+	import { vaultState } from '#lib/vault.svelte.ts';
+	import { cn } from '#lib/utils.ts';
 
 	// Adding a passkey, as a sequence the admin can follow (bug 37). Creating one is two browser prompts that look
 	// alike: first "confirm it's you" with a passkey Hashi already knows, then "create" on the new device. The vault

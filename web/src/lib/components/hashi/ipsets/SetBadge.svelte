@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Tag from '../Tag.svelte';
 	import { Lock } from '@lucide/svelte';
-	import type { IPSet } from '$lib/ipsets';
+	import type { IPSet } from '#lib/ipsets.ts';
 
 	// A reference to an IP set: its slug as a link plus kind, with a lock for sets the user cannot edit (05a §3).
 	let { set, showKind = true }: { set: IPSet; showKind?: boolean } = $props();

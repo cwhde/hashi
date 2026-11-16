@@ -1,5 +1,5 @@
-import type { Schemas } from '$lib/api/client';
-import type { Health } from '$lib/design/mock';
+import type { Schemas } from '#lib/api/client.ts';
+import type { Health } from '#lib/design/mock.ts';
 
 export type Endpoint = Schemas['MonitorEndpoint'];
 

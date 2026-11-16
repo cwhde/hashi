@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { nav } from '$lib/design/nav';
-	import { theme, themes } from '$lib/theme.svelte';
-	import { cn } from '$lib/utils';
+	import { nav } from '#lib/design/nav.ts';
+	import { theme, themes } from '#lib/theme.svelte.ts';
+	import { cn } from '#lib/utils.ts';
 
 	// S0b deliverable index: every page, grouped as in the navigation, plus pages outside the admin shell.
 	const notes: Record<string, string> = {

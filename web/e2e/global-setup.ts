@@ -57,7 +57,7 @@ export default async function globalSetup() {
 		proc.stdout.on('data', (b: Buffer) => {
 			out += b.toString();
 			const m = /username: (\S+)\n\s+password: (\S+)/.exec(out); // hashi:allow-secret-pattern (parses the log block)
-			if (m) {
+			if (m?.[1] && m[2]) {
 				clearTimeout(timer);
 				ok({ username: m[1], password: m[2] });
 			}

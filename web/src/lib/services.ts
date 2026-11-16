@@ -1,5 +1,5 @@
 // Helpers for the service pages (04-traefik-services.md §1).
-import { api, type Schemas } from '$lib/api/client';
+import { api, type Schemas } from '#lib/api/client.ts';
 
 export type Service = Schemas['Service'];
 export type ServiceInput = Schemas['ServiceInput'];

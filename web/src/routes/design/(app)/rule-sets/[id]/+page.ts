@@ -1,4 +1,4 @@
-import { ruleSets } from '$lib/design/security';
+import { ruleSets } from '#lib/design/security.ts';
 import { error } from '@sveltejs/kit';
 
 export function load({ params }) {

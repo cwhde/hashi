@@ -1,5 +1,5 @@
 // Helpers shared by setup step 3 and /dns (03-dns.md §3–4).
-import type { Schemas } from '$lib/api/client';
+import type { Schemas } from '#lib/api/client.ts';
 
 export type RRSet = Schemas['DNSRRSet'];
 export type ImportRow = Schemas['DNSImportRow'];

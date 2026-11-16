@@ -1,21 +1,21 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import StatusBadge from '$lib/components/hashi/StatusBadge.svelte';
-	import HistoryStrip from '$lib/components/hashi/HistoryStrip.svelte';
-	import LineChart from '$lib/components/hashi/LineChart.svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { Switch } from '$lib/components/ui/switch';
-	import * as Select from '$lib/components/ui/select';
-	import * as ToggleGroup from '$lib/components/ui/toggle-group';
+	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
+	import HistoryStrip from '#lib/components/hashi/HistoryStrip.svelte';
+	import LineChart from '#lib/components/hashi/LineChart.svelte';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
+	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.ts';
 	import { ChevronLeft } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { checkSummary, sourceText, stripHealth, uptimeText } from '$lib/monitor';
-	import { dateTime } from '$lib/format';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { checkSummary, sourceText, stripHealth, uptimeText } from '#lib/monitor.ts';
+	import { dateTime } from '#lib/format.ts';
 
 	// 07 §5: status, response numbers, uptime, charts by range, events, settings.
 	const id = $derived(page.params.id ?? '');

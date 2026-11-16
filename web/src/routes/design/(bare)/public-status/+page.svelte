@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { monitors } from '$lib/design/mock';
-	import HistoryStrip from '$lib/components/hashi/HistoryStrip.svelte';
-	import StatusBadge from '$lib/components/hashi/StatusBadge.svelte';
+	import { monitors } from '#lib/design/mock.ts';
+	import HistoryStrip from '#lib/components/hashi/HistoryStrip.svelte';
+	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
 	const pub = monitors.filter((m) => m.public);
 	const groups = Object.entries(Object.groupBy(pub, (m) => m.group));
 	const down = pub.filter((m) => m.state === 'down').length;

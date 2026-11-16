@@ -1,18 +1,18 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import SetBadge from '$lib/components/hashi/ipsets/SetBadge.svelte';
-	import IpSetPicker from '$lib/components/hashi/ipsets/IpSetPicker.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import * as Sheet from '$lib/components/ui/sheet';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import SetBadge from '#lib/components/hashi/ipsets/SetBadge.svelte';
+	import IpSetPicker from '#lib/components/hashi/ipsets/IpSetPicker.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import * as Sheet from '#lib/components/ui/sheet/index.ts';
 	import { ChevronLeft, CircleAlert, Search } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { addressHref, listSets, type IPSet } from '$lib/ipsets';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { addressHref, listSets, type IPSet } from '#lib/ipsets.ts';
 
 	// Everything Hashi knows about one address (05a §6). This version shows set membership with the path through
 	// nesting; firewall verdicts, dynamic state, counters and the request trace join with their slices.

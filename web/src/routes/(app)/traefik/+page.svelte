@@ -1,26 +1,26 @@
 <script lang="ts">
-	import SshTarget from '$lib/components/hashi/SshTarget.svelte';
-	import UserMiddlewares from '$lib/components/hashi/traefik/UserMiddlewares.svelte';
+	import SshTarget from '#lib/components/hashi/SshTarget.svelte';
+	import UserMiddlewares from '#lib/components/hashi/traefik/UserMiddlewares.svelte';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import StatusBadge from '$lib/components/hashi/StatusBadge.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Label } from '$lib/components/ui/label';
-	import { Input } from '$lib/components/ui/input';
-	import * as Sheet from '$lib/components/ui/sheet';
-	import { withReauth } from '$lib/auth/reauth';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import * as Tabs from '$lib/components/ui/tabs';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import * as Sheet from '#lib/components/ui/sheet/index.ts';
+	import { withReauth } from '#lib/auth/reauth.ts';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import * as Tabs from '#lib/components/ui/tabs/index.ts';
 	import { CircleAlert, FileCode2, RefreshCw } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { pendingPlans } from '$lib/sync-pending.svelte';
-	import { fmtTime, outcomeText } from '$lib/sync';
-	import type { Health } from '$lib/design/mock';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { pendingPlans } from '#lib/sync-pending.svelte.ts';
+	import { fmtTime, outcomeText } from '#lib/sync.ts';
+	import type { Health } from '#lib/design/mock.ts';
 
 	// 04-traefik-services.md §2–6 and 03 §5.3 UI: each Traefik host with the files Hashi applied (and their hashes),
 	// and the certificates with expiry, last renewal and per-host distribution.
@@ -37,9 +37,8 @@
 	let tab = $state(tabs.find((t) => t === page.url.searchParams.get('tab')) ?? 'hosts');
 	const setTab = (t: string) =>
 		goto(t === 'hosts' ? '?' : `?tab=${t}`, {
-			replaceState: true,
-			keepFocus: true,
-			noScroll: true
+			replace: true,
+			reset: false
 		});
 
 	let adding = $state<{

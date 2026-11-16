@@ -1,16 +1,16 @@
 <script lang="ts">
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
-	import { theme, themes } from '$lib/theme.svelte';
-	import { contrast } from '$lib/design/contrast';
-	import { settingsCatalogue } from '$lib/design/settings';
-	import { cn } from '$lib/utils';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import { theme, themes } from '#lib/theme.svelte.ts';
+	import { contrast } from '#lib/design/contrast.ts';
+	import { settingsCatalogue } from '#lib/design/settings.ts';
+	import { cn } from '#lib/utils.ts';
 	import {
 		Fingerprint,
 		KeyRound,

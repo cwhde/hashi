@@ -1,22 +1,28 @@
 <script lang="ts">
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import StatusBadge from '$lib/components/hashi/StatusBadge.svelte';
-	import HistoryStrip from '$lib/components/hashi/HistoryStrip.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import IpSetPicker from '$lib/components/hashi/security/IpSetPicker.svelte';
-	import RuleEntryList from '$lib/components/hashi/security/RuleEntryList.svelte';
-	import RuleItemEditor from '$lib/components/hashi/security/RuleItemEditor.svelte';
-	import FlattenedRuleList from '$lib/components/hashi/security/FlattenedRuleList.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
-	import * as Tabs from '$lib/components/ui/tabs';
-	import * as Table from '$lib/components/ui/table';
-	import * as Sheet from '$lib/components/ui/sheet';
-	import * as Select from '$lib/components/ui/select';
-	import { serviceRoots, flatten, stageA, containsAddress, setBySlug } from '$lib/design/security';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
+	import HistoryStrip from '#lib/components/hashi/HistoryStrip.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import IpSetPicker from '#lib/components/hashi/security/IpSetPicker.svelte';
+	import RuleEntryList from '#lib/components/hashi/security/RuleEntryList.svelte';
+	import RuleItemEditor from '#lib/components/hashi/security/RuleItemEditor.svelte';
+	import FlattenedRuleList from '#lib/components/hashi/security/FlattenedRuleList.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import * as Table from '#lib/components/ui/table/index.ts';
+	import * as Sheet from '#lib/components/ui/sheet/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
+	import {
+		serviceRoots,
+		flatten,
+		stageA,
+		containsAddress,
+		setBySlug
+	} from '#lib/design/security.ts';
 	import { ChevronLeft, Plus, Lock, Layers, Unplug } from '@lucide/svelte';
 
 	let { data } = $props();

@@ -4,14 +4,14 @@
 	import RuleEntryList from './RuleEntryList.svelte';
 	import RuleItemEditor from './RuleItemEditor.svelte';
 	import FlattenedRuleList from './FlattenedRuleList.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import * as Sheet from '$lib/components/ui/sheet';
-	import * as Select from '$lib/components/ui/select';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import * as Sheet from '#lib/components/ui/sheet/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
 	import { CircleAlert, Layers, Plus, TriangleAlert, Unplug } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { pendingPlans } from '$lib/sync-pending.svelte';
-	import { listSets, type IPSet } from '$lib/ipsets';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { pendingPlans } from '#lib/sync-pending.svelte.ts';
+	import { listSets, type IPSet } from '#lib/ipsets.ts';
 	import {
 		allSetId,
 		emptyRule,
@@ -21,7 +21,7 @@
 		type Provider,
 		type RuleEntry,
 		type RuleSet
-	} from '$lib/rules';
+	} from '#lib/rules.ts';
 
 	// A service's Access tab (06 §13): its own rules, attached sets, the fallback, the flattened list and "try a request".
 	let { serviceId }: { serviceId: string } = $props();

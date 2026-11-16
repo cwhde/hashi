@@ -1,5 +1,5 @@
-import { api, type Schemas } from '$lib/api/client';
-import { contrast, luminance } from '$lib/design/contrast';
+import { api, type Schemas } from '#lib/api/client.ts';
+import { contrast, luminance } from '#lib/design/contrast.ts';
 
 // Built-in themes (10-ui.md §2). Their palette lives in routes/layout.css; this module switches it. A custom theme sets
 // the palette roles (--h-*) inline from the admin's six colours; layout.css derives every semantic token from them.

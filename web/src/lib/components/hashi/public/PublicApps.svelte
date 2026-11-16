@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import StatusDot from '$lib/components/hashi/StatusDot.svelte';
-	import { Input } from '$lib/components/ui/input';
-	import * as Select from '$lib/components/ui/select';
+	import StatusDot from '#lib/components/hashi/StatusDot.svelte';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
 	import { Search } from '@lucide/svelte';
-	import { api, type Schemas } from '$lib/api/client';
-	import { stateOrder } from '$lib/monitor';
-	import { theme } from '$lib/theme.svelte';
+	import { api, type Schemas } from '#lib/api/client.ts';
+	import { stateOrder } from '#lib/monitor.ts';
+	import { theme } from '#lib/theme.svelte.ts';
 
 	// Public port: only names, links and state, no admin controls (07 §8).
 	let data = $state<Schemas['PublicApps'] | null>(null);

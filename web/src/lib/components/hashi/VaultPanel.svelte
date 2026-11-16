@@ -1,17 +1,17 @@
 <script lang="ts">
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import VaultUnlockDialog from '$lib/components/hashi/VaultUnlockDialog.svelte';
-	import AddPasskeyDialog from '$lib/components/hashi/AddPasskeyDialog.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import VaultUnlockDialog from '#lib/components/hashi/VaultUnlockDialog.svelte';
+	import AddPasskeyDialog from '#lib/components/hashi/AddPasskeyDialog.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import * as AlertDialog from '#lib/components/ui/alert-dialog/index.ts';
 	import { Fingerprint, Lock, LockOpen, Trash2 } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { withReauth } from '$lib/auth/reauth';
-	import { ceremonyText } from '$lib/auth/webauthn';
-	import { dateTime } from '$lib/format';
-	import { vaultState } from '$lib/vault.svelte';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { withReauth } from '#lib/auth/reauth.ts';
+	import { ceremonyText } from '#lib/auth/webauthn.ts';
+	import { dateTime } from '#lib/format.ts';
+	import { vaultState } from '#lib/vault.svelte.ts';
 
 	// Settings → Account → Vault (02 §5.4): mode, passkeys that unlock it, switching modes.
 	let {

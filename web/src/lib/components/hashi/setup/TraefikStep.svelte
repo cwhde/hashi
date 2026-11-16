@@ -2,20 +2,20 @@
 	// Setup step 5 (02 §1.5, 04 §2/§5): connect the edge over SSH. The host key is shown and pinned only after the admin
 	// compares it; validation reads the host; taking over is an explicit confirmation; the install is a plan.
 	import { onMount, untrack } from 'svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import Mono from '$lib/components/hashi/Mono.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import Mono from '#lib/components/hashi/Mono.svelte';
 	import KeyAccess, {
 		accessBody,
 		newAccess
-	} from '$lib/components/hashi/firewall/KeyAccess.svelte';
-	import PlanReview from '$lib/components/hashi/PlanReview.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import { cn } from '$lib/utils';
+	} from '#lib/components/hashi/firewall/KeyAccess.svelte';
+	import PlanReview from '#lib/components/hashi/PlanReview.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import { cn } from '#lib/utils.ts';
 	import { Check, CircleAlert, ShieldCheck } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { outcomeText, reviewItems, triggerText, type Plan } from '$lib/sync';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { outcomeText, reviewItems, triggerText, type Plan } from '#lib/sync.ts';
 
 	type Props = {
 		setup: Schemas['SetupState'];

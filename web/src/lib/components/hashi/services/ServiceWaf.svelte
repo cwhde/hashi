@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import * as Select from '$lib/components/ui/select';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
 	import { Plus, Trash2 } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { pendingPlans } from '$lib/sync-pending.svelte';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { pendingPlans } from '#lib/sync-pending.svelte.ts';
 
 	// WAF per path (06 §9): headers only or off. It runs in forward auth, which never sees request bodies, so the mock's
 	// "enabled" mode is not offered.

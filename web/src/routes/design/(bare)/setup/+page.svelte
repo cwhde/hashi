@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import { cn } from '$lib/utils';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import { cn } from '#lib/utils.ts';
 	import { Check, CircleAlert, ShieldCheck } from '@lucide/svelte';
 
 	// 02-setup-auth.md §1: a resumable, persisted sequence; a step completes only after its validation succeeded.

@@ -2,18 +2,18 @@
 	import { onMount, type Snippet } from 'svelte';
 	import { page } from '$app/state';
 	import { afterNavigate, goto } from '$app/navigation';
-	import { pendingPlans } from '$lib/sync-pending.svelte';
-	import { vaultState } from '$lib/vault.svelte';
-	import VaultUnlockDialog from '$lib/components/hashi/VaultUnlockDialog.svelte';
-	import { nav as designNav, liveNav, setupNav } from '$lib/design/nav';
-	import { session, setupServices } from '$lib/auth/session.svelte';
-	import { time } from '$lib/format';
-	import { theme, themes, customVars } from '$lib/theme.svelte';
-	import { cn } from '$lib/utils';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import * as Sheet from '$lib/components/ui/sheet';
-	import * as Command from '$lib/components/ui/command';
-	import { Button } from '$lib/components/ui/button';
+	import { pendingPlans } from '#lib/sync-pending.svelte.ts';
+	import { vaultState } from '#lib/vault.svelte.ts';
+	import VaultUnlockDialog from '#lib/components/hashi/VaultUnlockDialog.svelte';
+	import { nav as designNav, liveNav, setupNav } from '#lib/design/nav.ts';
+	import { session, setupServices } from '#lib/auth/session.svelte.ts';
+	import { time } from '#lib/format.ts';
+	import { theme, themes, customVars } from '#lib/theme.svelte.ts';
+	import { cn } from '#lib/utils.ts';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
+	import * as Sheet from '#lib/components/ui/sheet/index.ts';
+	import * as Command from '#lib/components/ui/command/index.ts';
+	import { Button } from '#lib/components/ui/button/index.ts';
 	import {
 		Pin,
 		PinOff,

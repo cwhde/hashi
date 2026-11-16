@@ -2,15 +2,15 @@
 	// Setup step 6 (02 §1, 05 §2): connect the first firewall host. Validation only reads; confirming hands Hashi the
 	// host; the first apply is a high-risk plan under the rescue timer and can wait until after setup.
 	import { onMount } from 'svelte';
-	import { Button } from '$lib/components/ui/button';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import PlanReview from '$lib/components/hashi/PlanReview.svelte';
-	import HostForm from '$lib/components/hashi/firewall/HostForm.svelte';
-	import HostSettings from '$lib/components/hashi/firewall/HostSettings.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import PlanReview from '#lib/components/hashi/PlanReview.svelte';
+	import HostForm from '#lib/components/hashi/firewall/HostForm.svelte';
+	import HostSettings from '#lib/components/hashi/firewall/HostSettings.svelte';
 	import { Check, CircleAlert } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { outcomeText, reviewItems, triggerText, type Plan } from '$lib/sync';
-	import type { FirewallInput } from '$lib/firewall';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { outcomeText, reviewItems, triggerText, type Plan } from '#lib/sync.ts';
+	import type { FirewallInput } from '#lib/firewall.ts';
 
 	type Props = {
 		setup: Schemas['SetupState'];

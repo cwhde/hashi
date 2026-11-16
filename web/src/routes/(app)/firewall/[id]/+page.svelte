@@ -2,28 +2,28 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import StatusBadge from '$lib/components/hashi/StatusBadge.svelte';
-	import SetBadge from '$lib/components/hashi/ipsets/SetBadge.svelte';
-	import IpSetPicker from '$lib/components/hashi/ipsets/IpSetPicker.svelte';
-	import HostSettings from '$lib/components/hashi/firewall/HostSettings.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Label } from '$lib/components/ui/label';
-	import * as Tabs from '$lib/components/ui/tabs';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
+	import SetBadge from '#lib/components/hashi/ipsets/SetBadge.svelte';
+	import IpSetPicker from '#lib/components/hashi/ipsets/IpSetPicker.svelte';
+	import HostSettings from '#lib/components/hashi/firewall/HostSettings.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import * as Tabs from '#lib/components/ui/tabs/index.ts';
 	import { ChevronLeft, LifeBuoy, X } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { withReauth } from '$lib/auth/reauth';
-	import { listSets, type IPSet } from '$lib/ipsets';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { withReauth } from '#lib/auth/reauth.ts';
+	import { listSets, type IPSet } from '#lib/ipsets.ts';
 	import {
 		firewallInput,
 		healthState,
 		lines,
 		type FirewallHost,
 		type FirewallInput
-	} from '$lib/firewall';
-	import { saveText } from '$lib/services';
+	} from '#lib/firewall.ts';
+	import { saveText } from '#lib/services.ts';
 
 	const id = $derived(page.params.id as string);
 	const path = $derived({ params: { path: { id } } });

@@ -1,14 +1,14 @@
 <script lang="ts">
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import StatusBadge from '$lib/components/hashi/StatusBadge.svelte';
-	import StatusDot from '$lib/components/hashi/StatusDot.svelte';
-	import HistoryStrip from '$lib/components/hashi/HistoryStrip.svelte';
-	import Sparkline from '$lib/components/hashi/Sparkline.svelte';
-	import PlanReview from '$lib/components/hashi/PlanReview.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import { Button } from '$lib/components/ui/button';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
+	import StatusDot from '#lib/components/hashi/StatusDot.svelte';
+	import HistoryStrip from '#lib/components/hashi/HistoryStrip.svelte';
+	import Sparkline from '#lib/components/hashi/Sparkline.svelte';
+	import PlanReview from '#lib/components/hashi/PlanReview.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
 	import {
 		services,
 		firewallHosts,
@@ -18,7 +18,7 @@
 		audit,
 		spark,
 		zone
-	} from '$lib/design/mock';
+	} from '#lib/design/mock.ts';
 	import { Settings2, ArrowUpRight } from '@lucide/svelte';
 
 	const counts = {

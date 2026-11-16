@@ -2,7 +2,7 @@
 	import Mono from '../Mono.svelte';
 	import Tag from '../Tag.svelte';
 	import SetBadge from './SetBadge.svelte';
-	import type { IpItem } from '$lib/design/security';
+	import type { IpItem } from '#lib/design/security.ts';
 	import { Radio, Server, Globe, MapPin, Hash, Layers } from '@lucide/svelte';
 
 	// One IP item in a list: type icon, the value in its natural form, what it resolves to now (05a §2).

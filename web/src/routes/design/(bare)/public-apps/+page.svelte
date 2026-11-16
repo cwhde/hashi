@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { services } from '$lib/design/mock';
-	import StatusDot from '$lib/components/hashi/StatusDot.svelte';
+	import { services } from '#lib/design/mock.ts';
+	import StatusDot from '#lib/components/hashi/StatusDot.svelte';
 	import { Search } from '@lucide/svelte';
 	const apps = services.filter((r) => r.dashboard);
 	const groups = Object.entries(Object.groupBy(apps, (a) => a.group));

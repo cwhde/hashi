@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import { Button } from '$lib/components/ui/button';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
 	import { Send, Settings } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { dateTime } from '$lib/format';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { dateTime } from '#lib/format.ts';
 
 	// 07 §6: what was sent and its result. Where alerts go is set up under Settings → Notifications.
 	let deliveries = $state<Schemas['NotificationDelivery'][]>([]);

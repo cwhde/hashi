@@ -2,16 +2,16 @@
 	// Setup step 4 (02 §1.4, 03 §5.3): Hashi is the ACME client. The account registers here; the first certificate can
 	// be issued right away (DNS-01 through the zone from step 3).
 	import { untrack } from 'svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import PlanReview from '$lib/components/hashi/PlanReview.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import { cn } from '$lib/utils';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import PlanReview from '#lib/components/hashi/PlanReview.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import { cn } from '#lib/utils.ts';
 	import { Check, CircleAlert } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { outcomeText, reviewItems, triggerText, type Plan } from '$lib/sync';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { outcomeText, reviewItems, triggerText, type Plan } from '#lib/sync.ts';
 
 	type Props = {
 		setup: Schemas['SetupState'];

@@ -1,23 +1,23 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
-	import * as Sheet from '$lib/components/ui/sheet';
-	import * as Tabs from '$lib/components/ui/tabs';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import * as Sheet from '#lib/components/ui/sheet/index.ts';
+	import * as Tabs from '#lib/components/ui/tabs/index.ts';
 	import { CircleAlert, Plus } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { withReauth } from '$lib/auth/reauth';
-	import { dateTime } from '$lib/format';
-	import ChallengeSettings from '$lib/components/hashi/security/ChallengeSettings.svelte';
-	import EngineSummary from '$lib/components/hashi/security/EngineSummary.svelte';
-	import SecurityDashboard from '$lib/components/hashi/security/SecurityDashboard.svelte';
-	import CountersView from '$lib/components/hashi/security/CountersView.svelte';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { withReauth } from '#lib/auth/reauth.ts';
+	import { dateTime } from '#lib/format.ts';
+	import ChallengeSettings from '#lib/components/hashi/security/ChallengeSettings.svelte';
+	import EngineSummary from '#lib/components/hashi/security/EngineSummary.svelte';
+	import SecurityDashboard from '#lib/components/hashi/security/SecurityDashboard.svelte';
+	import CountersView from '#lib/components/hashi/security/CountersView.svelte';
 
 	let tab = $state('dash');
 

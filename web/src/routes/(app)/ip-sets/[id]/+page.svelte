@@ -2,22 +2,22 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import IpItemView from '$lib/components/hashi/ipsets/IpItemView.svelte';
-	import IpItemEditor from '$lib/components/hashi/ipsets/IpItemEditor.svelte';
-	import AddressLink from '$lib/components/hashi/ipsets/AddressLink.svelte';
-	import DynamicEntries from '$lib/components/hashi/security/DynamicEntries.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import * as Tabs from '$lib/components/ui/tabs';
-	import * as Sheet from '$lib/components/ui/sheet';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import IpItemView from '#lib/components/hashi/ipsets/IpItemView.svelte';
+	import IpItemEditor from '#lib/components/hashi/ipsets/IpItemEditor.svelte';
+	import AddressLink from '#lib/components/hashi/ipsets/AddressLink.svelte';
+	import DynamicEntries from '#lib/components/hashi/security/DynamicEntries.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Textarea } from '#lib/components/ui/textarea/index.ts';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import * as Sheet from '#lib/components/ui/sheet/index.ts';
+	import * as AlertDialog from '#lib/components/ui/alert-dialog/index.ts';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
 	import {
 		ChevronLeft,
 		CircleAlert,
@@ -27,9 +27,9 @@
 		Search,
 		TriangleAlert
 	} from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { withReauth } from '$lib/auth/reauth';
-	import { dateTime } from '$lib/format';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { withReauth } from '#lib/auth/reauth.ts';
+	import { dateTime } from '#lib/format.ts';
 	import {
 		count,
 		elementInput,
@@ -40,7 +40,7 @@
 		lockReason,
 		type IPSet,
 		type IPSetElement
-	} from '$lib/ipsets';
+	} from '#lib/ipsets.ts';
 
 	// One IP set (05a): its items, what it resolves to now, who uses it and its audit history.
 	const id = $derived(page.params.id ?? '');

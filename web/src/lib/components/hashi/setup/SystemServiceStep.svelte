@@ -3,14 +3,14 @@
 	// covers the admin domain when it needs a new wildcard, and shows the Traefik plan before anything is written.
 	// DNS and firewall parts of this step arrive with firewall hosts (S6).
 	import { untrack } from 'svelte';
-	import { Button } from '$lib/components/ui/button';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import PlanReview from '$lib/components/hashi/PlanReview.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import PlanReview from '#lib/components/hashi/PlanReview.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
 	import { Check, CircleAlert } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { outcomeText, reviewItems, triggerText, type Plan } from '$lib/sync';
-	import { targetText } from '$lib/services';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { outcomeText, reviewItems, triggerText, type Plan } from '#lib/sync.ts';
+	import { targetText } from '#lib/services.ts';
 
 	type Props = {
 		setup: Schemas['SetupState'];

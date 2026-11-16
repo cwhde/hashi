@@ -2,33 +2,33 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { cn } from '$lib/utils';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import { Textarea } from '#lib/components/ui/textarea/index.ts';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import * as AlertDialog from '#lib/components/ui/alert-dialog/index.ts';
+	import { cn } from '#lib/utils.ts';
 	import { Fingerprint, KeyRound, Trash2, Pencil } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { withReauth } from '$lib/auth/reauth';
-	import { ceremonyText } from '$lib/auth/webauthn';
-	import { dateTime, time } from '$lib/format';
-	import { theme, themes, customVars, type CustomTheme, type ThemeId } from '$lib/theme.svelte';
-	import { setTimeDisplay } from '$lib/format';
-	import CustomThemeEditor from '$lib/components/hashi/CustomThemeEditor.svelte';
-	import * as ToggleGroup from '$lib/components/ui/toggle-group';
-	import Notifications from '$lib/components/hashi/status/Notifications.svelte';
-	import AgentDns from '$lib/components/hashi/pulse/AgentDns.svelte';
-	import PulseSettings from '$lib/components/hashi/pulse/PulseSettings.svelte';
-	import VaultPanel from '$lib/components/hashi/VaultPanel.svelte';
-	import AddPasskeyDialog from '$lib/components/hashi/AddPasskeyDialog.svelte';
-	import { vaultState } from '$lib/vault.svelte';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { withReauth } from '#lib/auth/reauth.ts';
+	import { ceremonyText } from '#lib/auth/webauthn.ts';
+	import { dateTime, time } from '#lib/format.ts';
+	import { theme, themes, customVars, type CustomTheme, type ThemeId } from '#lib/theme.svelte.ts';
+	import { setTimeDisplay } from '#lib/format.ts';
+	import CustomThemeEditor from '#lib/components/hashi/CustomThemeEditor.svelte';
+	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.ts';
+	import Notifications from '#lib/components/hashi/status/Notifications.svelte';
+	import AgentDns from '#lib/components/hashi/pulse/AgentDns.svelte';
+	import PulseSettings from '#lib/components/hashi/pulse/PulseSettings.svelte';
+	import VaultPanel from '#lib/components/hashi/VaultPanel.svelte';
+	import AddPasskeyDialog from '#lib/components/hashi/AddPasskeyDialog.svelte';
+	import { vaultState } from '#lib/vault.svelte.ts';
 
 	const cats = [
 		{ id: 'general', label: 'General' },
@@ -44,7 +44,7 @@
 	];
 	const cat = $derived(page.url.searchParams.get('category') ?? 'general');
 	function show(id: string) {
-		goto(`?category=${id}`, { replaceState: true, keepFocus: true, noScroll: true });
+		goto(`?category=${id}`, { replace: true, reset: false });
 	}
 
 	// Nothing is saved that failed to load (09 §2): forms render only after a successful load.

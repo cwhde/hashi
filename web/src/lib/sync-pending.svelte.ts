@@ -1,5 +1,5 @@
 // How many plans wait for the admin's approval, for the top bar (10b §2). Pages that change plans call refresh().
-import { api } from '$lib/api/client';
+import { api } from '#lib/api/client.ts';
 
 class PendingPlans {
 	count = $state(0);

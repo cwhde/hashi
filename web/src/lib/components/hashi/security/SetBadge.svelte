@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Tag from '../Tag.svelte';
-	import { setBySlug } from '$lib/design/security';
+	import { setBySlug } from '#lib/design/security.ts';
 	import { Lock } from '@lucide/svelte';
 
 	// A reference to an IP set: its name as a link plus kind, with a lock for sets the user cannot edit (05a §3).

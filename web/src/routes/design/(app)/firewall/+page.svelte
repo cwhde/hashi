@@ -1,14 +1,14 @@
 <script lang="ts">
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import StatusBadge from '$lib/components/hashi/StatusBadge.svelte';
-	import HistoryStrip from '$lib/components/hashi/HistoryStrip.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import SetBadge from '$lib/components/hashi/security/SetBadge.svelte';
-	import { firewallHosts } from '$lib/design/mock';
-	import { firewallPolicy as fp } from '$lib/design/security';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
+	import HistoryStrip from '#lib/components/hashi/HistoryStrip.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import SetBadge from '#lib/components/hashi/security/SetBadge.svelte';
+	import { firewallHosts } from '#lib/design/mock.ts';
+	import { firewallPolicy as fp } from '#lib/design/security.ts';
 	import { Plus, ArrowUpRight, TriangleAlert, Pencil } from '@lucide/svelte';
 </script>
 

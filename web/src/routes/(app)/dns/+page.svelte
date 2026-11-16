@@ -2,23 +2,23 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import ImportTable from '$lib/components/hashi/dns/ImportTable.svelte';
-	import RecordEditor, { type EntryForm } from '$lib/components/hashi/dns/RecordEditor.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Switch } from '$lib/components/ui/switch';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import * as Tabs from '$lib/components/ui/tabs';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import ImportTable from '#lib/components/hashi/dns/ImportTable.svelte';
+	import RecordEditor, { type EntryForm } from '#lib/components/hashi/dns/RecordEditor.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import * as Tabs from '#lib/components/ui/tabs/index.ts';
 	import { CircleAlert, FlaskConical, Lock, Pencil, Plus, RefreshCw, Search } from '@lucide/svelte';
-	import AdGuardRewrites from '$lib/components/hashi/dns/AdGuardRewrites.svelte';
-	import AgentNames from '$lib/components/hashi/dns/AgentNames.svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { pendingPlans } from '$lib/sync-pending.svelte';
-	import { outcomeText } from '$lib/sync';
+	import AdGuardRewrites from '#lib/components/hashi/dns/AdGuardRewrites.svelte';
+	import AgentNames from '#lib/components/hashi/dns/AgentNames.svelte';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { pendingPlans } from '#lib/sync-pending.svelte.ts';
+	import { outcomeText } from '#lib/sync.ts';
 	import {
 		decisionBody,
 		initialDecisions,
@@ -27,7 +27,7 @@
 		type Decision,
 		type ImportRow,
 		type RRSet
-	} from '$lib/dns';
+	} from '#lib/dns.ts';
 
 	// 03-dns.md §3–7, 10b §3: Records (observed RRSets with Hashi's ownership, manual entries edited inline; every save
 	// creates a plan) and Import.
@@ -58,9 +58,8 @@
 	);
 	const setTab = (t: string) =>
 		goto(t === 'records' ? '?' : `?tab=${t}`, {
-			replaceState: true,
-			keepFocus: true,
-			noScroll: true
+			replace: true,
+			reset: false
 		});
 
 	const newCount = $derived(importRows.filter((r) => !r.decision).length);

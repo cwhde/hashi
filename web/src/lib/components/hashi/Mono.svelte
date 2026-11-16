@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { cn } from '$lib/utils';
+	import { cn } from '#lib/utils.ts';
 
 	// Literal technical values only (IPs, records, hashes, paths) — never labels.
 	let { children, class: className = '' }: { children: Snippet; class?: string } = $props();

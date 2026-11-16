@@ -1,11 +1,11 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import type { PlanItem, Risk } from '$lib/design/mock';
-	import { Button } from '$lib/components/ui/button';
-	import { cn } from '$lib/utils';
+	import type { PlanItem, Risk } from '#lib/design/mock.ts';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { cn } from '#lib/utils.ts';
 	import Mono from './Mono.svelte';
 	import Tag from './Tag.svelte';
-	import { lineDiff } from '$lib/diff';
+	import { lineDiff } from '#lib/diff.ts';
 	import { ShieldAlert, Fingerprint } from '@lucide/svelte';
 
 	// The exact preview of a sync plan (01-platform.md §5, principle 6). What is shown here is byte-for-byte what is

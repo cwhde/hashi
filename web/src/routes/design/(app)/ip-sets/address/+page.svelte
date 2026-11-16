@@ -1,15 +1,15 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import SetBadge from '$lib/components/hashi/security/SetBadge.svelte';
-	import FlattenedRuleList from '$lib/components/hashi/security/FlattenedRuleList.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import * as Select from '$lib/components/ui/select';
-	import { services, securityEvents } from '$lib/design/mock';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import SetBadge from '#lib/components/hashi/security/SetBadge.svelte';
+	import FlattenedRuleList from '#lib/components/hashi/security/FlattenedRuleList.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
+	import { services, securityEvents } from '#lib/design/mock.ts';
 	import {
 		ipSets,
 		counters,
@@ -18,7 +18,7 @@
 		stageA,
 		setBySlug,
 		inCidr
-	} from '$lib/design/security';
+	} from '#lib/design/security.ts';
 	import { ChevronLeft, ShieldAlert, ShieldCheck, Minus } from '@lucide/svelte';
 
 	// Everything Hashi knows and decides about one address (05a §6). The trace is the memorable part: the same

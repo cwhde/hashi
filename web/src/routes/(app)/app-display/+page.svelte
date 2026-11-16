@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import { Switch } from '$lib/components/ui/switch';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import type { Endpoint } from '$lib/monitor';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import type { Endpoint } from '#lib/monitor.ts';
 
 	// 10b §3: what the public dashboard and status page show. Order follows group and name for now.
 	let services = $state<Schemas['Service'][]>([]);

@@ -2,14 +2,14 @@
 	// What validation found, and the settings that depend on it: networks, NetBird, and the choice to drop all other
 	// inbound connections (05 §2, §5). Nothing here reaches the host until a plan is approved.
 	import { onMount, untrack } from 'svelte';
-	import { api } from '$lib/api/client';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import SshTarget from '$lib/components/hashi/SshTarget.svelte';
+	import { api } from '#lib/api/client.ts';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import SshTarget from '#lib/components/hashi/SshTarget.svelte';
 	import { Check, CircleAlert, TriangleAlert } from '@lucide/svelte';
-	import { firewallInput, lines, type FirewallHost, type FirewallInput } from '$lib/firewall';
+	import { firewallInput, lines, type FirewallHost, type FirewallInput } from '#lib/firewall.ts';
 
 	type Props = { host: FirewallHost; busy: boolean; save: (b: FirewallInput) => Promise<void> };
 	let { host, busy, save }: Props = $props();

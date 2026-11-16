@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import HistoryStrip from '$lib/components/hashi/HistoryStrip.svelte';
-	import StatusBadge from '$lib/components/hashi/StatusBadge.svelte';
-	import { api, type Schemas } from '$lib/api/client';
-	import { stripHealth, uptimeText } from '$lib/monitor';
-	import { dateTime, time } from '$lib/format';
-	import { theme } from '$lib/theme.svelte';
+	import HistoryStrip from '#lib/components/hashi/HistoryStrip.svelte';
+	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
+	import { api, type Schemas } from '#lib/api/client.ts';
+	import { stripHealth, uptimeText } from '#lib/monitor.ts';
+	import { dateTime, time } from '#lib/format.ts';
+	import { theme } from '#lib/theme.svelte.ts';
 
 	// Public port: names, groups, state, 60-minute strips, uptime; never hosts, IPs or errors (07 §7).
 	let data = $state<Schemas['PublicStatus'] | null>(null);

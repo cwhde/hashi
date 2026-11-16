@@ -1,14 +1,14 @@
 <script lang="ts">
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
 	import MiddlewarePicker from './MiddlewarePicker.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
-	import * as RadioGroup from '$lib/components/ui/radio-group';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import * as RadioGroup from '#lib/components/ui/radio-group/index.ts';
 	import { Plus, Trash2 } from '@lucide/svelte';
-	import type { Schemas } from '$lib/api/client';
+	import type { Schemas } from '#lib/api/client.ts';
 
 	// What the app behind a service receives (04 §1.1a): Host header, visitor address headers, extra headers, timeouts,
 	// extra middlewares. Edited here, saved with "Save and publish" like the rest of the service.

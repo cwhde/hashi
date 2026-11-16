@@ -1,4 +1,4 @@
-import { api, type Schemas } from '$lib/api/client';
+import { api, type Schemas } from '#lib/api/client.ts';
 
 // The agents, shared by the IP item editor and list. A page without them (or the design mocks) just shows none.
 class PulseAgents {

@@ -1,10 +1,10 @@
 <script lang="ts">
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import RuleEntryList from '$lib/components/hashi/security/RuleEntryList.svelte';
-	import RuleItemEditor from '$lib/components/hashi/security/RuleItemEditor.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Sheet from '$lib/components/ui/sheet';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import RuleEntryList from '#lib/components/hashi/security/RuleEntryList.svelte';
+	import RuleItemEditor from '#lib/components/hashi/security/RuleItemEditor.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import * as Sheet from '#lib/components/ui/sheet/index.ts';
 	import { ChevronLeft, Lock, Plus, Layers, TriangleAlert } from '@lucide/svelte';
 
 	let { data } = $props();

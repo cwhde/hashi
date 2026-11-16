@@ -2,18 +2,18 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import RuleEntryList from '$lib/components/hashi/rules/RuleEntryList.svelte';
-	import RuleItemEditor from '$lib/components/hashi/rules/RuleItemEditor.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import * as Sheet from '$lib/components/ui/sheet';
-	import * as Select from '$lib/components/ui/select';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import RuleEntryList from '#lib/components/hashi/rules/RuleEntryList.svelte';
+	import RuleItemEditor from '#lib/components/hashi/rules/RuleItemEditor.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import * as Sheet from '#lib/components/ui/sheet/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
 	import { ChevronLeft, CircleAlert, Layers, Lock, Plus, TriangleAlert } from '@lucide/svelte';
-	import { api, problemText } from '$lib/api/client';
-	import { pendingPlans } from '$lib/sync-pending.svelte';
-	import { listSets, type IPSet } from '$lib/ipsets';
+	import { api, problemText } from '#lib/api/client.ts';
+	import { pendingPlans } from '#lib/sync-pending.svelte.ts';
+	import { listSets, type IPSet } from '#lib/ipsets.ts';
 	import {
 		allSetId,
 		emptyRule,
@@ -23,7 +23,7 @@
 		type Provider,
 		type RuleEntry,
 		type RuleSet
-	} from '$lib/rules';
+	} from '#lib/rules.ts';
 
 	const id = $derived(page.params.id ?? '');
 	let rs = $state<RuleSet | null>(null);

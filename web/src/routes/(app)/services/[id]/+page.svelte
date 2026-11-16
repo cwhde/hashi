@@ -1,27 +1,27 @@
 <script lang="ts">
-	import ServiceExtras from '$lib/components/hashi/services/ServiceExtras.svelte';
-	import ServiceAccess from '$lib/components/hashi/rules/ServiceAccess.svelte';
-	import ServiceWaf from '$lib/components/hashi/services/ServiceWaf.svelte';
-	import ServiceTraffic from '$lib/components/hashi/services/ServiceTraffic.svelte';
-	import MiddlewarePicker from '$lib/components/hashi/services/MiddlewarePicker.svelte';
+	import ServiceExtras from '#lib/components/hashi/services/ServiceExtras.svelte';
+	import ServiceAccess from '#lib/components/hashi/rules/ServiceAccess.svelte';
+	import ServiceWaf from '#lib/components/hashi/services/ServiceWaf.svelte';
+	import ServiceTraffic from '#lib/components/hashi/services/ServiceTraffic.svelte';
+	import MiddlewarePicker from '#lib/components/hashi/services/MiddlewarePicker.svelte';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import * as Tabs from '$lib/components/ui/tabs';
-	import * as Select from '$lib/components/ui/select';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
+	import * as AlertDialog from '#lib/components/ui/alert-dialog/index.ts';
 	import { ChevronLeft, CircleAlert, Lock, Plus, Trash2 } from '@lucide/svelte';
-	import { api, problemText } from '$lib/api/client';
-	import { withReauth } from '$lib/auth/reauth';
-	import { pendingPlans } from '$lib/sync-pending.svelte';
+	import { api, problemText } from '#lib/api/client.ts';
+	import { withReauth } from '#lib/auth/reauth.ts';
+	import { pendingPlans } from '#lib/sync-pending.svelte.ts';
 	import {
 		domainMode,
 		isStream,
@@ -37,7 +37,7 @@
 		type Route,
 		type Service,
 		type ServiceInput
-	} from '$lib/services';
+	} from '#lib/services.ts';
 
 	// One service (04 §1): public name, upstream, advanced routes with rewrites, TLS options, the rendered excerpt.
 	// The Hashi admin service is shown read-only: it follows Settings → General (invariant 10).

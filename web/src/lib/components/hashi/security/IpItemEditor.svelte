@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import * as ToggleGroup from '$lib/components/ui/toggle-group';
-	import * as Select from '$lib/components/ui/select';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
 	import IpSetPicker from './IpSetPicker.svelte';
-	import type { ItemType } from '$lib/design/security';
+	import type { ItemType } from '#lib/design/security.ts';
 
 	// Add or edit one IP item: pick the type, then only that type's fields (05a §2). When the set is used as a
 	// target, CIDR, Geo and non-address sets cannot be added (05a §5.2).

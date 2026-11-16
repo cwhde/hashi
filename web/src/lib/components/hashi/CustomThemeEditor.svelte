@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import Panel from './Panel.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import * as ToggleGroup from '$lib/components/ui/toggle-group';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.ts';
 	import { Download, Upload, Plus, X } from '@lucide/svelte';
-	import { contrast } from '$lib/design/contrast';
+	import { contrast } from '#lib/design/contrast.ts';
 	import {
 		customVars,
 		isLight,
@@ -14,7 +14,7 @@
 		themes,
 		type CustomTheme,
 		type ThemeId
-	} from '$lib/theme.svelte';
+	} from '#lib/theme.svelte.ts';
 
 	// The custom theme editor (10-ui §2): six colours, optional chart colours and roundness, previewed on this panel only
 	// until saved. Saving is refused while text is unreadable; the server checks the same.

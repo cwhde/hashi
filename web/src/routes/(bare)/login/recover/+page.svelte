@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
 	import { Fingerprint } from '@lucide/svelte';
-	import { api, problemText } from '$lib/api/client';
-	import { session } from '$lib/auth/session.svelte';
-	import { ceremonyText, createPasskey } from '$lib/auth/webauthn';
+	import { api, problemText } from '#lib/api/client.ts';
+	import { session } from '#lib/auth/session.svelte.ts';
+	import { ceremonyText, createPasskey } from '#lib/auth/webauthn.ts';
 
 	// Console recovery (02-setup-auth.md §2): the token is in the URL fragment, so it never reached any server log.
 	let phase = $state<'opening' | 'ready' | 'done' | 'failed'>('opening');
@@ -83,7 +83,7 @@
 			>
 		{:else if phase === 'done'}
 			<p class="mt-2 text-[13.5px]">The new passkey is saved. Sign in with it now.</p>
-			<Button class="mt-5 h-10 w-full" onclick={() => goto('/login', { replaceState: true })}
+			<Button class="mt-5 h-10 w-full" onclick={() => goto('/login', { replace: true })}
 				>Go to sign-in</Button
 			>
 		{/if}

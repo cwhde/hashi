@@ -8,6 +8,8 @@ import { logPath, statePath } from './global-setup';
 // the real binary: bootstrap → base settings → passkey → recovery key → finish → passkey sign-in → account pages.
 const state = JSON.parse(readFileSync(statePath, 'utf8')) as {
 	baseURL: string;
+	appsURL: string;
+	statusURL: string;
 	bin: string;
 	dir: string;
 	keyFile: string;

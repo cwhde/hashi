@@ -2,15 +2,15 @@
 	// The parts of a service that reach beyond one address: following an address set (05a §5.2), a stream's public port
 	// (04 §1.2) and the routing override (03 §5.1).
 	import { onMount } from 'svelte';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
-	import { Button } from '$lib/components/ui/button';
-	import IpSetPicker from '$lib/components/hashi/ipsets/IpSetPicker.svelte';
-	import { api } from '$lib/api/client';
-	import { listSets, type IPSet } from '$lib/ipsets';
-	import { isStream } from '$lib/services';
-	import type { FirewallHost } from '$lib/firewall';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import IpSetPicker from '#lib/components/hashi/ipsets/IpSetPicker.svelte';
+	import { api } from '#lib/api/client.ts';
+	import { listSets, type IPSet } from '#lib/ipsets.ts';
+	import { isStream } from '#lib/services.ts';
+	import type { FirewallHost } from '#lib/firewall.ts';
 
 	let {
 		kind,
