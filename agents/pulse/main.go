@@ -420,10 +420,34 @@ func run(ctx context.Context, c config, st state, pause pauser) error {
 	}
 }
 
+const usage = "usage: hashi-pulse [version | --version | -v]\nWithout arguments it runs the agent with the config in " + defaultConfig + " (or $HASHI_PULSE_CONFIG)."
+
+// command decides what the arguments ask for. Only no arguments run the agent: anything unknown is refused, so a
+// mistyped flag never starts a second agent beside the service (bug 14).
+func command(args []string, version string) (out string, code int, run bool) {
+	switch {
+	case len(args) == 0:
+		return "", 0, true
+	case len(args) > 1:
+		return usage, 2, false
+	}
+	switch args[0] {
+	case "version", "--version", "-v":
+		return version, 0, false
+	case "help", "--help", "-h":
+		return usage, 0, false
+	}
+	return usage, 2, false
+}
+
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "version" {
-		fmt.Println(Version)
-		return
+	if out, code, run := command(os.Args[1:], Version); !run {
+		if code == 0 {
+			fmt.Println(out)
+		} else {
+			fmt.Fprintln(os.Stderr, out)
+		}
+		os.Exit(code)
 	}
 	runtime.GOMAXPROCS(1)
 	debug.SetGCPercent(25)

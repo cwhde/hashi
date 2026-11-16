@@ -25,7 +25,6 @@ All open entries are planned into the 0.13 bug round (slices 13.1 onwards in `do
 | 8 | visual | reproduced | All on/off switches | In the on position the switch doesn't fully slide to the right and looks broken. | 2026-10-31 |
 | 11 | later | seen | CI, `internal/firewall` | `TestIntegrationRescueRollback` hung in `Apply` on a `docker exec` until the 10 min test timeout (PR #55, run 1110, first attempt); the rerun passed, and so does a local run. Probably the backgrounded rescue timer keeping the exec's output open on that runner. Not reproduced. | 2026-11-02 |
 | 12 | function | reported | Alerts | Group alerts: when almost all services go down at once (one host or the edge is down), send one grouped alert instead of one per service, and plan how to avoid the flood. Proposal: when 3 or more checks behind the same Traefik or firewall host go down within 2 minutes, send one alert naming the host and the count, hold the single alerts for those checks, and send one recovery alert. A host check that is down itself is the cause line. | 2026-11-02 |
-| 14 | function | reproduced | Pulse agent command line | `hashi-pulse --version` (and `version`) does not print the version: it starts a second agent beside the running one, whose heartbeat Hashi answers with 429. Seen on an edge container 2026-11-02; the extra process was stopped by hand. | 2026-11-02 |
 | 15 | visual | reproduced | Service page header on a phone | At about 390 px wide the service name runs under the "Turn off" button in the header card (seen in a browser-test screenshot, 2026-11-02). |
 | 16 | later | seen | CI, `internal/edge` | `TestIntegrationPocketID` panicked at its setup: Pocket ID v2.19.1 answered the OIDC client creation without `createdSecret` (main run 1131 after `77bded2`). The same code passed on the PR and three times locally. Not reproduced; maybe Pocket ID not fully started. | 2026-11-02 |
 | 17 | function | reported | Services → target | Giving a service a Pulse agent as its target takes a detour: first an IP set for the agent, then that set in the service, so every agent needs its own one-item set. Pick the agent directly in the service instead: address, agent or IP set, as AdGuard connections already allow (`target_agent_id`). Raised again by the owner 2026-11-16, no longer "later". | 2026-11-03 |
@@ -151,14 +150,6 @@ are at the app's 14 px base font.
 - **Cause:** `ui/switch/switch.svelte` sets the track in pixels (32 px) but the knob in rem (`size-4` = 1 rem). The app's
   base font is 14 px (`routes/layout.css`), so the knob is 14 px instead of 16 px and its slide (`100% - 2px`) falls short
   by 4 px. Other vendored shadcn parts that mix px and rem may have the same offset.
-
-### 14 · `hashi-pulse --version` starts an agent
-
-- **Reproduce (local):** `hashi-pulse version` prints the version and exits; `hashi-pulse --version` (or any other
-  argument) is ignored and the agent starts. Without a config it stops with "url, agent_id and token are required"; on a
-  host with a config it runs as a second agent beside the service, which is what was seen.
-- **Cause:** `agents/pulse/main.go` only recognises the exact word `version`. Unknown arguments should be refused with a
-  usage line; `--version` and `-v` should print the version.
 
 ### 15 · Service header on a phone
 

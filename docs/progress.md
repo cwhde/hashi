@@ -25,6 +25,18 @@ first, structure before text, search after the settings regroup.
 
 Next: 13.1. After 13.9: a last bug sweep, then `v1.0.0`.
 
+### 13.1 checklist (one PR)
+
+- [x] 14 Pulse: `--version`/`-v`/`version` print and exit; any other argument is refused with a usage line
+- [ ] 52 Scripts: a timed-out run keeps what it printed and says "stopped after N s"
+- [ ] 53 Monitoring: a TCP check reads until the expected text, the size limit or the timeout
+- [ ] 9 Traefik: the release download retries before failing the plan
+- [ ] 50 `BeginPRF`: separate parameters for unlock salts and the allow-list
+- [ ] 47 Firewall renderer: typed structs for the nft JSON statements
+- [ ] 46 Split `internal/firewall/manager.go` and the Settings page along their seams
+- [ ] 11, 16, 33 Flaky tests: rescue exec hang, Pocket ID start, e2e keeps Hashi's log
+- [ ] 54 CI actions pinned to commit SHAs; 55 SvelteKit and adapter-static bumped
+
 ## Previous: S12
 
 **S12 — Hardening + 1.0** · status: **done** (gate passed 2026-11-13 on `0.12.0-beta.3`; started 2026-11-11). Gate: 11-delivery.md §3 row S12: restore from
@@ -92,7 +104,7 @@ Then, straight to `main`:
   itself; the time now follows the clock
 - [ ] Gate on prod (`v0.12.0-beta.1`)
 
-## Previous slice
+## Earlier slices
 
 **S11 — Scripts, custom themes, settings completeness** · status: **done** (gate passed 2026-11-11 on `v0.11.0-beta.2`). Next: S12, then the bug hunt round. Gate: 11-delivery.md §3
 row S11: scheduled script runs on real hosts with history; custom theme editor works; visual tests pass in all four
