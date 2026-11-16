@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { guardUnsaved } from '#lib/unsaved.svelte.ts';
+	import { Draft, guardUnsaved } from '#lib/unsaved.svelte.ts';
 	import { untrack } from 'svelte';
 	import Panel from './Panel.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
@@ -69,7 +69,14 @@
 					.join(';')
 	);
 	const dirty = $derived(JSON.stringify(draft) !== JSON.stringify(saved));
-	guardUnsaved(() => dirty); // bug 40
+	// Leaving asks only about edits made here since the editor opened or last saved (bug 40). `dirty` above compares
+	// with the saved theme, which is never equal to the starting palette when no custom theme exists yet.
+	const unsaved = new Draft(() => draft);
+	$effect(() => {
+		JSON.stringify(saved);
+		untrack(() => unsaved.mark());
+	});
+	guardUnsaved(() => unsaved.dirty);
 
 	function exportTheme() {
 		const blob = new Blob([JSON.stringify($state.snapshot(draft), null, 2) + '\n'], {

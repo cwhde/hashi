@@ -565,13 +565,13 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 
 	// A provider can be renamed without entering its secret again.
 	await page.getByRole('button', { name: 'Add provider' }).click();
-	await page.getByLabel('Name').fill('Bot');
+	await page.getByLabel('Name', { exact: true }).fill('Bot');
 	await page.getByLabel('Bot token').fill('123:e2e-token');
 	await page.getByLabel('Chat').fill('123');
 	await page.getByRole('button', { name: 'Add provider' }).last().click();
 	await expect(page.getByText('Telegram · chat 123')).toBeVisible();
 	await page.getByRole('button', { name: 'Edit Bot' }).click();
-	await page.getByLabel('Name').fill('My Telegram');
+	await page.getByLabel('Name', { exact: true }).fill('My Telegram');
 	await page.getByRole('button', { name: 'Save changes' }).click();
 	await expect(page.getByRole('button', { name: 'Edit My Telegram' })).toBeVisible();
 	await expect(page.getByText('Telegram · chat 123')).toBeVisible();
