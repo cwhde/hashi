@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
-	import * as Select from '$lib/components/ui/select';
-	import * as RadioGroup from '$lib/components/ui/radio-group';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
+	import * as RadioGroup from '#lib/components/ui/radio-group/index.ts';
 	import IpSetPicker from './IpSetPicker.svelte';
-	import { actionMeta, type Action } from '$lib/design/security';
+	import { actionMeta, type Action } from '#lib/design/security.ts';
 
 	// One rule item: who (an IP set), which paths, what happens (06 §4.1).
 	let {
@@ -36,7 +36,7 @@
 		</div>
 	</div>
 	<fieldset class="space-y-2">
-		<legend class="mb-1.5 text-[13px] font-medium">Action</legend>
+		<legend class="mb-1.5 text-md font-medium">Action</legend>
 		<RadioGroup.Root bind:value={action} class="gap-2">
 			{#each actions as a (a)}
 				<label
@@ -46,8 +46,8 @@
 				>
 					<RadioGroup.Item value={a} class="mt-0.5" />
 					<span
-						><span class="block text-[13.5px] font-medium">{actionMeta[a].label}</span><span
-							class="block text-[12.5px] text-muted-foreground">{actionMeta[a].help}</span
+						><span class="block text-md font-medium">{actionMeta[a].label}</span><span
+							class="block text-sm text-muted-foreground">{actionMeta[a].help}</span
 						></span
 					>
 				</label>
@@ -74,6 +74,6 @@
 		<div class="space-y-1.5">
 			<Label for="rn">Note</Label><Input id="rn" placeholder="Optional" />
 		</div>
-		<label class="flex h-8 items-center gap-2 text-[13px]"><Switch checked />Enabled</label>
+		<label class="flex h-8 items-center gap-2 text-md"><Switch checked />Enabled</label>
 	</div>
 </div>

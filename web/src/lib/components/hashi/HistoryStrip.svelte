@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { Health } from '$lib/design/mock';
-	import { cn } from '$lib/utils';
+	import type { Health } from '#lib/design/mock.ts';
+	import { cn } from '#lib/utils.ts';
 	import { health } from './status';
 
 	// Gatus-style history: one bar per sample, oldest left. Labels sit at both ends (10a §5.5).
@@ -27,7 +27,7 @@
 		{/each}
 	</div>
 	{#if labels}
-		<div class="mt-1 flex justify-between text-[11px] text-muted-foreground">
+		<div class="mt-1 flex justify-between text-2xs text-muted-foreground">
 			<span>{from}</span><span>{to}</span>
 		</div>
 	{/if}

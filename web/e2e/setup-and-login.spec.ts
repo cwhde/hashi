@@ -8,6 +8,8 @@ import { logPath, statePath } from './global-setup';
 // the real binary: bootstrap → base settings → passkey → recovery key → finish → passkey sign-in → account pages.
 const state = JSON.parse(readFileSync(statePath, 'utf8')) as {
 	baseURL: string;
+	appsURL: string;
+	statusURL: string;
 	bin: string;
 	dir: string;
 	keyFile: string;
@@ -563,13 +565,13 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 
 	// A provider can be renamed without entering its secret again.
 	await page.getByRole('button', { name: 'Add provider' }).click();
-	await page.getByLabel('Name').fill('Bot');
+	await page.getByLabel('Name', { exact: true }).fill('Bot');
 	await page.getByLabel('Bot token').fill('123:e2e-token');
 	await page.getByLabel('Chat').fill('123');
 	await page.getByRole('button', { name: 'Add provider' }).last().click();
 	await expect(page.getByText('Telegram · chat 123')).toBeVisible();
 	await page.getByRole('button', { name: 'Edit Bot' }).click();
-	await page.getByLabel('Name').fill('My Telegram');
+	await page.getByLabel('Name', { exact: true }).fill('My Telegram');
 	await page.getByRole('button', { name: 'Save changes' }).click();
 	await expect(page.getByRole('button', { name: 'Edit My Telegram' })).toBeVisible();
 	await expect(page.getByText('Telegram · chat 123')).toBeVisible();
@@ -928,12 +930,23 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 
 	// S11 visual tests (10-ui §2): every main page in every built-in theme keeps readable contrast (axe), fits a phone
 	// without sideways scrolling, and leaves a screenshot to look at.
+	// Every top-level page (13.2 gate).
 	const pages = [
+		'/changes',
 		'/services',
-		'/security',
-		'/scripts',
+		'/dns',
+		'/traefik',
 		'/firewall',
+		'/pulse',
+		'/security',
+		'/ip-sets',
+		'/ip-sets/address',
+		'/rule-sets',
 		'/status',
+		'/app-display',
+		'/scripts',
+		'/activity',
+		'/connections',
 		'/settings?category=appearance'
 	];
 	for (const [id, name] of [
@@ -954,6 +967,7 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 			await page.goto(`${state.baseURL}${path}`);
 			await expect(page.locator('main')).toBeVisible();
 			await expect(page.locator('html')).toHaveAttribute('data-theme', id!);
+			await expect(page, `title of ${path}`).toHaveTitle(/^[^·]+ · Hashi$/); // bug 60
 			await page.waitForLoadState('networkidle');
 			const axe = await new AxeBuilder({ page }).withRules(['color-contrast']).analyze();
 			expect(
@@ -976,6 +990,32 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 			await page.screenshot({ path: `test-results/visual/${id}-${slug}.png`, fullPage: true });
 		}
 	}
+
+	// Bug 41: the open tab lives in the address and survives a reload.
+	await page.goto(`${state.baseURL}/security`);
+	await page.getByRole('tab', { name: 'Counters' }).click();
+	await expect(page).toHaveURL(/[?&]tab=counters/);
+	await page.reload();
+	await expect(page.getByRole('tab', { name: 'Counters' })).toHaveAttribute(
+		'aria-selected',
+		'true'
+	);
+
+	// Bug 91: an unsaved change in a Settings category survives switching to another category and back.
+	await page.goto(`${state.baseURL}/settings?category=pulse`);
+	const heartbeat = page.getByLabel('Heartbeat every (seconds)');
+	const before = await heartbeat.inputValue();
+	await heartbeat.fill(String(Number(before) + 7));
+	const cats = page.getByRole('navigation', { name: 'Settings categories' });
+	await cats.getByRole('button', { name: 'General' }).click();
+	await cats.getByRole('button', { name: 'Pulse' }).click();
+	await expect(heartbeat).toHaveValue(String(Number(before) + 7));
+	// Bug 40: leaving with an unsaved change asks first; dismissing keeps the page and the draft.
+	page.once('dialog', (d) => void d.dismiss());
+	await page.getByRole('link', { name: 'Services' }).first().click();
+	await expect(page).toHaveURL(/\/settings/);
+	await expect(heartbeat).toHaveValue(String(Number(before) + 7));
+	await heartbeat.fill(before);
 
 	// S12: strict vault mode (02 §5.4). A PRF passkey becomes an unlocker, strict mode is switched on, and after each
 	// restart Hashi is locked until the recovery key or the passkey unlocks it; the session survives the restarts.

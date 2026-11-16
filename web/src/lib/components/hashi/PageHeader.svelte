@@ -8,8 +8,8 @@
 
 <div class="mb-5 flex flex-wrap items-end gap-x-6 gap-y-3">
 	<div class="min-w-0 flex-1">
-		<h1 class="text-[22px] leading-tight font-semibold tracking-[-0.01em]">{title}</h1>
-		{#if description}<p class="mt-1 max-w-[70ch] text-[13.5px] text-muted-foreground">
+		<h1 class="text-title leading-tight font-semibold tracking-[-0.01em]">{title}</h1>
+		{#if description}<p class="mt-1 max-w-[70ch] text-md text-muted-foreground">
 				{description}
 			</p>{/if}
 	</div>

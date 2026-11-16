@@ -2,10 +2,10 @@
 	// Setup step 8 (02 §1 step 8): the browser opens setup on https://<admin domain> with a one-time link. The setup
 	// page there sends the link's nonce back; Hashi accepts it only through its own Traefik and signs this browser in on
 	// the HTTPS address, where passkeys (step 9) work.
-	import { Button } from '$lib/components/ui/button';
-	import Mono from '$lib/components/hashi/Mono.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import Mono from '#lib/components/hashi/Mono.svelte';
 	import { Check, CircleAlert, ExternalLink } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 
 	type Props = {
 		setup: Schemas['SetupState'];
@@ -37,8 +37,8 @@
 	}
 </script>
 
-<h1 class="mt-1 text-[24px] font-semibold">Open Hashi over HTTPS</h1>
-<p class="mt-1 max-w-[62ch] text-[13.5px] text-muted-foreground">
+<h1 class="mt-1 text-title font-semibold">Open Hashi over HTTPS</h1>
+<p class="mt-1 max-w-[62ch] text-md text-muted-foreground">
 	Passkeys only work on Hashi's own HTTPS address. This step opens setup on <Mono
 		>https://{admin}</Mono
 	> through the Traefik host and continues there.
@@ -46,24 +46,24 @@
 
 <section class="mt-6 rounded-3xl border bg-card p-6">
 	{#if step?.status === 'done' && here}
-		<p class="flex items-center gap-2 text-[13.5px]">
+		<p class="flex items-center gap-2 text-md">
 			<Check class="size-4 text-ok-text" />This page came through Hashi's Traefik over HTTPS.
 		</p>
-		<p class="mt-2 text-[13px] text-muted-foreground">
+		<p class="mt-2 text-md text-muted-foreground">
 			You can move services to Hashi now, before setup is finished: <a
 				href="/services"
 				class="underline underline-offset-2">Services</a
 			>.
 		</p>
 	{:else if step?.status === 'done'}
-		<p class="flex items-center gap-2 text-[13.5px]">
+		<p class="flex items-center gap-2 text-md">
 			<Check class="size-4 text-ok-text" />Done. Continue on <Mono>https://{admin}</Mono>: passkeys
 			cannot be registered on this address.
 		</p>
 		<Button class="mt-4" onclick={open} disabled={busy}><ExternalLink />Open https://{admin}</Button
 		>
 	{:else}
-		<ul class="space-y-1.5 text-[13px] text-muted-foreground">
+		<ul class="space-y-1.5 text-md text-muted-foreground">
 			<li>Your computer must reach the Traefik host and resolve {admin} to it.</li>
 			<li>The link works once and for five minutes. You stay signed in on the new address.</li>
 		</ul>
@@ -74,7 +74,7 @@
 	{#if error || proofError}
 		<p
 			role="alert"
-			class="mt-5 flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-[13px] text-bad-text"
+			class="mt-5 flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-md text-bad-text"
 		>
 			<CircleAlert class="mt-0.5 size-4 shrink-0" />{error || proofError}
 		</p>

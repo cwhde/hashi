@@ -1,20 +1,20 @@
 <script lang="ts">
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import StatusBadge from '$lib/components/hashi/StatusBadge.svelte';
-	import HistoryStrip from '$lib/components/hashi/HistoryStrip.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
-	import * as Table from '$lib/components/ui/table';
-	import * as Sheet from '$lib/components/ui/sheet';
-	import * as Select from '$lib/components/ui/select';
-	import * as ToggleGroup from '$lib/components/ui/toggle-group';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import { services } from '$lib/design/mock';
-	import IpSetPicker from '$lib/components/hashi/security/IpSetPicker.svelte';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
+	import HistoryStrip from '#lib/components/hashi/HistoryStrip.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import * as Table from '#lib/components/ui/table/index.ts';
+	import * as Sheet from '#lib/components/ui/sheet/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
+	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.ts';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
+	import { services } from '#lib/design/mock.ts';
+	import IpSetPicker from '#lib/components/hashi/security/IpSetPicker.svelte';
 	import { Plus, Search, MoreHorizontal, Lock } from '@lucide/svelte';
 
 	let q = $state('');
@@ -59,9 +59,7 @@
 			<ToggleGroup.Item value="http">HTTP</ToggleGroup.Item>
 			<ToggleGroup.Item value="stream">TCP/UDP</ToggleGroup.Item>
 		</ToggleGroup.Root>
-		<span class="ml-auto text-[12.5px] text-muted-foreground"
-			>{rows.length} of {services.length}</span
-		>
+		<span class="ml-auto text-sm text-muted-foreground">{rows.length} of {services.length}</span>
 	</div>
 	<Table.Root>
 		<Table.Header>
@@ -84,7 +82,7 @@
 								{#if r.origin === 'system'}<Tag><Lock class="size-3" />system</Tag>{/if}
 								{#if r.origin === 'imported'}<Tag>imported</Tag>{/if}
 							</span>
-							<span class="text-[12.5px] text-muted-foreground"
+							<span class="text-sm text-muted-foreground"
 								>{r.domain}{r.port ? ':' + r.port : ''}</span
 							>
 						</a>
@@ -93,15 +91,15 @@
 						<div class="flex items-center gap-2">
 							<Tag>{r.kind.toUpperCase()}</Tag><Mono class="text-muted-foreground">{r.target}</Mono>
 						</div>
-						<div class="mt-0.5 text-[12px] text-muted-foreground">
+						<div class="mt-0.5 text-xs text-muted-foreground">
 							{#if r.upstreamSet}follows <span class="font-medium">{r.upstreamSet}</span> ·
 							{/if}on {r.host}{#if r.entry}
 								· enters via {r.entry}{/if}
 						</div>
 					</Table.Cell>
 					<Table.Cell class="hidden lg:table-cell">
-						<div class="max-w-64 truncate text-[13px]">{r.access}</div>
-						<div class="text-[12px] text-muted-foreground">
+						<div class="max-w-64 truncate text-md">{r.access}</div>
+						<div class="text-xs text-muted-foreground">
 							{['tcp', 'udp'].includes(r.kind) ? 'L4 service' : 'WAF ' + r.waf.replace('_', ' ')}
 						</div>
 					</Table.Cell>
@@ -110,7 +108,7 @@
 					>
 					<Table.Cell>
 						<StatusBadge state={r.health} />
-						<div class="text-[12px] text-muted-foreground">
+						<div class="text-xs text-muted-foreground">
 							{#if r.sync === 'pending'}change waiting{:else if r.sync === 'invalid'}<span
 									class="text-bad-text">invalid config</span
 								>{:else}{r.uptime} · {r.latency ? r.latency + ' ms' : '—'}{/if}
@@ -171,22 +169,22 @@
 				<Label for="rd">Public domain</Label>
 				<div class="flex items-center gap-2">
 					<Input id="rd" value="photos" class="max-w-48" /><span
-						class="text-[13px] text-muted-foreground">.example.com</span
+						class="text-md text-muted-foreground">.example.com</span
 					>
 				</div>
-				<p class="text-[12.5px] text-muted-foreground">
+				<p class="text-sm text-muted-foreground">
 					DNS: CNAME to on.edge-home.example.com (target is in edge-home's subnet 10.20.0.0/22).
 				</p>
 			</div>
 			<fieldset class="space-y-2">
-				<legend class="mb-1.5 text-[13px] font-medium">Upstream</legend>
+				<legend class="mb-1.5 text-md font-medium">Upstream</legend>
 				<div class="grid grid-cols-[6rem_1fr_6rem] gap-2">
 					<Input value="http" aria-label="Scheme" /><IpSetPicker
 						value="media-upstream"
 						addressOnly
 					/><Input value="2283" aria-label="Port" />
 				</div>
-				<p class="text-[12.5px] text-muted-foreground">
+				<p class="text-sm text-muted-foreground">
 					The target is an IP set of addresses: a fixed IP, a host, a DNS name or a Pulse agent, so
 					it follows the machine when its IP changes.
 				</p>
@@ -194,8 +192,8 @@
 			<div class="space-y-3 rounded-xl border p-3">
 				<div class="flex items-center justify-between gap-3">
 					<div>
-						<div class="text-[13px] font-medium">Access</div>
-						<div class="text-[12.5px] text-muted-foreground">
+						<div class="text-md font-medium">Access</div>
+						<div class="text-sm text-muted-foreground">
 							Open or closed to everyone not matched by a rule; add rules after saving
 						</div>
 					</div>
@@ -214,7 +212,7 @@
 					<Label for="s3">Internal DNS rewrite (AdGuard)</Label><Switch id="s3" checked />
 				</div>
 			</div>
-			<p class="text-[12.5px] text-muted-foreground">
+			<p class="text-sm text-muted-foreground">
 				Advanced routes, rewrites, TLS options, rules and WAF per path are on the service page after
 				saving.
 			</p>

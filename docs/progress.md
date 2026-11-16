@@ -25,6 +25,18 @@ first, structure before text, search after the settings regroup.
 
 Next: 13.2. After 13.9: a last bug sweep, then `v1.0.0`.
 
+### 13.2 checklist (one PR)
+
+- [x] 96 SvelteKit 3 (config into the Vite plugin, adapter-static 4, TypeScript 6); `pnpm audit` clean of the Kit advisories
+- [x] 8, 45 Named type scale (7 pixel steps, root stays 14 px as 10b says: 16 px would enlarge every control); switch knob reaches the end
+- [x] 7 Overlays use the theme border; 1 sidebar items keep their place; 3 controls in one row are level; 6 IP item type fits
+- [x] 42 Touch targets ≥ 24 px (tabs, icon buttons); 15 service header and 69 firewall host tabs fit 390 px; 70 badge name
+- [x] 73 橋 favicon and touch icon; 44 tabular figures and `theme-color`; 43 input `autocomplete`/`spellcheck`
+- [x] 60 Every page sets its title; 41 every tabbed page keeps its tab in the address
+- [x] 83 Single-choice groups can't be emptied; 92 reduce transparency removes every blur
+- [x] 40, 91 Drafts survive tab and category switches; leaving with unsaved edits asks
+- [x] 67 Errors clear when their input changes; 72 empty filter results say so; 71 loading shows loading
+
 **13.1 done** (2026-11-16, `v0.13.1-beta.1`, PR #67). Gate: on the edge agent after its self-update, `--version` and
 `-v` print `v0.13.1-beta.1` (exit 0), an unknown flag prints usage (exit 2), and only one agent process runs afterwards;
 three CI runs in a row green without a rerun (#67, #68, the merge of #68); smoke ok. Proven by tests, not on prod: the

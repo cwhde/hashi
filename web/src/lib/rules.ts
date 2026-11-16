@@ -1,5 +1,5 @@
-import { api, type Schemas } from '$lib/api/client';
-import type { IPSet } from '$lib/ipsets';
+import { api, type Schemas } from '#lib/api/client.ts';
+import type { IPSet } from '#lib/ipsets.ts';
 
 export type RuleSet = Schemas['RuleSet'];
 export type RuleEntry = Schemas['RuleEntry'];

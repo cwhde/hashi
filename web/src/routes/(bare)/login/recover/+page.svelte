@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
 	import { Fingerprint } from '@lucide/svelte';
-	import { api, problemText } from '$lib/api/client';
-	import { session } from '$lib/auth/session.svelte';
-	import { ceremonyText, createPasskey } from '$lib/auth/webauthn';
+	import { api, problemText } from '#lib/api/client.ts';
+	import { session } from '#lib/auth/session.svelte.ts';
+	import { ceremonyText, createPasskey } from '#lib/auth/webauthn.ts';
 
 	// Console recovery (02-setup-auth.md §2): the token is in the URL fragment, so it never reached any server log.
 	let phase = $state<'opening' | 'ready' | 'done' | 'failed'>('opening');
@@ -67,11 +67,11 @@
 <svelte:head><title>Recover access · Hashi</title></svelte:head>
 <main class="grid min-h-dvh place-items-center px-4">
 	<div class="w-full max-w-sm rounded-3xl border bg-card p-7">
-		<h1 class="text-[20px] font-semibold">Register a new passkey</h1>
+		<h1 class="text-title font-semibold">Register a new passkey</h1>
 		{#if phase === 'opening'}
-			<p class="mt-2 text-[13.5px] text-muted-foreground">Checking the recovery link…</p>
+			<p class="mt-2 text-md text-muted-foreground">Checking the recovery link…</p>
 		{:else if phase === 'ready'}
-			<p class="mt-2 text-[13.5px] text-muted-foreground">
+			<p class="mt-2 text-md text-muted-foreground">
 				This one-time session can only add one passkey. Your other passkeys stay as they are.
 			</p>
 			<div class="mt-5 space-y-1.5">
@@ -82,15 +82,15 @@
 				><Fingerprint />{busy ? 'Waiting for your passkey…' : 'Create passkey'}</Button
 			>
 		{:else if phase === 'done'}
-			<p class="mt-2 text-[13.5px]">The new passkey is saved. Sign in with it now.</p>
-			<Button class="mt-5 h-10 w-full" onclick={() => goto('/login', { replaceState: true })}
+			<p class="mt-2 text-md">The new passkey is saved. Sign in with it now.</p>
+			<Button class="mt-5 h-10 w-full" onclick={() => goto('/login', { replace: true })}
 				>Go to sign-in</Button
 			>
 		{/if}
 		{#if failed}
 			<p
 				role="alert"
-				class="mt-5 rounded-xl border border-bad/30 bg-bad/10 p-3 text-[13px] text-bad-text"
+				class="mt-5 rounded-xl border border-bad/30 bg-bad/10 p-3 text-md text-bad-text"
 			>
 				{failed}
 			</p>

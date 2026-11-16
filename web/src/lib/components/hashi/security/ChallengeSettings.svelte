@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
-	import * as Select from '$lib/components/ui/select';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { withReauth } from '$lib/auth/reauth';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { withReauth } from '#lib/auth/reauth.ts';
 
 	// CAPTCHA (06 §11): Cap runs next to Hashi; Hashi can create its own key there. Saving creates or moves the
 	// challenge service, whose plans appear under Pending changes.
@@ -93,13 +93,13 @@
 	<div class="grid gap-4 lg:grid-cols-2">
 		<Panel title="Cap challenge" description="Cap runs next to Hashi">
 			<div class="space-y-3">
-				<label class="flex items-center gap-2 text-[13px]"
+				<label class="flex items-center gap-2 text-md"
 					><Switch bind:checked={form.enabled} />Challenge visitors with a CAPTCHA</label
 				>
 				<div class="space-y-1.5">
 					<Label for="cc-domain">Challenge page</Label>
 					<Input id="cc-domain" bind:value={form.challenge_domain} class="h-10" />
-					<p class="text-[12.5px] text-muted-foreground">
+					<p class="text-sm text-muted-foreground">
 						Hashi's own service: only the check itself is reachable there.
 					</p>
 				</div>
@@ -114,7 +114,7 @@
 								>{/each}
 						</Select.Content>
 					</Select.Root>
-					<p class="text-[12.5px] text-muted-foreground">
+					<p class="text-sm text-muted-foreground">
 						A service of yours for Cap's dashboard; a CAPTCHA is never asked there.
 					</p>
 				</div>
@@ -140,7 +140,7 @@
 						class="h-10"
 					/>
 				</div>
-				<details class="text-[13px]">
+				<details class="text-md">
 					<summary class="cursor-pointer text-muted-foreground"
 						>Where Hashi and the edges reach Cap</summary
 					>
@@ -159,8 +159,8 @@
 						</div>
 					</div>
 				</details>
-				{#if error}<p role="alert" class="text-[13px] text-bad-text">{error}</p>{/if}
-				{#if note}<p role="status" class="text-[13px]">{note}</p>{/if}
+				{#if error}<p role="alert" class="text-md text-bad-text">{error}</p>{/if}
+				{#if note}<p role="status" class="text-md">{note}</p>{/if}
 				<div class="flex flex-wrap gap-2 pt-1">
 					<Button size="sm" variant="outline" disabled={busy} onclick={test}
 						>Test verification</Button
@@ -169,18 +169,18 @@
 			</div>
 		</Panel>
 		<Panel title="How the challenge works">
-			<p class="text-[13px]">
+			<p class="text-md">
 				Too many requests from one address send its browser to <Mono
 					>{form.challenge_domain || '…'}</Mono
 				>. Solving ends the challenge but leaves the counters alone; ignoring it leads to a ban.
 				Signed-in users and addresses in the firewall allow list never see it.
 			</p>
-			<p class="mt-3 text-[12.5px] text-muted-foreground">
+			<p class="mt-3 text-sm text-muted-foreground">
 				A rule's "Pass CAPTCHA" uses the same page and lets the visitor through that service for a
 				day.
 			</p>
 		</Panel>
 	</div>
 {:else if error}
-	<p role="alert" class="text-[13px] text-bad-text">{error}</p>
+	<p role="alert" class="text-md text-bad-text">{error}</p>
 {/if}

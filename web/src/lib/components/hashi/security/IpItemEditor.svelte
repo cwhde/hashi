@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import * as ToggleGroup from '$lib/components/ui/toggle-group';
-	import * as Select from '$lib/components/ui/select';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
 	import IpSetPicker from './IpSetPicker.svelte';
-	import type { ItemType } from '$lib/design/security';
+	import type { ItemType } from '#lib/design/security.ts';
 
 	// Add or edit one IP item: pick the type, then only that type's fields (05a §2). When the set is used as a
 	// target, CIDR, Geo and non-address sets cannot be added (05a §5.2).
@@ -34,12 +34,19 @@
 <div class="space-y-4">
 	<div class="space-y-1.5">
 		<Label>Type</Label>
-		<ToggleGroup.Root type="single" bind:value={type} variant="outline" size="sm" class="flex-wrap">
+		<ToggleGroup.Root
+			type="single"
+			bind:value={type}
+			variant="outline"
+			size="sm"
+			spacing={1}
+			class="grid w-full grid-cols-4"
+		>
 			{#each types as t (t.v)}
 				<ToggleGroup.Item value={t.v} disabled={usedAsTarget && !t.target}>{t.l}</ToggleGroup.Item>
 			{/each}
 		</ToggleGroup.Root>
-		{#if usedAsTarget}<p class="text-[12.5px] text-muted-foreground">
+		{#if usedAsTarget}<p class="text-sm text-muted-foreground">
 				This set is a DNS value or upstream, so it can only hold single addresses.
 			</p>{/if}
 	</div>
@@ -52,7 +59,7 @@
 				class="font-mono"
 				placeholder={type === 'ip' ? '198.51.100.7' : '192.0.2.0/24'}
 			/>
-			{#if type === 'cidr'}<p class="text-[12.5px] text-muted-foreground">
+			{#if type === 'cidr'}<p class="text-sm text-muted-foreground">
 					Host bits are cleared on save; a /32 or /128 is saved as an IP.
 				</p>{/if}
 		</div>
@@ -88,14 +95,14 @@
 				/>
 			</div>
 		{/if}
-		<p class="text-[12.5px] text-muted-foreground">
+		<p class="text-sm text-muted-foreground">
 			Follows the {type === 'pulse' ? 'agent' : 'host'}: when its address changes, every place using
 			this set updates.
 		</p>
 	{:else if type === 'dns'}
 		<div class="space-y-1.5">
 			<Label for="fq">Name</Label><Input id="fq" class="font-mono" placeholder="vpn.example.org" />
-			<p class="text-[12.5px] text-muted-foreground">
+			<p class="text-sm text-muted-foreground">
 				Resolved by Hashi and refreshed at the record TTL (1 min to 1 h).
 			</p>
 		</div>
@@ -127,7 +134,7 @@
 				/>
 			</div>
 		</div>
-		<p class="text-[12.5px] text-muted-foreground">
+		<p class="text-sm text-muted-foreground">
 			Uses the GeoIP database (updated 6 days ago). On a firewall it becomes that country’s
 			prefixes.
 		</p>
@@ -138,7 +145,7 @@
 				bind:value={ref}
 				addressOnly={usedAsTarget}
 			/>
-			<p class="text-[12.5px] text-muted-foreground">
+			<p class="text-sm text-muted-foreground">
 				Everything in that set counts as part of this one. Loops are refused when you save.
 			</p>
 		</div>
@@ -152,7 +159,7 @@
 			<Label for="ex">Expires</Label><Input id="ex" type="date" aria-describedby="exh" />
 		</div>
 	</div>
-	<p id="exh" class="-mt-2 text-[12.5px] text-muted-foreground">
+	<p id="exh" class="-mt-2 text-sm text-muted-foreground">
 		An expired item drops out at the next update and is recorded in Activity.
 	</p>
 </div>

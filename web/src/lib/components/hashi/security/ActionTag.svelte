@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Tag from '../Tag.svelte';
-	import { actionMeta, type Action } from '$lib/design/security';
+	import { actionMeta, type Action } from '#lib/design/security.ts';
 
 	let { action, groups }: { action: Action; groups?: string[] } = $props();
 </script>

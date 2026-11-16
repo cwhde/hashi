@@ -1,25 +1,32 @@
 <script lang="ts">
+	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
+	import { hrefWithTab, tabFrom } from '#lib/url-tab.ts';
 	import { onMount } from 'svelte';
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
-	import * as Sheet from '$lib/components/ui/sheet';
-	import * as Tabs from '$lib/components/ui/tabs';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import * as Sheet from '#lib/components/ui/sheet/index.ts';
+	import * as Tabs from '#lib/components/ui/tabs/index.ts';
 	import { CircleAlert, Plus } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { withReauth } from '$lib/auth/reauth';
-	import { dateTime } from '$lib/format';
-	import ChallengeSettings from '$lib/components/hashi/security/ChallengeSettings.svelte';
-	import EngineSummary from '$lib/components/hashi/security/EngineSummary.svelte';
-	import SecurityDashboard from '$lib/components/hashi/security/SecurityDashboard.svelte';
-	import CountersView from '$lib/components/hashi/security/CountersView.svelte';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { withReauth } from '#lib/auth/reauth.ts';
+	import { dateTime } from '#lib/format.ts';
+	import ChallengeSettings from '#lib/components/hashi/security/ChallengeSettings.svelte';
+	import EngineSummary from '#lib/components/hashi/security/EngineSummary.svelte';
+	import SecurityDashboard from '#lib/components/hashi/security/SecurityDashboard.svelte';
+	import CountersView from '#lib/components/hashi/security/CountersView.svelte';
 
-	let tab = $state('dash');
+	// The open tab lives in the address (bug 41).
+	const tabs = ['dash', 'counters', 'captcha', 'sso', 'limits', 'engine', 'geo'];
+	let tab = $state(tabFrom(page.url, tabs));
+	const setTab = (t: string) =>
+		goto(hrefWithTab(page.url, tabs, t), { replace: true, reset: false });
 
 	// Security for S9: who may sign in at the edge, and the country database (06 §7, §12). The dashboard, counters, CAPTCHA
 	// and engine tabs arrive with the abuse engine.
@@ -125,18 +132,20 @@
 	}
 </script>
 
+<svelte:head><title>Security · Hashi</title></svelte:head>
+
 <PageHeader
 	title="Security"
 	description="CAPTCHA, sign-in at the edge, the abuse engine and where countries come from."
 />
 
 {#if error}
-	<p class="flex items-center gap-2 text-[13px] text-bad-text">
+	<p class="flex items-center gap-2 text-md text-bad-text">
 		<CircleAlert class="size-3.5" />{error}
 	</p>
 {/if}
 
-<Tabs.Root bind:value={tab}>
+<Tabs.Root bind:value={tab} onValueChange={setTab}>
 	<Tabs.List class="mb-4 max-w-full justify-start overflow-x-auto">
 		<Tabs.Trigger value="dash">Dashboard</Tabs.Trigger>
 		<Tabs.Trigger value="counters">Counters</Tabs.Trigger>
@@ -171,7 +180,7 @@
 					onclick={() => (editing = { id: '', form: blank(!data?.providers.length) })}
 					><Plus />Add provider</Button
 				>{/snippet}
-			<ul class="divide-y text-[13px]">
+			<ul class="divide-y text-md">
 				{#each data?.providers ?? [] as p (p.id)}
 					<li class="flex items-center gap-3 px-4 py-3">
 						<button
@@ -181,7 +190,7 @@
 							<span class="font-medium hover:underline">{p.name}</span>
 							{#if p.is_default}<Tag>default</Tag>{/if}
 							<span class="block text-muted-foreground">{p.issuer}</span>
-							{#if p.discovery_error}<span class="block text-[12.5px] text-bad-text"
+							{#if p.discovery_error}<span class="block text-sm text-bad-text"
 									>{p.discovery_error}</span
 								>{/if}
 						</button>
@@ -196,7 +205,7 @@
 				{/each}
 			</ul>
 		</Panel>
-		{#if data}<p class="text-[12.5px] text-muted-foreground">
+		{#if data}<p class="text-sm text-muted-foreground">
 				Register this address at the provider: <Mono>{data.callback_url}</Mono>
 			</p>{/if}
 	</Tabs.Content>
@@ -214,12 +223,12 @@
 						<Input id="li" type="number" bind:value={limits.idle_timeout_hours} />
 					</div>
 				</div>
-				<label class="mt-3 flex items-center gap-2 text-[13px]"
+				<label class="mt-3 flex items-center gap-2 text-md"
 					><Switch bind:checked={limits.remember_device} />Stay signed in after closing the browser</label
 				>
 				<div class="mt-3 flex items-center gap-3">
 					<Button size="sm" onclick={saveLimits}>Save sessions</Button>
-					<span class="text-[13px] text-muted-foreground">{limitsNote}</span>
+					<span class="text-md text-muted-foreground">{limitsNote}</span>
 				</div>
 			</Panel>
 		{/if}
@@ -230,12 +239,12 @@
 			title="Databases"
 			description="Used by rules and firewall sets that name a country or network."
 		>
-			<ul class="space-y-2 text-[13px]">
+			<ul class="space-y-2 text-md">
 				{#each geo?.databases ?? [] as d (d.edition)}
 					<li class="flex items-center gap-2">
 						<span class="flex-1"
 							><span class="font-medium">{d.edition}</span><span
-								class="block text-[12.5px] text-muted-foreground"
+								class="block text-sm text-muted-foreground"
 								>built {dateTime(d.built_at)}, fetched {dateTime(d.fetched_at)}</span
 							></span
 						>
@@ -277,7 +286,7 @@
 						placeholder="https://mirror.example.com/{'{edition}'}.tar.gz"
 					/>
 				</div>
-				{#if geoError}<p class="text-[13px] text-bad-text">{geoError}</p>{/if}
+				{#if geoError}<p class="text-md text-bad-text">{geoError}</p>{/if}
 				<Button size="sm" disabled={busy} onclick={saveGeo}>Save and download</Button>
 			</div>
 		</Panel>
@@ -352,10 +361,10 @@
 						/>
 					</div>
 				</div>
-				<label class="flex items-center gap-2 text-[13px]"
+				<label class="flex items-center gap-2 text-md"
 					><Switch bind:checked={editing.form.is_default} />Default provider</label
 				>
-				{#if formError}<p class="text-[13px] text-bad-text">{formError}</p>{/if}
+				{#if formError}<p class="text-md text-bad-text">{formError}</p>{/if}
 			</div>
 		{/if}
 		<Sheet.Footer class="flex-row justify-end gap-2 border-t">

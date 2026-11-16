@@ -1,13 +1,13 @@
 <script lang="ts">
-	import * as Dialog from '$lib/components/ui/dialog';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
+	import * as Dialog from '#lib/components/ui/dialog/index.ts';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
 	import { Fingerprint, KeyRound } from '@lucide/svelte';
-	import { api, problemText } from '$lib/api/client';
-	import { usePasskey, ceremonyText } from '$lib/auth/webauthn';
-	import { vaultState } from '$lib/vault.svelte';
-	import { pendingPlans } from '$lib/sync-pending.svelte';
+	import { api, problemText } from '#lib/api/client.ts';
+	import { usePasskey, ceremonyText } from '#lib/auth/webauthn.ts';
+	import { vaultState } from '#lib/vault.svelte.ts';
+	import { pendingPlans } from '#lib/sync-pending.svelte.ts';
 
 	// Unlock a strict-mode vault (02 §5.4): with a passkey that has an unlocker, or with the recovery key.
 	let { open = $bindable(false) }: { open?: boolean } = $props();
@@ -71,7 +71,7 @@
 			<Button onclick={withPasskey} disabled={!!busy} class="w-full">
 				<Fingerprint />{busy === 'passkey' ? 'Waiting for the passkey…' : 'Unlock with a passkey'}
 			</Button>
-			<p class="text-center text-[12px] text-muted-foreground">
+			<p class="text-center text-xs text-muted-foreground">
 				{unlockers.map((u) => u.passkey_name).join(', ')}
 			</p>
 		{/if}
@@ -96,6 +96,6 @@
 				<KeyRound />{busy === 'key' ? 'Unlocking…' : 'Unlock with the recovery key'}
 			</Button>
 		</form>
-		{#if error}<p role="alert" class="text-[13px] text-bad-text">{error}</p>{/if}
+		{#if error}<p role="alert" class="text-md text-bad-text">{error}</p>{/if}
 	</Dialog.Content>
 </Dialog.Root>

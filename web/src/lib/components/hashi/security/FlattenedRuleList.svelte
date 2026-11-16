@@ -2,7 +2,7 @@
 	import Mono from '../Mono.svelte';
 	import SetBadge from './SetBadge.svelte';
 	import ActionTag from './ActionTag.svelte';
-	import type { FlatRow } from '$lib/design/security';
+	import type { FlatRow } from '#lib/design/security.ts';
 	import { Lock, ArrowRight } from '@lucide/svelte';
 
 	// The whole path of a request as one list: Stage A (locked engine steps) then the flattened Stage B items, first
@@ -14,7 +14,7 @@
 	});
 </script>
 
-<ol class="divide-y text-[13px]">
+<ol class="divide-y text-md">
 	{#each numbered as r, i (i)}
 		<li
 			class="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 px-4 py-2.5 md:grid-cols-[2rem_minmax(0,1fr)_minmax(0,0.8fr)_13rem_minmax(0,1fr)]
@@ -30,7 +30,7 @@
 			>
 			{#if r.stage === 'A'}
 				<span class="font-medium">{r.label}</span>
-				<span class="col-span-2 text-[12.5px] text-muted-foreground md:col-span-3">{r.note}</span>
+				<span class="col-span-2 text-sm text-muted-foreground md:col-span-3">{r.note}</span>
 			{:else}
 				<span class="flex min-w-0 items-center gap-2">
 					<SetBadge slug={r.appliesTo ?? 'all'} />
@@ -44,7 +44,7 @@
 				<span class="flex items-center gap-1.5"
 					><ActionTag action={r.action ?? 'none'} groups={r.auth?.groups} /></span
 				>
-				<span class="col-span-2 truncate text-[12.5px] text-muted-foreground md:col-span-1"
+				<span class="col-span-2 truncate text-sm text-muted-foreground md:col-span-1"
 					>{r.origin}{#if r.note}<span class="hidden lg:inline"> · {r.note}</span>{/if}</span
 				>
 			{/if}

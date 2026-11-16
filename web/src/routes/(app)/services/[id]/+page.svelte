@@ -1,27 +1,29 @@
 <script lang="ts">
-	import ServiceExtras from '$lib/components/hashi/services/ServiceExtras.svelte';
-	import ServiceAccess from '$lib/components/hashi/rules/ServiceAccess.svelte';
-	import ServiceWaf from '$lib/components/hashi/services/ServiceWaf.svelte';
-	import ServiceTraffic from '$lib/components/hashi/services/ServiceTraffic.svelte';
-	import MiddlewarePicker from '$lib/components/hashi/services/MiddlewarePicker.svelte';
+	import { Draft, guardUnsaved } from '#lib/unsaved.svelte.ts';
+	import { hrefWithTab, tabFrom } from '#lib/url-tab.ts';
+	import ServiceExtras from '#lib/components/hashi/services/ServiceExtras.svelte';
+	import ServiceAccess from '#lib/components/hashi/rules/ServiceAccess.svelte';
+	import ServiceWaf from '#lib/components/hashi/services/ServiceWaf.svelte';
+	import ServiceTraffic from '#lib/components/hashi/services/ServiceTraffic.svelte';
+	import MiddlewarePicker from '#lib/components/hashi/services/MiddlewarePicker.svelte';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import * as Tabs from '$lib/components/ui/tabs';
-	import * as Select from '$lib/components/ui/select';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
+	import * as AlertDialog from '#lib/components/ui/alert-dialog/index.ts';
 	import { ChevronLeft, CircleAlert, Lock, Plus, Trash2 } from '@lucide/svelte';
-	import { api, problemText } from '$lib/api/client';
-	import { withReauth } from '$lib/auth/reauth';
-	import { pendingPlans } from '$lib/sync-pending.svelte';
+	import { api, problemText } from '#lib/api/client.ts';
+	import { withReauth } from '#lib/auth/reauth.ts';
+	import { pendingPlans } from '#lib/sync-pending.svelte.ts';
 	import {
 		domainMode,
 		isStream,
@@ -37,7 +39,7 @@
 		type Route,
 		type Service,
 		type ServiceInput
-	} from '$lib/services';
+	} from '#lib/services.ts';
 
 	// One service (04 §1): public name, upstream, advanced routes with rewrites, TLS options, the rendered excerpt.
 	// The Hashi admin service is shown read-only: it follows Settings → General (invariant 10).
@@ -57,6 +59,9 @@
 	let busy = $state('');
 	let delOpen = $state(false);
 	const system = $derived(svc?.origin === 'system');
+	// Unsaved edits: leaving the page asks first (bug 40). A save reloads, which marks the new state saved.
+	const draft = new Draft(() => [edit, extra, targetsText]);
+	guardUnsaved(() => draft.dirty);
 
 	async function load() {
 		const [s, r] = await Promise.all([
@@ -89,6 +94,7 @@
 			const e = await api.GET('/api/services/{id}/effective', { params: { path: { id } } });
 			if (e.data) yaml = e.data.yaml;
 		}
+		draft.mark();
 	}
 	onMount(() => load().catch((e) => (loadError = problemText(e))));
 
@@ -193,18 +199,25 @@
 		targetsText = targetsText.filter((_, j) => j !== i);
 	}
 	const matchText = { prefix: 'starts with', exact: 'is exactly', regex: 'matches regex' } as const;
+	// The open tab lives in the address (bug 41).
+	const tabs = ['routing', 'traffic', 'access', 'waf', 'monitoring', 'config'];
+	let tab = $state(tabFrom(page.url, tabs));
+	const setTab = (t: string) =>
+		goto(hrefWithTab(page.url, tabs, t), { replace: true, reset: false });
 </script>
+
+<svelte:head><title>{svc?.name ?? 'Service'} · Hashi</title></svelte:head>
 
 <a
 	href="/services"
-	class="mb-3 inline-flex items-center gap-1 text-[13px] text-muted-foreground hover:text-foreground"
+	class="mb-3 inline-flex items-center gap-1 text-md text-muted-foreground hover:text-foreground"
 	><ChevronLeft class="size-4" />Services</a
 >
 
 {#if loadError}
 	<p
 		role="alert"
-		class="flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-[13px] text-bad-text"
+		class="flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-md text-bad-text"
 	>
 		<CircleAlert class="mt-0.5 size-4 shrink-0" />{loadError}
 	</p>
@@ -212,21 +225,21 @@
 	<Skeleton class="h-28 rounded-2xl" /><Skeleton class="mt-4 h-72 rounded-2xl" />
 {:else}
 	<div class="mb-5 rounded-2xl border bg-card p-4">
-		<div class="flex flex-wrap items-start gap-x-6 gap-y-3">
+		<!-- On a phone the buttons go under the title instead of squeezing it (bug 15). -->
+		<div class="flex flex-col gap-x-6 gap-y-3 sm:flex-row sm:items-start">
 			<div class="min-w-0 flex-1">
-				<h1 class="flex flex-wrap items-center gap-2 text-[22px] leading-tight font-semibold">
+				<h1 class="flex flex-wrap items-center gap-2 text-title leading-tight font-semibold">
 					{svc.name}
 					{#if system}<Tag><Lock class="size-3" />system · change it in Settings → General</Tag
 						>{/if}
 				</h1>
 				{#if isStream(svc.kind)}
-					<p class="text-[13.5px] text-muted-foreground">
+					<p class="text-md text-muted-foreground">
 						Port {svc.public_port}/{svc.kind}{svc.host_name ? ` · ${svc.host_name}` : ''}
 					</p>
 				{:else}
-					<a
-						class="text-[13.5px] text-muted-foreground hover:underline"
-						href="https://{svc.host_name}">https://{svc.host_name}</a
+					<a class="text-md text-muted-foreground hover:underline" href="https://{svc.host_name}"
+						>https://{svc.host_name}</a
 					>
 				{/if}
 			</div>
@@ -248,29 +261,31 @@
 				</div>
 			{/if}
 		</div>
-		<dl class="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-[13px] sm:grid-cols-4">
+		<dl class="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-md sm:grid-cols-4">
 			<div>
-				<dt class="text-[12px] text-muted-foreground">State</dt>
+				<dt class="text-xs text-muted-foreground">State</dt>
 				<dd>
 					{#if svc.invalid_reason}<span class="text-bad-text">Not published</span
 						>{:else if svc.enabled}Published on every Traefik host{:else}Off{/if}
 				</dd>
 			</div>
-			<div>
-				<dt class="text-[12px] text-muted-foreground">Upstream</dt>
-				<dd class="min-w-0 break-all"><Mono>{svc.kind}://{targetText(svc.target)}</Mono></dd>
+			<div class="col-span-2 min-w-0 sm:col-span-1">
+				<dt class="text-xs text-muted-foreground">Upstream</dt>
+				<dd class="overflow-x-auto whitespace-nowrap">
+					<Mono>{svc.kind}://{targetText(svc.target)}</Mono>
+				</dd>
 			</div>
 			<div>
-				<dt class="text-[12px] text-muted-foreground">Routes</dt>
+				<dt class="text-xs text-muted-foreground">Routes</dt>
 				<dd>{svc.advanced_routes ? svc.routes.length : 'whole service to one upstream'}</dd>
 			</div>
 			<div>
-				<dt class="text-[12px] text-muted-foreground">Origin</dt>
+				<dt class="text-xs text-muted-foreground">Origin</dt>
 				<dd>{svc.origin}</dd>
 			</div>
 		</dl>
 		{#if svc.invalid_reason}
-			<p class="mt-3 rounded-xl border border-bad/25 bg-bad/10 p-3 text-[12.5px] text-bad-text">
+			<p class="mt-3 rounded-xl border border-bad/25 bg-bad/10 p-3 text-sm text-bad-text">
 				Left out of the Traefik files: {svc.invalid_reason}
 			</p>
 		{/if}
@@ -279,7 +294,7 @@
 	{#if outcome}
 		<p
 			role={outcome.bad ? 'alert' : 'status'}
-			class="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border p-3 text-[13px] {outcome.bad
+			class="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border p-3 text-md {outcome.bad
 				? 'border-bad/30 bg-bad/10 text-bad-text'
 				: 'bg-card'}"
 		>
@@ -292,13 +307,13 @@
 	{#if saveError}
 		<p
 			role="alert"
-			class="mb-4 flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-3 text-[13px] text-bad-text"
+			class="mb-4 flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-3 text-md text-bad-text"
 		>
 			<CircleAlert class="mt-0.5 size-4 shrink-0" />{saveError}
 		</p>
 	{/if}
 
-	<Tabs.Root value="routing">
+	<Tabs.Root bind:value={tab} onValueChange={setTab}>
 		<!-- Six tabs are wider than a phone: the row scrolls on its own instead of the page. -->
 		<Tabs.List class="mb-4 max-w-full justify-start overflow-x-auto">
 			<Tabs.Trigger value="routing">Routing</Tabs.Trigger>
@@ -326,7 +341,7 @@
 					</div>
 					<div class="space-y-1.5">
 						<Label for="h">Domain</Label><Input id="h" bind:value={edit.host_name} />
-						<p class="text-[12.5px] text-muted-foreground">
+						<p class="text-sm text-muted-foreground">
 							Inside the managed zone. DNS records for services arrive with firewall hosts; until
 							then the name points where you set it on the DNS page.
 						</p>
@@ -372,7 +387,7 @@
 			</Panel>
 
 			<Panel title="Upstream">
-				{#snippet actions()}{#if !system}<div class="flex items-center gap-2 text-[13px]">
+				{#snippet actions()}{#if !system}<div class="flex items-center gap-2 text-md">
 							<Label for="adv">Advanced routes</Label><Switch
 								id="adv"
 								bind:checked={edit!.advanced_routes}
@@ -411,7 +426,7 @@
 						</div>
 					{/if}
 					{#if edit.advanced_routes && !isStream(edit.kind)}
-						<p class="text-[12.5px] text-muted-foreground">
+						<p class="text-sm text-muted-foreground">
 							Requests matching a route go to its targets; everything else goes to the upstream
 							above. Higher priority is checked first.
 						</p>
@@ -473,7 +488,7 @@
 									/>
 									{#if mwNames.length || r.middlewares?.length}
 										<div class="flex flex-wrap items-center gap-2">
-											<span class="text-[12.5px] text-muted-foreground">Extra middlewares</span>
+											<span class="text-sm text-muted-foreground">Extra middlewares</span>
 											<MiddlewarePicker
 												names={mwNames}
 												bind:selected={r.middlewares}
@@ -533,7 +548,7 @@
 
 		<Tabs.Content value="access">
 			{#if svc && !isStream(svc.kind)}<ServiceAccess serviceId={id} />{:else}<Panel title="Access">
-					<p class="text-[13px] text-muted-foreground">
+					<p class="text-md text-muted-foreground">
 						TCP and UDP services are protected at the firewall.
 					</p>
 				</Panel>{/if}
@@ -543,7 +558,7 @@
 
 		<Tabs.Content value="monitoring">
 			<Panel title="Monitoring">
-				<p class="text-[13px] text-muted-foreground">
+				<p class="text-md text-muted-foreground">
 					Checks of the public address and the upstream arrive with monitoring (S7). "Monitor" above
 					already decides whether this service gets them.
 				</p>
@@ -558,11 +573,11 @@
 			>
 				{#if yaml}
 					<pre
-						class="overflow-x-auto rounded-b-2xl bg-surface-2/40 p-4 font-mono text-[12.5px] leading-relaxed"><code
+						class="overflow-x-auto rounded-b-2xl bg-surface-2/40 p-4 font-mono text-sm leading-relaxed"><code
 							>{yaml}</code
 						></pre>
 				{:else}
-					<p class="px-4 py-3 text-[13px] text-muted-foreground">
+					<p class="px-4 py-3 text-md text-muted-foreground">
 						Nothing is rendered while the service is invalid.
 					</p>
 				{/if}

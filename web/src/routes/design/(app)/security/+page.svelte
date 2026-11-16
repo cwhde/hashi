@@ -1,17 +1,17 @@
 <script lang="ts">
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import Sparkline from '$lib/components/hashi/Sparkline.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
-	import * as Tabs from '$lib/components/ui/tabs';
-	import * as ToggleGroup from '$lib/components/ui/toggle-group';
-	import AddressLink from '$lib/components/hashi/security/AddressLink.svelte';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import Sparkline from '#lib/components/hashi/Sparkline.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.ts';
+	import AddressLink from '#lib/components/hashi/security/AddressLink.svelte';
 	import Counters from './Counters.svelte';
-	import { securityTop, securityEvents, spark } from '$lib/design/mock';
+	import { securityTop, securityEvents, spark } from '#lib/design/mock.ts';
 	import { Search, Plus, TriangleAlert } from '@lucide/svelte';
 
 	let range = $state('24h');
@@ -65,11 +65,11 @@
 						>{r}</ToggleGroup.Item
 					>{/each}</ToggleGroup.Root
 			>
-			<span class="text-[12.5px] text-muted-foreground"
+			<span class="text-sm text-muted-foreground"
 				>All services · all Traefik hosts · all firewall hosts</span
 			>
 			<span
-				class="ml-auto inline-flex items-center gap-1.5 rounded-[10px] border border-warn/30 bg-warn/10 px-2.5 py-1 text-[12.5px] text-warn-text"
+				class="ml-auto inline-flex items-center gap-1.5 rounded-[10px] border border-warn/30 bg-warn/10 px-2.5 py-1 text-sm text-warn-text"
 				><TriangleAlert class="size-3.5" />feed-dc-ranges is stale (9 h)</span
 			>
 		</div>
@@ -78,15 +78,15 @@
 		>
 			{#each tiles as t (t.k)}
 				<div class="p-4">
-					<div class="text-[12.5px] text-muted-foreground">{t.k}</div>
-					<div class="tnum text-[22px] font-semibold">{t.v}</div>
+					<div class="text-sm text-muted-foreground">{t.k}</div>
+					<div class="tnum text-title font-semibold">{t.v}</div>
 					<Sparkline values={t.s} width={200} class="{t.tone} mt-1 w-full" />
 				</div>
 			{/each}
 		</div>
 		<div class="grid gap-4 xl:grid-cols-3">
 			<Panel title="Most refused addresses" class="xl:col-span-2" flush>
-				<ul class="divide-y text-[13px]">
+				<ul class="divide-y text-md">
 					{#each securityTop.ips as ip (ip.v)}
 						<li
 							class="grid grid-cols-[minmax(0,9rem)_4rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5 lg:grid-cols-[10rem_4rem_3rem_minmax(0,1fr)_minmax(0,1.2fr)_6rem]"
@@ -102,7 +102,7 @@
 				</ul>
 			</Panel>
 			<Panel title="Refused by country">
-				<ul class="space-y-2 text-[13px]">
+				<ul class="space-y-2 text-md">
 					{#each securityTop.countries as c (c.v)}
 						<li class="grid grid-cols-[2.5rem_1fr_3.5rem] items-center gap-2">
 							<span>{c.v}</span><span class="h-1.5 rounded-full bg-surface-2"
@@ -114,10 +114,10 @@
 						</li>
 					{/each}
 				</ul>
-				<div class="mt-4 mb-2 text-[12.5px] font-medium text-muted-foreground">
+				<div class="mt-4 mb-2 text-sm font-medium text-muted-foreground">
 					Most targeted services
 				</div>
-				<ul class="space-y-1.5 text-[13px]">
+				<ul class="space-y-1.5 text-md">
 					{#each securityTop.services as r (r.v)}<li class="flex justify-between">
 							<span>{r.v}</span><span class="tnum">{r.n.toLocaleString()}</span>
 						</li>{/each}
@@ -129,7 +129,7 @@
 				title="Challenges"
 				description="What happened to addresses that were asked to solve one"
 			>
-				<ul class="space-y-2 text-[13px]">
+				<ul class="space-y-2 text-md">
 					{#each funnel as s (s.k)}
 						<li class="grid grid-cols-[8.5rem_1fr_3.5rem] items-center gap-2">
 							<span>{s.k}</span><span class="h-1.5 rounded-full bg-surface-2"
@@ -141,12 +141,12 @@
 						</li>
 					{/each}
 				</ul>
-				<p class="mt-3 text-[12.5px] text-muted-foreground">
+				<p class="mt-3 text-sm text-muted-foreground">
 					Many bans compared to solves can mean a background app keeps polling while challenged.
 				</p>
 			</Panel>
 			<Panel title="Kernel meters" description="Addresses caught on the firewall hosts">
-				<ul class="divide-y text-[13px]">
+				<ul class="divide-y text-md">
 					{#each securityTop.meters as m (m.host)}
 						<li class="grid grid-cols-[minmax(0,1fr)_repeat(3,5.5rem)] gap-2 py-2">
 							<span class="font-medium">{m.host}</span><span class="tnum text-right"
@@ -162,7 +162,7 @@
 			</Panel>
 		</div>
 		<Panel title="Recent events" flush>
-			<ul class="divide-y text-[13px]">
+			<ul class="divide-y text-md">
 				{#each securityEvents as e (e.t)}
 					<li
 						class="grid grid-cols-[4.5rem_minmax(0,9rem)_minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5 md:grid-cols-[4.5rem_10rem_minmax(0,1fr)_minmax(0,12rem)_6rem]"
@@ -192,7 +192,7 @@
 				</div>
 				<div class="space-y-1.5">
 					<Label>Secret key</Label><Input value="••••••••••••" disabled />
-					<p class="text-[12.5px] text-muted-foreground">
+					<p class="text-sm text-muted-foreground">
 						Stored in the vault. Replacing it asks for your passkey.
 					</p>
 				</div>
@@ -204,21 +204,21 @@
 			</div>
 		</Panel>
 		<Panel title="Today">
-			<dl class="grid grid-cols-3 gap-3 text-[13px]">
+			<dl class="grid grid-cols-3 gap-3 text-md">
 				<div>
 					<dt class="text-muted-foreground">Solved</dt>
-					<dd class="tnum text-[20px] font-semibold">212</dd>
+					<dd class="tnum text-title font-semibold">212</dd>
 				</div>
 				<div>
 					<dt class="text-muted-foreground">Failed</dt>
-					<dd class="tnum text-[20px] font-semibold">31</dd>
+					<dd class="tnum text-title font-semibold">31</dd>
 				</div>
 				<div>
 					<dt class="text-muted-foreground">Ignored</dt>
-					<dd class="tnum text-[20px] font-semibold">960</dd>
+					<dd class="tnum text-title font-semibold">960</dd>
 				</div>
 			</dl>
-			<p class="mt-3 text-[12.5px] text-muted-foreground">
+			<p class="mt-3 text-sm text-muted-foreground">
 				Solving ends the challenge but leaves the counters alone. 15 requests without solving lead
 				to a ban. A signed-in user never sees a CAPTCHA.
 			</p>
@@ -233,7 +233,7 @@
 		>
 			{#snippet actions()}<Button size="sm" variant="outline"><Plus />Add provider</Button
 				>{/snippet}
-			<ul class="divide-y text-[13px]">
+			<ul class="divide-y text-md">
 				<li class="flex items-center gap-3 px-4 py-3">
 					<span class="flex-1"
 						><span class="font-medium">Pocket ID</span>
@@ -251,7 +251,7 @@
 			title="Abuse engine"
 			description="Applies to every service. Saved in Settings → Security."
 		>
-			<dl class="grid grid-cols-[1fr_auto] gap-y-2.5 text-[13px]">
+			<dl class="grid grid-cols-[1fr_auto] gap-y-2.5 text-md">
 				<dt>Challenge after WAF matches</dt>
 				<dd class="tnum">5 in 60 s</dd>
 				<dt>Challenge after requests</dt>
@@ -265,7 +265,7 @@
 				<dt>Counters drop by one after</dt>
 				<dd class="tnum">7 quiet days</dd>
 			</dl>
-			<p class="mt-3 text-[12.5px] text-muted-foreground">
+			<p class="mt-3 text-sm text-muted-foreground">
 				Addresses in the firewall allow and signed-in users never trigger the request limit.
 			</p>
 		</Panel>
@@ -273,7 +273,7 @@
 			title="Ban length"
 			description="Exponential: 15 min × 2 per earlier ban, at most 30 days"
 		>
-			<ol class="grid grid-cols-[3rem_1fr_4.5rem] items-center gap-x-2 gap-y-1.5 text-[13px]">
+			<ol class="grid grid-cols-[3rem_1fr_4.5rem] items-center gap-x-2 gap-y-1.5 text-md">
 				{#each ['15 min', '30 min', '1 h', '2 h', '4 h', '8 h', '16 h', '1 d 8 h', '2 d 16 h', '5 d 8 h', '10 d 16 h', '21 d 8 h'] as t, i (i)}
 					<li class="contents">
 						<span class="tnum text-muted-foreground">{i + 1}.</span><span
@@ -288,12 +288,11 @@
 			</ol>
 		</Panel>
 		<Panel title="GeoIP">
-			<p class="text-[13px]">
+			<p class="text-md">
 				MaxMind GeoLite2 Country + ASN · updated 6 days ago. Without it, country and ASN items in IP
 				sets match nobody.
 			</p>
-			<label class="mt-3 flex items-center gap-2 text-[13px]"><Switch checked />Update weekly</label
-			>
+			<label class="mt-3 flex items-center gap-2 text-md"><Switch checked />Update weekly</label>
 		</Panel>
 	</Tabs.Content>
 </Tabs.Root>

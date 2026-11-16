@@ -1,10 +1,10 @@
 <script lang="ts">
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import * as Dialog from '#lib/components/ui/dialog/index.ts';
+	import * as AlertDialog from '#lib/components/ui/alert-dialog/index.ts';
 	import { Lock, Fingerprint, Plus, CircleAlert, Check } from '@lucide/svelte';
 	let reauth = $state(false);
 	let saved = $state(false);
@@ -16,7 +16,7 @@
 />
 
 <div
-	class="mb-5 flex flex-wrap items-center gap-3 rounded-2xl border border-warn/30 bg-warn/10 px-4 py-3 text-[13px]"
+	class="mb-5 flex flex-wrap items-center gap-3 rounded-2xl border border-warn/30 bg-warn/10 px-4 py-3 text-md"
 >
 	<Lock class="size-4 text-warn-text" />
 	<span class="flex-1"
@@ -29,8 +29,8 @@
 <div class="grid gap-4 lg:grid-cols-2">
 	<Panel title="Empty">
 		<div class="py-8 text-center">
-			<p class="text-[14px] font-medium">No scripts yet</p>
-			<p class="mx-auto mt-1 max-w-[42ch] text-[13px] text-muted-foreground">
+			<p class="text-base font-medium">No scripts yet</p>
+			<p class="mx-auto mt-1 max-w-[42ch] text-md text-muted-foreground">
 				Scripts run as root on your firewall hosts, on a schedule or by hand.
 			</p>
 			<Button size="sm" class="mt-4"><Plus />New script</Button>
@@ -44,12 +44,12 @@
 					/>
 				</div>{/each}
 		</div>
-		<p class="mt-3 text-[12.5px] text-muted-foreground">
+		<p class="mt-3 text-sm text-muted-foreground">
 			Skeletons keep the final layout; never a page-wide spinner.
 		</p>
 	</Panel>
 	<Panel title="Error">
-		<p class="flex gap-2 rounded-xl border border-bad/30 bg-bad/10 p-3 text-[13px] text-bad-text">
+		<p class="flex gap-2 rounded-xl border border-bad/30 bg-bad/10 p-3 text-md text-bad-text">
 			<CircleAlert class="mt-0.5 size-4 shrink-0" /><span
 				><span class="font-medium">Couldn't read DNS records.</span> Hetzner answered 401: the token was
 				revoked or expired. Replace it in Connections → Hetzner Cloud. Nothing was changed.</span
@@ -83,7 +83,7 @@
 				>{#if saved}<Check />Saved{:else}Save{/if}</Button
 			>
 		</div>
-		<p class="mt-3 text-[12.5px] text-muted-foreground">
+		<p class="mt-3 text-sm text-muted-foreground">
 			Buttons say what happens. A remote change shows "Applying…" until the API confirms; never
 			"done" before.
 		</p>

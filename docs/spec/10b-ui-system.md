@@ -29,7 +29,7 @@ first paint. `dark:` variants follow `data-mode`, not the OS.
 | | Value |
 | --- | --- |
 | Type | Instrument Sans (UI, bundled), Geist Mono (literal values only: IPs, records, hashes, paths, commands) |
-| Base size | 14 px; table and form text 13–13.5 px; secondary 12–12.5 px; page title 22 px; numbers in tiles 20–22 px |
+| Base size | Root 14 px. Type scale (tokens in `layout.css`, pixels): `2xs` 11.5 (tags, keyboard hints) · `xs` 12 · `sm` 12.5 (secondary) · `md` 13 (tables, forms) · `base` 14 · `lg` 15 (section headings) · `title` 22 (page and setup titles, tile numbers). No other font sizes |
 | Radius | controls 10 px (`rounded-[10px]`/`rounded-lg`), panels 16 px (`rounded-2xl`), login/setup cards 24 px (`rounded-3xl`), pills only for status tags |
 | Spacing | 4 px grid; page padding 16 px mobile / 32 px desktop; panel padding 16 px; gaps between panels 16–20 px |
 | Rows | table and list rows 40–44 px; navigation rows 36 px; top bar 52 px |

@@ -4,14 +4,14 @@
 	import RuleEntryList from './RuleEntryList.svelte';
 	import RuleItemEditor from './RuleItemEditor.svelte';
 	import FlattenedRuleList from './FlattenedRuleList.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import * as Sheet from '$lib/components/ui/sheet';
-	import * as Select from '$lib/components/ui/select';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import * as Sheet from '#lib/components/ui/sheet/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
 	import { CircleAlert, Layers, Plus, TriangleAlert, Unplug } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { pendingPlans } from '$lib/sync-pending.svelte';
-	import { listSets, type IPSet } from '$lib/ipsets';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { pendingPlans } from '#lib/sync-pending.svelte.ts';
+	import { listSets, type IPSet } from '#lib/ipsets.ts';
 	import {
 		allSetId,
 		emptyRule,
@@ -21,7 +21,7 @@
 		type Provider,
 		type RuleEntry,
 		type RuleSet
-	} from '$lib/rules';
+	} from '#lib/rules.ts';
 
 	// A service's Access tab (06 §13): its own rules, attached sets, the fallback, the flattened list and "try a request".
 	let { serviceId }: { serviceId: string } = $props();
@@ -107,16 +107,16 @@
 </script>
 
 {#if error}
-	<p class="mb-3 flex items-start gap-2 text-[13px] text-bad-text">
+	<p class="mb-3 flex items-start gap-2 text-md text-bad-text">
 		<CircleAlert class="mt-0.5 size-3.5 shrink-0" />{error}
 	</p>
 {/if}
-{#if notice}<p class="mb-3 text-[13px] text-muted-foreground">{notice}</p>{/if}
+{#if notice}<p class="mb-3 text-md text-muted-foreground">{notice}</p>{/if}
 {#if access}
 	<div class="space-y-4">
 		{#each access.warnings as w (w)}
 			<p
-				class="flex items-start gap-2 rounded-xl border border-warn/30 bg-warn/10 px-3 py-2 text-[12.5px] text-warn-text"
+				class="flex items-start gap-2 rounded-xl border border-warn/30 bg-warn/10 px-3 py-2 text-sm text-warn-text"
 			>
 				<TriangleAlert class="mt-0.5 size-3.5 shrink-0" />{w}
 			</p>
@@ -141,7 +141,7 @@
 				{/if}
 			{/snippet}
 			{#if entries.length === 0 && access.editable}
-				<p class="border-b px-4 py-3 text-[13px] text-muted-foreground">
+				<p class="border-b px-4 py-3 text-md text-muted-foreground">
 					No rules of its own. Everyone not stopped by the global rules gets the fallback.
 				</p>
 			{/if}
@@ -177,7 +177,7 @@
 				<Button size="sm" variant="outline" type="submit" disabled={!tryIp.trim()}
 					>Try a request</Button
 				>
-				{#if traceError}<span class="text-[12.5px] text-bad-text">{traceError}</span>{/if}
+				{#if traceError}<span class="text-sm text-bad-text">{traceError}</span>{/if}
 			</form>
 			<FlattenedRuleList
 				rows={trace?.flattened ?? access.flattened}
@@ -186,7 +186,7 @@
 			/>
 		</Panel>
 
-		<p class="flex items-start gap-2 text-[12.5px] text-muted-foreground">
+		<p class="flex items-start gap-2 text-sm text-muted-foreground">
 			<Unplug class="mt-0.5 size-3.5 shrink-0" />
 			{#if access.fail_closed}If Hashi is unreachable this service refuses requests, because its
 				rules can deny or ask for sign-in.{:else}If Hashi is unreachable this service stays open.{/if}

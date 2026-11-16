@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Tag from '../Tag.svelte';
-	import { actionMeta } from '$lib/rules';
+	import { actionMeta } from '#lib/rules.ts';
 
 	let { action, groups }: { action: string; groups?: string[] } = $props();
 	const meta = $derived(actionMeta[action as keyof typeof actionMeta] ?? actionMeta.deny);

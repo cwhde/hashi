@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { cn, type WithElementRef, type WithoutChildren } from '$lib/utils.js';
+	import { cn, type WithElementRef, type WithoutChildren } from '#lib/utils.js';
 	import type { HTMLTextareaAttributes } from 'svelte/elements';
 
 	let {
@@ -7,11 +7,13 @@
 		value = $bindable(),
 		class: className,
 		'data-slot': dataSlot = 'textarea',
+		spellcheck = false,
 		...restProps
 	}: WithoutChildren<WithElementRef<HTMLTextareaAttributes>> = $props();
 </script>
 
 <textarea
+	{spellcheck}
 	bind:this={ref}
 	data-slot={dataSlot}
 	class={cn(

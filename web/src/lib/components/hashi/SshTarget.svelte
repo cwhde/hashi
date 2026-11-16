@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Checkbox } from '$lib/components/ui/checkbox';
-	import { Label } from '$lib/components/ui/label';
-	import IpSetPicker from '$lib/components/hashi/ipsets/IpSetPicker.svelte';
-	import TargetSources from '$lib/components/hashi/TargetSources.svelte';
-	import { api, problemText } from '$lib/api/client';
-	import { withReauth } from '$lib/auth/reauth';
-	import type { IPSet } from '$lib/ipsets';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Checkbox } from '#lib/components/ui/checkbox/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import IpSetPicker from '#lib/components/hashi/ipsets/IpSetPicker.svelte';
+	import TargetSources from '#lib/components/hashi/TargetSources.svelte';
+	import { api, problemText } from '#lib/api/client.ts';
+	import { withReauth } from '#lib/auth/reauth.ts';
+	import type { IPSet } from '#lib/ipsets.ts';
 
 	// 08 §5: reach a host through an address set, for instance a Pulse agent. Its literal address stays the fallback,
 	// and the pinned host key still has to match.
@@ -48,7 +48,7 @@
 	}
 </script>
 
-<div class="space-y-1.5 text-[13px]">
+<div class="space-y-1.5 text-md">
 	<Label for="ssh-target-{id}">Reach over SSH through an IP set (optional)</Label>
 	<IpSetPicker id="ssh-target-{id}" bind:value={chosen} {sets} addressOnly />
 	<TargetSources setId={chosen} />

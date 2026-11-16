@@ -1,5 +1,5 @@
-import { api, type Schemas } from '$lib/api/client';
-import { contrast, luminance } from '$lib/design/contrast';
+import { api, type Schemas } from '#lib/api/client.ts';
+import { contrast, luminance } from '#lib/design/contrast.ts';
 
 // Built-in themes (10-ui.md §2). Their palette lives in routes/layout.css; this module switches it. A custom theme sets
 // the palette roles (--h-*) inline from the admin's six colours; layout.css derives every semantic token from them.
@@ -113,6 +113,7 @@ class ThemeState {
 			this.current = 'custom';
 			store(KEY, 'custom');
 			store(VARS, JSON.stringify({ vars, mode: root.dataset.mode }));
+			syncThemeColor();
 			return;
 		}
 		// An unknown id, or custom without a palette, falls back to Graphite (10-ui §2).
@@ -123,6 +124,7 @@ class ThemeState {
 		root.dataset.mode = t.mode;
 		store(KEY, t.id);
 		store(VARS, null);
+		syncThemeColor();
 	}
 
 	/** Solid backgrounds instead of translucent overlays (Settings → Appearance → Comfort). */
@@ -165,3 +167,9 @@ const fallbackCustom: CustomTheme = {
 };
 
 export const theme = new ThemeState();
+
+/** The phone browser bar takes the shell colour of the theme in use (bug 44). */
+function syncThemeColor() {
+	const shell = getComputedStyle(document.documentElement).getPropertyValue('--h-shell').trim();
+	if (shell) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', shell);
+}

@@ -1,4 +1,4 @@
-import { monitors } from '$lib/design/mock';
+import { monitors } from '#lib/design/mock.ts';
 import { error } from '@sveltejs/kit';
 
 export function load({ params }) {

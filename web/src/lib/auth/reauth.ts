@@ -1,4 +1,4 @@
-import { api, isProblem } from '$lib/api/client';
+import { api, isProblem } from '#lib/api/client.ts';
 import { session } from './session.svelte';
 import { usePasskey } from './webauthn';
 

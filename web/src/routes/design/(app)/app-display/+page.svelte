@@ -1,10 +1,10 @@
 <script lang="ts">
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Switch } from '$lib/components/ui/switch';
-	import { services, monitors } from '$lib/design/mock';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import { services, monitors } from '#lib/design/mock.ts';
 	import { GripVertical, ExternalLink } from '@lucide/svelte';
 </script>
 
@@ -30,10 +30,10 @@
 		{#snippet actions()}<Switch checked aria-label="Public dashboard enabled" />{/snippet}
 		<ul class="divide-y">
 			{#each services.filter((r) => r.origin !== 'system') as r (r.id)}
-				<li class="flex items-center gap-3 px-4 py-2 text-[13px]">
+				<li class="flex items-center gap-3 px-4 py-2 text-md">
 					<GripVertical class="size-4 text-muted-foreground" />
 					<span
-						class="grid size-7 place-items-center rounded-lg border bg-surface-2 text-[12px] font-semibold"
+						class="grid size-7 place-items-center rounded-lg border bg-surface-2 text-xs font-semibold"
 						>{r.name[0]}</span
 					>
 					<span class="flex-1"
@@ -53,7 +53,7 @@
 		{#snippet actions()}<Switch checked aria-label="Public status enabled" />{/snippet}
 		<ul class="divide-y">
 			{#each monitors.slice(0, 9) as m (m.id)}
-				<li class="flex items-center gap-3 px-4 py-2 text-[13px]">
+				<li class="flex items-center gap-3 px-4 py-2 text-md">
 					<span class="flex-1">{m.name} <span class="text-muted-foreground">· {m.group}</span></span
 					>{#if m.public}<Tag tone="ok">public</Tag>{:else}<Tag>hidden</Tag>{/if}
 				</li>

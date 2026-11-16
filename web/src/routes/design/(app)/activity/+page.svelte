@@ -1,11 +1,11 @@
 <script lang="ts">
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import { Input } from '$lib/components/ui/input';
-	import * as Tabs from '$lib/components/ui/tabs';
-	import * as Table from '$lib/components/ui/table';
-	import { audit, jobs } from '$lib/design/mock';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import * as Table from '#lib/components/ui/table/index.ts';
+	import { audit, jobs } from '#lib/design/mock.ts';
 	import { Search, Pause } from '@lucide/svelte';
 
 	const log = [
@@ -110,10 +110,10 @@
 	<Tabs.Content value="log">
 		<Panel title="Live log" description="Streaming · all subsystems · info and above" flush>
 			{#snippet actions()}<button
-					class="flex items-center gap-1 text-[13px] text-muted-foreground hover:text-foreground"
+					class="flex items-center gap-1 text-md text-muted-foreground hover:text-foreground"
 					><Pause class="size-4" />Pause</button
 				>{/snippet}
-			<ol class="overflow-x-auto p-3 font-mono text-[12.5px] leading-6">
+			<ol class="overflow-x-auto p-3 font-mono text-sm leading-6">
 				{#each log as [t, l, sub, msg], i (i)}<li class="whitespace-nowrap">
 						<span class="text-muted-foreground">{t}</span>
 						<span class={lvl[l ?? 'info']}>{(l ?? '').padEnd(5)}</span>

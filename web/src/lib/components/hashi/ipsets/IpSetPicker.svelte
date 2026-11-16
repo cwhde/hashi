@@ -1,10 +1,10 @@
 <script lang="ts">
 	import Tag from '../Tag.svelte';
-	import * as Popover from '$lib/components/ui/popover';
-	import * as Command from '$lib/components/ui/command';
-	import { Button } from '$lib/components/ui/button';
+	import * as Popover from '#lib/components/ui/popover/index.ts';
+	import * as Command from '#lib/components/ui/command/index.ts';
+	import { Button } from '#lib/components/ui/button/index.ts';
 	import { ChevronsUpDown, Check, Lock } from '@lucide/svelte';
-	import { kindLabel, type IPSet } from '$lib/ipsets';
+	import { kindLabel, type IPSet } from '#lib/ipsets.ts';
 
 	// Picks one IP set by id. In target positions (DNS values, upstreams, connections) only address sets can be
 	// chosen; the others stay visible with the reason (05a §5.2). `exclude` hides sets that cannot be picked here.
@@ -62,7 +62,7 @@
 													class="size-3 text-muted-foreground"
 												/>{/if}</span
 										>
-										<span class="block text-[12px] text-muted-foreground"
+										<span class="block text-xs text-muted-foreground"
 											>{blocked ? 'Not an address set: has ranges or countries' : size(s)}</span
 										>
 									</span>

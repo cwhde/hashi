@@ -1,34 +1,35 @@
 <script lang="ts">
+	import { Draft, guardUnsaved } from '#lib/unsaved.svelte.ts';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { cn } from '$lib/utils';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import { Textarea } from '#lib/components/ui/textarea/index.ts';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import * as AlertDialog from '#lib/components/ui/alert-dialog/index.ts';
+	import { cn } from '#lib/utils.ts';
 	import { Fingerprint, KeyRound, Trash2, Pencil } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { withReauth } from '$lib/auth/reauth';
-	import { ceremonyText } from '$lib/auth/webauthn';
-	import { dateTime, time } from '$lib/format';
-	import { theme, themes, customVars, type CustomTheme, type ThemeId } from '$lib/theme.svelte';
-	import { setTimeDisplay } from '$lib/format';
-	import CustomThemeEditor from '$lib/components/hashi/CustomThemeEditor.svelte';
-	import * as ToggleGroup from '$lib/components/ui/toggle-group';
-	import Notifications from '$lib/components/hashi/status/Notifications.svelte';
-	import AgentDns from '$lib/components/hashi/pulse/AgentDns.svelte';
-	import PulseSettings from '$lib/components/hashi/pulse/PulseSettings.svelte';
-	import VaultPanel from '$lib/components/hashi/VaultPanel.svelte';
-	import AddPasskeyDialog from '$lib/components/hashi/AddPasskeyDialog.svelte';
-	import { vaultState } from '$lib/vault.svelte';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { withReauth } from '#lib/auth/reauth.ts';
+	import { ceremonyText } from '#lib/auth/webauthn.ts';
+	import { dateTime, time } from '#lib/format.ts';
+	import { theme, themes, customVars, type CustomTheme, type ThemeId } from '#lib/theme.svelte.ts';
+	import { setTimeDisplay } from '#lib/format.ts';
+	import CustomThemeEditor from '#lib/components/hashi/CustomThemeEditor.svelte';
+	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.ts';
+	import Notifications from '#lib/components/hashi/status/Notifications.svelte';
+	import AgentDns from '#lib/components/hashi/pulse/AgentDns.svelte';
+	import PulseSettings from '#lib/components/hashi/pulse/PulseSettings.svelte';
+	import VaultPanel from '#lib/components/hashi/VaultPanel.svelte';
+	import AddPasskeyDialog from '#lib/components/hashi/AddPasskeyDialog.svelte';
+	import { vaultState } from '#lib/vault.svelte.ts';
 
 	const cats = [
 		{ id: 'general', label: 'General' },
@@ -44,7 +45,7 @@
 	];
 	const cat = $derived(page.url.searchParams.get('category') ?? 'general');
 	function show(id: string) {
-		goto(`?category=${id}`, { replaceState: true, keepFocus: true, noScroll: true });
+		goto(`?category=${id}`, { replace: true, reset: false });
 	}
 
 	// Nothing is saved that failed to load (09 §2): forms render only after a successful load.
@@ -77,6 +78,7 @@
 		monitoring = m.data ?? null;
 		dashboard = d.data ?? null;
 		fwDefaults = f.data ?? null;
+		for (const dr of Object.values(drafts)) dr.mark();
 	}
 	let monitoring = $state<Schemas['MonitoringSettings'] | null>(null);
 	let dashboard = $state<Schemas['DashboardSettings'] | null>(null);
@@ -139,6 +141,17 @@
 			.map((x) => x.trim())
 			.filter(Boolean);
 
+	// Unsaved edits per category: switching categories keeps them, leaving the page asks first (bugs 40, 91).
+	const drafts: Record<string, Draft> = {
+		general: new Draft(() => [general, proxies]),
+		security: new Draft(() => [security, cidrs]),
+		appearance: new Draft(() => appearance),
+		monitoring: new Draft(() => monitoring),
+		dashboard: new Draft(() => dashboard),
+		firewall: new Draft(() => fwDefaults)
+	};
+	guardUnsaved(() => Object.values(drafts).some((d) => d.dirty));
+
 	// One status line per form: what happened, or why nothing changed.
 	let status = $state<Record<string, { ok: boolean; msg: string }>>({});
 	let busy = $state('');
@@ -147,6 +160,7 @@
 		status[key] = { ok: true, msg: '' };
 		try {
 			await fn();
+			drafts[key]?.mark();
 			status[key] = { ok: true, msg: done };
 		} catch (e) {
 			status[key] = { ok: false, msg: e instanceof Error ? ceremonyText(e) : problemText(e) };
@@ -269,7 +283,7 @@
 	{#if status[key]?.msg}
 		<p
 			role={status[key].ok ? 'status' : 'alert'}
-			class={cn('text-[13px]', status[key].ok ? 'text-ok-text' : 'text-bad-text')}
+			class={cn('text-md', status[key].ok ? 'text-ok-text' : 'text-bad-text')}
 		>
 			{status[key].msg}
 		</p>
@@ -290,12 +304,12 @@
 				onclick={() => show(c.id)}
 				aria-current={cat === c.id ? 'page' : undefined}
 				class={cn(
-					'h-9 shrink-0 rounded-[10px] px-3 text-left text-[13.5px]',
+					'h-9 shrink-0 rounded-[10px] px-3 text-left text-md',
 					cat === c.id ? 'bg-surface-2 font-medium' : 'text-muted-foreground hover:text-foreground'
 				)}>{c.label}</button
 			>
 		{/each}
-		<p class="hidden px-3 pt-3 text-[12px] text-muted-foreground lg:block">
+		<p class="hidden px-3 pt-3 text-xs text-muted-foreground lg:block">
 			More categories arrive with the features they configure.
 		</p>
 	</nav>
@@ -303,7 +317,7 @@
 	<div class="min-w-0 space-y-4">
 		{#if cat === 'account'}
 			{#if accountError}
-				<p role="alert" class="text-[13px] text-bad-text">{accountError}</p>
+				<p role="alert" class="text-md text-bad-text">{accountError}</p>
 			{:else if !passkeys || !sessions || !vault}
 				{@render loading()}{@render loading()}
 			{:else}
@@ -313,7 +327,7 @@
 							><Fingerprint />Add passkey</Button
 						>
 					{/snippet}
-					<ul class="divide-y text-[13px]">
+					<ul class="divide-y text-md">
 						{#each passkeys as pk (pk.id)}
 							<li class="flex items-center gap-3 px-4 py-3">
 								<KeyRound class="size-4 text-muted-foreground" />
@@ -376,7 +390,7 @@
 							disabled={busy === 'sessions' || (sessions?.length ?? 0) < 2}
 							>Sign out other sessions</Button
 						>{/snippet}
-					<ul class="divide-y text-[13px]">
+					<ul class="divide-y text-md">
 						{#each sessions as s (s.id)}
 							<li class="flex items-center gap-3 px-4 py-3">
 								<span class="flex-1"
@@ -398,20 +412,11 @@
 				<VaultPanel vault={vaultState.current ?? vault} {passkeys} onchanged={loadAccount} />
 			{/if}
 		{:else if loadError}
-			<p
-				role="alert"
-				class="rounded-xl border border-bad/30 bg-bad/10 p-3 text-[13px] text-bad-text"
-			>
+			<p role="alert" class="rounded-xl border border-bad/30 bg-bad/10 p-3 text-md text-bad-text">
 				{loadError} The form stays hidden so nothing is saved from an incomplete load.
 			</p>
 		{:else if !all}
 			{@render loading()}
-		{:else if cat === 'notifications'}
-			<Notifications />
-		{:else if cat === 'pulse'}
-			<PulseSettings />
-		{:else if cat === 'agent-dns'}
-			<AgentDns />
 		{:else if cat === 'monitoring' && monitoring}
 			<Panel
 				title="New monitors"
@@ -461,9 +466,7 @@
 							min="0"
 							bind:value={monitoring.degraded_ms}
 						/>
-						<p class="text-[12px] text-muted-foreground">
-							0 means a slow answer still counts as up.
-						</p>
+						<p class="text-xs text-muted-foreground">0 means a slow answer still counts as up.</p>
 					</div>
 				</div>
 			</Panel>
@@ -476,7 +479,7 @@
 						max="400"
 						bind:value={monitoring.retention_days}
 					/>
-					<p class="text-[12px] text-muted-foreground">
+					<p class="text-xs text-muted-foreground">
 						Hourly and daily summaries stay longer for the uptime charts.
 					</p>
 				</div>
@@ -492,7 +495,7 @@
 			<Panel title="Public app dashboard">
 				<div class="space-y-4">
 					<div class="space-y-1.5">
-						<span class="block text-[13px] font-medium">Visitors first see the apps sorted by</span>
+						<span class="block text-md font-medium">Visitors first see the apps sorted by</span>
 						<ToggleGroup.Root
 							type="single"
 							variant="outline"
@@ -506,7 +509,7 @@
 							<ToggleGroup.Item value="status">Status</ToggleGroup.Item>
 						</ToggleGroup.Root>
 					</div>
-					<label class="flex items-center justify-between gap-3 text-[13px]"
+					<label class="flex items-center justify-between gap-3 text-md"
 						>New services show on the dashboard<Switch
 							bind:checked={dashboard.new_services_visible}
 						/></label
@@ -523,7 +526,7 @@
 		{:else if cat === 'firewall' && fwDefaults}
 			<Panel title="New firewall hosts">
 				<div class="space-y-1.5">
-					<span class="block text-[13px] font-medium">NetBird mode a new host starts with</span>
+					<span class="block text-md font-medium">NetBird mode a new host starts with</span>
 					<ToggleGroup.Root
 						type="single"
 						variant="outline"
@@ -537,15 +540,15 @@
 						<ToggleGroup.Item value="routing">Routing peer</ToggleGroup.Item>
 						<ToggleGroup.Item value="disabled">Leave NetBird alone</ToggleGroup.Item>
 					</ToggleGroup.Root>
-					<p class="text-[12px] text-muted-foreground">
+					<p class="text-xs text-muted-foreground">
 						The interface is always detected on the host or entered by you.
 					</p>
 				</div>
 			</Panel>
 			<Panel title="Packet size">
-				<label class="flex items-center justify-between gap-3 text-[13px]"
+				<label class="flex items-center justify-between gap-3 text-md"
 					><span
-						>Fit TCP packets to narrow networks<span class="block text-[12px] text-muted-foreground"
+						>Fit TCP packets to narrow networks<span class="block text-xs text-muted-foreground"
 							>Avoids stalled connections through the tunnel. Leave on unless you know your path
 							MTU.</span
 						></span
@@ -568,7 +571,7 @@
 							value={general.root_domain}
 							disabled
 						/>
-						<p class="text-[12px] text-muted-foreground">
+						<p class="text-xs text-muted-foreground">
 							Fixed after setup: your passkeys are bound to it.
 						</p>
 					</div>
@@ -647,7 +650,7 @@
 							max="240"
 							bind:value={security.admin_idle_timeout_minutes}
 						/>
-						<p class="text-[12px] text-muted-foreground">
+						<p class="text-xs text-muted-foreground">
 							5 to 240. Sessions always end 8 hours after sign-in.
 						</p>
 					</div>
@@ -666,98 +669,106 @@
 					disabled={busy === 'security'}>Save</Button
 				>
 			</div>
-		{:else if cat === 'appearance' && appearance}
-			<Panel title="Theme">
-				<div class="grid grid-cols-2 gap-3 md:grid-cols-4">
-					{#each themes as t (t.id)}
-						<button
-							onclick={() => void theme.save(t.id)}
-							aria-pressed={theme.current === t.id}
-							class={cn(
-								'rounded-xl border p-1.5 text-left',
-								theme.current === t.id && 'ring-2 ring-ring'
-							)}
-						>
-							<div
-								data-theme={t.id}
-								data-mode={t.mode}
-								class="flex h-20 gap-1.5 rounded-lg border bg-background p-1.5"
+		{/if}
+		<!-- Categories with editors of their own stay mounted while another category is open, so their drafts survive
+		     the switch like every other category's (bug 91). -->
+		{#if all && appearance}<div class="space-y-4" hidden={cat !== 'appearance'}>
+				<Panel title="Theme">
+					<div class="grid grid-cols-2 gap-3 md:grid-cols-4">
+						{#each themes as t (t.id)}
+							<button
+								onclick={() => void theme.save(t.id)}
+								aria-pressed={theme.current === t.id}
+								class={cn(
+									'rounded-xl border p-1.5 text-left',
+									theme.current === t.id && 'ring-2 ring-ring'
+								)}
 							>
-								<div class="w-5 rounded-md bg-sidebar"></div>
-								<div class="flex flex-1 flex-col justify-between rounded-md border bg-card p-1.5">
-									<div class="h-1.5 w-3/4 rounded-full bg-muted-foreground/40"></div>
-									<div class="h-2.5 w-8 self-end rounded bg-primary"></div>
+								<div
+									data-theme={t.id}
+									data-mode={t.mode}
+									class="flex h-20 gap-1.5 rounded-lg border bg-background p-1.5"
+								>
+									<div class="w-5 rounded-md bg-sidebar"></div>
+									<div class="flex flex-1 flex-col justify-between rounded-md border bg-card p-1.5">
+										<div class="h-1.5 w-3/4 rounded-full bg-muted-foreground/40"></div>
+										<div class="h-2.5 w-8 self-end rounded bg-primary"></div>
+									</div>
 								</div>
-							</div>
-							<div class="px-1 pt-1.5 text-[13px] font-medium">{t.name}</div>
-						</button>
-					{/each}
-					{#if theme.custom}
-						<button
-							onclick={() => void theme.save('custom')}
-							aria-pressed={theme.current === 'custom'}
-							class={cn(
-								'rounded-xl border p-1.5 text-left',
-								theme.current === 'custom' && 'ring-2 ring-ring'
-							)}
-						>
-							<div
-								data-theme="custom"
-								style={Object.entries(customVars(theme.custom))
-									.map(([k, v]) => `${k}:${v}`)
-									.join(';')}
-								class="flex h-20 gap-1.5 rounded-lg border bg-background p-1.5"
+								<div class="px-1 pt-1.5 text-md font-medium">{t.name}</div>
+							</button>
+						{/each}
+						{#if theme.custom}
+							<button
+								onclick={() => void theme.save('custom')}
+								aria-pressed={theme.current === 'custom'}
+								class={cn(
+									'rounded-xl border p-1.5 text-left',
+									theme.current === 'custom' && 'ring-2 ring-ring'
+								)}
 							>
-								<div class="w-5 rounded-md bg-sidebar"></div>
-								<div class="flex flex-1 flex-col justify-between rounded-md border bg-card p-1.5">
-									<div class="h-1.5 w-3/4 rounded-full bg-muted-foreground/40"></div>
-									<div class="h-2.5 w-8 self-end rounded bg-primary"></div>
+								<div
+									data-theme="custom"
+									style={Object.entries(customVars(theme.custom))
+										.map(([k, v]) => `${k}:${v}`)
+										.join(';')}
+									class="flex h-20 gap-1.5 rounded-lg border bg-background p-1.5"
+								>
+									<div class="w-5 rounded-md bg-sidebar"></div>
+									<div class="flex flex-1 flex-col justify-between rounded-md border bg-card p-1.5">
+										<div class="h-1.5 w-3/4 rounded-full bg-muted-foreground/40"></div>
+										<div class="h-2.5 w-8 self-end rounded bg-primary"></div>
+									</div>
 								</div>
-							</div>
-							<div class="px-1 pt-1.5 text-[13px] font-medium">Custom</div>
-						</button>
-					{/if}
-				</div>
-			</Panel>
-			<CustomThemeEditor
-				saved={appearance.custom_theme ?? null}
-				onsave={saveCustom}
-				onreset={useBuiltIn}
-				busy={busy === 'custom'}
-			/>
-			{@render note('custom')}
-			<Panel title="Comfort">
-				<label class="flex items-center justify-between gap-3 text-[13px]"
-					>Reduce transparency: solid backgrounds behind headers and dialogs<Switch
-						checked={appearance.reduce_transparency ?? false}
-						onCheckedChange={(v) => {
-							appearance!.reduce_transparency = v;
-							theme.setSolid(v);
-						}}
-					/></label
-				>
-			</Panel>
-			<Panel title="Public pages">
-				<div class="grid gap-3 md:grid-cols-2">
-					<label
-						class="flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-[13px]"
-						>Public app dashboard<Switch
-							bind:checked={appearance.public_dashboard_enabled}
+								<div class="px-1 pt-1.5 text-md font-medium">Custom</div>
+							</button>
+						{/if}
+					</div>
+				</Panel>
+				<CustomThemeEditor
+					saved={appearance.custom_theme ?? null}
+					onsave={saveCustom}
+					onreset={useBuiltIn}
+					busy={busy === 'custom'}
+				/>
+				{@render note('custom')}
+				<Panel title="Comfort">
+					<label class="flex items-center justify-between gap-3 text-md"
+						>Reduce transparency: solid backgrounds behind headers and dialogs<Switch
+							checked={appearance.reduce_transparency ?? false}
+							onCheckedChange={(v) => {
+								appearance!.reduce_transparency = v;
+								theme.setSolid(v);
+							}}
 						/></label
 					>
-					<label
-						class="flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-[13px]"
-						>Public status page<Switch bind:checked={appearance.public_status_enabled} /></label
+				</Panel>
+				<Panel title="Public pages">
+					<div class="grid gap-3 md:grid-cols-2">
+						<label
+							class="flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-md"
+							>Public app dashboard<Switch
+								bind:checked={appearance.public_dashboard_enabled}
+							/></label
+						>
+						<label
+							class="flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-md"
+							>Public status page<Switch bind:checked={appearance.public_status_enabled} /></label
+						>
+					</div>
+				</Panel>
+				<div class="flex items-center justify-end gap-3">
+					{@render note('appearance')}<Button
+						size="sm"
+						onclick={saveAppearance}
+						disabled={busy === 'appearance'}>Save</Button
 					>
 				</div>
-			</Panel>
-			<div class="flex items-center justify-end gap-3">
-				{@render note('appearance')}<Button
-					size="sm"
-					onclick={saveAppearance}
-					disabled={busy === 'appearance'}>Save</Button
-				>
-			</div>
+			</div>{/if}
+		{#if all}
+			<div class="space-y-4" hidden={cat !== 'notifications'}><Notifications /></div>
+			<div class="space-y-4" hidden={cat !== 'pulse'}><PulseSettings /></div>
+			<div class="space-y-4" hidden={cat !== 'agent-dns'}><AgentDns /></div>
 		{/if}
 	</div>
 </div>

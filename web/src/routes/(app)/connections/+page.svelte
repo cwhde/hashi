@@ -1,17 +1,17 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import TargetSources from '$lib/components/hashi/TargetSources.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
-	import * as Select from '$lib/components/ui/select';
-	import * as Sheet from '$lib/components/ui/sheet';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import TargetSources from '#lib/components/hashi/TargetSources.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
+	import * as Sheet from '#lib/components/ui/sheet/index.ts';
 	import { Pencil, Plus, RefreshCw, Trash2 } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { withReauth } from '$lib/auth/reauth';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { withReauth } from '#lib/auth/reauth.ts';
 
 	// 03 §8: AdGuard connections. Other connection kinds keep their own pages for now.
 	type Conn = Schemas['AdGuardConnection'];
@@ -149,6 +149,8 @@
 	}
 </script>
 
+<svelte:head><title>Connections · Hashi</title></svelte:head>
+
 <PageHeader
 	title="Connections"
 	description="The outside systems Hashi talks to. Credentials are kept in the vault and are never shown again after saving."
@@ -156,17 +158,17 @@
 	{#snippet actions()}<Button onclick={openAdd}><Plus />Add AdGuard</Button>{/snippet}
 </PageHeader>
 
-{#if error}<p role="alert" class="mb-3 text-[13px] text-bad-text">{error}</p>{/if}
+{#if error}<p role="alert" class="mb-3 text-md text-bad-text">{error}</p>{/if}
 <div class="rounded-2xl border bg-card px-4 py-3">
-	<h2 class="mb-1 text-[12.5px] font-medium text-muted-foreground">AdGuard Home</h2>
+	<h2 class="mb-1 text-sm font-medium text-muted-foreground">AdGuard Home</h2>
 	{#if conns.length === 0}
-		<p class="py-2 text-[13px] text-muted-foreground">
+		<p class="py-2 text-md text-muted-foreground">
 			No AdGuard instance yet. A new one starts read-only, so adding it changes nothing.
 		</p>
 	{/if}
 	<ul>
 		{#each conns as c (c.id)}
-			<li class="flex flex-wrap items-center gap-3 py-2 text-[13px]">
+			<li class="flex flex-wrap items-center gap-3 py-2 text-md">
 				<span class="min-w-40 font-medium">{c.name}</span>
 				<span class="min-w-0 flex-1 truncate text-muted-foreground">
 					{#if c.last_error}<span class="text-bad-text">{c.last_error}</span
@@ -235,7 +237,7 @@
 							{#each agents as a (a.id)}<Select.Item value={a.id}>{a.name}</Select.Item>{/each}
 						</Select.Content>
 					</Select.Root>
-					<p class="text-[12px] text-muted-foreground">
+					<p class="text-xs text-muted-foreground">
 						Hashi follows this machine's internal address. It needs HTTPS and proof of the
 						certificate, so the password only goes to the real instance.
 					</p>
@@ -249,7 +251,7 @@
 						</Select.Content>
 					</Select.Root>
 					<TargetSources setId={f.target_set_id} />
-					<p class="text-[12px] text-muted-foreground">
+					<p class="text-xs text-muted-foreground">
 						An IP set holding the instance's address or DNS name. With a Pulse agent in it, Hashi
 						needs HTTPS and proof of the certificate.
 					</p>
@@ -280,7 +282,7 @@
 					class="font-mono"
 					bind:value={f.tls_fingerprint}
 				/>
-				<p class="text-[12px] text-muted-foreground">
+				<p class="text-xs text-muted-foreground">
 					For a self-signed certificate: its SHA-256. Hashi then accepts only that exact
 					certificate, and the two settings below are not needed.
 				</p>
@@ -291,9 +293,9 @@
 					bind:value={f.server_name}
 					placeholder="ns.example.com"
 				/>
-				<p class="text-[12px] text-muted-foreground">The name on its certificate.</p>
+				<p class="text-xs text-muted-foreground">The name on its certificate.</p>
 			</div>
-			<label class="flex items-center justify-between gap-3 text-[13px]">
+			<label class="flex items-center justify-between gap-3 text-md">
 				<span>Check the certificate</span><Switch
 					bind:checked={f.tls_verify}
 					aria-label="Check the certificate"
@@ -324,13 +326,13 @@
 					</Select.Content>
 				</Select.Root>
 			</div>
-			<label class="flex items-center justify-between gap-3 text-[13px]">
+			<label class="flex items-center justify-between gap-3 text-md">
 				<span>Save even if it does not answer yet</span><Switch
 					bind:checked={f.save_inactive}
 					aria-label="Save even if it does not answer yet"
 				/>
 			</label>
-			{#if formError}<p role="alert" class="text-[13px] text-bad-text">{formError}</p>{/if}
+			{#if formError}<p role="alert" class="text-md text-bad-text">{formError}</p>{/if}
 		</div>
 		<Sheet.Footer class="flex-row justify-end gap-2 border-t">
 			<Button variant="outline" onclick={() => (open = false)}>Cancel</Button>

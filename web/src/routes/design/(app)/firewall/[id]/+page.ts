@@ -1,4 +1,4 @@
-import { firewallHosts } from '$lib/design/mock';
+import { firewallHosts } from '#lib/design/mock.ts';
 import { error } from '@sveltejs/kit';
 
 export function load({ params }) {

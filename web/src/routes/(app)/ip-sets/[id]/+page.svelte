@@ -1,23 +1,24 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { hrefWithTab, tabFrom } from '#lib/url-tab.ts';
+	import { onMount, untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import IpItemView from '$lib/components/hashi/ipsets/IpItemView.svelte';
-	import IpItemEditor from '$lib/components/hashi/ipsets/IpItemEditor.svelte';
-	import AddressLink from '$lib/components/hashi/ipsets/AddressLink.svelte';
-	import DynamicEntries from '$lib/components/hashi/security/DynamicEntries.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import * as Tabs from '$lib/components/ui/tabs';
-	import * as Sheet from '$lib/components/ui/sheet';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import IpItemView from '#lib/components/hashi/ipsets/IpItemView.svelte';
+	import IpItemEditor from '#lib/components/hashi/ipsets/IpItemEditor.svelte';
+	import AddressLink from '#lib/components/hashi/ipsets/AddressLink.svelte';
+	import DynamicEntries from '#lib/components/hashi/security/DynamicEntries.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Textarea } from '#lib/components/ui/textarea/index.ts';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import * as Sheet from '#lib/components/ui/sheet/index.ts';
+	import * as AlertDialog from '#lib/components/ui/alert-dialog/index.ts';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
 	import {
 		ChevronLeft,
 		CircleAlert,
@@ -27,9 +28,9 @@
 		Search,
 		TriangleAlert
 	} from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { withReauth } from '$lib/auth/reauth';
-	import { dateTime } from '$lib/format';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { withReauth } from '#lib/auth/reauth.ts';
+	import { dateTime } from '#lib/format.ts';
 	import {
 		count,
 		elementInput,
@@ -40,7 +41,7 @@
 		lockReason,
 		type IPSet,
 		type IPSetElement
-	} from '$lib/ipsets';
+	} from '#lib/ipsets.ts';
 
 	// One IP set (05a): its items, what it resolves to now, who uses it and its audit history.
 	const id = $derived(page.params.id ?? '');
@@ -108,6 +109,11 @@
 	let item = $state(emptyItemForm());
 	let itemError = $state('');
 	let busy = $state(false);
+	// An error belongs to the input that caused it: any change to the form clears it (bug 67).
+	$effect(() => {
+		JSON.stringify(item);
+		untrack(() => (itemError = ''));
+	});
 
 	function openItem(e: IPSetElement | null) {
 		editing = e;
@@ -205,18 +211,25 @@
 		'ip_set.element.removed': 'Item removed',
 		'ip_set.element.expired': 'Item expired'
 	};
+	// The open tab lives in the address (bug 41).
+	const tabs = ['items', 'resolved', 'used', 'history'];
+	let tab = $state(tabFrom(page.url, tabs));
+	const setTab = (t: string) =>
+		goto(hrefWithTab(page.url, tabs, t), { replace: true, reset: false });
 </script>
+
+<svelte:head><title>{s?.slug ?? 'IP set'} · Hashi</title></svelte:head>
 
 <a
 	href="/ip-sets"
-	class="mb-3 inline-flex items-center gap-1 text-[13px] text-muted-foreground hover:text-foreground"
+	class="mb-3 inline-flex items-center gap-1 text-md text-muted-foreground hover:text-foreground"
 	><ChevronLeft class="size-4" />IP sets</a
 >
 
 {#if loadError}
 	<p
 		role="alert"
-		class="flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-[13px] text-bad-text"
+		class="flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-md text-bad-text"
 	>
 		<CircleAlert class="mt-0.5 size-4 shrink-0" />{loadError}
 	</p>
@@ -226,7 +239,7 @@
 	{#if outcome}
 		<p
 			role={outcome.bad ? 'alert' : 'status'}
-			class="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border p-3 text-[13px] {outcome.bad
+			class="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border p-3 text-md {outcome.bad
 				? 'border-bad/30 bg-bad/10 text-bad-text'
 				: 'bg-card'}"
 		>
@@ -237,11 +250,11 @@
 	<div class="mb-5 rounded-2xl border bg-card p-4">
 		<div class="flex flex-wrap items-start gap-x-6 gap-y-3">
 			<div class="min-w-0 flex-1">
-				<h1 class="flex flex-wrap items-center gap-2 text-[22px] leading-tight font-semibold">
+				<h1 class="flex flex-wrap items-center gap-2 text-title leading-tight font-semibold">
 					<span class="font-mono tracking-[-0.02em]">{s.slug}</span>
 					{#if !s.editable}<Tag><Lock class="size-3" />{kindLabel[s.kind].toLowerCase()}</Tag>{/if}
 				</h1>
-				<p class="text-[13.5px] text-muted-foreground">{s.description}</p>
+				<p class="text-md text-muted-foreground">{s.description}</p>
 			</div>
 			{#if s.editable}
 				<div class="flex gap-2">
@@ -250,12 +263,12 @@
 				</div>
 			{/if}
 		</div>
-		{#if !s.editable}<p class="mt-2 text-[12.5px] text-muted-foreground">
+		{#if !s.editable}<p class="mt-2 text-sm text-muted-foreground">
 				{lockReason[s.kind]}
 			</p>{/if}
-		<dl class="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-[13px] sm:grid-cols-4">
+		<dl class="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-md sm:grid-cols-4">
 			<div>
-				<dt class="text-[12px] text-muted-foreground">Kind</dt>
+				<dt class="text-xs text-muted-foreground">Kind</dt>
 				<dd>
 					{kindLabel[s.kind]}{#if s.address_set}<span class="text-muted-foreground">
 							· addresses only</span
@@ -263,17 +276,17 @@
 				</dd>
 			</div>
 			<div>
-				<dt class="text-[12px] text-muted-foreground">Resolves to</dt>
+				<dt class="text-xs text-muted-foreground">Resolves to</dt>
 				<dd class="tnum">
 					{s.v4_count.toLocaleString()} IPv4 · {s.v6_count.toLocaleString()} IPv6 ranges
 				</dd>
 			</div>
 			<div>
-				<dt class="text-[12px] text-muted-foreground">Used by</dt>
+				<dt class="text-xs text-muted-foreground">Used by</dt>
 				<dd>{consumers.length ? count(consumers.length, 'place') : 'Not used'}</dd>
 			</div>
 			<div>
-				<dt class="text-[12px] text-muted-foreground">Status</dt>
+				<dt class="text-xs text-muted-foreground">Status</dt>
 				<dd>
 					{#if s.resolution_status === 'partial'}<Tag tone="warn">partial</Tag
 						>{:else if s.resolution_status === 'empty'}<Tag tone="bad">empty</Tag>{:else}<Tag
@@ -284,14 +297,14 @@
 		</dl>
 		{#each s.problems as p (p.element_id + p.message)}
 			<p
-				class="mt-3 flex items-start gap-2 rounded-xl border border-warn/30 bg-warn/10 px-3 py-2 text-[12.5px] text-warn-text"
+				class="mt-3 flex items-start gap-2 rounded-xl border border-warn/30 bg-warn/10 px-3 py-2 text-sm text-warn-text"
 			>
 				<TriangleAlert class="mt-0.5 size-3.5 shrink-0" />{p.path.join(' › ')}: {p.message}
 			</p>
 		{/each}
 	</div>
 
-	<Tabs.Root value="items">
+	<Tabs.Root bind:value={tab} onValueChange={setTab}>
 		<Tabs.List class="mb-4">
 			<Tabs.Trigger value="items">{s.kind === 'dynamic' ? 'Entries' : 'Items'}</Tabs.Trigger>
 			{#if s.kind !== 'dynamic'}<Tabs.Trigger value="resolved">Resolved</Tabs.Trigger>{/if}
@@ -316,7 +329,7 @@
 								aria-label="Search items"
 							/>
 						</div>
-						<span class="ml-auto text-[12.5px] text-muted-foreground"
+						<span class="ml-auto text-sm text-muted-foreground"
 							>{#if total > elements.length}Showing {elements.length} of {total}{:else}{count(
 									total,
 									'item'
@@ -330,12 +343,12 @@
 									class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-4 py-2.5 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_9rem_auto]"
 								>
 									<IpItemView item={e.item} {sets} />
-									<span class="hidden truncate text-[12.5px] text-muted-foreground md:block"
+									<span class="hidden truncate text-sm text-muted-foreground md:block"
 										>{e.note}{#each s.problems.filter((p) => p.element_id === e.id) as p (p.message)}<Tag
 												tone="warn">{p.message}</Tag
 											>{/each}</span
 									>
-									<span class="hidden text-[12.5px] text-muted-foreground md:block"
+									<span class="hidden text-sm text-muted-foreground md:block"
 										>{e.expires_at
 											? 'expires ' + dateTime(e.expires_at)
 											: e.origin === 'system'
@@ -375,7 +388,7 @@
 							</div>
 						{/if}
 					{:else}
-						<div class="px-4 py-10 text-center text-[13px] text-muted-foreground">
+						<div class="px-4 py-10 text-center text-md text-muted-foreground">
 							{#if q}Nothing in this set matches “{q}”.{:else}This set is empty, so it matches
 								nobody.
 								{#if s.editable}<Button
@@ -387,7 +400,7 @@
 						</div>
 					{/if}
 				</div>
-				{#if usedAsTarget}<p class="mt-2 text-[12.5px] text-muted-foreground">
+				{#if usedAsTarget}<p class="mt-2 text-sm text-muted-foreground">
 						Used as a DNS value, upstream or SSH target, so only addresses can be added. If it ever
 						resolves to nothing, those places keep their last working address.
 					</p>{/if}
@@ -401,17 +414,17 @@
 				description="Merged ranges after resolving hosts, DNS names and nested sets"
 			>
 				{#if resolved?.prefixes.length}
-					<ul class="divide-y text-[13px]">
+					<ul class="divide-y text-md">
 						{#each resolved.prefixes as p (p)}
 							<li class="px-4 py-2"><Mono>{p}</Mono></li>
 						{/each}
 					</ul>
-					{#if resolved.next_cursor}<p class="px-4 py-2 text-[12.5px] text-muted-foreground">
+					{#if resolved.next_cursor}<p class="px-4 py-2 text-sm text-muted-foreground">
 							Showing the first {resolved.prefixes.length} of {resolved.v4_count +
 								resolved.v6_count} ranges.
 						</p>{/if}
 				{:else}
-					<p class="px-4 py-6 text-[13px] text-muted-foreground">
+					<p class="px-4 py-6 text-md text-muted-foreground">
 						Resolves to nothing right now, so it matches nobody.
 					</p>
 				{/if}
@@ -423,7 +436,7 @@
 					title="Addresses for targets"
 					description="In item order: the first is used first when this set is a connection target"
 				>
-					<ul class="divide-y text-[13px]">
+					<ul class="divide-y text-md">
 						{#each resolved.addresses as a, i (a)}
 							<li class="flex items-center gap-3 px-4 py-2">
 								<AddressLink address={a} />{#if i === 0}<Tag>primary</Tag>{/if}
@@ -437,7 +450,7 @@
 		<Tabs.Content value="used">
 			<Panel flush title="Used by" description="A set cannot be deleted while anything uses it">
 				{#if consumers.length}
-					<ul class="divide-y text-[13px]">
+					<ul class="divide-y text-md">
 						{#each consumers as u (u.type + u.id)}
 							<li class="grid grid-cols-[10rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5">
 								<span class="text-muted-foreground"
@@ -454,7 +467,7 @@
 						{/each}
 					</ul>
 				{:else}
-					<p class="px-4 py-6 text-[13px] text-muted-foreground">
+					<p class="px-4 py-6 text-md text-muted-foreground">
 						Nothing uses this set yet. Pick it in a rule, the firewall policy, a DNS record or a
 						service.
 					</p>
@@ -475,7 +488,7 @@
 		<Tabs.Content value="history">
 			<Panel flush title="History" description="From the audit log">
 				{#if history.length}
-					<ul class="divide-y text-[13px]">
+					<ul class="divide-y text-md">
 						{#each history as h (h.id)}
 							<li class="grid grid-cols-[8rem_minmax(0,1fr)] gap-3 px-4 py-2.5">
 								<span class="text-muted-foreground">{dateTime(h.at)}</span><span
@@ -489,7 +502,7 @@
 						{/each}
 					</ul>
 				{:else}
-					<p class="px-4 py-6 text-[13px] text-muted-foreground">No changes recorded.</p>
+					<p class="px-4 py-6 text-md text-muted-foreground">No changes recorded.</p>
 				{/if}
 			</Panel>
 		</Tabs.Content>
@@ -505,7 +518,7 @@
 		</Sheet.Header>
 		<div class="space-y-3 overflow-y-auto px-4 pb-4">
 			<IpItemEditor bind:form={item} {sets} self={id} {usedAsTarget} />
-			{#if itemError}<p role="alert" class="text-[13px] text-bad-text">{itemError}</p>{/if}
+			{#if itemError}<p role="alert" class="text-md text-bad-text">{itemError}</p>{/if}
 		</div>
 		<Sheet.Footer class="flex-row justify-end gap-2 border-t">
 			<Button variant="ghost" onclick={() => (itemOpen = false)}>Cancel</Button>
@@ -523,7 +536,7 @@
 		<div class="space-y-4 px-4 pb-4">
 			<div class="space-y-1.5">
 				<Label for="rs">Name</Label><Input id="rs" class="font-mono" bind:value={meta.slug} />
-				<p class="text-[12.5px] text-muted-foreground">Lowercase letters, digits and dashes.</p>
+				<p class="text-sm text-muted-foreground">Lowercase letters, digits and dashes.</p>
 			</div>
 			<div class="space-y-1.5">
 				<Label for="rd">Description</Label><Textarea
@@ -532,7 +545,7 @@
 					bind:value={meta.description}
 				/>
 			</div>
-			{#if metaError}<p role="alert" class="text-[13px] text-bad-text">{metaError}</p>{/if}
+			{#if metaError}<p role="alert" class="text-md text-bad-text">{metaError}</p>{/if}
 		</div>
 		<Sheet.Footer class="flex-row justify-end gap-2 border-t">
 			<Button variant="ghost" onclick={() => (renameOpen = false)}>Cancel</Button>

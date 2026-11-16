@@ -1,7 +1,7 @@
 // Helpers for showing sync plans (01-platform.md §5) with PlanReview.
-import type { Schemas } from '$lib/api/client';
-import type { PlanItem } from '$lib/design/mock';
-import { timeZone } from '$lib/format';
+import type { Schemas } from '#lib/api/client.ts';
+import type { PlanItem } from '#lib/design/mock.ts';
+import { timeZone } from '#lib/format.ts';
 
 export type Plan = Schemas['SyncPlan'];
 type Value = Schemas['SyncPlanItemValue'];

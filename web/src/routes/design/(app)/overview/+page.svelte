@@ -1,14 +1,14 @@
 <script lang="ts">
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import StatusBadge from '$lib/components/hashi/StatusBadge.svelte';
-	import StatusDot from '$lib/components/hashi/StatusDot.svelte';
-	import HistoryStrip from '$lib/components/hashi/HistoryStrip.svelte';
-	import Sparkline from '$lib/components/hashi/Sparkline.svelte';
-	import PlanReview from '$lib/components/hashi/PlanReview.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import { Button } from '$lib/components/ui/button';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
+	import StatusDot from '#lib/components/hashi/StatusDot.svelte';
+	import HistoryStrip from '#lib/components/hashi/HistoryStrip.svelte';
+	import Sparkline from '#lib/components/hashi/Sparkline.svelte';
+	import PlanReview from '#lib/components/hashi/PlanReview.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
 	import {
 		services,
 		firewallHosts,
@@ -18,7 +18,7 @@
 		audit,
 		spark,
 		zone
-	} from '$lib/design/mock';
+	} from '#lib/design/mock.ts';
 	import { Settings2, ArrowUpRight } from '@lucide/svelte';
 
 	const counts = {
@@ -50,8 +50,8 @@
 				<li class="flex items-center gap-3 py-2.5">
 					<StatusDot state={r.health === 'paused' ? 'unknown' : r.health} />
 					<div class="min-w-0 flex-1">
-						<div class="truncate text-[13.5px] font-medium">{r.name}</div>
-						<div class="truncate text-[12.5px] text-muted-foreground">
+						<div class="truncate text-md font-medium">{r.name}</div>
+						<div class="truncate text-sm text-muted-foreground">
 							{#if r.sync === 'invalid'}Not rendered: port 19132/udp has no firewall opening yet{:else if r.health === 'down'}Down
 								for 7 min · 3 failed checks{:else}Slow: p95 412 ms over 300 ms threshold{/if}
 						</div>
@@ -67,8 +67,8 @@
 			<li class="flex items-center gap-3 py-2.5">
 				<StatusDot state="degraded" />
 				<div class="min-w-0 flex-1">
-					<div class="truncate text-[13.5px] font-medium">feed-dc-ranges is stale</div>
-					<div class="truncate text-[12.5px] text-muted-foreground">
+					<div class="truncate text-md font-medium">feed-dc-ranges is stale</div>
+					<div class="truncate text-sm text-muted-foreground">
 						Last fetch failed 9 h ago (HTTP 503). datacenters uses the last good copy for 63 h more.
 					</div>
 				</div>
@@ -85,19 +85,19 @@
 
 <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
 	<Panel title="Service health" description="{services.length} services · last 60 min">
-		<div class="mb-3 flex gap-5 text-[13px]">
-			<span><span class="tnum text-[20px] font-semibold text-ok-text">{counts.up}</span> up</span>
+		<div class="mb-3 flex gap-5 text-md">
+			<span><span class="tnum text-title font-semibold text-ok-text">{counts.up}</span> up</span>
 			<span
-				><span class="tnum text-[20px] font-semibold text-warn-text">{counts.degraded}</span> degraded</span
+				><span class="tnum text-title font-semibold text-warn-text">{counts.degraded}</span> degraded</span
 			>
 			<span
-				><span class="tnum text-[20px] font-semibold text-bad-text">{counts.down}</span> down</span
+				><span class="tnum text-title font-semibold text-bad-text">{counts.down}</span> down</span
 			>
 		</div>
 		<div class="space-y-2">
 			{#each services.slice(1, 6) as r (r.id)}
 				<div class="grid grid-cols-[7rem_1fr] items-center gap-3">
-					<span class="truncate text-[12.5px]">{r.name}</span>
+					<span class="truncate text-sm">{r.name}</span>
 					<HistoryStrip samples={r.history} labels={false} />
 				</div>
 			{/each}
@@ -110,10 +110,10 @@
 				<li class="flex items-start gap-3">
 					<StatusDot state={h.health} class="mt-1.5" />
 					<div class="min-w-0 flex-1">
-						<div class="flex items-center gap-2 text-[13.5px] font-medium">
+						<div class="flex items-center gap-2 text-md font-medium">
 							{h.name}<Tag>{h.mode === 'managed' ? 'managed' : 'external NAT'}</Tag>
 						</div>
-						<div class="text-[12.5px] text-muted-foreground">
+						<div class="text-sm text-muted-foreground">
 							<Mono>{h.publicIp}</Mono> · applied {h.lastApply}
 						</div>
 					</div>
@@ -123,10 +123,10 @@
 				<li class="flex items-start gap-3">
 					<StatusDot state={t.health} class="mt-1.5" />
 					<div class="min-w-0 flex-1">
-						<div class="flex items-center gap-2 text-[13.5px] font-medium">
+						<div class="flex items-center gap-2 text-md font-medium">
 							{t.name}<Tag tone="info">update {t.update}</Tag>
 						</div>
-						<div class="text-[12.5px] text-muted-foreground">
+						<div class="text-sm text-muted-foreground">
 							{t.routers} routers, 0 errors · verified {t.lastVerify}
 						</div>
 					</div>
@@ -136,7 +136,7 @@
 	</Panel>
 
 	<Panel title="Sync state" description="Desired vs observed">
-		<dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2.5 text-[13px]">
+		<dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2.5 text-md">
 			<dt class="text-muted-foreground">DNS</dt>
 			<dd>
 				<StatusBadge state="degraded" label="1 change waiting" />
@@ -156,24 +156,24 @@
 	<Panel title="Security, last 24 h" description="Edge decisions">
 		<div class="grid grid-cols-3 gap-3">
 			<div>
-				<div class="tnum text-[20px] font-semibold">182k</div>
-				<div class="text-[12px] text-muted-foreground">allowed</div>
+				<div class="tnum text-title font-semibold">182k</div>
+				<div class="text-xs text-muted-foreground">allowed</div>
 				<Sparkline values={spark(2)} width={90} class="mt-1 w-full text-ok-text" />
 			</div>
 			<div>
-				<div class="tnum text-[20px] font-semibold">1,204</div>
-				<div class="text-[12px] text-muted-foreground">challenged</div>
+				<div class="tnum text-title font-semibold">1,204</div>
+				<div class="text-xs text-muted-foreground">challenged</div>
 				<Sparkline values={spark(5, 48, 20, 15)} width={90} class="mt-1 w-full text-warn-text" />
 			</div>
 			<div>
-				<div class="tnum text-[20px] font-semibold">9,931</div>
-				<div class="text-[12px] text-muted-foreground">blocked</div>
+				<div class="tnum text-title font-semibold">9,931</div>
+				<div class="text-xs text-muted-foreground">blocked</div>
 				<Sparkline values={spark(9, 48, 30, 25)} width={90} class="mt-1 w-full text-bad-text" />
 			</div>
 		</div>
 		<ul class="mt-3 divide-y border-t">
 			{#each securityEvents.slice(0, 3) as e (e.t)}
-				<li class="flex items-center gap-2 py-2 text-[12.5px]">
+				<li class="flex items-center gap-2 py-2 text-sm">
 					<Mono class="w-28 shrink-0 truncate">{e.subject}</Mono><span
 						class="min-w-0 flex-1 truncate text-muted-foreground">{e.type}</span
 					><span class="tnum text-muted-foreground">{e.t}</span>
@@ -183,7 +183,7 @@
 	</Panel>
 
 	<Panel title="Certificates" description="Earliest expiry per Traefik host">
-		<ul class="space-y-2.5 text-[13px]">
+		<ul class="space-y-2.5 text-md">
 			<li class="flex items-center justify-between gap-3">
 				<span class="truncate">media.example.com</span><Tag tone="warn">18 days</Tag>
 			</li>
@@ -199,7 +199,7 @@
 	<Panel title="Recent activity" description="Audit log">
 		<ul class="space-y-2.5">
 			{#each audit.slice(0, 4) as a, i (i)}
-				<li class="grid grid-cols-[3rem_1fr] gap-2 text-[12.5px]">
+				<li class="grid grid-cols-[3rem_1fr] gap-2 text-sm">
 					<span class="tnum text-muted-foreground">{a.t}</span><span class="min-w-0"
 						><span class="font-medium">{a.what}</span><span
 							class="block truncate text-muted-foreground">{a.result}</span

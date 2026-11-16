@@ -2,16 +2,16 @@
 	// The entries of dynamic-challenge or dynamic-blocked (05a §8): filled by the abuse engine; an entry can be added
 	// by hand with an optional duration, ended, or (challenged) banned now or given its failures back.
 	import { onMount } from 'svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import AddressLink from '$lib/components/hashi/security/AddressLink.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import AddressLink from '#lib/components/hashi/security/AddressLink.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
 	import { MoreHorizontal } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { withReauth } from '$lib/auth/reauth';
-	import { dateTime } from '$lib/format';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { withReauth } from '#lib/auth/reauth.ts';
+	import { dateTime } from '#lib/format.ts';
 	import { sourceLabel } from './labels';
 
 	type SetID = 'sys-dynamic-challenge' | 'sys-dynamic-blocked';
@@ -90,7 +90,7 @@
 <div class="space-y-3">
 	{#if error}<p
 			role="alert"
-			class="rounded-2xl border border-bad/30 bg-bad/10 p-3 text-[13px] text-bad-text"
+			class="rounded-2xl border border-bad/30 bg-bad/10 p-3 text-md text-bad-text"
 		>
 			{error}
 		</p>{/if}
@@ -113,7 +113,7 @@
 			>{isChallenge ? 'Challenge now' : 'Ban now'}</Button
 		>
 	</form>
-	<p class="text-[12.5px] text-muted-foreground">
+	<p class="text-sm text-muted-foreground">
 		{isChallenge
 			? 'Without minutes the challenge lasts as long as the engine setting says.'
 			: 'Without minutes the ban lasts as long as the address’s ban counter says.'} Allowed addresses
@@ -126,22 +126,22 @@
 			? 'Each has to solve a CAPTCHA. Requests without solving count as failures; at the limit the address is banned.'
 			: 'Dropped in the kernel on every firewall host and refused by forward auth.'}
 	>
-		<ul class="divide-y text-[13px]">
+		<ul class="divide-y text-md">
 			{#each rows as r (r.address)}
 				<li
 					class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-4 py-2.5 md:grid-cols-[11rem_minmax(0,1fr)_8rem_10rem_auto]"
 				>
 					<AddressLink address={r.address} />
 					<span class="order-last col-span-2 min-w-0 md:order-none md:col-span-1"
-						><span class="text-[12px] text-muted-foreground"
+						><span class="text-xs text-muted-foreground"
 							>{sourceLabel(r.last_source)}{#if r.country}, {r.country}{/if}</span
 						></span
 					>
 					<span class="hidden md:block"
 						>{#if isChallenge}<span class="tnum">{r.failures} of {r.max_failures}</span><span
-								class="block text-[12px] text-muted-foreground">unsolved</span
+								class="block text-xs text-muted-foreground">unsolved</span
 							>{:else}<span class="tnum">ban {r.ban_count}</span><span
-								class="block text-[12px] text-muted-foreground">challenges {r.challenge_count}</span
+								class="block text-xs text-muted-foreground">challenges {r.challenge_count}</span
 							>{/if}</span
 					>
 					<span class="hidden text-muted-foreground md:block"

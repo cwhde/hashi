@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import StatusBadge from '$lib/components/hashi/StatusBadge.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { api, problemText, type Schemas } from '$lib/api/client';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 
 	// 10b §3: each AdGuard instance's rewrites and what Hashi would change there. Reading changes nothing.
 	type One = {
@@ -47,10 +47,10 @@
 	};
 </script>
 
-{#if error}<p role="alert" class="text-[13px] text-bad-text">{error}</p>{/if}
+{#if error}<p role="alert" class="text-md text-bad-text">{error}</p>{/if}
 {#if loaded && items.length === 0 && !error}
 	<Panel title="No AdGuard instance">
-		<p class="text-[13px] text-muted-foreground">Add one to manage internal rewrites.</p>
+		<p class="text-md text-muted-foreground">Add one to manage internal rewrites.</p>
 		<Button class="mt-3" size="sm" variant="outline" href="/connections">Go to Connections</Button>
 	</Panel>
 {/if}
@@ -66,9 +66,9 @@
 					state={it.error ? 'down' : it.conn.mode === 'read_only' ? 'unknown' : 'up'}
 					label={it.error ? 'Unreachable' : label(it)}
 				/>{/snippet}
-			{#if it.error}<p role="alert" class="text-[13px] text-bad-text">{it.error}</p>{/if}
+			{#if it.error}<p role="alert" class="text-md text-bad-text">{it.error}</p>{/if}
 			{#if it.data}
-				<ul class="space-y-1.5 text-[13px]">
+				<ul class="space-y-1.5 text-md">
 					{#each it.data.rewrites as r, i (i)}
 						<li class="flex justify-between gap-3">
 							<Mono class="min-w-0 truncate">{r.domain}</Mono>
@@ -81,10 +81,10 @@
 					{/each}
 				</ul>
 				{#if it.data.planned.length}
-					<h3 class="mt-4 mb-1 text-[12.5px] font-medium text-muted-foreground">
+					<h3 class="mt-4 mb-1 text-sm font-medium text-muted-foreground">
 						{it.conn.mode === 'read_only' ? 'Would change if active' : 'Waiting to change'}
 					</h3>
-					<ul class="space-y-1.5 text-[13px]">
+					<ul class="space-y-1.5 text-md">
 						{#each it.data.planned as p, i (i)}
 							<li class="flex flex-wrap items-center gap-2">
 								<Tag tone={p.action === 'conflict' ? 'warn' : 'neutral'}
@@ -92,8 +92,7 @@
 								><Mono class="min-w-0 flex-1 truncate">{p.domain}</Mono><Mono
 									class="text-muted-foreground">{p.answer ?? ''}</Mono
 								>
-								{#if p.note}<span class="w-full text-[12px] text-muted-foreground">{p.note}</span
-									>{/if}
+								{#if p.note}<span class="w-full text-xs text-muted-foreground">{p.note}</span>{/if}
 							</li>
 						{/each}
 					</ul>

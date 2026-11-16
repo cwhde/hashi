@@ -1,6 +1,6 @@
 <script lang="ts" module>
 	import { getContext, setContext } from 'svelte';
-	import { toggleVariants } from '$lib/components/ui/toggle/index.js';
+	import { toggleVariants } from '#lib/components/ui/toggle/index.js';
 	import type { VariantProps } from 'tailwind-variants';
 
 	type ToggleVariants = VariantProps<typeof toggleVariants>;
@@ -21,7 +21,7 @@
 
 <script lang="ts">
 	import { ToggleGroup as ToggleGroupPrimitive } from 'bits-ui';
-	import { cn } from '$lib/utils.js';
+	import { cn } from '#lib/utils.js';
 
 	let {
 		ref = $bindable(null),
@@ -58,8 +58,15 @@
 Discriminated Unions + Destructing (required for bindable) do not
 get along, so we shut typescript up by casting `value` to `never`.
 -->
+<!-- A single-choice group always keeps one choice: pressing the selected one again changes nothing (bug 83). -->
 <ToggleGroupPrimitive.Root
-	bind:value={value as never}
+	bind:value={
+		() => value as never,
+		(v: never) => {
+			if (restProps.type === 'single' && !v) return;
+			value = v;
+		}
+	}
 	bind:ref
 	{orientation}
 	data-slot="toggle-group"

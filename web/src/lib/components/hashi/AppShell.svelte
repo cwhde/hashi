@@ -2,18 +2,18 @@
 	import { onMount, type Snippet } from 'svelte';
 	import { page } from '$app/state';
 	import { afterNavigate, goto } from '$app/navigation';
-	import { pendingPlans } from '$lib/sync-pending.svelte';
-	import { vaultState } from '$lib/vault.svelte';
-	import VaultUnlockDialog from '$lib/components/hashi/VaultUnlockDialog.svelte';
-	import { nav as designNav, liveNav, setupNav } from '$lib/design/nav';
-	import { session, setupServices } from '$lib/auth/session.svelte';
-	import { time } from '$lib/format';
-	import { theme, themes, customVars } from '$lib/theme.svelte';
-	import { cn } from '$lib/utils';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import * as Sheet from '$lib/components/ui/sheet';
-	import * as Command from '$lib/components/ui/command';
-	import { Button } from '$lib/components/ui/button';
+	import { pendingPlans } from '#lib/sync-pending.svelte.ts';
+	import { vaultState } from '#lib/vault.svelte.ts';
+	import VaultUnlockDialog from '#lib/components/hashi/VaultUnlockDialog.svelte';
+	import { nav as designNav, liveNav, setupNav } from '#lib/design/nav.ts';
+	import { session, setupServices } from '#lib/auth/session.svelte.ts';
+	import { time } from '#lib/format.ts';
+	import { theme, themes, customVars } from '#lib/theme.svelte.ts';
+	import { cn } from '#lib/utils.ts';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
+	import * as Sheet from '#lib/components/ui/sheet/index.ts';
+	import * as Command from '#lib/components/ui/command/index.ts';
+	import { Button } from '#lib/components/ui/button/index.ts';
 	import {
 		Pin,
 		PinOff,
@@ -102,13 +102,12 @@
 		{#each nav as section, si (si)}
 			<div class="flex flex-col gap-0.5">
 				{#if section.group}
-					<div
-						class={cn(
-							'h-6 px-2.5 text-[11.5px] font-medium text-muted-foreground',
-							!full && 'sr-only'
-						)}
-					>
-						{section.group}
+					<!-- Same height open and closed, so the items never move when the bar expands (bug 1). -->
+					<div class="flex h-6 items-center px-2.5 text-2xs font-medium text-muted-foreground">
+						{#if full}{section.group}{:else}<span class="sr-only">{section.group}</span><span
+								aria-hidden="true"
+								class="h-px w-full bg-border"
+							></span>{/if}
 					</div>
 				{/if}
 				{#each section.items as item (item.href)}
@@ -119,7 +118,7 @@
 						aria-current={active ? 'page' : undefined}
 						title={full ? undefined : item.label}
 						class={cn(
-							'flex h-9 items-center gap-3 rounded-[10px] px-2.5 text-[13.5px] transition-colors',
+							'flex h-9 items-center gap-3 rounded-[10px] px-2.5 text-md transition-colors',
 							active
 								? 'bg-surface-2 font-medium text-foreground'
 								: 'text-muted-foreground hover:bg-surface-2/60 hover:text-foreground'
@@ -144,10 +143,10 @@
 		aria-label={live ? 'Hashi home' : 'Hashi design index'}
 	>
 		<span
-			class="grid size-7 shrink-0 place-items-center rounded-lg bg-primary text-[15px] font-semibold text-primary-foreground"
+			class="grid size-7 shrink-0 place-items-center rounded-lg bg-primary text-lg font-semibold text-primary-foreground"
 			>橋</span
 		>
-		{#if full}<span class="text-[15px] font-semibold tracking-[-0.01em]">Hashi</span>{/if}
+		{#if full}<span class="text-lg font-semibold tracking-[-0.01em]">Hashi</span>{/if}
 	</a>
 {/snippet}
 
@@ -169,7 +168,7 @@
 		<div class="border-t p-2.5">
 			<button
 				onclick={togglePin}
-				class="flex h-9 w-full items-center gap-3 rounded-[10px] px-2.5 text-[13px] text-muted-foreground hover:bg-surface-2/60 hover:text-foreground"
+				class="flex h-9 w-full items-center gap-3 rounded-[10px] px-2.5 text-md text-muted-foreground hover:bg-surface-2/60 hover:text-foreground"
 				aria-pressed={pinned}
 			>
 				{#if pinned}<PinOff class="size-[18px] shrink-0" strokeWidth={1.75} />{:else}<Pin
@@ -211,17 +210,17 @@
 				</Sheet.Content>
 			</Sheet.Root>
 
-			<div class="min-w-0 flex-1 truncate text-[13.5px] font-medium">
+			<div class="min-w-0 flex-1 truncate text-md font-medium">
 				{current?.label ?? extraTitles[page.url.pathname] ?? 'Hashi'}
 			</div>
 
 			<button
 				onclick={() => (searchOpen = true)}
-				class="hidden h-8 w-64 items-center gap-2 rounded-[10px] border bg-surface px-2.5 text-[13px] text-muted-foreground hover:text-foreground lg:flex"
+				class="hidden h-8 w-64 items-center gap-2 rounded-[10px] border bg-surface px-2.5 text-md text-muted-foreground hover:text-foreground lg:flex"
 			>
 				<Search class="size-4" />
 				<span class="flex-1 text-left">Search IPs, domains, pages</span>
-				<kbd class="text-[11px]">⌘K</kbd>
+				<kbd class="text-2xs">⌘K</kbd>
 			</button>
 			<Button
 				variant="ghost"
@@ -234,27 +233,27 @@
 			{#if live}<a
 					href="/changes"
 					class={cn(
-						'flex h-8 items-center gap-1.5 rounded-[10px] border px-2.5 text-[13px] font-medium',
+						'flex h-8 items-center gap-1.5 rounded-[10px] border px-2.5 text-md font-medium',
 						pendingPlans.count > 0
 							? 'border-warn/30 bg-warn/10 text-warn-text hover:bg-warn/15'
 							: 'text-muted-foreground hover:text-foreground'
 					)}
 				>
 					<GitPullRequestArrow class="size-4" />
-					<span class="tnum">{pendingPlans.count}</span><span class="hidden sm:inline"
+					<span class="tnum">{pendingPlans.count}</span><span class="sr-only sm:not-sr-only"
 						>{pendingPlans.count === 1 ? 'pending change' : 'pending changes'}</span
 					>
 				</a>{:else if !live}<a
 					href="/design/changes"
-					class="flex h-8 items-center gap-1.5 rounded-[10px] border border-warn/30 bg-warn/10 px-2.5 text-[13px] font-medium text-warn-text hover:bg-warn/15"
+					class="flex h-8 items-center gap-1.5 rounded-[10px] border border-warn/30 bg-warn/10 px-2.5 text-md font-medium text-warn-text hover:bg-warn/15"
 				>
 					<GitPullRequestArrow class="size-4" />
-					<span class="tnum">2</span><span class="hidden sm:inline">pending changes</span>
+					<span class="tnum">2</span><span class="sr-only sm:not-sr-only">pending changes</span>
 				</a>{/if}
 
 			{#if !live || vault?.locked === false}
 				<span
-					class="hidden h-8 items-center gap-1.5 rounded-[10px] px-2 text-[12.5px] text-muted-foreground xl:flex"
+					class="hidden h-8 items-center gap-1.5 rounded-[10px] px-2 text-sm text-muted-foreground xl:flex"
 					title="Vault unlocked · {vault?.mode ?? 'service'} mode"
 				>
 					<LockOpen class="size-4 text-ok-text" />Vault unlocked
@@ -262,11 +261,11 @@
 			{:else if vault?.locked}
 				<button
 					type="button"
-					class="flex h-8 items-center gap-1.5 rounded-[10px] px-2 text-[12.5px] font-medium text-warn-text hover:bg-surface-2"
+					class="flex h-8 items-center gap-1.5 rounded-[10px] px-2 text-sm font-medium text-warn-text hover:bg-surface-2"
 					title="Vault locked · strict mode"
 					onclick={() => (unlockOpen = true)}
 				>
-					<Lock class="size-4" /><span class="hidden sm:inline">Vault locked</span>
+					<Lock class="size-4" /><span class="sr-only sm:not-sr-only">Vault locked</span>
 				</button>
 			{/if}
 
@@ -314,15 +313,15 @@
 					{#snippet child({ props })}
 						<button
 							{...props}
-							class="grid size-8 place-items-center rounded-full border bg-surface-2 text-[12px] font-semibold"
+							class="grid size-8 place-items-center rounded-full border bg-surface-2 text-xs font-semibold"
 							aria-label="Account">A</button
 						>
 					{/snippet}
 				</DropdownMenu.Trigger>
 				<DropdownMenu.Content align="end" class="w-56">
 					<DropdownMenu.Label class="font-normal">
-						<div class="text-[13px] font-medium">Admin</div>
-						<div class="text-[12px] text-muted-foreground">
+						<div class="text-md font-medium">Admin</div>
+						<div class="text-xs text-muted-foreground">
 							{#if live}Session ends {time(s?.absolute_expires_at)} · bound to {s?.bound_ip}{:else}Session
 								ends 19:10 · bound to 192.0.2.10{/if}
 						</div>
@@ -342,7 +341,7 @@
 			{#if live && vault?.locked}
 				<div
 					role="status"
-					class="mb-5 flex flex-wrap items-center gap-3 rounded-2xl border border-warn/30 bg-warn/10 px-4 py-3 text-[13px]"
+					class="mb-5 flex flex-wrap items-center gap-3 rounded-2xl border border-warn/30 bg-warn/10 px-4 py-3 text-md"
 				>
 					<Lock class="size-4 text-warn-text" />
 					<span class="min-w-0 flex-1"

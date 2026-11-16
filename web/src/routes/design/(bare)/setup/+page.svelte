@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import { cn } from '$lib/utils';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import { cn } from '#lib/utils.ts';
 	import { Check, CircleAlert, ShieldCheck } from '@lucide/svelte';
 
 	// 02-setup-auth.md §1: a resumable, persisted sequence; a step completes only after its validation succeeded.
@@ -30,22 +30,22 @@
 	<aside>
 		<div class="mb-6 flex items-center gap-2.5">
 			<span
-				class="grid size-8 place-items-center rounded-lg bg-primary text-[16px] font-semibold text-primary-foreground"
+				class="grid size-8 place-items-center rounded-lg bg-primary text-lg font-semibold text-primary-foreground"
 				>橋</span
-			><span class="text-[15px] font-semibold">Set up Hashi</span>
+			><span class="text-lg font-semibold">Set up Hashi</span>
 		</div>
 		<ol class="space-y-0.5">
 			{#each steps as s, i (s.t)}
 				<li
 					class={cn(
-						'flex h-9 items-center gap-3 rounded-[10px] px-2.5 text-[13.5px]',
+						'flex h-9 items-center gap-3 rounded-[10px] px-2.5 text-md',
 						s.s === 'current' && 'bg-surface-2 font-medium',
 						s.s === 'todo' && 'text-muted-foreground'
 					)}
 				>
 					<span
 						class={cn(
-							'tnum grid size-5 shrink-0 place-items-center rounded-full border text-[11px]',
+							'tnum grid size-5 shrink-0 place-items-center rounded-full border text-2xs',
 							s.s === 'done' && 'border-ok/40 bg-ok/15 text-ok-text',
 							s.s === 'current' && 'border-primary text-foreground'
 						)}
@@ -56,15 +56,15 @@
 				</li>
 			{/each}
 		</ol>
-		<p class="mt-6 text-[12.5px] text-muted-foreground">
+		<p class="mt-6 text-sm text-muted-foreground">
 			Progress is saved after every step. You can close this page and continue later.
 		</p>
 	</aside>
 
 	<main class="min-w-0">
-		<p class="text-[13px] text-muted-foreground">Step 5 of 11</p>
-		<h1 class="mt-1 text-[24px] font-semibold">Connect a Traefik host</h1>
-		<p class="mt-1 max-w-[62ch] text-[13.5px] text-muted-foreground">
+		<p class="text-md text-muted-foreground">Step 5 of 11</p>
+		<h1 class="mt-1 text-title font-semibold">Connect a Traefik host</h1>
+		<p class="mt-1 max-w-[62ch] text-md text-muted-foreground">
 			Hashi installs and runs its own Traefik on this machine over SSH. Existing Traefik config is
 			backed up and only replaced after you confirm.
 		</p>
@@ -91,10 +91,10 @@
 			</div>
 			{#if fingerprintShown}
 				<div class="mt-5 rounded-2xl border border-primary/40 bg-primary/[0.06] p-4">
-					<div class="flex items-center gap-2 text-[13.5px] font-medium">
+					<div class="flex items-center gap-2 text-md font-medium">
 						<ShieldCheck class="size-4" />Confirm this host key
 					</div>
-					<p class="mt-1 text-[13px] text-muted-foreground">
+					<p class="mt-1 text-md text-muted-foreground">
 						First contact with 10.20.4.11. Compare it with <Mono
 							>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</Mono
 						> on the host.
@@ -112,13 +112,13 @@
 				</div>
 			{:else}
 				<p
-					class="mt-5 flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-[13px] text-bad-text"
+					class="mt-5 flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-md text-bad-text"
 				>
 					<CircleAlert class="mt-0.5 size-4 shrink-0" />Connection stopped. A different key can mean
 					the wrong machine or an interception. Check the address and try again.
 				</p>
 			{/if}
-			<ul class="mt-5 space-y-1.5 text-[13px]">
+			<ul class="mt-5 space-y-1.5 text-md">
 				<li class="flex items-center gap-2">
 					<Check class="size-4 text-ok-text" />SSH login as root
 				</li>

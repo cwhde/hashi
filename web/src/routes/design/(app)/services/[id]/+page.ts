@@ -1,4 +1,4 @@
-import { services } from '$lib/design/mock';
+import { services } from '#lib/design/mock.ts';
 import { error } from '@sveltejs/kit';
 
 export function load({ params }) {

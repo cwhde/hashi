@@ -2,15 +2,15 @@
 	// Setup step 6 (02 §1, 05 §2): connect the first firewall host. Validation only reads; confirming hands Hashi the
 	// host; the first apply is a high-risk plan under the rescue timer and can wait until after setup.
 	import { onMount } from 'svelte';
-	import { Button } from '$lib/components/ui/button';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import PlanReview from '$lib/components/hashi/PlanReview.svelte';
-	import HostForm from '$lib/components/hashi/firewall/HostForm.svelte';
-	import HostSettings from '$lib/components/hashi/firewall/HostSettings.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import PlanReview from '#lib/components/hashi/PlanReview.svelte';
+	import HostForm from '#lib/components/hashi/firewall/HostForm.svelte';
+	import HostSettings from '#lib/components/hashi/firewall/HostSettings.svelte';
 	import { Check, CircleAlert } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { outcomeText, reviewItems, triggerText, type Plan } from '$lib/sync';
-	import type { FirewallInput } from '$lib/firewall';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { outcomeText, reviewItems, triggerText, type Plan } from '#lib/sync.ts';
+	import type { FirewallInput } from '#lib/firewall.ts';
 
 	type Props = {
 		setup: Schemas['SetupState'];
@@ -112,8 +112,8 @@
 	);
 </script>
 
-<h1 class="mt-1 text-[24px] font-semibold">Connect a firewall host</h1>
-<p class="mt-1 max-w-[62ch] text-[13.5px] text-muted-foreground">
+<h1 class="mt-1 text-title font-semibold">Connect a firewall host</h1>
+<p class="mt-1 max-w-[62ch] text-md text-muted-foreground">
 	The machine with a public address that forwards traffic to Traefik. Hashi keeps its rules in one
 	table of its own; NetBird, Proxmox and Docker rules stay untouched.
 </p>
@@ -132,12 +132,12 @@
 	</div>
 {:else}
 	<section class="mt-5">
-		<h2 class="mb-3 text-[15px] font-semibold">{host.name}</h2>
+		<h2 class="mb-3 text-lg font-semibold">{host.name}</h2>
 		{#if host.edge_mode === 'managed'}
 			<HostSettings {host} busy={!!busy} {save} />
 			{#if host.drop_other_inbound}
 				<div class="mt-5 max-w-[62ch] space-y-1.5">
-					<label for="fw-access" class="text-[13px] font-medium"
+					<label for="fw-access" class="text-md font-medium"
 						>Addresses that may still reach this host</label
 					>
 					<input
@@ -145,9 +145,9 @@
 						bind:value={access}
 						oninput={() => (accessSaved = false)}
 						placeholder="203.0.113.7, 10.0.0.0/8"
-						class="h-10 w-full rounded-[10px] border bg-transparent px-3 font-mono text-[12.5px]"
+						class="h-10 w-full rounded-[10px] border bg-transparent px-3 font-mono text-sm"
 					/>
-					<p class="text-[12px] text-muted-foreground">Its own networks and NetBird always can.</p>
+					<p class="text-xs text-muted-foreground">Its own networks and NetBird always can.</p>
 					<Button size="sm" variant="outline" onclick={saveAccess} disabled={!!busy}
 						>{accessSaved ? 'Saved' : 'Save addresses'}</Button
 					>
@@ -159,7 +159,7 @@
 				>
 			{/if}
 		{:else}
-			<p class="max-w-[62ch] text-[13px]">
+			<p class="max-w-[62ch] text-md">
 				Hashi does not touch this host's firewall. Forward the public ports on your router to <Mono
 					>{host.internal_traefik_ip}</Mono
 				>.
@@ -168,14 +168,14 @@
 	</section>
 	{#if usable}
 		<section class="mt-8">
-			<h2 class="text-[15px] font-semibold">Hand over the host</h2>
+			<h2 class="text-lg font-semibold">Hand over the host</h2>
 			{#if host.edge_mode === 'external_nat' || host.ownership_confirmed}
-				{#if step?.status === 'done'}<p class="mt-2 flex items-center gap-2 text-[13.5px]">
+				{#if step?.status === 'done'}<p class="mt-2 flex items-center gap-2 text-md">
 						<Check class="size-4 text-ok-text" />Confirmed.
 					</p>
 				{:else}<Button class="mt-3" onclick={confirm} disabled={!!busy}>Confirm</Button>{/if}
 			{:else}
-				<label class="mt-2 flex max-w-[70ch] items-start gap-2.5 text-[13px]">
+				<label class="mt-2 flex max-w-[70ch] items-start gap-2.5 text-md">
 					<input type="checkbox" bind:checked={agreed} class="mt-0.5 accent-primary" />
 					<span
 						>Hashi may manage its own firewall table on {host.name}. Nothing changes on the host
@@ -188,8 +188,8 @@
 	{/if}
 	{#if step?.status === 'done' && host.edge_mode === 'managed'}
 		<section class="mt-8">
-			<h2 class="text-[15px] font-semibold">First apply</h2>
-			<p class="mt-1 mb-3 max-w-[70ch] text-[13px] text-muted-foreground">
+			<h2 class="text-lg font-semibold">First apply</h2>
+			<p class="mt-1 mb-3 max-w-[70ch] text-md text-muted-foreground">
 				Optional here. If Hashi cannot log in again over a new connection within 3 minutes, the host
 				goes back to how it was.
 			</p>
@@ -206,12 +206,12 @@
 								>{busy === 'run' ? 'Applying…' : 'Approve and run'}</Button
 							>
 						{:else if plan}
-							<p class="mr-auto text-[12.5px] text-muted-foreground">{outcomeText(plan)}</p>
+							<p class="mr-auto text-sm text-muted-foreground">{outcomeText(plan)}</p>
 						{/if}
 					{/snippet}
 				</PlanReview>
 			{:else if host.last_applied_at}
-				<p class="flex items-center gap-2 text-[13.5px]">
+				<p class="flex items-center gap-2 text-md">
 					<Check class="size-4 text-ok-text" />Applied and confirmed.
 				</p>
 			{:else}
@@ -225,7 +225,7 @@
 {#if error}
 	<p
 		role="alert"
-		class="mt-5 flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-[13px] text-bad-text"
+		class="mt-5 flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-md text-bad-text"
 	>
 		<CircleAlert class="mt-0.5 size-4 shrink-0" />{error}
 	</p>

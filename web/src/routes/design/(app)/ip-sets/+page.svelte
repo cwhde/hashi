@@ -1,15 +1,15 @@
 <script lang="ts">
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import IpItemEditor from '$lib/components/hashi/security/IpItemEditor.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Textarea } from '$lib/components/ui/textarea';
-	import * as Table from '$lib/components/ui/table';
-	import * as Sheet from '$lib/components/ui/sheet';
-	import * as ToggleGroup from '$lib/components/ui/toggle-group';
-	import { ipSets, containsAddress, type SetKind } from '$lib/design/security';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import IpItemEditor from '#lib/components/hashi/security/IpItemEditor.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Textarea } from '#lib/components/ui/textarea/index.ts';
+	import * as Table from '#lib/components/ui/table/index.ts';
+	import * as Sheet from '#lib/components/ui/sheet/index.ts';
+	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.ts';
+	import { ipSets, containsAddress, type SetKind } from '#lib/design/security.ts';
 	import { Plus, Search, Lock, Rss } from '@lucide/svelte';
 
 	let q = $state('');
@@ -55,11 +55,10 @@
 					>{l}</ToggleGroup.Item
 				>{/each}
 		</ToggleGroup.Root>
-		<span class="ml-auto text-[12.5px] text-muted-foreground">{rows.length} of {ipSets.length}</span
-		>
+		<span class="ml-auto text-sm text-muted-foreground">{rows.length} of {ipSets.length}</span>
 	</div>
 	{#if looksLikeAddress}
-		<div class="flex flex-wrap items-center gap-2 border-b bg-surface-2/40 px-4 py-2.5 text-[13px]">
+		<div class="flex flex-wrap items-center gap-2 border-b bg-surface-2/40 px-4 py-2.5 text-md">
 			<span>Sets that contain <span class="font-mono">{q}</span> are listed below.</span>
 			<a class="font-medium underline" href="/design/ip-sets/address?ip={encodeURIComponent(q)}"
 				>Open the address page</a
@@ -87,8 +86,7 @@
 										aria-label="Not editable"
 									/>{/if}</span
 							>
-							<span class="block truncate text-[12.5px] text-muted-foreground">{s.description}</span
-							>
+							<span class="block truncate text-sm text-muted-foreground">{s.description}</span>
 						</a>
 					</Table.Cell>
 					<Table.Cell class="hidden md:table-cell">
@@ -99,14 +97,14 @@
 						{#if s.kind === 'dynamic'}{s.entries?.length} entries{:else if s.kind === 'feed'}{(
 								s.v4 + s.v6
 							).toLocaleString()} entries{:else}{s.items.length} items{/if}
-						<span class="block text-[12px] text-muted-foreground"
+						<span class="block text-xs text-muted-foreground"
 							>{s.v4.toLocaleString()} v4 · {s.v6.toLocaleString()} v6</span
 						>
 					</Table.Cell>
 					<Table.Cell class="hidden max-w-[22rem] lg:table-cell">
 						{#if s.usedBy.length}
-							<span class="block truncate text-[13px]">{s.usedBy[0]?.label}</span>
-							{#if s.usedBy.length > 1}<span class="text-[12px] text-muted-foreground"
+							<span class="block truncate text-md">{s.usedBy[0]?.label}</span>
+							{#if s.usedBy.length > 1}<span class="text-xs text-muted-foreground"
 									>and {s.usedBy.length - 1} more</span
 								>{/if}
 						{:else}<span class="text-muted-foreground">Not used</span>{/if}
@@ -116,7 +114,7 @@
 							>{:else if s.status === 'empty'}<Tag tone="bad">empty</Tag>{:else}<Tag tone="ok"
 								>ok</Tag
 							>{/if}
-						<span class="block text-[12px] text-muted-foreground">{s.changed}</span>
+						<span class="block text-xs text-muted-foreground">{s.changed}</span>
 					</Table.Cell>
 				</Table.Row>
 			{/each}
@@ -135,13 +133,13 @@
 		<div class="space-y-5 overflow-y-auto px-4 pb-4">
 			<div class="space-y-1.5">
 				<Label for="sn">Name</Label><Input id="sn" class="font-mono" value="family-devices" />
-				<p class="text-[12.5px] text-muted-foreground">Lowercase letters, digits and dashes.</p>
+				<p class="text-sm text-muted-foreground">Lowercase letters, digits and dashes.</p>
 			</div>
 			<div class="space-y-1.5">
 				<Label for="sd">Description</Label><Textarea id="sd" rows={2} />
 			</div>
 			<div class="rounded-xl border p-3">
-				<div class="mb-3 text-[13px] font-medium">First item</div>
+				<div class="mb-3 text-md font-medium">First item</div>
 				<IpItemEditor type="pulse" />
 			</div>
 		</div>

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { cn } from '$lib/utils';
+	import { cn } from '#lib/utils.ts';
 
 	// Quiet label for origin, kind, mode. tone="risk" is the only loud one.
 	let {
@@ -25,7 +25,7 @@
 
 <span
 	class={cn(
-		'inline-flex h-5 items-center gap-1 rounded-md border px-1.5 text-[11.5px] font-medium whitespace-nowrap',
+		'inline-flex h-5 items-center gap-1 rounded-md border px-1.5 text-2xs font-medium whitespace-nowrap',
 		tones[tone],
 		className
 	)}>{@render children()}</span

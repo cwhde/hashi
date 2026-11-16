@@ -1,5 +1,5 @@
 // IP sets (05a): API types and the small helpers the IP set pages and pickers share.
-import { api, type Schemas } from '$lib/api/client';
+import { api, type Schemas } from '#lib/api/client.ts';
 
 export type IPSet = Schemas['IPSet'];
 export type IPItem = Schemas['IPItem'];

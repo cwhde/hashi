@@ -1,16 +1,19 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import { Switch } from '$lib/components/ui/switch';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import type { Endpoint } from '$lib/monitor';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import type { Endpoint } from '#lib/monitor.ts';
 
 	// 10b §3: what the public dashboard and status page show. Order follows group and name for now.
 	let services = $state<Schemas['Service'][]>([]);
 	let endpoints = $state<Endpoint[]>([]);
 	let look = $state<Schemas['AppearanceSettings'] | null>(null);
 	let error = $state('');
+	// Until the lists arrive, counts and empty texts would claim "0 apps" (bug 71).
+	let loaded = $state(false);
 
 	async function load() {
 		const [s, e, a] = await Promise.all([
@@ -22,6 +25,7 @@
 		services = s.data.services.filter((x) => x.origin !== 'system' && x.host_name);
 		endpoints = e.data.endpoints;
 		look = a.data;
+		loaded = true;
 	}
 	onMount(() => {
 		load().catch((e) => (error = problemText(e)));
@@ -60,12 +64,13 @@
 	title="App display"
 	description="What visitors see on the public app dashboard and status page. Both run on their own ports with no admin access."
 />
-{#if error}<p role="alert" class="mb-3 text-[13px] text-bad-text">{error}</p>{/if}
+{#if error}<p role="alert" class="mb-3 text-md text-bad-text">{error}</p>{/if}
 <div class="grid gap-4 lg:grid-cols-2">
 	<Panel
 		title="App dashboard"
-		description="{services.filter((r) => r.dashboard_visible)
-			.length} apps · cards link to the public address"
+		description={loaded
+			? `${services.filter((r) => r.dashboard_visible).length} apps · cards link to the public address`
+			: 'Loading…'}
 		flush
 	>
 		{#snippet actions()}{#if look}<Switch
@@ -73,14 +78,15 @@
 					onCheckedChange={(v) => setPage('public_dashboard_enabled', v)}
 					aria-label="Public dashboard enabled"
 				/>{/if}{/snippet}
-		{#if services.length === 0}<p class="px-4 py-3 text-[13px] text-muted-foreground">
+		{#if !loaded}<div class="space-y-2 p-4"><Skeleton class="h-6" /><Skeleton class="h-6" /></div>
+		{:else if services.length === 0}<p class="px-4 py-3 text-md text-muted-foreground">
 				Services with a public name appear here.
 			</p>{/if}
 		<ul class="divide-y">
 			{#each services as r (r.id)}
-				<li class="flex items-center gap-3 px-4 py-2 text-[13px]">
+				<li class="flex items-center gap-3 px-4 py-2 text-md">
 					<span
-						class="grid size-7 place-items-center rounded-lg border bg-surface-2 text-[12px] font-semibold"
+						class="grid size-7 place-items-center rounded-lg border bg-surface-2 text-xs font-semibold"
 						>{r.name[0]}</span
 					>
 					<span class="min-w-0 flex-1 truncate font-medium">{r.name}</span>
@@ -103,9 +109,12 @@
 					onCheckedChange={(v) => setPage('public_status_enabled', v)}
 					aria-label="Public status enabled"
 				/>{/if}{/snippet}
+		{#if !loaded}<div class="space-y-2 p-4">
+				<Skeleton class="h-6" /><Skeleton class="h-6" />
+			</div>{/if}
 		<ul class="divide-y">
 			{#each endpoints as m (m.id)}
-				<li class="flex items-center gap-3 px-4 py-2 text-[13px]">
+				<li class="flex items-center gap-3 px-4 py-2 text-md">
 					<span class="min-w-0 flex-1 truncate"
 						>{m.name} <span class="text-muted-foreground">· {m.group}</span></span
 					>

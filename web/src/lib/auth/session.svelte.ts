@@ -1,4 +1,4 @@
-import { api, setCSRF, type Schemas } from '$lib/api/client';
+import { api, setCSRF, type Schemas } from '#lib/api/client.ts';
 
 export type AuthSession = Schemas['AuthSession'];
 

@@ -1,11 +1,11 @@
 <script lang="ts">
-	import StatusBadge from '$lib/components/hashi/StatusBadge.svelte';
-	import HistoryStrip from '$lib/components/hashi/HistoryStrip.svelte';
-	import LineChart from '$lib/components/hashi/LineChart.svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as ToggleGroup from '$lib/components/ui/toggle-group';
-	import { spark } from '$lib/design/mock';
+	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
+	import HistoryStrip from '#lib/components/hashi/HistoryStrip.svelte';
+	import LineChart from '#lib/components/hashi/LineChart.svelte';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.ts';
+	import { spark } from '#lib/design/mock.ts';
 	import { ChevronLeft } from '@lucide/svelte';
 
 	let { data } = $props();
@@ -15,24 +15,24 @@
 
 <a
 	href="/design/status"
-	class="mb-3 inline-flex items-center gap-1 text-[13px] text-muted-foreground hover:text-foreground"
+	class="mb-3 inline-flex items-center gap-1 text-md text-muted-foreground hover:text-foreground"
 	><ChevronLeft class="size-4" />Status</a
 >
 <div class="mb-4 rounded-2xl border bg-card p-4">
 	<div class="flex flex-wrap items-start gap-4">
 		<div class="flex-1">
-			<h1 class="text-[22px] font-semibold">{m.name}</h1>
-			<p class="text-[13.5px] text-muted-foreground">{m.kind} · {m.address} · every 60 s</p>
+			<h1 class="text-title font-semibold">{m.name}</h1>
+			<p class="text-md text-muted-foreground">{m.kind} · {m.address} · every 60 s</p>
 		</div>
 		<StatusBadge state={m.state} />
 		<Button variant="outline" size="sm">Pause</Button><Button variant="outline" size="sm"
 			>Edit check</Button
 		>
 	</div>
-	<dl class="mt-4 grid grid-cols-2 gap-3 text-[13px] sm:grid-cols-4 lg:grid-cols-7">
+	<dl class="mt-4 grid grid-cols-2 gap-3 text-md sm:grid-cols-4 lg:grid-cols-7">
 		{#each [['Last check', '12 s ago'], ['Response min', '31 ms'], ['avg', m.latency + ' ms'], ['max', '412 ms'], ['Uptime 1 h', '100%'], ['24 h', m.uptime24], ['30 d', '99.91%']] as [k, v] (k)}
 			<div>
-				<dt class="text-[12px] text-muted-foreground">{k}</dt>
+				<dt class="text-xs text-muted-foreground">{k}</dt>
 				<dd class="tnum">{v}</dd>
 			</div>
 		{/each}
@@ -51,7 +51,7 @@
 	<LineChart title="Availability" values={spark(1, 60, 99, 1)} current={m.uptime24} />
 </div>
 <Panel title="Events">
-	<ol class="space-y-2.5 text-[13px]">
+	<ol class="space-y-2.5 text-md">
 		<li class="grid grid-cols-[6rem_1fr] gap-3">
 			<span class="tnum text-muted-foreground">13:12</span><span
 				><StatusBadge state="degraded" /> p95 412 ms over 300 ms for 3 checks</span

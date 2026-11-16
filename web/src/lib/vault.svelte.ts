@@ -1,5 +1,5 @@
 // The vault's mode and lock state (02 §5.4–5.5), shown in the top bar and on every page while locked.
-import { api, type Schemas } from '$lib/api/client';
+import { api, type Schemas } from '#lib/api/client.ts';
 
 class VaultStore {
 	current = $state<Schemas['VaultState'] | null>(null);

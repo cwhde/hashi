@@ -1,25 +1,26 @@
 <script lang="ts">
+	import { Draft, guardUnsaved } from '#lib/unsaved.svelte.ts';
 	import { onMount } from 'svelte';
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import PlanReview from '$lib/components/hashi/PlanReview.svelte';
-	import ShellEditor from '$lib/components/hashi/ShellEditor.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Checkbox } from '$lib/components/ui/checkbox';
-	import { Switch } from '$lib/components/ui/switch';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import PlanReview from '#lib/components/hashi/PlanReview.svelte';
+	import ShellEditor from '#lib/components/hashi/ShellEditor.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Checkbox } from '#lib/components/ui/checkbox/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
+	import * as AlertDialog from '#lib/components/ui/alert-dialog/index.ts';
 	import { CircleAlert, Fingerprint, Play, Plus, Trash2, KeyRound, X } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { withReauth } from '$lib/auth/reauth';
-	import { reviewItems, triggerText, outcomeText } from '$lib/sync';
-	import { cn } from '$lib/utils';
-	import { timeZone } from '$lib/format';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { withReauth } from '#lib/auth/reauth.ts';
+	import { reviewItems, triggerText, outcomeText } from '#lib/sync.ts';
+	import { cn } from '#lib/utils.ts';
+	import { timeZone } from '#lib/format.ts';
 
 	type Script = Schemas['Script'];
 	type Run = Schemas['ScriptRun'];
@@ -101,13 +102,22 @@
 		};
 	}
 
-	async function pick(id: string | null) {
+	// Unsaved edits: picking another script or leaving the page asks first (bug 40).
+	const draft = new Draft(() => form);
+	guardUnsaved(() => draft.dirty);
+	const discard = () =>
+		!draft.dirty ||
+		confirm('This script has changes that are not saved. Leave without saving them?');
+
+	async function pick(id: string | null, force = false) {
+		if (!force && !discard()) return;
 		selected = id;
 		message = formError = '';
 		openRun = null;
 		plans = [];
 		const s = scripts?.find((x) => x.id === id);
 		form = s ? formOf(s) : blank();
+		draft.mark();
 		runs = [];
 		if (s) await loadRuns(s.id);
 	}
@@ -176,7 +186,7 @@
 							api.PUT('/api/scripts/{id}', { params: { path: { id: current.id } }, body: body() })
 						);
 			await load();
-			await pick(saved.id);
+			await pick(saved.id, true);
 			message = saved.targets.some((t) => t.pending)
 				? 'Saved. The change waits for you below before it reaches the hosts.'
 				: 'Saved.';
@@ -298,13 +308,13 @@
 </PageHeader>
 
 {#if error}
-	<p class="flex items-center gap-2 text-[13px] text-bad-text">
+	<p class="flex items-center gap-2 text-md text-bad-text">
 		<CircleAlert class="size-3.5" />{error}
 	</p>
 {:else if !scripts}
 	<Skeleton class="h-64 w-full rounded-2xl" />
 {:else}
-	<div class="grid gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
+	<div class="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
 		<nav class="h-fit rounded-2xl border bg-card p-1.5" aria-label="Scripts">
 			{#each scripts as x (x.id)}
 				<button
@@ -315,7 +325,7 @@
 						selected === x.id ? 'bg-surface-2' : 'hover:bg-surface-2/50'
 					)}
 				>
-					<div class="flex items-center gap-2 text-[13.5px] font-medium">
+					<div class="flex items-center gap-2 text-md font-medium">
 						<span class="truncate">{x.name}</span>
 						{#if !x.enabled}<Tag>off</Tag>{/if}
 						{#if x.targets.some((t) => t.pending)}<Tag tone="warn">waiting</Tag>{/if}
@@ -328,13 +338,13 @@
 								)}
 								title={statusText[r]}
 							></span>{/each}
-						<span class="ml-1.5 truncate text-[12px] text-muted-foreground"
+						<span class="ml-1.5 truncate text-xs text-muted-foreground"
 							>{#if x.schedule}<Mono>{x.schedule}</Mono>{:else}by hand{/if}</span
 						>
 					</div>
 				</button>
 			{:else}
-				<p class="px-3 py-2.5 text-[13px] text-muted-foreground">
+				<p class="px-3 py-2.5 text-md text-muted-foreground">
 					No scripts yet. Add one to run it on your firewall hosts.
 				</p>
 			{/each}
@@ -377,7 +387,7 @@
 					<div class="grid gap-4 border-b p-4 md:grid-cols-2">
 						<div class="space-y-1.5">
 							<Label for="sname">Name</Label><Input id="sname" bind:value={form.name} />
-							{#if current}<p class="text-[12px] text-muted-foreground">
+							{#if current}<p class="text-xs text-muted-foreground">
 									File on the hosts: <Mono>{current.slug}.sh</Mono>
 								</p>{/if}
 						</div>
@@ -399,11 +409,11 @@
 								placeholder="by hand only"
 								class="font-mono"
 							/>
-							{#if previewError}<p class="text-[12px] text-bad-text">{previewError}</p>
-							{:else if preview}<p class="text-[12px] text-muted-foreground">
+							{#if previewError}<p class="text-xs text-bad-text">{previewError}</p>
+							{:else if preview}<p class="text-xs text-muted-foreground">
 									Next: {preview.next.slice(0, 3).map(fmt).join(', ')}
 								</p>
-							{:else if !form.schedule.trim()}<p class="text-[12px] text-muted-foreground">
+							{:else if !form.schedule.trim()}<p class="text-xs text-muted-foreground">
 									e.g. <Mono>30 3 * * 0</Mono> is Sundays at 03:30
 								</p>{/if}
 						</div>
@@ -425,7 +435,7 @@
 					<fieldset class="space-y-2 border-t px-4 py-3">
 						<legend class="sr-only">Environment variables</legend>
 						<div class="flex items-center justify-between">
-							<span class="text-[13px] font-medium">Environment variables</span>
+							<span class="text-md font-medium">Environment variables</span>
 							<Button
 								size="sm"
 								variant="ghost"
@@ -450,7 +460,7 @@
 									class="font-mono"
 									aria-label="Value of {e.name || 'the variable'}"
 								/>
-								<label class="flex items-center gap-1.5 text-[12.5px]"
+								<label class="flex items-center gap-1.5 text-sm"
 									><Checkbox bind:checked={e.secret} /><KeyRound class="size-3.5" />secret</label
 								>
 								<Button
@@ -461,14 +471,14 @@
 								>
 							</div>
 						{:else}
-							<p class="text-[12.5px] text-muted-foreground">
+							<p class="text-sm text-muted-foreground">
 								None. Secret values stay in Hashi's vault and are replaced in run output.
 							</p>
 						{/each}
 					</fieldset>
 					<fieldset class="border-t px-4 py-3">
 						<legend class="sr-only">Target hosts</legend>
-						<div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px]">
+						<div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-md">
 							<span class="text-muted-foreground">Runs on</span>
 							<label class="flex items-center gap-2"
 								><Checkbox bind:checked={form.allHosts} />every firewall host</label
@@ -491,18 +501,16 @@
 								{/each}
 							{/if}
 						</div>
-						{#if !form.allHosts && form.hosts.length === 0}<p
-								class="mt-1.5 text-[12px] text-warn-text"
-							>
+						{#if !form.allHosts && form.hosts.length === 0}<p class="mt-1.5 text-xs text-warn-text">
 								No host picked: the script runs nowhere.
 							</p>{/if}
 					</fieldset>
 					{#if formError || message || current}
 						<div class="flex flex-wrap items-center gap-3 border-t px-4 py-3">
-							{#if formError}<p role="alert" class="mr-auto text-[13px] text-bad-text">
+							{#if formError}<p role="alert" class="mr-auto text-md text-bad-text">
 									{formError}
 								</p>
-							{:else if message}<p role="status" class="mr-auto text-[13px] text-muted-foreground">
+							{:else if message}<p role="status" class="mr-auto text-md text-muted-foreground">
 									{message}
 								</p>
 							{:else}<span class="mr-auto"></span>{/if}
@@ -520,7 +528,7 @@
 					<section class="space-y-3" aria-label="Waiting changes">
 						{#if plans.length === 0}
 							<div class="flex flex-wrap items-center gap-3 rounded-2xl border bg-card px-4 py-3">
-								<p class="mr-auto text-[13px]">
+								<p class="mr-auto text-md">
 									A change waits for {pending.map((t) => t.name).join(', ')}.
 								</p>
 								<Button size="sm" variant="outline" disabled={planBusy} onclick={plan}
@@ -542,7 +550,7 @@
 										>{/if}
 								{/snippet}
 								{#snippet footer()}
-									<p class="mr-auto text-[12.5px] text-muted-foreground">
+									<p class="mr-auto text-sm text-muted-foreground">
 										Applying puts every waiting script change for this host in place. It asks for
 										your passkey.
 									</p>
@@ -560,9 +568,9 @@
 				{#if current}
 					<Panel title="Runs" flush>
 						{#if openRun && !runs.some((r) => r.id === openRun?.id)}
-							<p class="px-4 py-2.5 text-[13px] text-muted-foreground">Starting…</p>
+							<p class="px-4 py-2.5 text-md text-muted-foreground">Starting…</p>
 						{/if}
-						<ul class="divide-y text-[13px]">
+						<ul class="divide-y text-md">
 							{#each runs as r (r.id)}
 								<li>
 									<button
@@ -582,16 +590,16 @@
 									</button>
 									{#if openRun?.id === r.id}
 										<div class="px-4 pb-3">
-											{#if openRun.error}<p class="mb-2 text-[12.5px] text-bad-text">
+											{#if openRun.error}<p class="mb-2 text-sm text-bad-text">
 													{openRun.error}
 												</p>{/if}
 											{#if openRun.output}<pre
-													class="max-h-96 overflow-auto rounded-lg bg-surface-2/60 p-2.5 font-mono text-[12px] whitespace-pre-wrap"
+													class="max-h-96 overflow-auto rounded-lg bg-surface-2/60 p-2.5 font-mono text-xs whitespace-pre-wrap"
 													aria-label="Output">{openRun.output}</pre>
-											{:else if !openRun.error}<p class="text-[12.5px] text-muted-foreground">
+											{:else if !openRun.error}<p class="text-sm text-muted-foreground">
 													{openRun.status === 'running' ? 'Running…' : 'No output.'}
 												</p>{/if}
-											{#if openRun.truncated}<p class="mt-1 text-[12px] text-muted-foreground">
+											{#if openRun.truncated}<p class="mt-1 text-xs text-muted-foreground">
 													Output cut at 1 MB.
 												</p>{/if}
 										</div>

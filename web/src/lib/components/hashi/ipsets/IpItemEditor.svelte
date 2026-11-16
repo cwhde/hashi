@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import * as ToggleGroup from '$lib/components/ui/toggle-group';
-	import * as Select from '$lib/components/ui/select';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
 	import IpSetPicker from './IpSetPicker.svelte';
 	import { onMount } from 'svelte';
-	import { pulseAgents } from '$lib/pulseAgents.svelte';
-	import type { IPSet, ItemForm, ItemType } from '$lib/ipsets';
+	import { pulseAgents } from '#lib/pulseAgents.svelte.ts';
+	import type { IPSet, ItemForm, ItemType } from '#lib/ipsets.ts';
 
 	// Add or edit one IP item: pick the type, then only that type's fields (05a §2). When the set is used as a
 	// target, CIDR, Geo and non-address sets cannot be added (05a §5.2). Pulse items need an agent, host items a
@@ -63,7 +63,8 @@
 			bind:value={() => form.type, (v: string) => v && (form.type = v as ItemType)}
 			variant="outline"
 			size="sm"
-			class="flex-wrap"
+			spacing={1}
+			class="grid w-full grid-cols-4"
 		>
 			{#each types as t (t.v)}
 				<ToggleGroup.Item
@@ -74,10 +75,10 @@
 				>
 			{/each}
 		</ToggleGroup.Root>
-		{#if usedAsTarget}<p class="text-[12.5px] text-muted-foreground">
+		{#if usedAsTarget}<p class="text-sm text-muted-foreground">
 				This set is a DNS value or upstream, so it can only hold single addresses.
 			</p>{/if}
-		{#if unavailable.length}<p class="text-[12.5px] text-muted-foreground">
+		{#if unavailable.length}<p class="text-sm text-muted-foreground">
 				{unavailable.join(' ')}
 			</p>{/if}
 	</div>
@@ -91,7 +92,7 @@
 				bind:value={form.value}
 				placeholder={form.type === 'ip' ? '198.51.100.7' : '192.0.2.0/24'}
 			/>
-			{#if form.type === 'cidr'}<p class="text-[12.5px] text-muted-foreground">
+			{#if form.type === 'cidr'}<p class="text-sm text-muted-foreground">
 					Host bits are cleared on save; a /32 or /128 is saved as an IP.
 				</p>{/if}
 		</div>
@@ -127,7 +128,7 @@
 				<Input id="item-selector" bind:value={form.selector} placeholder="eth0 or 10.0.0.0/24" />
 			</div>
 		{/if}
-		<p class="text-[12.5px] text-muted-foreground">
+		<p class="text-sm text-muted-foreground">
 			Follows the agent: when its address changes, every place using this set updates.
 		</p>
 	{:else if form.type === 'host'}
@@ -154,7 +155,7 @@
 				</Select.Root>
 			</div>
 		</div>
-		<p class="text-[12.5px] text-muted-foreground">
+		<p class="text-sm text-muted-foreground">
 			Follows the host: when its address changes, every place using this set updates.
 		</p>
 	{:else if form.type === 'geo'}
@@ -189,7 +190,7 @@
 				bind:value={form.value}
 				placeholder="vpn.example.org"
 			/>
-			<p class="text-[12.5px] text-muted-foreground">
+			<p class="text-sm text-muted-foreground">
 				Resolved by Hashi and looked up again every 5 minutes.
 			</p>
 		</div>
@@ -202,7 +203,7 @@
 				addressOnly={usedAsTarget}
 				exclude={[self]}
 			/>
-			<p class="text-[12.5px] text-muted-foreground">
+			<p class="text-sm text-muted-foreground">
 				Everything in that set counts as part of this one. Loops are refused when you save.
 			</p>
 		</div>
@@ -221,7 +222,7 @@
 			/>
 		</div>
 	</div>
-	<p id="exh" class="-mt-2 text-[12.5px] text-muted-foreground">
+	<p id="exh" class="-mt-2 text-sm text-muted-foreground">
 		An expired item drops out at the next update and is recorded in Activity.
 	</p>
 </div>

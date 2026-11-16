@@ -1,14 +1,14 @@
 <script lang="ts">
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import StatusBadge from '$lib/components/hashi/StatusBadge.svelte';
-	import HistoryStrip from '$lib/components/hashi/HistoryStrip.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import * as Tabs from '$lib/components/ui/tabs';
-	import * as Select from '$lib/components/ui/select';
-	import { monitors } from '$lib/design/mock';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
+	import HistoryStrip from '#lib/components/hashi/HistoryStrip.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
+	import { monitors } from '#lib/design/mock.ts';
 	import { Plus, Search, Send } from '@lucide/svelte';
 
 	let groupBy = $state('group');
@@ -54,7 +54,7 @@
 					(m) => m.state === 'down' || m.state === 'degraded'
 				).length}
 				<section>
-					<h2 class="mb-2 flex items-center gap-2 text-[14px] font-semibold capitalize">
+					<h2 class="mb-2 flex items-center gap-2 text-base font-semibold capitalize">
 						{name}{#if failing}<Tag tone="bad">{failing} failing</Tag>{/if}
 					</h2>
 					<div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -65,15 +65,15 @@
 							>
 								<div class="mb-2.5 flex items-start gap-3">
 									<div class="min-w-0 flex-1">
-										<div class="truncate text-[13.5px] font-medium">{m.name}</div>
-										<div class="truncate text-[12px] text-muted-foreground">
+										<div class="truncate text-md font-medium">{m.name}</div>
+										<div class="truncate text-xs text-muted-foreground">
 											{m.kind} · {m.address}
 										</div>
 									</div>
 									<StatusBadge state={m.state} />
 								</div>
 								<HistoryStrip samples={m.history} />
-								<div class="mt-1.5 flex justify-between text-[12px] text-muted-foreground">
+								<div class="mt-1.5 flex justify-between text-xs text-muted-foreground">
 									<span>{m.source}</span><span class="tnum"
 										>{m.latency ? m.latency + ' ms' : ''} · {m.uptime24}</span
 									>
@@ -87,7 +87,7 @@
 	</Tabs.Content>
 	<Tabs.Content value="notify" class="grid gap-4 lg:grid-cols-2">
 		<Panel title="Where alerts go" description="Default route, then per-endpoint overrides">
-			<ul class="divide-y text-[13px]">
+			<ul class="divide-y text-md">
 				<li class="flex items-center gap-3 py-2.5">
 					<span class="flex-1">Everything (default)</span><span class="text-muted-foreground"
 						>Telegram “Ops” · down + recovery · 10 min cooldown</span
@@ -106,7 +106,7 @@
 			</ul>
 		</Panel>
 		<Panel title="Recent notifications">
-			<ul class="space-y-2.5 text-[13px]">
+			<ul class="space-y-2.5 text-md">
 				<li class="flex items-center gap-3">
 					<Send class="size-4 text-muted-foreground" /><span class="flex-1"
 						>Home Assistant is down</span

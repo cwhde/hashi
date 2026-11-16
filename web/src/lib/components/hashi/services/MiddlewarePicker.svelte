@@ -26,15 +26,15 @@
 				{disabled}
 				aria-pressed={on}
 				onclick={() => toggle(n)}
-				class="inline-flex h-7 items-center gap-1.5 rounded-lg border px-2.5 font-mono text-[12px] transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-60 {on
+				class="inline-flex h-7 items-center gap-1.5 rounded-lg border px-2.5 font-mono text-xs transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-60 {on
 					? gone
 						? 'border-bad/40 bg-bad/10 text-bad-text'
 						: 'border-primary/50 bg-primary/12 text-foreground'
 					: 'text-muted-foreground hover:bg-surface-2'}"
 			>
 				{#if on}<Check class="size-3.5" />{/if}{n}{#if on && selected.length > 1}<span
-						class="font-sans text-[11px] text-muted-foreground">{selected.indexOf(n) + 1}</span
-					>{/if}{#if gone}<span class="font-sans text-[11px]">(not in the file)</span>{/if}
+						class="font-sans text-2xs text-muted-foreground">{selected.indexOf(n) + 1}</span
+					>{/if}{#if gone}<span class="font-sans text-2xs">(not in the file)</span>{/if}
 			</button>
 		</li>
 	{/each}

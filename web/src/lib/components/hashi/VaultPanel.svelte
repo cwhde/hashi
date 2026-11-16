@@ -1,17 +1,17 @@
 <script lang="ts">
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import VaultUnlockDialog from '$lib/components/hashi/VaultUnlockDialog.svelte';
-	import AddPasskeyDialog from '$lib/components/hashi/AddPasskeyDialog.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import VaultUnlockDialog from '#lib/components/hashi/VaultUnlockDialog.svelte';
+	import AddPasskeyDialog from '#lib/components/hashi/AddPasskeyDialog.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import * as AlertDialog from '#lib/components/ui/alert-dialog/index.ts';
 	import { Fingerprint, Lock, LockOpen, Trash2 } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { withReauth } from '$lib/auth/reauth';
-	import { ceremonyText } from '$lib/auth/webauthn';
-	import { dateTime } from '$lib/format';
-	import { vaultState } from '$lib/vault.svelte';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { withReauth } from '#lib/auth/reauth.ts';
+	import { ceremonyText } from '#lib/auth/webauthn.ts';
+	import { dateTime } from '#lib/format.ts';
+	import { vaultState } from '#lib/vault.svelte.ts';
 
 	// Settings → Account → Vault (02 §5.4): mode, passkeys that unlock it, switching modes.
 	let {
@@ -67,7 +67,7 @@
 </script>
 
 <Panel title="Vault">
-	<div class="space-y-4 text-[13px]">
+	<div class="space-y-4 text-md">
 		<div class="flex flex-wrap items-start gap-3">
 			{#if vault.locked}<Lock class="mt-0.5 size-4 text-warn-text" />{:else}<LockOpen
 					class="mt-0.5 size-4 text-ok-text"
@@ -113,7 +113,7 @@
 
 		<div class="rounded-xl border">
 			<div class="flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
-				<span class="text-[12.5px] font-medium">Passkeys that unlock the vault</span>
+				<span class="text-sm font-medium">Passkeys that unlock the vault</span>
 				<Button
 					size="xs"
 					variant="ghost"
@@ -133,7 +133,7 @@
 					{#each vault.unlockers as u (u.id)}
 						<li class="flex flex-wrap items-center gap-2 px-3 py-2">
 							<span class="flex-1">{u.passkey_name}</span>
-							<span class="text-[12px] text-muted-foreground">added {dateTime(u.created_at)}</span>
+							<span class="text-xs text-muted-foreground">added {dateTime(u.created_at)}</span>
 							<Button
 								size="xs"
 								variant="ghost"

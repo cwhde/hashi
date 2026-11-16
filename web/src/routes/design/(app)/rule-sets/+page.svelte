@@ -1,9 +1,9 @@
 <script lang="ts">
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import * as Table from '$lib/components/ui/table';
-	import { ruleSets } from '$lib/design/security';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import * as Table from '#lib/components/ui/table/index.ts';
+	import { ruleSets } from '#lib/design/security.ts';
 	import { Plus, Lock, TriangleAlert } from '@lucide/svelte';
 </script>
 
@@ -34,20 +34,19 @@
 										><Lock class="size-3" aria-label="Cannot be deleted" />global</Tag
 									>{/if}</span
 							>
-							<span class="block truncate text-[12.5px] text-muted-foreground">{r.description}</span
-							>
+							<span class="block truncate text-sm text-muted-foreground">{r.description}</span>
 						</a>
 					</Table.Cell>
 					<Table.Cell class="tnum hidden text-right sm:table-cell">{r.entries.length}</Table.Cell>
 					<Table.Cell class="hidden md:table-cell">
-						<span class="block truncate text-[13px]">{r.usedBy[0]?.label ?? 'Not used'}</span>
-						{#if r.usedBy.length > 1}<span class="text-[12px] text-muted-foreground"
+						<span class="block truncate text-md">{r.usedBy[0]?.label ?? 'Not used'}</span>
+						{#if r.usedBy.length > 1}<span class="text-xs text-muted-foreground"
 								>and {r.usedBy.length - 1} more</span
 							>{/if}
 					</Table.Cell>
 					<Table.Cell>
 						{#if r.warnings.length}<span
-								class="inline-flex items-center gap-1.5 text-[12.5px] text-warn-text"
+								class="inline-flex items-center gap-1.5 text-sm text-warn-text"
 								><TriangleAlert class="size-3.5" />{r.warnings.length}</span
 							>{:else}<span class="text-muted-foreground">—</span>{/if}
 					</Table.Cell>
@@ -56,7 +55,7 @@
 		</Table.Body>
 	</Table.Root>
 </div>
-<p class="mt-3 text-[12.5px] text-muted-foreground">
+<p class="mt-3 text-sm text-muted-foreground">
 	Every HTTP service also has its own rule set with a fallback; you edit it on the service’s Access
 	tab.
 </p>

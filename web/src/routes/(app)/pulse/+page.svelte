@@ -1,19 +1,19 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import * as Sheet from '$lib/components/ui/sheet';
-	import * as Table from '$lib/components/ui/table';
-	import * as Tabs from '$lib/components/ui/tabs';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import * as Sheet from '#lib/components/ui/sheet/index.ts';
+	import * as Table from '#lib/components/ui/table/index.ts';
+	import * as Tabs from '#lib/components/ui/tabs/index.ts';
 	import { Copy, KeyRound, Pencil, Plus, Ban, Trash2 } from '@lucide/svelte';
-	import { Switch } from '$lib/components/ui/switch';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { withReauth } from '$lib/auth/reauth';
-	import { dateTime } from '$lib/format';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { withReauth } from '#lib/auth/reauth.ts';
+	import { dateTime } from '#lib/format.ts';
 
 	// 08, 10b §3: agents and their addresses; the add drawer shows the install once, with the token.
 	type Agent = Schemas['PulseAgent'];
@@ -130,6 +130,8 @@
 	const copy = (t: string) => void navigator.clipboard?.writeText(t);
 </script>
 
+<svelte:head><title>Pulse · Hashi</title></svelte:head>
+
 <PageHeader
 	title="Pulse"
 	description="Small agents that report a machine's current addresses. Put an agent in an IP set and everything using that set follows it."
@@ -137,7 +139,7 @@
 	{#snippet actions()}<Button onclick={openAdd}><Plus />Add agent</Button>{/snippet}
 </PageHeader>
 
-{#if error}<p role="alert" class="mb-3 text-[13px] text-bad-text">{error}</p>{/if}
+{#if error}<p role="alert" class="mb-3 text-md text-bad-text">{error}</p>{/if}
 <div class="rounded-2xl border bg-card">
 	<Table.Root>
 		<Table.Header>
@@ -156,7 +158,7 @@
 				<Table.Row>
 					<Table.Cell class="pl-4">
 						<div class="font-medium">{a.name}</div>
-						<div class="text-[12px] text-muted-foreground">
+						<div class="text-xs text-muted-foreground">
 							{a.version || 'No heartbeat yet'}{a.hostname ? ` · ${a.hostname}` : ''}
 						</div>
 						{#if a.version_state === 'older'}<Tag tone="warn">older than {a.expected_version}</Tag>
@@ -184,7 +186,7 @@
 						{:else if a.status === 'stale'}<Tag tone="warn"
 								>stale · {dateTime(a.last_seen_at ?? '')}</Tag
 							>
-						{:else}<span class="text-[13px]">{dateTime(a.last_seen_at ?? '')}</span>{/if}
+						{:else}<span class="text-md">{dateTime(a.last_seen_at ?? '')}</span>{/if}
 					</Table.Cell>
 					<Table.Cell class="text-right whitespace-nowrap">
 						<Button
@@ -229,7 +231,7 @@
 				</Table.Row>
 			{:else}
 				<Table.Row>
-					<Table.Cell colspan={7} class="px-4 py-4 text-[13px] text-muted-foreground"
+					<Table.Cell colspan={7} class="px-4 py-4 text-md text-muted-foreground"
 						>No agents yet. Add one to a machine whose address can change.</Table.Cell
 					>
 				</Table.Row>
@@ -251,7 +253,7 @@
 				<div class="space-y-1.5">
 					<Label for="agent-name">Name</Label><Input id="agent-name" bind:value={name} />
 				</div>
-				{#if formError}<p role="alert" class="text-[13px] text-bad-text">{formError}</p>{/if}
+				{#if formError}<p role="alert" class="text-md text-bad-text">{formError}</p>{/if}
 			{:else}
 				<Tabs.Root value="linux">
 					<Tabs.List>
@@ -269,14 +271,14 @@
 								onclick={() => copy(linux)}><Copy /></Button
 							>
 						</div>
-						<p class="mt-2 text-[12.5px] text-muted-foreground">
+						<p class="mt-2 text-sm text-muted-foreground">
 							Gets the installer from Hashi and the agent from the Hashi release, checks its SHA-256
 							and installs a service.
 						</p>
 					</Tabs.Content>
 					<Tabs.Content value="docker">
 						<div class="relative mt-2 rounded-xl border bg-surface-2/60 p-3 pr-10">
-							<pre class="overflow-x-auto font-mono text-[12.5px]">{compose}</pre>
+							<pre class="overflow-x-auto font-mono text-sm">{compose}</pre>
 							<Button
 								variant="ghost"
 								size="icon-sm"
@@ -307,7 +309,7 @@
 			<Sheet.Description>Its token stays the same.</Sheet.Description>
 		</Sheet.Header>
 		{#if editing}
-			<div class="space-y-4 overflow-y-auto px-4 text-[13px]">
+			<div class="space-y-4 overflow-y-auto px-4 text-md">
 				<div class="space-y-1.5">
 					<Label for="edit-name">Name</Label><Input id="edit-name" bind:value={editing.name} />
 				</div>
@@ -323,7 +325,7 @@
 						bind:value={editing.dns_name}
 						placeholder="Uses the agent's name"
 					/>
-					<p class="text-[12px] text-muted-foreground">Needed only if two agents would clash.</p>
+					<p class="text-xs text-muted-foreground">Needed only if two agents would clash.</p>
 				</div>
 				<div class="space-y-1.5">
 					<Label for="edit-reach">Port to test from Hashi (optional)</Label><Input
@@ -333,7 +335,7 @@
 						max="65535"
 						bind:value={editing.reach_port}
 					/>
-					<p class="text-[12px] text-muted-foreground">
+					<p class="text-xs text-muted-foreground">
 						Hashi tries this port on the selected address every minute. 0 turns it off.
 					</p>
 				</div>
@@ -343,7 +345,7 @@
 						aria-label="Trust its own report of its public address"
 					/>
 				</label>
-				<p class="text-[12px] text-muted-foreground">
+				<p class="text-xs text-muted-foreground">
 					For a machine that reaches Hashi only over a private path. The agent then asks Cloudflare
 					and OpenDNS every few minutes, and this address can reach firewall rules through IP sets.
 					If its token were stolen, someone could name any public address here.

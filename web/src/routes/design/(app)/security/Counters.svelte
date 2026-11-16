@@ -1,16 +1,16 @@
 <script lang="ts">
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import AddressLink from '$lib/components/hashi/security/AddressLink.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Checkbox } from '$lib/components/ui/checkbox';
-	import * as Table from '$lib/components/ui/table';
-	import * as Select from '$lib/components/ui/select';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import * as ToggleGroup from '$lib/components/ui/toggle-group';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import { counters, inCidr, type CounterRow } from '$lib/design/security';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import AddressLink from '#lib/components/hashi/security/AddressLink.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Checkbox } from '#lib/components/ui/checkbox/index.ts';
+	import * as Table from '#lib/components/ui/table/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
+	import * as Dialog from '#lib/components/ui/dialog/index.ts';
+	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.ts';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
+	import { counters, inCidr, type CounterRow } from '#lib/design/security.ts';
 	import { Search, MoreHorizontal, KeyRound } from '@lucide/svelte';
 
 	// Security → Counters (06 §13.1): every address with a ban or challenge counter, active or not.
@@ -68,10 +68,10 @@
 					>{/each}
 			</Select.Content>
 		</Select.Root>
-		<label class="flex items-center gap-1.5 text-[12.5px] text-muted-foreground"
+		<label class="flex items-center gap-1.5 text-sm text-muted-foreground"
 			>Bans ≥<Input type="number" min="0" bind:value={minBan} class="tnum h-7 w-14" /></label
 		>
-		<label class="flex items-center gap-1.5 text-[12.5px] text-muted-foreground"
+		<label class="flex items-center gap-1.5 text-sm text-muted-foreground"
 			>Challenges ≥<Input
 				type="number"
 				min="0"
@@ -79,12 +79,10 @@
 				class="tnum h-7 w-14"
 			/></label
 		>
-		<span class="ml-auto text-[12.5px] text-muted-foreground"
-			>{rows.length} of {counters.length}</span
-		>
+		<span class="ml-auto text-sm text-muted-foreground">{rows.length} of {counters.length}</span>
 	</div>
 	{#if selected.length || (rows.length < counters.length && rows.length)}
-		<div class="flex flex-wrap items-center gap-2 border-b bg-surface-2/40 px-4 py-2 text-[13px]">
+		<div class="flex flex-wrap items-center gap-2 border-b bg-surface-2/40 px-4 py-2 text-md">
 			{#if selected.length}<span>{selected.length} selected</span>{:else}<span
 					>{rows.length} addresses match the filter</span
 				>{/if}
@@ -128,25 +126,25 @@
 					>
 					<Table.Cell>
 						<AddressLink address={c.address} />
-						<span class="block max-w-48 truncate text-[12px] text-muted-foreground"
+						<span class="block max-w-48 truncate text-xs text-muted-foreground"
 							>{c.country} · {c.asn}</span
 						>
 					</Table.Cell>
-					<Table.Cell class="tnum text-right text-[14px] font-semibold">{c.ban}</Table.Cell>
-					<Table.Cell class="tnum text-right text-[14px] font-semibold">{c.challenge}</Table.Cell>
+					<Table.Cell class="tnum text-right text-base font-semibold">{c.ban}</Table.Cell>
+					<Table.Cell class="tnum text-right text-base font-semibold">{c.challenge}</Table.Cell>
 					<Table.Cell>
 						{#if c.state === 'banned'}<Tag tone="bad">banned</Tag
 							>{:else if c.state === 'challenged'}<Tag tone="warn">challenged</Tag>{:else}<span
 								class="text-muted-foreground">—</span
 							>{/if}
-						{#if c.state !== 'none'}<span class="block text-[12px] text-muted-foreground"
+						{#if c.state !== 'none'}<span class="block text-xs text-muted-foreground"
 								>{c.stateDetail}</span
 							>{/if}
 					</Table.Cell>
-					<Table.Cell class="hidden text-[12.5px] text-muted-foreground lg:table-cell"
+					<Table.Cell class="hidden text-sm text-muted-foreground lg:table-cell"
 						>{c.lastBan} · {c.lastChallenge}</Table.Cell
 					>
-					<Table.Cell class="hidden text-[12.5px] text-muted-foreground xl:table-cell"
+					<Table.Cell class="hidden text-sm text-muted-foreground xl:table-cell"
 						>{c.nextDecrement}</Table.Cell
 					>
 					<Table.Cell class="hidden md:table-cell">{c.source}</Table.Cell>
@@ -183,7 +181,7 @@
 		</Table.Body>
 	</Table.Root>
 </div>
-<p class="mt-2 text-[12.5px] text-muted-foreground">
+<p class="mt-2 text-sm text-muted-foreground">
 	The ban counter sets the length of the next ban; the challenge counter is for information. Each
 	drops by one per 7 days without a new ban or challenge. Solving a CAPTCHA resets neither.
 </p>

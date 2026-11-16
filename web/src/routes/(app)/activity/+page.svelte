@@ -1,19 +1,26 @@
 <script lang="ts">
+	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
+	import { hrefWithTab, tabFrom } from '#lib/url-tab.ts';
 	import { onMount } from 'svelte';
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import * as Tabs from '$lib/components/ui/tabs';
-	import * as Table from '$lib/components/ui/table';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import * as Table from '#lib/components/ui/table/index.ts';
 	import { Search, Pause, Play } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { dateTime } from '$lib/format';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { dateTime } from '#lib/format.ts';
 
-	let tab = $state('audit');
+	// The open tab lives in the address (bug 41).
+	const tabs = ['audit', 'jobs', 'log'];
+	let tab = $state(tabFrom(page.url, tabs));
+	const setTab = (t: string) =>
+		goto(hrefWithTab(page.url, tabs, t), { replace: true, reset: false });
 
 	// Audit log: newest first, cursor paging (01-platform.md §7).
 	let events = $state<Schemas['AuditEvent'][] | null>(null);
@@ -134,7 +141,7 @@
 	description="Who changed what, what ran in the background, and the live log. Secrets never appear here."
 />
 {#snippet error(msg: string)}
-	<p role="alert" class="p-4 text-[13px] text-bad-text">{msg}</p>
+	<p role="alert" class="p-4 text-md text-bad-text">{msg}</p>
 {/snippet}
 {#snippet loading()}
 	<div class="space-y-2 p-4">
@@ -142,7 +149,7 @@
 	</div>
 {/snippet}
 
-<Tabs.Root bind:value={tab}>
+<Tabs.Root bind:value={tab} onValueChange={setTab}>
 	<Tabs.List class="mb-4"
 		><Tabs.Trigger value="audit">Audit log</Tabs.Trigger><Tabs.Trigger value="jobs"
 			>Jobs</Tabs.Trigger
@@ -165,8 +172,13 @@
 			{#if auditError}{@render error(auditError)}
 			{:else if !events}{@render loading()}
 			{:else if events.length === 0}
-				<p class="p-4 text-[13px] text-muted-foreground">
+				<p class="p-4 text-md text-muted-foreground">
 					Nothing recorded yet. Sign-ins, setup steps and every change appear here.
+				</p>
+			{:else if shown.length === 0}
+				<p class="p-4 text-md text-muted-foreground">
+					No loaded entry matches the filter.{#if cursor}
+						Older entries are searched once you load them.{/if}
 				</p>
 			{:else}
 				<Table.Root
@@ -197,13 +209,13 @@
 							>{/each}</Table.Body
 					>
 				</Table.Root>
-				{#if cursor}
-					<div class="border-t p-3 text-center">
-						<Button variant="ghost" size="sm" onclick={() => loadAudit(true)}
-							>Load older entries</Button
-						>
-					</div>
-				{/if}
+			{/if}
+			{#if events?.length && cursor}
+				<div class="border-t p-3 text-center">
+					<Button variant="ghost" size="sm" onclick={() => loadAudit(true)}
+						>Load older entries</Button
+					>
+				</div>
 			{/if}
 		</div>
 	</Tabs.Content>
@@ -258,9 +270,9 @@
 				>{/snippet}
 			{#if logError}{@render error(logError)}{/if}
 			{#if lines.length === 0 && !logError}
-				<p class="p-4 text-[13px] text-muted-foreground">No log lines since Hashi started.</p>
+				<p class="p-4 text-md text-muted-foreground">No log lines since Hashi started.</p>
 			{:else}
-				<ol class="max-h-[60vh] overflow-auto p-3 font-mono text-[12.5px] leading-6">
+				<ol class="max-h-[60vh] overflow-auto p-3 font-mono text-sm leading-6">
 					{#each lines as l (l.seq)}<li class="whitespace-nowrap">
 							<span class="text-muted-foreground">{l.time}</span>
 							<span class={lvl[l.level] ?? ''}>{l.level.padEnd(5)}</span>

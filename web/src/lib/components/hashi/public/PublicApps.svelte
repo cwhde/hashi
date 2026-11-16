@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import StatusDot from '$lib/components/hashi/StatusDot.svelte';
-	import { Input } from '$lib/components/ui/input';
-	import * as Select from '$lib/components/ui/select';
+	import StatusDot from '#lib/components/hashi/StatusDot.svelte';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
 	import { Search } from '@lucide/svelte';
-	import { api, type Schemas } from '$lib/api/client';
-	import { stateOrder } from '$lib/monitor';
-	import { theme } from '$lib/theme.svelte';
+	import { api, type Schemas } from '#lib/api/client.ts';
+	import { stateOrder } from '#lib/monitor.ts';
+	import { theme } from '#lib/theme.svelte.ts';
 
 	// Public port: only names, links and state, no admin controls (07 §8).
 	let data = $state<Schemas['PublicApps'] | null>(null);
@@ -54,9 +54,9 @@
 <div class="mx-auto max-w-6xl px-4 py-10">
 	<header class="mb-8 flex flex-wrap items-end gap-3">
 		<div class="min-w-48 flex-1">
-			<h1 class="text-[24px] font-semibold">{data?.title ?? ''}</h1>
+			<h1 class="text-title font-semibold">{data?.title ?? ''}</h1>
 			{#if data}
-				<p class="text-[13.5px] text-muted-foreground">
+				<p class="text-md text-muted-foreground">
 					{data.hosts_online} / {data.hosts_total} hosts online · {data.firewall_online} / {data.firewall_total}
 					Linux firewall hosts available
 				</p>
@@ -67,7 +67,7 @@
 		{:else}
 			<button
 				onclick={() => (searching = true)}
-				class="flex h-9 items-center gap-2 rounded-[10px] border bg-card px-3 text-[13px] text-muted-foreground"
+				class="flex h-9 items-center gap-2 rounded-[10px] border bg-card px-3 text-md text-muted-foreground"
 				><Search class="size-4" />Search</button
 			>
 		{/if}
@@ -80,16 +80,16 @@
 		</Select.Root>
 	</header>
 	{#if failed}
-		<p role="alert" class="mb-4 text-[13.5px] text-warn-text">
+		<p role="alert" class="mb-4 text-md text-warn-text">
 			Could not refresh. What you see may be out of date.
 		</p>
 	{/if}
 	{#if data && data.apps.length === 0}
-		<p class="text-[13.5px] text-muted-foreground">No apps are listed here yet.</p>
+		<p class="text-md text-muted-foreground">No apps are listed here yet.</p>
 	{/if}
 	{#each groups as [g, list] (g)}
 		<section class="mb-8">
-			{#if g}<h2 class="mb-3 text-[13px] font-medium text-muted-foreground">{g}</h2>{/if}
+			{#if g}<h2 class="mb-3 text-md font-medium text-muted-foreground">{g}</h2>{/if}
 			<div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
 				{#each list ?? [] as a (a.url)}
 					<a
@@ -97,12 +97,12 @@
 						class="flex items-center gap-3 rounded-2xl border bg-card p-3.5 transition-colors hover:border-muted-foreground/40"
 					>
 						<span
-							class="grid size-10 shrink-0 place-items-center rounded-xl border bg-surface-2 text-[15px] font-semibold"
+							class="grid size-10 shrink-0 place-items-center rounded-xl border bg-surface-2 text-lg font-semibold"
 							>{a.name[0]}</span
 						>
 						<span class="min-w-0 flex-1"
-							><span class="block truncate text-[14px] font-medium">{a.name}</span><span
-								class="block truncate text-[12.5px] text-muted-foreground">{domain(a.url)}</span
+							><span class="block truncate text-base font-medium">{a.name}</span><span
+								class="block truncate text-sm text-muted-foreground">{domain(a.url)}</span
 							></span
 						>
 						<StatusDot state={a.state} />

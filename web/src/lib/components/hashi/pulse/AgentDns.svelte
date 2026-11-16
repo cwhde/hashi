@@ -1,29 +1,35 @@
 <script lang="ts">
+	import { Draft, guardUnsaved } from '#lib/unsaved.svelte.ts';
 	import { onMount } from 'svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
-	import * as Select from '$lib/components/ui/select';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { withReauth } from '$lib/auth/reauth';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { withReauth } from '#lib/auth/reauth.ts';
 
 	// 03 §9: stable internal names for Pulse agents, written through AdGuard.
 	let v = $state<Schemas['AgentDNSSettings'] | null>(null);
 	let error = $state('');
 	let notice = $state('');
 	let busy = $state(false);
+	const draft = new Draft(() => v);
+	guardUnsaved(() => draft.dirty); // bug 40
 	onMount(async () => {
 		const r = await api.GET('/api/settings/internal-agent-dns');
-		if (r.data) v = r.data;
-		else error = problemText(r.error);
+		if (r.data) {
+			v = r.data;
+			draft.mark();
+		} else error = problemText(r.error);
 	});
 	async function save() {
 		error = notice = '';
 		busy = true;
 		try {
 			v = await withReauth(() => api.PUT('/api/settings/internal-agent-dns', { body: v! }));
+			draft.mark();
 			notice = 'Saved.';
 		} catch (e) {
 			error = problemText(e);
@@ -59,7 +65,7 @@
 		title="Internal agent DNS"
 		description="Gives each Pulse agent a name through AdGuard. DNS only, not reverse proxy: no service is created at these names."
 	>
-		<div class="space-y-3 text-[13px]">
+		<div class="space-y-3 text-md">
 			<label class="flex items-center justify-between gap-3">
 				<span>Create names for agents</span><Switch
 					bind:checked={v.enabled}
@@ -92,7 +98,7 @@
 					min="0"
 					bind:value={v.remove_stale_after_hours}
 				/>
-				<p class="text-[12px] text-muted-foreground">0 keeps the last name and marks it stale.</p>
+				<p class="text-xs text-muted-foreground">0 keeps the last name and marks it stale.</p>
 			</div>
 			<div class="flex items-center justify-end gap-3">
 				{#if notice}<span role="status" class="text-ok-text">{notice}</span>{/if}
@@ -117,4 +123,4 @@
 		</div>
 	</Panel>
 {/if}
-{#if error}<p role="alert" class="mt-3 text-[13px] text-bad-text">{error}</p>{/if}
+{#if error}<p role="alert" class="mt-3 text-md text-bad-text">{error}</p>{/if}

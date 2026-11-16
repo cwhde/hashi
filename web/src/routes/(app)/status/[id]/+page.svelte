@@ -1,21 +1,22 @@
 <script lang="ts">
+	import { Draft, guardUnsaved } from '#lib/unsaved.svelte.ts';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import StatusBadge from '$lib/components/hashi/StatusBadge.svelte';
-	import HistoryStrip from '$lib/components/hashi/HistoryStrip.svelte';
-	import LineChart from '$lib/components/hashi/LineChart.svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { Switch } from '$lib/components/ui/switch';
-	import * as Select from '$lib/components/ui/select';
-	import * as ToggleGroup from '$lib/components/ui/toggle-group';
+	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
+	import HistoryStrip from '#lib/components/hashi/HistoryStrip.svelte';
+	import LineChart from '#lib/components/hashi/LineChart.svelte';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
+	import * as ToggleGroup from '#lib/components/ui/toggle-group/index.ts';
 	import { ChevronLeft } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { checkSummary, sourceText, stripHealth, uptimeText } from '$lib/monitor';
-	import { dateTime } from '$lib/format';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { checkSummary, sourceText, stripHealth, uptimeText } from '#lib/monitor.ts';
+	import { dateTime } from '#lib/format.ts';
 
 	// 07 §5: status, response numbers, uptime, charts by range, events, settings.
 	const id = $derived(page.params.id ?? '');
@@ -44,8 +45,12 @@
 				degraded_ms: e.degraded_ms,
 				route_provider_id: e.route_provider_id
 			};
+			draft.mark();
 		}
 	}
+	// Unsaved edits: leaving the page asks first (bug 40).
+	const draft = new Draft(() => s);
+	guardUnsaved(() => draft.dirty);
 	$effect(() => {
 		void range;
 		void id;
@@ -88,11 +93,11 @@
 
 <a
 	href="/status"
-	class="mb-3 inline-flex items-center gap-1 text-[13px] text-muted-foreground hover:text-foreground"
+	class="mb-3 inline-flex items-center gap-1 text-md text-muted-foreground hover:text-foreground"
 	><ChevronLeft class="size-4" />Status</a
 >
-{#if error}<p role="alert" class="mb-3 text-[13px] text-bad-text">{error}</p>{/if}
-{#if notice}<p role="status" class="mb-3 text-[13px] text-ok-text">{notice}</p>{/if}
+{#if error}<p role="alert" class="mb-3 text-md text-bad-text">{error}</p>{/if}
+{#if notice}<p role="status" class="mb-3 text-md text-ok-text">{notice}</p>{/if}
 {#if !d}
 	{#if !error}<Skeleton class="h-48" />{/if}
 {:else}
@@ -100,8 +105,8 @@
 	<div class="mb-4 rounded-2xl border bg-card p-4">
 		<div class="flex flex-wrap items-start gap-4">
 			<div class="min-w-0 flex-1">
-				<h1 class="text-[22px] font-semibold">{m.name}</h1>
-				<p class="truncate text-[13.5px] text-muted-foreground">
+				<h1 class="text-title font-semibold">{m.name}</h1>
+				<p class="truncate text-md text-muted-foreground">
 					{checkSummary(m)} · every {m.interval_seconds} s
 				</p>
 			</div>
@@ -116,10 +121,10 @@
 				>
 			{/if}
 		</div>
-		<dl class="mt-4 grid grid-cols-2 gap-3 text-[13px] sm:grid-cols-4 lg:grid-cols-8">
+		<dl class="mt-4 grid grid-cols-2 gap-3 text-md sm:grid-cols-4 lg:grid-cols-8">
 			{#each [['Last check', m.last_check_at ? dateTime(m.last_check_at) : 'not yet'], ['Response min', ms(d.min_ms)], ['avg', ms(d.avg_ms)], ['max', ms(d.max_ms)], ['Uptime 1 h', uptimeText(d.uptime_1h)], ['24 h', uptimeText(m.uptime_24h)], ['7 d', uptimeText(d.uptime_7d)], ['30 d', uptimeText(d.uptime_30d)]] as [k, v] (k)}
 				<div>
-					<dt class="text-[12px] text-muted-foreground">{k}</dt>
+					<dt class="text-xs text-muted-foreground">{k}</dt>
 					<dd class="tnum">{v}</dd>
 				</div>
 			{/each}
@@ -139,7 +144,7 @@
 		</ToggleGroup.Root>
 	</div>
 	{#if series.length === 0}
-		<p class="mb-4 text-center text-[13px] text-muted-foreground">
+		<p class="mb-4 text-center text-md text-muted-foreground">
 			Charts appear after the first full minute of checks.
 		</p>
 	{:else}
@@ -161,10 +166,8 @@
 	{/if}
 	<div class="grid gap-4 lg:grid-cols-2">
 		<Panel title="Events">
-			{#if d.events.length === 0}<p class="text-[13px] text-muted-foreground">
-					No changes yet.
-				</p>{/if}
-			<ol class="space-y-2.5 text-[13px]">
+			{#if d.events.length === 0}<p class="text-md text-muted-foreground">No changes yet.</p>{/if}
+			<ol class="space-y-2.5 text-md">
 				{#each d.events as e (e.id)}
 					<li class="grid gap-x-3 sm:grid-cols-[9rem_1fr]">
 						<span class="tnum text-muted-foreground">{dateTime(e.at)}</span>
@@ -177,7 +180,7 @@
 			title="Checks and settings"
 			description="{sourceText[m.source_type]}: its checks follow what it watches."
 		>
-			<ul class="mb-4 space-y-1.5 text-[13px]">
+			<ul class="mb-4 space-y-1.5 text-md">
 				{#each m.checks as c (c.id)}
 					<li class="min-w-0 break-words">
 						<span class="font-medium">{c.role ? `${c.role} path` : c.type}</span>
@@ -187,7 +190,7 @@
 				{/each}
 			</ul>
 			{#if s}
-				<div class="grid grid-cols-2 gap-3 text-[13px]">
+				<div class="grid grid-cols-2 gap-3 text-md">
 					<div class="col-span-2 space-y-1.5">
 						<Label for="ep-group">Group</Label><Input id="ep-group" bind:value={s.group} />
 					</div>

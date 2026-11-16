@@ -1,4 +1,4 @@
-import type { Schemas } from '$lib/api/client';
+import type { Schemas } from '#lib/api/client.ts';
 
 export type FirewallHost = Schemas['FirewallHost'];
 export type FirewallInput = Schemas['FirewallHostInput'];

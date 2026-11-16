@@ -1,10 +1,10 @@
 <script lang="ts">
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import PlanReview from '$lib/components/hashi/PlanReview.svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { plans } from '$lib/design/mock';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import PlanReview from '#lib/components/hashi/PlanReview.svelte';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { plans } from '#lib/design/mock.ts';
 	import { RefreshCw } from '@lucide/svelte';
 
 	const history = [
@@ -57,12 +57,12 @@
 	<Panel title="Recent runs" description="Applied, failed and no-op plans">
 		<ul class="space-y-3">
 			{#each history as h, i (i)}
-				<li class="text-[13px]">
+				<li class="text-md">
 					<div class="flex items-center justify-between gap-2">
 						<span class="font-medium">{h.title}</span>
 						<Tag tone={h.tone}>{h.items} items</Tag>
 					</div>
-					<div class="text-[12.5px] text-muted-foreground">{h.t} · {h.result}</div>
+					<div class="text-sm text-muted-foreground">{h.t} · {h.result}</div>
 				</li>
 			{/each}
 		</ul>

@@ -1,12 +1,12 @@
 <script lang="ts">
 	import Mono from '../Mono.svelte';
 	import ActionTag from './ActionTag.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Switch } from '$lib/components/ui/switch';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
 	import { ArrowDown, ArrowUp, Layers, Lock, MoreHorizontal } from '@lucide/svelte';
-	import type { IPSet } from '$lib/ipsets';
-	import type { RuleEntry } from '$lib/rules';
+	import type { IPSet } from '#lib/ipsets.ts';
+	import type { RuleEntry } from '#lib/rules.ts';
 
 	// The editable entries of one rule set in order: rule items and attached rule sets (06 §4.2). A service root also
 	// shows its locked fallback last, where only the action can change. Saving is the page's job.
@@ -40,7 +40,7 @@
 		'grid grid-cols-[1.5rem_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-4 py-2.5 md:grid-cols-[1.5rem_minmax(0,1fr)_minmax(0,0.8fr)_11rem_auto]';
 </script>
 
-<ol class="divide-y text-[13px]">
+<ol class="divide-y text-md">
 	{#each entries as e, i (i + e.id)}
 		<li class={row}>
 			<span class="tnum text-muted-foreground">{i + 1}</span>
@@ -57,7 +57,7 @@
 				<span class="min-w-0"
 					><a href="/ip-sets/{e.applies_to}" class="truncate font-medium hover:underline"
 						>{slug(e.applies_to)}</a
-					>{#if e.note}<span class="block truncate text-[12px] text-muted-foreground">{e.note}</span
+					>{#if e.note}<span class="block truncate text-xs text-muted-foreground">{e.note}</span
 						>{/if}</span
 				>
 				<span class="hidden md:inline"
@@ -111,8 +111,7 @@
 		<li class="{row} bg-surface-2/40">
 			<Lock class="size-3.5 text-muted-foreground" aria-label="Locked" />
 			<span class="min-w-0"
-				><span class="font-medium">Fallback</span><span
-					class="block text-[12px] text-muted-foreground"
+				><span class="font-medium">Fallback</span><span class="block text-xs text-muted-foreground"
 					>Everyone else, any path, after the global rules</span
 				></span
 			>

@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import * as Select from '$lib/components/ui/select';
-	import * as Sheet from '$lib/components/ui/sheet';
-	import { api, problemText } from '$lib/api/client';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
+	import * as Sheet from '#lib/components/ui/sheet/index.ts';
+	import { api, problemText } from '#lib/api/client.ts';
 
 	let { open = $bindable(false), onadded }: { open?: boolean; onadded: () => void } = $props();
 
@@ -102,7 +102,7 @@
 							>{/each}
 					</Select.Content>
 				</Select.Root>
-				<p class="text-[12px] text-muted-foreground">{types[type]!.hint}</p>
+				<p class="text-xs text-muted-foreground">{types[type]!.hint}</p>
 			</div>
 			<div class="space-y-1.5">
 				<Label for="ck-target">Target</Label>
@@ -117,7 +117,7 @@
 					<Label for="ck-expect">Expected answer</Label><Input id="ck-expect" bind:value={expect} />
 				</div>
 			{/if}
-			{#if error}<p role="alert" class="text-[13px] text-bad-text">{error}</p>{/if}
+			{#if error}<p role="alert" class="text-md text-bad-text">{error}</p>{/if}
 		</div>
 		<Sheet.Footer class="flex-row justify-end gap-2 border-t">
 			<Button variant="outline" onclick={() => (open = false)}>Cancel</Button>

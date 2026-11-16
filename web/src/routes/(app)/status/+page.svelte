@@ -1,18 +1,21 @@
 <script lang="ts">
+	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
+	import { hrefWithTab, tabFrom } from '#lib/url-tab.ts';
 	import { onMount } from 'svelte';
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import StatusBadge from '$lib/components/hashi/StatusBadge.svelte';
-	import HistoryStrip from '$lib/components/hashi/HistoryStrip.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import AddCheck from '$lib/components/hashi/status/AddCheck.svelte';
-	import RecentNotifications from '$lib/components/hashi/status/RecentNotifications.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import * as Tabs from '$lib/components/ui/tabs';
-	import * as Select from '$lib/components/ui/select';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
+	import HistoryStrip from '#lib/components/hashi/HistoryStrip.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import AddCheck from '#lib/components/hashi/status/AddCheck.svelte';
+	import RecentNotifications from '#lib/components/hashi/status/RecentNotifications.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import * as Tabs from '#lib/components/ui/tabs/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
 	import { Plus, Search } from '@lucide/svelte';
-	import { api, problemText } from '$lib/api/client';
+	import { api, problemText } from '#lib/api/client.ts';
 	import {
 		checkSummary,
 		sourceText,
@@ -20,7 +23,7 @@
 		stripHealth,
 		uptimeText,
 		type Endpoint
-	} from '$lib/monitor';
+	} from '#lib/monitor.ts';
 
 	// 07 §5, 10b §3: endpoint cards grouped, with history strips; Notifications tab.
 	let endpoints = $state<Endpoint[]>([]);
@@ -75,6 +78,11 @@
 			.sort(sorters[sortBy]);
 		return Object.entries(Object.groupBy(list, groupKey)).sort(([a], [b]) => a.localeCompare(b));
 	});
+	// The open tab lives in the address (bug 41).
+	const tabs = ['endpoints', 'notify'];
+	let tab = $state(tabFrom(page.url, tabs));
+	const setTab = (t: string) =>
+		goto(hrefWithTab(page.url, tabs, t), { replace: true, reset: false });
 </script>
 
 <svelte:head><title>Status · Hashi</title></svelte:head>
@@ -86,9 +94,9 @@
 	{#snippet actions()}<Button onclick={() => (addOpen = true)}><Plus />Add check</Button>{/snippet}
 </PageHeader>
 
-{#if error}<p role="alert" class="mb-3 text-[13px] text-bad-text">{error}</p>{/if}
+{#if error}<p role="alert" class="mb-3 text-md text-bad-text">{error}</p>{/if}
 
-<Tabs.Root value="endpoints">
+<Tabs.Root bind:value={tab} onValueChange={setTab}>
 	<Tabs.List class="mb-4">
 		<Tabs.Trigger value="endpoints">Endpoints</Tabs.Trigger>
 		<Tabs.Trigger value="notify">Notifications</Tabs.Trigger>
@@ -125,7 +133,7 @@
 			</div>
 		{/if}
 		{#if loaded && groups.length === 0}
-			<p class="text-[13.5px] text-muted-foreground">
+			<p class="text-md text-muted-foreground">
 				{query ? 'No endpoint matches your search.' : 'Checks start within a few seconds.'}
 			</p>
 		{/if}
@@ -135,7 +143,7 @@
 					(m) => m.state === 'down' || m.state === 'degraded'
 				).length}
 				<section>
-					<h2 class="mb-2 flex items-center gap-2 text-[14px] font-semibold capitalize">
+					<h2 class="mb-2 flex items-center gap-2 text-base font-semibold capitalize">
 						{name}{#if failing}<Tag tone="bad">{failing} failing</Tag>{/if}
 					</h2>
 					<div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -146,13 +154,13 @@
 							>
 								<div class="mb-2.5 flex items-start gap-3">
 									<div class="min-w-0 flex-1">
-										<div class="truncate text-[13.5px] font-medium">{m.name}</div>
-										<div class="truncate text-[12px] text-muted-foreground">{checkSummary(m)}</div>
+										<div class="truncate text-md font-medium">{m.name}</div>
+										<div class="truncate text-xs text-muted-foreground">{checkSummary(m)}</div>
 									</div>
 									{#if m.pending_dns}<Tag>DNS updating</Tag>{/if}<StatusBadge state={m.state} />
 								</div>
 								<HistoryStrip samples={stripHealth(m.strip)} />
-								<div class="mt-1.5 flex justify-between text-[12px] text-muted-foreground">
+								<div class="mt-1.5 flex justify-between text-xs text-muted-foreground">
 									<span>{sourceText[m.source_type]}</span><span class="tnum"
 										>{m.last_latency_ms !== undefined
 											? m.last_latency_ms + ' ms · '

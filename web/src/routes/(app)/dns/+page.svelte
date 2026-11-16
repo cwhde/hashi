@@ -1,24 +1,26 @@
 <script lang="ts">
+	import { guardUnsaved } from '#lib/unsaved.svelte.ts';
+	import { hrefWithTab, tabFrom } from '#lib/url-tab.ts';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import PageHeader from '$lib/components/hashi/PageHeader.svelte';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import ImportTable from '$lib/components/hashi/dns/ImportTable.svelte';
-	import RecordEditor, { type EntryForm } from '$lib/components/hashi/dns/RecordEditor.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Switch } from '$lib/components/ui/switch';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import * as Tabs from '$lib/components/ui/tabs';
+	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import ImportTable from '#lib/components/hashi/dns/ImportTable.svelte';
+	import RecordEditor, { type EntryForm } from '#lib/components/hashi/dns/RecordEditor.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import * as Tabs from '#lib/components/ui/tabs/index.ts';
 	import { CircleAlert, FlaskConical, Lock, Pencil, Plus, RefreshCw, Search } from '@lucide/svelte';
-	import AdGuardRewrites from '$lib/components/hashi/dns/AdGuardRewrites.svelte';
-	import AgentNames from '$lib/components/hashi/dns/AgentNames.svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { pendingPlans } from '$lib/sync-pending.svelte';
-	import { outcomeText } from '$lib/sync';
+	import AdGuardRewrites from '#lib/components/hashi/dns/AdGuardRewrites.svelte';
+	import AgentNames from '#lib/components/hashi/dns/AgentNames.svelte';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { pendingPlans } from '#lib/sync-pending.svelte.ts';
+	import { outcomeText } from '#lib/sync.ts';
 	import {
 		decisionBody,
 		initialDecisions,
@@ -27,7 +29,7 @@
 		type Decision,
 		type ImportRow,
 		type RRSet
-	} from '$lib/dns';
+	} from '#lib/dns.ts';
 
 	// 03-dns.md §3–7, 10b §3: Records (observed RRSets with Hashi's ownership, manual entries edited inline; every save
 	// creates a plan) and Import.
@@ -49,20 +51,13 @@
 	let q = $state('');
 	let showGenerated = $state(false);
 
-	// The tab lives in the URL (?tab=import) so a reload or a shared link opens the same tool.
-	const tabs = ['import', 'adguard', 'agents'];
-	let tab = $state(
-		tabs.includes(page.url.searchParams.get('tab') ?? '')
-			? page.url.searchParams.get('tab')!
-			: 'records'
-	);
+	// The open tab lives in the address (bug 41).
+	const tabs = ['records', 'import', 'adguard', 'agents'];
+	let tab = $state(tabFrom(page.url, tabs));
 	const setTab = (t: string) =>
-		goto(t === 'records' ? '?' : `?tab=${t}`, {
-			replaceState: true,
-			keepFocus: true,
-			noScroll: true
-		});
+		goto(hrefWithTab(page.url, tabs, t), { replace: true, reset: false });
 
+	guardUnsaved(() => dirty); // bug 40
 	const newCount = $derived(importRows.filter((r) => !r.decision).length);
 	const dirty = $derived(
 		importRows.some((r) => (r.decision ?? 'leave') !== decisions[rrsetKey(r.rrset)] || !r.decision)
@@ -250,7 +245,7 @@
 {#snippet failure(msg: string)}
 	<p
 		role="alert"
-		class="mb-4 flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-[13px] text-bad-text"
+		class="mb-4 flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-md text-bad-text"
 	>
 		<CircleAlert class="mt-0.5 size-4 shrink-0" />{msg}
 	</p>
@@ -264,7 +259,7 @@
 >
 	{#snippet actions()}
 		{#if zone}
-			<span class="text-[12.5px] text-muted-foreground"
+			<span class="text-sm text-muted-foreground"
 				><Mono>{zone.name}</Mono> · Hetzner · read {fmtTime(zone.last_refreshed_at)}</span
 			>
 			<Button variant="outline" size="sm" onclick={probe} disabled={!!busy}
@@ -285,7 +280,7 @@
 	<Skeleton class="mb-4 h-9 w-56" /><Skeleton class="h-96 rounded-2xl" />
 {:else if !zone}
 	<Panel title="No zone yet">
-		<p class="text-[13px] text-muted-foreground">
+		<p class="text-md text-muted-foreground">
 			The DNS provider is connected in setup step 3. Until then Hashi has no zone to show.
 		</p>
 	</Panel>
@@ -299,7 +294,7 @@
 	{#if outcome}
 		<p
 			role="status"
-			class="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border bg-card p-4 text-[13px]"
+			class="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border bg-card p-4 text-md"
 		>
 			<span class="flex-1">{outcome.text}</span>
 			{#if outcome.review}<Button size="sm" variant="outline" href="/changes">Review changes</Button
@@ -331,10 +326,10 @@
 							aria-label="Filter records"
 						/>
 					</div>
-					<label class="flex items-center gap-2 text-[13px]"
+					<label class="flex items-center gap-2 text-md"
 						><Switch bind:checked={showGenerated} />Show generated</label
 					>
-					<span class="tnum ml-auto text-[12.5px] text-muted-foreground"
+					<span class="tnum ml-auto text-sm text-muted-foreground"
 						>{rows.length} of {rrsets.length}</span
 					>
 					<Button size="sm" onclick={() => (editing = 'new')} disabled={editing === 'new'}
@@ -349,10 +344,10 @@
 						onCancel={() => (editing = null)}
 					/>
 				{/if}
-				<div role="table" aria-label="DNS records" class="text-[13px]">
+				<div role="table" aria-label="DNS records" class="text-md">
 					<div
 						role="row"
-						class="hidden grid-cols-[minmax(8rem,1fr)_4.5rem_6rem_minmax(10rem,2fr)_7rem_2.5rem] gap-3 border-b px-4 py-2 text-[12px] font-medium text-muted-foreground md:grid"
+						class="hidden grid-cols-[minmax(8rem,1fr)_4.5rem_6rem_minmax(10rem,2fr)_7rem_2.5rem] gap-3 border-b px-4 py-2 text-xs font-medium text-muted-foreground md:grid"
 					>
 						<span role="columnheader">Name</span><span role="columnheader">Type</span><span
 							role="columnheader">TTL</span
@@ -419,7 +414,7 @@
 					{/each}
 				</div>
 			</div>
-			<p class="mt-2 text-[12.5px] text-muted-foreground">
+			<p class="mt-2 text-sm text-muted-foreground">
 				NS and SOA are never changed by Hashi. Records Hashi does not own are shown as the provider
 				holds them; import one on the Import tab to edit it here.
 			</p>
@@ -430,19 +425,18 @@
 
 		<Tabs.Content value="import">
 			<div class="mb-3 flex flex-wrap items-center gap-3">
-				<p class="flex-1 text-[13px] text-muted-foreground">
+				<p class="flex-1 text-md text-muted-foreground">
 					Leave records alone (default), take them over as managed entries, or mark them for
 					removal.
 				</p>
-				{#if saved && !dirty}<span class="text-[12.5px] text-ok-text" aria-live="polite"
-						>{saved}</span
+				{#if saved && !dirty}<span class="text-sm text-ok-text" aria-live="polite">{saved}</span
 					>{/if}
 				<Button size="sm" onclick={save} disabled={!!busy || !dirty}
 					>{busy === 'save' ? 'Saving…' : 'Save decisions'}</Button
 				>
 			</div>
 			<ImportTable rows={importRows} bind:decisions />
-			<p class="mt-2 text-[12.5px] text-muted-foreground">
+			<p class="mt-2 text-sm text-muted-foreground">
 				Removals become a separate high-risk plan that lists every record and asks for your passkey.
 			</p>
 		</Tabs.Content>

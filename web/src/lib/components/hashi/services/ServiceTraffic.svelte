@@ -1,14 +1,14 @@
 <script lang="ts">
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Mono from '$lib/components/hashi/Mono.svelte';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
 	import MiddlewarePicker from './MiddlewarePicker.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
-	import * as RadioGroup from '$lib/components/ui/radio-group';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import * as RadioGroup from '#lib/components/ui/radio-group/index.ts';
 	import { Plus, Trash2 } from '@lucide/svelte';
-	import type { Schemas } from '$lib/api/client';
+	import type { Schemas } from '#lib/api/client.ts';
 
 	// What the app behind a service receives (04 §1.1a): Host header, visitor address headers, extra headers, timeouts,
 	// extra middlewares. Edited here, saved with "Save and publish" like the rest of the service.
@@ -109,7 +109,7 @@
 		</ul>
 	{/if}
 	<div class="flex flex-wrap items-center justify-between gap-2">
-		<p class="text-[12.5px] text-muted-foreground">{hint}</p>
+		<p class="text-sm text-muted-foreground">{hint}</p>
 		<Button variant="ghost" size="sm" onclick={() => addHeader(which)}><Plus />Add header</Button>
 	</div>
 {/snippet}
@@ -131,8 +131,8 @@
 				>
 					<RadioGroup.Item value={m.v} class="mt-0.5" />
 					<span class="min-w-0"
-						><span class="block text-[13.5px] font-medium">{m.label}</span><span
-							class="block text-[12.5px] break-all text-muted-foreground">{m.help()}</span
+						><span class="block text-md font-medium">{m.label}</span><span
+							class="block text-sm break-all text-muted-foreground">{m.help()}</span
 						></span
 					>
 				</label>
@@ -149,7 +149,7 @@
 				/>
 			</div>
 		{/if}
-		<p class="mt-3 text-[12.5px] text-muted-foreground">
+		<p class="mt-3 text-sm text-muted-foreground">
 			<Mono>X-Forwarded-Host</Mono> always carries the public name.
 		</p>
 	</Panel>
@@ -159,7 +159,7 @@
 			<div class="flex items-center justify-between gap-3">
 				<Label for="xff" class="block"
 					><span class="block">Send <Mono>X-Forwarded-For</Mono></span><span
-						class="block text-[12.5px] font-normal text-muted-foreground"
+						class="block text-sm font-normal text-muted-foreground"
 						>The visitor's address, plus every proxy on the way</span
 					></Label
 				>
@@ -172,7 +172,7 @@
 			<div class="flex items-center justify-between gap-3">
 				<Label for="xri" class="block"
 					><span class="block">Send <Mono>X-Real-IP</Mono></span><span
-						class="block text-[12.5px] font-normal text-muted-foreground"
+						class="block text-sm font-normal text-muted-foreground"
 						>The visitor's address alone</span
 					></Label
 				>
@@ -182,7 +182,7 @@
 					onCheckedChange={(on) => (traffic.drop_real_ip = !on || undefined)}
 				/>
 			</div>
-			<p class="text-[12.5px] text-muted-foreground">
+			<p class="text-sm text-muted-foreground">
 				Hashi's own checks always see the visitor's address; this only changes what the app gets.
 			</p>
 		</div>
@@ -220,7 +220,7 @@
 						oninput={(e) => setSeconds(k, e.currentTarget.value)}
 						placeholder="default"
 					/>
-					<p class="text-[12px] text-muted-foreground">{help}</p>
+					<p class="text-xs text-muted-foreground">{help}</p>
 				</div>
 			{/each}
 		</div>
@@ -230,7 +230,7 @@
 		{#if names.length || middlewares.length}
 			<MiddlewarePicker {names} bind:selected={middlewares} label="Extra middlewares" {disabled} />
 		{:else}
-			<p class="text-[13px] text-muted-foreground">
+			<p class="text-md text-muted-foreground">
 				None written yet. Write them on the <a
 					class="underline underline-offset-2"
 					href="/traefik?tab=middlewares">Traefik page</a
@@ -238,7 +238,7 @@
 			</p>
 		{/if}
 		{#if every.length}
-			<p class="mt-3 text-[12.5px] text-muted-foreground">
+			<p class="mt-3 text-sm text-muted-foreground">
 				On every service already: {#each every as n, i (n)}{i ? ', ' : ''}<Mono>{n}</Mono>{/each}.
 			</p>
 		{/if}

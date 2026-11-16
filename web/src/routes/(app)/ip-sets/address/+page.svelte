@@ -1,18 +1,18 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
-	import Panel from '$lib/components/hashi/Panel.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import SetBadge from '$lib/components/hashi/ipsets/SetBadge.svelte';
-	import IpSetPicker from '$lib/components/hashi/ipsets/IpSetPicker.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import * as Sheet from '$lib/components/ui/sheet';
+	import Panel from '#lib/components/hashi/Panel.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import SetBadge from '#lib/components/hashi/ipsets/SetBadge.svelte';
+	import IpSetPicker from '#lib/components/hashi/ipsets/IpSetPicker.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
+	import * as Sheet from '#lib/components/ui/sheet/index.ts';
 	import { ChevronLeft, CircleAlert, Search } from '@lucide/svelte';
-	import { api, problemText, type Schemas } from '$lib/api/client';
-	import { addressHref, listSets, type IPSet } from '$lib/ipsets';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
+	import { addressHref, listSets, type IPSet } from '#lib/ipsets.ts';
 
 	// Everything Hashi knows about one address (05a §6). This version shows set membership with the path through
 	// nesting; firewall verdicts, dynamic state, counters and the request trace join with their slices.
@@ -65,17 +65,22 @@
 	}
 </script>
 
+<svelte:head><title>{lookup?.address ?? 'Address lookup'} · Hashi</title></svelte:head>
+
 <a
 	href="/ip-sets"
-	class="mb-3 inline-flex items-center gap-1 text-[13px] text-muted-foreground hover:text-foreground"
+	class="mb-3 inline-flex items-center gap-1 text-md text-muted-foreground hover:text-foreground"
 	><ChevronLeft class="size-4" />IP sets</a
 >
+
+{#if !address}<h1 class="mb-4 text-title leading-tight font-semibold">Address lookup</h1>{/if}
 
 <form
 	class="relative mb-5 max-w-80"
 	onsubmit={(e) => {
 		e.preventDefault();
-		if (jump.trim()) goto(addressHref(jump.trim()));
+		// An empty search goes back to the empty page, which also clears an old error (bug 67).
+		goto(jump.trim() ? addressHref(jump.trim()) : '/ip-sets/address');
 	}}
 >
 	<Search class="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -88,13 +93,13 @@
 </form>
 
 {#if !address}
-	<p class="text-[13px] text-muted-foreground">
+	<p class="text-md text-muted-foreground">
 		Type an address to see every set that contains it, and through what.
 	</p>
 {:else if loadError}
 	<p
 		role="alert"
-		class="flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-[13px] text-bad-text"
+		class="flex gap-2 rounded-2xl border border-bad/30 bg-bad/10 p-4 text-md text-bad-text"
 	>
 		<CircleAlert class="mt-0.5 size-4 shrink-0" />{loadError}
 	</p>
@@ -103,10 +108,10 @@
 {:else}
 	<div class="mb-5 flex flex-wrap items-end gap-x-6 gap-y-3">
 		<div class="min-w-64 flex-1">
-			<h1 class="font-mono text-[24px] leading-tight font-medium tracking-[-0.02em]">
+			<h1 class="font-mono text-title leading-tight font-medium tracking-[-0.02em]">
 				{lookup.address}
 			</h1>
-			{#if outcome}<p role="status" class="mt-1 text-[13.5px] text-muted-foreground">
+			{#if outcome}<p role="status" class="mt-1 text-md text-muted-foreground">
 					{outcome}
 				</p>{/if}
 		</div>
@@ -125,25 +130,25 @@
 	<div class="grid gap-4 lg:grid-cols-2">
 		<Panel title="Member of" description="Sets that contain this address, and through what">
 			{#if memberOf.length}
-				<ul class="space-y-2.5 text-[13px]">
+				<ul class="space-y-2.5 text-md">
 					{#each memberOf as m (m.set.id)}
 						<li>
 							<SetBadge set={m.set} />
 							{#each m.matches as x (x.element_id + x.path.join())}
-								<span class="block truncate text-[12.5px] text-muted-foreground">{leaf(x)}</span>
+								<span class="block truncate text-sm text-muted-foreground">{leaf(x)}</span>
 							{/each}
 						</li>
 					{/each}
 				</ul>
 			{:else}
-				<p class="text-[13px] text-muted-foreground">
+				<p class="text-md text-muted-foreground">
 					Only in <span class="font-medium text-foreground">all</span>. No set of yours contains it.
 				</p>
 			{/if}
 		</Panel>
 
 		<Panel title="Firewall" description="Allow and block folded together, per host">
-			<p class="text-[13px] text-muted-foreground">
+			<p class="text-md text-muted-foreground">
 				Verdicts appear here once a firewall host is registered.
 			</p>
 			{#if memberOf.some((m) => m.set.system_key === 'private_networks')}<p class="mt-2">
@@ -167,7 +172,7 @@
 			<div class="space-y-1.5">
 				<Label for="tn">Note</Label><Input id="tn" bind:value={note} placeholder="Optional" />
 			</div>
-			{#if addError}<p role="alert" class="text-[13px] text-bad-text">{addError}</p>{/if}
+			{#if addError}<p role="alert" class="text-md text-bad-text">{addError}</p>{/if}
 		</div>
 		<Sheet.Footer class="flex-row justify-end gap-2 border-t">
 			<Button variant="ghost" onclick={() => (addOpen = false)}>Cancel</Button>

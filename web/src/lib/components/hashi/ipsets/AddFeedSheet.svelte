@@ -1,13 +1,13 @@
 <script lang="ts">
-	import Mono from '$lib/components/hashi/Mono.svelte';
-	import Tag from '$lib/components/hashi/Tag.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
-	import * as Select from '$lib/components/ui/select';
-	import * as Sheet from '$lib/components/ui/sheet';
-	import { api, problemText, type Schemas } from '$lib/api/client';
+	import Mono from '#lib/components/hashi/Mono.svelte';
+	import Tag from '#lib/components/hashi/Tag.svelte';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { Label } from '#lib/components/ui/label/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import * as Select from '#lib/components/ui/select/index.ts';
+	import * as Sheet from '#lib/components/ui/sheet/index.ts';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 
 	// Feeds (06 §8): a blocklist becomes an IP set of kind feed. Adding one downloads it once; it blocks nothing until it
 	// is used, e.g. in the firewall's global block.
@@ -107,7 +107,7 @@
 		<div class="space-y-5 overflow-y-auto px-4 pb-4">
 			<ul class="space-y-2">
 				{#each catalog as e (e.key)}
-					<li class="flex items-start gap-3 rounded-xl border p-3 text-[13px]">
+					<li class="flex items-start gap-3 rounded-xl border p-3 text-md">
 						<span class="min-w-0 flex-1">
 							<span class="flex flex-wrap items-center gap-2 font-medium"
 								><span>{e.name}</span><Tag tone={e.risk === 'low' ? 'neutral' : 'warn'}
@@ -126,7 +126,7 @@
 				{/each}
 			</ul>
 
-			<details class="rounded-xl border p-3 text-[13px]">
+			<details class="rounded-xl border p-3 text-md">
 				<summary class="cursor-pointer font-medium">Another list by address</summary>
 				<div class="mt-3 space-y-3">
 					<div class="space-y-1.5">
@@ -205,7 +205,7 @@
 					{/if}
 				</div>
 			</details>
-			{#if error}<p role="alert" class="text-[13px] text-bad-text">{error}</p>{/if}
+			{#if error}<p role="alert" class="text-md text-bad-text">{error}</p>{/if}
 		</div>
 	</Sheet.Content>
 </Sheet.Root>

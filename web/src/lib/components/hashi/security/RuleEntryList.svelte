@@ -3,10 +3,10 @@
 	import Tag from '../Tag.svelte';
 	import SetBadge from './SetBadge.svelte';
 	import ActionTag from './ActionTag.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Switch } from '$lib/components/ui/switch';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import { ruleSetById, type RuleEntry } from '$lib/design/security';
+	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.ts';
+	import { ruleSetById, type RuleEntry } from '#lib/design/security.ts';
 	import { GripVertical, Layers, Lock, MoreHorizontal } from '@lucide/svelte';
 
 	// The editable entries of one rule set, in priority order: rule items and attached rule sets (06 §4.2). A
@@ -19,7 +19,7 @@
 	const sorted = $derived([...entries].sort((a, b) => a.priority - b.priority));
 </script>
 
-<ol class="divide-y text-[13px]">
+<ol class="divide-y text-md">
 	{#each sorted as e (e.priority)}
 		<li
 			class="grid grid-cols-[1rem_1.5rem_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-4 py-2.5 md:grid-cols-[1rem_1.5rem_minmax(0,1fr)_minmax(0,0.8fr)_11rem_auto]"
@@ -42,7 +42,7 @@
 			{:else}
 				<span class="min-w-0"
 					><SetBadge slug={e.appliesTo} />{#if e.note}<span
-							class="block truncate text-[12px] text-muted-foreground">{e.note}</span
+							class="block truncate text-xs text-muted-foreground">{e.note}</span
 						>{/if}</span
 				>
 				<span class="hidden md:inline"
@@ -85,8 +85,7 @@
 			<span></span>
 			<Lock class="size-3.5 text-muted-foreground" aria-label="Locked" />
 			<span class="min-w-0"
-				><span class="font-medium">Fallback</span><span
-					class="block text-[12px] text-muted-foreground"
+				><span class="font-medium">Fallback</span><span class="block text-xs text-muted-foreground"
 					>Everyone else, any path · after the global rules</span
 				></span
 			>
