@@ -9,12 +9,16 @@ VERSION   ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo de
 COMMIT    ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 LDFLAGS   := -s -w -X git.juzo.io/juzo/hashi/internal/app.Version=$(VERSION) -X git.juzo.io/juzo/hashi/internal/app.Commit=$(COMMIT)
 
-.PHONY: scan pulse-sign pulse-sleeper pulse-image-size pulse-size pulse-dist test-integration test-e2e contract-capture contract-drift deploy-test build-config-check help image deploy rollback smoke check fmt-check lint test generate generate-check web-install web-check build-web build dev clean
+.PHONY: check-go check-web scan scan-go scan-web pulse-sign pulse-sleeper pulse-image-size pulse-size pulse-dist test-integration test-e2e contract-capture contract-drift deploy-test build-config-check help image deploy rollback smoke check fmt-check lint test generate generate-check web-install web-check build-web build dev clean
 
 help: ## list targets
 	@awk 'BEGIN{FS=":.*## "} /^[a-z-]+:.*## /{printf "  %-18s %s\n",$$1,$$2}' $(MAKEFILE_LIST)
 
-check: fmt-check lint test generate-check web-check build-config-check deploy-test pulse-size ## everything CI runs on every change (must stay < 3 min)
+check: check-go check-web ## everything CI runs on every change
+
+check-go: fmt-check lint test build-config-check deploy-test pulse-size ## the Go half of check (CI runs it when Go, API or deploy files change)
+
+check-web: generate-check web-check ## the web half of check, with the generated-code check that needs both toolchains
 
 fmt-check: ## fail if any Go file is not gofmt-ed
 	@out="$$(gofmt -l $$(git ls-files -co --exclude-standard '*.go'))"; \
@@ -66,8 +70,12 @@ build-web: web-install ## build the SPA into internal/web/dist (embedded by go b
 build: build-web ## build bin/hashi (with the SPA) for this machine
 	CGO_ENABLED=0 go build -trimpath -ldflags '$(LDFLAGS)' -o bin/hashi ./cmd/hashi
 
-scan: ## known vulnerabilities: govulncheck (Go) and pnpm audit of shipped web packages (threat model §7)
+scan: scan-go scan-web ## known vulnerabilities: govulncheck (Go) and pnpm audit of shipped web packages (threat model §7)
+
+scan-go:
 	$(TOOL) govulncheck ./...
+
+scan-web:
 	cd web && pnpm audit --prod
 
 test-integration: ## real sshd, Traefik and Pebble in Docker containers (-tags integration)
