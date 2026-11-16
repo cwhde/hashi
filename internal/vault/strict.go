@@ -25,7 +25,7 @@ import (
 var ErrLocked = errors.New("the vault is locked: unlock it with a passkey or the recovery key")
 
 // ErrNoPRF means the browser returned no PRF output: this passkey can't unlock the vault.
-var ErrNoPRF = errors.New("this passkey gave no PRF output, so it can't unlock the vault; use another passkey or the recovery key")
+var ErrNoPRF = errors.New("this passkey can sign you in but can't unlock the vault: it didn't give Hashi the extra secret (PRF) that unlocking needs. Passkeys kept in a password manager often can't; a USB security key or the passkeys built into your device usually can")
 
 // Mode is the vault mode.
 type Mode string

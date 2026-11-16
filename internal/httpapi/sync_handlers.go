@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"git.juzo.io/juzo/hashi/internal/adguard"
 	"git.juzo.io/juzo/hashi/internal/certs"
 	"git.juzo.io/juzo/hashi/internal/dns"
 	"git.juzo.io/juzo/hashi/internal/firewall"
@@ -46,6 +47,10 @@ func (s *Server) planBody(ctx context.Context, p *hsync.Plan) gen.SyncPlan {
 		if h, err := s.Store.R.GetFirewallHost(ctx, p.Target); err == nil {
 			name = h.Name
 		}
+	case adguard.Subsystem:
+		if c, err := s.Store.R.GetAdGuardConnection(ctx, p.Target); err == nil {
+			name = c.Name
+		}
 	case certs.Subsystem:
 		if c, err := s.Store.R.GetCertificate(ctx, p.Target); err == nil {
 			name = c.Name
@@ -62,13 +67,15 @@ func (s *Server) planBody(ctx context.Context, p *hsync.Plan) gen.SyncPlan {
 		CreatedBy: p.CreatedBy, CreatedAt: p.CreatedAt, ApprovedBy: p.ApprovedBy, ApprovedAt: p.ApprovedAt, FinishedAt: p.FinishedAt,
 		Result: p.Result, Error: p.Error, Items: make([]gen.SyncPlanItem, len(p.Items))}
 	dnsItems := p.Subsystem != traefik.Subsystem && p.Subsystem != certs.Subsystem && p.Subsystem != firewall.Subsystem &&
-		p.Subsystem != scripts.Subsystem
+		p.Subsystem != scripts.Subsystem && p.Subsystem != adguard.Subsystem
 	for i, it := range p.Items {
 		out.Items[i] = gen.SyncPlanItem{Action: gen.SyncPlanItemAction(it.Action), Object: it.Object, Risk: gen.SyncPlanItemRisk(it.Risk),
 			Note: it.Note}
 		switch {
 		case p.Subsystem == scripts.Subsystem:
 			scriptItem(it, &out.Items[i])
+		case p.Subsystem == adguard.Subsystem:
+			out.Items[i].BeforeText, out.Items[i].AfterText = rewriteText(it.Before), rewriteText(it.After)
 		case dnsItems:
 			out.Items[i].Before, out.Items[i].After = itemValue(it.Before), itemValue(it.After)
 		default:
@@ -126,6 +133,19 @@ func itemText(raw json.RawMessage) *string {
 		return nil
 	}
 	t := strings.Join(parts, " · ")
+	return &t
+}
+
+// rewriteText shows an AdGuard rewrite item ({domain, answer}) as "domain → answer".
+func rewriteText(raw json.RawMessage) *string {
+	var v struct {
+		Domain string `json:"domain"`
+		Answer string `json:"answer"`
+	}
+	if len(raw) == 0 || json.Unmarshal(raw, &v) != nil || v.Domain == "" {
+		return nil
+	}
+	t := v.Domain + " → " + v.Answer
 	return &t
 }
 

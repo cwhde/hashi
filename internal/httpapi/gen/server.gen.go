@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -2005,6 +2006,7 @@ func (e SyncPlanStatus) Valid() bool {
 
 // Defines values for SyncPlanSubsystem.
 const (
+	Adguard          SyncPlanSubsystem = "adguard"
 	Certificates     SyncPlanSubsystem = "certificates"
 	DnsProbe         SyncPlanSubsystem = "dns-probe"
 	DnsPrune         SyncPlanSubsystem = "dns-prune"
@@ -2018,6 +2020,8 @@ const (
 // Valid indicates whether the value is a known member of the SyncPlanSubsystem enum.
 func (e SyncPlanSubsystem) Valid() bool {
 	switch e {
+	case Adguard:
+		return true
 	case Certificates:
 		return true
 	case DnsProbe:
@@ -5348,6 +5352,12 @@ type VaultUnlocker struct {
 	PasskeyName string    `json:"passkey_name"`
 }
 
+// VaultUnlockerStart defines model for VaultUnlockerStart.
+type VaultUnlockerStart struct {
+	// PasskeyId Ask for this passkey only
+	PasskeyId *string `json:"passkey_id,omitempty"`
+}
+
 // Version defines model for Version.
 type Version struct {
 	Commit string `json:"commit"`
@@ -5741,6 +5751,9 @@ type UnlockVaultWithRecoveryKeyJSONRequestBody = RecoveryKeyUnlock
 
 // AddVaultUnlockerJSONRequestBody defines body for AddVaultUnlocker for application/json ContentType.
 type AddVaultUnlockerJSONRequestBody = CeremonyResponse
+
+// VaultUnlockerOptionsJSONRequestBody defines body for VaultUnlockerOptions for application/json ContentType.
+type VaultUnlockerOptionsJSONRequestBody = VaultUnlockerStart
 
 // AsIPItemIP returns the union data inside the IPItem as a IPItemIP
 func (t IPItem) AsIPItemIP() (IPItemIP, error) {
@@ -20953,6 +20966,7 @@ func (response AddVaultUnlockerdefaultApplicationProblemPlusJSONResponse) VisitA
 }
 
 type VaultUnlockerOptionsRequestObject struct {
+	Body *VaultUnlockerOptionsJSONRequestBody
 }
 
 type VaultUnlockerOptionsResponseObject interface {
@@ -28276,6 +28290,16 @@ func (sh *strictHandler) AddVaultUnlocker(w http.ResponseWriter, r *http.Request
 // VaultUnlockerOptions operation middleware
 func (sh *strictHandler) VaultUnlockerOptions(w http.ResponseWriter, r *http.Request) {
 	var request VaultUnlockerOptionsRequestObject
+
+	var body VaultUnlockerOptionsJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		if !errors.Is(err, io.EOF) {
+			sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+			return
+		}
+	} else {
+		request.Body = &body
+	}
 
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
 		return sh.ssi.VaultUnlockerOptions(ctx, request.(VaultUnlockerOptionsRequestObject))

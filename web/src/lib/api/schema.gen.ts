@@ -2973,7 +2973,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Start adding a passkey that can unlock the vault (evaluates its PRF) */
+        /**
+         * Start adding a passkey that can unlock the vault (evaluates its PRF)
+         * @description With passkey_id the browser is asked for that passkey only (for example one created a moment ago).
+         */
         post: operations["vaultUnlockerOptions"];
         delete?: never;
         options?: never;
@@ -4170,6 +4173,10 @@ export interface components {
         RevokedCount: {
             revoked: number;
         };
+        VaultUnlockerStart: {
+            /** @description Ask for this passkey only */
+            passkey_id?: string;
+        };
         CeremonyOptions: {
             ceremony_id: string;
             /** @description WebAuthn options as produced by the server library (`{publicKey: …}`) */
@@ -4575,7 +4582,7 @@ export interface components {
         SyncPlan: {
             id: string;
             /** @enum {string} */
-            subsystem: "dns-records" | "dns-record-deletes" | "dns-prune" | "dns-probe" | "traefik" | "certificates" | "firewall" | "scripts";
+            subsystem: "dns-records" | "dns-record-deletes" | "dns-prune" | "dns-probe" | "traefik" | "certificates" | "firewall" | "scripts" | "adguard";
             target: string;
             /** @description e.g. the zone name */
             target_name: string;
@@ -10634,7 +10641,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["VaultUnlockerStart"];
+            };
+        };
         responses: {
             /** @description WebAuthn request options with a PRF input */
             200: {

@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -174,7 +175,7 @@ func (s *Server) UnlockVaultWithPasskey(ctx context.Context, req gen.UnlockVault
 	return nil, invalid("This passkey can't unlock the vault.")
 }
 
-func (s *Server) VaultUnlockerOptions(ctx context.Context, _ gen.VaultUnlockerOptionsRequestObject) (gen.VaultUnlockerOptionsResponseObject, error) {
+func (s *Server) VaultUnlockerOptions(ctx context.Context, req gen.VaultUnlockerOptionsRequestObject) (gen.VaultUnlockerOptionsResponseObject, error) {
 	if s.Vault.Locked() {
 		return nil, vaultLocked()
 	}
@@ -182,7 +183,17 @@ func (s *Server) VaultUnlockerOptions(ctx context.Context, _ gen.VaultUnlockerOp
 	if _, err := rand.Read(salt); err != nil {
 		return nil, err
 	}
-	id, opts, err := s.Passkeys.BeginPRF(ctx, info(ctx).session.IDHash, auth.PRFEnroll, salt, nil)
+	var only map[string][]byte
+	if req.Body != nil && req.Body.PasskeyId != nil && *req.Body.PasskeyId != "" {
+		pk, err := s.Store.Q.GetPasskey(ctx, *req.Body.PasskeyId)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notFound("No such passkey.")
+		} else if err != nil {
+			return nil, fmt.Errorf("vault unlocker: passkey: %w", err)
+		}
+		only = map[string][]byte{string(pk.CredentialID): salt}
+	}
+	id, opts, err := s.Passkeys.BeginPRF(ctx, info(ctx).session.IDHash, auth.PRFEnroll, salt, only)
 	if err != nil {
 		return nil, ceremonyError(err)
 	}
