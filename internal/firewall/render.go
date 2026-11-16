@@ -290,17 +290,119 @@ func prefixVal(p netip.Prefix) any {
 	if p.IsSingleIP() {
 		return p.Addr().String()
 	}
-	return obj{"prefix": obj{"addr": p.Addr().String(), "len": p.Bits()}}
+	return prefixE{prefixBody{Addr: p.Addr().String(), Len: p.Bits()}}
 }
 
-// ---- expressions ----
+// ---- expressions and statements ----
+
+// Each nft JSON expression or statement is an object with one key naming its kind. These types fix the keys at
+// compile time (bug 47). Fields are declared in alphabetical order: encoding/json writes struct fields in declaration
+// order and map keys sorted, so the rendered bytes, and with them the plan hashes, stay what the maps produced.
+type (
+	keyBody struct {
+		Key string `json:"key"`
+	}
+	metaE struct {
+		Meta keyBody `json:"meta"`
+	}
+	ctE struct {
+		Ct keyBody `json:"ct"`
+	}
+	rtE struct {
+		Rt keyBody `json:"rt"`
+	}
+	matchBody struct {
+		Left  any    `json:"left"`
+		Op    string `json:"op"`
+		Right any    `json:"right"`
+	}
+	matchE struct {
+		Match matchBody `json:"match"`
+	}
+	payloadBody struct {
+		Field    string `json:"field"`
+		Protocol string `json:"protocol"`
+	}
+	payloadE struct {
+		Payload payloadBody `json:"payload"`
+	}
+	prefixBody struct {
+		Addr string `json:"addr"`
+		Len  int    `json:"len"`
+	}
+	prefixE struct {
+		Prefix prefixBody `json:"prefix"`
+	}
+	limitBody struct {
+		Burst int    `json:"burst"`
+		Inv   bool   `json:"inv"`
+		Per   string `json:"per"`
+		Rate  int    `json:"rate"`
+	}
+	limitS struct {
+		Limit limitBody `json:"limit"`
+	}
+	setBody struct {
+		Elem any    `json:"elem"`
+		Op   string `json:"op"`
+		Set  string `json:"set"`
+		Stmt []any  `json:"stmt,omitempty"`
+	}
+	setS struct {
+		Set setBody `json:"set"`
+	}
+	ctCountBody struct {
+		Inv bool `json:"inv"`
+		Val int  `json:"val"`
+	}
+	ctCountS struct {
+		CtCount ctCountBody `json:"ct count"`
+	}
+	dnatBody struct {
+		Addr   string `json:"addr"`
+		Family string `json:"family"`
+		Port   int    `json:"port"`
+	}
+	dnatS struct {
+		Dnat dnatBody `json:"dnat"`
+	}
+	tcpOptionBody struct {
+		Field string `json:"field"`
+		Name  string `json:"name"`
+	}
+	tcpOptionE struct {
+		TCPOption tcpOptionBody `json:"tcp option"`
+	}
+	mangleBody struct {
+		Key   any `json:"key"`
+		Value any `json:"value"`
+	}
+	mangleS struct {
+		Mangle mangleBody `json:"mangle"`
+	}
+	masqueradeS struct {
+		Masquerade *struct{} `json:"masquerade"`
+	}
+	elemTimeout struct {
+		Timeout int `json:"timeout"`
+		Val     any `json:"val"`
+	}
+	elemTimeoutE struct {
+		Elem elemTimeout `json:"elem"`
+	}
+)
+
+var (
+	masquerade = masqueradeS{}
+	mssOption  = tcpOptionE{tcpOptionBody{Field: "size", Name: "maxseg"}}
+)
 
 func match(op string, left, right any) any {
-	return obj{"match": obj{"op": op, "left": left, "right": right}}
+	return matchE{matchBody{Left: left, Op: op, Right: right}}
 }
-func meta(key string) any              { return obj{"meta": obj{"key": key}} }
-func payload(proto, field string) any  { return obj{"payload": obj{"protocol": proto, "field": field}} }
-func ct(key string) any                { return obj{"ct": obj{"key": key}} }
+func meta(key string) any              { return metaE{keyBody{key}} }
+func payload(proto, field string) any  { return payloadE{payloadBody{Field: field, Protocol: proto}} }
+func ct(key string) any                { return ctE{keyBody{key}} }
 func verdict(v string) any             { return obj{v: nil} }
 func saddr(v4 bool) any                { return payload(fam(v4), "saddr") }
 func setRef(name string) string        { return "@" + name }
@@ -373,20 +475,20 @@ func chains(s Spec) []chainOut {
 	}
 	if m := s.Meters; m.Enabled {
 		limit := func(rate, burst int, per string) any {
-			return obj{"limit": obj{"rate": rate, "burst": burst, "per": per, "inv": true}}
+			return limitS{limitBody{Burst: burst, Inv: true, Per: per, Rate: rate}}
 		}
 		update := func(op, set string, v4 bool, stmt any) any {
-			return obj{"set": obj{"op": op, "elem": saddr(v4), "set": setRef(set + suffix(v4)), "stmt": []any{stmt}}}
+			return setS{setBody{Elem: saddr(v4), Op: op, Set: setRef(set + suffix(v4)), Stmt: []any{stmt}}}
 		}
 		stage := func(v4 bool) any {
-			return obj{"set": obj{"op": "add", "elem": saddr(v4), "set": setRef("staging" + suffix(v4))}}
+			return setS{setBody{Elem: saddr(v4), Op: "add", Set: setRef("staging" + suffix(v4))}}
 		}
 		for _, v4 := range both {
 			meter.rules = append(meter.rules,
 				[]any{dport("tcp", setRef("pub_tcp")), match("in", payload("tcp", "flags"), "syn"), ctState("new"),
 					update("update", "m_tcp_new", v4, limit(m.TCPNewPerMinute, m.TCPBurst, "minute")), stage(v4), verdict("drop")},
 				[]any{dport("tcp", setRef("pub_tcp")), ctState("new"),
-					update("add", "m_tcp_conc", v4, obj{"ct count": obj{"val": m.TCPMaxConcurrent, "inv": true}}), stage(v4), verdict("drop")},
+					update("add", "m_tcp_conc", v4, ctCountS{ctCountBody{Inv: true, Val: m.TCPMaxConcurrent}}), stage(v4), verdict("drop")},
 				[]any{dport("udp", setRef("metered_udp")), ctState("new"),
 					update("update", "m_udp_new", v4, limit(m.UDPNewPerMinute, m.UDPBurst, "minute")), stage(v4), verdict("drop")},
 				[]any{dport("udp", setRef("metered_udp")),
@@ -398,7 +500,7 @@ func chains(s Spec) []chainOut {
 	// (hairpin) get the same DNAT.
 	nat := chainOut{def: base("nat_pre", "nat", "prerouting", -100)}
 	for _, p := range sortedPorts(s.Ports) {
-		d := obj{"dnat": obj{"family": "ip", "addr": s.TraefikIP.String(), "port": p.TargetPort}}
+		d := dnatS{dnatBody{Addr: s.TraefikIP.String(), Family: "ip", Port: p.TargetPort}}
 		nat.rules = append(nat.rules, []any{iif(s.WAN), dport(p.Proto, p.Port), d})
 		if s.PublicIP.Is4() {
 			nat.rules = append(nat.rules, []any{notIif(s.WAN), match("==", payload("ip", "daddr"), s.PublicIP.String()),
@@ -412,7 +514,7 @@ func chains(s Spec) []chainOut {
 	if s.PublicIP.Is4() {
 		for _, p := range sortedPorts(s.Ports) {
 			natOut.rules = append(natOut.rules, []any{match("==", payload("ip", "daddr"), s.PublicIP.String()), dport(p.Proto, p.Port),
-				obj{"dnat": obj{"family": "ip", "addr": s.TraefikIP.String(), "port": p.TargetPort}}})
+				dnatS{dnatBody{Addr: s.TraefikIP.String(), Family: "ip", Port: p.TargetPort}}})
 		}
 	}
 
@@ -452,23 +554,22 @@ func chains(s Spec) []chainOut {
 			continue
 		}
 		post.rules = append(post.rules, []any{match("==", payload("ip", "saddr"), prefixVal(n)),
-			match("==", meta("oifname"), s.WAN), obj{"masquerade": nil}})
+			match("==", meta("oifname"), s.WAN), masquerade})
 		if s.TraefikIP.Is4() && len(s.Ports) > 0 {
 			post.rules = append(post.rules, []any{match("==", payload("ip", "saddr"), prefixVal(n)),
-				match("==", payload("ip", "daddr"), s.TraefikIP.String()), match("in", ct("status"), "dnat"), obj{"masquerade": nil}})
+				match("==", payload("ip", "daddr"), s.TraefikIP.String()), match("in", ct("status"), "dnat"), masquerade})
 		}
 	}
 
 	// 7. mangle_fwd: MSS clamp on NetBird-routed traffic, unless the Firewall settings switch it off (09 §2).
 	mangle := chainOut{def: base("mangle_fwd", "filter", "forward", -150)}
 	if s.NetBird.Mode == NetBirdRouting && !s.NoMSSClamp {
-		clamp := obj{"mangle": obj{"key": obj{"tcp option": obj{"name": "maxseg", "field": "size"}}, "value": obj{"rt": obj{"key": "mtu"}}}}
+		clamp := mangleS{mangleBody{Key: mssOption, Value: rtE{keyBody{"mtu"}}}}
 		syn := match("in", payload("tcp", "flags"), "syn")
 		mangle.rules = append(mangle.rules, []any{iif(s.NetBird.Iface), syn, clamp},
 			[]any{match("==", meta("oifname"), s.NetBird.Iface), syn, clamp})
 	}
 	if !s.NoMSSClamp {
-		mss := obj{"tcp option": obj{"name": "maxseg", "field": "size"}}
 		syn := match("in", payload("tcp", "flags"), "syn")
 		for _, n := range s.Narrow {
 			for _, fam := range []struct {
@@ -478,7 +579,7 @@ func chains(s Spec) []chainOut {
 				size := n.MTU - fam.overhead
 				for _, side := range []string{"iifname", "oifname"} {
 					mangle.rules = append(mangle.rules, []any{match("==", meta(side), n.Name), match("==", meta("nfproto"), fam.proto),
-						syn, match(">", mss, size), obj{"mangle": obj{"key": mss, "value": size}}})
+						syn, match(">", mssOption, size), mangleS{mangleBody{Key: mssOption, Value: size}}})
 				}
 			}
 		}

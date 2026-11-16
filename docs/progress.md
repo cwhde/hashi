@@ -32,7 +32,7 @@ Next: 13.1. After 13.9: a last bug sweep, then `v1.0.0`.
 - [x] 53 not a bug: TCP checks only connect (07 §1); the one read is UDP's, where one datagram is the whole answer
 - [x] 9 Traefik: the release download retries before failing the plan
 - [x] 50 `BeginPRF`: separate parameters for unlock salts and the allow-list
-- [ ] 47 Firewall renderer: typed structs for the nft JSON statements
+- [x] 47 Firewall renderer: typed structs for the nft JSON statements
 - [ ] 46 Split `internal/firewall/manager.go` and the Settings page along their seams
 - [ ] 11, 16, 33 Flaky tests: rescue exec hang, Pocket ID start, e2e keeps Hashi's log
 - [ ] 54 CI actions pinned to commit SHAs; 55 SvelteKit and adapter-static bumped
