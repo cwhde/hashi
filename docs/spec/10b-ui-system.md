@@ -86,8 +86,10 @@ a rule uses them.
 ## 4. Component rules
 
 - **Panel** (`Panel.svelte`) is the only container: 1 px border, `bg-card`, 16 px radius, no shadow, optional header row
-  (title, one muted line, actions right). No card per number; numbers sit inside the panel that explains them.
-- **Page header**: 22 px title, one muted sentence, actions right. Never a hero.
+  (title, actions right; a muted line only as 10c §4 allows). No card per number; numbers sit inside the panel that explains them.
+- **Page header**: 22 px title, actions right; a description only as 10c §4 allows. Never a hero.
+- Where things live, progressive disclosure, help text and save behaviour: [10c-ui-rules.md](10c-ui-rules.md), which wins
+  over this file where they disagree.
 - **Tables** for sets that are compared or scanned (services, records, IP sets, agents, audit). **Cards** only where side-by-side
   comparison of state matters (status endpoints, app launcher, firewall hosts).
 - **Inline editing** for short records (DNS): editor opens under the row, full width, Save/Cancel/Delete in one row,

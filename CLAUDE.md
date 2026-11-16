@@ -7,7 +7,8 @@ Go backend + embedded SvelteKit SPA + SQLite, one container. Pulse agent in `age
 ## Where things are
 
 - Spec: `docs/spec/README.md` (index + invariants). Read only the area file you work on. UI pages follow
-  `docs/spec/10b-ui-system.md`; each page's approved mock is under `web/src/routes/design/`.
+  `docs/spec/10b-ui-system.md` and the rules in `docs/spec/10c-ui-rules.md` (checklist §7 for every page change);
+  each page's approved mock is under `web/src/routes/design/`.
 - Where we are: `docs/progress.md` — read it first in every session, update it last.
 - Known bugs we aren't fixing yet: `docs/bugs.md`. When the user reports one, add it there rough, don't fix it unasked.
 - Decisions: `docs/adr/`. `docs/archive/` holds raw historical input (e.g. the user's security-model draft): never read

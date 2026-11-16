@@ -30,6 +30,7 @@ Read only the file for the area you are working on, plus this index.
 | [06a-security-data-model.md](06a-security-data-model.md) | Object model (shared primitives vs layer-specific compilation), security tables, Go packages |
 | [10a-ui-references.md](10a-ui-references.md) | Descriptions of the UI reference screenshots |
 | [10b-ui-system.md](10b-ui-system.md) | UI system from S0b: tokens, shell, page inventory, component rules (mocks at `/design`) |
+| [10c-ui-rules.md](10c-ui-rules.md) | UI rules: where settings live, one control per concept, progressive disclosure, text, saving; page checklist |
 | [environment.md](environment.md) | Real infrastructure facts (generic); host inventory lives outside the repo |
 
 ## Product principles
