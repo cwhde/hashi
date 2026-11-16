@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { hrefWithTab, tabFrom } from '#lib/url-tab.ts';
 	import SshTarget from '#lib/components/hashi/SshTarget.svelte';
 	import UserMiddlewares from '#lib/components/hashi/traefik/UserMiddlewares.svelte';
 	import { onMount } from 'svelte';
@@ -33,13 +34,11 @@
 	let busy = $state('');
 	let outcome = $state<{ text: string; review: boolean; bad?: boolean } | null>(null);
 
+	// The open tab lives in the address (bug 41).
 	const tabs = ['hosts', 'middlewares', 'certificates'];
-	let tab = $state(tabs.find((t) => t === page.url.searchParams.get('tab')) ?? 'hosts');
+	let tab = $state(tabFrom(page.url, tabs));
 	const setTab = (t: string) =>
-		goto(t === 'hosts' ? '?' : `?tab=${t}`, {
-			replace: true,
-			reset: false
-		});
+		goto(hrefWithTab(page.url, tabs, t), { replace: true, reset: false });
 
 	let adding = $state<{
 		name: string;
@@ -173,6 +172,8 @@
 	};
 </script>
 
+<svelte:head><title>Traefik · Hashi</title></svelte:head>
+
 <PageHeader
 	title="Traefik"
 	description="Hashi installs, configures and updates Traefik on every host itself, and gives every host the same certificates."
@@ -249,7 +250,7 @@
 {:else if !loaded}
 	<Skeleton class="h-10 w-72" /><Skeleton class="mt-4 h-64 rounded-2xl" />
 {:else}
-	<Tabs.Root value={tab} onValueChange={(t) => ((tab = t), setTab(t))}>
+	<Tabs.Root bind:value={tab} onValueChange={setTab}>
 		<Tabs.List class="mb-4">
 			<Tabs.Trigger value="hosts">Hosts</Tabs.Trigger>
 			<Tabs.Trigger value="middlewares">Your middlewares</Tabs.Trigger>

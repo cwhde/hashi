@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
+	import { hrefWithTab, tabFrom } from '#lib/url-tab.ts';
 	import { onMount } from 'svelte';
 	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
 	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
@@ -75,6 +78,11 @@
 			.sort(sorters[sortBy]);
 		return Object.entries(Object.groupBy(list, groupKey)).sort(([a], [b]) => a.localeCompare(b));
 	});
+	// The open tab lives in the address (bug 41).
+	const tabs = ['endpoints', 'notify'];
+	let tab = $state(tabFrom(page.url, tabs));
+	const setTab = (t: string) =>
+		goto(hrefWithTab(page.url, tabs, t), { replace: true, reset: false });
 </script>
 
 <svelte:head><title>Status · Hashi</title></svelte:head>
@@ -88,7 +96,7 @@
 
 {#if error}<p role="alert" class="mb-3 text-md text-bad-text">{error}</p>{/if}
 
-<Tabs.Root value="endpoints">
+<Tabs.Root bind:value={tab} onValueChange={setTab}>
 	<Tabs.List class="mb-4">
 		<Tabs.Trigger value="endpoints">Endpoints</Tabs.Trigger>
 		<Tabs.Trigger value="notify">Notifications</Tabs.Trigger>

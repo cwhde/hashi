@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { hrefWithTab, tabFrom } from '#lib/url-tab.ts';
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
@@ -165,7 +166,14 @@
 	const saveEntry = () => host && save({ ...firewallInput(host), route_via_host_id: entry });
 	const name = $derived(host?.name ?? '');
 	const entryName = $derived(others.find((o) => o.id === entry)?.name ?? name);
+	// The open tab lives in the address (bug 41).
+	const tabs = ['routing', 'ports', 'access', 'rules', 'generated', 'script'];
+	let tab = $state(tabFrom(page.url, tabs));
+	const setTab = (t: string) =>
+		goto(hrefWithTab(page.url, tabs, t), { replace: true, reset: false });
 </script>
+
+<svelte:head><title>{host?.name ?? 'Firewall host'} · Hashi</title></svelte:head>
 
 <a
 	href="/firewall"
@@ -214,7 +222,7 @@
 			</div>
 		</Panel>
 	{/if}
-	<Tabs.Root value="routing">
+	<Tabs.Root bind:value={tab} onValueChange={setTab}>
 		<Tabs.List class="mb-4">
 			<Tabs.Trigger value="routing">Routing</Tabs.Trigger>
 			{#if host.edge_mode === 'managed'}

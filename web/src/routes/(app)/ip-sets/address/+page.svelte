@@ -65,6 +65,8 @@
 	}
 </script>
 
+<svelte:head><title>{lookup?.address ?? 'Address lookup'} · Hashi</title></svelte:head>
+
 <a
 	href="/ip-sets"
 	class="mb-3 inline-flex items-center gap-1 text-md text-muted-foreground hover:text-foreground"

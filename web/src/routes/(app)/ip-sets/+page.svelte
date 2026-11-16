@@ -118,6 +118,8 @@
 	}
 </script>
 
+<svelte:head><title>IP sets · Hashi</title></svelte:head>
+
 <PageHeader
 	title="IP sets"
 	description="Named groups of addresses. Firewall allow and block, rules, DNS values, upstreams and SSH targets all point at a set, so one change reaches every place that uses it."

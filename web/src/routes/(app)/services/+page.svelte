@@ -174,6 +174,8 @@
 	}
 </script>
 
+<svelte:head><title>Services · Hashi</title></svelte:head>
+
 <PageHeader
 	title="Services"
 	description="What Hashi publishes. Every enabled service is served by every Traefik host with Hashi's certificate."

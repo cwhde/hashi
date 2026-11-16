@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { hrefWithTab, tabFrom } from '#lib/url-tab.ts';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
@@ -205,7 +206,14 @@
 		'ip_set.element.removed': 'Item removed',
 		'ip_set.element.expired': 'Item expired'
 	};
+	// The open tab lives in the address (bug 41).
+	const tabs = ['items', 'resolved', 'used', 'history'];
+	let tab = $state(tabFrom(page.url, tabs));
+	const setTab = (t: string) =>
+		goto(hrefWithTab(page.url, tabs, t), { replace: true, reset: false });
 </script>
+
+<svelte:head><title>{s?.slug ?? 'IP set'} · Hashi</title></svelte:head>
 
 <a
 	href="/ip-sets"
@@ -291,7 +299,7 @@
 		{/each}
 	</div>
 
-	<Tabs.Root value="items">
+	<Tabs.Root bind:value={tab} onValueChange={setTab}>
 		<Tabs.List class="mb-4">
 			<Tabs.Trigger value="items">{s.kind === 'dynamic' ? 'Entries' : 'Items'}</Tabs.Trigger>
 			{#if s.kind !== 'dynamic'}<Tabs.Trigger value="resolved">Resolved</Tabs.Trigger>{/if}

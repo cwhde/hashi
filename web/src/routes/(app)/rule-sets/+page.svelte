@@ -37,6 +37,8 @@
 	}
 </script>
 
+<svelte:head><title>Rule sets · Hashi</title></svelte:head>
+
 <PageHeader
 	title="Rule sets"
 	description="Reusable lists of rules. A service runs its own rules first, then the global set, then its fallback. The first rule that matches decides."

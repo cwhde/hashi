@@ -217,6 +217,8 @@
 		font-feature-settings:
 			'cv11' 1,
 			'ss01' 1;
+		/* Figures of equal width everywhere, so counts, times and addresses don't shift as they change (bug 44). */
+		font-variant-numeric: tabular-nums;
 	}
 	:focus-visible {
 		outline: 2px solid var(--ring);

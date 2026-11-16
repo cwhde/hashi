@@ -91,6 +91,8 @@
 	const attachable = $derived(others.filter((s) => s.kind === 'user' && s.id !== id));
 </script>
 
+<svelte:head><title>{rs?.slug ?? 'Rule set'} · Hashi</title></svelte:head>
+
 <a
 	href="/rule-sets"
 	class="mb-3 inline-flex items-center gap-1 text-md text-muted-foreground hover:text-foreground"

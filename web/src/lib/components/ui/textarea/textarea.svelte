@@ -7,11 +7,13 @@
 		value = $bindable(),
 		class: className,
 		'data-slot': dataSlot = 'textarea',
+		spellcheck = false,
 		...restProps
 	}: WithoutChildren<WithElementRef<HTMLTextareaAttributes>> = $props();
 </script>
 
 <textarea
+	{spellcheck}
 	bind:this={ref}
 	data-slot={dataSlot}
 	class={cn(

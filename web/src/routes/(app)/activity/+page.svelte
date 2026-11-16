@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
+	import { hrefWithTab, tabFrom } from '#lib/url-tab.ts';
 	import { onMount } from 'svelte';
 	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
@@ -13,7 +16,11 @@
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 	import { dateTime } from '#lib/format.ts';
 
-	let tab = $state('audit');
+	// The open tab lives in the address (bug 41).
+	const tabs = ['audit', 'jobs', 'log'];
+	let tab = $state(tabFrom(page.url, tabs));
+	const setTab = (t: string) =>
+		goto(hrefWithTab(page.url, tabs, t), { replace: true, reset: false });
 
 	// Audit log: newest first, cursor paging (01-platform.md §7).
 	let events = $state<Schemas['AuditEvent'][] | null>(null);
@@ -142,7 +149,7 @@
 	</div>
 {/snippet}
 
-<Tabs.Root bind:value={tab}>
+<Tabs.Root bind:value={tab} onValueChange={setTab}>
 	<Tabs.List class="mb-4"
 		><Tabs.Trigger value="audit">Audit log</Tabs.Trigger><Tabs.Trigger value="jobs"
 			>Jobs</Tabs.Trigger

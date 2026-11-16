@@ -51,6 +51,8 @@
 	}
 </script>
 
+<svelte:head><title>Firewall hosts · Hashi</title></svelte:head>
+
 <PageHeader
 	title="Firewall hosts"
 	description="Machines with a public IP that forward traffic to Traefik. Hashi owns one nftables table on each; NetBird, Proxmox and Docker rules stay untouched."

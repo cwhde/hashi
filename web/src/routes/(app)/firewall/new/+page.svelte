@@ -62,6 +62,8 @@
 	}
 </script>
 
+<svelte:head><title>Add firewall host · Hashi</title></svelte:head>
+
 <PageHeader
 	title="Add firewall host"
 	description="Nothing changes on the host until you approve a plan."

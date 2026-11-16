@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
+	import { hrefWithTab, tabFrom } from '#lib/url-tab.ts';
 	import { onMount } from 'svelte';
 	import PageHeader from '#lib/components/hashi/PageHeader.svelte';
 	import Panel from '#lib/components/hashi/Panel.svelte';
@@ -19,7 +22,11 @@
 	import SecurityDashboard from '#lib/components/hashi/security/SecurityDashboard.svelte';
 	import CountersView from '#lib/components/hashi/security/CountersView.svelte';
 
-	let tab = $state('dash');
+	// The open tab lives in the address (bug 41).
+	const tabs = ['dash', 'counters', 'captcha', 'sso', 'limits', 'engine', 'geo'];
+	let tab = $state(tabFrom(page.url, tabs));
+	const setTab = (t: string) =>
+		goto(hrefWithTab(page.url, tabs, t), { replace: true, reset: false });
 
 	// Security for S9: who may sign in at the edge, and the country database (06 §7, §12). The dashboard, counters, CAPTCHA
 	// and engine tabs arrive with the abuse engine.
@@ -125,6 +132,8 @@
 	}
 </script>
 
+<svelte:head><title>Security · Hashi</title></svelte:head>
+
 <PageHeader
 	title="Security"
 	description="CAPTCHA, sign-in at the edge, the abuse engine and where countries come from."
@@ -136,7 +145,7 @@
 	</p>
 {/if}
 
-<Tabs.Root bind:value={tab}>
+<Tabs.Root bind:value={tab} onValueChange={setTab}>
 	<Tabs.List class="mb-4 max-w-full justify-start overflow-x-auto">
 		<Tabs.Trigger value="dash">Dashboard</Tabs.Trigger>
 		<Tabs.Trigger value="counters">Counters</Tabs.Trigger>

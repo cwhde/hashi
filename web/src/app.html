@@ -4,6 +4,8 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="color-scheme" content="dark light" />
+		<meta name="theme-color" content="#0d0f12" />
+		<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 		<script>
 			// Apply the stored theme before first paint (10-ui.md §4: no flash of the wrong theme).
 			(function () {
@@ -26,6 +28,17 @@
 						}
 					}
 					if (localStorage.getItem('hashi.solid') === '1') r.dataset.solid = '';
+					// The phone browser bar in the theme's shell colour before first paint (bug 44).
+					var shells = {
+						graphite: '#0d0f12',
+						linen: '#eae1d4',
+						verdant: '#06120d',
+						violet: '#0a0712'
+					};
+					var shell =
+						shells[r.dataset.theme] || (r.style.getPropertyValue('--h-shell') || '').trim();
+					if (shell)
+						document.querySelector('meta[name="theme-color"]').setAttribute('content', shell);
 				} catch (e) {}
 			})();
 		</script>

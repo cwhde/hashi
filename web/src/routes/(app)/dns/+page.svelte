@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { hrefWithTab, tabFrom } from '#lib/url-tab.ts';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
@@ -49,18 +50,11 @@
 	let q = $state('');
 	let showGenerated = $state(false);
 
-	// The tab lives in the URL (?tab=import) so a reload or a shared link opens the same tool.
-	const tabs = ['import', 'adguard', 'agents'];
-	let tab = $state(
-		tabs.includes(page.url.searchParams.get('tab') ?? '')
-			? page.url.searchParams.get('tab')!
-			: 'records'
-	);
+	// The open tab lives in the address (bug 41).
+	const tabs = ['records', 'import', 'adguard', 'agents'];
+	let tab = $state(tabFrom(page.url, tabs));
 	const setTab = (t: string) =>
-		goto(t === 'records' ? '?' : `?tab=${t}`, {
-			replace: true,
-			reset: false
-		});
+		goto(hrefWithTab(page.url, tabs, t), { replace: true, reset: false });
 
 	const newCount = $derived(importRows.filter((r) => !r.decision).length);
 	const dirty = $derived(

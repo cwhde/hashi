@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { hrefWithTab, tabFrom } from '#lib/url-tab.ts';
 	import ServiceExtras from '#lib/components/hashi/services/ServiceExtras.svelte';
 	import ServiceAccess from '#lib/components/hashi/rules/ServiceAccess.svelte';
 	import ServiceWaf from '#lib/components/hashi/services/ServiceWaf.svelte';
@@ -193,7 +194,14 @@
 		targetsText = targetsText.filter((_, j) => j !== i);
 	}
 	const matchText = { prefix: 'starts with', exact: 'is exactly', regex: 'matches regex' } as const;
+	// The open tab lives in the address (bug 41).
+	const tabs = ['routing', 'traffic', 'access', 'waf', 'monitoring', 'config'];
+	let tab = $state(tabFrom(page.url, tabs));
+	const setTab = (t: string) =>
+		goto(hrefWithTab(page.url, tabs, t), { replace: true, reset: false });
 </script>
+
+<svelte:head><title>{svc?.name ?? 'Service'} · Hashi</title></svelte:head>
 
 <a
 	href="/services"
@@ -300,7 +308,7 @@
 		</p>
 	{/if}
 
-	<Tabs.Root value="routing">
+	<Tabs.Root bind:value={tab} onValueChange={setTab}>
 		<!-- Six tabs are wider than a phone: the row scrolls on its own instead of the page. -->
 		<Tabs.List class="mb-4 max-w-full justify-start overflow-x-auto">
 			<Tabs.Trigger value="routing">Routing</Tabs.Trigger>

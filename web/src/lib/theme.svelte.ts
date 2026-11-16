@@ -113,6 +113,7 @@ class ThemeState {
 			this.current = 'custom';
 			store(KEY, 'custom');
 			store(VARS, JSON.stringify({ vars, mode: root.dataset.mode }));
+			syncThemeColor();
 			return;
 		}
 		// An unknown id, or custom without a palette, falls back to Graphite (10-ui §2).
@@ -123,6 +124,7 @@ class ThemeState {
 		root.dataset.mode = t.mode;
 		store(KEY, t.id);
 		store(VARS, null);
+		syncThemeColor();
 	}
 
 	/** Solid backgrounds instead of translucent overlays (Settings → Appearance → Comfort). */
@@ -165,3 +167,9 @@ const fallbackCustom: CustomTheme = {
 };
 
 export const theme = new ThemeState();
+
+/** The phone browser bar takes the shell colour of the theme in use (bug 44). */
+function syncThemeColor() {
+	const shell = getComputedStyle(document.documentElement).getPropertyValue('--h-shell').trim();
+	if (shell) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', shell);
+}

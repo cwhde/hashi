@@ -130,6 +130,8 @@
 	const copy = (t: string) => void navigator.clipboard?.writeText(t);
 </script>
 
+<svelte:head><title>Pulse · Hashi</title></svelte:head>
+
 <PageHeader
 	title="Pulse"
 	description="Small agents that report a machine's current addresses. Put an agent in an IP set and everything using that set follows it."

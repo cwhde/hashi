@@ -149,6 +149,8 @@
 	}
 </script>
 
+<svelte:head><title>Connections · Hashi</title></svelte:head>
+
 <PageHeader
 	title="Connections"
 	description="The outside systems Hashi talks to. Credentials are kept in the vault and are never shown again after saving."

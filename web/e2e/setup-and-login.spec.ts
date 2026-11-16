@@ -967,6 +967,7 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 			await page.goto(`${state.baseURL}${path}`);
 			await expect(page.locator('main')).toBeVisible();
 			await expect(page.locator('html')).toHaveAttribute('data-theme', id!);
+			await expect(page, `title of ${path}`).toHaveTitle(/^[^·]+ · Hashi$/); // bug 60
 			await page.waitForLoadState('networkidle');
 			const axe = await new AxeBuilder({ page }).withRules(['color-contrast']).analyze();
 			expect(
@@ -989,6 +990,13 @@ test('setup with a passkey, then sign in with it', async ({ page, request }) => 
 			await page.screenshot({ path: `test-results/visual/${id}-${slug}.png`, fullPage: true });
 		}
 	}
+
+	// Bug 41: the open tab lives in the address and survives a reload.
+	await page.goto(`${state.baseURL}/security`);
+	await page.getByRole('tab', { name: 'Counters' }).click();
+	await expect(page).toHaveURL(/[?&]tab=counters/);
+	await page.reload();
+	await expect(page.getByRole('tab', { name: 'Counters' })).toHaveAttribute('aria-selected', 'true');
 
 	// S12: strict vault mode (02 §5.4). A PRF passkey becomes an unlocker, strict mode is switched on, and after each
 	// restart Hashi is locked until the recovery key or the passkey unlocks it; the session survives the restarts.
