@@ -23,7 +23,13 @@ first, structure before text, search after the settings regroup.
 | 13.8 | Overview and public page assets | 30, 31 | Overview built from its mock with working widget settings; public page icons and logos replaceable |
 | 13.9 | Pulse on OpenWrt | 21 | Agent installed, started, self-updated and reporting its address on the owner's own OpenWrt router |
 
-Next: 13.1. After 13.9: a last bug sweep, then `v1.0.0`.
+Next: 13.2. After 13.9: a last bug sweep, then `v1.0.0`.
+
+**13.1 done** (2026-11-16, `v0.13.1-beta.1`, PR #67). Gate: on the edge agent after its self-update, `--version` and
+`-v` print `v0.13.1-beta.1` (exit 0), an unknown flag prints usage (exit 2), and only one agent process runs afterwards;
+three CI runs in a row green without a rerun (#67, #68, the merge of #68); smoke ok. Proven by tests, not on prod: the
+timed-out script output (bug 52, needs a passkey-approved script run) and the download retry (bug 9). In between, CI was
+made to run only what a change affects (#68): see the Log.
 
 ### 13.1 checklist (one PR)
 
@@ -992,6 +998,13 @@ Decisions made in S0:
   so an open tab could skip the startup lines after a restart. Read from code, not observed.
 
 ## Log
+
+- 2026-11-16 · deploy `v0.13.1-beta.1` (`5d5e806`, the owner's OK) · smoke ok; the edge agent updated itself within a
+  minute and passed the bug 14 check. CI (#68), measured on the last 300 runs before: CI ran on every PR and again on
+  its merge (90 push runs), the check job took 11–13 min (Go tests with `-race` 6.4 min, web checks 2 min), release built
+  an unused image on every push to main (122 runs, about 4 min). Now a `scope` job runs per PR only the jobs its files
+  affect (go, web, integration, e2e); a merge whose files already passed CI skips everything (the merge of #68: 3 s
+  instead of about 12 min); release runs on version tags only. A full run still takes about 12 min.
 
 - 2026-11-16 · deploy `v0.12.0-beta.4` (`4e46628`, the owner's OK) · smoke ok (readyz, version, SPA, both public pages).
   Ships #66: bug 37 (adding a passkey is a guided two-step sequence that names each device) and bug 74 (AdGuard plans
