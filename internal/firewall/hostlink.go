@@ -214,7 +214,7 @@ func (s *linkSession) tick(ctx context.Context) error {
 		}
 	}
 
-	var batch []any
+	var cmds []cmd
 	desired := map[netip.Prefix]time.Time{}
 	var added []security.Entry
 	for _, b := range l.eng.Bans() {
@@ -230,13 +230,13 @@ func (s *linkSession) tick(ctx context.Context) error {
 		if !ok {
 			continue // ends within the second
 		}
-		batch = append(batch, obj{"add": obj{"element": obj{"family": "inet", "table": TableName, "name": dynName(b.Prefix), "elem": []any{el}}}})
+		cmds = append(cmds, add(obj{"element": element{Family: "inet", Table: TableName, Name: dynName(b.Prefix), Elem: []any{el}}}))
 		added = append(added, b)
 	}
 	var removed []netip.Prefix
 	for p := range s.believed {
 		if _, ok := desired[p]; !ok {
-			batch = append(batch, obj{"destroy": obj{"element": obj{"family": "inet", "table": TableName, "name": dynName(p), "elem": []any{prefixVal(p)}}}})
+			cmds = append(cmds, cmd{"destroy": obj{"element": element{Family: "inet", Table: TableName, Name: dynName(p), Elem: []any{prefixVal(p)}}}})
 			removed = append(removed, p)
 		}
 	}
@@ -245,11 +245,11 @@ func (s *linkSession) tick(ctx context.Context) error {
 		if !e.prefix.Addr().Is4() {
 			name = "staging6"
 		}
-		batch = append(batch, obj{"destroy": obj{"element": obj{"family": "inet", "table": TableName, "name": name, "elem": []any{e.prefix.Addr().String()}}}})
+		cmds = append(cmds, cmd{"destroy": obj{"element": element{Family: "inet", Table: TableName, Name: name, Elem: []any{e.prefix.Addr().String()}}}})
 	}
 	pushed := false
-	if len(batch) > 0 {
-		in, err := json.Marshal(obj{"nftables": batch})
+	if len(cmds) > 0 {
+		in, err := json.Marshal(batch{Nftables: cmds})
 		if err != nil {
 			return err
 		}
@@ -315,7 +315,7 @@ func dynElem(p netip.Prefix, expires, now time.Time) (any, bool) {
 	if left < 1 {
 		return nil, false
 	}
-	return obj{"elem": obj{"val": prefixVal(p), "timeout": left}}, true
+	return elemTimeoutE{elemTimeout{Timeout: left, Val: prefixVal(p)}}, true
 }
 
 type listedElem struct {

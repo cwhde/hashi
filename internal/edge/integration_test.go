@@ -65,7 +65,13 @@ func TestIntegrationPocketID(t *testing.T) {
 	group := admin("POST", "/api/user-groups", map[string]any{"name": "admins", "friendlyName": "Admins"})["id"].(string)
 	admin("PUT", "/api/user-groups/"+group+"/users", map[string]any{"userIds": []string{user}})
 	client := admin("POST", "/api/oidc/clients", map[string]any{"name": "hashi", "callbackURLs": []string{callback}, "logoutCallbackURLs": []string{}, "pkceEnabled": true, "skipConsent": true})
-	clientID, clientSecret := client["id"].(string), client["createdSecret"].(map[string]any)["secret"].(string)
+	// Bug 16: CI once got a client without createdSecret and panicked here. Say what Pocket ID answered instead.
+	created, _ := client["createdSecret"].(map[string]any)
+	clientID, _ := client["id"].(string)
+	clientSecret, _ := created["secret"].(string)
+	if clientID == "" || clientSecret == "" {
+		t.Fatalf("Pocket ID created a client without id or secret: %v", client)
+	}
 	token := admin("POST", "/api/users/"+user+"/one-time-access-token", map[string]any{"ttl": "1h"})["token"].(string)
 
 	ctx := context.Background()

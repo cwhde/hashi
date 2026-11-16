@@ -14,6 +14,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 )
 
 // Version is the Traefik release Hashi installs (04 §2: official release binary, pinned, checksum-verified).
@@ -99,30 +100,62 @@ func extract(arch string, archive []byte) ([]byte, error) {
 // MaxArchive bounds the download.
 const MaxArchive = 256 << 20
 
+// downloadAttempts is how often a temporary failure (network, 5xx, 429, a broken body) is tried before the plan
+// fails (bug 9). A missing file or a wrong checksum fails at once: trying again can't fix them.
+const downloadAttempts = 3
+
 // Download fetches the pinned release archive for arch from baseURL ("" = ReleaseURL) and returns the verified binary.
 func Download(ctx context.Context, client *http.Client, baseURL, arch string) ([]byte, error) {
+	return download(ctx, client, baseURL, arch, func(attempt int) time.Duration { return time.Duration(attempt) * 5 * time.Second })
+}
+
+func download(ctx context.Context, client *http.Client, baseURL, arch string, wait func(attempt int) time.Duration) ([]byte, error) {
 	u := ReleaseURL(arch)
 	if baseURL != "" {
 		u = strings.TrimSuffix(baseURL, "/") + "/" + AssetName(arch)
 	}
+	var last error
+	for attempt := 1; attempt <= downloadAttempts; attempt++ {
+		b, retry, err := fetchArchive(ctx, client, u, arch)
+		if err == nil {
+			return Binary(arch, b)
+		}
+		if !retry {
+			return nil, err
+		}
+		last = err
+		if attempt < downloadAttempts {
+			select {
+			case <-ctx.Done():
+				return nil, fmt.Errorf("%w (stopped: %w)", last, ctx.Err())
+			case <-time.After(wait(attempt)):
+			}
+		}
+	}
+	return nil, fmt.Errorf("%w (after %d attempts)", last, downloadAttempts)
+}
+
+// fetchArchive makes one attempt. retry says whether the failure may pass on its own.
+func fetchArchive(ctx context.Context, client *http.Client, u, arch string) (b []byte, retry bool, err error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("download %s: %w", AssetName(arch), err)
+		return nil, ctx.Err() == nil, fmt.Errorf("download %s: %w", AssetName(arch), err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("download %s: HTTP %d", AssetName(arch), resp.StatusCode)
+		temporary := resp.StatusCode >= 500 || resp.StatusCode == http.StatusTooManyRequests
+		return nil, temporary, fmt.Errorf("download %s: HTTP %d", AssetName(arch), resp.StatusCode)
 	}
-	b, err := io.ReadAll(io.LimitReader(resp.Body, MaxArchive+1))
+	b, err = io.ReadAll(io.LimitReader(resp.Body, MaxArchive+1))
 	if err != nil {
-		return nil, fmt.Errorf("download %s: %w", AssetName(arch), err)
+		return nil, ctx.Err() == nil, fmt.Errorf("download %s: %w", AssetName(arch), err)
 	}
 	if len(b) > MaxArchive {
-		return nil, fmt.Errorf("download %s: larger than %d bytes", AssetName(arch), MaxArchive)
+		return nil, false, fmt.Errorf("download %s: larger than %d bytes", AssetName(arch), MaxArchive)
 	}
-	return Binary(arch, b)
+	return b, false, nil
 }

@@ -372,3 +372,26 @@ func TestHashiImports(t *testing.T) {
 		}
 	}
 }
+
+// Bug 14: `--version` started a second agent beside the running service. Only no argument runs the agent.
+func TestCommand(t *testing.T) {
+	for _, c := range []struct {
+		args       []string
+		run        bool
+		code       int
+		outContain string
+	}{
+		{nil, true, 0, ""},
+		{[]string{"version"}, false, 0, "v1.2.3"},
+		{[]string{"--version"}, false, 0, "v1.2.3"},
+		{[]string{"-v"}, false, 0, "v1.2.3"},
+		{[]string{"--help"}, false, 0, "usage"},
+		{[]string{"start"}, false, 2, "usage"},
+		{[]string{"version", "extra"}, false, 2, "usage"},
+	} {
+		out, code, run := command(c.args, "v1.2.3")
+		if run != c.run || code != c.code || !strings.Contains(out, c.outContain) {
+			t.Errorf("command(%q) = %q, %d, %v; want run=%v code=%d containing %q", c.args, out, code, run, c.run, c.code, c.outContain)
+		}
+	}
+}

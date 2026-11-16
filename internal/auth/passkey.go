@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -372,9 +373,50 @@ func (p *Passkeys) finishAssertion(ctx context.Context, q *db.Queries, sd webaut
 	return row.ID, prf, nil
 }
 
-// BeginPRF starts an assertion for the session owner that evaluates the PRF extension: with salt on any passkey
-// (PRFEnroll), or on the passkeys in salts only, each with its own salt (PRFUnlock; keys are credential ids).
-func (p *Passkeys) BeginPRF(ctx context.Context, owner []byte, kind ceremonyKind, salt []byte, salts map[string][]byte) (string, *protocol.CredentialAssertion, error) {
+// BeginPRFEnroll starts an assertion for the session owner that evaluates the PRF extension with salt, to add a
+// vault unlocker. only, when not empty, lists the credential ids the browser may offer (a key created a moment ago, so
+// a password manager holding another passkey for this site doesn't answer instead); empty means any passkey.
+func (p *Passkeys) BeginPRFEnroll(ctx context.Context, owner, salt []byte, only [][]byte) (string, *protocol.CredentialAssertion, error) {
+	return p.beginPRF(ctx, owner, PRFEnroll, salt, func(creds []webauthn.Credential) []webauthn.LoginOption {
+		var opts []webauthn.LoginOption
+		if len(only) > 0 {
+			var allow []protocol.CredentialDescriptor
+			for _, c := range creds {
+				if slices.ContainsFunc(only, func(id []byte) bool { return bytes.Equal(id, c.ID) }) {
+					allow = append(allow, c.Descriptor())
+				}
+			}
+			if len(allow) == 0 {
+				return nil
+			}
+			opts = append(opts, webauthn.WithAllowedCredentials(allow))
+		}
+		return append(opts, webauthn.WithAssertionExtensions(webauthn.WithExtensionPRF(protocol.PRFValues{First: salt})))
+	})
+}
+
+// BeginPRFUnlock starts an assertion for the session owner that evaluates the PRF extension on the passkeys in salts
+// only (keys are credential ids), each with its own salt, to unlock the vault.
+func (p *Passkeys) BeginPRFUnlock(ctx context.Context, owner []byte, salts map[string][]byte) (string, *protocol.CredentialAssertion, error) {
+	return p.beginPRF(ctx, owner, PRFUnlock, nil, func(creds []webauthn.Credential) []webauthn.LoginOption {
+		var allow []protocol.CredentialDescriptor
+		by := map[string]protocol.PRFValues{}
+		for _, c := range creds {
+			if s, ok := salts[string(c.ID)]; ok {
+				allow = append(allow, c.Descriptor())
+				by[EncodeID(c.ID)] = protocol.PRFValues{First: s}
+			}
+		}
+		if len(allow) == 0 {
+			return nil
+		}
+		return []webauthn.LoginOption{webauthn.WithAllowedCredentials(allow),
+			webauthn.WithAssertionExtensions(webauthn.WithExtensionPRFByCredential(by, nil))}
+	})
+}
+
+// beginPRF runs the shared part; options returns nil when no passkey of the owner fits.
+func (p *Passkeys) beginPRF(ctx context.Context, owner []byte, kind ceremonyKind, salt []byte, options func([]webauthn.Credential) []webauthn.LoginOption) (string, *protocol.CredentialAssertion, error) {
 	wa, err := p.webauthn(ctx)
 	if err != nil {
 		return "", nil, err
@@ -386,41 +428,11 @@ func (p *Passkeys) BeginPRF(ctx context.Context, owner []byte, kind ceremonyKind
 	if len(u.creds) == 0 {
 		return "", nil, ErrCeremony
 	}
-	opts := []webauthn.LoginOption{webauthn.WithUserVerification(protocol.VerificationRequired)}
-	switch kind {
-	case PRFEnroll:
-		// salts, when given, names the only passkeys the browser may offer (a key created a moment ago, so a password
-		// manager holding another passkey for this site doesn't answer instead).
-		if salts != nil {
-			var allow []protocol.CredentialDescriptor
-			for _, c := range u.creds {
-				if _, ok := salts[string(c.ID)]; ok {
-					allow = append(allow, c.Descriptor())
-				}
-			}
-			if len(allow) == 0 {
-				return "", nil, ErrCeremony
-			}
-			opts = append(opts, webauthn.WithAllowedCredentials(allow))
-		}
-		opts = append(opts, webauthn.WithAssertionExtensions(webauthn.WithExtensionPRF(protocol.PRFValues{First: salt})))
-	case PRFUnlock:
-		var allow []protocol.CredentialDescriptor
-		by := map[string]protocol.PRFValues{}
-		for _, c := range u.creds {
-			if s, ok := salts[string(c.ID)]; ok {
-				allow = append(allow, c.Descriptor())
-				by[EncodeID(c.ID)] = protocol.PRFValues{First: s}
-			}
-		}
-		if len(allow) == 0 {
-			return "", nil, ErrCeremony
-		}
-		opts = append(opts, webauthn.WithAllowedCredentials(allow),
-			webauthn.WithAssertionExtensions(webauthn.WithExtensionPRFByCredential(by, nil)))
-	default:
-		return "", nil, fmt.Errorf("not a PRF ceremony: %s", kind)
+	extra := options(u.creds)
+	if extra == nil {
+		return "", nil, ErrCeremony
 	}
+	opts := append([]webauthn.LoginOption{webauthn.WithUserVerification(protocol.VerificationRequired)}, extra...)
 	o, sd, err := wa.BeginLogin(u, opts...)
 	if err != nil {
 		return "", nil, fmt.Errorf("begin PRF assertion: %w", err)

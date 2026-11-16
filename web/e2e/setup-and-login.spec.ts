@@ -1,8 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { openSync, readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync, spawn } from 'node:child_process';
-import { statePath } from './global-setup';
+import { logPath, statePath } from './global-setup';
 
 // S1 gate (11-delivery.md §3): passkey registration and login pass with a virtual authenticator, end to end through
 // the real binary: bootstrap → base settings → passkey → recovery key → finish → passkey sign-in → account pages.
@@ -43,7 +43,11 @@ async function restartHashi() {
 		}
 		await new Promise((r) => setTimeout(r, 100));
 	}
-	const proc = spawn(s.bin, s.args, { env: { ...process.env, ...s.env }, stdio: 'ignore' });
+	const log = openSync(logPath, 'a');
+	const proc = spawn(s.bin, s.args, {
+		env: { ...process.env, ...s.env },
+		stdio: ['ignore', log, log]
+	});
 	writeFileSync(
 		statePath,
 		JSON.stringify({ ...JSON.parse(readFileSync(statePath, 'utf8')), pid: proc.pid })

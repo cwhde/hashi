@@ -36,6 +36,10 @@ func echoExec(cmd string, stdin io.Reader, stdout, stderr io.Writer) int {
 	case "big":
 		_, _ = stdout.Write(bytes.Repeat([]byte("x"), sshx.MaxOutput+10))
 		return 0
+	case "hang":
+		_, _ = fmt.Fprint(stdout, "partial")
+		time.Sleep(3 * time.Second)
+		return 0
 	}
 	_, _ = fmt.Fprint(stdout, "ran: "+cmd)
 	return 0
@@ -290,5 +294,18 @@ func TestFetchUsesTheTunnelAndReportsHTTPErrors(t *testing.T) {
 	}
 	if len(s.Ran()) != 0 {
 		t.Fatalf("ran %v although the tunnel works", s.Ran())
+	}
+}
+
+// Bug 52: when the caller's context ends first (a script whose background child keeps the session open), what the
+// command printed until then is returned with the error, not thrown away.
+func TestRunKeepsOutputWhenTheContextEnds(t *testing.T) {
+	s := sshxtest.Start(t, "root", testPassword, nil, echoExec)
+	c := dial(t, s, pwAuth(testPassword))
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer cancel()
+	r, err := c.Run(ctx, "hang", nil)
+	if !errors.Is(err, context.DeadlineExceeded) || string(r.Stdout) != "partial" {
+		t.Fatalf("hang = %q %v", r.Stdout, err)
 	}
 }
