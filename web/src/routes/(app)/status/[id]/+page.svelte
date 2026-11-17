@@ -87,6 +87,19 @@
 	const ms = (v: number | undefined) => (v === undefined ? 'no data' : `${v} ms`);
 	const series = $derived(d?.series ?? []);
 	const gaps = $derived(series.flatMap((p) => (p.gap_ms === undefined ? [] : [p.gap_ms])));
+	// Bug 64: a check made from something links back to it.
+	const sourceHref: Record<string, (id: string) => string> = {
+		service: (id) => `/services/${id}`,
+		firewall_host: (id) => `/firewall/${id}`,
+		traefik: () => '/traefik',
+		dns_record: () => '/dns?tab=records'
+	};
+	const sourceLink: Record<string, string> = {
+		service: 'Open service',
+		firewall_host: 'Open host',
+		traefik: 'Open Traefik',
+		dns_record: 'Open DNS'
+	};
 </script>
 
 <svelte:head><title>{d?.endpoint.name ?? 'Endpoint'} · Hashi</title></svelte:head>
@@ -111,6 +124,11 @@
 				</p>
 			</div>
 			<StatusBadge state={m.state} />
+			{#if m.source_id && sourceHref[m.source_type]}<Button
+					variant="outline"
+					size="sm"
+					href={sourceHref[m.source_type]!(m.source_id)}>{sourceLink[m.source_type]}</Button
+				>{/if}
 			{#if s}
 				<Button
 					variant="outline"

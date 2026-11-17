@@ -26,9 +26,13 @@
 		rootDomain,
 		saveText,
 		slugify,
-		targetText,
+		upstreamChosen,
+		upstreamOf,
+		upstreamTarget,
 		type Service
 	} from '#lib/services.ts';
+	import UpstreamTarget from '#lib/components/hashi/services/UpstreamTarget.svelte';
+	import { targetNames } from '#lib/targetNames.svelte.ts';
 
 	// 04-traefik-services.md §1: what Hashi publishes. Every enabled service goes to every Traefik host. Access rules,
 	// WAF, DNS records and monitoring join the same record in later slices.
@@ -57,7 +61,10 @@
 		root = r;
 		loaded = true;
 	}
-	onMount(() => load().catch((e) => (loadError = problemText(e))));
+	onMount(() => {
+		void targetNames.load();
+		load().catch((e) => (loadError = problemText(e)));
+	});
 
 	async function act(what: string, fn: () => Promise<void>) {
 		busy = what;
@@ -93,8 +100,7 @@
 		sub: '',
 		full: '',
 		custom: false,
-		address: '',
-		setId: '',
+		upstream: upstreamOf(),
 		publicPort: '',
 		proxy: false,
 		entryHost: '',
@@ -121,8 +127,7 @@
 			sub: '',
 			full: '',
 			custom: false,
-			address: '',
-			setId: '',
+			upstream: upstreamOf(),
 			publicPort: '',
 			proxy: false,
 			entryHost: '',
@@ -150,9 +155,7 @@
 					kind: form.kind,
 					domain_mode: domainMode(host, root),
 					host_name: host,
-					target: form.setId
-						? { address: '', set_id: form.setId, port: Number(form.port) }
-						: { address: form.address.trim(), port: Number(form.port) },
+					target: upstreamTarget(form.upstream, Number(form.port)),
 					public_port: isStream(form.kind) ? Number(form.publicPort) : undefined,
 					proxy_protocol: form.kind === 'tcp' ? form.proxy : undefined,
 					entry_host_id: form.entryHost || undefined,
@@ -260,7 +263,7 @@
 							<Table.Cell class="hidden md:table-cell">
 								<div class="flex items-center gap-2">
 									<Tag>{s.kind.toUpperCase()}</Tag><Mono class="text-muted-foreground"
-										>{targetText(s.target)}</Mono
+										>{targetNames.label(s.target)}</Mono
 									>
 								</div>
 								{#if s.advanced_routes && s.routes.length}<div
@@ -375,20 +378,13 @@
 			</div>
 			<fieldset class="space-y-2">
 				<legend class="mb-1.5 text-md font-medium">Upstream</legend>
-				<div class="grid grid-cols-[minmax(0,10rem)_1fr_6rem] gap-2">
+				<div class="grid grid-cols-[minmax(0,1fr)_6rem] gap-2">
 					<Select.Root type="single" bind:value={form.kind}>
-						<Select.Trigger aria-label="Protocol">{form.kind.toUpperCase()}</Select.Trigger>
+						<Select.Trigger aria-label="Protocol">{kindText[form.kind]}</Select.Trigger>
 						<Select.Content>
 							{#each kinds as k (k)}<Select.Item value={k}>{kindText[k]}</Select.Item>{/each}
 						</Select.Content>
 					</Select.Root>
-					<Input
-						bind:value={form.address}
-						aria-label="Address"
-						placeholder="192.0.2.20"
-						required={!form.setId}
-						disabled={!!form.setId}
-					/>
 					<Input
 						bind:value={form.port}
 						aria-label="Port"
@@ -397,13 +393,10 @@
 						required
 					/>
 				</div>
-				<p class="text-sm text-muted-foreground">
-					An IP address or host name the Traefik hosts can reach.
-				</p>
+				<UpstreamTarget bind:value={form.upstream} id="add-upstream" />
 			</fieldset>
 			<ServiceExtras
 				kind={form.kind}
-				bind:setId={form.setId}
 				bind:publicPort={form.publicPort}
 				bind:proxy={form.proxy}
 				bind:entryHost={form.entryHost}
@@ -433,7 +426,10 @@
 		</form>
 		<Sheet.Footer class="flex-row justify-end gap-2 border-t">
 			<Button variant="ghost" onclick={() => (addOpen = false)}>Cancel</Button>
-			<Button type="submit" form="add-service" disabled={busy === 'add'}
+			<Button
+				type="submit"
+				form="add-service"
+				disabled={busy === 'add' || !upstreamChosen(form.upstream)}
 				>{busy === 'add' ? 'Publishing…' : 'Save and publish'}</Button
 			>
 		</Sheet.Footer>

@@ -22,7 +22,8 @@ export function firewallInput(h: FirewallHost): FirewallInput {
 		netbird_mode: h.netbird_mode,
 		netbird_iface: h.netbird_iface,
 		netbird_port: h.netbird_port,
-		drop_other_inbound: h.drop_other_inbound
+		drop_other_inbound: h.drop_other_inbound,
+		address_agent_id: h.address_agent_id
 	};
 }
 

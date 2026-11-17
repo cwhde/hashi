@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/netip"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -75,6 +76,22 @@ func TestIPSetsAPI(t *testing.T) {
 	}
 	if _, err := s.CreateIPSet(ctx, gen.CreateIPSetRequestObject{Body: &gen.IPSetInput{Slug: "trusted-devices", Name: "x"}}); status(err) != http.StatusConflict {
 		t.Fatalf("duplicate slug: %v", err)
+	}
+	// Bug 66: a refused first item creates nothing; a good one arrives with the set.
+	if _, err := s.CreateIPSet(ctx, gen.CreateIPSetRequestObject{Body: &gen.IPSetInput{Slug: "bad-first", Name: "bad-first",
+		FirstItem: &gen.IPSetElementInput{Item: ipItem(t, "ip", "300.1.1.1")}}}); status(err) != http.StatusBadRequest && status(err) != http.StatusUnprocessableEntity {
+		t.Fatalf("bad first item: %v", err)
+	}
+	if all, _ := st.Q.ListIPSets(ctx); slices.ContainsFunc(all, func(x db.IpSet) bool { return x.Slug == "bad-first" }) {
+		t.Fatal("a refused first item left its set behind")
+	}
+	withItem, err := s.CreateIPSet(ctx, gen.CreateIPSetRequestObject{Body: &gen.IPSetInput{Slug: "with-item", Name: "with-item",
+		FirstItem: &gen.IPSetElementInput{Item: ipItem(t, "ip", "192.0.2.44")}}})
+	if err != nil || withItem.(gen.CreateIPSet200JSONResponse).ElementCount != 1 {
+		t.Fatalf("set with a first item: %+v %v", withItem, err)
+	}
+	if _, err := s.DeleteIPSet(ctx, gen.DeleteIPSetRequestObject{Id: withItem.(gen.CreateIPSet200JSONResponse).Id}); err != nil {
+		t.Fatal(err)
 	}
 	add := func(setID, typ, v string) (gen.IPSetElement, error) {
 		r, err := s.AddIPSetElement(ctx, gen.AddIPSetElementRequestObject{Id: setID, Body: &gen.IPSetElementInput{Item: ipItem(t, typ, v)}})

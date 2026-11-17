@@ -35,6 +35,10 @@ Name, ID, token hash, install type, allowed scopes (heartbeat only), heartbeat i
 heartbeat's source IP via the client-IP resolver), private IP candidates, selected IP, version, status (fresh / stale /
 revoked). Stale threshold setting (default 3× interval).
 
+The selected IP is the agent's main address. The admin can pin it to one of the reported addresses on the agent's
+page; the pin wins over the agent's own choice while the agent still reports that address, and the agent chooses again
+when it does not.
+
 Reachability check (optional, per agent): Hashi itself tries to open a TCP connection to the agent's selected IP on a
 configured port, so the UI can show "Hashi can reach this address" vs "agent reports it but Hashi can't reach it".
 

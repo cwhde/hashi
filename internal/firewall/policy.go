@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/netip"
+	"slices"
 	"strings"
 
 	"git.juzo.io/juzo/hashi/internal/audit"
@@ -152,6 +153,104 @@ func (m *Manager) OwnAddresses(ctx context.Context, q *db.Queries) ([]netip.Pref
 		}
 		seen[a.IpSetID] = true
 		out = append(out, g.Compile(a.IpSetID, r, now).Leaves...)
+	}
+	return out, nil
+}
+
+// HostVerdict explains what one managed firewall host does with an address (05 §4.3, bug 58): the folded verdict
+// (Verdict), the deciding prefix and the bound set it came from, and whether the host's own access sets let the
+// address reach the host itself.
+type HostVerdict struct {
+	HostID, HostName string
+	Verdict          string // Allowed, Blocked or Neutral
+	Prefix           netip.Prefix
+	SetID, SetName   string
+	HostAccess       bool
+}
+
+// Explain returns one verdict per managed host. Hosts behind a router have no Hashi firewall and are left out.
+func (m *Manager) Explain(ctx context.Context, a netip.Addr) ([]HostVerdict, error) {
+	q := m.st.R
+	a = a.Unmap()
+	g, err := ipsets.LoadGraph(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	b, err := q.ListFirewallBindings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	hh, err := q.GetIPSetBySystemKey(ctx, sql.NullString{String: ipsets.SystemHashiHosts, Valid: true})
+	if err != nil {
+		return nil, err
+	}
+	r, now := m.sets.Resolver(ctx), m.now()
+	leaves := map[string][]netip.Prefix{}
+	compiled := func(id string) []netip.Prefix {
+		if l, ok := leaves[id]; ok {
+			return l
+		}
+		leaves[id] = g.Compile(id, r, now).Leaves
+		return leaves[id]
+	}
+	allowIDs, blockIDs := []string{hh.ID}, []string{}
+	for _, x := range b {
+		if x.Position == "allow" {
+			allowIDs = append(allowIDs, x.IpSetID)
+		} else {
+			blockIDs = append(blockIDs, x.IpSetID)
+		}
+	}
+	union := func(ids []string) []netip.Prefix {
+		var out []netip.Prefix
+		for _, id := range ids {
+			out = append(out, compiled(id)...)
+		}
+		return out
+	}
+	verdict, byAllow, byBlock := Verdict(union(allowIDs), union(blockIDs), a)
+	global := HostVerdict{Verdict: verdict}
+	from := func(p netip.Prefix, ids []string) {
+		global.Prefix = p
+		for _, id := range ids {
+			if slices.ContainsFunc(compiled(id), func(x netip.Prefix) bool { return x.Masked() == p }) {
+				global.SetID = id
+				if s, ok := g[id]; ok {
+					global.SetName = s.Name
+				}
+				return
+			}
+		}
+	}
+	switch verdict {
+	case Allowed:
+		from(byAllow, allowIDs)
+	case Blocked:
+		from(byBlock, blockIDs)
+	}
+	hosts, err := q.ListFirewallHosts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	access, err := q.ListAllFirewallHostAccess(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var out []HostVerdict
+	for _, h := range hosts {
+		if h.EdgeMode != ModeManaged {
+			continue
+		}
+		v := global
+		v.HostID, v.HostName = h.ID, h.Name
+		var ids []string
+		for _, x := range access {
+			if x.HostID == h.ID {
+				ids = append(ids, x.IpSetID)
+			}
+		}
+		v.HostAccess = slices.ContainsFunc(union(ids), func(p netip.Prefix) bool { return p.Contains(a) })
+		out = append(out, v)
 	}
 	return out, nil
 }

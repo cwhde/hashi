@@ -32,6 +32,24 @@ version `v0.13.2-beta.1`, the page carries `theme-color` and the touch icon (200
 no overflow. Not seen on prod: the signed-in pages (needs the owner's passkey); the same build passed them in e2e.
 Found on the way: bug 97 (sign-in redirect drops the tab), planned into 13.3.
 
+### 13.3 checklist (two PRs: A fixes and agent targets, B Connections)
+
+PR A:
+- [x] 97 Sign-in redirect keeps the query (one helper for both redirects)
+- [x] 56 Host items: the IP set pages pass the host list; 90 AdGuard over HTTP hides the certificate fields
+- [x] 68 Upstream address refuses whitespace and two addresses (client and server); 66 a set's first item is checked before the set is created
+- [x] 57 Rules register as consumers of the sets they use; 63 upstream sets and agents show by name, Used by links
+- [x] 58 Address lookup shows each firewall host's verdict for the address
+- [x] 17 A service target can be a Pulse agent (its hidden set, as AdGuard does), picked directly, shown by name
+- [x] 22 (server) The admin can pin an agent's main address; the heartbeat keeps it while the agent reports it
+- [x] 23 A firewall host's public address (and internal addresses) can follow a Pulse agent
+- [x] 20 A service with no matching entry host says why nothing is published
+
+PR B:
+- [x] 24 Connections adds and edits every outside system: Traefik hosts (address, user, key), firewall hosts, Pulse agents, AdGuard; object pages keep their own settings and link back
+- [x] 22 An agent page: addresses per interface, the main-address choice, its settings, what uses it
+- [x] 64 The missing links (check → service, per-instance rewrites, App display → pages, ban from lookup, Pulse → suffix, rewrite filters)
+
 ### 13.2 checklist (one PR)
 
 - [x] 96 SvelteKit 3 (config into the Vite plugin, adapter-static 4, TypeScript 6); `pnpm audit` clean of the Kit advisories

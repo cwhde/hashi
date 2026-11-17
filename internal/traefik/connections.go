@@ -120,15 +120,19 @@ func (m *Manager) Save(ctx context.Context, actor, ip, id string, in ConnectionI
 	if err := (Paths{Binary: in.Binary, ConfigDir: in.ConfigDir}).Validate(); err != nil {
 		return db.TraefikConnection{}, fmt.Errorf("%w: %w", ErrInvalid, err)
 	}
-	hk, err := sshx.ParseHostKey(in.HostKey)
-	if err != nil {
-		return db.TraefikConnection{}, fmt.Errorf("%w: scan and confirm the host key first: %w", ErrInvalid, err)
-	}
 	var cur db.TraefikConnection
+	var err error
 	if id != "" {
 		if cur, err = m.st.R.GetTraefikConnection(ctx, id); err != nil {
 			return cur, fmt.Errorf("traefik connection %s: %w", id, err)
 		}
+		if len(in.HostKey) == 0 { // an edit that did not read the key again keeps the pinned one
+			in.HostKey = cur.HostKey
+		}
+	}
+	hk, err := sshx.ParseHostKey(in.HostKey)
+	if err != nil {
+		return db.TraefikConnection{}, fmt.Errorf("%w: scan and confirm the host key first: %w", ErrInvalid, err)
 	}
 	needsCred := in.Auth != AuthHashiKey && (id == "" || cur.Auth != in.Auth || !cur.CredentialSecretID.Valid)
 	if needsCred && in.Credential.IsZero() {

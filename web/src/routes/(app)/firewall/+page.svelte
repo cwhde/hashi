@@ -57,7 +57,8 @@
 	title="Firewall hosts"
 	description="Machines with a public IP that forward traffic to Traefik. Hashi owns one nftables table on each; NetBird, Proxmox and Docker rules stay untouched."
 >
-	{#snippet actions()}<Button href="/firewall/new"><Plus />Add firewall host</Button>{/snippet}
+	{#snippet actions()}<Button href="/connections?add=firewall"><Plus />Add firewall host</Button
+		>{/snippet}
 </PageHeader>
 
 {#if error}<p

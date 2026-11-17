@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"git.juzo.io/juzo/hashi/internal/audit"
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
@@ -30,6 +31,9 @@ func serviceError(err error) error {
 func serviceBody(s services.Service) gen.Service {
 	target := func(t services.Target) gen.ServiceTarget {
 		out := gen.ServiceTarget{Address: t.Address, SetId: strPtr(t.SetID), Port: t.Port}
+		if t.AgentID != "" { // the agent stands for its hidden set (bug 17)
+			out.SetId, out.AgentId = nil, &t.AgentID
+		}
 		if t.Weight > 0 {
 			out.Weight = ptr(t.Weight)
 		}
@@ -131,7 +135,7 @@ func serviceFromInput(in gen.ServiceInput) services.Service {
 		return *p
 	}
 	target := func(t gen.ServiceTarget) services.Target {
-		out := services.Target{Address: t.Address, SetID: str(t.SetId), Port: t.Port}
+		out := services.Target{Address: t.Address, SetID: str(t.SetId), AgentID: str(t.AgentId), Port: t.Port}
 		if t.Weight != nil {
 			out.Weight = *t.Weight
 		}
@@ -467,4 +471,21 @@ func routeKind(k *gen.ServiceRouteKind) string {
 		return ""
 	}
 	return string(*k)
+}
+
+// GetServicePublication says where a service is published and why a part is missing (bug 20).
+func (s *Server) GetServicePublication(ctx context.Context, req gen.GetServicePublicationRequestObject) (gen.GetServicePublicationResponseObject, error) {
+	if s.Firewall == nil || s.IPSets == nil {
+		return nil, serviceError(services.ErrNotFound)
+	}
+	p, err := s.Firewall.Publication(ctx, s.IPSets.ResolveTarget, req.Id)
+	if err != nil {
+		return nil, serviceError(err)
+	}
+	out := gen.ServicePublication{HostId: emptyNil(p.HostID), HostName: emptyNil(p.HostName), Rewrite: emptyNil(p.Rewrite),
+		Reason: p.Reason, Records: []gen.PublishedRecord{}}
+	for _, r := range p.Records {
+		out.Records = append(out.Records, gen.PublishedRecord{Name: strings.TrimSuffix(r.Name, "."), Type: r.Type, Values: r.Values})
+	}
+	return gen.GetServicePublication200JSONResponse(out), nil
 }

@@ -398,21 +398,51 @@ func (s *Server) AddTraefikHost(ctx context.Context, req gen.AddTraefikHostReque
 	if err != nil {
 		return nil, traefikError(err)
 	}
-	if row, _, err = s.Traefik.Validate(ctx, row.ID); err != nil {
-		// Shown on the connection (health, last error); nothing is taken over.
-		if row, err = s.Store.R.GetTraefikConnection(ctx, row.ID); err != nil {
-			return nil, err
-		}
-	} else if err := s.Traefik.ConfirmOwnership(ctx, s.actor(ri), ri.ipString(), row.ID); err != nil {
-		return nil, traefikError(err)
-	} else if row, err = s.Store.R.GetTraefikConnection(ctx, row.ID); err != nil {
-		return nil, err
-	}
-	body, err := s.connectionBody(ctx, row)
+	body, err := s.takeOver(ctx, row)
 	if err != nil {
 		return nil, err
 	}
 	return gen.AddTraefikHost200JSONResponse(body), nil
+}
+
+// UpdateTraefikHost changes a host's connection from Connections (bug 24). A moved host is taken over again.
+func (s *Server) UpdateTraefikHost(ctx context.Context, req gen.UpdateTraefikHostRequestObject) (gen.UpdateTraefikHostResponseObject, error) {
+	ri := info(ctx)
+	cur, err := s.Store.R.GetTraefikConnection(ctx, req.Id)
+	if err != nil {
+		return nil, traefikError(err)
+	}
+	row, err := s.Traefik.Save(ctx, s.actor(ri), ri.ipString(), req.Id, connectionInput(*req.Body))
+	if err != nil {
+		return nil, traefikError(err)
+	}
+	var body gen.TraefikConnection
+	if !row.OwnershipConfirmedAt.Valid && cur.OwnershipConfirmedAt.Valid { // Save cleared it: another machine
+		body, err = s.takeOver(ctx, row)
+	} else {
+		body, err = s.connectionBody(ctx, row)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return gen.UpdateTraefikHost200JSONResponse(body), nil
+}
+
+// takeOver validates a host and confirms Hashi owns it. A failed validation is shown on the connection (health, last
+// error) and nothing is taken over.
+func (s *Server) takeOver(ctx context.Context, row db.TraefikConnection) (gen.TraefikConnection, error) {
+	ri := info(ctx)
+	var err error
+	if row, _, err = s.Traefik.Validate(ctx, row.ID); err != nil {
+		if row, err = s.Store.R.GetTraefikConnection(ctx, row.ID); err != nil {
+			return gen.TraefikConnection{}, err
+		}
+	} else if err := s.Traefik.ConfirmOwnership(ctx, s.actor(ri), ri.ipString(), row.ID); err != nil {
+		return gen.TraefikConnection{}, traefikError(err)
+	} else if row, err = s.Store.R.GetTraefikConnection(ctx, row.ID); err != nil {
+		return gen.TraefikConnection{}, err
+	}
+	return s.connectionBody(ctx, row)
 }
 
 // RemoveTraefikHost forgets a host; nothing on it changes. A firewall host's link keeps it (the error says so).
@@ -437,8 +467,11 @@ func (s *Server) RemoveTraefikHost(ctx context.Context, req gen.RemoveTraefikHos
 }
 
 func connectionInput(b gen.TraefikConnectionInput) traefik.ConnectionInput {
-	in := traefik.ConnectionInput{Name: b.Name, Host: b.Host, Port: b.Port, User: b.User, Auth: string(b.Auth), HostKey: b.HostKey,
+	in := traefik.ConnectionInput{Name: b.Name, Host: b.Host, Port: b.Port, User: b.User, Auth: string(b.Auth),
 		InternalIP: str(b.InternalIp), Binary: str(b.TraefikBinary), ConfigDir: str(b.ConfigDir)}
+	if b.HostKey != nil {
+		in.HostKey = *b.HostKey
+	}
 	if b.Credential != nil {
 		in.Credential = secrets.New(*b.Credential)
 	}

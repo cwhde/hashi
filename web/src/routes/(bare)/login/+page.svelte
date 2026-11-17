@@ -6,6 +6,7 @@
 	import { Fingerprint } from '@lucide/svelte';
 	import { api, problemText } from '#lib/api/client.ts';
 	import { session } from '#lib/auth/session.svelte.ts';
+	import { safeNext } from '#lib/auth/next.ts';
 	import { ceremonyText, passkeysSupported, usePasskey } from '#lib/auth/webauthn.ts';
 
 	let failed = $state('');
@@ -23,11 +24,7 @@
 		}
 	});
 
-	// Only same-app paths: never redirect to another origin.
-	function next() {
-		const n = page.url.searchParams.get('next') ?? '';
-		return n.startsWith('/') && !n.startsWith('//') ? n : '/activity';
-	}
+	const next = () => safeNext(page.url.searchParams.get('next'));
 
 	async function signIn() {
 		failed = '';

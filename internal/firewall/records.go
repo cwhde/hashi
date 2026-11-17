@@ -214,3 +214,70 @@ func resolvedTargets(s services.Service) []services.Target {
 	}
 	return out
 }
+
+// Publication says how one service reaches the outside and the home network (bug 20): the firewall host its upstream
+// sits behind, the records and AdGuard answer generated for it (by the same code the sync uses), and, when a part is
+// missing, why.
+type Publication struct {
+	HostID, HostName string
+	Records          []dns.Generated
+	Rewrite          string
+	Reason           string
+}
+
+// Publication explains service id.
+func (m *Manager) Publication(ctx context.Context, resolve services.TargetResolver, id string) (Publication, error) {
+	g, err := settings.Get[settings.General](ctx, m.st.R)
+	if err != nil {
+		return Publication{}, err
+	}
+	s, err := services.Get(ctx, m.st.R, id)
+	if err != nil {
+		return Publication{}, err
+	}
+	rows, err := m.st.R.ListFirewallHosts(ctx)
+	if err != nil {
+		return Publication{}, err
+	}
+	hosts := make([]Effective, 0, len(rows))
+	for _, r := range rows {
+		hosts = append(hosts, EffectiveOf(r))
+	}
+	got, err := services.Resolve(ctx, []services.Service{s}, resolve)
+	if err != nil {
+		return Publication{}, err
+	}
+	s = got[0]
+	root := strings.TrimSuffix(strings.ToLower(g.RootDomain), ".")
+	var p Publication
+	home, matched := homeHost(s, hosts, root)
+	if matched {
+		p.HostID, p.HostName = home.Row.ID, home.Row.Name
+	}
+	for _, r := range GenerateRecords(root, hosts, []services.Service{s}) {
+		if r.Source == "service "+s.Name {
+			p.Records = append(p.Records, r)
+		}
+	}
+	for _, r := range DesiredRewrites(root, hosts, []services.Service{s}) {
+		p.Rewrite = r.Answer
+	}
+	switch {
+	case !s.Enabled:
+		p.Reason = "Not published while the service is turned off."
+	case !s.Renderable():
+		p.Reason = "Not published: " + s.InvalidReason
+	case s.HostName == "":
+		p.Reason = "It has no public name."
+	case !matched && len(p.Records) == 0:
+		p.Reason = "No firewall host has this upstream among its addresses or managed networks, so Hashi doesn't know " +
+			"which entry it sits behind: no public record and no AdGuard rewrite. Add the host it runs behind, or its network."
+	case matched && len(p.Records) == 0:
+		p.Reason = home.Row.Name + " has no public address yet: nothing to point the record at."
+	case !matched:
+		p.Reason = "No firewall host has this upstream, so it gets no AdGuard rewrite; the public record points at its public address."
+	case s.AdGuardRewrite && p.Rewrite == "":
+		p.Reason = home.Row.Name + " has no internal Traefik address, so there is no AdGuard rewrite."
+	}
+	return p, nil
+}

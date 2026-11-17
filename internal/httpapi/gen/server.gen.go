@@ -60,6 +60,27 @@ func (e AdGuardConnectionInputMode) Valid() bool {
 	}
 }
 
+// Defines values for AddressHostVerdictVerdict.
+const (
+	Allowed AddressHostVerdictVerdict = "allowed"
+	Blocked AddressHostVerdictVerdict = "blocked"
+	Neutral AddressHostVerdictVerdict = "neutral"
+)
+
+// Valid indicates whether the value is a known member of the AddressHostVerdictVerdict enum.
+func (e AddressHostVerdictVerdict) Valid() bool {
+	switch e {
+	case Allowed:
+		return true
+	case Blocked:
+		return true
+	case Neutral:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AgentDNSSettingsIpMode.
 const (
 	AgentDNSSettingsIpModePrivate  AgentDNSSettingsIpMode = "private"
@@ -2479,11 +2500,35 @@ type AdGuardRewrites struct {
 	} `json:"rewrites"`
 }
 
+// AddressHostVerdict defines model for AddressHostVerdict.
+type AddressHostVerdict struct {
+	// HostAccess The host's own access sets contain the address (it may reach the host itself)
+	HostAccess bool   `json:"host_access"`
+	HostId     string `json:"host_id"`
+	HostName   string `json:"host_name"`
+
+	// Prefix The deciding prefix; absent when neutral
+	Prefix *string `json:"prefix,omitempty"`
+
+	// SetId The bound set the deciding prefix came from
+	SetId   *string `json:"set_id,omitempty"`
+	SetName *string `json:"set_name,omitempty"`
+
+	// Verdict Global allow against block, longest prefix wins, tie blocks
+	Verdict AddressHostVerdictVerdict `json:"verdict"`
+}
+
+// AddressHostVerdictVerdict Global allow against block, longest prefix wins, tie blocks
+type AddressHostVerdictVerdict string
+
 // AddressLookup defines model for AddressLookup.
 type AddressLookup struct {
 	// Address Normalized (IPv4-mapped IPv6 shown as IPv4)
-	Address string            `json:"address"`
-	Sets    []AddressSetMatch `json:"sets"`
+	Address string `json:"address"`
+
+	// Firewall One verdict per managed firewall host (05 §4.3)
+	Firewall []AddressHostVerdict `json:"firewall"`
+	Sets     []AddressSetMatch    `json:"sets"`
 }
 
 // AddressMatch defines model for AddressMatch.
@@ -3276,14 +3321,19 @@ type FirewallFacts struct {
 
 // FirewallHost defines model for FirewallHost.
 type FirewallHost struct {
-	Auth               FirewallHostAuth        `json:"auth"`
-	DropOtherInbound   bool                    `json:"drop_other_inbound"`
-	EdgeMode           FirewallHostEdgeMode    `json:"edge_mode"`
-	Facts              *FirewallFacts          `json:"facts"`
-	Health             FirewallHostHealth      `json:"health"`
-	Host               string                  `json:"host"`
-	HostKeyFingerprint string                  `json:"host_key_fingerprint"`
-	Id                 string                  `json:"id"`
+	// AddressAgentId The Pulse agent the addresses come from; absent = detected or set by hand
+	AddressAgentId     *string              `json:"address_agent_id,omitempty"`
+	Auth               FirewallHostAuth     `json:"auth"`
+	DropOtherInbound   bool                 `json:"drop_other_inbound"`
+	EdgeMode           FirewallHostEdgeMode `json:"edge_mode"`
+	Facts              *FirewallFacts       `json:"facts"`
+	Health             FirewallHostHealth   `json:"health"`
+	Host               string               `json:"host"`
+	HostKeyFingerprint string               `json:"host_key_fingerprint"`
+	Id                 string               `json:"id"`
+
+	// InternalIps Addresses host items with scope internal resolve to
+	InternalIps        *[]string               `json:"internal_ips,omitempty"`
 	InternalTraefikIp  string                  `json:"internal_traefik_ip"`
 	LastAppliedAt      *time.Time              `json:"last_applied_at"`
 	LastError          string                  `json:"last_error"`
@@ -3327,8 +3377,10 @@ type FirewallHostNetbirdMode string
 
 // FirewallHostInput defines model for FirewallHostInput.
 type FirewallHostInput struct {
-	Auth       *FirewallHostInputAuth `json:"auth,omitempty"`
-	Credential *string                `json:"credential,omitempty"`
+	// AddressAgentId external_nat: take the public and internal addresses from this Pulse agent (bug 23)
+	AddressAgentId *string                `json:"address_agent_id,omitempty"`
+	Auth           *FirewallHostInputAuth `json:"auth,omitempty"`
+	Credential     *string                `json:"credential,omitempty"`
 
 	// DropOtherInbound The admin accepted dropping every other new inbound connection
 	DropOtherInbound *bool                     `json:"drop_other_inbound,omitempty"`
@@ -3696,8 +3748,11 @@ type IPSetIDs struct {
 // IPSetInput defines model for IPSetInput.
 type IPSetInput struct {
 	Description *string `json:"description,omitempty"`
-	Name        string  `json:"name"`
-	Slug        string  `json:"slug"`
+
+	// FirstItem On create only: added in the same step; a refused item creates nothing (bug 66)
+	FirstItem *IPSetElementInput `json:"first_item,omitempty"`
+	Name      string             `json:"name"`
+	Slug      string             `json:"slug"`
 }
 
 // IPSetList defines model for IPSetList.
@@ -3713,6 +3768,12 @@ type IPSetProblem struct {
 	// Path Slugs from the compiled set to the failing item's set
 	Path  []string `json:"path"`
 	SetId string   `json:"set_id"`
+}
+
+// IPSetRef defines model for IPSetRef.
+type IPSetRef struct {
+	Id   string `json:"id"`
+	Name string `json:"name"`
 }
 
 // IPSetResolved defines model for IPSetResolved.
@@ -3816,24 +3877,27 @@ type MonitorCheck struct {
 
 // MonitorEndpoint defines model for MonitorEndpoint.
 type MonitorEndpoint struct {
-	Checks          []MonitorCheck       `json:"checks"`
-	DegradedMs      int64                `json:"degraded_ms"`
-	Group           string               `json:"group"`
-	Id              string               `json:"id"`
-	IntervalSeconds int64                `json:"interval_seconds"`
-	LastCheckAt     *time.Time           `json:"last_check_at,omitempty"`
-	LastLatencyMs   *int64               `json:"last_latency_ms,omitempty"`
-	Name            string               `json:"name"`
-	Paused          bool                 `json:"paused"`
-	PendingDns      *bool                `json:"pending_dns,omitempty"`
-	Public          bool                 `json:"public"`
-	RouteProviderId *string              `json:"route_provider_id,omitempty"`
-	SourceType      string               `json:"source_type"`
-	State           MonitorState         `json:"state"`
-	StateSince      *time.Time           `json:"state_since,omitempty"`
-	Strip           []MonitorStripSample `json:"strip"`
-	TimeoutSeconds  int64                `json:"timeout_seconds"`
-	Uptime24h       *float64             `json:"uptime_24h,omitempty"`
+	Checks          []MonitorCheck `json:"checks"`
+	DegradedMs      int64          `json:"degraded_ms"`
+	Group           string         `json:"group"`
+	Id              string         `json:"id"`
+	IntervalSeconds int64          `json:"interval_seconds"`
+	LastCheckAt     *time.Time     `json:"last_check_at,omitempty"`
+	LastLatencyMs   *int64         `json:"last_latency_ms,omitempty"`
+	Name            string         `json:"name"`
+	Paused          bool           `json:"paused"`
+	PendingDns      *bool          `json:"pending_dns,omitempty"`
+	Public          bool           `json:"public"`
+	RouteProviderId *string        `json:"route_provider_id,omitempty"`
+
+	// SourceId What made it, for a link: the service, DNS record, firewall host or Traefik host ID
+	SourceId       *string              `json:"source_id,omitempty"`
+	SourceType     string               `json:"source_type"`
+	State          MonitorState         `json:"state"`
+	StateSince     *time.Time           `json:"state_since,omitempty"`
+	Strip          []MonitorStripSample `json:"strip"`
+	TimeoutSeconds int64                `json:"timeout_seconds"`
+	Uptime24h      *float64             `json:"uptime_24h,omitempty"`
 }
 
 // MonitorEndpointCreate defines model for MonitorEndpointCreate.
@@ -4087,6 +4151,22 @@ type PublicEndpoint struct {
 	Uptime24h  *float64             `json:"uptime_24h,omitempty"`
 }
 
+// PublicPageLink defines model for PublicPageLink.
+type PublicPageLink struct {
+	Name      string `json:"name"`
+	ServiceId string `json:"service_id"`
+
+	// Upstream Hashi's address and the port the page listens on, as the service reaches it
+	Upstream string `json:"upstream"`
+	Url      string `json:"url"`
+}
+
+// PublicPages defines model for PublicPages.
+type PublicPages struct {
+	Apps   []PublicPageLink `json:"apps"`
+	Status []PublicPageLink `json:"status"`
+}
+
 // PublicStatus defines model for PublicStatus.
 type PublicStatus struct {
 	// CustomTheme The admin's palette (10-ui §2); the other roles are derived. Refused when text is unreadable.
@@ -4097,26 +4177,46 @@ type PublicStatus struct {
 	UpdatedAt   *time.Time       `json:"updated_at,omitempty"`
 }
 
+// PublishedRecord defines model for PublishedRecord.
+type PublishedRecord struct {
+	Name   string   `json:"name"`
+	Type   string   `json:"type"`
+	Values []string `json:"values"`
+}
+
+// PulseAddress defines model for PulseAddress.
+type PulseAddress struct {
+	Address   string `json:"address"`
+	Interface string `json:"interface"`
+}
+
 // PulseAgent defines model for PulseAgent.
 type PulseAgent struct {
-	Candidates []string `json:"candidates"`
-	DnsEnabled bool     `json:"dns_enabled"`
-	DnsName    string   `json:"dns_name"`
+	// Addresses Every address the agent reports, with its interface
+	Addresses  []PulseAddress `json:"addresses"`
+	Candidates []string       `json:"candidates"`
+	DnsEnabled bool           `json:"dns_enabled"`
+	DnsName    string         `json:"dns_name"`
 
 	// ExpectedVersion The agent version this Hashi installs
-	ExpectedVersion string                   `json:"expected_version"`
-	Hostname        string                   `json:"hostname"`
-	Id              string                   `json:"id"`
-	InstallType     string                   `json:"install_type"`
-	IntervalSeconds int                      `json:"interval_seconds"`
-	LastSeenAt      *time.Time               `json:"last_seen_at,omitempty"`
-	Name            string                   `json:"name"`
-	PublicIp        string                   `json:"public_ip"`
-	PublicIpSource  PulseAgentPublicIpSource `json:"public_ip_source"`
-	ReachPort       int                      `json:"reach_port"`
+	ExpectedVersion string     `json:"expected_version"`
+	Hostname        string     `json:"hostname"`
+	Id              string     `json:"id"`
+	InstallType     string     `json:"install_type"`
+	IntervalSeconds int        `json:"interval_seconds"`
+	LastSeenAt      *time.Time `json:"last_seen_at,omitempty"`
+	Name            string     `json:"name"`
+
+	// PinnedIp The admin's choice of main address (bug 22); empty = the agent chooses
+	PinnedIp       string                   `json:"pinned_ip"`
+	PublicIp       string                   `json:"public_ip"`
+	PublicIpSource PulseAgentPublicIpSource `json:"public_ip_source"`
+	ReachPort      int                      `json:"reach_port"`
 
 	// Reachable Left out until a port is set and checked
-	Reachable       *bool            `json:"reachable,omitempty"`
+	Reachable *bool `json:"reachable,omitempty"`
+
+	// SelectedIp The main address: what services, DNS and internal pulse items use first
 	SelectedIp      string           `json:"selected_ip"`
 	Status          PulseAgentStatus `json:"status"`
 	TrustReportedIp bool             `json:"trust_reported_ip"`
@@ -4172,7 +4272,13 @@ type PulseAgentUpdate struct {
 // PulseConsumers defines model for PulseConsumers.
 type PulseConsumers struct {
 	Consumers []string `json:"consumers"`
-	Sets      []string `json:"sets"`
+
+	// Direct What targets the agent directly (its hidden set)
+	Direct []IPSetConsumer `json:"direct"`
+
+	// SetRefs The admin's sets holding the agent, for links
+	SetRefs []IPSetRef `json:"set_refs"`
+	Sets    []string   `json:"sets"`
 }
 
 // PulseHeartbeat defines model for PulseHeartbeat.
@@ -4215,6 +4321,12 @@ type PulseInstall struct {
 
 	// Linux One-line install; <token> stands for the token, shown once
 	Linux string `json:"linux"`
+}
+
+// PulseMainAddress defines model for PulseMainAddress.
+type PulseMainAddress struct {
+	// Address One of the agent's reported addresses; empty gives the choice back to the agent
+	Address string `json:"address"`
 }
 
 // PulseSettings defines model for PulseSettings.
@@ -4840,6 +4952,20 @@ type ServicePlans struct {
 	Plans []SyncPlan `json:"plans"`
 }
 
+// ServicePublication defines model for ServicePublication.
+type ServicePublication struct {
+	// HostId The firewall host the upstream sits behind (03 §5.2); absent when none matches
+	HostId   *string `json:"host_id,omitempty"`
+	HostName *string `json:"host_name,omitempty"`
+
+	// Reason Why nothing or only part is published; empty when everything is
+	Reason  string            `json:"reason"`
+	Records []PublishedRecord `json:"records"`
+
+	// Rewrite The AdGuard answer for the name; absent when there is none
+	Rewrite *string `json:"rewrite,omitempty"`
+}
+
 // ServiceRoute defines model for ServiceRoute.
 type ServiceRoute struct {
 	Enabled bool `json:"enabled"`
@@ -4883,9 +5009,12 @@ type ServiceSaveResult struct {
 
 // ServiceTarget defines model for ServiceTarget.
 type ServiceTarget struct {
-	// Address IP address or host name; empty when set_id names an address set
+	// Address IP address or host name; empty when set_id or agent_id is given
 	Address string `json:"address"`
-	Port    int    `json:"port"`
+
+	// AgentId A Pulse agent whose internal addresses are followed (the service's own target only); instead of address and set_id
+	AgentId *string `json:"agent_id,omitempty"`
+	Port    int     `json:"port"`
 
 	// SetId An address set (05a §5.2) whose addresses are load-balanced; instead of address
 	SetId *string `json:"set_id,omitempty"`
@@ -5224,8 +5353,8 @@ type TraefikConnectionInput struct {
 	Credential *string `json:"credential,omitempty"`
 	Host       string  `json:"host"`
 
-	// HostKey `key` from the scan the admin confirmed
-	HostKey       []byte  `json:"host_key"`
+	// HostKey `key` from the scan the admin confirmed; required to add, omitted on an update keeps the pinned key
+	HostKey       *[]byte `json:"host_key,omitempty"`
 	InternalIp    *string `json:"internal_ip,omitempty"`
 	Name          string  `json:"name"`
 	Passphrase    *string `json:"passphrase,omitempty"`
@@ -5599,6 +5728,9 @@ type CreatePulseAgentJSONRequestBody = PulseAgentCreate
 // UpdatePulseAgentJSONRequestBody defines body for UpdatePulseAgent for application/json ContentType.
 type UpdatePulseAgentJSONRequestBody = PulseAgentUpdate
 
+// SetPulseMainAddressJSONRequestBody defines body for SetPulseMainAddress for application/json ContentType.
+type SetPulseMainAddressJSONRequestBody = PulseMainAddress
+
 // PulseHeartbeatJSONRequestBody defines body for PulseHeartbeat for application/json ContentType.
 type PulseHeartbeatJSONRequestBody = PulseHeartbeat
 
@@ -5730,6 +5862,9 @@ type PutTraefikSSHTargetJSONRequestBody = SSHTarget
 
 // AddTraefikHostJSONRequestBody defines body for AddTraefikHost for application/json ContentType.
 type AddTraefikHostJSONRequestBody = TraefikConnectionInput
+
+// UpdateTraefikHostJSONRequestBody defines body for UpdateTraefikHost for application/json ContentType.
+type UpdateTraefikHostJSONRequestBody = TraefikConnectionInput
 
 // ScanTraefikHostJSONRequestBody defines body for ScanTraefikHost for application/json ContentType.
 type ScanTraefikHostJSONRequestBody = HostKeyScanInput
@@ -6074,6 +6209,9 @@ type ServerInterface interface {
 	// TestAdGuardConnection Connect now and record the result
 	// (POST /api/adguard/connections/{id}/test)
 	TestAdGuardConnection(w http.ResponseWriter, r *http.Request, id string)
+	// GetPublicPages The services that publish the public app dashboard and status page
+	// (GET /api/app-display/pages)
+	GetPublicPages(w http.ResponseWriter, r *http.Request)
 	// BootstrapLogin Sign in with the one-time bootstrap credentials (private networks only, before setup completes)
 	// (POST /api/auth/bootstrap/login)
 	BootstrapLogin(w http.ResponseWriter, r *http.Request)
@@ -6350,6 +6488,9 @@ type ServerInterface interface {
 	// GetPulseInstall The install command and Compose snippet; the token is a placeholder
 	// (GET /api/pulse/agents/{id}/install)
 	GetPulseInstall(w http.ResponseWriter, r *http.Request, id string)
+	// SetPulseMainAddress Pin the address services and DNS use for this agent, or give the choice back to it
+	// (PUT /api/pulse/agents/{id}/main-address)
+	SetPulseMainAddress(w http.ResponseWriter, r *http.Request, id string)
 	// RevokePulseAgent Stop the token; the agent resolves to nothing
 	// (POST /api/pulse/agents/{id}/revoke)
 	RevokePulseAgent(w http.ResponseWriter, r *http.Request, id string)
@@ -6482,6 +6623,9 @@ type ServerInterface interface {
 	// EnableService Turn a user service on (it is rendered again)
 	// (POST /api/services/{id}/enable)
 	EnableService(w http.ResponseWriter, r *http.Request, id string)
+	// GetServicePublication Where the service is published (public records, AdGuard answer), the host it sits behind, and why a part is missing
+	// (GET /api/services/{id}/publication)
+	GetServicePublication(w http.ResponseWriter, r *http.Request, id string)
 	// GetServiceWAF The service's WAF mode, rule exclusions and paths (06 §9)
 	// (GET /api/services/{id}/waf)
 	GetServiceWAF(w http.ResponseWriter, r *http.Request, id string)
@@ -6692,6 +6836,9 @@ type ServerInterface interface {
 	// RemoveTraefikHost Forget a Traefik host; nothing on the host itself changes
 	// (DELETE /api/traefik/hosts/{id})
 	RemoveTraefikHost(w http.ResponseWriter, r *http.Request, id string)
+	// UpdateTraefikHost Change a Traefik host's name, SSH address, login or pinned key (bug 24)
+	// (PUT /api/traefik/hosts/{id})
+	UpdateTraefikHost(w http.ResponseWriter, r *http.Request, id string)
 	// GetTraefikIdentity Hashi's own SSH public key, to install on a new Traefik host
 	// (GET /api/traefik/identity)
 	GetTraefikIdentity(w http.ResponseWriter, r *http.Request)
@@ -7067,6 +7214,20 @@ func (siw *ServerInterfaceWrapper) TestAdGuardConnection(w http.ResponseWriter, 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.TestAdGuardConnection(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetPublicPages operation middleware
+func (siw *ServerInterfaceWrapper) GetPublicPages(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetPublicPages(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -9090,6 +9251,32 @@ func (siw *ServerInterfaceWrapper) GetPulseInstall(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// SetPulseMainAddress operation middleware
+func (siw *ServerInterfaceWrapper) SetPulseMainAddress(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetPulseMainAddress(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RevokePulseAgent operation middleware
 func (siw *ServerInterfaceWrapper) RevokePulseAgent(w http.ResponseWriter, r *http.Request) {
 
@@ -10224,6 +10411,32 @@ func (siw *ServerInterfaceWrapper) EnableService(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.EnableService(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetServicePublication operation middleware
+func (siw *ServerInterfaceWrapper) GetServicePublication(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetServicePublication(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -11369,6 +11582,32 @@ func (siw *ServerInterfaceWrapper) RemoveTraefikHost(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// UpdateTraefikHost operation middleware
+func (siw *ServerInterfaceWrapper) UpdateTraefikHost(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateTraefikHost(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetTraefikIdentity operation middleware
 func (siw *ServerInterfaceWrapper) GetTraefikIdentity(w http.ResponseWriter, r *http.Request) {
 
@@ -11888,6 +12127,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/pulse/agents", wrapper.CreatePulseAgent)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/pulse/agents/{id}", wrapper.DeletePulseAgent)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/pulse/agents/{id}", wrapper.UpdatePulseAgent)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/pulse/agents/{id}/main-address", wrapper.SetPulseMainAddress)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/pulse/agents/{id}/rotate-token", wrapper.RotatePulseToken)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/pulse/agents/{id}/revoke", wrapper.RevokePulseAgent)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/firewall/hosts/{id}/ssh-target", wrapper.PutFirewallHostSSHTarget)
@@ -11930,6 +12170,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/traefik/scan", wrapper.ScanTraefikHost)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/traefik/hosts", wrapper.AddTraefikHost)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/traefik/hosts/{id}", wrapper.RemoveTraefikHost)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/api/traefik/hosts/{id}", wrapper.UpdateTraefikHost)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/traefik/connections/{id}/plan", wrapper.PlanTraefikConnection)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/services", wrapper.ListServices)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/services", wrapper.CreateService)
@@ -11984,6 +12225,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/api/ip-sets/{id}/entries/{address}", wrapper.RemoveDynamicEntry)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/ip-sets/{id}/consumers", wrapper.GetIPSetConsumers)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/api/addresses/{address}/counters", wrapper.EditAddressCounters)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/services/{id}/publication", wrapper.GetServicePublication)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/app-display/pages", wrapper.GetPublicPages)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/addresses/{address}", wrapper.LookupAddress)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/api/certificates", wrapper.ListCertificates)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/api/certificates/{id}/renew", wrapper.RenewCertificate)
@@ -12474,6 +12717,44 @@ type TestAdGuardConnectiondefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response TestAdGuardConnectiondefaultApplicationProblemPlusJSONResponse) VisitTestAdGuardConnectionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPublicPagesRequestObject struct {
+}
+
+type GetPublicPagesResponseObject interface {
+	VisitGetPublicPagesResponse(w http.ResponseWriter) error
+}
+
+type GetPublicPages200JSONResponse PublicPages
+
+func (response GetPublicPages200JSONResponse) VisitGetPublicPagesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetPublicPagesdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetPublicPagesdefaultApplicationProblemPlusJSONResponse) VisitGetPublicPagesResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -16042,6 +16323,46 @@ func (response GetPulseInstalldefaultApplicationProblemPlusJSONResponse) VisitGe
 	return err
 }
 
+type SetPulseMainAddressRequestObject struct {
+	Id   string `json:"id"`
+	Body *SetPulseMainAddressJSONRequestBody
+}
+
+type SetPulseMainAddressResponseObject interface {
+	VisitSetPulseMainAddressResponse(w http.ResponseWriter) error
+}
+
+type SetPulseMainAddress200JSONResponse PulseAgent
+
+func (response SetPulseMainAddress200JSONResponse) VisitSetPulseMainAddressResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetPulseMainAddressdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response SetPulseMainAddressdefaultApplicationProblemPlusJSONResponse) VisitSetPulseMainAddressResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type RevokePulseAgentRequestObject struct {
 	Id string `json:"id"`
 }
@@ -17727,6 +18048,45 @@ type EnableServicedefaultApplicationProblemPlusJSONResponse struct {
 }
 
 func (response EnableServicedefaultApplicationProblemPlusJSONResponse) VisitEnableServiceResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetServicePublicationRequestObject struct {
+	Id string `json:"id"`
+}
+
+type GetServicePublicationResponseObject interface {
+	VisitGetServicePublicationResponse(w http.ResponseWriter) error
+}
+
+type GetServicePublication200JSONResponse ServicePublication
+
+func (response GetServicePublication200JSONResponse) VisitGetServicePublicationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetServicePublicationdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response GetServicePublicationdefaultApplicationProblemPlusJSONResponse) VisitGetServicePublicationResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
@@ -20425,6 +20785,46 @@ func (response RemoveTraefikHostdefaultApplicationProblemPlusJSONResponse) Visit
 	return err
 }
 
+type UpdateTraefikHostRequestObject struct {
+	Id   string `json:"id"`
+	Body *UpdateTraefikHostJSONRequestBody
+}
+
+type UpdateTraefikHostResponseObject interface {
+	VisitUpdateTraefikHostResponse(w http.ResponseWriter) error
+}
+
+type UpdateTraefikHost200JSONResponse TraefikConnection
+
+func (response UpdateTraefikHost200JSONResponse) VisitUpdateTraefikHostResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateTraefikHostdefaultApplicationProblemPlusJSONResponse struct {
+	Body       Problem
+	StatusCode int
+}
+
+func (response UpdateTraefikHostdefaultApplicationProblemPlusJSONResponse) VisitUpdateTraefikHostResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response.Body); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(response.StatusCode)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetTraefikIdentityRequestObject struct {
 }
 
@@ -21158,6 +21558,9 @@ type StrictServerInterface interface {
 	// TestAdGuardConnection Connect now and record the result
 	// (POST /api/adguard/connections/{id}/test)
 	TestAdGuardConnection(ctx context.Context, request TestAdGuardConnectionRequestObject) (TestAdGuardConnectionResponseObject, error)
+	// GetPublicPages The services that publish the public app dashboard and status page
+	// (GET /api/app-display/pages)
+	GetPublicPages(ctx context.Context, request GetPublicPagesRequestObject) (GetPublicPagesResponseObject, error)
 	// BootstrapLogin Sign in with the one-time bootstrap credentials (private networks only, before setup completes)
 	// (POST /api/auth/bootstrap/login)
 	BootstrapLogin(ctx context.Context, request BootstrapLoginRequestObject) (BootstrapLoginResponseObject, error)
@@ -21434,6 +21837,9 @@ type StrictServerInterface interface {
 	// GetPulseInstall The install command and Compose snippet; the token is a placeholder
 	// (GET /api/pulse/agents/{id}/install)
 	GetPulseInstall(ctx context.Context, request GetPulseInstallRequestObject) (GetPulseInstallResponseObject, error)
+	// SetPulseMainAddress Pin the address services and DNS use for this agent, or give the choice back to it
+	// (PUT /api/pulse/agents/{id}/main-address)
+	SetPulseMainAddress(ctx context.Context, request SetPulseMainAddressRequestObject) (SetPulseMainAddressResponseObject, error)
 	// RevokePulseAgent Stop the token; the agent resolves to nothing
 	// (POST /api/pulse/agents/{id}/revoke)
 	RevokePulseAgent(ctx context.Context, request RevokePulseAgentRequestObject) (RevokePulseAgentResponseObject, error)
@@ -21566,6 +21972,9 @@ type StrictServerInterface interface {
 	// EnableService Turn a user service on (it is rendered again)
 	// (POST /api/services/{id}/enable)
 	EnableService(ctx context.Context, request EnableServiceRequestObject) (EnableServiceResponseObject, error)
+	// GetServicePublication Where the service is published (public records, AdGuard answer), the host it sits behind, and why a part is missing
+	// (GET /api/services/{id}/publication)
+	GetServicePublication(ctx context.Context, request GetServicePublicationRequestObject) (GetServicePublicationResponseObject, error)
 	// GetServiceWAF The service's WAF mode, rule exclusions and paths (06 §9)
 	// (GET /api/services/{id}/waf)
 	GetServiceWAF(ctx context.Context, request GetServiceWAFRequestObject) (GetServiceWAFResponseObject, error)
@@ -21776,6 +22185,9 @@ type StrictServerInterface interface {
 	// RemoveTraefikHost Forget a Traefik host; nothing on the host itself changes
 	// (DELETE /api/traefik/hosts/{id})
 	RemoveTraefikHost(ctx context.Context, request RemoveTraefikHostRequestObject) (RemoveTraefikHostResponseObject, error)
+	// UpdateTraefikHost Change a Traefik host's name, SSH address, login or pinned key (bug 24)
+	// (PUT /api/traefik/hosts/{id})
+	UpdateTraefikHost(ctx context.Context, request UpdateTraefikHostRequestObject) (UpdateTraefikHostResponseObject, error)
 	// GetTraefikIdentity Hashi's own SSH public key, to install on a new Traefik host
 	// (GET /api/traefik/identity)
 	GetTraefikIdentity(ctx context.Context, request GetTraefikIdentityRequestObject) (GetTraefikIdentityResponseObject, error)
@@ -22201,6 +22613,30 @@ func (sh *strictHandler) TestAdGuardConnection(w http.ResponseWriter, r *http.Re
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(TestAdGuardConnectionResponseObject); ok {
 		if err := validResponse.VisitTestAdGuardConnectionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetPublicPages operation middleware
+func (sh *strictHandler) GetPublicPages(w http.ResponseWriter, r *http.Request) {
+	var request GetPublicPagesRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetPublicPages(ctx, request.(GetPublicPagesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetPublicPages")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetPublicPagesResponseObject); ok {
+		if err := validResponse.VisitGetPublicPagesResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -24771,6 +25207,39 @@ func (sh *strictHandler) GetPulseInstall(w http.ResponseWriter, r *http.Request,
 	}
 }
 
+// SetPulseMainAddress operation middleware
+func (sh *strictHandler) SetPulseMainAddress(w http.ResponseWriter, r *http.Request, id string) {
+	var request SetPulseMainAddressRequestObject
+
+	request.Id = id
+
+	var body SetPulseMainAddressJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetPulseMainAddress(ctx, request.(SetPulseMainAddressRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetPulseMainAddress")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetPulseMainAddressResponseObject); ok {
+		if err := validResponse.VisitSetPulseMainAddressResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // RevokePulseAgent operation middleware
 func (sh *strictHandler) RevokePulseAgent(w http.ResponseWriter, r *http.Request, id string) {
 	var request RevokePulseAgentRequestObject
@@ -25991,6 +26460,32 @@ func (sh *strictHandler) EnableService(w http.ResponseWriter, r *http.Request, i
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(EnableServiceResponseObject); ok {
 		if err := validResponse.VisitEnableServiceResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetServicePublication operation middleware
+func (sh *strictHandler) GetServicePublication(w http.ResponseWriter, r *http.Request, id string) {
+	var request GetServicePublicationRequestObject
+
+	request.Id = id
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetServicePublication(ctx, request.(GetServicePublicationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetServicePublication")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetServicePublicationResponseObject); ok {
+		if err := validResponse.VisitGetServicePublicationResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -27893,6 +28388,39 @@ func (sh *strictHandler) RemoveTraefikHost(w http.ResponseWriter, r *http.Reques
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(RemoveTraefikHostResponseObject); ok {
 		if err := validResponse.VisitRemoveTraefikHostResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateTraefikHost operation middleware
+func (sh *strictHandler) UpdateTraefikHost(w http.ResponseWriter, r *http.Request, id string) {
+	var request UpdateTraefikHostRequestObject
+
+	request.Id = id
+
+	var body UpdateTraefikHostJSONRequestBody
+	if err := runtime.BindJSONBody(r, &body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateTraefikHost(ctx, request.(UpdateTraefikHostRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateTraefikHost")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateTraefikHostResponseObject); ok {
+		if err := validResponse.VisitUpdateTraefikHostResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

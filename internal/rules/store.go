@@ -13,6 +13,7 @@ import (
 
 	"github.com/oklog/ulid/v2"
 
+	"git.juzo.io/juzo/hashi/internal/ipsets"
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/store/db"
 )
@@ -309,4 +310,22 @@ func b2i(b bool) int64 {
 		return 1
 	}
 	return 0
+}
+
+// Consumers lists the rule sets whose items match one of their requests against set id (bug 57), so the set's Used
+// by shows them and the set cannot be deleted from under them. A service's own rules name the service.
+func Consumers(ctx context.Context, q *db.Queries, id string) ([]ipsets.Consumer, error) {
+	rows, err := q.ListRuleItemsUsingIPSet(ctx, sql.NullString{String: id, Valid: true})
+	if err != nil {
+		return nil, fmt.Errorf("rules using set %s: %w", id, err)
+	}
+	out := make([]ipsets.Consumer, 0, len(rows))
+	for _, r := range rows {
+		c := ipsets.Consumer{Type: "rule_set", ID: r.ID, Name: "Rule set " + r.Name, Position: ipsets.PositionMatch}
+		if r.ServiceID.Valid {
+			c = ipsets.Consumer{Type: "service_rules", ID: r.ServiceID.String, Name: "Access rules of " + r.ServiceName, Position: ipsets.PositionMatch}
+		}
+		out = append(out, c)
+	}
+	return out, nil
 }

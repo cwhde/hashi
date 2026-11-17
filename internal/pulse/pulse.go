@@ -185,16 +185,32 @@ func (s *Service) Delete(ctx context.Context, id string) error {
 	if _, err := s.get(ctx, id); err != nil {
 		return err
 	}
+	// Its hidden set (a direct target, bug 17) goes with it when nothing targets the agent any more; a set still
+	// referenced stays, its references are ON DELETE RESTRICT.
+	_ = s.st.Q.DeleteIPSet(ctx, ipsets.AgentSetID(id))
 	sets, err := s.st.R.ListIPSetsUsingAgent(ctx, sql.NullString{String: id, Valid: true})
 	if err != nil {
 		return err
 	}
+	hosts, err := s.st.R.ListFirewallHostsFollowingAgents(ctx)
+	if err != nil {
+		return err
+	}
+	for _, h := range hosts {
+		if h.AddressAgentID.String == id {
+			return fmt.Errorf("%w: firewall host %s takes its addresses from it", ErrInUse, h.Name)
+		}
+	}
 	if len(sets) > 0 {
 		names := make([]string, 0, len(sets))
 		for _, x := range sets {
-			names = append(names, x.Name)
+			if x.ID == ipsets.AgentSetID(id) {
+				names = append(names, "services or connections that target it directly")
+				continue
+			}
+			names = append(names, "IP set "+x.Name)
 		}
-		return fmt.Errorf("%w: IP sets %s use it", ErrInUse, strings.Join(names, ", "))
+		return fmt.Errorf("%w: %s use it", ErrInUse, strings.Join(names, ", "))
 	}
 	return s.st.Q.DeletePulseAgent(ctx, id)
 }
@@ -257,7 +273,7 @@ func (s *Service) Heartbeat(ctx context.Context, id, token string, b Beat, sourc
 	if err != nil {
 		return Reply{}, err
 	}
-	selected := selectIP(cands, b.SelectedInterface, row.SelectedIp)
+	selected := selectIP(cands, row.PinnedIp, b.SelectedInterface, row.SelectedIp)
 	public, origin := publicAddress(row, source, b.ReportedPublic)
 	install := row.InstallType
 	if b.InDocker {
@@ -380,7 +396,14 @@ func clean(in []Candidate) ([]Candidate, error) {
 
 // selectIP keeps the current choice while it is still reported, so an address does not flap between interfaces. An
 // interface the admin named wins; otherwise the first private IPv4, then anything.
-func selectIP(cands []Candidate, iface, current string) string {
+func selectIP(cands []Candidate, pinned, iface, current string) string {
+	has := func(a string) bool {
+		return slices.ContainsFunc(cands, func(c Candidate) bool { return c.Address == a })
+	}
+	// The admin's choice wins while the agent still reports it (bug 22); otherwise the agent's own choice.
+	if pinned != "" && has(pinned) {
+		return pinned
+	}
 	if iface != "" {
 		for _, c := range cands {
 			if c.Interface == iface {
@@ -388,7 +411,7 @@ func selectIP(cands []Candidate, iface, current string) string {
 			}
 		}
 	}
-	if slices.ContainsFunc(cands, func(c Candidate) bool { return c.Address == current }) {
+	if has(current) {
 		return current
 	}
 	for _, c := range cands {
@@ -400,6 +423,30 @@ func selectIP(cands []Candidate, iface, current string) string {
 		return cands[0].Address
 	}
 	return ""
+}
+
+// SetMainAddress pins the address services and DNS use for this agent (bug 22); "" gives the choice back to the
+// agent. Only an address the agent reports can be pinned; the change reaches every set using the agent.
+func (s *Service) SetMainAddress(ctx context.Context, id, addr string) (db.PulseAgent, error) {
+	row, err := s.get(ctx, id)
+	if err != nil {
+		return db.PulseAgent{}, err
+	}
+	cands := Candidates(row)
+	if addr != "" && !slices.ContainsFunc(cands, func(c Candidate) bool { return c.Address == addr }) {
+		return db.PulseAgent{}, fmt.Errorf("%w: the agent does not report %s", ErrInvalid, addr)
+	}
+	selected := selectIP(cands, addr, "", row.SelectedIp)
+	if addr == "" {
+		selected = row.SelectedIp // the agent chooses again at its next beat
+	}
+	if err := s.st.Q.SetPulsePinned(ctx, db.SetPulsePinnedParams{PinnedIp: addr, SelectedIp: selected, UpdatedAt: s.now().UnixMilli(), ID: id}); err != nil {
+		return db.PulseAgent{}, err
+	}
+	if selected != row.SelectedIp {
+		s.notify(ctx)
+	}
+	return s.get(ctx, id)
 }
 
 // Status of an agent (08 §2).

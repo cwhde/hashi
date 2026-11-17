@@ -4,12 +4,19 @@
 	import Mono from '#lib/components/hashi/Mono.svelte';
 	import Tag from '#lib/components/hashi/Tag.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 
 	// 03 §9, 10b §3: agents' internal names. DNS only: no service exists at these names.
 	let names = $state<Schemas['AgentDNSPreview']['rewrites']>([]);
 	let settings = $state<Schemas['AgentDNSSettings'] | null>(null);
 	let error = $state('');
+	let q = $state(''); // bug 64: the same filter Records has
+	const shown = $derived(
+		names.filter((a) =>
+			[a.domain, a.agent, a.answer].join(' ').toLowerCase().includes(q.trim().toLowerCase())
+		)
+	);
 	onMount(async () => {
 		const [n, s] = await Promise.all([
 			api.POST('/api/settings/internal-agent-dns/preview-sync'),
@@ -33,8 +40,14 @@
 		<p class="mb-2 text-md text-muted-foreground">Turned off in settings; nothing is written.</p>
 	{/if}
 	{#if names.length === 0}<p class="text-md text-muted-foreground">No agents yet.</p>{/if}
+	{#if names.length > 5}<Input
+			bind:value={q}
+			placeholder="Filter by name or address"
+			aria-label="Filter agent names"
+			class="mb-2 max-w-72"
+		/>{/if}
 	<ul class="divide-y text-md">
-		{#each names as a (a.agent_id)}
+		{#each shown as a (a.agent_id)}
 			<li class="flex flex-wrap items-center gap-3 py-2">
 				<Mono class="min-w-0 flex-1 truncate">{a.domain || a.agent}</Mono>
 				<Mono class="text-muted-foreground">{a.answer}</Mono>

@@ -5,6 +5,8 @@
 	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
 	import Tag from '#lib/components/hashi/Tag.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
+	import { Input } from '#lib/components/ui/input/index.ts';
+	import { page } from '$app/state';
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 
 	// 10b §3: each AdGuard instance's rewrites and what Hashi would change there. Reading changes nothing.
@@ -14,6 +16,12 @@
 		error?: string;
 	};
 	let items = $state<One[]>([]);
+	// Bug 64: Connections opens one instance (?instance=<id>); a filter narrows long lists by name or answer.
+	const only = $derived(page.url.searchParams.get('instance') ?? '');
+	const shown = $derived(only ? items.filter((it) => it.conn.id === only) : items);
+	let q = $state('');
+	const match = (domain: string, answer?: string) =>
+		(domain + ' ' + (answer ?? '')).toLowerCase().includes(q.trim().toLowerCase());
 	let error = $state('');
 	let loaded = $state(false);
 	onMount(async () => {
@@ -54,8 +62,21 @@
 		<Button class="mt-3" size="sm" variant="outline" href="/connections">Go to Connections</Button>
 	</Panel>
 {/if}
+{#if items.length}
+	<div class="mb-3 flex flex-wrap items-center gap-3">
+		<Input
+			bind:value={q}
+			placeholder="Filter by name or answer"
+			aria-label="Filter rewrites"
+			class="max-w-72"
+		/>
+		{#if only}<a href="/dns?tab=adguard" class="text-md underline underline-offset-2"
+				>Show every instance</a
+			>{/if}
+	</div>
+{/if}
 <div class="grid gap-4 lg:grid-cols-2">
-	{#each items as it (it.conn.id)}
+	{#each shown as it (it.conn.id)}
 		<Panel
 			title={it.conn.name}
 			description={it.data
@@ -69,7 +90,7 @@
 			{#if it.error}<p role="alert" class="text-md text-bad-text">{it.error}</p>{/if}
 			{#if it.data}
 				<ul class="space-y-1.5 text-md">
-					{#each it.data.rewrites as r, i (i)}
+					{#each it.data.rewrites.filter((r) => match(r.domain, r.answer)) as r, i (i)}
 						<li class="flex justify-between gap-3">
 							<Mono class="min-w-0 truncate">{r.domain}</Mono>
 							<span class="flex items-center gap-2"
@@ -85,7 +106,7 @@
 						{it.conn.mode === 'read_only' ? 'Would change if active' : 'Waiting to change'}
 					</h3>
 					<ul class="space-y-1.5 text-md">
-						{#each it.data.planned as p, i (i)}
+						{#each it.data.planned.filter((p) => match(p.domain, p.answer)) as p, i (i)}
 							<li class="flex flex-wrap items-center gap-2">
 								<Tag tone={p.action === 'conflict' ? 'warn' : 'neutral'}
 									>{actionText[p.action] ?? p.action}</Tag

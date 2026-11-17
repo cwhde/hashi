@@ -6,6 +6,7 @@
 	import IpSetPicker from './IpSetPicker.svelte';
 	import { onMount } from 'svelte';
 	import { pulseAgents } from '#lib/pulseAgents.svelte.ts';
+	import { firewallHosts } from '#lib/firewallHosts.svelte.ts';
 	import type { IPSet, ItemForm, ItemType } from '#lib/ipsets.ts';
 
 	// Add or edit one IP item: pick the type, then only that type's fields (05a §2). When the set is used as a
@@ -15,18 +16,17 @@
 		form = $bindable(),
 		sets,
 		self,
-		hosts = [],
 		usedAsTarget = false,
 		lockType = false
 	}: {
 		form: ItemForm;
 		sets: IPSet[];
 		self: string;
-		hosts?: { id: string; name: string }[];
 		usedAsTarget?: boolean;
 		lockType?: boolean;
 	} = $props();
-	onMount(() => void pulseAgents.load());
+	onMount(() => void Promise.all([pulseAgents.load(), firewallHosts.load()]));
+	const hosts = $derived(firewallHosts.list);
 	type T = ItemType;
 	const types: { v: T; l: string; target: boolean; why?: string }[] = $derived([
 		{ v: 'ip', l: 'IP', target: true },

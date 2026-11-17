@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import Panel from '#lib/components/hashi/Panel.svelte';
 	import Tag from '#lib/components/hashi/Tag.svelte';
+	import Mono from '#lib/components/hashi/Mono.svelte';
 	import SetBadge from '#lib/components/hashi/ipsets/SetBadge.svelte';
 	import IpSetPicker from '#lib/components/hashi/ipsets/IpSetPicker.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
@@ -41,8 +42,29 @@
 		load(a).catch((e) => (loadError = problemText(e)));
 	});
 
+	// 05 §4.2: allowed passes the firewall, blocked is dropped, neutral leaves it to the services' own rules.
+	const verdictText = {
+		allowed: 'allowed',
+		blocked: 'blocked',
+		neutral: 'no firewall decision'
+	} as const;
+	const verdictTone = { allowed: 'ok', blocked: 'bad', neutral: 'neutral' } as const;
 	const memberOf = $derived(lookup?.sets.filter((m) => m.set.system_key !== 'all') ?? []);
 	const leaf = (m: Schemas['AddressMatch']) => [...m.path, m.label].join(' › ');
+
+	// ---- ban (bug 64): the same entry the dynamic-blocked set takes, on every firewall host; an allowed address is refused ----
+	let banning = $state(false);
+	async function ban() {
+		banning = true;
+		const a = lookup?.address ?? address;
+		const r = await api.POST('/api/ip-sets/{id}/entries', {
+			params: { path: { id: 'sys-dynamic-blocked' } },
+			body: { address: a }
+		});
+		banning = false;
+		outcome = r.error ? problemText(r.error) : `${a} is banned. Lift it on the Security page.`;
+		if (!r.error) await load(a).catch(() => {});
+	}
 
 	// ---- add to a set ----
 	let addOpen = $state(false);
@@ -125,6 +147,7 @@
 				addOpen = true;
 			}}>Add to an IP set</Button
 		>
+		<Button variant="outline" size="sm" onclick={ban} disabled={banning}>Ban now</Button>
 	</div>
 
 	<div class="grid gap-4 lg:grid-cols-2">
@@ -147,10 +170,24 @@
 			{/if}
 		</Panel>
 
-		<Panel title="Firewall" description="Allow and block folded together, per host">
-			<p class="text-md text-muted-foreground">
-				Verdicts appear here once a firewall host is registered.
-			</p>
+		<Panel title="Firewall">
+			{#if lookup.firewall.length === 0}
+				<p class="text-md text-muted-foreground">No firewall host managed by Hashi.</p>
+			{:else}
+				<ul class="space-y-2 text-md" aria-label="Firewall verdicts">
+					{#each lookup.firewall as v (v.host_id)}
+						<li class="flex flex-wrap items-center gap-x-2 gap-y-1">
+							<a href="/firewall/{v.host_id}" class="font-medium hover:underline">{v.host_name}</a>
+							<Tag tone={verdictTone[v.verdict]}>{verdictText[v.verdict]}</Tag>
+							{#if v.set_id}<span class="text-muted-foreground"
+									>by <a href="/ip-sets/{v.set_id}" class="hover:underline">{v.set_name}</a>
+									<Mono>{v.prefix}</Mono></span
+								>{/if}
+							{#if v.host_access}<Tag tone="info">may reach the host</Tag>{/if}
+						</li>
+					{/each}
+				</ul>
+			{/if}
 			{#if memberOf.some((m) => m.set.system_key === 'private_networks')}<p class="mt-2">
 					<Tag>private address</Tag>
 				</p>{/if}

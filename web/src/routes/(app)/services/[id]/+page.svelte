@@ -21,7 +21,7 @@
 	import * as Select from '#lib/components/ui/select/index.ts';
 	import * as AlertDialog from '#lib/components/ui/alert-dialog/index.ts';
 	import { ChevronLeft, CircleAlert, Lock, Plus, Trash2 } from '@lucide/svelte';
-	import { api, problemText } from '#lib/api/client.ts';
+	import { api, problemText, type Schemas } from '#lib/api/client.ts';
 	import { withReauth } from '#lib/auth/reauth.ts';
 	import { pendingPlans } from '#lib/sync-pending.svelte.ts';
 	import {
@@ -38,16 +38,22 @@
 		toInput,
 		type Route,
 		type Service,
-		type ServiceInput
+		type ServiceInput,
+		upstreamOf,
+		upstreamTarget
 	} from '#lib/services.ts';
+	import UpstreamTarget from '#lib/components/hashi/services/UpstreamTarget.svelte';
+	import { targetNames } from '#lib/targetNames.svelte.ts';
 
 	// One service (04 §1): public name, upstream, advanced routes with rewrites, TLS options, the rendered excerpt.
 	// The Hashi admin service is shown read-only: it follows Settings → General (invariant 10).
 	const id = $derived(page.params.id ?? '');
 	let svc = $state<Service | null>(null);
+	// Where it is published and why a part is missing (bug 20).
+	let pub = $state<Schemas['ServicePublication'] | null>(null);
 	let edit = $state<ServiceInput | null>(null);
 	let targetsText = $state<string[]>([]);
-	let extra = $state({ setId: '', publicPort: '', proxy: false, entryHost: '' });
+	let extra = $state({ upstream: upstreamOf(), publicPort: '', proxy: false, entryHost: '' });
 	let root = $state('');
 	let yaml = $state('');
 	// Names from the user middleware file and the ones on every service (04 §4, 09 §2).
@@ -66,23 +72,24 @@
 	async function load() {
 		const [s, r] = await Promise.all([
 			api.GET('/api/services/{id}', { params: { path: { id } } }),
-			rootDomain()
+			rootDomain(),
+			targetNames.load()
 		]);
 		if (s.error || !s.data) throw s.error;
 		svc = s.data;
 		root = r;
+		void api
+			.GET('/api/services/{id}/publication', { params: { path: { id } } })
+			.then((p) => (pub = p.data ?? null));
 		edit = toInput(s.data);
 		extra = {
-			setId: s.data.target.set_id ?? '',
+			upstream: upstreamOf(s.data.target),
 			publicPort: String(s.data.public_port ?? ''),
 			proxy: !!s.data.proxy_protocol,
 			entryHost: s.data.entry_host_id ?? ''
 		};
 		targetsText = s.data.routes.map((r) =>
-			r.targets
-				.map(targetText)
-				.join(', ')
-				.replace(/ ×(\d+)/g, '*$1')
+			r.targets.map((t) => targetText(t, targetNames.sets)).join(', ')
 		);
 		const mw = await api.GET('/api/traefik/user-middlewares');
 		if (mw.data) {
@@ -118,7 +125,7 @@
 			if (!edit) return;
 			const routes: Route[] = [];
 			for (const [i, r] of (edit.routes ?? []).entries()) {
-				const p = parseTargets(targetsText[i] ?? '');
+				const p = parseTargets(targetsText[i] ?? '', targetNames.sets);
 				if (p.bad) throw new Error(`Route ${r.path_value}: "${p.bad}" is not address:port.`);
 				routes.push({ ...r, targets: p.targets });
 			}
@@ -140,9 +147,7 @@
 				...edit,
 				host_name: edit.host_name.trim().toLowerCase(),
 				domain_mode: domainMode(edit.host_name.trim().toLowerCase(), root),
-				target: extra.setId
-					? { address: '', set_id: extra.setId, port: Number(edit.target.port) }
-					: { address: edit.target.address.trim(), port: Number(edit.target.port) },
+				target: upstreamTarget(extra.upstream, Number(edit.target.port)),
 				routes: isStream(edit.kind) ? [] : routes,
 				traffic,
 				middlewares: isStream(edit.kind) ? [] : (edit.middlewares ?? []),
@@ -191,7 +196,8 @@
 	function addRoute() {
 		if (!edit) return;
 		edit.routes = [...(edit.routes ?? []), newRoute(edit.routes ?? [], edit.target)];
-		targetsText = [...targetsText, targetText(edit.target)];
+		const first = upstreamTarget(extra.upstream, Number(edit.target.port));
+		targetsText = [...targetsText, first.agent_id ? '' : targetText(first, targetNames.sets)];
 	}
 	function dropRoute(i: number) {
 		if (!edit?.routes) return;
@@ -272,21 +278,31 @@
 			<div class="col-span-2 min-w-0 sm:col-span-1">
 				<dt class="text-xs text-muted-foreground">Upstream</dt>
 				<dd class="overflow-x-auto whitespace-nowrap">
-					<Mono>{svc.kind}://{targetText(svc.target)}</Mono>
+					<Mono>{svc.kind}://{targetNames.label(svc.target)}</Mono>
 				</dd>
 			</div>
 			<div>
 				<dt class="text-xs text-muted-foreground">Routes</dt>
 				<dd>{svc.advanced_routes ? svc.routes.length : 'whole service to one upstream'}</dd>
 			</div>
-			<div>
-				<dt class="text-xs text-muted-foreground">Origin</dt>
-				<dd>{svc.origin}</dd>
+			<div class="min-w-0">
+				<dt class="text-xs text-muted-foreground">Behind</dt>
+				<dd class="truncate">
+					{#if pub?.host_id}<a href="/firewall/{pub.host_id}" class="hover:underline"
+							>{pub.host_name}</a
+						>{#if pub.rewrite}<span class="text-muted-foreground">
+								· home <Mono>{pub.rewrite}</Mono></span
+							>{/if}{:else}<span class="text-muted-foreground">no firewall host</span>{/if}
+				</dd>
 			</div>
 		</dl>
 		{#if svc.invalid_reason}
 			<p class="mt-3 rounded-xl border border-bad/25 bg-bad/10 p-3 text-sm text-bad-text">
 				Left out of the Traefik files: {svc.invalid_reason}
+			</p>
+		{:else if pub?.reason && svc.enabled}
+			<p class="mt-3 rounded-xl border border-warn/25 bg-warn/10 p-3 text-sm text-warn-text">
+				{pub.reason}
 			</p>
 		{/if}
 	</div>
@@ -394,19 +410,18 @@
 							/>
 						</div>{/if}{/snippet}
 				<fieldset class="space-y-3" disabled={system}>
-					<div class="grid grid-cols-[minmax(0,9rem)_1fr_6rem] gap-2">
+					<div class="grid grid-cols-[minmax(0,1fr)_6rem] gap-2">
 						<Select.Root type="single" bind:value={edit.kind}>
-							<Select.Trigger aria-label="Protocol">{edit.kind.toUpperCase()}</Select.Trigger>
+							<Select.Trigger aria-label="Protocol">{kindText[edit.kind]}</Select.Trigger>
 							<Select.Content>
 								{#each kinds as k (k)}<Select.Item value={k}>{kindText[k]}</Select.Item>{/each}
 							</Select.Content>
 						</Select.Root>
-						<Input bind:value={edit.target.address} aria-label="Address" disabled={!!extra.setId} />
 						<Input bind:value={edit.target.port} aria-label="Port" inputmode="numeric" />
 					</div>
+					<UpstreamTarget bind:value={extra.upstream} id="svc-upstream" />
 					<ServiceExtras
 						kind={edit.kind}
-						bind:setId={extra.setId}
 						bind:publicPort={extra.publicPort}
 						bind:proxy={extra.proxy}
 						bind:entryHost={extra.entryHost}
@@ -541,7 +556,7 @@
 					names={mwNames}
 					every={mwEvery}
 					publicName={edit.host_name}
-					upstream={extra.setId ? 'the addresses of the chosen set' : targetText(edit.target)}
+					upstream={targetNames.label(upstreamTarget(extra.upstream, Number(edit.target.port)))}
 				/>
 			</Tabs.Content>
 		{/if}

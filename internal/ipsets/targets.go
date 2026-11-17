@@ -34,12 +34,15 @@ var ErrNotAddressSet = fmt.Errorf("%w: targets take only address sets (ip, pulse
 // sets, so resolving, last good addresses and change propagation have one path, and the admin's list stays free of them.
 const agentSetPrefix = "agent-"
 
+// AgentSetID is the ID of an agent's hidden set.
+func AgentSetID(agentID string) string { return agentSetPrefix + agentID }
+
 // AgentOf says which agent a hidden set belongs to.
 func AgentOf(setID string) (string, bool) { return strings.CutPrefix(setID, agentSetPrefix) }
 
 // EnsureAgentSet returns an agent's hidden set, creating it on first use. Its one locked item is the agent's internal addresses.
 func EnsureAgentSet(ctx context.Context, q *db.Queries, agentID, agentName string, now time.Time) (string, error) {
-	id := agentSetPrefix + agentID
+	id := AgentSetID(agentID)
 	_, err := q.GetIPSet(ctx, id)
 	if err == nil {
 		return id, nil

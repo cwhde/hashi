@@ -163,6 +163,10 @@ func TestValidate(t *testing.T) {
 		"port zero":     func() Service { s := web(); s.Target.Port = 0; return s }(),
 		"bad address":   func() Service { s := web(); s.Target.Address = "192.0.2.30;x"; return s }(),
 		"zoned v6":      func() Service { s := web(); s.Target.Address = "fe80::1%eth0"; return s }(),
+		// Bug 68: two pasted lines join in a one-line field; neither the joined form nor the raw lines may pass.
+		"two joined":    func() Service { s := web(); s.Target.Address = "192.0.2.102001:db8::10"; return s }(),
+		"two lines":     func() Service { s := web(); s.Target.Address = "192.0.2.10\n2001:db8::10"; return s }(),
+		"spaces":        func() Service { s := web(); s.Target.Address = " 192.0.2.10"; return s }(),
 		"tls on http":   func() Service { s := web(); s.TLSSkipVerify = true; return s }(),
 		"slug":          func() Service { s := web(); s.Slug = "Search!"; return s }(),
 		"min tls":       func() Service { s := web(); s.TLSMinVersion = "VersionTLS10"; return s }(),

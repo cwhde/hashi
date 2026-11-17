@@ -26,7 +26,8 @@ INSERT INTO rule_entries (id, rule_set_id, priority, entry_type, child_rule_set_
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: ListRuleItemsUsingIPSet :many
-SELECT s.id, s.slug, s.name, s.kind, s.service_id FROM rule_entries e JOIN rule_sets s ON s.id = e.rule_set_id
+SELECT s.id, s.slug, s.name, s.kind, s.service_id, COALESCE(v.name, '') AS service_name
+FROM rule_entries e JOIN rule_sets s ON s.id = e.rule_set_id LEFT JOIN services v ON v.id = s.service_id
 WHERE e.applies_to_set_id = ? GROUP BY s.id ORDER BY s.slug;
 
 -- name: ListOIDCProviders :many

@@ -43,6 +43,8 @@ type HostInput struct {
 	NetBirdIface        string
 	NetBirdPort         int
 	DropInbound         bool
+	// AddressAgentID: a host behind a router takes its public and internal addresses from this Pulse agent (bug 23).
+	AddressAgentID string
 }
 
 var labelRe = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
@@ -137,6 +139,14 @@ func (m *Manager) Save(ctx context.Context, actor, ip, id string, in HostInput) 
 			return db.FirewallHost{}, fmt.Errorf("%w: the internal Traefik address %s is in none of the managed subnets", ErrInvalid, traefikIP)
 		}
 	}
+	if in.AddressAgentID != "" {
+		if in.EdgeMode != ModeExternalNAT {
+			return db.FirewallHost{}, fmt.Errorf("%w: only a host behind a router follows a Pulse agent; a managed host detects its addresses itself", ErrInvalid)
+		}
+		if _, err := m.st.R.GetPulseAgent(ctx, in.AddressAgentID); err != nil {
+			return db.FirewallHost{}, fmt.Errorf("%w: no Pulse agent %s", ErrInvalid, in.AddressAgentID)
+		}
+	}
 	var cur db.FirewallHost
 	if id != "" {
 		if cur, err = m.st.R.GetFirewallHost(ctx, id); err != nil {
@@ -202,7 +212,7 @@ func (m *Manager) Save(ctx context.Context, actor, ip, id string, in HostInput) 
 			dropAt = cur.DropInboundAcceptedAt
 		}
 	}
-	// The login is part of a host's identity here: the update has no columns for it, and saving must not pretend.
+	// A new address, login or key is another way in (bug 24): the host is validated and confirmed again.
 	moved := !isNew && (cur.SshHost != in.Host || cur.SshPort != int64(in.Port) || string(cur.HostKey) != string(hk.Key) ||
 		cur.SshUser != in.User || cur.Auth != in.Auth || !in.Credential.IsZero() || !in.Passphrase.IsZero())
 	err = m.st.Tx(ctx, func(q *db.Queries) error {
@@ -224,7 +234,7 @@ func (m *Manager) Save(ctx context.Context, actor, ip, id string, in HostInput) 
 				}
 				return err
 			}
-			if dropAt.Valid {
+			if dropAt.Valid || in.AddressAgentID != "" { // the insert has no columns for these
 				if err := q.UpdateFirewallHostSettings(ctx, settingsParams(id, in, traefikIP, pub, pub6, subnetsJSON, dropAt, now)); err != nil {
 					return err
 				}
@@ -234,7 +244,26 @@ func (m *Manager) Save(ctx context.Context, actor, ip, id string, in HostInput) 
 				return err
 			}
 			if moved {
-				return fmt.Errorf("%w: the SSH address, login or host key changed: delete the host and add it again", ErrInvalid)
+				if in.EdgeMode != ModeManaged {
+					return fmt.Errorf("%w: a host behind a router has no SSH login", ErrInvalid)
+				}
+				if err := q.UpdateFirewallHostAccess(ctx, db.UpdateFirewallHostAccessParams{SshHost: in.Host, SshPort: int64(in.Port),
+					SshUser: in.User, Auth: in.Auth, CredentialSecretID: cred, PassphraseSecretID: pass, HostKeyType: hk.Type,
+					HostKey: hk.Key, HostKeyFingerprint: hk.Fingerprint, UpdatedAt: now, ID: id}); err != nil {
+					return err
+				}
+				if cur.HostKeyFingerprint != hk.Fingerprint { // another machine: its ruleset is read again
+					if err := q.ClearFirewallHostSetupRuleset(ctx, id); err != nil {
+						return err
+					}
+				}
+				for _, old := range []sql.NullString{cur.CredentialSecretID, cur.PassphraseSecretID} {
+					if old.Valid && old != cred && old != pass {
+						if err := q.DeleteSecret(ctx, old.String); err != nil {
+							return err
+						}
+					}
+				}
 			}
 		}
 		action := "firewall.host.updated"
@@ -246,6 +275,15 @@ func (m *Manager) Save(ctx context.Context, actor, ip, id string, in HostInput) 
 				"host_key": hk.Fingerprint, "subnets": subnets, "netbird": in.NetBirdMode, "drop_inbound": in.DropInbound}}); err != nil {
 			return err
 		}
+		if err := followAgent(ctx, q, id, now); err != nil {
+			return err
+		}
+		// No longer following an agent: what it reported is not the host's any more.
+		if cur.AddressAgentID.Valid && in.AddressAgentID == "" && in.EdgeMode == ModeExternalNAT {
+			if err := q.SetFirewallHostAgentAddresses(ctx, db.SetFirewallHostAgentAddressesParams{InternalIpsJson: "[]", UpdatedAt: now, ID: id}); err != nil {
+				return err
+			}
+		}
 		return m.ensureHashiHosts(ctx, q)
 	})
 	if err != nil {
@@ -255,13 +293,69 @@ func (m *Manager) Save(ctx context.Context, actor, ip, id string, in HostInput) 
 	return m.st.R.GetFirewallHost(ctx, id)
 }
 
+// FollowAgents copies each following host's Pulse agent addresses into its detected ones (bug 23, 05 §1.1): the
+// public address the agent reached Hashi from, and its private addresses as the host's internal ones. It runs before
+// the IP sets recompile after an agent's address change, so host items and host records follow.
+func (m *Manager) FollowAgents(ctx context.Context) error {
+	return m.st.Tx(ctx, func(q *db.Queries) error {
+		rows, err := q.ListFirewallHostsFollowingAgents(ctx)
+		if err != nil {
+			return err
+		}
+		for _, r := range rows {
+			if err := followAgent(ctx, q, r.ID, m.now().UnixMilli()); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func followAgent(ctx context.Context, q *db.Queries, id string, now int64) error {
+	h, err := q.GetFirewallHost(ctx, id)
+	if err != nil || !h.AddressAgentID.Valid {
+		return err
+	}
+	a, err := q.GetPulseAgent(ctx, h.AddressAgentID.String)
+	if err != nil {
+		return err
+	}
+	pub4, pub6 := "", ""
+	if ip, err := netip.ParseAddr(a.PublicIp); err == nil {
+		if ip.Unmap().Is4() {
+			pub4 = ip.Unmap().String()
+		} else {
+			pub6 = ip.String()
+		}
+	}
+	var cands []struct {
+		Address string `json:"address"`
+	}
+	_ = json.Unmarshal([]byte(a.CandidatesJson), &cands) // written by the Pulse heartbeat
+	internal := []string{}
+	if a.SelectedIp != "" {
+		internal = append(internal, a.SelectedIp)
+	}
+	for _, c := range cands {
+		if c.Address != a.SelectedIp {
+			internal = append(internal, c.Address)
+		}
+	}
+	raw, _ := json.Marshal(internal)
+	if h.PublicIp == pub4 && h.PublicIp6 == pub6 && h.InternalIpsJson == string(raw) {
+		return nil
+	}
+	return q.SetFirewallHostAgentAddresses(ctx, db.SetFirewallHostAgentAddressesParams{PublicIp: pub4, PublicIp6: pub6,
+		InternalIpsJson: string(raw), UpdatedAt: now, ID: id})
+}
+
 func settingsParams(id string, in HostInput, traefikIP, pub, pub6 string, subnets []byte, dropAt sql.NullInt64, now int64) db.UpdateFirewallHostSettingsParams {
 	nullStr := func(s string) sql.NullString { return sql.NullString{String: s, Valid: s != ""} }
 	return db.UpdateFirewallHostSettingsParams{Name: in.Name, TraefikConnectionID: nullStr(in.TraefikConnectionID),
 		InternalTraefikIp: traefikIP, RouteViaHostID: nullStr(in.RouteViaHostID), PublicIpOverride: pub,
 		PublicIp6Override: pub6, WanIfaceOverride: strings.TrimSpace(in.WANOverride), SubnetsJson: string(subnets),
 		NetbirdMode: in.NetBirdMode, NetbirdIface: in.NetBirdIface, NetbirdPort: int64(in.NetBirdPort),
-		DropInboundAcceptedAt: dropAt, UpdatedAt: now, ID: id}
+		DropInboundAcceptedAt: dropAt, AddressAgentID: nullStr(in.AddressAgentID), UpdatedAt: now, ID: id}
 }
 
 // Delete removes a host that no IP set item references and no other host routes through (05a §2).

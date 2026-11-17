@@ -9,6 +9,7 @@
 	import StatusBadge from '#lib/components/hashi/StatusBadge.svelte';
 	import SetBadge from '#lib/components/hashi/ipsets/SetBadge.svelte';
 	import IpSetPicker from '#lib/components/hashi/ipsets/IpSetPicker.svelte';
+	import ExternalAddress from '#lib/components/hashi/firewall/ExternalAddress.svelte';
 	import HostSettings from '#lib/components/hashi/firewall/HostSettings.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import { Label } from '#lib/components/ui/label/index.ts';
@@ -238,11 +239,7 @@
 		<Tabs.Content value="routing" class="grid gap-4 lg:grid-cols-2">
 			<Panel title="Settings">
 				{#if host.edge_mode === 'managed'}{#key host.id}<HostSettings {host} {busy} {save} />{/key}
-				{:else}<p class="text-md">
-						Hashi does not touch this host's firewall. Forward the public ports on your router to <Mono
-							>{host.internal_traefik_ip}</Mono
-						>.
-					</p>{/if}
+				{:else}{#key host.id}<ExternalAddress {host} {busy} {save} />{/key}{/if}
 			</Panel>
 			<Panel
 				title="Public entry"

@@ -3,6 +3,7 @@
 	import { onMount, untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { consumerOf } from '#lib/consumers.ts';
 	import Panel from '#lib/components/hashi/Panel.svelte';
 	import Tag from '#lib/components/hashi/Tag.svelte';
 	import Mono from '#lib/components/hashi/Mono.svelte';
@@ -53,14 +54,7 @@
 	let consumers = $state<Schemas['IPSetConsumer'][]>([]);
 	let history = $state<Schemas['AuditEvent'][]>([]);
 	let loadError = $state('');
-	let outcome = $state<{ text: string; bad: boolean } | null>(
-		page.url.searchParams.get('first') === 'failed'
-			? {
-					text: 'The set was created, but its first item was refused. Add it again below.',
-					bad: true
-				}
-			: null
-	);
+	let outcome = $state<{ text: string; bad: boolean } | null>(null);
 
 	let q = $state('');
 	const usedAsTarget = $derived(consumers.some((c) => c.position === 'target'));
@@ -452,13 +446,11 @@
 				{#if consumers.length}
 					<ul class="divide-y text-md">
 						{#each consumers as u (u.type + u.id)}
+							{@const c = consumerOf(u)}
 							<li class="grid grid-cols-[10rem_minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5">
-								<span class="text-muted-foreground"
-									>{u.type === 'ip_set' ? 'Included in set' : u.type}</span
-								>
-								{#if u.type === 'ip_set'}<a
-										href="/ip-sets/{u.id}"
-										class="truncate font-medium hover:underline">{u.name}</a
+								<span class="text-muted-foreground">{c.kind}</span>
+								{#if c.href}<a href={c.href} class="truncate font-medium hover:underline"
+										>{u.name}</a
 									>{:else}<span class="truncate font-medium">{u.name}</span>{/if}
 								<Tag tone={u.position === 'target' ? 'info' : 'neutral'}
 									>{u.position === 'target' ? 'sends traffic here' : 'matches requests'}</Tag

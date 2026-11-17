@@ -1433,6 +1433,22 @@ paths:
       responses:
         "204": { description: Removed }
         default: { $ref: "#/components/responses/Problem" }
+  /api/pulse/agents/{id}/main-address:
+    put:
+      operationId: setPulseMainAddress
+      summary: Pin the address services and DNS use for this agent, or give the choice back to it
+      tags: [pulse]
+      x-hashi-scopes: [admin.write]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/PulseMainAddress" } } }
+      responses:
+        "200":
+          description: Saved
+          content: { application/json: { schema: { $ref: "#/components/schemas/PulseAgent" } } }
+        default: { $ref: "#/components/responses/Problem" }
   /api/pulse/agents/{id}/rotate-token:
     post:
       operationId: rotatePulseToken
@@ -1967,6 +1983,25 @@ paths:
           content: { application/json: { schema: { $ref: "#/components/schemas/TraefikConnection" } } }
         default: { $ref: "#/components/responses/Problem" }
   /api/traefik/hosts/{id}:
+    put:
+      operationId: updateTraefikHost
+      summary: Change a Traefik host's name, SSH address, login or pinned key (bug 24)
+      description: >-
+        A changed address or key belongs to another machine: what validation found is cleared and the host is validated
+        and taken over again, as when it was added. Empty credentials keep the stored ones.
+      tags: [traefik]
+      x-hashi-scopes: [services.manage]
+      x-hashi-reauth: true
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/TraefikConnectionInput" } } }
+      responses:
+        "200":
+          description: The connection
+          content: { application/json: { schema: { $ref: "#/components/schemas/TraefikConnection" } } }
+        default: { $ref: "#/components/responses/Problem" }
     delete:
       operationId: removeTraefikHost
       summary: Forget a Traefik host; nothing on the host itself changes
@@ -2698,6 +2733,31 @@ paths:
         "200":
           description: The address's counters now
           content: { application/json: { schema: { $ref: "#/components/schemas/CounterRow" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/services/{id}/publication:
+    get:
+      operationId: getServicePublication
+      summary: Where the service is published (public records, AdGuard answer), the host it sits behind, and why a part is missing
+      tags: [services]
+      x-hashi-scopes: [admin.read]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The publication
+          content: { application/json: { schema: { $ref: "#/components/schemas/ServicePublication" } } }
+        default: { $ref: "#/components/responses/Problem" }
+  /api/app-display/pages:
+    get:
+      operationId: getPublicPages
+      summary: The services that publish the public app dashboard and status page
+      description: Services whose upstream is Hashi's internal address; each one's port is asked which public page answers there.
+      tags: [monitor]
+      x-hashi-scopes: [admin.read]
+      responses:
+        "200":
+          description: The pages
+          content: { application/json: { schema: { $ref: "#/components/schemas/PublicPages" } } }
         default: { $ref: "#/components/responses/Problem" }
   /api/addresses/{address}:
     get:
@@ -3627,6 +3687,7 @@ components:
         name: { type: string }
         group: { type: string }
         source_type: { type: string }
+        source_id: { type: string, description: "What made it, for a link: the service, DNS record, firewall host or Traefik host ID" }
         state: { $ref: "#/components/schemas/MonitorState" }
         state_since: { type: string, format: date-time }
         paused: { type: boolean }
@@ -3841,14 +3902,16 @@ components:
         update_from: { type: string, description: "Where that release's files are; present while agents update themselves (ADR 0003)" }
     PulseAgent:
       type: object
-      required: [id, name, status, install_type, public_ip, selected_ip, candidates, hostname, version, expected_version, version_state, interval_seconds, dns_enabled, dns_name, trust_reported_ip, public_ip_source, reach_port]
+      required: [id, name, status, install_type, public_ip, selected_ip, pinned_ip, addresses, candidates, hostname, version, expected_version, version_state, interval_seconds, dns_enabled, dns_name, trust_reported_ip, public_ip_source, reach_port]
       properties:
         id: { type: string }
         name: { type: string }
         status: { type: string, enum: [waiting, fresh, stale, revoked] }
         install_type: { type: string }
         public_ip: { type: string }
-        selected_ip: { type: string }
+        selected_ip: { type: string, description: "The main address: what services, DNS and internal pulse items use first" }
+        pinned_ip: { type: string, description: "The admin's choice of main address (bug 22); empty = the agent chooses" }
+        addresses: { type: array, items: { $ref: "#/components/schemas/PulseAddress" }, description: "Every address the agent reports, with its interface" }
         candidates: { type: array, items: { type: string } }
         hostname: { type: string }
         version: { type: string }
@@ -3862,6 +3925,17 @@ components:
         dns_name: { type: string }
         trust_reported_ip: { type: boolean }
         public_ip_source: { type: string, enum: ["", connection, reported] }
+    PulseAddress:
+      type: object
+      required: [interface, address]
+      properties:
+        interface: { type: string }
+        address: { type: string }
+    PulseMainAddress:
+      type: object
+      required: [address]
+      properties:
+        address: { type: string, description: "One of the agent's reported addresses; empty gives the choice back to the agent" }
     PulseAgentList:
       type: object
       required: [agents, hashi_url]
@@ -3951,10 +4025,18 @@ components:
         auto_update: { type: boolean, description: "Agents installed on a machine update themselves to this Hashi's version (ADR 0003)" }
     PulseConsumers:
       type: object
-      required: [sets, consumers]
+      required: [sets, consumers, set_refs, direct]
       properties:
         sets: { type: array, items: { type: string } }
         consumers: { type: array, items: { type: string } }
+        set_refs: { type: array, items: { $ref: "#/components/schemas/IPSetRef" }, description: "The admin's sets holding the agent, for links" }
+        direct: { type: array, items: { $ref: "#/components/schemas/IPSetConsumer" }, description: "What targets the agent directly (its hidden set)" }
+    IPSetRef:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string }
+        name: { type: string }
     PulseInstall:
       type: object
       required: [linux, compose]
@@ -4238,7 +4320,7 @@ components:
         key: { type: string, format: byte, description: Wire-format public key (base64) }
     TraefikConnectionInput:
       type: object
-      required: [name, host, port, user, auth, host_key]
+      required: [name, host, port, user, auth]
       properties:
         name: { type: string }
         host: { type: string }
@@ -4247,7 +4329,7 @@ components:
         auth: { type: string, enum: [hashi_key, private_key, password] }
         credential: { type: string, writeOnly: true, description: "Private key or password; omit to keep the stored one" }
         passphrase: { type: string, writeOnly: true }
-        host_key: { type: string, format: byte, description: "`key` from the scan the admin confirmed" }
+        host_key: { type: string, format: byte, description: "`key` from the scan the admin confirmed; required to add, omitted on an update keeps the pinned key" }
         internal_ip: { type: string }
         traefik_binary: { type: string }
         config_dir: { type: string }
@@ -4559,8 +4641,9 @@ components:
       type: object
       required: [address, port]
       properties:
-        address: { type: string, description: "IP address or host name; empty when set_id names an address set" }
+        address: { type: string, description: "IP address or host name; empty when set_id or agent_id is given" }
         set_id: { type: string, description: "An address set (05a §5.2) whose addresses are load-balanced; instead of address" }
+        agent_id: { type: string, description: "A Pulse agent whose internal addresses are followed (the service's own target only); instead of address and set_id" }
         port: { type: integer, minimum: 1, maximum: 65535 }
         weight: { type: integer, minimum: 0, maximum: 1000, description: "Load-balancing weight; 0 or absent = 1" }
     ServiceRoute:
@@ -5025,6 +5108,7 @@ components:
         slug: { type: string }
         name: { type: string }
         description: { type: string }
+        first_item: { $ref: "#/components/schemas/IPSetElementInput", description: "On create only: added in the same step; a refused item creates nothing (bug 66)" }
     IPSetProblem:
       type: object
       required: [set_id, element_id, path, message]
@@ -5154,10 +5238,52 @@ components:
         consumers: { type: array, items: { $ref: "#/components/schemas/IPSetConsumer" } }
     AddressLookup:
       type: object
-      required: [address, sets]
+      required: [address, sets, firewall]
       properties:
         address: { type: string, description: "Normalized (IPv4-mapped IPv6 shown as IPv4)" }
         sets: { type: array, items: { $ref: "#/components/schemas/AddressSetMatch" } }
+        firewall: { type: array, items: { $ref: "#/components/schemas/AddressHostVerdict" }, description: "One verdict per managed firewall host (05 §4.3)" }
+    PublicPages:
+      type: object
+      required: [apps, status]
+      properties:
+        apps: { type: array, items: { $ref: "#/components/schemas/PublicPageLink" } }
+        status: { type: array, items: { $ref: "#/components/schemas/PublicPageLink" } }
+    PublicPageLink:
+      type: object
+      required: [service_id, name, url, upstream]
+      properties:
+        service_id: { type: string }
+        name: { type: string }
+        url: { type: string }
+        upstream: { type: string, description: "Hashi's address and the port the page listens on, as the service reaches it" }
+    ServicePublication:
+      type: object
+      required: [records, reason]
+      properties:
+        host_id: { type: string, description: "The firewall host the upstream sits behind (03 §5.2); absent when none matches" }
+        host_name: { type: string }
+        records: { type: array, items: { $ref: "#/components/schemas/PublishedRecord" } }
+        rewrite: { type: string, description: "The AdGuard answer for the name; absent when there is none" }
+        reason: { type: string, description: "Why nothing or only part is published; empty when everything is" }
+    PublishedRecord:
+      type: object
+      required: [name, type, values]
+      properties:
+        name: { type: string }
+        type: { type: string }
+        values: { type: array, items: { type: string } }
+    AddressHostVerdict:
+      type: object
+      required: [host_id, host_name, verdict, host_access]
+      properties:
+        host_id: { type: string }
+        host_name: { type: string }
+        verdict: { type: string, enum: [allowed, blocked, neutral], description: "Global allow against block, longest prefix wins, tie blocks" }
+        prefix: { type: string, description: "The deciding prefix; absent when neutral" }
+        set_id: { type: string, description: "The bound set the deciding prefix came from" }
+        set_name: { type: string }
+        host_access: { type: boolean, description: "The host's own access sets contain the address (it may reach the host itself)" }
     AddressSetMatch:
       type: object
       required: [set, matches]
@@ -5188,6 +5314,7 @@ components:
         traefik_connection_id: { type: string }
         internal_traefik_ip: { type: string, description: "The linked Traefik's address in a managed subnet: the DNAT target" }
         route_via_host_id: { type: string, description: "Entry host for this host's services (on. → via.<entry>)" }
+        address_agent_id: { type: string, description: "external_nat: take the public and internal addresses from this Pulse agent (bug 23)" }
         public_ip_override: { type: string }
         public_ip6_override: { type: string }
         wan_iface_override: { type: string }
@@ -5242,6 +5369,8 @@ components:
         route_via_host_id: { type: string }
         public_ip: { type: string, description: "Effective (override, else detected)" }
         public_ip6: { type: string }
+        address_agent_id: { type: string, description: "The Pulse agent the addresses come from; absent = detected or set by hand" }
+        internal_ips: { type: array, items: { type: string }, description: "Addresses host items with scope internal resolve to" }
         public_ip_override: { type: string }
         public_ip6_override: { type: string }
         wan_iface: { type: string, description: "Effective (override, else detected)" }

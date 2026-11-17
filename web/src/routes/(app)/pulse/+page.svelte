@@ -4,22 +4,16 @@
 	import Mono from '#lib/components/hashi/Mono.svelte';
 	import Tag from '#lib/components/hashi/Tag.svelte';
 	import { Button } from '#lib/components/ui/button/index.ts';
-	import { Input } from '#lib/components/ui/input/index.ts';
-	import { Label } from '#lib/components/ui/label/index.ts';
-	import * as Sheet from '#lib/components/ui/sheet/index.ts';
 	import * as Table from '#lib/components/ui/table/index.ts';
-	import * as Tabs from '#lib/components/ui/tabs/index.ts';
-	import { Copy, KeyRound, Pencil, Plus, Ban, Trash2 } from '@lucide/svelte';
-	import { Switch } from '#lib/components/ui/switch/index.ts';
+	import { Plus } from '@lucide/svelte';
 	import { api, problemText, type Schemas } from '#lib/api/client.ts';
-	import { withReauth } from '#lib/auth/reauth.ts';
 	import { dateTime } from '#lib/format.ts';
 
-	// 08, 10b §3: agents and their addresses; the add drawer shows the install once, with the token.
+	// 08, 10b §3: the agents and their addresses. Each name opens the agent; adding one, and its token, is on
+	// Connections with every other outside system (10c §1, bug 24).
 	type Agent = Schemas['PulseAgent'];
 	let agents = $state<Agent[]>([]);
 	let error = $state('');
-	let busy = $state(false);
 
 	async function load() {
 		const r = await api.GET('/api/pulse/agents');
@@ -31,112 +25,12 @@
 		const t = setInterval(() => void load().catch(() => {}), 30000);
 		return () => clearInterval(t);
 	});
-
-	let open = $state(false);
-	let name = $state('');
-	let formError = $state('');
-	let shown = $state<{ agent: Agent; token: string } | null>(null);
-	function openAdd() {
-		name = '';
-		shown = null;
-		formError = '';
-		open = true;
-	}
-	async function create() {
-		formError = '';
-		busy = true;
-		try {
-			const r = await api.POST('/api/pulse/agents', { body: { name } });
-			if (!r.data) throw r.error;
-			shown = r.data;
-			await load();
-		} catch (e) {
-			formError = problemText(e);
-		} finally {
-			busy = false;
-		}
-	}
-	async function act(fn: () => Promise<void>) {
-		error = '';
-		busy = true;
-		try {
-			await fn();
-			await load();
-		} catch (e) {
-			error = problemText(e);
-		} finally {
-			busy = false;
-		}
-	}
-	const rotate = (a: Agent) =>
-		act(async () => {
-			shown = await withReauth(() =>
-				api.POST('/api/pulse/agents/{id}/rotate-token', { params: { path: { id: a.id } } })
-			);
-			formError = '';
-			open = true;
-		});
-	const revoke = (a: Agent) =>
-		act(async () => {
-			await withReauth(() =>
-				api.POST('/api/pulse/agents/{id}/revoke', { params: { path: { id: a.id } } })
-			);
-		});
-	const remove = (a: Agent) =>
-		act(async () => {
-			await withReauth(() =>
-				api.DELETE('/api/pulse/agents/{id}', { params: { path: { id: a.id } } })
-			);
-		});
-
-	// ---- edit ----
-	let editing = $state<{
-		id: string;
-		name: string;
-		dns_enabled: boolean;
-		dns_name: string;
-		trust_reported_ip: boolean;
-		reach_port: number;
-	} | null>(null);
-	let editError = $state('');
-	async function saveEdit() {
-		if (!editing) return;
-		editError = '';
-		busy = true;
-		try {
-			const { id, ...body } = editing;
-			const r = await api.PUT('/api/pulse/agents/{id}', { params: { path: { id } }, body });
-			if (r.error) throw r.error;
-			editing = null;
-			await load();
-		} catch (e) {
-			editError = problemText(e);
-		} finally {
-			busy = false;
-		}
-	}
-
-	let install = $state<Schemas['PulseInstall'] | null>(null);
-	$effect(() => {
-		const id = shown?.agent.id;
-		if (!id) return;
-		api
-			.GET('/api/pulse/agents/{id}/install', { params: { path: { id } } })
-			.then((r) => (install = r.data ?? null));
-	});
-	const fill = (t?: string) => (t && shown ? t.replaceAll('<token>', shown.token) : '');
-	const linux = $derived(fill(install?.linux));
-	const compose = $derived(fill(install?.compose));
-	const copy = (t: string) => void navigator.clipboard?.writeText(t);
 </script>
 
 <svelte:head><title>Pulse · Hashi</title></svelte:head>
 
-<PageHeader
-	title="Pulse"
-	description="Small agents that report a machine's current addresses. Put an agent in an IP set and everything using that set follows it."
->
-	{#snippet actions()}<Button onclick={openAdd}><Plus />Add agent</Button>{/snippet}
+<PageHeader title="Pulse">
+	{#snippet actions()}<Button href="/connections?add=pulse"><Plus />Add agent</Button>{/snippet}
 </PageHeader>
 
 {#if error}<p role="alert" class="mb-3 text-md text-bad-text">{error}</p>{/if}
@@ -145,19 +39,17 @@
 		<Table.Header>
 			<Table.Row>
 				<Table.Head class="pl-4">Agent</Table.Head>
-				<Table.Head>Selected IP</Table.Head>
-				<Table.Head class="hidden md:table-cell">Public IP</Table.Head>
-				<Table.Head class="hidden lg:table-cell">Other candidates</Table.Head>
+				<Table.Head>Main address</Table.Head>
+				<Table.Head class="hidden md:table-cell">Public address</Table.Head>
 				<Table.Head class="hidden sm:table-cell">Reachable from Hashi</Table.Head>
-				<Table.Head>Last seen</Table.Head>
-				<Table.Head><span class="sr-only">Actions</span></Table.Head>
+				<Table.Head class="pr-4">Last seen</Table.Head>
 			</Table.Row>
 		</Table.Header>
 		<Table.Body>
 			{#each agents as a (a.id)}
 				<Table.Row>
 					<Table.Cell class="pl-4">
-						<div class="font-medium">{a.name}</div>
+						<a href="/pulse/{a.id}" class="font-medium hover:underline">{a.name}</a>
 						<div class="text-xs text-muted-foreground">
 							{a.version || 'No heartbeat yet'}{a.hostname ? ` · ${a.hostname}` : ''}
 						</div>
@@ -166,21 +58,20 @@
 								>newer than {a.expected_version}</Tag
 							>{/if}
 					</Table.Cell>
-					<Table.Cell><Mono>{a.selected_ip || '—'}</Mono></Table.Cell>
+					<Table.Cell
+						><Mono>{a.selected_ip || '—'}</Mono>{#if a.pinned_ip}
+							<Tag>chosen</Tag>{/if}</Table.Cell
+					>
 					<Table.Cell class="hidden md:table-cell"
 						><Mono>{a.public_ip || '—'}</Mono>{#if a.public_ip_source === 'reported'}
 							<Tag>self-reported</Tag>{/if}</Table.Cell
-					>
-					<Table.Cell class="hidden text-muted-foreground lg:table-cell"
-						><Mono>{a.candidates.filter((c) => c !== a.selected_ip).join(', ') || '—'}</Mono
-						></Table.Cell
 					>
 					<Table.Cell class="hidden sm:table-cell">
 						{#if a.reachable === true}<Tag tone="ok">yes</Tag>
 						{:else if a.reachable === false}<Tag tone="warn">no</Tag>
 						{:else}<span class="text-muted-foreground">—</span>{/if}
 					</Table.Cell>
-					<Table.Cell>
+					<Table.Cell class="pr-4">
 						{#if a.status === 'revoked'}<Tag tone="bad">revoked</Tag>
 						{:else if a.status === 'waiting'}<Tag>waiting</Tag>
 						{:else if a.status === 'stale'}<Tag tone="warn"
@@ -188,50 +79,10 @@
 							>
 						{:else}<span class="text-md">{dateTime(a.last_seen_at ?? '')}</span>{/if}
 					</Table.Cell>
-					<Table.Cell class="text-right whitespace-nowrap">
-						<Button
-							variant="ghost"
-							size="icon-sm"
-							aria-label="Edit {a.name}"
-							onclick={() => {
-								editError = '';
-								editing = {
-									id: a.id,
-									name: a.name,
-									dns_enabled: a.dns_enabled,
-									dns_name: a.dns_name,
-									trust_reported_ip: a.trust_reported_ip,
-									reach_port: a.reach_port
-								};
-							}}
-							disabled={busy}><Pencil /></Button
-						>
-						<Button
-							variant="ghost"
-							size="icon-sm"
-							aria-label="New token for {a.name}"
-							onclick={() => rotate(a)}
-							disabled={busy}><KeyRound /></Button
-						>
-						{#if a.status !== 'revoked'}<Button
-								variant="ghost"
-								size="icon-sm"
-								aria-label="Revoke {a.name}"
-								onclick={() => revoke(a)}
-								disabled={busy}><Ban /></Button
-							>{/if}
-						<Button
-							variant="ghost"
-							size="icon-sm"
-							aria-label="Remove {a.name}"
-							onclick={() => remove(a)}
-							disabled={busy}><Trash2 /></Button
-						>
-					</Table.Cell>
 				</Table.Row>
 			{:else}
 				<Table.Row>
-					<Table.Cell colspan={7} class="px-4 py-4 text-md text-muted-foreground"
+					<Table.Cell colspan={5} class="px-4 py-4 text-md text-muted-foreground"
 						>No agents yet. Add one to a machine whose address can change.</Table.Cell
 					>
 				</Table.Row>
@@ -239,123 +90,3 @@
 		</Table.Body>
 	</Table.Root>
 </div>
-
-<Sheet.Root bind:open>
-	<Sheet.Content class="w-full sm:max-w-xl">
-		<Sheet.Header>
-			<Sheet.Title>{shown ? `Install ${shown.agent.name}` : 'Add a Pulse agent'}</Sheet.Title>
-			<Sheet.Description
-				>The token is shown once. It can only send this agent's heartbeat.</Sheet.Description
-			>
-		</Sheet.Header>
-		<div class="space-y-4 overflow-y-auto px-4">
-			{#if !shown}
-				<div class="space-y-1.5">
-					<Label for="agent-name">Name</Label><Input id="agent-name" bind:value={name} />
-				</div>
-				{#if formError}<p role="alert" class="text-md text-bad-text">{formError}</p>{/if}
-			{:else}
-				<Tabs.Root value="linux">
-					<Tabs.List>
-						<Tabs.Trigger value="linux">Linux</Tabs.Trigger>
-						<Tabs.Trigger value="docker">Docker</Tabs.Trigger>
-					</Tabs.List>
-					<Tabs.Content value="linux">
-						<div class="relative mt-2 rounded-xl border bg-surface-2/60 p-3 pr-10">
-							<Mono class="break-all">{linux}</Mono>
-							<Button
-								variant="ghost"
-								size="icon-sm"
-								class="absolute top-2 right-2"
-								aria-label="Copy command"
-								onclick={() => copy(linux)}><Copy /></Button
-							>
-						</div>
-						<p class="mt-2 text-sm text-muted-foreground">
-							Gets the installer from Hashi and the agent from the Hashi release, checks its SHA-256
-							and installs a service.
-						</p>
-					</Tabs.Content>
-					<Tabs.Content value="docker">
-						<div class="relative mt-2 rounded-xl border bg-surface-2/60 p-3 pr-10">
-							<pre class="overflow-x-auto font-mono text-sm">{compose}</pre>
-							<Button
-								variant="ghost"
-								size="icon-sm"
-								class="absolute top-2 right-2"
-								aria-label="Copy snippet"
-								onclick={() => copy(compose)}><Copy /></Button
-							>
-						</div>
-					</Tabs.Content>
-				</Tabs.Root>
-			{/if}
-		</div>
-		<Sheet.Footer class="flex-row justify-end gap-2 border-t">
-			{#if shown}
-				<Button onclick={() => (open = false)}>Done</Button>
-			{:else}
-				<Button variant="outline" onclick={() => (open = false)}>Cancel</Button>
-				<Button onclick={create} disabled={busy || !name.trim()}>Create agent</Button>
-			{/if}
-		</Sheet.Footer>
-	</Sheet.Content>
-</Sheet.Root>
-
-<Sheet.Root open={!!editing} onOpenChange={(o) => !o && (editing = null)}>
-	<Sheet.Content class="w-full sm:max-w-md">
-		<Sheet.Header>
-			<Sheet.Title>Edit agent</Sheet.Title>
-			<Sheet.Description>Its token stays the same.</Sheet.Description>
-		</Sheet.Header>
-		{#if editing}
-			<div class="space-y-4 overflow-y-auto px-4 text-md">
-				<div class="space-y-1.5">
-					<Label for="edit-name">Name</Label><Input id="edit-name" bind:value={editing.name} />
-				</div>
-				<label class="flex items-center justify-between gap-3">
-					<span>Give it an internal DNS name</span><Switch
-						bind:checked={editing.dns_enabled}
-						aria-label="Give it an internal DNS name"
-					/>
-				</label>
-				<div class="space-y-1.5">
-					<Label for="edit-dns">DNS name (optional)</Label><Input
-						id="edit-dns"
-						bind:value={editing.dns_name}
-						placeholder="Uses the agent's name"
-					/>
-					<p class="text-xs text-muted-foreground">Needed only if two agents would clash.</p>
-				</div>
-				<div class="space-y-1.5">
-					<Label for="edit-reach">Port to test from Hashi (optional)</Label><Input
-						id="edit-reach"
-						type="number"
-						min="0"
-						max="65535"
-						bind:value={editing.reach_port}
-					/>
-					<p class="text-xs text-muted-foreground">
-						Hashi tries this port on the selected address every minute. 0 turns it off.
-					</p>
-				</div>
-				<label class="flex items-center justify-between gap-3">
-					<span>Trust its own report of its public address</span><Switch
-						bind:checked={editing.trust_reported_ip}
-						aria-label="Trust its own report of its public address"
-					/>
-				</label>
-				<p class="text-xs text-muted-foreground">
-					For a machine that reaches Hashi only over a private path. The agent then asks Cloudflare
-					and OpenDNS every few minutes, and this address can reach firewall rules through IP sets.
-					If its token were stolen, someone could name any public address here.
-				</p>
-				{#if editError}<p role="alert" class="text-bad-text">{editError}</p>{/if}
-			</div>
-			<Sheet.Footer class="flex-row justify-end gap-2 border-t">
-				<Button variant="outline" onclick={() => (editing = null)}>Cancel</Button>
-				<Button onclick={saveEdit} disabled={busy || !editing.name.trim()}>Save changes</Button>
-			</Sheet.Footer>
-		{/if}
-	</Sheet.Content>
-</Sheet.Root>

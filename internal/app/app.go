@@ -195,6 +195,7 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 	ipSets.AddConsumers(services.Consumers)
 	ipSets.AddConsumers(dns.Consumers)
 	ipSets.AddConsumers(traefik.SSHConsumers)
+	ipSets.AddConsumers(rules.Consumers) // bug 57
 	traefikMgr.UseTargets(ipSets.ResolveTarget)
 	fwMgr.UseSSHTargets(ipSets.ResolveTarget)
 	dnsSvc.UseTargets(ipSets.ResolveTarget)
@@ -215,6 +216,10 @@ func Run(ctx context.Context, cfg Config, log *slog.Logger, ready func(adminAddr
 		return err
 	})
 	pulseSvc.OnChange(func(ctx context.Context) {
+		// Hosts behind a router that follow an agent take its new addresses first (bug 23).
+		if err := fwMgr.FollowAgents(ctx); err != nil {
+			log.Warn("firewall hosts after a Pulse address change", "err", err)
+		}
 		changed, err := ipSets.Recompile(ctx)
 		if err != nil {
 			log.Warn("IP sets after a Pulse address change", "err", err)

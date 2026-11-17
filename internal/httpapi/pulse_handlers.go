@@ -11,6 +11,7 @@ import (
 
 	"git.juzo.io/juzo/hashi/internal/audit"
 	"git.juzo.io/juzo/hashi/internal/httpapi/gen"
+	"git.juzo.io/juzo/hashi/internal/ipsets"
 	"git.juzo.io/juzo/hashi/internal/pulse"
 	"git.juzo.io/juzo/hashi/internal/settings"
 	"git.juzo.io/juzo/hashi/internal/sshx"
@@ -47,11 +48,13 @@ func (s *Server) pulseBody(ctx context.Context, r db.PulseAgent) gen.PulseAgent 
 		c = settings.Pulse{StaleFactor: 3}
 	}
 	cands := []string{}
+	addrs := []gen.PulseAddress{}
 	for _, c := range pulse.Candidates(r) {
 		cands = append(cands, c.Address)
+		addrs = append(addrs, gen.PulseAddress{Interface: c.Interface, Address: c.Address})
 	}
 	return gen.PulseAgent{Id: r.ID, Name: r.Name, Status: gen.PulseAgentStatus(pulse.Status(r, time.Now(), c.StaleFactor)), InstallType: r.InstallType, PublicIp: r.PublicIp, SelectedIp: r.SelectedIp,
-		Candidates: cands, Hostname: r.Hostname, Version: r.Version, ExpectedVersion: pulse.ReleaseTag, VersionState: gen.PulseAgentVersionState(pulse.VersionState(r.Version)), IntervalSeconds: int(r.IntervalSeconds), LastSeenAt: millis(r.LastSeenAt), DnsEnabled: r.DnsEnabled == 1, DnsName: r.DnsName, TrustReportedIp: r.TrustReportedIp == 1, PublicIpSource: gen.PulseAgentPublicIpSource(r.PublicIpSource), ReachPort: int(r.ReachPort), Reachable: reachable(r)}
+		PinnedIp: r.PinnedIp, Addresses: addrs, Candidates: cands, Hostname: r.Hostname, Version: r.Version, ExpectedVersion: pulse.ReleaseTag, VersionState: gen.PulseAgentVersionState(pulse.VersionState(r.Version)), IntervalSeconds: int(r.IntervalSeconds), LastSeenAt: millis(r.LastSeenAt), DnsEnabled: r.DnsEnabled == 1, DnsName: r.DnsName, TrustReportedIp: r.TrustReportedIp == 1, PublicIpSource: gen.PulseAgentPublicIpSource(r.PublicIpSource), ReachPort: int(r.ReachPort), Reachable: reachable(r)}
 }
 
 // PulseHeartbeat takes an agent's report. It needs the agent's token and nothing else (08 §3).
@@ -140,6 +143,20 @@ func (s *Server) UpdatePulseAgent(ctx context.Context, req gen.UpdatePulseAgentR
 		return nil, err
 	}
 	return gen.UpdatePulseAgent200JSONResponse(s.pulseBody(ctx, row)), nil
+}
+
+// SetPulseMainAddress pins the address services and DNS use for an agent, or gives the choice back to it (bug 22).
+func (s *Server) SetPulseMainAddress(ctx context.Context, req gen.SetPulseMainAddressRequestObject) (gen.SetPulseMainAddressResponseObject, error) {
+	row, err := s.Pulse.SetMainAddress(ctx, req.Id, strings.TrimSpace(req.Body.Address))
+	if err != nil {
+		return nil, pulseError(err)
+	}
+	ri := info(ctx)
+	if err := s.Audit.Record(ctx, s.Store.Q, audit.Event{Actor: s.actor(ri), Action: "pulse.agent.main_address", Target: row.ID, IP: ri.ipString(),
+		Detail: map[string]any{"pinned": row.PinnedIp, "selected": row.SelectedIp}}); err != nil {
+		return nil, err
+	}
+	return gen.SetPulseMainAddress200JSONResponse(s.pulseBody(ctx, row)), nil
 }
 
 func (s *Server) DeletePulseAgent(ctx context.Context, req gen.DeletePulseAgentRequestObject) (gen.DeletePulseAgentResponseObject, error) {
@@ -248,8 +265,18 @@ func (s *Server) GetPulseConsumers(ctx context.Context, req gen.GetPulseConsumer
 		return nil, err
 	}
 	ids := make([]string, 0, len(rows))
+	refs := []gen.IPSetRef{}
 	for _, r := range rows {
 		ids = append(ids, r.ID)
+		if r.ID != ipsets.AgentSetID(req.Id) {
+			refs = append(refs, gen.IPSetRef{Id: r.ID, Name: r.Name})
+		}
+	}
+	direct := []gen.IPSetConsumer{}
+	if cs, err := ipsets.Consumers(ctx, s.Store.R, ipsets.AgentSetID(req.Id), s.IPSets.Sources()); err == nil {
+		for _, c := range cs {
+			direct = append(direct, gen.IPSetConsumer{Type: c.Type, Id: c.ID, Name: c.Name, Position: gen.IPSetConsumerPosition(c.Position)})
+		}
 	}
 	sets, consumers := s.IPSets.Impact(ctx, ids)
 	if sets == nil {
@@ -258,7 +285,7 @@ func (s *Server) GetPulseConsumers(ctx context.Context, req gen.GetPulseConsumer
 	if consumers == nil {
 		consumers = []string{}
 	}
-	return gen.GetPulseConsumers200JSONResponse{Sets: sets, Consumers: consumers}, nil
+	return gen.GetPulseConsumers200JSONResponse{Sets: sets, Consumers: consumers, SetRefs: refs, Direct: direct}, nil
 }
 
 func (s *Server) GetPulseInstall(ctx context.Context, req gen.GetPulseInstallRequestObject) (gen.GetPulseInstallResponseObject, error) {

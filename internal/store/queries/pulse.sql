@@ -30,3 +30,6 @@ UPDATE pulse_agents SET reach_ok = ? WHERE id = ?;
 
 -- name: ClearPulseReportedIP :exec
 UPDATE pulse_agents SET public_ip = '', public_ip_source = '' WHERE id = ? AND public_ip_source = 'reported';
+
+-- name: SetPulsePinned :exec
+UPDATE pulse_agents SET pinned_ip = ?, selected_ip = ?, updated_at = ? WHERE id = ?;
