@@ -15,7 +15,7 @@ first, structure before text, search after the settings regroup.
 | --- | --- | --- | --- |
 | 13.1 | CI, code and runtime groundwork | 9, 11, 14, 16, 33, 46, 47, 50, 52, 53, 54, 55 | Three CI runs in a row green without a rerun; every action pinned to a SHA; deps bumped; `hashi-pulse --version` prints on a real agent; a timed-out script shows its output; a TCP check with a split greeting is up; a Traefik install survives one failed download on the dev target |
 | 13.2 | UI foundation: shared parts, browser chrome, drafts, SvelteKit 3 | 96, 1, 3, 6, 7, 8, 15, 40, 41, 42, 43, 44, 45, 60, 67, 69, 70, 71, 72, 73, 83, 91, 92 | Visual tests in all four themes at 390 and 1440 px; no page wider than the screen; every page has its title, the 橋 favicon, its tab in the address; leaving with unsaved edits asks; drafts survive category and tab switches |
-| 13.3 | Connections and targets | 17, 20, 22, 23, 24, 56, 57, 58, 63, 64, 66, 68, 90 | A firewall host, a Traefik host and an agent added from Connections; a service targets an agent directly and follows its main address change; Used by lists rules; every reference is a named link |
+| 13.3 | Connections and targets | 17, 20, 22, 23, 24, 56, 57, 58, 63, 64, 66, 68, 90, 97 | A firewall host, a Traefik host and an agent added from Connections; a service targets an agent directly and follows its main address change; Used by lists rules; every reference is a named link |
 | 13.4 | Settings regroup, text and disclosure on every page | 36, 38, 46 (Settings page split), 39, 48, 49, 51, 61, 62, 65, 78, 84, 93, 94 | Settings grouped as 10c §1; every page passes the 10c checklist; help sentences below 40 app-wide; owner walks every page and accepts it |
 | 13.5 | Plans, status and alerts tell the truth | 12, 34, 35, 59, 76, 77, 79, 80, 82, 85, 86, 87, 88 | Cause of the NetBird check failure known and the waiting firewall plan resolved with the owner; the approval screen says what is at stake; a real host outage sends one grouped alert |
 | 13.6 | Security and IP sets | 18, 26, 75, 81, 89 | Measured thresholds with 3× headroom; WAF exclusions by name; Counters and address links correct |
@@ -23,7 +23,14 @@ first, structure before text, search after the settings regroup.
 | 13.8 | Overview and public page assets | 30, 31 | Overview built from its mock with working widget settings; public page icons and logos replaceable |
 | 13.9 | Pulse on OpenWrt | 21 | Agent installed, started, self-updated and reporting its address on the owner's own OpenWrt router |
 
-Next: 13.2. After 13.9: a last bug sweep, then `v1.0.0`.
+Next: 13.3. After 13.9: a last bug sweep, then `v1.0.0`.
+
+**13.2 done** (2026-11-17, `v0.13.2-beta.1`, PR #69). Gate: the end-to-end run on the release commit walks all 16
+top-level pages at 390 and 1440 px in all four themes with no page wider than the screen, checks every title
+(`… · Hashi`), a tab surviving reload, a draft surviving a category switch and the leave prompt. On prod: smoke ok,
+version `v0.13.2-beta.1`, the page carries `theme-color` and the touch icon (200), the sign-in page has its title and
+no overflow. Not seen on prod: the signed-in pages (needs the owner's passkey); the same build passed them in e2e.
+Found on the way: bug 97 (sign-in redirect drops the tab), planned into 13.3.
 
 ### 13.2 checklist (one PR)
 
@@ -1010,6 +1017,10 @@ Decisions made in S0:
   so an open tab could skip the startup lines after a restart. Read from code, not observed.
 
 ## Log
+
+- 2026-11-17 · deploy `v0.13.2-beta.1` (`7f80d9b`, the owner's OK) · smoke ok (readyz, version, SPA, both public
+  pages). Release run 1230 green (image, pulse-release); the main CI run for the one-line version bump was cancelled
+  (its tree passed CI in #69).
 
 - 2026-11-16 · deploy `v0.13.1-beta.1` (`5d5e806`, the owner's OK) · smoke ok; the edge agent updated itself within a
   minute and passed the bug 14 check. CI (#68), measured on the last 300 runs before: CI ran on every PR and again on
