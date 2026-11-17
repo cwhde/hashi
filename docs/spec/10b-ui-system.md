@@ -58,7 +58,8 @@ first paint. `dark:` variants follow `data-mode`, not the OS.
 | `/traefik` | Traefik | Tabs: Hosts (version, update available, generated files and drift), Your middlewares (YAML editor + found names), Certificates |
 | `/firewall` | Firewall hosts | Global policy panel (IP sets bound to allow and to block, folded range counts, carve-out warnings); host panels (mode, subnets, ports, NetBird, host link, last apply, strip); external-NAT hosts show router port-forward instructions |
 | `/firewall/{id}` | Firewall host | Rescue path, NetBird, host link state; tabs: Ports (with conflicts), Host access (IP sets), Kernel sets (sizes, staging now, meter thresholds), Live ruleset (all tables, Hashi's highlighted), Generated (rendered nft JSON) |
-| `/pulse` | Pulse | Agents table (selected/public IP, candidates, reachability, freshness); add-agent drawer with Linux/Docker install |
+| `/pulse` | Pulse | Agents table (main/public IP, reachability, freshness); each name opens the agent |
+| `/pulse/[id]` | Pulse agent | Addresses per interface and the main-address choice, its own settings (DNS name, reach port, trust), what follows it |
 | `/status` | Status | Endpoint cards grouped by group or status with history strips; Notifications tab (recent deliveries, where alerts go, link to their setup) |
 | `/status/{id}` | Endpoint | Summary metrics + strip, range switch, three equal charts, events |
 | `/app-display` | App display | What the public dashboard (8081) and status page (8082) show, order and visibility |
@@ -70,7 +71,7 @@ first paint. `dark:` variants follow `data-mode`, not the OS.
 | `/rule-sets/{id}` | Rule set | Ordered entries (drag), item editor (IP set picker, condition, action, auth options), attach a rule set, used by, warnings |
 | `/scripts` | Scripts | Script list with run history ticks; editor, schedule, timeout, env, targets; runs with output |
 | `/activity` | Activity | Tabs: Audit log, Jobs (last/next run, result), Live log |
-| `/connections` | Connections | All external systems grouped by type, health, last check, required marker |
+| `/connections` | Connections | All external systems grouped by type, health, last check, required marker; adds and edits each (Traefik and firewall host SSH, Pulse agents with token and install, AdGuard); `?add=<kind>` opens its drawer for feature pages' add buttons |
 | `/settings` | Settings | Category list; Appearance (themes, custom theme editor with contrast guard, widgets), Account (passkeys, sessions, vault mode), General, Notifications (providers with add/edit, default route), and every category in 09 §2 |
 | `/states` | (reference) | Vault locked, empty, loading, error, confirmations |
 
