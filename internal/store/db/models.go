@@ -312,6 +312,7 @@ type FirewallHost struct {
 	UpdatedAt             int64
 	TakeoverJson          string
 	SshTargetSetID        sql.NullString
+	AddressAgentID        sql.NullString
 }
 
 type FirewallHostAccess struct {
@@ -583,6 +584,7 @@ type PulseAgent struct {
 	PublicIpSource  string
 	ReachPort       int64
 	ReachOk         sql.NullInt64
+	PinnedIp        string
 }
 
 type RecoveryKey struct {

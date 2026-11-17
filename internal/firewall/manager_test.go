@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/netip"
@@ -275,6 +276,138 @@ func TestSaveRefusesBadHosts(t *testing.T) {
 	addrs, err := e.m.hostAddrs(ctx, home.ID, ipsets.ScopePublic)
 	if err != nil || len(addrs) != 1 || addrs[0].String() != "198.51.100.44" {
 		t.Fatalf("external host addresses %v %v", addrs, err)
+	}
+}
+
+// Bug 23: a host behind a router takes its public and internal addresses from a Pulse agent and follows its changes;
+// a managed host and an unknown agent are refused; a hand-set address still wins.
+func TestHostFollowsAgent(t *testing.T) {
+	ctx := context.Background()
+	e := newEnv(t)
+	if err := e.st.Q.InsertPulseAgent(ctx, db.InsertPulseAgentParams{ID: "A1", Name: "home", TokenHash: []byte("x"), InstallType: "linux", CreatedAt: 1, UpdatedAt: 1}); err != nil {
+		t.Fatal(err)
+	}
+	beat := func(public string) {
+		if err := e.st.Q.SetPulseHeartbeat(ctx, db.SetPulseHeartbeatParams{PublicIp: public, PublicIpSource: "connection",
+			CandidatesJson: `[{"interface":"eth0","address":"10.77.0.5"},{"interface":"wg0","address":"100.64.0.9"}]`, SelectedIp: "100.64.0.9",
+			IntervalSeconds: 60, InstallType: "linux", ID: "A1"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	beat("198.51.100.7")
+	in := managedInput(t)
+	in.AddressAgentID = "A1"
+	if _, err := e.m.Save(ctx, "admin", "", "", in); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("a managed host following an agent: %v", err)
+	}
+	if _, err := e.m.Save(ctx, "admin", "", "", HostInput{Name: "home", EdgeMode: ModeExternalNAT, AddressAgentID: "nope"}); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("unknown agent: %v", err)
+	}
+	home, err := e.m.Save(ctx, "admin", "", "", HostInput{Name: "home", EdgeMode: ModeExternalNAT, AddressAgentID: "A1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	addrs := func(scope string) string {
+		got, err := e.m.hostAddrs(ctx, home.ID, scope)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return fmt.Sprint(got)
+	}
+	if got := addrs(ipsets.ScopePublic); got != "[198.51.100.7]" {
+		t.Fatalf("public from the agent: %s", got)
+	}
+	if got := addrs(ipsets.ScopeInternal); got != "[100.64.0.9 10.77.0.5]" {
+		t.Fatalf("internal from the agent, main address first: %s", got)
+	}
+	beat("198.51.100.8")
+	if err := e.m.FollowAgents(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if got := addrs(ipsets.ScopePublic); got != "[198.51.100.8]" {
+		t.Fatalf("after the agent moved: %s", got)
+	}
+	if _, err := e.m.Save(ctx, "admin", "", home.ID, HostInput{Name: "home", EdgeMode: ModeExternalNAT, AddressAgentID: "A1", PublicIPOverride: "203.0.113.1"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := addrs(ipsets.ScopePublic); got != "[203.0.113.1]" {
+		t.Fatalf("a hand-set address wins: %s", got)
+	}
+}
+
+// Bug 58: the address lookup gets each managed host's verdict with the deciding prefix and set, and whether host
+// access lets the address reach the host itself; a host behind a router has no verdict.
+func TestExplainAddress(t *testing.T) {
+	ctx := context.Background()
+	e := newEnv(t)
+	h, err := e.m.Save(ctx, "admin", "", "", managedInput(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.m.Save(ctx, "admin", "", "", HostInput{Name: "edge-b", EdgeMode: ModeExternalNAT, PublicIPOverride: "198.51.100.44"}); err != nil {
+		t.Fatal(err)
+	}
+	ed := ipsets.Editor{}
+	block, _ := ipsets.CreateSet(ctx, e.st.Q, ipsets.SetInput{Slug: "bad", Name: "bad"}, now)
+	allow, _ := ipsets.CreateSet(ctx, e.st.Q, ipsets.SetInput{Slug: "me", Name: "me"}, now)
+	for set, item := range map[string]string{block.ID: "203.0.113.0/24", allow.ID: "203.0.113.7"} {
+		it, _ := ipsets.ParseIPOrCIDR(item)
+		if _, err := ed.AddElement(ctx, e.st.Q, set, ipsets.ElementInput{Item: it}, "t", now); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := e.m.PutBindings(ctx, "admin", "", Bindings{Allow: []string{allow.ID}, Block: []string{block.ID}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.m.PutHostAccess(ctx, "admin", "", h.ID, []string{allow.ID}); err != nil {
+		t.Fatal(err)
+	}
+	for addr, want := range map[string]string{
+		"203.0.113.7": "allowed 203.0.113.7/32 me true",
+		"203.0.113.8": "blocked 203.0.113.0/24 bad false",
+		"192.0.2.1":   "neutral invalid Prefix  false",
+	} {
+		vs, err := e.m.Explain(ctx, netip.MustParseAddr(addr))
+		if err != nil || len(vs) != 1 || vs[0].HostID != h.ID {
+			t.Fatalf("%s: %+v %v", addr, vs, err)
+		}
+		if got := fmt.Sprintf("%s %s %s %v", vs[0].Verdict, vs[0].Prefix, vs[0].SetName, vs[0].HostAccess); got != want {
+			t.Errorf("%s: %s, want %s", addr, got, want)
+		}
+	}
+}
+
+// Bug 24: a host's SSH address or key can change from Connections. The host is then validated and confirmed again
+// before any plan; a new key (another machine) also reads its ruleset again, a new address alone keeps it.
+func TestHostMoves(t *testing.T) {
+	ctx := context.Background()
+	e := newEnv(t)
+	in := managedInput(t)
+	h, err := e.m.Save(ctx, "admin", "", "", in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.m.Validate(ctx, h.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := e.m.ConfirmOwnership(ctx, "admin", "", h.ID); err != nil {
+		t.Fatal(err)
+	}
+	in.Host = "198.18.3.2"
+	moved, err := e.m.Save(ctx, "admin", "", h.ID, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if moved.SshHost != "198.18.3.2" || moved.OwnershipConfirmedAt.Valid || moved.LastValidatedAt.Valid || moved.SetupRuleset == "" {
+		t.Fatalf("new address: %+v", moved)
+	}
+	if _, err := e.eng.Propose(ctx, Subsystem, h.ID, hsync.TriggerManual, "admin"); err == nil {
+		t.Fatal("a moved host was planned before it was confirmed again")
+	}
+	in.HostKey = hostKey(t)
+	other, err := e.m.Save(ctx, "admin", "", h.ID, in)
+	if err != nil || other.SetupRuleset != "" {
+		t.Fatalf("new key keeps the old machine's ruleset: %q %v", other.SetupRuleset, err)
 	}
 }
 

@@ -88,6 +88,17 @@
 		mode: 'read_only' as Conn['mode'],
 		save_inactive: false
 	});
+	// Bug 90: HTTP has no certificate to check, so its fields go; the port follows the scheme while it is the default.
+	// Through a Pulse agent only HTTPS is allowed (the password must reach the real instance).
+	function schemeChanged(v: string) {
+		if (f.port === (v === 'http' ? '443' : '80')) f.port = v === 'http' ? '80' : '443';
+	}
+	$effect(() => {
+		if (f.target === 'agent' && f.scheme === 'http') {
+			f.scheme = 'https';
+			schemeChanged('https');
+		}
+	});
 	let open = $state(false);
 	let editing = $state<string | null>(null);
 	let f = $state(blank());
@@ -120,12 +131,12 @@
 				name: f.name,
 				target_set_id: f.target === 'set' ? f.target_set_id : undefined,
 				target_agent_id: f.target === 'agent' ? f.target_agent_id : undefined,
-				tls_fingerprint: f.tls_fingerprint || undefined,
+				tls_fingerprint: (f.scheme === 'https' && f.tls_fingerprint) || undefined,
 				port: Number(f.port),
 				scheme: f.scheme,
 				path_prefix: f.path_prefix || undefined,
-				tls_verify: f.tls_verify,
-				server_name: f.server_name || undefined,
+				tls_verify: f.scheme === 'https' && f.tls_verify,
+				server_name: (f.scheme === 'https' && f.server_name) || undefined,
 				username: f.username || undefined,
 				password: f.password || undefined,
 				mode: f.mode,
@@ -260,11 +271,11 @@
 			<div class="grid grid-cols-[1fr_6rem] gap-3">
 				<div class="space-y-1.5">
 					<Label for="ag-scheme">Scheme</Label>
-					<Select.Root type="single" bind:value={f.scheme}>
+					<Select.Root type="single" bind:value={f.scheme} onValueChange={schemeChanged}>
 						<Select.Trigger id="ag-scheme" class="w-full">{f.scheme.toUpperCase()}</Select.Trigger>
 						<Select.Content>
 							<Select.Item value="https">HTTPS</Select.Item>
-							<Select.Item value="http">HTTP</Select.Item>
+							<Select.Item value="http" disabled={f.target === 'agent'}>HTTP</Select.Item>
 						</Select.Content>
 					</Select.Root>
 				</div>
@@ -276,31 +287,33 @@
 					/>
 				</div>
 			</div>
-			<div class="space-y-1.5">
-				<Label for="ag-fp">Certificate fingerprint</Label><Input
-					id="ag-fp"
-					class="font-mono"
-					bind:value={f.tls_fingerprint}
-				/>
-				<p class="text-xs text-muted-foreground">
-					For a self-signed certificate: its SHA-256. Hashi then accepts only that exact
-					certificate, and the two settings below are not needed.
-				</p>
-			</div>
-			<div class="space-y-1.5">
-				<Label for="ag-host">Expected hostname</Label><Input
-					id="ag-host"
-					bind:value={f.server_name}
-					placeholder="ns.example.com"
-				/>
-				<p class="text-xs text-muted-foreground">The name on its certificate.</p>
-			</div>
-			<label class="flex items-center justify-between gap-3 text-md">
-				<span>Check the certificate</span><Switch
-					bind:checked={f.tls_verify}
-					aria-label="Check the certificate"
-				/>
-			</label>
+			{#if f.scheme === 'https'}
+				<div class="space-y-1.5">
+					<Label for="ag-fp">Certificate fingerprint</Label><Input
+						id="ag-fp"
+						class="font-mono"
+						bind:value={f.tls_fingerprint}
+					/>
+					<p class="text-xs text-muted-foreground">
+						For a self-signed certificate: its SHA-256. Hashi then accepts only that exact
+						certificate, and the two settings below are not needed.
+					</p>
+				</div>
+				<div class="space-y-1.5">
+					<Label for="ag-host">Expected hostname</Label><Input
+						id="ag-host"
+						bind:value={f.server_name}
+						placeholder="ns.example.com"
+					/>
+					<p class="text-xs text-muted-foreground">The name on its certificate.</p>
+				</div>
+				<label class="flex items-center justify-between gap-3 text-md">
+					<span>Check the certificate</span><Switch
+						bind:checked={f.tls_verify}
+						aria-label="Check the certificate"
+					/>
+				</label>
+			{/if}
 			<div class="space-y-1.5">
 				<Label for="ag-user">Username</Label><Input
 					id="ag-user"

@@ -571,3 +571,47 @@ func TestReplyNamesUpdate(t *testing.T) {
 		t.Fatalf("updates are off: %+v", r)
 	}
 }
+
+// Bug 22: the admin pins the main address; the beat keeps it while the agent reports it, an internal item lists it
+// first, an address the agent never reported is refused, and "" gives the choice back.
+func TestMainAddressPinned(t *testing.T) {
+	s, now := fixture(t)
+	ctx := t.Context()
+	a, tok, err := s.Create(ctx, "box", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	beat := func(cands ...Candidate) db.PulseAgent {
+		t.Helper()
+		*now = now.Add(time.Minute)
+		if _, err := s.Heartbeat(ctx, a.ID, tok.Reveal(), Beat{Candidates: cands}, netip.MustParseAddr("192.0.2.9")); err != nil {
+			t.Fatal(err)
+		}
+		r, _ := s.get(ctx, a.ID)
+		return r
+	}
+	both := []Candidate{{"eth0", "10.0.0.5"}, {"wg0", "100.64.0.2"}}
+	if r := beat(both...); r.SelectedIp != "10.0.0.5" {
+		t.Fatalf("agent's choice %q", r.SelectedIp)
+	}
+	if _, err := s.SetMainAddress(ctx, a.ID, "10.9.9.9"); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("an address it never reported: %v", err)
+	}
+	r, err := s.SetMainAddress(ctx, a.ID, "100.64.0.2")
+	if err != nil || r.SelectedIp != "100.64.0.2" || r.PinnedIp != "100.64.0.2" {
+		t.Fatalf("pin: %+v %v", r, err)
+	}
+	if r := beat(both...); r.SelectedIp != "100.64.0.2" {
+		t.Fatalf("the beat replaced the pin: %q", r.SelectedIp)
+	}
+	got, err := s.Addrs(ctx, s.st.R, a.ID, ipsets.ScopeInternal, "")
+	if err != nil || len(got) == 0 || got[0].String() != "100.64.0.2" {
+		t.Fatalf("internal item order: %v %v", got, err)
+	}
+	if r := beat(both[0]); r.SelectedIp != "10.0.0.5" || r.PinnedIp != "100.64.0.2" {
+		t.Fatalf("pinned address gone: selected %q, pin %q", r.SelectedIp, r.PinnedIp)
+	}
+	if r, err := s.SetMainAddress(ctx, a.ID, ""); err != nil || r.PinnedIp != "" {
+		t.Fatalf("unpin: %+v %v", r, err)
+	}
+}

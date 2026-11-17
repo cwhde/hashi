@@ -6,6 +6,7 @@
 	import { Skeleton } from '#lib/components/ui/skeleton/index.ts';
 	import { api, problemText } from '#lib/api/client.ts';
 	import { session, routeFor } from '#lib/auth/session.svelte.ts';
+	import { signInHref } from '#lib/auth/next.ts';
 	import { theme } from '#lib/theme.svelte.ts';
 	import { setTimeDisplay } from '#lib/format.ts';
 
@@ -18,8 +19,7 @@
 			const s = await session.refresh();
 			const away = routeFor(s, page.url.pathname);
 			if (away) {
-				const next = away === '/login' ? `?next=${encodeURIComponent(page.url.pathname)}` : '';
-				goto(away + next, { replace: true });
+				goto(away === '/login' ? signInHref(page.url) : away, { replace: true });
 				return;
 			}
 			ready = true;

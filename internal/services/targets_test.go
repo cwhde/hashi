@@ -131,3 +131,49 @@ func TestStreamWithoutName(t *testing.T) {
 		t.Fatal("an HTTP service without a name")
 	}
 }
+
+// Bug 17: a service targets a Pulse agent directly. It is stored as the agent's hidden set and read back as the
+// agent; the hidden set goes once nothing uses it; routes and an unknown agent are refused.
+func TestAgentTarget(t *testing.T) {
+	ctx := context.Background()
+	st := newStore(t)
+	if err := st.Q.InsertPulseAgent(ctx, db.InsertPulseAgentParams{ID: "A1", Name: "nas", TokenHash: []byte("x"), InstallType: "linux", CreatedAt: 1, UpdatedAt: 1}); err != nil {
+		t.Fatal(err)
+	}
+	s := web()
+	s.Target = Target{AgentID: "missing", Port: 80}
+	var inv *InvalidError
+	if _, err := Create(ctx, st.Q, s, now); !errors.As(err, &inv) || inv.Field != "target.agent_id" {
+		t.Fatalf("unknown agent: %v", err)
+	}
+	s.Target = Target{AgentID: "A1", Address: "192.0.2.1", Port: 80}
+	if _, err := Create(ctx, st.Q, s, now); !errors.As(err, &inv) {
+		t.Fatalf("agent and address together: %v", err)
+	}
+	s.Target = Target{AgentID: "A1", Port: 80}
+	created, err := Create(ctx, st.Q, s, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := Get(ctx, st.Q, created.ID)
+	if err != nil || got.Target.AgentID != "A1" || got.Target.SetID != ipsets.AgentSetID("A1") {
+		t.Fatalf("read back %+v %v", got.Target, err)
+	}
+	// Saving what was read (both fields filled) is one target, not two.
+	if _, err := Update(ctx, st.Q, got, now); err != nil {
+		t.Fatalf("save as read: %v", err)
+	}
+	route := got
+	route.AdvancedRoutes = true
+	route.Routes = []Route{{Enabled: true, Targets: []Target{{AgentID: "A1", Port: 80}}, PathMatch: MatchPrefix, PathValue: "/x", Priority: 5, RewriteMode: RewriteNone}}
+	if _, err := Update(ctx, st.Q, route, now); !errors.As(err, &inv) || !strings.HasPrefix(inv.Field, "routes[0]") {
+		t.Fatalf("agent in a route: %v", err)
+	}
+	got.Target = Target{Address: "192.0.2.5", Port: 80}
+	if _, err := Update(ctx, st.Q, got, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.Q.GetIPSet(ctx, ipsets.AgentSetID("A1")); err == nil {
+		t.Fatal("the unused hidden set stayed")
+	}
+}

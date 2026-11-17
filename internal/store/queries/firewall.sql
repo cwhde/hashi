@@ -15,7 +15,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 UPDATE firewall_hosts
 SET name = ?, traefik_connection_id = ?, internal_traefik_ip = ?, route_via_host_id = ?, public_ip_override = ?,
     public_ip6_override = ?, wan_iface_override = ?, subnets_json = ?, netbird_mode = ?, netbird_iface = ?,
-    netbird_port = ?, drop_inbound_accepted_at = ?, updated_at = ?
+    netbird_port = ?, drop_inbound_accepted_at = ?, address_agent_id = ?, updated_at = ?
 WHERE id = ?;
 
 -- name: SetFirewallHostDetected :exec
@@ -71,3 +71,22 @@ UPDATE firewall_hosts SET ssh_target_set_id = ? WHERE id = ?;
 
 -- name: ListFirewallHostsBySSHTarget :many
 SELECT id, name FROM firewall_hosts WHERE ssh_target_set_id = ? ORDER BY name;
+
+-- name: ListFirewallHostsFollowingAgents :many
+SELECT * FROM firewall_hosts WHERE address_agent_id IS NOT NULL;
+
+-- name: SetFirewallHostAgentAddresses :exec
+UPDATE firewall_hosts SET public_ip = ?, public_ip6 = ?, internal_ips_json = ?, updated_at = ? WHERE id = ?;
+
+-- name: UpdateFirewallHostAccess :exec
+-- A moved host (bug 24): new address, login or key. What validation found and the ownership confirmation belong to the
+-- old address, so the host is validated and confirmed again before any plan; a new key also means a new machine, whose
+-- ruleset is read again.
+UPDATE firewall_hosts
+SET ssh_host = ?, ssh_port = ?, ssh_user = ?, auth = ?, credential_secret_id = ?, passphrase_secret_id = ?, host_key_type = ?,
+    host_key = ?, host_key_fingerprint = ?, health = 'unknown', last_validated_at = NULL, last_validation_error = '',
+    ownership_confirmed_at = NULL, facts_json = '{}', updated_at = ?
+WHERE id = ?;
+
+-- name: ClearFirewallHostSetupRuleset :exec
+UPDATE firewall_hosts SET setup_ruleset = '' WHERE id = ?;

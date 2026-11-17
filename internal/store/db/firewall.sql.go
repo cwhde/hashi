@@ -10,6 +10,15 @@ import (
 	"database/sql"
 )
 
+const clearFirewallHostSetupRuleset = `-- name: ClearFirewallHostSetupRuleset :exec
+UPDATE firewall_hosts SET setup_ruleset = '' WHERE id = ?
+`
+
+func (q *Queries) ClearFirewallHostSetupRuleset(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, clearFirewallHostSetupRuleset, id)
+	return err
+}
+
 const confirmFirewallHostOwnership = `-- name: ConfirmFirewallHostOwnership :exec
 UPDATE firewall_hosts SET ownership_confirmed_at = ?, updated_at = ? WHERE id = ?
 `
@@ -64,7 +73,7 @@ func (q *Queries) DeleteFirewallHostAccess(ctx context.Context, hostID string) e
 }
 
 const getFirewallHost = `-- name: GetFirewallHost :one
-SELECT id, name, edge_mode, ssh_host, ssh_port, ssh_user, auth, credential_secret_id, passphrase_secret_id, host_key_type, host_key, host_key_fingerprint, traefik_connection_id, internal_traefik_ip, route_via_host_id, public_ip, public_ip6, public_ip_override, public_ip6_override, wan_iface, wan_iface_override, subnets_json, internal_ips_json, netbird_mode, netbird_iface, netbird_port, drop_inbound_accepted_at, facts_json, setup_ruleset, ownership_confirmed_at, health, last_validated_at, last_validation_error, last_applied_hash, last_applied_at, created_at, updated_at, takeover_json, ssh_target_set_id FROM firewall_hosts WHERE id = ?
+SELECT id, name, edge_mode, ssh_host, ssh_port, ssh_user, auth, credential_secret_id, passphrase_secret_id, host_key_type, host_key, host_key_fingerprint, traefik_connection_id, internal_traefik_ip, route_via_host_id, public_ip, public_ip6, public_ip_override, public_ip6_override, wan_iface, wan_iface_override, subnets_json, internal_ips_json, netbird_mode, netbird_iface, netbird_port, drop_inbound_accepted_at, facts_json, setup_ruleset, ownership_confirmed_at, health, last_validated_at, last_validation_error, last_applied_hash, last_applied_at, created_at, updated_at, takeover_json, ssh_target_set_id, address_agent_id FROM firewall_hosts WHERE id = ?
 `
 
 func (q *Queries) GetFirewallHost(ctx context.Context, id string) (FirewallHost, error) {
@@ -110,6 +119,7 @@ func (q *Queries) GetFirewallHost(ctx context.Context, id string) (FirewallHost,
 		&i.UpdatedAt,
 		&i.TakeoverJson,
 		&i.SshTargetSetID,
+		&i.AddressAgentID,
 	)
 	return i, err
 }
@@ -302,7 +312,7 @@ func (q *Queries) ListFirewallHostAccess(ctx context.Context, hostID string) ([]
 }
 
 const listFirewallHosts = `-- name: ListFirewallHosts :many
-SELECT id, name, edge_mode, ssh_host, ssh_port, ssh_user, auth, credential_secret_id, passphrase_secret_id, host_key_type, host_key, host_key_fingerprint, traefik_connection_id, internal_traefik_ip, route_via_host_id, public_ip, public_ip6, public_ip_override, public_ip6_override, wan_iface, wan_iface_override, subnets_json, internal_ips_json, netbird_mode, netbird_iface, netbird_port, drop_inbound_accepted_at, facts_json, setup_ruleset, ownership_confirmed_at, health, last_validated_at, last_validation_error, last_applied_hash, last_applied_at, created_at, updated_at, takeover_json, ssh_target_set_id FROM firewall_hosts ORDER BY name
+SELECT id, name, edge_mode, ssh_host, ssh_port, ssh_user, auth, credential_secret_id, passphrase_secret_id, host_key_type, host_key, host_key_fingerprint, traefik_connection_id, internal_traefik_ip, route_via_host_id, public_ip, public_ip6, public_ip_override, public_ip6_override, wan_iface, wan_iface_override, subnets_json, internal_ips_json, netbird_mode, netbird_iface, netbird_port, drop_inbound_accepted_at, facts_json, setup_ruleset, ownership_confirmed_at, health, last_validated_at, last_validation_error, last_applied_hash, last_applied_at, created_at, updated_at, takeover_json, ssh_target_set_id, address_agent_id FROM firewall_hosts ORDER BY name
 `
 
 func (q *Queries) ListFirewallHosts(ctx context.Context) ([]FirewallHost, error) {
@@ -354,6 +364,7 @@ func (q *Queries) ListFirewallHosts(ctx context.Context) ([]FirewallHost, error)
 			&i.UpdatedAt,
 			&i.TakeoverJson,
 			&i.SshTargetSetID,
+			&i.AddressAgentID,
 		); err != nil {
 			return nil, err
 		}
@@ -398,6 +409,97 @@ func (q *Queries) ListFirewallHostsBySSHTarget(ctx context.Context, sshTargetSet
 		return nil, err
 	}
 	return items, nil
+}
+
+const listFirewallHostsFollowingAgents = `-- name: ListFirewallHostsFollowingAgents :many
+SELECT id, name, edge_mode, ssh_host, ssh_port, ssh_user, auth, credential_secret_id, passphrase_secret_id, host_key_type, host_key, host_key_fingerprint, traefik_connection_id, internal_traefik_ip, route_via_host_id, public_ip, public_ip6, public_ip_override, public_ip6_override, wan_iface, wan_iface_override, subnets_json, internal_ips_json, netbird_mode, netbird_iface, netbird_port, drop_inbound_accepted_at, facts_json, setup_ruleset, ownership_confirmed_at, health, last_validated_at, last_validation_error, last_applied_hash, last_applied_at, created_at, updated_at, takeover_json, ssh_target_set_id, address_agent_id FROM firewall_hosts WHERE address_agent_id IS NOT NULL
+`
+
+func (q *Queries) ListFirewallHostsFollowingAgents(ctx context.Context) ([]FirewallHost, error) {
+	rows, err := q.db.QueryContext(ctx, listFirewallHostsFollowingAgents)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []FirewallHost{}
+	for rows.Next() {
+		var i FirewallHost
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.EdgeMode,
+			&i.SshHost,
+			&i.SshPort,
+			&i.SshUser,
+			&i.Auth,
+			&i.CredentialSecretID,
+			&i.PassphraseSecretID,
+			&i.HostKeyType,
+			&i.HostKey,
+			&i.HostKeyFingerprint,
+			&i.TraefikConnectionID,
+			&i.InternalTraefikIp,
+			&i.RouteViaHostID,
+			&i.PublicIp,
+			&i.PublicIp6,
+			&i.PublicIpOverride,
+			&i.PublicIp6Override,
+			&i.WanIface,
+			&i.WanIfaceOverride,
+			&i.SubnetsJson,
+			&i.InternalIpsJson,
+			&i.NetbirdMode,
+			&i.NetbirdIface,
+			&i.NetbirdPort,
+			&i.DropInboundAcceptedAt,
+			&i.FactsJson,
+			&i.SetupRuleset,
+			&i.OwnershipConfirmedAt,
+			&i.Health,
+			&i.LastValidatedAt,
+			&i.LastValidationError,
+			&i.LastAppliedHash,
+			&i.LastAppliedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.TakeoverJson,
+			&i.SshTargetSetID,
+			&i.AddressAgentID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const setFirewallHostAgentAddresses = `-- name: SetFirewallHostAgentAddresses :exec
+UPDATE firewall_hosts SET public_ip = ?, public_ip6 = ?, internal_ips_json = ?, updated_at = ? WHERE id = ?
+`
+
+type SetFirewallHostAgentAddressesParams struct {
+	PublicIp        string
+	PublicIp6       string
+	InternalIpsJson string
+	UpdatedAt       int64
+	ID              string
+}
+
+func (q *Queries) SetFirewallHostAgentAddresses(ctx context.Context, arg SetFirewallHostAgentAddressesParams) error {
+	_, err := q.db.ExecContext(ctx, setFirewallHostAgentAddresses,
+		arg.PublicIp,
+		arg.PublicIp6,
+		arg.InternalIpsJson,
+		arg.UpdatedAt,
+		arg.ID,
+	)
+	return err
 }
 
 const setFirewallHostApplied = `-- name: SetFirewallHostApplied :exec
@@ -522,11 +624,53 @@ func (q *Queries) SetFirewallHostTakeover(ctx context.Context, arg SetFirewallHo
 	return err
 }
 
+const updateFirewallHostAccess = `-- name: UpdateFirewallHostAccess :exec
+UPDATE firewall_hosts
+SET ssh_host = ?, ssh_port = ?, ssh_user = ?, auth = ?, credential_secret_id = ?, passphrase_secret_id = ?, host_key_type = ?,
+    host_key = ?, host_key_fingerprint = ?, health = 'unknown', last_validated_at = NULL, last_validation_error = '',
+    ownership_confirmed_at = NULL, facts_json = '{}', updated_at = ?
+WHERE id = ?
+`
+
+type UpdateFirewallHostAccessParams struct {
+	SshHost            string
+	SshPort            int64
+	SshUser            string
+	Auth               string
+	CredentialSecretID sql.NullString
+	PassphraseSecretID sql.NullString
+	HostKeyType        string
+	HostKey            []byte
+	HostKeyFingerprint string
+	UpdatedAt          int64
+	ID                 string
+}
+
+// A moved host (bug 24): new address, login or key. What validation found and the ownership confirmation belong to the
+// old address, so the host is validated and confirmed again before any plan; a new key also means a new machine, whose
+// ruleset is read again.
+func (q *Queries) UpdateFirewallHostAccess(ctx context.Context, arg UpdateFirewallHostAccessParams) error {
+	_, err := q.db.ExecContext(ctx, updateFirewallHostAccess,
+		arg.SshHost,
+		arg.SshPort,
+		arg.SshUser,
+		arg.Auth,
+		arg.CredentialSecretID,
+		arg.PassphraseSecretID,
+		arg.HostKeyType,
+		arg.HostKey,
+		arg.HostKeyFingerprint,
+		arg.UpdatedAt,
+		arg.ID,
+	)
+	return err
+}
+
 const updateFirewallHostSettings = `-- name: UpdateFirewallHostSettings :exec
 UPDATE firewall_hosts
 SET name = ?, traefik_connection_id = ?, internal_traefik_ip = ?, route_via_host_id = ?, public_ip_override = ?,
     public_ip6_override = ?, wan_iface_override = ?, subnets_json = ?, netbird_mode = ?, netbird_iface = ?,
-    netbird_port = ?, drop_inbound_accepted_at = ?, updated_at = ?
+    netbird_port = ?, drop_inbound_accepted_at = ?, address_agent_id = ?, updated_at = ?
 WHERE id = ?
 `
 
@@ -543,6 +687,7 @@ type UpdateFirewallHostSettingsParams struct {
 	NetbirdIface          string
 	NetbirdPort           int64
 	DropInboundAcceptedAt sql.NullInt64
+	AddressAgentID        sql.NullString
 	UpdatedAt             int64
 	ID                    string
 }
@@ -561,6 +706,7 @@ func (q *Queries) UpdateFirewallHostSettings(ctx context.Context, arg UpdateFire
 		arg.NetbirdIface,
 		arg.NetbirdPort,
 		arg.DropInboundAcceptedAt,
+		arg.AddressAgentID,
 		arg.UpdatedAt,
 		arg.ID,
 	)

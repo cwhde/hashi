@@ -77,10 +77,12 @@ var (
 )
 
 // Target is one upstream: a literal address (an IP or a host name) or an address set (05a §5.2) whose resolved
-// addresses are load-balanced. Exactly one of Address and SetID is set.
+// addresses are load-balanced. Exactly one of Address and SetID is set. AgentID names a Pulse agent instead (bug 17,
+// the service's own target only): saving turns it into the agent's hidden set, reading fills it back from that set.
 type Target struct {
 	Address string `json:"address,omitempty"`
 	SetID   string `json:"set_id,omitempty"`
+	AgentID string `json:"agent_id,omitempty"`
 	Port    int    `json:"port"`
 	Weight  int    `json:"weight,omitempty"`
 }
@@ -224,6 +226,9 @@ func insert(ctx context.Context, q *db.Queries, s Service, now time.Time) error 
 	if err != nil {
 		return err
 	}
+	if s, err = agentTarget(ctx, q, s, now); err != nil {
+		return err
+	}
 	s = normalized(s)
 	if err := Validate(s, n); err != nil {
 		return err
@@ -266,6 +271,13 @@ func update(ctx context.Context, q *db.Queries, s Service, now time.Time) error 
 	if err != nil {
 		return err
 	}
+	old, err := q.GetService(ctx, s.ID)
+	if err != nil {
+		return err
+	}
+	if s, err = agentTarget(ctx, q, s, now); err != nil {
+		return err
+	}
 	s = normalized(s)
 	if err := Validate(s, n); err != nil {
 		return err
@@ -290,7 +302,48 @@ func update(ctx context.Context, q *db.Queries, s Service, now time.Time) error 
 	if err := q.DeleteServiceRoutes(ctx, s.ID); err != nil {
 		return err
 	}
+	if old.TargetSetID.String != s.Target.SetID {
+		dropAgentSet(ctx, q, old.TargetSetID.String)
+	}
 	return putRoutes(ctx, q, s, ms)
+}
+
+// agentTarget points an agent target at the agent's hidden set: an agent is still used through one pulse item (08 §4).
+func agentTarget(ctx context.Context, q *db.Queries, s Service, now time.Time) (Service, error) {
+	for i, r := range s.Routes {
+		for j, t := range r.Targets {
+			if _, hidden := ipsets.AgentOf(t.SetID); hidden || t.AgentID != "" {
+				return s, invalid(fmt.Sprintf("routes[%d].targets[%d].agent_id", i, j), "a route cannot follow a Pulse agent directly: put the agent in an IP set")
+			}
+		}
+	}
+	t := s.Target
+	if t.AgentID == "" {
+		return s, nil
+	}
+	if t.Address != "" || (t.SetID != "" && t.SetID != ipsets.AgentSetID(t.AgentID)) {
+		return s, invalid("target.agent_id", "give an address, a Pulse agent or an IP set, not two")
+	}
+	a, err := q.GetPulseAgent(ctx, t.AgentID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return s, invalid("target.agent_id", "no Pulse agent %s", t.AgentID)
+	}
+	if err != nil {
+		return s, err
+	}
+	if s.Target.SetID, err = ipsets.EnsureAgentSet(ctx, q, a.ID, a.Name, now); err != nil {
+		return s, err
+	}
+	s.Target.AgentID = ""
+	return s, nil
+}
+
+// dropAgentSet removes an agent's hidden set once nothing uses it, so it never blocks removing the agent. A set still
+// in use stays: every column that references it is ON DELETE RESTRICT, and routes cannot hold one (agentTarget).
+func dropAgentSet(ctx context.Context, q *db.Queries, setID string) {
+	if _, ok := ipsets.AgentOf(setID); ok {
+		_ = q.DeleteIPSet(ctx, setID)
+	}
 }
 
 // SetEnabled turns a user service on or off; disabled services stay stored but are not rendered (04 §7).
@@ -318,7 +371,11 @@ func Delete(ctx context.Context, q *db.Queries, id string) (Service, error) {
 	if cur.System() {
 		return Service{}, ErrSystem
 	}
-	return cur, q.DeleteService(ctx, id)
+	if err := q.DeleteService(ctx, id); err != nil {
+		return cur, err
+	}
+	dropAgentSet(ctx, q, cur.Target.SetID)
+	return cur, nil
 }
 
 // EnsureSystem creates or updates the Hashi admin service from General settings (02 §1.6): admin domain → internal
@@ -469,6 +526,9 @@ func fromRow(r db.Service, routes []db.ServiceRoute) (Service, error) {
 		s.Routes = append(s.Routes, Route{ID: rr.ID, Enabled: rr.Enabled == 1, Targets: t, Kind: rr.Kind, PathMatch: rr.PathMatch,
 			PathValue: rr.PathValue, Priority: int(rr.Priority), RewriteMode: rr.RewriteMode,
 			RewritePattern: rr.RewritePattern, RewriteValue: rr.RewriteValue, Middlewares: mws})
+	}
+	if id, ok := ipsets.AgentOf(s.Target.SetID); ok {
+		s.Target.AgentID = id
 	}
 	return s, nil
 }

@@ -36,20 +36,51 @@ export function domainMode(host: string, root: string): Service['domain_mode'] {
 	return host.endsWith('.' + root) ? 'subdomain' : 'custom';
 }
 
-/** "192.0.2.5:8080" or "[2001:db8::5]:8080", with "×3" for a weight. */
-export function targetText(t: Target): string {
-	if (t.set_id) return `@${t.set_id}:${t.port}`;
+/** The upstream picker's choice (bug 17): an address, a Pulse agent or an IP set. */
+export type Upstream = {
+	mode: 'address' | 'agent' | 'set';
+	address: string;
+	agentId: string;
+	setId: string;
+};
+
+export function upstreamOf(t?: Target): Upstream {
+	const u: Upstream = { mode: 'address', address: '', agentId: '', setId: '' };
+	if (!t) return u;
+	if (t.agent_id) return { ...u, mode: 'agent', agentId: t.agent_id };
+	if (t.set_id) return { ...u, mode: 'set', setId: t.set_id };
+	return { ...u, address: t.address };
+}
+
+export function upstreamTarget(u: Upstream, port: number): Target {
+	if (u.mode === 'agent') return { address: '', agent_id: u.agentId, port };
+	if (u.mode === 'set') return { address: '', set_id: u.setId, port };
+	return { address: u.address.trim(), port };
+}
+
+/** Whether the choice names its address, agent or set. */
+export const upstreamChosen = (u: Upstream) =>
+	!!(u.mode === 'agent' ? u.agentId : u.mode === 'set' ? u.setId : u.address.trim());
+
+/** A route target as editable text: "192.0.2.5:8080", "[2001:db8::5]:8080", "@office:443" (a set by its slug), with
+ * "*3" for a weight. sets maps a set's ID to its slug (bug 63: never an internal ID). */
+export function targetText(t: Target, sets: { id: string; slug: string }[] = []): string {
+	if (t.set_id) return `@${sets.find((s) => s.id === t.set_id)?.slug ?? t.set_id}:${t.port}`;
 	const host = t.address.includes(':') ? `[${t.address}]` : t.address;
-	return `${host}:${t.port}${t.weight && t.weight > 1 ? ` ×${t.weight}` : ''}`;
+	return `${host}:${t.port}${t.weight && t.weight > 1 ? `*${t.weight}` : ''}`;
 }
 
 /** Parses "address:port[*weight]" entries separated by commas or spaces; `bad` names the first entry that does not parse. */
-export function parseTargets(text: string): { targets: Target[]; bad?: string } {
+export function parseTargets(
+	text: string,
+	sets: { id: string; slug: string }[] = []
+): { targets: Target[]; bad?: string } {
 	const targets: Target[] = [];
 	for (const raw of text.split(/[\s,]+/).filter(Boolean)) {
-		const set = /^@([0-9A-Za-z]+):(\d{1,5})$/.exec(raw); // an address set, as targetText writes it
+		const set = /^@([0-9A-Za-z-]+):(\d{1,5})$/.exec(raw); // an address set by slug (or ID), as targetText writes it
 		if (set) {
-			targets.push({ address: '', set_id: set[1], port: Number(set[2]) });
+			const id = sets.find((s) => s.slug === set[1])?.id ?? set[1];
+			targets.push({ address: '', set_id: id, port: Number(set[2]) });
 			continue;
 		}
 		const m = /^(\[[^\]]+\]|[^:[\]*]+):(\d{1,5})(?:\*(\d{1,4}))?$/.exec(raw);
@@ -107,7 +138,8 @@ export function newRoute(routes: Route[], target: Target): Route {
 	const top = routes.reduce((m, r) => Math.max(m, r.priority), 0);
 	return {
 		enabled: true,
-		targets: [{ ...target }],
+		// A route cannot follow an agent directly (bug 17): it starts empty then, for an address or an agent's set.
+		targets: target.agent_id ? [] : [{ ...target }],
 		path_match: 'prefix',
 		path_value: '/',
 		priority: Math.min(top + 10, 9999),

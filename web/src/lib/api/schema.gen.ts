@@ -1503,6 +1503,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/pulse/agents/{id}/main-address": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Pin the address services and DNS use for this agent, or give the choice back to it */
+        put: operations["setPulseMainAddress"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/pulse/agents/{id}/rotate-token": {
         parameters: {
             query?: never;
@@ -2055,7 +2072,11 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        put?: never;
+        /**
+         * Change a Traefik host's name, SSH address, login or pinned key (bug 24)
+         * @description A changed address or key belongs to another machine: what validation found is cleared and the host is validated and taken over again, as when it was added. Empty credentials keep the stored ones.
+         */
+        put: operations["updateTraefikHost"];
         post?: never;
         /** Forget a Traefik host; nothing on the host itself changes */
         delete: operations["removeTraefikHost"];
@@ -2724,6 +2745,23 @@ export interface paths {
         head?: never;
         /** Set an address's ban or challenge counter (it decays from now) or restart a challenge's failure count */
         patch: operations["editAddressCounters"];
+        trace?: never;
+    };
+    "/api/services/{id}/publication": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Where the service is published (public records, AdGuard answer), the host it sits behind, and why a part is missing */
+        get: operations["getServicePublication"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/addresses/{address}": {
@@ -3936,7 +3974,12 @@ export interface components {
             status: "waiting" | "fresh" | "stale" | "revoked";
             install_type: string;
             public_ip: string;
+            /** @description The main address: what services, DNS and internal pulse items use first */
             selected_ip: string;
+            /** @description The admin's choice of main address (bug 22); empty = the agent chooses */
+            pinned_ip: string;
+            /** @description Every address the agent reports, with its interface */
+            addresses: components["schemas"]["PulseAddress"][];
             candidates: string[];
             hostname: string;
             version: string;
@@ -3958,6 +4001,14 @@ export interface components {
             trust_reported_ip: boolean;
             /** @enum {string} */
             public_ip_source: "" | "connection" | "reported";
+        };
+        PulseAddress: {
+            interface: string;
+            address: string;
+        };
+        PulseMainAddress: {
+            /** @description One of the agent's reported addresses; empty gives the choice back to the agent */
+            address: string;
         };
         PulseAgentList: {
             agents: components["schemas"]["PulseAgent"][];
@@ -4631,10 +4682,12 @@ export interface components {
             cron_files: string[];
         };
         ServiceTarget: {
-            /** @description IP address or host name; empty when set_id names an address set */
+            /** @description IP address or host name; empty when set_id or agent_id is given */
             address: string;
             /** @description An address set (05a §5.2) whose addresses are load-balanced; instead of address */
             set_id?: string;
+            /** @description A Pulse agent whose internal addresses are followed (the service's own target only); instead of address and set_id */
+            agent_id?: string;
             port: number;
             /** @description Load-balancing weight; 0 or absent = 1 */
             weight?: number;
@@ -5117,6 +5170,8 @@ export interface components {
             slug: string;
             name: string;
             description?: string;
+            /** @description On create only: added in the same step; a refused item creates nothing (bug 66) */
+            first_item?: components["schemas"]["IPSetElementInput"];
         };
         IPSetProblem: {
             set_id: string;
@@ -5250,6 +5305,39 @@ export interface components {
             /** @description Normalized (IPv4-mapped IPv6 shown as IPv4) */
             address: string;
             sets: components["schemas"]["AddressSetMatch"][];
+            /** @description One verdict per managed firewall host (05 §4.3) */
+            firewall: components["schemas"]["AddressHostVerdict"][];
+        };
+        ServicePublication: {
+            /** @description The firewall host the upstream sits behind (03 §5.2); absent when none matches */
+            host_id?: string;
+            host_name?: string;
+            records: components["schemas"]["PublishedRecord"][];
+            /** @description The AdGuard answer for the name; absent when there is none */
+            rewrite?: string;
+            /** @description Why nothing or only part is published; empty when everything is */
+            reason: string;
+        };
+        PublishedRecord: {
+            name: string;
+            type: string;
+            values: string[];
+        };
+        AddressHostVerdict: {
+            host_id: string;
+            host_name: string;
+            /**
+             * @description Global allow against block, longest prefix wins, tie blocks
+             * @enum {string}
+             */
+            verdict: "allowed" | "blocked" | "neutral";
+            /** @description The deciding prefix; absent when neutral */
+            prefix?: string;
+            /** @description The bound set the deciding prefix came from */
+            set_id?: string;
+            set_name?: string;
+            /** @description The host's own access sets contain the address (it may reach the host itself) */
+            host_access: boolean;
         };
         AddressSetMatch: {
             set: components["schemas"]["IPSet"];
@@ -5285,6 +5373,8 @@ export interface components {
             internal_traefik_ip?: string;
             /** @description Entry host for this host's services (on. → via.<entry>) */
             route_via_host_id?: string;
+            /** @description external_nat: take the public and internal addresses from this Pulse agent (bug 23) */
+            address_agent_id?: string;
             public_ip_override?: string;
             public_ip6_override?: string;
             wan_iface_override?: string;
@@ -5339,6 +5429,10 @@ export interface components {
             /** @description Effective (override, else detected) */
             public_ip: string;
             public_ip6: string;
+            /** @description The Pulse agent the addresses come from; absent = detected or set by hand */
+            address_agent_id?: string;
+            /** @description Addresses host items with scope internal resolve to */
+            internal_ips?: string[];
             public_ip_override: string;
             public_ip6_override: string;
             /** @description Effective (override, else detected) */
@@ -8043,6 +8137,33 @@ export interface operations {
             default: components["responses"]["Problem"];
         };
     };
+    setPulseMainAddress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PulseMainAddress"];
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PulseAgent"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
     rotatePulseToken: {
         parameters: {
             query?: never;
@@ -8985,6 +9106,33 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TraefikConnectionInput"];
+            };
+        };
+        responses: {
+            /** @description The connection */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TraefikConnection"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    updateTraefikHost: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
             cookie?: never;
         };
         requestBody: {
@@ -10313,6 +10461,29 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CounterRow"];
+                };
+            };
+            default: components["responses"]["Problem"];
+        };
+    };
+    getServicePublication: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The publication */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServicePublication"];
                 };
             };
             default: components["responses"]["Problem"];

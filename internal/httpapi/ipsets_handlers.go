@@ -207,16 +207,38 @@ func (s *Server) changeIPSet(ctx context.Context, action string, setID func() st
 }
 
 func (s *Server) CreateIPSet(ctx context.Context, req gen.CreateIPSetRequestObject) (gen.CreateIPSetResponseObject, error) {
+	var first *ipsets.ElementInput
+	if req.Body.FirstItem != nil {
+		in, err := elementInput(*req.Body.FirstItem)
+		if err != nil {
+			return nil, ipSetError(err)
+		}
+		first = &in
+	}
 	var set ipsets.Set
 	err := s.changeIPSet(ctx, "ip_set.created", func() string { return set.ID }, func(q *db.Queries) (map[string]any, error) {
 		var err error
-		set, err = ipsets.CreateSet(ctx, q, setInput(*req.Body), s.now())
-		return map[string]any{"slug": set.Slug, "name": set.Name}, err
+		if set, err = ipsets.CreateSet(ctx, q, setInput(*req.Body), s.now()); err != nil {
+			return nil, err
+		}
+		detail := map[string]any{"slug": set.Slug, "name": set.Name}
+		if first != nil { // one transaction: a refused first item leaves no empty set behind (bug 66)
+			e, err := s.IPSets.Editor().AddElement(ctx, q, set.ID, *first, s.actor(info(ctx)), s.now())
+			if err != nil {
+				return nil, err
+			}
+			detail["first_element_id"] = e.ID
+		}
+		return detail, nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	return gen.CreateIPSet200JSONResponse(ipSetBody(set, ipsets.Result{Status: ipsets.StatusEmpty})), nil
+	body, err := s.ipSetSummary(ctx, s.Store.R, set.ID)
+	if err != nil {
+		return nil, ipSetError(err)
+	}
+	return gen.CreateIPSet200JSONResponse(body), nil
 }
 
 func (s *Server) UpdateIPSet(ctx context.Context, req gen.UpdateIPSetRequestObject) (gen.UpdateIPSetResponseObject, error) {
@@ -419,6 +441,21 @@ func (s *Server) LookupAddress(ctx context.Context, req gen.LookupAddressRequest
 				Label: ipsets.Describe(g, x.Item)})
 		}
 		out.Sets = append(out.Sets, m)
+	}
+	out.Firewall = []gen.AddressHostVerdict{}
+	if s.Firewall != nil {
+		vs, err := s.Firewall.Explain(ctx, a)
+		if err != nil {
+			return nil, err
+		}
+		for _, v := range vs {
+			x := gen.AddressHostVerdict{HostId: v.HostID, HostName: v.HostName, Verdict: gen.AddressHostVerdictVerdict(v.Verdict),
+				HostAccess: v.HostAccess, SetId: emptyNil(v.SetID), SetName: emptyNil(v.SetName)}
+			if v.Prefix.IsValid() {
+				x.Prefix = ptr(v.Prefix.String())
+			}
+			out.Firewall = append(out.Firewall, x)
+		}
 	}
 	return gen.LookupAddress200JSONResponse(out), nil
 }

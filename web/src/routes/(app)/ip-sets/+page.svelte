@@ -100,20 +100,16 @@
 		formError = '';
 		try {
 			const slug = form.slug.trim().toLowerCase();
+			// One step: a refused first item creates nothing and its reason shows here (bug 66).
 			const r = await api.POST('/api/ip-sets', {
-				body: { slug, name: slug, description: form.description }
+				body: {
+					slug,
+					name: slug,
+					description: form.description,
+					first_item: form.withItem ? elementInput(item) : undefined
+				}
 			});
 			if (r.error || !r.data) throw r.error;
-			if (form.withItem) {
-				const e = await api.POST('/api/ip-sets/{id}/elements', {
-					params: { path: { id: r.data.id } },
-					body: elementInput(item)
-				});
-				if (e.error) {
-					await goto(`/ip-sets/${r.data.id}?first=failed`);
-					return;
-				}
-			}
 			await goto(`/ip-sets/${r.data.id}`);
 		} catch (e) {
 			formError = problemText(e);

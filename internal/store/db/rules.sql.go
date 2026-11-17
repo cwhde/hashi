@@ -395,16 +395,18 @@ func (q *Queries) ListRuleEntries(ctx context.Context) ([]RuleEntry, error) {
 }
 
 const listRuleItemsUsingIPSet = `-- name: ListRuleItemsUsingIPSet :many
-SELECT s.id, s.slug, s.name, s.kind, s.service_id FROM rule_entries e JOIN rule_sets s ON s.id = e.rule_set_id
+SELECT s.id, s.slug, s.name, s.kind, s.service_id, COALESCE(v.name, '') AS service_name
+FROM rule_entries e JOIN rule_sets s ON s.id = e.rule_set_id LEFT JOIN services v ON v.id = s.service_id
 WHERE e.applies_to_set_id = ? GROUP BY s.id ORDER BY s.slug
 `
 
 type ListRuleItemsUsingIPSetRow struct {
-	ID        string
-	Slug      string
-	Name      string
-	Kind      string
-	ServiceID sql.NullString
+	ID          string
+	Slug        string
+	Name        string
+	Kind        string
+	ServiceID   sql.NullString
+	ServiceName string
 }
 
 func (q *Queries) ListRuleItemsUsingIPSet(ctx context.Context, appliesToSetID sql.NullString) ([]ListRuleItemsUsingIPSetRow, error) {
@@ -422,6 +424,7 @@ func (q *Queries) ListRuleItemsUsingIPSet(ctx context.Context, appliesToSetID sq
 			&i.Name,
 			&i.Kind,
 			&i.ServiceID,
+			&i.ServiceName,
 		); err != nil {
 			return nil, err
 		}

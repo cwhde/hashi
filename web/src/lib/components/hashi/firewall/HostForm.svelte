@@ -1,7 +1,8 @@
 <script lang="ts">
 	// A new firewall host (02 §1 step 6, 05 §2): the host key is shown and pinned only after the admin compares it;
 	// saving validates over SSH read-only. An external NAT host has nothing to log in to.
-	import { untrack } from 'svelte';
+	import { onMount, untrack } from 'svelte';
+	import { pulseAgents } from '#lib/pulseAgents.svelte.ts';
 	import { Button } from '#lib/components/ui/button/index.ts';
 	import { Input } from '#lib/components/ui/input/index.ts';
 	import { Label } from '#lib/components/ui/label/index.ts';
@@ -40,8 +41,10 @@
 		traefikIp: untrack(() => addrOf(conns[0])),
 		subnets: untrack(() => subnetOf(addrOf(conns[0]))),
 		publicIp: '',
+		agent: '',
 		entry: ''
 	});
+	onMount(() => void pulseAgents.load());
 	// Another Traefik means another network: its address and subnet follow, the admin can still edit both.
 	function pickTraefik() {
 		const a = addrOf(conns.find((c) => c.id === form.traefikId));
@@ -67,7 +70,8 @@
 		traefik_connection_id: form.traefikId,
 		internal_traefik_ip: form.traefikIp.trim(),
 		subnets: lines(form.subnets),
-		public_ip_override: form.publicIp.trim() || undefined,
+		public_ip_override: (!form.agent && form.publicIp.trim()) || undefined,
+		address_agent_id: (form.mode === 'external_nat' && form.agent) || undefined,
 		route_via_host_id: form.mode === 'external_nat' ? form.entry : '',
 		netbird_mode: 'disabled'
 	});
@@ -184,9 +188,23 @@
 		{/if}
 	{:else}
 		<div class="space-y-1.5">
-			<Label for="fw-pub">Public address</Label>
-			<Input id="fw-pub" bind:value={form.publicIp} class="h-10" required />
+			<Label for="fw-src">Its address comes from</Label>
+			<select
+				id="fw-src"
+				bind:value={form.agent}
+				class="h-10 w-full rounded-[10px] border bg-transparent px-3 text-md"
+			>
+				<option value="">What I type here</option>
+				{#each pulseAgents.list as a (a.id)}<option value={a.id}>Pulse agent {a.name}</option
+					>{/each}
+			</select>
 		</div>
+		{#if !form.agent}
+			<div class="space-y-1.5">
+				<Label for="fw-pub">Public address</Label>
+				<Input id="fw-pub" bind:value={form.publicIp} class="h-10" required />
+			</div>
+		{/if}
 		{#if hosts.length}
 			<div class="space-y-1.5">
 				<Label for="fw-entry">Public traffic enters through</Label>

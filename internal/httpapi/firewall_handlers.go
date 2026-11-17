@@ -33,7 +33,7 @@ func firewallInput(b gen.FirewallHostInput) firewall.HostInput {
 		TraefikConnectionID: str(b.TraefikConnectionId), InternalTraefikIP: str(b.InternalTraefikIp),
 		RouteViaHostID: str(b.RouteViaHostId), PublicIPOverride: str(b.PublicIpOverride),
 		PublicIP6Override: str(b.PublicIp6Override), WANOverride: str(b.WanIfaceOverride), NetBirdIface: str(b.NetbirdIface),
-		DropInbound: deref(b.DropOtherInbound)}
+		DropInbound: deref(b.DropOtherInbound), AddressAgentID: str(b.AddressAgentId)}
 	if b.Port != nil {
 		in.Port = *b.Port
 	}
@@ -81,7 +81,13 @@ func firewallBody(row db.FirewallHost) gen.FirewallHost {
 		WanIfaceOverride: row.WanIfaceOverride, Subnets: subnets, NetbirdMode: gen.FirewallHostNetbirdMode(row.NetbirdMode),
 		NetbirdIface: row.NetbirdIface, NetbirdPort: int(row.NetbirdPort), DropOtherInbound: row.DropInboundAcceptedAt.Valid,
 		OwnershipConfirmed: row.OwnershipConfirmedAt.Valid, Health: gen.FirewallHostHealth(row.Health),
-		LastError: row.LastValidationError, LastValidatedAt: msTime(row.LastValidatedAt), LastAppliedAt: msTime(row.LastAppliedAt)}
+		LastError: row.LastValidationError, LastValidatedAt: msTime(row.LastValidatedAt), LastAppliedAt: msTime(row.LastAppliedAt),
+		AddressAgentId: emptyNil(row.AddressAgentID.String)}
+	internal := make([]string, 0, len(e.Internal))
+	for _, a := range e.Internal {
+		internal = append(internal, a.String())
+	}
+	out.InternalIps = &internal
 	if f := e.Facts; f.NftVersion != "" || f.Kernel != "" {
 		facts := gen.FirewallFacts{Kernel: f.Kernel, Os: f.OSPretty, NftVersion: f.NftVersion, IptablesBackend: f.IptablesBackend,
 			Tables: nonNil(f.Tables), Wan: f.WAN, Candidates: []string{}, SshFrom: addr(f.SSHFrom), Warnings: nonNil(f.Warnings())}

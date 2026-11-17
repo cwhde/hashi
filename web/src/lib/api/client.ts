@@ -1,6 +1,7 @@
 // Typed API client generated from api/openapi.yaml (`pnpm generate:api`). Never hand-write request types.
 import createClient, { type Middleware } from 'openapi-fetch';
 import type { components, paths } from './schema.gen';
+import { signInHref } from '#lib/auth/next.ts';
 
 export type Schemas = components['schemas'];
 export type Problem = Schemas['Problem'];
@@ -28,8 +29,7 @@ export const sessionEndedMiddleware: Middleware = {
 	onResponse({ response }) {
 		if (response.status !== 401 || typeof location === 'undefined') return;
 		if (publicPaths.some((p) => location.pathname.startsWith(p))) return;
-		const next = encodeURIComponent(location.pathname + location.search);
-		location.assign(`/login?ended=1&next=${next}`);
+		location.assign(signInHref(location, true));
 	}
 };
 
