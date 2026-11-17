@@ -23,7 +23,7 @@ Every registered host appears in the system IP set `hashi-hosts` (05a §3), whic
 | Mode | When | Hashi manages |
 | --- | --- | --- |
 | `managed` | Host owns its public IP (e.g. a VPS) | Everything in this file |
-| `external_nat` | Host sits behind a router/NAT it doesn't control (e.g. home) | No firewall artifacts. Host records still exist (public IP detected from the host's egress, from a Pulse agent, or set manually); it is in `hashi-hosts`; the UI shows which ports must be forwarded on the router; the typical setup routes its `on.` record via a `managed` host. |
+| `external_nat` | Host sits behind a router/NAT it doesn't control (e.g. home) | No firewall artifacts. Host records still exist (public IP detected from the host's egress, from a Pulse agent, or set manually; following an agent also takes its private addresses as the host's internal ones, main address first); it is in `hashi-hosts`; the UI shows which ports must be forwarded on the router; the typical setup routes its `on.` record via a `managed` host. |
 
 ## 2. Setup and validation
 
